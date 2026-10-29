@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Gatling barrel processor hero illustration</title>
+  <desc id="desc">Eight luminous hardware contexts rotate around one shared RV32I datapath, with descriptor cards entering from the left and data streams leaving on the right.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050D18"/>
+      <stop offset="0.52" stop-color="#0A1B2D"/>
+      <stop offset="1" stop-color="#102A3B"/>
+    </linearGradient>
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#29D3E2" stop-opacity="0.20"/>
+      <stop offset="0.55" stop-color="#29D3E2" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#29D3E2" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173B52"/>
+      <stop offset="1" stop-color="#0B1E31"/>
+    </linearGradient>
+    <linearGradient id="dataCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#42E8F5" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#42E8F5" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="dataGold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFCB6B" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FFCB6B" stop-opacity="0.05"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#91C7D8" stroke-opacity="0.045" stroke-width="1"/>
+      <circle cx="0" cy="0" r="1.4" fill="#91C7D8" fill-opacity="0.08"/>
+    </pattern>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000712" flood-opacity="0.55"/>
+    </filter>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#42E8F5"/>
+    </marker>
+    <marker id="arrowGold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#FFCB6B"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+  <ellipse cx="810" cy="450" rx="510" ry="390" fill="url(#coreGlow)"/>
+  <circle cx="1450" cy="90" r="250" fill="#1B8CA6" opacity="0.035" filter="url(#softGlow)"/>
+  <circle cx="120" cy="840" r="260" fill="#FFCB6B" opacity="0.025" filter="url(#softGlow)"/>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif">
+    <text x="96" y="105" fill="#74A9BA" font-size="15" font-weight="600" letter-spacing="5">PROJECT GATLING</text>
+    <text x="92" y="179" fill="#F2FAFC" font-size="72" font-weight="700" letter-spacing="3">BARREL</text>
+    <text x="98" y="222" fill="#B6D2DC" font-size="25" font-weight="400" letter-spacing="0.8">N contexts. One datapath.</text>
+    <path d="M98 249H292" stroke="#FFCB6B" stroke-width="3"/>
+    <path d="M304 249H350" stroke="#42E8F5" stroke-width="3"/>
+  </g>
+
+  <g opacity="0.95">
+    <text x="142" y="377" fill="#74A9BA" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" letter-spacing="3">DESCRIPTORS</text>
+    <g transform="rotate(-7 248 500)" filter="url(#shadow)">
+      <rect x="150" y="410" width="190" height="116" rx="12" fill="#102B40" stroke="#38647A" stroke-width="2"/>
+      <rect x="150" y="410" width="9" height="116" rx="4" fill="#FFCB6B"/>
+      <circle cx="187" cy="445" r="8" fill="#FFCB6B" opacity="0.9"/>
+      <path d="M211 441H306M211 457H282M178 489H306" stroke="#8EB4C2" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+    </g>
+    <g transform="rotate(5 282 572)" filter="url(#shadow)">
+      <rect x="188" y="514" width="190" height="116" rx="12" fill="#102B40" stroke="#38647A" stroke-width="2"/>
+      <rect x="188" y="514" width="9" height="116" rx="4" fill="#42E8F5"/>
+      <circle cx="225" cy="549" r="8" fill="#42E8F5" opacity="0.9"/>
+      <path d="M249 545H344M249 561H320M216 593H344" stroke="#8EB4C2" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+    </g>
+    <path d="M405 485C485 485 512 454 574 454" fill="none" stroke="#42E8F5" stroke-width="3" stroke-opacity="0.65" marker-end="url(#arrowCyan)"/>
+    <path d="M420 534C489 534 518 491 567 478" fill="none" stroke="#FFCB6B" stroke-width="2" stroke-opacity="0.45"/>
+  </g>
+
+  <g>
+    <circle cx="800" cy="450" r="215" fill="none" stroke="#325269" stroke-width="1" stroke-dasharray="3 12" opacity="0.55"/>
+    <circle cx="800" cy="450" r="190" fill="none" stroke="#2E596E" stroke-width="3"/>
+    <circle cx="800" cy="450" r="190" fill="none" stroke="#42E8F5" stroke-width="7" stroke-linecap="round" stroke-dasharray="58 91" stroke-dashoffset="12" opacity="0.62" filter="url(#glow)"/>
+    <circle cx="800" cy="450" r="190" fill="none" stroke="#FFCB6B" stroke-width="5" stroke-linecap="round" stroke-dasharray="30 119" stroke-dashoffset="-48" opacity="0.58"/>
+    <path d="M665 286A205 205 0 0 1 905 272" fill="none" stroke="#FFCB6B" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowGold)"/>
+  </g>
+
+  <g filter="url(#shadow)" font-family="Inter, Helvetica, Arial, sans-serif">
+    <g stroke="#3B8297" stroke-width="4" stroke-linecap="round">
+      <path d="M680 393H700M680 430H700M680 470H700M680 507H700"/>
+      <path d="M900 393H920M900 430H920M900 470H920M900 507H920"/>
+    </g>
+    <rect x="700" y="360" width="200" height="180" rx="22" fill="url(#chip)" stroke="#67D9E7" stroke-width="2.5"/>
+    <rect x="714" y="374" width="172" height="152" rx="15" fill="none" stroke="#6EA4B7" stroke-opacity="0.24"/>
+    <circle cx="800" cy="395" r="4" fill="#FFCB6B" filter="url(#glow)"/>
+    <text x="800" y="445" text-anchor="middle" fill="#F3FCFE" font-size="35" font-weight="700" letter-spacing="2">RV32I</text>
+    <text x="800" y="479" text-anchor="middle" fill="#9CC6D3" font-size="13" font-weight="600" letter-spacing="2.2">ONE SHARED</text>
+    <text x="800" y="500" text-anchor="middle" fill="#9CC6D3" font-size="13" font-weight="600" letter-spacing="2.2">DATAPATH</text>
+  </g>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">
+    <g><circle cx="800" cy="250" r="28" fill="#0D2639" stroke="#42E8F5" stroke-width="3" filter="url(#glow)"/><text x="800" y="255" fill="#CFFBFF">H0</text></g>
+    <g><circle cx="934" cy="316" r="28" fill="#0D2639" stroke="#FFCB6B" stroke-width="3"/><text x="934" y="321" fill="#FFF0C9">H1</text></g>
+    <g><circle cx="990" cy="450" r="28" fill="#0D2639" stroke="#42E8F5" stroke-width="3" filter="url(#glow)"/><text x="990" y="455" fill="#CFFBFF">H2</text></g>
+    <g><circle cx="934" cy="584" r="28" fill="#0D2639" stroke="#FFCB6B" stroke-width="3"/><text x="934" y="589" fill="#FFF0C9">H3</text></g>
+    <g><circle cx="800" cy="650" r="28" fill="#0D2639" stroke="#42E8F5" stroke-width="3" filter="url(#glow)"/><text x="800" y="655" fill="#CFFBFF">H4</text></g>
+    <g><circle cx="666" cy="584" r="28" fill="#0D2639" stroke="#FFCB6B" stroke-width="3"/><text x="666" y="589" fill="#FFF0C9">H5</text></g>
+    <g><circle cx="610" cy="450" r="28" fill="#0D2639" stroke="#42E8F5" stroke-width="3" filter="url(#glow)"/><text x="610" y="455" fill="#CFFBFF">H6</text></g>
+    <g><circle cx="666" cy="316" r="28" fill="#0D2639" stroke="#FFCB6B" stroke-width="3"/><text x="666" y="321" fill="#FFF0C9">H7</text></g>
+  </g>
+
+  <g>
+    <text x="1320" y="286" fill="#74A9BA" font-family="Inter, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" letter-spacing="3">DATA BEATS</text>
+    <path d="M1030 382C1180 330 1320 354 1530 296" fill="none" stroke="url(#dataCyan)" stroke-width="8" stroke-linecap="round"/>
+    <path d="M1040 433C1220 420 1340 442 1540 408" fill="none" stroke="url(#dataGold)" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1035 493C1200 522 1350 507 1530 544" fill="none" stroke="url(#dataCyan)" stroke-width="8" stroke-linecap="round"/>
+    <path d="M1015 548C1190 620 1350 610 1515 666" fill="none" stroke="url(#dataGold)" stroke-width="4" stroke-linecap="round"/>
+    <g fill="#42E8F5" opacity="0.8" filter="url(#glow)">
+      <rect x="1180" y="337" width="48" height="12" rx="6" transform="rotate(-5 1204 343)"/>
+      <rect x="1328" y="499" width="58" height="12" rx="6" transform="rotate(2 1357 505)"/>
+    </g>
+    <g fill="#FFCB6B" opacity="0.8">
+      <rect x="1260" y="421" width="42" height="10" rx="5" transform="rotate(3 1281 426)"/>
+      <rect x="1190" y="589" width="46" height="10" rx="5" transform="rotate(13 1213 594)"/>
+    </g>
+  </g>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif">
+    <text x="96" y="812" fill="#6F9AAA" font-size="13" font-weight="600" letter-spacing="3.5">BARREL PROCESSING FOR DMA CONTROL</text>
+    <text x="1504" y="812" text-anchor="end" fill="#6F9AAA" font-size="13" letter-spacing="2">RTL DESIGN SHERPA</text>
+  </g>
+</svg>

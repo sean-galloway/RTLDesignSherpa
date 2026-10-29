@@ -1,0 +1,166 @@
+// render: no-key
+digraph dma_fsm_barrel_slot_sharing {
+    graph [
+        rankdir=TB,
+        bgcolor="white",
+        fontname="Helvetica",
+        fontsize=11,
+        label=<<B>RAPIDS-G channel mapping: one Gatling per direction</B>>,
+        labelloc=t,
+        labeljust=c,
+        pad=0.20,
+        nodesep=0.24,
+        ranksep=0.50,
+        splines=ortho
+    ];
+    node [fontname="Helvetica", fontsize=10, color="#333333"];
+    edge [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    subgraph cluster_8ch {
+        label=<<B>8-channel default: one slot per hart</B>>;
+        labelloc=t;
+        fontname="Helvetica";
+        fontsize=12;
+        color="#999999";
+        style="rounded";
+        margin=18;
+
+        core8 [
+            shape=box,
+            style="rounded,filled",
+            fillcolor="#D6E4F0",
+            margin="0.16,0.10",
+            label="One Gatling barrel\n8 harts, one shared datapath\nsame firmware image"
+        ];
+        rotation8 [
+            shape=box,
+            style="rounded,filled",
+            fillcolor="#F2F2F2",
+            margin="0.14,0.08",
+            label="H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → repeat\nEach hart issues once every 8 clocks"
+        ];
+        core8 -> rotation8 [xlabel="one instruction per clock"];
+
+        mapping8 [
+            shape=plain,
+            label=<
+                <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+                    <TR>
+                        <TD WIDTH="88" HEIGHT="26" BGCOLOR="#D6E4F0"><B>H0</B></TD>
+                        <TD WIDTH="88" HEIGHT="26" BGCOLOR="#D6E4F0"><B>H1</B></TD>
+                        <TD WIDTH="88" HEIGHT="26" BGCOLOR="#D6E4F0"><B>H2</B></TD>
+                        <TD WIDTH="88" HEIGHT="26" BGCOLOR="#D6E4F0"><B>H3</B></TD>
+                    </TR>
+                    <TR>
+                        <TD HEIGHT="28" BGCOLOR="#E2EFDA">slot 0: CH0</TD>
+                        <TD HEIGHT="28" BGCOLOR="#E2EFDA">slot 0: CH1</TD>
+                        <TD HEIGHT="28" BGCOLOR="#E2EFDA">slot 0: CH2</TD>
+                        <TD HEIGHT="28" BGCOLOR="#E2EFDA">slot 0: CH3</TD>
+                    </TR>
+                    <TR>
+                        <TD HEIGHT="26" BGCOLOR="#D6E4F0"><B>H4</B></TD>
+                        <TD HEIGHT="26" BGCOLOR="#D6E4F0"><B>H5</B></TD>
+                        <TD HEIGHT="26" BGCOLOR="#D6E4F0"><B>H6</B></TD>
+                        <TD HEIGHT="26" BGCOLOR="#D6E4F0"><B>H7</B></TD>
+                    </TR>
+                    <TR>
+                        <TD HEIGHT="28" BGCOLOR="#E2EFDA">slot 0: CH4</TD>
+                        <TD HEIGHT="28" BGCOLOR="#E2EFDA">slot 0: CH5</TD>
+                        <TD HEIGHT="28" BGCOLOR="#E2EFDA">slot 0: CH6</TD>
+                        <TD HEIGHT="28" BGCOLOR="#E2EFDA">slot 0: CH7</TD>
+                    </TR>
+                </TABLE>
+            >
+        ];
+        rotation8 -> mapping8 [style=invis];
+
+        note8 [
+            shape=note,
+            style="filled",
+            fillcolor="white",
+            margin="0.14,0.08",
+            label="8 harts × 1 slot = 8 channel windows\nEach hart services only its assigned channel"
+        ];
+        mapping8 -> note8 [style=invis];
+    }
+
+    subgraph cluster_16ch {
+        label=<<B>16-channel default: two slots per hart</B>>;
+        labelloc=t;
+        fontname="Helvetica";
+        fontsize=12;
+        color="#999999";
+        style="rounded";
+        margin=18;
+
+        core16 [
+            shape=box,
+            style="rounded,filled",
+            fillcolor="#D6E4F0",
+            margin="0.16,0.10",
+            label="One Gatling barrel\n8 harts, one shared datapath\nsame firmware image"
+        ];
+        rotation16 [
+            shape=box,
+            style="rounded,filled",
+            fillcolor="#F2F2F2",
+            margin="0.14,0.08",
+            label="H0 → H1 → H2 → H3 → H4 → H5 → H6 → H7 → repeat\nEach hart still issues once every 8 clocks"
+        ];
+        core16 -> rotation16 [xlabel="one instruction per clock"];
+
+        mapping16 [
+            shape=plain,
+            label=<
+                <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+                    <TR>
+                        <TD WIDTH="88" HEIGHT="26" BGCOLOR="#D6E4F0"><B>H0</B></TD>
+                        <TD WIDTH="88" HEIGHT="26" BGCOLOR="#D6E4F0"><B>H1</B></TD>
+                        <TD WIDTH="88" HEIGHT="26" BGCOLOR="#D6E4F0"><B>H2</B></TD>
+                        <TD WIDTH="88" HEIGHT="26" BGCOLOR="#D6E4F0"><B>H3</B></TD>
+                    </TR>
+                    <TR>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 0: CH0</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 0: CH1</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 0: CH2</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 0: CH3</TD>
+                    </TR>
+                    <TR>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 1: CH8</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 1: CH9</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 1: CH10</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 1: CH11</TD>
+                    </TR>
+                    <TR>
+                        <TD HEIGHT="26" BGCOLOR="#D6E4F0"><B>H4</B></TD>
+                        <TD HEIGHT="26" BGCOLOR="#D6E4F0"><B>H5</B></TD>
+                        <TD HEIGHT="26" BGCOLOR="#D6E4F0"><B>H6</B></TD>
+                        <TD HEIGHT="26" BGCOLOR="#D6E4F0"><B>H7</B></TD>
+                    </TR>
+                    <TR>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 0: CH4</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 0: CH5</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 0: CH6</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 0: CH7</TD>
+                    </TR>
+                    <TR>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 1: CH12</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 1: CH13</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 1: CH14</TD>
+                        <TD HEIGHT="25" BGCOLOR="#E2EFDA">slot 1: CH15</TD>
+                    </TR>
+                </TABLE>
+            >
+        ];
+        rotation16 -> mapping16 [style=invis];
+
+        note16 [
+            shape=note,
+            style="filled",
+            fillcolor="white",
+            margin="0.14,0.08",
+            label="8 harts × 2 slots = 16 channel windows\nEach hart polls slot 0, then slot 1"
+        ];
+        mapping16 -> note16 [style=invis];
+    }
+}

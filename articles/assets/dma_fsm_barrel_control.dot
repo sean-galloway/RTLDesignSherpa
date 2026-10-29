@@ -1,0 +1,57 @@
+digraph dma_firmware_boundary {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.72", ranksep="0.62", splines=ortho, pad="0.25",
+         label=<<B>Replace descriptor policy, not the engine-rate datapath</B>>,
+         labelloc=t, labeljust=c];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+         fillcolor="white", color="black", margin="0.15,0.09"];
+  edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+  write_in [group=W, label="Write payload\nMemory / AXI (flopped)",
+            shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+  host [group=C, label="Host descriptors\nDescriptor memory (flopped)",
+        shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+  read_out [group=R, label="Read response\nMemory / AXI (flopped)",
+            shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+  { rank=same; write_in; host; read_out; }
+  write_in -> host -> read_out [style=invis];
+
+  barrel [group=C, label="N-context barrel RV32I\nGatling + sched_g.S (registered)",
+          shape=box, peripheries=2, fillcolor="#D6E4F0"];
+  cmdport [group=C, label="Checked scheduler commands\nscheduler_g (combinational)",
+           shape=box, fillcolor="white"];
+
+  reset [label="Channel reset → CH_IDLE\nHost interlock (comb)",
+         shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+  core [group=C, label="Channel state + engine counters\nscheduler_core (registered)",
+        shape=box, peripheries=2, fillcolor="#D6E4F0"];
+  fault [label="Fatal fault → CH_ERROR\nTimeout + engine inputs (comb)",
+         shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+  { rank=same; reset; core; fault; }
+  reset -> core -> fault [style=invis];
+
+  write_engine [group=W, label="Write engine\nShared datapath (registered)",
+                shape=box, peripheries=2, fillcolor="#D6E4F0"];
+  read_engine [group=R, label="Read engine\nShared datapath (registered)",
+               shape=box, peripheries=2, fillcolor="#D6E4F0"];
+  { rank=same; write_engine; read_engine; }
+  write_engine -> read_engine [style=invis];
+
+  boundary [group=C, label="Engine-rate AXI / stream boundary (flopped)",
+            shape=box, style="rounded,filled", fillcolor="#E2EFDA",
+            penwidth=2.2, width=7.5];
+
+  host -> barrel [label="descriptor policy"];
+  barrel -> cmdport [label="validate / chain / run bases"];
+  cmdport -> core [label="STAGE / ARM / state commands"];
+  core -> write_engine [label="WR commands"];
+  core -> read_engine [label="RD commands"];
+
+  write_in -> write_engine [label="write data"];
+  write_engine -> boundary [label="write bursts", penwidth=1.8];
+  read_out -> read_engine [dir=back, color="#1A7A1A", label="read data"];
+  read_engine -> boundary [dir=back, color="#1A7A1A", label="read bursts", penwidth=1.8];
+
+  reset -> core [style=dashed, color="#777777", headlabel="CH_IDLE", labeldistance=3.0];
+  fault -> core [style=dashed, color="#777777", headlabel="CH_ERROR", labeldistance=3.0];
+}
