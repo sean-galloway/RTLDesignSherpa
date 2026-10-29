@@ -13,7 +13,7 @@
 > rule -- this is the mechanism, not a dismissal.
 
 **Priority:** P2
-**Status:** open
+**Status:** closed 2026-10-29 (the wait is bounded by time without progress; see the closing entry)
 **Owner:** TBD
 
 ## What is wrong
@@ -45,3 +45,27 @@ alone it passed with those same counts. Third instance of this issue; the
 granite proxy now dumps `gen_done` / `gen_errors` and the store's registered
 state on a failed cell (`_host_diag`), so the next one can be told apart
 from a hang without a rerun.
+
+## Fix (2026-10-29)
+
+`pumice_master.wait_engine` now bounds the time WITHOUT PROGRESS rather
+than the run: it samples the engine's bus-meter productive-beat count
+(`OBS_WR_PROD` / `OBS_RD_PROD`, live while the trace is unfrozen, which it
+is during every wait) once a second, and each advance moves the deadline
+out by `timeout_s` again, up to `max_extensions` (60) times. On the board
+nothing changes: a stuck engine stops counting and times out at
+`timeout_s` as before. In simulation a slow but moving engine is waited
+for, which is the ISSUE's case: the engine's progress is in simulated
+cycles the host cannot see, and the wall clock no longer decides the
+verdict on its own. One signature for every caller (the proxies, the char
+profiles, the bring-up scripts); the probe costs four register reads per
+second of wait.
+
+Validated through both perf proxies on a clean build (pumice 1 passed in
+382 s, granite 1 passed in 242 s) and the host unit tests (31 passed), then the whole framework suite
+(`make clean-all && make run-all-func-parallel`: 222 passed, 2 xfailed in
+32.5 min, no reruns). The
+loaded-machine case itself is not reproducible on demand; the next
+"did not complete" with a clean log and a moving meter is this mechanism's
+test, and the proxies' `_host_diag` dump (2026-10-23 entry) tells a hang
+from a slow sim without a rerun.

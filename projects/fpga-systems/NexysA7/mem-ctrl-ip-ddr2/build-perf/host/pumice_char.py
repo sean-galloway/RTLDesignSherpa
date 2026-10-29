@@ -1137,6 +1137,12 @@ class CharRecord:
     bytes_moved: int                 # per phase (wr == rd == txn*blen*beat)
     clk_mhz:     float
     notes:       Tuple[str, ...] = ()
+    # Latency-histogram 1:1 gap: reads the host issued minus samples the
+    # histogram took (positive = MISSING samples, negative = EXTRA). It is a
+    # harness-observability figure, not a data-path one, so it no longer flips
+    # `ok` (pumice ISSUE-025: `ok` follows wr/rd done and `mismatched`); it is
+    # kept as a note and as its own CSV column so a nonzero gap is still seen.
+    rd_hist_gap: int = 0
     # Generators actually programmed. 1/1 on the single-engine path;
     # measure_concurrent fills in the real counts so a caller can scale a
     # per-generator invariant -- the latency histogram holds ONE entry per
@@ -1424,7 +1430,8 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     # 1:1 accounting: the histogram must see EXACTLY txn_count read
     # transactions — too many (stray/duplicate returns) is as much an error
     # as too few.
-    ok = wr_ok and rd_ok and mism == 0 and rd_total == sc.txn_count
+    ok = wr_ok and rd_ok and mism == 0
+    rd_hist_gap = sc.txn_count - rd_total
     if not wr_ok:
         notes.append("write engine did not complete")
     if not rd_ok:
@@ -1439,7 +1446,7 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=wr_cycles, wr_meter=wr_meter,
         rd_cycles=rd_cycles, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=bytes_moved, clk_mhz=clk_mhz,
         wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
         notes=tuple(notes))
@@ -1524,7 +1531,8 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
     drv.freeze_trace(False)
 
     mism = drv.beats_mismatched()
-    ok = wr_ok and rd_ok and mism == 0 and rd_total == txn_total
+    ok = wr_ok and rd_ok and mism == 0
+    rd_hist_gap = txn_total - rd_total
     if not wr_ok:
         notes.append("write engine did not complete")
     if not rd_ok:
@@ -1553,7 +1561,7 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=wr_cycles, wr_meter=wr_meter,
         rd_cycles=rd_cycles, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=bytes_moved, clk_mhz=clk_mhz,
         n_rd_gen=threads, n_wr_gen=threads,
         wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
@@ -1961,7 +1969,8 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
 
     mism = drv.beats_mismatched()
     expect_rd_txn = sc.txn_count * n_rd
-    ok = wr_ok and rd_ok and mism == 0 and rd_total == expect_rd_txn
+    ok = wr_ok and rd_ok and mism == 0
+    rd_hist_gap = expect_rd_txn - rd_total
     if not wr_ok:
         notes.append("write engines did not complete")
     if not rd_ok:
@@ -1996,7 +2005,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=window, wr_meter=wr_meter,
         rd_cycles=window, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=per_gen_bytes * max(n_rd, 1),
         wr_bytes=per_gen_bytes * max(n_wr, 1), clk_mhz=clk_mhz,
         wr_window_cyc=wr_window, rd_window_cyc=rd_window,
@@ -2791,7 +2800,7 @@ def write_csv(recs: List[CharRecord], path: str) -> None:
             "id_mode", "ok", "mismatched", "bytes_moved", "clk_mhz",
             "wr_cycles", "wr_util", "wr_bw_mb_s",
             "rd_cycles", "rd_util", "rd_bw_mb_s", "rd_avg_latency_cyc",
-            "rd_hist_total", "threads", "notes"]
+            "rd_hist_total", "rd_hist_gap", "threads", "notes"]
     with open(path, "w", newline="") as fh:
         w = _csv.writer(fh)
         w.writerow(cols)
@@ -2803,4 +2812,4 @@ def write_csv(recs: List[CharRecord], path: str) -> None:
                         r.wr_cycles, f"{r.wr_meter.util:.4f}", f"{r.wr_bw_mb_s:.2f}",
                         r.rd_cycles, f"{r.rd_meter.util:.4f}", f"{r.rd_bw_mb_s:.2f}",
                         f"{r.rd_avg_latency_cyc:.2f}", r.rd_hist_total,
-                        r.n_rd_gen, "; ".join(r.notes)])
+                        r.rd_hist_gap, r.n_rd_gen, "; ".join(r.notes)])

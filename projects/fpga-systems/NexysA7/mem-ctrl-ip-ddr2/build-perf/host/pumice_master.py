@@ -92,7 +92,8 @@ def program_geometry(drv: DDR2CharDriver, rd_phase: int = 0,
 # read-only phase).
 # =============================================================================
 def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
-                ignore_error: bool = False) -> bool:
+                ignore_error: bool = False, progress_poll_s: float = 1.0,
+                max_extensions: int = 60) -> bool:
     """Wait for one engine to finish. Returns False on error or timeout.
 
     ignore_error=True waits purely for the done flag. Use it when a data
@@ -101,17 +102,39 @@ def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
     "did not run" and the measurement is silently discarded. Callers that want
     the mismatch COUNT must pass ignore_error=True and check `done` themselves;
     only a read that never asserts done is a real non-measurement.
+
+    timeout_s bounds the time WITHOUT PROGRESS, not the whole run. The
+    engine's progress is its bus meter's productive-beat count (OBS_*_PROD,
+    live while the trace is unfrozen), sampled every progress_poll_s; each
+    advance moves the deadline out by timeout_s again, at most max_extensions
+    times. On the board that is the old wall-clock bound (a stuck engine
+    stops counting and times out exactly as before); in simulation, where
+    the same deadline used to expire with the engine mid-phase whenever the
+    machine was loaded (pumice ISSUE-024: 10 of 222 framework cells, 10/10
+    on a rerun alone), a slow but moving engine is waited for.
     """
     assert which in ("wr", "rd")
-    deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline:
+    now = time.monotonic()
+    deadline = now + timeout_s
+    hard_deadline = now + timeout_s * (max_extensions + 1)
+    next_probe = now + progress_poll_s
+    last_prod = None
+    while True:
         s = drv.status()
         if s.any_error and not ignore_error:
             return False
         if (which == "wr" and s.wr_done) or (which == "rd" and s.rd_done):
             return True
+        now = time.monotonic()
+        if now >= deadline or now >= hard_deadline:
+            return False
+        if now >= next_probe:
+            prod = drv.perf_meters()[which].prod
+            if last_prod is not None and prod != last_prod:
+                deadline = now + timeout_s
+            last_prod = prod
+            next_probe = now + progress_poll_s
         time.sleep(0.005)
-    return False
 
 
 # =============================================================================

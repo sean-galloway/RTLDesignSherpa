@@ -12,28 +12,34 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [closed/](closed/) | 21 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-025** — half_threads grades 16/32 cells ok=0 on a latency-histogram 1:1 gap of 7 to 40 returns (data clean, same on granite and pumice, 2026-10-27 and 10-29); the ok flag and exit code are wrong, the numbers are not. [open/ISSUE-025.md](open/ISSUE-025.md).
-- **ISSUE-024** — the perf proxies' `wait_engine` is a wall-clock deadline;
-  on a loaded machine the framework suite fails "did not complete" cells
-  that pass alone (10 of 222 on 2026-10-23, 10 / 10 re-run). Bound the wait
-  in simulated cycles in sim.
-
-- **ISSUE-023** — perf-proxy DRAM checker anchors tWR on the slave's uncalibrated
-  CWL + BL: 256 phantom tWR (explicit PRE) or tRP (WRA) per col_major run on
-  both cores; reads are clean. Calibrate the WR-to-PRE anchor, then assert zero.
 - **ISSUE-021** — mc_training_plane ties ZQ demand to 0, so the defer/ZQCL/
   overdue policy is unreachable.
 
 ## Closed
 
+- **ISSUE-023** — CLOSED 2026-10-29 (fixed): the perf proxy's DRAM checker
+  anchors write recovery at the controller's programmed WR -> PRE field
+  (`_McAnchoredDram`), the slave's CL / CWL / BL untouched; the proxy asserts
+  an empty violation dict. Pumice and granite proxies clean; the mutation
+  (anchor off) reproduces the 256 phantoms and fails. [closed/ISSUE-023.md](closed/ISSUE-023.md).
+- **ISSUE-025** — CLOSED 2026-10-29 (bug, fixed): the engine block's latency
+  histograms sat on the merged port behind NUM_GEN x GEN_MAX_OUTSTANDING
+  admitted reads with a 32-deep timestamp FIFO, dropping 7 to 42 samples per
+  cell at >= 2 threads; sized to the product (and the array kept in LUT RAM),
+  `ok` follows integrity with the gap as its own CSV column. Board: 32/32
+  cells exact, bandwidth unchanged. [closed/ISSUE-025.md](closed/ISSUE-025.md).
+- **ISSUE-024** — CLOSED 2026-10-29 (fixed): `wait_engine` bounds the time
+  WITHOUT PROGRESS (bus-meter productive count sampled each second, deadline
+  extended on advance, 60 extensions max); board behaviour unchanged, a slow
+  sim is waited for. Both proxies clean. [closed/ISSUE-024.md](closed/ISSUE-024.md).
 - **ISSUE-022** — CLOSED 2026-10-22 (bug, fixed): the BANK_PICK core pulsed
   the refresh grant for the init sequence's two REFs, the refresh controller
   banked them as pull-in credits, and the credits consumed the first two

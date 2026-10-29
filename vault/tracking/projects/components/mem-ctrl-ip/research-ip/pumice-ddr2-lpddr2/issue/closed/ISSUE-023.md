@@ -9,7 +9,7 @@
 > config" rule.
 
 **Priority:** P2
-**Status:** open
+**Status:** closed 2026-10-29 (anchor fixed in the proxy, zero asserted, mutation-checked; see the closing entry)
 **Owner:** TBD
 
 ## Finding
@@ -56,3 +56,26 @@ the way the controller does. Then assert the count is zero in the proxy.
 
 The explicit-PRE `tRTP` and the RDA paths are correctly modeled (zero
 counts at the floor).
+
+## Fix (2026-10-29)
+
+Taken the second way: the checker keeps the slave's CL / CWL / BL for the
+data path and gets the write-recovery anchor in the controller's unit.
+`test_ddr2_char_perf.py` installs `_McAnchoredDram`, a `DramStateModel`
+whose `on_write` sets `last_wr_data_cycle = WR + wr_to_pre_cycles -
+tWR_cycles`; the proxy sets `wr_to_pre_cycles` to the `tWR` field it has
+just programmed (`set_jedec_timings`, 4 MC cycles at 75 MHz = WL + BL/2 +
+tWR in CK), so the model's own `+ tWR_cycles` lands PRE exactly where the
+controller's bank timer does, and tWTR reads off the same last-beat point.
+Nothing in the RDS-DV model changed. The proxy now asserts the whole
+soft-violation dict is empty: the counter is its one JEDEC verdict and a
+nonzero entry is a real violation.
+
+Measured, clean build, pumice proxy at 75 MHz, four families:
+`model_violations = {}`, 1 passed in 382 s; the granite proxy (which
+shares `_bringup`) 1 passed in 242 s. Mutation: the anchor line replaced
+by `pass` reproduces the item exactly ("PRE bank=N only -3 cycles after
+last WR data beat (needs tWR=2)" on every write-row close) and the new
+assert fails the test (1 failed in 384 s). The counts before the fix were
+read without this assert; the three-way table and BUG-030 stand on their
+bandwidth columns, which never depended on it.

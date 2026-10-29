@@ -662,13 +662,19 @@ module char_engine_block
     // full FIFO degrades SILENTLY (never timestamped, missing from
     // o_hist_total -- see the o_cmd_block comment in the hist RTL), and
     // with o_cmd_block unconsumed here the FIFO must cover the WHOLE
-    // engine-side admission domain: pumice CAM (8) + front skid stages +
-    // generator lookahead. Depth 8 lost up to 31/64 samples in the sim
-    // multiid_min profile (pumice BUG-010 (was PUMICE-020) MISSING side); 32 covers it.
+    // engine-side admission domain. Depth 8 lost up to 31/64 samples in the
+    // sim multiid_min profile (pumice BUG-010 (was PUMICE-020) MISSING side);
+    // 32 covered one generator. The hist sits on the MERGED port behind
+    // NUM_GEN generators that each admit GEN_MAX_OUTSTANDING, so the domain
+    // is their product: at a fixed 32, two to four generators at 32 each
+    // lost 7 to 40 of 64k to 128k reads on the board (pumice ISSUE-025, the
+    // same cells on granite and pumice). Sized to the product so no admitted
+    // command can find the FIFO full.
+    localparam int HIST_DEPTH = NUM_GEN * GEN_MAX_OUTSTANDING;
     axi_perf_latency_hist #(
         .ID_WIDTH        (PIW),   // pumice side, {master index, id}
         .NUM_CHANNELS    (1),
-        .MAX_OUTSTANDING (32),
+        .MAX_OUTSTANDING (HIST_DEPTH),
         .NUM_BINS        (16),
         .IS_READ         (1'b0)
     ) u_hist_wr (
@@ -700,7 +706,7 @@ module char_engine_block
     axi_perf_latency_hist #(
         .ID_WIDTH        (PIW),   // pumice side, {master index, id}
         .NUM_CHANNELS    (1),
-        .MAX_OUTSTANDING (32),
+        .MAX_OUTSTANDING (HIST_DEPTH),
         .NUM_BINS        (16),
         .IS_READ         (1'b1)
     ) u_hist_rd (

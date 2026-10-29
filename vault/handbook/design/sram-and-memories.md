@@ -47,3 +47,23 @@ alloc/bridge interplay at exactly `SD` occupancy -- a consumer draining
 slower than the fill. The rapids char harness, driving a 512-deep channel
 with a 1024-beat transfer at a 50% drain, is what found it; the 84-beat
 conservation cells that gated the SRAM swap could not.
+
+## An unreset array inside a reset block still synthesizes as flops (2026-10-29)
+
+`axi_perf_latency_hist` kept its timestamp FIFO as an array that was never
+reset or cleared, but wrote it from inside the `ALWAYS_FF_RST` block whose
+reset-or-clear branch initializes the pointers. Vivado does not infer
+distributed or block RAM for an array written in a process that has an
+asynchronous reset branch, whatever that branch does to the array: the
+array became 32 x depth flops with a read mux. At depth 32 nobody noticed
+(2k FFs); sizing it to the generators' admission domain (depth 128, pumice
+ISSUE-025) cost +6.2k registers and +1.9k LUTs on the Nexys A7
+characterization build before the write was moved into its own reset-free
+`always_ff`, gated only by the push condition. The pumice BRAM CAM failed
+the same way (the whole design used 0 BRAM until the async reset came off
+the array). The rule: a memory array gets its own `always_ff @(posedge clk)`
+with no reset and no clear term, the controller owns the pointers and their
+reset, and an entry under a reset pointer is overwritten before it can be
+read. Check the post-implementation "LUT as Memory" and register counts
+when a FIFO depth changes; a register count that grows by width x depth is
+this.
