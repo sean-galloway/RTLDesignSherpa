@@ -51,6 +51,8 @@ Don't override. Generated from: $root
 | 0x180|       LP_MR1_OP       |           LPDDR2 MR1 OP Data          |
 | 0x184|       LP_MR2_OP       |           LPDDR2 MR2 OP Data          |
 | 0x188|       LP_MR3_OP       |           LPDDR2 MR3 OP Data          |
+| 0x18C|   STORE_STATS_MERGE   |       Store Stats: Write Merges       |
+| 0x190|  STORE_STATS_RD_MERGE |        Store Stats: Read Merges       |
 | 0xFF0|           ID          |               Module ID               |
 | 0xFF4|         BUILD         |               Build Hash              |
 
@@ -1274,6 +1276,44 @@ JESD209-2F default 0x02 = DS 40ohm.</p>
 #### RSVD field
 
 <p>Reserved</p>
+
+### STORE_STATS_MERGE register
+
+- Absolute Address: 0x18C
+- Base Offset: 0x18C
+- Size: 0x4
+
+<p>TASK-006. Writes MERGED into a live, uncommitted write entry of the same
+{bank,row,col} in the FIFO store (their strobed bytes land in that entry,
+which then owes a second B). Free-running; read as a delta around a run.
+0 when STORE_MERGE_EN = 0.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>write merges performed</p>
+
+### STORE_STATS_RD_MERGE register
+
+- Absolute Address: 0x190
+- Base Offset: 0x190
+- Size: 0x4
+
+<p>TASK-006. Reads COMBINED into a live, unissued read entry of the same
+{bank,row,col} in the FIFO store (one DRAM burst, returned twice through
+the return ring as a shadow ticket). Free-running; read as a delta around
+a run. 0 when STORE_MERGE_EN = 0.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>read merges performed</p>
 
 ### ID register
 

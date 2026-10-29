@@ -1,0 +1,5 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+open_page,incremental_bl8,incremental,8,8000,0,0,1,0,512000,75.0,134737,0.0059,285.00,134737,0.0059,285.00,79.78,8000,0,1,"concurrent 1w+1r of 4w+4r built, region 0x80000"
+open_page,row_major_bl8,row_major,8,8000,0,0,1,0,512000,75.0,133374,0.0059,287.91,133374,0.0059,287.91,78.51,8000,0,1,"concurrent 1w+1r of 4w+4r built, region 0x800"
+open_page,col_major_bl8,col_major,8,8000,0,0,1,0,512000,75.0,360630,0.0059,106.48,360630,0.0059,106.48,191.96,8000,0,1,"concurrent 1w+1r of 4w+4r built, region 0x4000000"
+open_page,col_major_interleaved_bl8,col_major_interleaved,8,8000,0,0,1,0,512000,75.0,191023,0.0059,201.02,191023,0.0059,201.02,120.79,8000,0,1,"concurrent 1w+1r of 4w+4r built, region 0x4000000"

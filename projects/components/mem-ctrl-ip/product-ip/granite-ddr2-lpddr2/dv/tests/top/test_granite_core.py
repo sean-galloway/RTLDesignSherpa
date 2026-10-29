@@ -327,6 +327,120 @@ def _init_masters(dut):
     return PumiceAxiBfm(dut, data_width=DW, bl_words=BL_WORDS)
 
 
+@cocotb.test(timeout_time=20000, timeout_unit="us")
+async def cocotb_test_granite_core_merge(dut):
+    """Store combining (TASK-006). Two writes to one burst address from one id
+    arrive back-to-back: with STORE_MERGE_EN=1 the second merges into the
+    first's entry (ONE burst reaches the DFI write bus, carrying the second
+    write's bytes) and both get a B; two back-to-back reads of that address
+    take ONE DRAM read (the second is a shadow ticket) and both return it.
+    With STORE_MERGE_EN=0 (the parameter's OFF state) the same traffic takes
+    two bursts each way and the counters stay 0: the test asserts the exact
+    count for whichever state it was built with, so it fails if the knob is
+    inert either way."""
+    merge_en = int(os.environ.get("STORE_MERGE_EN", "0"))
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
+    _idle(dut)
+    dut.aresetn.value = 0
+    dut.dfi_rstn.value = 0
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    dut.dfi_rstn.value = 1
+    for _ in range(6):
+        await RisingEdge(dut.aclk)
+    bfm = _init_masters(dut)
+    captured = []
+    cocotb.start_soon(_dfi_model(dut, captured))
+    for _ in range(400):
+        await RisingEdge(dut.aclk)
+        if int(dut.init_done_o.value):
+            break
+    assert int(dut.init_done_o.value) == 1, "init never completed"
+
+    rng = random.Random(int(os.environ.get("SEED", "1")))
+    addr = 0x4000
+    d1 = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+    d2 = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+    captured.clear()
+
+    # ---- two writes, same burst, same id, back-to-back (engine runner) ----
+    await with_timeout(bfm.write_many([(addr, d1), (addr, d2)], axid_fn=lambda k: 1),
+                       _PHASE_TIMEOUT_US, "us")
+    for _ in range(200):          # let the merged burst drain to the DFI bus
+        await RisingEdge(dut.dfi_clk)
+        if len(captured) >= (BL_WORDS if merge_en else 2 * BL_WORDS):
+            break
+    wr_merges = int(dut.stat_wr_merge_o.value)
+    dut._log.info("merge test: STORE_MERGE_EN=%d write merges=%d dfi words=%d",
+                  merge_en, wr_merges, len(captured))
+    if merge_en:
+        assert wr_merges == 1, f"expected one write merge, counted {wr_merges}"
+        assert len(captured) == BL_WORDS, \
+            f"a merged pair must reach the DFI bus as ONE burst, saw {len(captured)} words"
+        assert captured[:BL_WORDS] == d2, "the merged burst must carry the second write's bytes"
+    else:
+        assert wr_merges == 0, f"STORE_MERGE_EN=0 must not merge, counted {wr_merges}"
+        assert len(captured) == 2 * BL_WORDS, \
+            f"without combining both writes reach the DFI bus, saw {len(captured)} words"
+        assert captured[:BL_WORDS] == d1 and captured[BL_WORDS:2 * BL_WORDS] == d2
+
+    # ---- two reads, same burst, same id, back-to-back ----
+    # The model serves reads from its captured write bursts in order; the
+    # expected data is whichever burst(s) reached the bus above.
+    rds = await with_timeout(bfm.read_many([addr, addr], axid_fn=lambda k: 1),
+                             _PHASE_TIMEOUT_US, "us")
+    rd_merges = int(dut.stat_rd_merge_o.value)
+    dut._log.info("merge test: read merges=%d returns=%s", rd_merges,
+                  [[hex(x) for x in beats[:2]] for _, beats in rds])
+    assert len(rds) == 2, f"both reads must return, got {len(rds)}"
+    if merge_en:
+        assert rd_merges == 1, f"expected one read merge, counted {rd_merges}"
+        assert rds[0][1][:BL_WORDS] == d2 and rds[1][1][:BL_WORDS] == d2, \
+            "both reads must return the one merged burst"
+    else:
+        assert rd_merges == 0, f"STORE_MERGE_EN=0 must not merge reads, counted {rd_merges}"
+        assert rds[0][1][:BL_WORDS] == d1 and rds[1][1][:BL_WORDS] == d2, \
+            "without combining the two reads serve the two bursts in write order"
+    dut._log.info("PASS: store combining %s", "merges a same-burst pair" if merge_en
+                  else "off: no merges, two bursts")
+
+
+def _core_params():
+    """The granite_core parameter set every runner in this file builds with."""
+    return {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
+            "STORE_BACKEND": os.environ.get("GRANITE_STORE_BACKEND", "1"),
+            "BANK_FIFO_DEPTH": os.environ.get("GRANITE_BANK_FIFO_DEPTH", "0"),
+            "HEAD2_EN": os.environ.get("GRANITE_HEAD2_EN", "1"),
+            "DFI_CDC_EN": os.environ.get("GRANITE_DFI_CDC_EN", "1"),
+            "HAS_SNARF": os.environ.get("GRANITE_HAS_SNARF", "0"),
+            "INTAKE_FIFO_DEPTH": os.environ.get("GRANITE_INTAKE_FIFO_DEPTH", "0"),
+            "AXI_SKID_DEPTH": os.environ.get("GRANITE_AXI_SKID_DEPTH", "2"),
+            "SHARED_ADDR_MAP": os.environ.get("GRANITE_SHARED_ADDR_MAP", "0"),
+            "HAS_PAGE_POLICY": os.environ.get("GRANITE_HAS_PAGE_POLICY", "1"),
+            "BANK_TW": os.environ.get("GRANITE_BANK_TW", "5"),
+            "BANK_EVT_REG": os.environ.get("GRANITE_BANK_EVT_REG", "1"),
+            "HALF_AGG": os.environ.get("GRANITE_HALF_AGG", "0"),
+            "BANK_CAP_MIXED": os.environ.get("GRANITE_BANK_CAP_MIXED", "6"),
+            "HAS_AGE": os.environ.get("GRANITE_HAS_AGE", "0"),
+            "STORE_MERGE_EN": os.environ.get("GRANITE_STORE_MERGE_EN", "0"),
+            "PP_TIMEOUT_CLOSE": os.environ.get("GRANITE_PP_TIMEOUT_CLOSE", "1"),
+            "DFI_CMD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_CMD_FIFO_DEPTH", "4"),
+            "DFI_WD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_WD_FIFO_DEPTH", "16"),
+            "DFI_RD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_RD_FIFO_DEPTH", "4"),
+            # GRANITE_FIXED_TIMINGS=1: the core compares against the T_*
+            # constants, so they are set to the values this test drives on
+            # the t_*_i ports (cocotb_test_* below) and the DFI model sees
+            # the same spacing either way.
+            "FIXED_TIMINGS": os.environ.get("GRANITE_FIXED_TIMINGS", "0"),
+            "T_RCD": "2", "T_RP": "2", "T_RAS": "3", "T_RC": "4", "T_WR": "2",
+            "T_RTP": "2", "T_FAW": "4", "T_RRD": "1", "T_WTR": "1", "T_RTW": "1",
+            "T_CCD": "1", "T_REFI": str(0x7FFF), "T_RFC": "8",
+            "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
+            "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL)}
+
+
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_granite_core(request, test_level):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
@@ -336,35 +450,7 @@ def test_granite_core(request, test_level):
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
-    params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
-              "STORE_BACKEND": os.environ.get("GRANITE_STORE_BACKEND", "1"),
-              "BANK_FIFO_DEPTH": os.environ.get("GRANITE_BANK_FIFO_DEPTH", "0"),
-              "HEAD2_EN": os.environ.get("GRANITE_HEAD2_EN", "1"),
-              "DFI_CDC_EN": os.environ.get("GRANITE_DFI_CDC_EN", "1"),
-              "HAS_SNARF": os.environ.get("GRANITE_HAS_SNARF", "0"),
-              "INTAKE_FIFO_DEPTH": os.environ.get("GRANITE_INTAKE_FIFO_DEPTH", "0"),
-              "AXI_SKID_DEPTH": os.environ.get("GRANITE_AXI_SKID_DEPTH", "2"),
-              "SHARED_ADDR_MAP": os.environ.get("GRANITE_SHARED_ADDR_MAP", "0"),
-              "HAS_PAGE_POLICY": os.environ.get("GRANITE_HAS_PAGE_POLICY", "1"),
-              "BANK_TW": os.environ.get("GRANITE_BANK_TW", "5"),
-              "BANK_EVT_REG": os.environ.get("GRANITE_BANK_EVT_REG", "1"),
-              "HALF_AGG": os.environ.get("GRANITE_HALF_AGG", "0"),
-              "BANK_CAP_MIXED": os.environ.get("GRANITE_BANK_CAP_MIXED", "6"),
-              "HAS_AGE": os.environ.get("GRANITE_HAS_AGE", "0"),
-              "PP_TIMEOUT_CLOSE": os.environ.get("GRANITE_PP_TIMEOUT_CLOSE", "1"),
-              "DFI_CMD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_CMD_FIFO_DEPTH", "4"),
-              "DFI_WD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_WD_FIFO_DEPTH", "16"),
-              "DFI_RD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_RD_FIFO_DEPTH", "4"),
-              # GRANITE_FIXED_TIMINGS=1: the core compares against the T_*
-              # constants, so they are set to the values this test drives on
-              # the t_*_i ports (cocotb_test_* below) and the DFI model sees
-              # the same spacing either way.
-              "FIXED_TIMINGS": os.environ.get("GRANITE_FIXED_TIMINGS", "0"),
-              "T_RCD": "2", "T_RP": "2", "T_RAS": "3", "T_RC": "4", "T_WR": "2",
-              "T_RTP": "2", "T_FAW": "4", "T_RRD": "1", "T_WTR": "1", "T_RTW": "1",
-              "T_CCD": "1", "T_REFI": str(0x7FFF), "T_RFC": "8",
-              "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
-              "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL)}
+    params = dict(_core_params())
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
@@ -372,6 +458,37 @@ def test_granite_core(request, test_level):
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_granite_core",
+        sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
+        compile_args=["+define+USE_ASYNC_RESET", "--assert"],
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")
+
+
+@pytest.mark.parametrize("merge_en", [0, 1])
+def test_granite_core_merge(request, merge_en):
+    """TASK-006 store combining, both parameter states (FUNC level)."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "granite_core"
+    test_name = f"cocotb_test_granite_core_merge_{merge_en}"
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    params = dict(_core_params())
+    params["STORE_MERGE_EN"] = str(merge_en)
+    # Whole-window return FIFO: at the product default (4) the OFF state's two
+    # back-to-back reads of one burst trip the rd aligner's lost-beat
+    # assertion in this TB (pumice ISSUE-026); the combining under test is
+    # independent of that depth.
+    params["DFI_RD_FIFO_DEPTH"] = "0"
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+                 "COCOTB_LOG_LEVEL": "INFO",
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env("func")}
+    extra_env.update(params)
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module, testcase="cocotb_test_granite_core_merge",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert"],
         waves=bool(int(os.environ.get("WAVES", "0"))),

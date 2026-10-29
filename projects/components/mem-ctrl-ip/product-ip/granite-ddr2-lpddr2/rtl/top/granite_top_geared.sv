@@ -57,6 +57,7 @@ module granite_top_geared
     parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter bit BANK_EVT_REG      = 1'b1, // bank timer counters load one register after the pick's fire strobe (TASK-003 100 MHz; readiness exact); 0 = the live load
+    parameter bit STORE_MERGE_EN    = 1'b0, // FIFO-store combining (TASK-006); 0 = none
     parameter bit HALF_AGG          = 1'b0, // half-width AXI aggregator at the host edge (TASK-005, deferred); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
@@ -91,8 +92,13 @@ module granite_top_geared
     parameter int DFI_CS_BUS_W   = NUM_RANKS * DFI_RATE,
     parameter int CSR_ADDR_W     = 12,
     parameter int PHW            = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
-    // Granite CSR has no gear_ratio field; the A7 build is fixed at 1:2.
-    parameter int GEAR_RATIO     = 1
+    // Granite's CSR carries no live gear field: the active DFI gear is the
+    // build's DFI_RATE (1:2 -> 1, 1:4 -> 2). A constant 1 here masked the
+    // DFI write / read enables to two of four phases on every DFI_RATE=4
+    // build (granite TASK-003 item 6: no read data in the 1:4 proxy, one
+    // beat wrong per read transaction on the board). Overridable for a
+    // deliberately narrowed gear only.
+    parameter int GEAR_RATIO     = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 0
 ) (
     input  logic aclk, aresetn, dfi_clk, dfi_rstn,
 
@@ -328,6 +334,7 @@ module granite_top_geared
     logic                      w_cal_busy, w_cal_done, w_cal_err;
     logic                      w_zq_busy, w_zq_overdue;
     logic [15:0]               w_zqcs_total;
+    logic [31:0]               w_stat_wr_merge, w_stat_rd_merge;
 
     always_comb begin
         hwif_in = '{default: '0};
@@ -339,6 +346,8 @@ module granite_top_geared
         hwif_in.CAL_STATUS.cal_err.next    = w_cal_err;
         hwif_in.CAL_STATUS.zq_overdue.next = w_zq_overdue;
         hwif_in.CAL_STATUS.zqcs_total.next = w_zqcs_total;
+        hwif_in.STORE_STATS_MERGE.VAL.next    = w_stat_wr_merge;
+        hwif_in.STORE_STATS_RD_MERGE.VAL.next = w_stat_rd_merge;
         for (int b = 0; b < (DFI_DATA_WIDTH / 32); b++) begin
             hwif_in.CAL_MRR32_DATA[b].VAL.VAL.next = w_mrr32_data[b*32 +: 32];
             hwif_in.CAL_MRR40_DATA[b].VAL.VAL.next = w_mrr40_data[b*32 +: 32];
@@ -418,6 +427,7 @@ module granite_top_geared
         .BANK_TW           (BANK_TW),
         .BANK_EVT_REG      (BANK_EVT_REG),
         .HALF_AGG          (HALF_AGG),
+        .STORE_MERGE_EN    (STORE_MERGE_EN),
         .BANK_CAP_MIXED    (BANK_CAP_MIXED),
         .HAS_AGE           (HAS_AGE),
         .PP_TIMEOUT_CLOSE  (PP_TIMEOUT_CLOSE),
@@ -513,6 +523,8 @@ module granite_top_geared
         .zq_busy_o          (w_zq_busy),
         .zq_overdue_o       (w_zq_overdue),
         .zqcs_total_o       (w_zqcs_total),
+        .stat_wr_merge_o    (w_stat_wr_merge),
+        .stat_rd_merge_o    (w_stat_rd_merge),
         .s_axi_awid         (c_awid),
         .s_axi_awaddr       (c_awaddr),
         .s_axi_awlen        (c_awlen),

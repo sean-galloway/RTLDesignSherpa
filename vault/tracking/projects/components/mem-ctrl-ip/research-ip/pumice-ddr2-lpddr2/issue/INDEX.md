@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-026** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-027** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
@@ -20,7 +20,10 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **ISSUE-026** — two back-to-back reads of one burst trip the rd aligner's
+  lost-beat assertion at DFI_RD_FIFO_DEPTH 4 in the granite core TB
+  (STORE_MERGE_EN=0 directed test); passes at the whole-window depth. TB
+  service timing or a ring not-ready case. [open/ISSUE-026.md](open/ISSUE-026.md).
 
 ## Closed
 

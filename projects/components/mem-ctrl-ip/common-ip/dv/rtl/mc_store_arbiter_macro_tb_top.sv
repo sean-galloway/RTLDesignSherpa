@@ -243,7 +243,12 @@ module mc_store_arbiter_macro_tb_top
             .wr_cm_rd_data_o    (cm_data),
             .wr_cm_rd_strb_o    (cm_strb),
             .wr_cm_rd_last_o    (cm_last),
-            .busy_o             ()
+            .busy_o             (),
+            // combining (MERGE_EN, default 0): decision and counters unused here
+            .ar_merge_o         (),
+            .ar_merge_ticket_o  (),
+            .stat_wr_merge_o    (),
+            .stat_rd_merge_o    ()
         );
         // the FR-FCFS vectors do not exist on this backend
         assign wr_sch_valid = '0; assign wr_sch_pend = '0; assign wr_sch_bank = '0;

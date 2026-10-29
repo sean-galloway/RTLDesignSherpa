@@ -899,7 +899,7 @@ class PageStats:
        point looks progressively worse than the last. Always take a before/after
        delta -- that is what `__sub__` is for.
     """
-    col_ops: int        # PAGE_STATS_HIT   -- every column op (NOT hits)
+    col_ops: Optional[int]  # PAGE_STATS_HIT -- every column op (NOT hits); None on a build without the counter (granite)
     miss:    int        # PAGE_STATS_MISS  -- ACT after a conflict PRE (thrash)
     empty:   int        # PAGE_STATS_EMPTY -- ACT to an idle bank (cold open)
     acts:    int        # SCHED_STATS_ACT  -- == miss + empty
@@ -927,7 +927,8 @@ class PageStats:
         allowed to go negative -- a negative 'count' would sail through every
         downstream ratio as a small positive-looking anomaly."""
         m = lambda a, b: (a - b) & 0xFFFF_FFFF
-        return PageStats(m(self.col_ops, other.col_ops), m(self.miss, other.miss),
+        return PageStats((None if (self.col_ops is None or other.col_ops is None)
+                          else m(self.col_ops, other.col_ops)), m(self.miss, other.miss),
                          m(self.empty, other.empty), m(self.acts, other.acts),
                          m(self.pres, other.pres), m(self.refs, other.refs),
                          refs_busy=m(self.refs_busy, other.refs_busy),
@@ -945,7 +946,7 @@ class PageStats:
         None when nothing was counted -- a vacuous 0.0 here reads as
         'every access missed', which is the opposite of 'we measured nothing'
         (see [[feedback_checker_verdict_needs_a_count]])."""
-        if self.col_ops <= 0:
+        if self.col_ops is None or self.col_ops <= 0:
             return None
         if self.row_hits is not None:
             # DIRECT: OBS_ROW_HIT[8] counts hits at the bank, so no clamp is
@@ -962,7 +963,7 @@ class PageStats:
 
     @property
     def acts_per_access(self) -> Optional[float]:
-        if self.col_ops <= 0:
+        if self.col_ops is None or self.col_ops <= 0:
             return None
         return self.acts / self.col_ops
 
@@ -1010,7 +1011,7 @@ class PageStats:
 
     @property
     def counted(self) -> bool:
-        return self.col_ops > 0 or self.acts > 0 or self.refs > 0
+        return (self.col_ops or 0) > 0 or self.acts > 0 or self.refs > 0
 
 
 @dataclass(frozen=True)
@@ -1087,18 +1088,27 @@ def read_page_stats(drv: DDR2CharDriver) -> PageStats:
     generated regmap ([[feedback_registers_by_name]]) -- these offsets sit in
     the 0x148..0x15C block that has already moved once."""
     f = drv.pumice.regs.field
+    has = drv.pumice.has
+    # Granite carries the two STORE_STATS_* registers (TASK-006) but none of
+    # the PAGE / SCHED / REF research counters: those read as 0 here and the
+    # column-op figure as None, so a merge count on granite is reported while
+    # its "column ops per write" stays unknown rather than a vacuous 0.
+    def opt(reg, fld):
+        return int(f(reg, fld)) if has(reg) else None
+    def cnt(reg, fld):
+        return int(f(reg, fld)) if has(reg) else 0
     return PageStats(
-        col_ops=int(f("PAGE_STATS_HIT",   "VAL")),
-        miss=   int(f("PAGE_STATS_MISS",  "VAL")),
-        empty=  int(f("PAGE_STATS_EMPTY", "VAL")),
-        acts=   int(f("SCHED_STATS_ACT",  "VAL")),
-        pres=   int(f("SCHED_STATS_PRE",  "VAL")),
-        refs=   int(f("REF_STATS_REF",    "VAL")),
-        refs_busy=int(f("REF_STATS_REF_BUSY", "VAL")),
+        col_ops=opt("PAGE_STATS_HIT",   "VAL"),
+        miss=   cnt("PAGE_STATS_MISS",  "VAL"),
+        empty=  cnt("PAGE_STATS_EMPTY", "VAL"),
+        acts=   cnt("SCHED_STATS_ACT",  "VAL"),
+        pres=   cnt("SCHED_STATS_PRE",  "VAL"),
+        refs=   cnt("REF_STATS_REF",    "VAL"),
+        refs_busy=cnt("REF_STATS_REF_BUSY", "VAL"),
         t_refi= int(f("TIMINGS_RFC_REFI",  "tREFI")),
-        row_hits=_read_row_hits(drv),
-        merges=(int(f("STORE_STATS_MERGE", "VAL")) if drv.pumice.has("STORE_STATS_MERGE") else None),
-        rd_merges=(int(f("STORE_STATS_RD_MERGE", "VAL")) if drv.pumice.has("STORE_STATS_RD_MERGE") else None),
+        row_hits=(_read_row_hits(drv) if has("OBS_ROW_HIT") else None),
+        merges=opt("STORE_STATS_MERGE", "VAL"),
+        rd_merges=opt("STORE_STATS_RD_MERGE", "VAL"),
     )
 
 

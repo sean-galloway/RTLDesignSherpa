@@ -54,6 +54,7 @@ module granite_char_macro
     parameter bit HAS_PAGE_POLICY   = 1'b1, // 0 = no runtime page-policy engine (close-on-drain alone): measured -8 percent on 8-thread streams, so ON
     parameter int BANK_CAP_MIXED    = 6,    // FIFO store per-bank cap while the other direction holds entries (0 = off)
     parameter bit HAS_AGE           = 1'b0, // store age promotion (CSR age_thresh -> aged-first pick); 0 compiles the ages out (pumice TASK-059)
+    parameter bit STORE_MERGE_EN    = 1'b0, // FIFO-store combining (granite TASK-006); 0 = none
     parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
@@ -382,6 +383,7 @@ module granite_char_macro
         .BANK_TW           (BANK_TW),
         .BANK_CAP_MIXED    (BANK_CAP_MIXED),
         .HAS_AGE           (HAS_AGE),
+        .STORE_MERGE_EN    (STORE_MERGE_EN),
         .PP_TIMEOUT_CLOSE  (PP_TIMEOUT_CLOSE),
         .DFI_CMD_FIFO_DEPTH(DFI_CMD_FIFO_DEPTH),
         .DFI_WD_FIFO_DEPTH (DFI_WD_FIFO_DEPTH),

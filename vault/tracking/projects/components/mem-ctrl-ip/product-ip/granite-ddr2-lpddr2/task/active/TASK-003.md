@@ -826,3 +826,34 @@ DDR2-400 point (800 MB/s peak, 772 / 774 measured) stands as granite's
 Scratch for the next session: `board75_dfi4w/` (bitstreams, probes
 `probe_fixed.py`, `exp_which.py`, `exp_tap.py`, logs), `board75_dfi4/`
 (64-bit host), `litex/venv310` (the LiteX environment).
+
+**Item 6 root cause, found 2026-10-29 afternoon (sim trace).** A cocotb
+trace of the 1:4 UART smoke's read return showed the controller issuing RD
+on phase 0 and asserting `dfi_rddata_en` as `0011`: two of four phases.
+`granite_top_geared` hard-wired `GEAR_RATIO = 1` ("the A7 build is fixed
+at 1:2") into the DFI plane's `gear_i`, whose active-phase mask ANDs the
+write and read enables, so every DFI_RATE=4 build drove the PHY's enables
+on half its phases: no read data in the proxy (the slave model gates on
+the enables), and on the board the a7ddrphy's rddata_en comes from one
+phase, which is why reads were only one beat per transaction off. The
+parameter now follows `DFI_RATE` (`$clog2`). The 1:4 UART smoke passes;
+the 1:4 128-bit board bring-up is rebuilding with it.
+
+**After the gear fix (2026-10-29, 14:10).** Sim: the 1:4 UART smoke passes
+(reads return); the 1:4 proxy with the 64-bit host writes at the port
+ceiling but reads at 135 MB/s (9,100 cycles for 16 KB: one read at a time),
+and with the 128-bit host reads run at 569 MB/s but 1020 of 1024 beats
+mismatch on the two streaming families while the two page-miss families
+are clean -- the aligner probe counts 2048 valid words for 1024 reads, two
+per BL8 burst where `BL_WORDS` is 1, so back-to-back returns pair the
+second word of burst N with read N+1. The RDS-DV slave infers rate 4 and
+two device words per phase from the bus widths, so which side emits the
+second word (the model's legacy read service or the controller's enable
+window) is the next thing to settle; a spaced read drops it on credit and
+is correct. Board, 128-bit host, gear fixed: build WNS +1.280, the probe
+lands the same cells (wrlat 1 / rddata_delay 2 or 3 / bitslip 2 at read
+phase 0, bitslip 4 at phase 1) and still one 128-bit beat per read
+transaction wrong. The two symptoms may be the same mechanism seen through
+different return timings (the PHY's valid is one cycle per enable cycle;
+the slave's is not). Not resolved today; the 1:2 DDR2-400 point remains
+granite's 100 MHz number.

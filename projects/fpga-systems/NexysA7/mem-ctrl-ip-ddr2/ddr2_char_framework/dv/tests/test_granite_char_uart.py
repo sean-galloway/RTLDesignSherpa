@@ -24,7 +24,7 @@ import sys
 
 import pytest
 import cocotb
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ReadOnly, ClockCycles, RisingEdge
 from cocotb._bridge import bridge
 from cocotb_test.simulator import run
 
@@ -106,6 +106,8 @@ async def _bringup(dut, *, init_complete_delay: int = 20):
     chan = await h.start()
 
     dfi_slave, memory = _make_dfi_slave(dut)
+    if os.environ.get("DFI_RD_TRACE", "0") == "1":
+        cocotb.start_soon(_dfi_rd_trace_granite(dut, _DFI_LOG))
 
     async def _assert_init_complete():
         await ClockCycles(dut.aclk, init_complete_delay)
@@ -114,6 +116,59 @@ async def _bringup(dut, *, init_complete_delay: int = 20):
 
     drv = dc.DDR2CharDriver(bridge=h.make_bridge(), controller="granite")
     return drv, chan, dfi_slave, memory
+
+
+_DFI_LOG = []   # filled by _dfi_rd_trace_granite (DFI_RD_TRACE=1), dumped by the smoke
+
+
+async def _dfi_rd_trace_granite(dut, log, limit=60):
+    """DFI_RD_TRACE=1: cycle-stamped timeline of granite's read return -- RD
+    commands on the DFI pins per phase, the rd aligner's admit / enable /
+    valid / capture strobes, outstanding and credit. First `limit` events of
+    each kind, printed at the end of the smoke whatever its verdict."""
+    try:
+        cs, ras, cas, we = dut.phy_dfi_cs_n, dut.phy_dfi_ras_n, dut.phy_dfi_cas_n, dut.phy_dfi_we_n
+        rdv, rde = dut.phy_dfi_rddata_valid, dut.phy_dfi_rddata_en
+        al = dut.u_dut.u_dut.u_ctrl.u_core.u_dfi_plane.u_rd
+        adm, en, cap, outst, cred = al.w_admit, al.w_en, al.w_cap_fire, al.r_outstanding, al.w_credit_avail
+        rdy = al.rd_ready_i
+    except AttributeError as e:
+        dut._log.info("DFI_RD_TRACE: probe absent (%r)", e)
+        return
+    rate = DFI_RATE
+    cyc = 0
+    counts = {}
+    def put(kind, info=""):
+        n = counts.get(kind, 0)
+        if n < limit:
+            log.append((cyc, kind, info))
+        counts[kind] = n + 1
+    while True:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        cyc += 1
+        try:
+            c, r, ca, w = int(cs.value), int(ras.value), int(cas.value), int(we.value)
+            for p in range(rate):
+                if (c >> p) & 1:
+                    continue
+                key = ((r >> p) & 1, (ca >> p) & 1, (w >> p) & 1)
+                if key == (1, 0, 1):
+                    put("RD_pin", f"ph{p}")
+                elif key == (1, 0, 0):
+                    put("WR_pin", f"ph{p}")
+                elif key == (0, 1, 1):
+                    put("ACT_pin", f"ph{p}")
+            if int(adm.value):
+                put("admit", f"outst={int(outst.value)}")
+            if int(en.value):
+                put("en", f"pins_en={int(rde.value):0{rate}b} credit={int(cred.value)}")
+            if int(rdv.value):
+                put("valid", f"{int(rdv.value):0{rate}b} credit={int(cred.value)} outst={int(outst.value)} rdy={int(rdy.value)}")
+            if int(cap.value):
+                put("capture", f"outst={int(outst.value)}")
+        except ValueError:
+            pass
 
 
 @cocotb.test(timeout_time=50, timeout_unit="ms")
@@ -156,6 +211,10 @@ async def cocotb_test_granite_uart_smoke(dut):
 
     r = await bridge(prog)()
     dut._log.info("granite smoke results: %s", {k: v for k, v in r.items() if k != "trace"})
+    if _DFI_LOG:
+        dut._log.info("DFI_RD_TRACE (cycle, kind, info), first %d per kind:", 60)
+        for cyc, kind, info in _DFI_LOG:
+            dut._log.info("  %7d %-8s %s", cyc, kind, info)
     assert r["build_id"] == 0x44445232, f"BUILD_ID mismatch: 0x{r['build_id']:08X}"
     assert r["scratch"] == 0x00C0FFEE, f"SCRATCH round-trip failed: {r['scratch']:#x}"
     assert r["wr"] and r["rd"], f"engine did not finish (board wedges here): {r}"

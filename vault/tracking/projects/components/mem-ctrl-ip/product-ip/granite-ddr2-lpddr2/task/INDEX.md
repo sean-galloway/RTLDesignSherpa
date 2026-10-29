@@ -13,21 +13,23 @@ state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 2 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Open
 
-- **TASK-006** — close_page half-width traffic: an address-matching
-  combiner at the store (pumice's form), after the port aggregator (TASK-005)
-  won one cell and cost 30 percent elsewhere. Owner 2026-10-29.
-  [open/TASK-006.md](open/TASK-006.md).
+(none)
 
 ## Active
 
+- **TASK-006** — store combining behind `STORE_MERGE_EN` (default 0): built,
+  tested, on the board the close_page pair walk doubles and matches pumice;
+  OPEN DEFECT: counter-id open_page pair walk at 1-2 threads corrupts
+  (write merge under an open row), reads-only merging clean. ACTIVE
+  2026-10-29. [active/TASK-006.md](active/TASK-006.md).
 - **TASK-003** — granite at 100 MHz and ahead of LiteDRAM through the same
   harness: 100 MHz closes (b8665155e, timer loads registered); DDR2-400 board
   point measured 2026-10-29 (streams 772/774 of 800, 1w+1r 761-773 combined,

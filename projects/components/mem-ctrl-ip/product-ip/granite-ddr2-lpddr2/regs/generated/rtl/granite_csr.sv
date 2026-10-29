@@ -101,6 +101,8 @@ module granite_csr (
         logic LP_MR1_OP;
         logic LP_MR2_OP;
         logic LP_MR3_OP;
+        logic STORE_STATS_MERGE;
+        logic STORE_STATS_RD_MERGE;
         logic ID;
         logic BUILD;
     } decoded_reg_strb_t;
@@ -146,6 +148,8 @@ module granite_csr (
         decoded_reg_strb.LP_MR1_OP = cpuif_req_masked & (cpuif_addr == 12'h180);
         decoded_reg_strb.LP_MR2_OP = cpuif_req_masked & (cpuif_addr == 12'h184);
         decoded_reg_strb.LP_MR3_OP = cpuif_req_masked & (cpuif_addr == 12'h188);
+        decoded_reg_strb.STORE_STATS_MERGE = cpuif_req_masked & (cpuif_addr == 12'h18c);
+        decoded_reg_strb.STORE_STATS_RD_MERGE = cpuif_req_masked & (cpuif_addr == 12'h190);
         decoded_reg_strb.ID = cpuif_req_masked & (cpuif_addr == 12'hff0);
         decoded_reg_strb.BUILD = cpuif_req_masked & (cpuif_addr == 12'hff4);
     end
@@ -2307,7 +2311,7 @@ module granite_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[39];
+    logic [31:0] readback_array[41];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2435,11 +2439,13 @@ module granite_csr (
     assign readback_array[35][31:8] = (decoded_reg_strb.LP_MR2_OP && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[36][7:0] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? field_storage.LP_MR3_OP.VAL.value : '0;
     assign readback_array[36][31:8] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[37][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[37][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[37][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[37][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[38][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[37][31:0] = (decoded_reg_strb.STORE_STATS_MERGE && !decoded_req_is_wr) ? hwif_in.STORE_STATS_MERGE.VAL.next : '0;
+    assign readback_array[38][31:0] = (decoded_reg_strb.STORE_STATS_RD_MERGE && !decoded_req_is_wr) ? hwif_in.STORE_STATS_RD_MERGE.VAL.next : '0;
+    assign readback_array[39][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[39][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[39][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[39][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[40][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2447,7 +2453,7 @@ module granite_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<39; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<41; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

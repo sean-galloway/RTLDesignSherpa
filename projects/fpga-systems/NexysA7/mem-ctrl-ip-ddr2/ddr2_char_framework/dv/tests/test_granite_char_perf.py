@@ -62,6 +62,8 @@ import ddr2_char as dc                                    # noqa: E402
 import pumice_char as pc                                  # noqa: E402
 import pumice_master as pm                                # noqa: E402
 import perf_mixed_family as pmf                           # noqa: E402
+import perf_half_rot_family as phr                        # noqa: E402
+import half_burst_family as hbf                           # noqa: E402  (build-perf/host, shared with the board)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_granite_char_uart import (                      # noqa: E402,F401
@@ -306,6 +308,25 @@ async def cocotb_test_granite_perf(dut):
         return out_d
 
     def measure_family(fam_key):
+        if hbf.is_half_family(fam_key):
+            # the four board half-burst patterns (pumice TASK-060, granite
+            # TASK-006): TEST_HALF_BURSTS DRAM bursts per thread, TEST_HALF_THREADS
+            # active threads; the write pass is where a merge happens
+            return hbf.measure_dict(drv, dc, pm, pc, geom, fam=fam_key,
+                                    n_bursts=int(os.environ.get("TEST_HALF_BURSTS", "32"), 0),
+                                    n_gen=n_gen, burst_bytes=DRAM_BL * DRAM_DEVICE_BYTES,
+                                    clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0, diag=diag,
+                                    host_diag=_host_diag, always_diag=always_diag,
+                                    threads=os.environ.get("TEST_HALF_THREADS", "1"),
+                                    seed_fields=lambda t: pmf.seed_fields(t, seed=pmf.PERF_SEED),
+                                    reads=os.environ.get("TEST_HALF_ROT_READS", "1") == "1")
+        if fam_key.startswith("half_rot"):
+            return phr.measure(drv, dc, pm, pc, geom, d=phr.parse_distance(fam_key), n_gen=n_gen,
+                               burst_bytes=DRAM_BL * DRAM_DEVICE_BYTES,
+                               clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0, diag=diag,
+                               host_diag=_host_diag, always_diag=always_diag,
+                               reads=os.environ.get("TEST_HALF_ROT_READS", "1") == "1",
+                               threads=os.environ.get("TEST_HALF_ROT_THREADS"))
         if fam_key in pmf.CONC_FAMILIES:
             return pmf.measure_conc(fam_key, drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn,
                                     gap=gap, clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0,
@@ -533,6 +554,8 @@ def test_granite_char_perf(request):
               "UART_BAUD": str(UART_BAUD),
               "ROW_WIDTH": str(ROW_W),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT_BYTES * 8),
+              "STORE_MERGE_EN": os.environ.get("TEST_STORE_MERGE_EN", "0"),
+              "AXI_DATA_WIDTH": os.environ.get("TEST_AXI_DATA_WIDTH", "64"),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEVICE_BYTES * 8),
               "DFI_RATE": str(DFI_RATE),
               "DRAM_BL": str(DRAM_BL),
