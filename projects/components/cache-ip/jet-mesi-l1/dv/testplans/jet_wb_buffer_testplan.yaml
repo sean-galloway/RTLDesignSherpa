@@ -12,10 +12,11 @@ test_files:
   - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_wb_buffer.py
 
 # Contract: MAS ch02_blocks/03.  VICTIM_DEPTH entries hold valid/line/state/
-# data/beats_sent.  Capture allocates a slot and writes beats; the entry
-# becomes valid only after the last beat.  Drain is oldest-first, address held
-# until BRESP, data beats may leave as accepted.  Snoops snarf from the buffer
-# and record a post-snoop effect; an invalidated snarfed victim still drains.
+# data.  Capture allocates a slot and writes beats; the entry becomes valid
+# only after the last beat.  Drain is oldest-first in the l1_victim shape
+# {drain_valid_o, drain_addr_o, drain_data_o}; BRESP (drain_done_i) retires
+# the head.  Snoops snarf from the buffer and record a post-snoop effect; an
+# invalidated snarfed victim still drains.
 
 parameters:
   - name: VICTIM_DEPTH
@@ -24,6 +25,9 @@ parameters:
   - name: LINE_W
     default: 26 (AMBER_ADDR_WIDTH - line-offset bits)
     description: snoop-compare key width
+  - name: ADDR_WIDTH
+    default: 32 (l1_pkg.AMBER_ADDR_WIDTH)
+    description: full byte-address width presented to l1_drain
   - name: LINE_BYTES / BUS_WIDTH
     default: 64 / 64 (l1_pkg)
     description: cache line size / data-bus width (sets FILL_BEATS)
@@ -31,10 +35,16 @@ parameters:
 scenarios:
   - name: capture_then_drain
     level: all
-    what: Capture a victim line over FILL_BEATS cycles, then drain it
-      (accept all beats, then BRESP retire).  Occupancy rises to 1 then
-      returns to 0; drain_req_o/drain_line_o/drain_beat_data_o track the
-      oldest entry.
+    what: Capture a victim line over FILL_BEATS cycles, then drain it via
+      the l1_victim-shaped head and BRESP retire.  Occupancy rises to 1 then
+      returns to 0; drain_valid_o/drain_addr_o/drain_data_o track the oldest
+      entry.
+    status: covered
+  - name: capture_pause_resume
+    level: all
+    what: A capture pauses (cap_i deasserts) after a partial beat sequence
+      and resumes on the same slot without leaking it; the entry becomes
+      valid and drainable after the final beat.
     status: covered
   - name: full_stall
     level: all
@@ -71,47 +81,57 @@ scenarios:
     status: covered
 
 coverage_points:
-  - line: 140
+  - line: 147
     type: initial
-    content: "elaboration range check (VICTIM_DEPTH 1-4)"
+    content: "address-shape elaboration check (LINE_W + OFFSET_W == ADDR_WIDTH)"
+    covered: true
+    note: fires only on a parameter mismatch; default geometry passes.
+  - line: 157
+    type: initial
+    content: "elaboration range check (VICTIM_DEPTH 1-4, geometry)"
     covered: true
     note: elaborates clean at the default depth; the $error branches fire
       only on an out-of-range elaboration (by design not exercised).
-  - line: 175
+  - line: 191
     type: always_comb
     content: "free/full status / cap_gnt_o / cap_slot_o / wb_full_o"
     covered: true
     tests: [capture_then_drain, full_stall, random_model_scored]
-  - line: 186
+  - line: 202
     type: always_comb
-    content: "oldest-valid drain head selection and beat data mux"
+    content: "l1_victim-shaped drain head {valid, addr, data}"
     covered: true
     tests: [capture_then_drain, oldest_first_order, random_model_scored]
-  - line: 203
+  - line: 207
     type: always_comb
     content: "snarf CAM match, data mux, and bresp-cycle flag"
     covered: true
     tests: [snarf_hit, snarf_at_bresp, snarf_invalidated_still_drains]
-  - line: 247
+  - line: 261
     type: always_ff
     content: "capture allocation, beat accumulation, valid promotion"
     covered: true
-    tests: [capture_then_drain, full_stall]
-  - line: 285
+    tests: [capture_then_drain, capture_pause_resume, full_stall]
+  - line: 295
     type: always_ff
-    content: "drain beat advance and BRESP retire (head pointer update)"
+    content: "BRESP retire (head pointer update)"
     covered: true
     tests: [capture_then_drain, oldest_first_order]
-  - line: 280
+  - line: 290
     type: always_ff
-    content: "sn_eff_i recorded on matching entry"
+    content: "sn_eff_i recorded on matching entry (gated non-NONE)"
     covered: true
     tests: [snarf_invalidated_still_drains, random_model_scored]
-  - line: 220
+  - line: 233
     type: always_comb
     content: "wb_occupancy_o popcount"
     covered: true
     tests: [capture_then_drain, full_stall, random_model_scored]
+  - line: 324
+    type: assertion
+    content: "simulation-only: partial capture must complete within bounded pause"
+    covered: true
+    tests: [capture_pause_resume]
 
 gaps:
   - Out-of-range VICTIM_DEPTH elaboration ($error) is intentionally not

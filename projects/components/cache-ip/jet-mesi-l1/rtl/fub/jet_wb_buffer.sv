@@ -26,16 +26,17 @@
 //==============================================================================
 // Description:
 //   VICTIM_DEPTH-deep FIFO of dirty victims.  Capture is beat-serial from the
-//   data array (port B or A-between-fills); drain is beat-serial to l1_drain.
-//   The address is held until BRESP (drain_done_i); data beats may leave as
-//   accepted.  Snoops matching a valid entry are served from the buffer data
-//   (snarf) with the post-snoop effect recorded on sn_eff_i.  The critical
-//   ships-in-the-night corner is covered: a snoop landing in the entry's
-//   BRESP cycle is still answered from the buffer.
+//   data array (port B or A-between-fills); drain presents the oldest valid
+//   entry in the l1_victim shape {valid, addr, full_line} and is retired by
+//   the BRESP pulse drain_done_i.  The address is held until BRESP.  Snoops
+//   matching a valid entry are served from the buffer data (snarf) with the
+//   post-snoop effect recorded on sn_eff_i.  The critical ships-in-the-night
+//   corner is covered: a snoop landing in the entry's BRESP cycle is still
+//   answered from the buffer.
 //
-//   The buffer head is l1_victim-compatible in payload: it exposes the oldest
-//   valid victim {line, data} to the drain engine; the handshake is the
-//   streaming beat interface the J5 RTL uses.
+//   The buffer head is l1_victim-compatible: drain_valid_o/drain_addr_o/
+//   drain_data_o mirror victim_valid/victim_addr/victim_data, and drain_done_i
+//   is the retire pulse (equivalent to victim_clear from l1_drain's side).
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -50,6 +51,11 @@
 //     Description: Miss line-address width (snoop-compare key)
 //     Type: int
 //     Default: AMBER_ADDR_WIDTH - clog2(AMBER_LINE_BYTES) (26)
+//
+//   ADDR_WIDTH:
+//     Description: Full byte address width (line address + offset bits)
+//     Type: int
+//     Default: l1_pkg.AMBER_ADDR_WIDTH (32)
 //
 //   LINE_BYTES:
 //     Description: Cache line size in bytes
@@ -66,17 +72,19 @@
 //------------------------------------------------------------------------------
 //   - Only one capture stream is active at a time (single data-array read
 //     port).  cap_i held high opens a slot; cap_beat_i writes beats into that
-//     slot; the slot closes when the line is complete.
+//     slot; the slot closes only when the line is complete.  cap_i may deassert
+//     between beats (port sharing) without aborting the capture.
 //   - An entry is visible to the drain and to snarf only after all beats have
 //     been captured (r_valid).
-//   - sn_eff_i is recorded on the matching entry; an invalidated snarfed
-//     victim still drains to completion (fabric already took the data).
+//   - sn_eff_i is recorded on the matching entry exactly once and only when a
+//     non-NONE effect is presented; an invalidated snarfed victim still drains
+//     to completion (fabric already took the data).
 //
 //------------------------------------------------------------------------------
 // Related Modules:
 //------------------------------------------------------------------------------
 //   - Instantiated by: jet_wb_buffer_th (unit DV); jet_control (Tasks 5-7)
-//   - Package: jet_pkg (VICTIM_DEPTH), l1_pkg (geometry defaults)
+//   - Package: jet_pkg (VICTIM_DEPTH, effect encodings), l1_pkg (geometry)
 //
 //------------------------------------------------------------------------------
 // Test:
@@ -93,12 +101,14 @@ module jet_wb_buffer
 #(
     parameter int VICTIM_DEPTH = jet_pkg::VICTIM_DEPTH,
     parameter int LINE_W       = AMBER_ADDR_WIDTH - $clog2(AMBER_LINE_BYTES),
+    parameter int ADDR_WIDTH   = AMBER_ADDR_WIDTH,
     parameter int LINE_BYTES   = AMBER_LINE_BYTES,
     parameter int BUS_WIDTH    = AMBER_BUS_WIDTH,
     localparam int STRB_W         = BUS_WIDTH / 8,
     localparam int FILL_BEATS     = LINE_BYTES / STRB_W,
     localparam int BEAT_W         = $clog2(FILL_BEATS),
     localparam int LINE_WIDTH     = LINE_BYTES * 8,
+    localparam int OFFSET_W       = $clog2(LINE_BYTES),
     localparam int SLOT_W         = (VICTIM_DEPTH <= 2) ? 1 : $clog2(VICTIM_DEPTH),
     localparam int OCC_W          = $clog2(VICTIM_DEPTH + 1)
 )(
@@ -114,11 +124,10 @@ module jet_wb_buffer
     output logic [SLOT_W-1:0]        cap_slot_o,
     output logic                     wb_full_o,
 
-    // Drain side: oldest-valid entry to l1_drain
-    output logic                     drain_req_o,
-    output logic [LINE_W-1:0]        drain_line_o,
-    output logic [BUS_WIDTH-1:0]     drain_beat_data_o,
-    input  logic                     drain_accept_i,
+    // Drain side: l1_victim-shaped head of the FIFO
+    output logic                     drain_valid_o,
+    output logic [ADDR_WIDTH-1:0]    drain_addr_o,
+    output logic [LINE_WIDTH-1:0]    drain_data_o,
     input  logic                     drain_done_i,
 
     // Snarf: snoop service from the WB buffer
@@ -131,6 +140,14 @@ module jet_wb_buffer
     // MonBus occupancy gauge (J7)
     output logic [OCC_W-1:0]         wb_occupancy_o
 );
+
+    // ------------------------------------------------------------------
+    // Address-shape sanity: the default parameters keep these equal.
+    // ------------------------------------------------------------------
+    initial begin
+        if (LINE_W + OFFSET_W != ADDR_WIDTH)
+            $error("jet_wb_buffer: LINE_W + $clog2(LINE_BYTES) must equal ADDR_WIDTH");
+    end
 
     // ------------------------------------------------------------------
     // Elaboration-time range check (house idiom, cf. l1_tag_array).
@@ -156,7 +173,6 @@ module jet_wb_buffer
     logic [LINE_W-1:0]             r_line      [VICTIM_DEPTH];
     logic [LINE_WIDTH-1:0]         r_data      [VICTIM_DEPTH];
     logic [BEAT_W-1:0]             r_beats_rcvd[VICTIM_DEPTH];
-    logic [BEAT_W-1:0]             r_beats_sent[VICTIM_DEPTH];
     logic [1:0]                    r_eff       [VICTIM_DEPTH];
 
     // ------------------------------------------------------------------
@@ -178,15 +194,14 @@ module jet_wb_buffer
     assign cap_slot_o = r_open ? r_open_slot : r_tail;
 
     // ------------------------------------------------------------------
-    // Drain head (combinational)
+    // Drain head (combinational): l1_victim shape
     // ------------------------------------------------------------------
     logic [SLOT_W-1:0] w_head_idx;
 
-    assign w_head_idx      = r_head;
-    assign drain_req_o     = r_valid[w_head_idx];
-    assign drain_line_o    = r_line[w_head_idx];
-    assign drain_beat_data_o = r_data[w_head_idx][32'(r_beats_sent[w_head_idx])
-                                                   * BUS_WIDTH +: BUS_WIDTH];
+    assign w_head_idx   = r_head;
+    assign drain_valid_o = r_valid[w_head_idx];
+    assign drain_addr_o  = ADDR_WIDTH'({r_line[w_head_idx], {OFFSET_W{1'b0}}});
+    assign drain_data_o  = r_data[w_head_idx];
 
     // ------------------------------------------------------------------
     // Snarf CAM (combinational): search from head to tail, oldest first
@@ -237,7 +252,6 @@ module jet_wb_buffer
                 r_line[s]       <= '0;
                 r_data[s]       <= '0;
                 r_beats_rcvd[s] <= '0;
-                r_beats_sent[s] <= '0;
                 r_eff[s]        <= '0;
             end
         end else begin
@@ -251,12 +265,13 @@ module jet_wb_buffer
                 r_valid[r_tail]         <= 1'b0;
                 r_line[r_tail]          <= cap_line_i;
                 r_beats_rcvd[r_tail]    <= '0;
-                r_beats_sent[r_tail]    <= '0;
                 r_eff[r_tail]           <= JET_PEND_NONE;
                 r_tail                  <= SLOT_W'((int'(r_tail) + 1) % VICTIM_DEPTH);
             end
 
-            // Capture beat write into the open slot.
+            // Capture beat write into the open slot.  cap_i may deassert
+            // between beats (data-array port sharing) without aborting; the
+            // slot stays open until the last beat completes the line.
             if (r_open && cap_beat_i) begin
                 logic [BEAT_W-1:0] b;
                 b = r_beats_rcvd[r_open_slot];
@@ -269,22 +284,11 @@ module jet_wb_buffer
                 end
             end
 
-            // Close the open slot if cap_i deasserts without completing
-            // (the entry remains allocated but incomplete until then).
-            if (r_open && !cap_i) begin
-                r_open <= 1'b0;
-            end
-
-            // Snoop effect recording on the matching entry.
-            if (w_sn_match) begin
+            // Snoop effect recording on the matching entry, gated so a
+            // non-matching cycle or JET_PEND_NONE does not clobber a pending
+            // effect already stored.
+            if (w_sn_match && (sn_eff_i != JET_PEND_NONE)) begin
                 r_eff[w_sn_match_idx] <= sn_eff_i;
-            end
-
-            // Drain beat advance (saturate at the last beat so a eager
-            // drain engine cannot over-advance the counter before BRESP).
-            if (drain_accept_i && r_valid[w_head_idx]
-                && (r_beats_sent[w_head_idx] != BEAT_W'(FILL_BEATS - 1))) begin
-                r_beats_sent[w_head_idx] <= r_beats_sent[w_head_idx] + 1'b1;
             end
 
             // BRESP retire: free the head entry and advance.
@@ -295,5 +299,31 @@ module jet_wb_buffer
             end
         end
     )
+
+    // ------------------------------------------------------------------
+    // Simulation-only contract checks
+    // ------------------------------------------------------------------
+    // pragma translate_off
+    // A capture that pauses (cap_i deasserts before the line is complete)
+    // must eventually resume and complete; otherwise the slot leaks.
+    // We bound the pause in simulation so a stuck-open slot fails loudly.
+    localparam int MAX_PAUSE_CYC = 1023;
+    localparam int PAUSE_CNT_W   = $clog2(MAX_PAUSE_CYC + 1);
+    logic [PAUSE_CNT_W-1:0] r_pause_cnt;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            r_pause_cnt <= '0;
+        end else if (r_open && !cap_i) begin
+            r_pause_cnt <= r_pause_cnt + 1'b1;
+        end else begin
+            r_pause_cnt <= '0;
+        end
+    end
+
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (r_pause_cnt <= PAUSE_CNT_W'(MAX_PAUSE_CYC)))
+        else $error("jet_wb_buffer: partial capture slot paused too long / never completed");
+    // pragma translate_on
 
 endmodule : jet_wb_buffer

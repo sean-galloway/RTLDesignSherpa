@@ -2,9 +2,9 @@
 jet_wb_buffer testbench
 
 The decoupled writeback buffer: a VICTIM_DEPTH-deep FIFO of dirty victims
-captured beat-serial from the data array and drained oldest-first.  Direct
-pin-level stimulus scored against a Python golden model (MAS ch02_blocks/03
-contract).
+captured beat-serial from the data array and drained oldest-first in the
+l1_victim shape {valid, addr, full_line}.  Direct pin-level stimulus scored
+against a Python golden model (MAS ch02_blocks/03 contract).
 
 Author: RTL Design Sherpa
 Created: 2026-10-28
@@ -52,7 +52,6 @@ class WbBufferModel:
             'line': self._mask_line(line),
             'data': 0,
             'beats_rcvd': 0,
-            'beats_sent': 0,
             'valid': False,
             'eff': JET_PEND_NONE,
             'slot': slot,
@@ -75,21 +74,11 @@ class WbBufferModel:
             entry['valid'] = True
             self.open_slot = None
 
-    def close_capture(self):
-        self.open_slot = None
-
     def oldest_valid(self):
         for i, e in enumerate(self.entries):
             if e['valid']:
                 return i, e
         return None, None
-
-    def accept_beat(self):
-        idx, entry = self.oldest_valid()
-        if entry is None:
-            return None
-        entry['beats_sent'] += 1
-        return entry
 
     def retire(self):
         idx, entry = self.oldest_valid()
@@ -131,6 +120,7 @@ class JetWbBufferTB(TBBase):
         random.seed(self.SEED)
         self.VICTIM_DEPTH = self.convert_to_int(os.environ.get('VICTIM_DEPTH', '2'))
         self.LINE_W = len(dut.cap_line_i.value)
+        self.ADDR_WIDTH = len(dut.drain_addr_o.value)
         self.LINE_BYTES = self.convert_to_int(os.environ.get('LINE_BYTES', '64'))
         self.BUS_WIDTH = self.convert_to_int(os.environ.get('BUS_WIDTH', '64'))
         self.STRB_W = self.BUS_WIDTH // 8
@@ -143,8 +133,8 @@ class JetWbBufferTB(TBBase):
         self.checks = 0
         self.mismatches = 0
         self.log.info(f"JetWbBufferTB depth={self.VICTIM_DEPTH} line_w={self.LINE_W} "
-                      f"line_bytes={self.LINE_BYTES} bus_width={self.BUS_WIDTH} "
-                      f"level={self.TEST_LEVEL} seed={self.SEED}")
+                      f"addr_w={self.ADDR_WIDTH} line_bytes={self.LINE_BYTES} "
+                      f"bus_width={self.BUS_WIDTH} level={self.TEST_LEVEL} seed={self.SEED}")
 
     # -- mandatory methods --------------------------------------------------
     async def setup_clocks_and_reset(self, period_ns=10):
@@ -169,7 +159,6 @@ class JetWbBufferTB(TBBase):
         d.cap_line_i.value = 0
         d.cap_beat_i.value = 0
         d.cap_beat_data_i.value = 0
-        d.drain_accept_i.value = 0
         d.drain_done_i.value = 0
         d.sn_line_i.value = 0
         d.sn_eff_i.value = 0
@@ -187,6 +176,10 @@ class JetWbBufferTB(TBBase):
     def _mkline(self, tag):
         return tag & ((1 << self.LINE_W) - 1)
 
+    def _mkaddr(self, tag):
+        """Expand a line tag to a full byte address (offset bits zero)."""
+        return self._mkline(tag) * self.LINE_BYTES
+
     def _mkline_data(self, tag):
         """Build a full line whose beats are tagged by (tag, beat_num)."""
         data = 0
@@ -194,9 +187,6 @@ class JetWbBufferTB(TBBase):
             beat = ((tag << 8) | b) & ((1 << self.BUS_WIDTH) - 1)
             data |= beat << (b * self.BUS_WIDTH)
         return data
-
-    def _beat_of(self, data, b):
-        return (data >> (b * self.BUS_WIDTH)) & ((1 << self.BUS_WIDTH) - 1)
 
     async def _check_occupancy(self, note):
         await self._settle()
@@ -211,19 +201,14 @@ class JetWbBufferTB(TBBase):
     async def _check_drain_head(self, note):
         await self._settle()
         idx, entry = self.model.oldest_valid()
-        exp_req = 1 if entry is not None else 0
-        self._score(f"{note} drain_req_o",
-                    int(self.dut.drain_req_o.value), exp_req)
+        exp_valid = 1 if entry is not None else 0
+        self._score(f"{note} drain_valid_o",
+                    int(self.dut.drain_valid_o.value), exp_valid)
         if entry is not None:
-            self._score(f"{note} drain_line_o",
-                        int(self.dut.drain_line_o.value), entry['line'])
-            # Once all beats have been accepted the data bus is don't-care
-            # until BRESP retires the entry; only score the next beat when
-            # the entry still has beats left to send.
-            if entry['beats_sent'] < self.FILL_BEATS:
-                exp_beat = self._beat_of(entry['data'], entry['beats_sent'])
-                self._score(f"{note} drain_beat_data_o",
-                            int(self.dut.drain_beat_data_o.value), exp_beat)
+            self._score(f"{note} drain_addr_o",
+                        int(self.dut.drain_addr_o.value), self._mkaddr(entry['line']))
+            self._score(f"{note} drain_data_o",
+                        int(self.dut.drain_data_o.value), entry['data'])
 
     async def _check_snarf(self, line, note, expect_match):
         d = self.dut
@@ -274,29 +259,61 @@ class JetWbBufferTB(TBBase):
         await self._check_occupancy(note)
         return self.model.entries[-1] if self.model.entries else None
 
-    async def _do_drain_one(self, note="", early_bresp=False):
-        """Drain the oldest entry: accept all beats then BRESP retire."""
+    async def _do_capture_pause_resume(self, tag, pause_after=2, pause_cycles=3, note=""):
+        """Capture with a cap_i pause between beats; verifies slot resume."""
+        assert 0 < pause_after < self.FILL_BEATS
+        line = self._mkline(tag)
+        d = self.dut
+        d.cap_i.value = 1
+        d.cap_line_i.value = line
+        await self._settle()
+        exp_gnt = 1 if not self.model.full() else 0
+        self._score(f"{note} cap_gnt_o", int(d.cap_gnt_o.value), exp_gnt)
+        if not exp_gnt:
+            await RisingEdge(d.clk)
+            d.cap_i.value = 0
+            d.cap_line_i.value = 0
+            return None
+        slot = self.model.start_capture(line)
+        self._score(f"{note} cap_slot_o", int(d.cap_slot_o.value), slot)
+        await RisingEdge(d.clk)
+        beats = [((tag << 8) | b) & ((1 << self.BUS_WIDTH) - 1)
+                 for b in range(self.FILL_BEATS)]
+        for i, beat in enumerate(beats):
+            d.cap_beat_i.value = 1
+            d.cap_beat_data_i.value = beat
+            await self._settle()
+            await RisingEdge(d.clk)
+            self.model.write_beat(beat)
+            d.cap_beat_i.value = 0
+            d.cap_beat_data_i.value = 0
+            if i == pause_after - 1:
+                # Pause capture (data-array port sharing) then resume.
+                d.cap_i.value = 0
+                d.cap_line_i.value = 0
+                for _ in range(pause_cycles):
+                    await RisingEdge(d.clk)
+                d.cap_i.value = 1
+                d.cap_line_i.value = line
+                await self._settle()
+                self._score(f"{note} resume cap_slot_o", int(d.cap_slot_o.value), slot)
+                await RisingEdge(d.clk)
+        d.cap_i.value = 0
+        d.cap_line_i.value = 0
+        await self._settle()
+        await self._check_occupancy(note)
+        return self.model.entries[-1]
+
+    async def _do_drain_one(self, note=""):
+        """Retire the oldest valid entry with the BRESP pulse."""
         d = self.dut
         idx, entry = self.model.oldest_valid()
         assert entry is not None, f"{note}: no entry to drain"
-        for b in range(self.FILL_BEATS):
-            await self._check_drain_head(f"{note} pre-accept[{b}]")
-            d.drain_accept_i.value = 1
-            await self._settle()
-            await RisingEdge(d.clk)
-            self.model.accept_beat()
-            d.drain_accept_i.value = 0
-        if early_bresp:
-            d.drain_done_i.value = 1
-            await RisingEdge(d.clk)
-            self.model.retire()
-            d.drain_done_i.value = 0
-        else:
-            await self._settle()
-            d.drain_done_i.value = 1
-            await RisingEdge(d.clk)
-            self.model.retire()
-            d.drain_done_i.value = 0
+        await self._check_drain_head(f"{note} pre-retire")
+        d.drain_done_i.value = 1
+        await RisingEdge(d.clk)
+        self.model.retire()
+        d.drain_done_i.value = 0
         await self._check_occupancy(note)
 
     async def _do_bresp(self, note=""):
@@ -310,10 +327,16 @@ class JetWbBufferTB(TBBase):
 
     # -- directed scenarios -------------------------------------------------
     async def _scen_capture_then_drain(self):
-        """Capture a victim over beats, drain it AW/W + BRESP, verify free."""
+        """Capture a victim over beats, then BRESP-retire it."""
         await self._do_capture(0xA5, note="cap1")
         await self._check_drain_head("cap1 captured")
         await self._do_drain_one(note="cap1 drain")
+
+    async def _scen_capture_pause_resume(self):
+        """Partial capture pauses and resumes without leaking the slot."""
+        await self._do_capture_pause_resume(0xB6, pause_after=2, pause_cycles=3, note="pause")
+        await self._check_drain_head("pause captured")
+        await self._do_drain_one(note="pause drain")
 
     async def _scen_full_stall(self):
         """VICTIM_DEPTH captures -> wb_full_o; drain one reopens one slot."""
@@ -339,19 +362,14 @@ class JetWbBufferTB(TBBase):
             await self._do_drain_one(note="full drain rest")
 
     async def _scen_oldest_first_order(self):
-        """Capture A,B; drain order is A then B even when A's BRESP is delayed."""
+        """Capture A,B; B only reaches head after A's BRESP."""
         await self._do_capture(0xA1, note="order A")
         await self._do_capture(0xB2, note="order B")
-        # Drain A without immediate BRESP.
+        # Delay BRESP for A, verify head stays A.
         d = self.dut
-        for b in range(self.FILL_BEATS):
-            await self._check_drain_head(f"order A beat[{b}]")
-            d.drain_accept_i.value = 1
+        for _ in range(3):
+            await self._check_drain_head("order A waiting BRESP")
             await RisingEdge(d.clk)
-            self.model.accept_beat()
-            d.drain_accept_i.value = 0
-        # Delay BRESP for A, verify head still A.
-        await self._check_drain_head("order A waiting BRESP")
         # BRESP A
         await self._do_bresp("order A bresp")
         # Drain B
@@ -371,14 +389,8 @@ class JetWbBufferTB(TBBase):
         tag = 0xF6
         await self._do_capture(tag, note="bresp capture")
         line = self._mkline(tag)
-        # Drain beats but do not retire yet.
         d = self.dut
-        for b in range(self.FILL_BEATS):
-            d.drain_accept_i.value = 1
-            await RisingEdge(d.clk)
-            self.model.accept_beat()
-            d.drain_accept_i.value = 0
-        # Now present snoop + BRESP in the same cycle.
+        # Present snoop + BRESP in the same cycle.
         d.sn_line_i.value = line
         d.drain_done_i.value = 1
         await self._settle()
@@ -409,7 +421,8 @@ class JetWbBufferTB(TBBase):
         d.sn_eff_i.value = 0
         # Entry must still drain to completion.
         await self._do_drain_one(note="inv drain")
-        self._score("inv retired occupancy", self.model.occupancy(), 0)
+        await self._check_occupancy("inv retired")
+        assert self.model.occupancy() == 0
 
     # -- random phase -------------------------------------------------------
     async def _random_phase(self, n_ops):
@@ -421,21 +434,11 @@ class JetWbBufferTB(TBBase):
             if r < 0.30 and not m.full():
                 tag = random.randrange(1 << self.LINE_W)
                 await self._do_capture(tag, note=f"rnd{i} cap")
-            elif r < 0.50 and valids:
+            elif r < 0.55 and valids:
                 idx, entry = m.oldest_valid()
-                if entry is not None:
-                    # accept up to the remaining beats, maybe retire
-                    remaining = self.FILL_BEATS - entry['beats_sent']
-                    nbeats = random.randrange(min(remaining, self.FILL_BEATS) + 1)
-                    d = self.dut
-                    for _ in range(nbeats):
-                        d.drain_accept_i.value = 1
-                        await RisingEdge(d.clk)
-                        m.accept_beat()
-                        d.drain_accept_i.value = 0
-                    if entry['beats_sent'] >= self.FILL_BEATS and random.random() < 0.6:
-                        await self._do_bresp(f"rnd{i} bresp")
-            elif r < 0.70 and valids:
+                if entry is not None and random.random() < 0.6:
+                    await self._do_bresp(f"rnd{i} bresp")
+            elif r < 0.80 and valids:
                 entry = random.choice(valids)
                 line = entry['line']
                 eff = random.choice([JET_PEND_DOWNGRADE_S, JET_PEND_INVALIDATE_I])
@@ -460,6 +463,7 @@ class JetWbBufferTB(TBBase):
     # -- test ---------------------------------------------------------------
     async def run(self) -> bool:
         await self._scen_capture_then_drain()
+        await self._scen_capture_pause_resume()
         await self._scen_full_stall()
         await self._scen_oldest_first_order()
         await self._scen_snarf_hit()

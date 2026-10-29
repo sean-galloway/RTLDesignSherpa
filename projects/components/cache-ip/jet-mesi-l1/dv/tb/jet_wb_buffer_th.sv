@@ -24,6 +24,7 @@ module jet_wb_buffer_th
 #(
     parameter int VICTIM_DEPTH = jet_pkg::VICTIM_DEPTH,
     parameter int LINE_W       = AMBER_ADDR_WIDTH - $clog2(AMBER_LINE_BYTES),
+    parameter int ADDR_WIDTH   = AMBER_ADDR_WIDTH,
     parameter int LINE_BYTES   = AMBER_LINE_BYTES,
     parameter int BUS_WIDTH    = AMBER_BUS_WIDTH,
     localparam int STRB_W      = BUS_WIDTH / 8,
@@ -45,11 +46,10 @@ module jet_wb_buffer_th
     output logic [SLOT_W-1:0]        cap_slot_o,
     output logic                     wb_full_o,
 
-    // Drain side
-    output logic                     drain_req_o,
-    output logic [LINE_W-1:0]        drain_line_o,
-    output logic [BUS_WIDTH-1:0]     drain_beat_data_o,
-    input  logic                     drain_accept_i,
+    // Drain side: l1_victim-shaped head
+    output logic                     drain_valid_o,
+    output logic [ADDR_WIDTH-1:0]    drain_addr_o,
+    output logic [LINE_WIDTH-1:0]    drain_data_o,
     input  logic                     drain_done_i,
 
     // Snarf
@@ -66,6 +66,7 @@ module jet_wb_buffer_th
     jet_wb_buffer #(
         .VICTIM_DEPTH (VICTIM_DEPTH),
         .LINE_W       (LINE_W),
+        .ADDR_WIDTH   (ADDR_WIDTH),
         .LINE_BYTES   (LINE_BYTES),
         .BUS_WIDTH    (BUS_WIDTH)
     ) u_wb_buffer (.*);
