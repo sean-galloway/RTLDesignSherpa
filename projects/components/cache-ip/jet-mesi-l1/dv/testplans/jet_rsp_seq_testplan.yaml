@@ -63,42 +63,47 @@ scenarios:
     status: covered
 
 coverage_points:
-  - line: 116
+  - line: 117
     type: initial
     content: "elaboration range check (RSP_DEPTH 2-32, BUS_WIDTH)"
     covered: true
     note: elaborates clean at the default depth; the $error branches fire
       only on an out-of-range elaboration (by design not exercised).
-  - line: 147
+  - line: 148
     type: always_comb
     content: "tag grant and tag value (tag_gnt_o / tag_o)"
     covered: true
     tests: [tag_reuse, wraparound, random_model_scored]
-  - line: 141
+  - line: 142
     type: always_comb
     content: "release head valid and data (rsp_valid_o / rsp_data_o)"
     covered: true
     tests: [in_order_release, head_of_line, backpressure_freedom]
-  - line: 165
+  - line: 167
     type: always_ff
     content: "deposit write to per-tag completion record"
     covered: true
     tests: [in_order_release, backpressure_freedom, wraparound]
-  - line: 171
+  - line: 175
     type: always_ff
     content: "release pointer advance and valid clear"
     covered: true
     tests: [in_order_release, head_of_line, backpressure_freedom]
-  - line: 177
+  - line: 183
     type: always_ff
     content: "alloc pointer advance"
     covered: true
     tests: [tag_reuse, wraparound, random_model_scored]
-  - line: 182
+  - line: 190
     type: always_ff
     content: "occupancy counter (alloc/release net)"
     covered: true
     tests: [backpressure_freedom, tag_reuse, wraparound]
+  - line: 197
+    type: assertion
+    content: "simulation-only: deposit tag must be within RSP_DEPTH"
+    covered: true
+    tests: [all scenarios]
 
 gaps:
   - Out-of-range RSP_DEPTH elaboration ($error) is intentionally not

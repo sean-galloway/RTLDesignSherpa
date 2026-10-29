@@ -63,9 +63,10 @@
 //   - A granted alloc and a release can occur in the same cycle; the net
 //     occupancy change is zero and the freed tag is immediately reusable.
 //   - Deposit is never gated by rsp_ready_i (the deadlock-freedom property).
-//   - When a completion is deposited to the current release pointer in the
-//     same cycle that rsp_ready_i is high, the newly arrived data is released
-//     immediately (deposit is ordered before release in the sequential block).
+//   - A completion deposited to the current release pointer in the same cycle
+//     that rsp_ready_i is high becomes visible on rsp_valid_o/rsp_data_o in
+//     that cycle and is released on the next rising edge; no backpressure path
+//     ever blocks the deposit.
 //
 //------------------------------------------------------------------------------
 // Related Modules:
@@ -136,7 +137,8 @@ module jet_rsp_seq
     // ------------------------------------------------------------------
     // Combinational response port and release event.
     // ------------------------------------------------------------------
-    wire w_release = rsp_ready_i & rsp_valid_o;
+    logic w_release;
+    assign w_release = rsp_ready_i & rsp_valid_o;
 
     assign rsp_valid_o = r_valid[r_rel_tag];
     assign rsp_data_o  = r_data[r_rel_tag];
@@ -160,8 +162,9 @@ module jet_rsp_seq
                 r_data[s] <= '0;
             end
         end else begin
-            // Deposit first, so a same-cycle deposit+release to the head
-            // releases the newly arrived data.
+            // Deposit: write the completion record.  A deposit to the
+            // current release pointer becomes visible on the response port
+            // combinationally and is released on the next clock edge.
             if (cpl_i) begin
                 r_valid[cpl_tag_i] <= 1'b1;
                 r_data[cpl_tag_i]  <= cpl_data_i;
@@ -170,12 +173,18 @@ module jet_rsp_seq
             // Release: advance the pointer and free the slot.
             if (w_release) begin
                 r_valid[r_rel_tag] <= 1'b0;
-                r_rel_tag <= SEQ_W'((int'(r_rel_tag) + 1) % RSP_DEPTH);
+                if (r_rel_tag == SEQ_W'(RSP_DEPTH - 1))
+                    r_rel_tag <= '0;
+                else
+                    r_rel_tag <= r_rel_tag + 1'b1;
             end
 
             // Tag alloc: advance the alloc pointer on a grant.
             if (tag_req_i && tag_gnt_o) begin
-                r_alloc_tag <= SEQ_W'((int'(r_alloc_tag) + 1) % RSP_DEPTH);
+                if (r_alloc_tag == SEQ_W'(RSP_DEPTH - 1))
+                    r_alloc_tag <= '0;
+                else
+                    r_alloc_tag <= r_alloc_tag + 1'b1;
             end
 
             // Occupancy tracks the net of alloc and release.
@@ -184,5 +193,12 @@ module jet_rsp_seq
                            - OCC_W'(w_release);
         end
     )
+
+    // pragma translate_off
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (cpl_i |-> cpl_tag_i < SEQ_W'(RSP_DEPTH)))
+        else $error("jet_rsp_seq: cpl_tag_i out of range (%0d >= %0d)",
+                    cpl_tag_i, RSP_DEPTH);
+    // pragma translate_on
 
 endmodule : jet_rsp_seq
