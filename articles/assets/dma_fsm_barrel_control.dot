@@ -46,7 +46,6 @@ digraph dma_firmware_boundary {
   cmdport -> core [label="STAGE / ARM / state commands"];
   core -> write_engine [label="WR commands"];
   core -> read_engine [label="RD commands"];
-  core -> boundary [label="scheduled transfers", penwidth=1.8];
 
   write_in -> write_engine [label="write data"];
   write_engine -> boundary [label="write bursts", penwidth=1.8];
