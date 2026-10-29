@@ -1,0 +1,58 @@
+{
+  "channels": 8,
+  "data_width": 256,
+  "simulator": "verilator",
+  "firmware": "committed executive image",
+  "measured": "2026-10-28",
+  "test": "cocotb_test_perf",
+  "scenarios": {
+    "one_beat_x16_one_channel": {
+      "descriptors": 16,
+      "fsm_cycles": 131,
+      "g_cycles_4_harts": 1571,
+      "g_cycles_8_harts": 2371
+    },
+    "one_beat_x16_all_channels": {
+      "descriptors": 128,
+      "fsm_cycles": 131,
+      "g_cycles_4_harts": 2699,
+      "g_cycles_8_harts": 2316
+    },
+    "64_beat_x16_all_channels": {
+      "descriptors": 128,
+      "fsm_cycles": 1255,
+      "g_cycles_4_harts": 2777,
+      "g_cycles_8_harts": 2389
+    },
+    "ext_run4_64beat_x4_all_channels": {
+      "descriptors": 32,
+      "fsm_cycles": 407,
+      "g_cycles_4_harts": 39002,
+      "g_cycles_8_harts": 39201
+    },
+    "ext_per_beat_64beat_x4_all_channels": {
+      "descriptors": 32,
+      "fsm_cycles": 1043,
+      "g_cycles_4_harts": 128922,
+      "g_cycles_8_harts": 130086
+    },
+    "64KB_x4_all_channels": {
+      "descriptors": 32,
+      "fsm_cycles": 9248,
+      "g_cycles_4_harts": 9415,
+      "g_cycles_8_harts": 9412
+    },
+    "1MB_x2_all_channels": {
+      "descriptors": 16,
+      "fsm_cycles": 84277,
+      "g_cycles_4_harts": 84444,
+      "g_cycles_8_harts": 84443
+    },
+    "1MB_ext_runs256_all_channels": {
+      "descriptors": 8,
+      "fsm_cycles": 29574,
+      "g_cycles_4_harts": 70253,
+      "g_cycles_8_harts": 70641
+    }
+  }
+}
