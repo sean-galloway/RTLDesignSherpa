@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — tasks
 
-**Next ID: TASK-004** — never recycle a number, even when its item closed.
+**Next ID: TASK-005** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -17,7 +17,7 @@ state by construction rather than by discipline.
 | [active/](active/) | 3 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Active
 
@@ -31,3 +31,11 @@ state by construction rather than by discipline.
   harness: 100 MHz build -0.686 ns (132 core endpoints, two cones), board
   1w+1r collapse (54 MB/s vs pumice 552) traced to the select order; row gate
   in the pick. [active/TASK-003.md](active/TASK-003.md).
+
+## Deferred
+
+- **TASK-004** — granite 100 MHz timing margin: the remaining levers (LA=3 pick
+  split, plane pblock, registered read-issue strobe; directives, replication and
+  the pick trim measured and not levers) -- DEFERRED 2026-10-29, pending a build
+  that no longer closes at 100 MHz with the shipped directives, or a product
+  point above 100 MHz. [deferred/TASK-004.md](deferred/TASK-004.md).
