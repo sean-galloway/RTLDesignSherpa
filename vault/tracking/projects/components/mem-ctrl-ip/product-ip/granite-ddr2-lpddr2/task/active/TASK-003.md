@@ -474,3 +474,36 @@ it measured -0.219 / 20 (noise against -0.114 / 7, no level gain), and with
 SET_LAG it left two pick endpoints at -0.014 where the untrimmed pick leaves
 none. The committed text is the baseline pick + `SET_LAG`; reports kept as
 `targets/granite/fpga/reports_sys100_2026-10-28_timer_set_lag/`.
+
+### 2026-10-29, does the close hold: a repeat and a perturbed placer
+
+Two more builds of the committed text (b8665155e), nothing changed in the
+tree. The first is the same build again (default filelist, default
+directives) to see what build-to-build noise does to a +0.004 close. The
+answer is that there is no such noise on an identical netlist: Vivado
+2025.1 is deterministic, and the repeat reproduced the closing build line
+for line (WNS +0.004, 0 of 107,847, 36,681 LUTs, hold +0.025; the only
+report lines that differ are the date stamps). The ~0.5 ns spread this log
+has been calling noise is the spread between different netlists, not
+between runs of the same one. So a repeat says the close is reproducible;
+it says nothing about margin.
+
+The second build changes the placer directive to ExtraTimingOpt, keeping
+everything else, as a margin probe:
+
+| build (100 MHz, committed b8665155e) | WNS | failing | core | worst class | levels |
+|---|---|---|---|---|---|
+| repeat, AltSpreadLogic_high (default) | +0.004 | 0 of 107,847 | 0 | identical to the closing build | -- |
+| PLACE_DIRECTIVE=ExtraTimingOpt | -0.072 | 4 | 4 | `r_stale_pick[9]` -> `r_stale_pick[11,13]` (2), `r_spec_taken` -> `r_pick_cls[0,1]` (2); 36,679 LUTs, hold +0.014 | 11-14 |
+
+The margin is thin, as the +0.004 said. Under the other placer the four
+endpoints that miss are all in the pick's own select, the same
+`r_stale_pick` / `r_spec_taken` -> `r_pick_cls` pair that the trimmed-pick
+build left at -0.014, and the worst path is 71% route (9.975 ns data path,
+2.855 logic, 7.120 route). No timer, ring, harness or page-policy endpoint
+appears in either build: the SET_LAG change is holding; what is left is the
+pick's select at 11-14 levels, which the directive sweep already showed
+cannot be placed away. The default directive remains the one the flow
+ships, and its bitstream closes. The design moves that would buy real
+margin are the ones recorded above as not mine to take alone: the LA=3
+pick pipeline split, or a scheduler-plane pblock.
