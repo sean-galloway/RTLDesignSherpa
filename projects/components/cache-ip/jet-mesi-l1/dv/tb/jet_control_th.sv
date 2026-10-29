@@ -6,18 +6,20 @@
 //
 // Module: jet_control_th
 // Purpose:
-//   Test harness for the jet_control lookup+commit bring-up (Tasks 5-6).
-//   Wires the DUT to the REAL l1_tag_array / l1_data_array / l1_repl /
-//   jet_mshr / jet_wb_buffer / jet_rsp_seq blocks and exposes the partner
-//   handshakes (fill engine incl. PassDirty, drain engine) at the top so
-//   the cocotb TB can model partner handshake timing only.  Pure wiring
-//   plus two muxes: the tag-array write port (control's init/promotion/
-//   commit-install wins over the TB backdoor setup install) and the
-//   data-array write port (fill beats win over control's write-hit/commit
-//   merge -- the MAS fill > write-hit rule; control yields, so the two
-//   never actually collide).  The response deposit port is the DUT's
-//   alone: the lookup-hit / commit-deposit arbitration is internal to
-//   jet_control (Task 6).
+//   Test harness for the jet_control lookup+commit+snoop bring-up (Tasks
+//   5-7).  Wires the DUT to the REAL l1_tag_array / l1_data_array /
+//   l1_repl / jet_mshr / jet_wb_buffer / jet_rsp_seq blocks and exposes
+//   the partner handshakes (fill engine incl. PassDirty, drain engine)
+//   plus the l1_snoop_resp core-facing snoop contract at the top so the
+//   cocotb TB can model partner handshake timing only.  Pure wiring plus
+//   three muxes: the tag-array write port (control's init/promotion/
+//   commit-install/snoop-effect wins over the TB backdoor setup install),
+//   the tag-array port B read (the DUT's snoop probe wins over the TB
+//   backdoor readback), and the data-array write port (fill beats win
+//   over control's write-hit/commit merge -- the MAS fill > write-hit
+//   rule; control yields, so the two never actually collide).  The
+//   response deposit port is the DUT's alone: the lookup-hit /
+//   commit-deposit arbitration is internal to jet_control (Task 6).
 //
 // Subsystem: jet
 //
@@ -34,11 +36,13 @@
 //   is internal to the DUT: fill_done_i (with fill_pass_dirty_i) triggers
 //   the D-4 store merge, the tag install, the deferred snoop effect, the
 //   response deposits, and the MSHR retire -- the TB scores all of them
-//   from the taps.  The snoop responder is Task 7: the MSHR snoop probe is
-//   tied off, and the TB drives the deferred-effect record (tb_sn_eff_*)
-//   directly into jet_mshr to model a mid-fill snoop.  The tag-array port
-//   B is the TB's backdoor read port (init-walk readback, same pattern as
-//   amber_control_th).
+//   from the taps.  The snoop path (Task 7) is the DUT's: the TB drives
+//   the l1_snoop_resp core-facing contract directly (sn_req/sn_addr/
+//   sn_type, combinational grant-cycle CRRESP, CD beats on
+//   cdvalid/cdready); the DUT's snoop probes reach the REAL jet_mshr
+//   (sn_* + sn_eff record) and jet_wb_buffer (snarf incl. the BRESP-cycle
+//   tap), and the tag array's port B muxes the DUT's snoop lookup over
+//   the TB backdoor read (init-walk readback).
 //
 //   Scoreboard taps expose every scoreable internal wire: the muxed array
 //   write ports with attribution enables, the repl interface, the MSHR
@@ -128,11 +132,20 @@ module jet_control_th
     output logic [ADDR_WIDTH-1:0]       wb_drain_addr_o,
     output logic [LINE_BITS-1:0]        wb_drain_data_o,
 
-    // TB snoop-side model (Task 7 preview): record a deferred post-commit
-    // effect on an in-flight MSHR entry, mid-fill
-    input  logic                        tb_sn_eff_i,
-    input  logic [MW-1:0]               tb_sn_eff_idx_i,
-    input  logic [1:0]                  tb_sn_eff_value_i,
+    // snoop responder (l1_snoop_resp core-facing contract, TB-driven)
+    input  logic                        sn_req_i,
+    input  logic [ADDR_WIDTH-1:0]       sn_addr_i,
+    input  logic [2:0]                  sn_type_i,
+    input  logic                        sn_cdready_i,
+    output logic                        sn_ready_o,
+    output logic                        sn_safe_o,
+    output logic [4:0]                  sn_crresp_o,
+    output logic [BUS_WIDTH-1:0]        sn_cddata_o,
+    output logic                        sn_cdlast_o,
+    output logic                        sn_cdvalid_o,
+    // snoop-path observability taps
+    output logic [1:0]                  wb_sn_eff_o,
+    output logic                        wb_sn_bresp_cycle_o,
 
     // TB backdoor tag install (scenario setup only; control wins the port)
     input  logic                        bd_tag_wr_en,
@@ -238,16 +251,21 @@ module jet_control_th
     logic [LINE_W-1:0]          mshr_cpl_line;
     logic [1:0]                 mshr_cpl_pend_eff;
     logic [MSHR_COUNT*SEQ_W-1:0] mshr_cpl_merge_seqs;
-    // MSHR: tied-off / dangling (the snoop probe and the overlay match
-    // outputs are Task 7/unused -- control consumes the registered-only
-    // probe; cpl_install/wb_slot/wb_valid have no commit consumer)
+    // MSHR: snoop probe + deferred-effect record (Task 7: wired to the DUT)
+    logic [LINE_W-1:0]          ctrl_mshr_sn_line;
+    logic                       ctrl_mshr_sn_eff;
+    logic [MW-1:0]              ctrl_mshr_sn_eff_idx;
+    logic [1:0]                 ctrl_mshr_sn_eff_value;
+    logic                       mshr_sn_match;
+    logic [MW-1:0]              mshr_sn_match_idx;
+    logic [FILL_BEATS-1:0]      mshr_sn_beats_rcvd;
+    logic                       mshr_sn_install;
+    // MSHR: dangling (the overlay match outputs are unused -- control
+    // consumes the registered-only probe; cpl_install/wb_slot/wb_valid
+    // have no commit consumer)
     logic                       mshr_lkup_match_nc;
     logic [MW-1:0]              mshr_lkup_match_idx_nc;
     logic [1:0]                 mshr_lkup_match_cls_nc;
-    logic                       mshr_sn_match_nc;
-    logic [MW-1:0]              mshr_sn_match_idx_nc;
-    logic [FILL_BEATS-1:0]      mshr_sn_beats_rcvd_nc;
-    logic                       mshr_sn_install_nc;
     logic                       mshr_cpl_install_nc;
     logic [WB_W-1:0]            mshr_cpl_wb_slot_nc;
     logic                       mshr_cpl_wb_valid_nc;
@@ -263,8 +281,8 @@ module jet_control_th
     logic                       wb_full;
     logic                       wb_drain_valid;
     logic                       wb_sn_hit;
-    logic [LINE_BITS-1:0]       wb_sn_data_nc;
-    logic                       wb_sn_bresp_cycle_nc;
+    logic [LINE_BITS-1:0]       wb_sn_data;
+    logic                       wb_sn_bresp_cycle;
     logic [WB_W:0]              wb_occupancy_nc;
     // rsp_seq: control <-> sequencer
     logic                       ctrl_tag_req;
@@ -278,6 +296,11 @@ module jet_control_th
     logic [WAYS-1:0]            mux_tag_wr_way_onehot;
     logic [SET_W-1:0]           mux_tag_wr_set;
     logic [TSW-1:0]             mux_tag_wr_tag_state;
+    // tag port B mux (the DUT's snoop probe wins over the TB backdoor read)
+    logic                       ctrl_tag_b_req;
+    logic [SET_W-1:0]           ctrl_tag_b_set;
+    logic [WAYS-1:0][TSW-1:0]   tag_b_tag_state;
+    logic [SET_W-1:0]           mux_tag_b_set;
     // data write mux (fill beats win over control's write-hit/commit merge)
     logic                       mux_dat_wr_en;
     logic [WAYS-1:0]            mux_dat_wr_way_onehot;
@@ -386,9 +409,32 @@ module jet_control_th
         .wb_sn_line_o            (ctrl_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
         .wb_sn_eff_o             (ctrl_wb_sn_eff),
+        .wb_sn_data_i            (wb_sn_data),
+        .wb_sn_bresp_cycle_i     (wb_sn_bresp_cycle),
         .wb_drain_valid_i        (wb_drain_valid),
         .drain_start_o           (drain_start_o),
         .drain_done_i            (drain_done_i),
+        .tag_b_req_o             (ctrl_tag_b_req),
+        .tag_b_set_o             (ctrl_tag_b_set),
+        .tag_b_tag_state_i       (tag_b_tag_state),
+        .mshr_sn_line_o          (ctrl_mshr_sn_line),
+        .mshr_sn_match_i         (mshr_sn_match),
+        .mshr_sn_match_idx_i     (mshr_sn_match_idx),
+        .mshr_sn_beats_rcvd_i    (mshr_sn_beats_rcvd),
+        .mshr_sn_install_i       (mshr_sn_install),
+        .mshr_sn_eff_o           (ctrl_mshr_sn_eff),
+        .mshr_sn_eff_idx_o       (ctrl_mshr_sn_eff_idx),
+        .mshr_sn_eff_value_o     (ctrl_mshr_sn_eff_value),
+        .sn_req_i                (sn_req_i),
+        .sn_addr_i               (sn_addr_i),
+        .sn_type_i               (sn_type_i),
+        .sn_ready_o              (sn_ready_o),
+        .sn_safe_o               (sn_safe_o),
+        .sn_crresp_o             (sn_crresp_o),
+        .sn_cddata_o             (sn_cddata_o),
+        .sn_cdlast_o             (sn_cdlast_o),
+        .sn_cdvalid_o            (sn_cdvalid_o),
+        .sn_cdready_i            (sn_cdready_i),
         .fill_start_o            (fill_start_o),
         .fill_addr_o             (fill_addr_o),
         .fill_cls_o              (fill_cls_o),
@@ -401,8 +447,8 @@ module jet_control_th
     );
 
     // ------------------------------------------------------------------
-    // MSHR file (Task 2).  The snoop probe is tied off (Task 7 wires it);
-    // the TB drives the deferred-effect record directly (tb_sn_eff_*).
+    // MSHR file (Task 2).  The snoop probe and the deferred-effect record
+    // are the DUT's (Task 7).
     // ------------------------------------------------------------------
     jet_mshr #(
         .MSHR_COUNT   (MSHR_COUNT),
@@ -434,20 +480,20 @@ module jet_control_th
         .lkup_reg_match_cls_o(mshr_lkup_reg_match_cls),
         .lkup_match_idx_o  (mshr_lkup_match_idx_nc),
         .lkup_match_cls_o  (mshr_lkup_match_cls_nc),
-        .sn_line_i         ({LINE_W{1'b0}}),
-        .sn_match_o        (mshr_sn_match_nc),
-        .sn_match_idx_o    (mshr_sn_match_idx_nc),
-        .sn_beats_rcvd_o   (mshr_sn_beats_rcvd_nc),
-        .sn_install_o      (mshr_sn_install_nc),
+        .sn_line_i         (ctrl_mshr_sn_line),
+        .sn_match_o        (mshr_sn_match),
+        .sn_match_idx_o    (mshr_sn_match_idx),
+        .sn_beats_rcvd_o   (mshr_sn_beats_rcvd),
+        .sn_install_o      (mshr_sn_install),
         .merge_i           (ctrl_mshr_merge),
         .merge_idx_i       (ctrl_mshr_merge_idx),
         .merge_seq_i       (ctrl_mshr_merge_seq),
         .beat_i            (ctrl_mshr_beat),
         .beat_idx_i        (ctrl_mshr_beat_idx),
         .beat_num_i        (ctrl_mshr_beat_num),
-        .sn_eff_i          (tb_sn_eff_i),
-        .sn_eff_idx_i      (tb_sn_eff_idx_i),
-        .sn_eff_value_i    (tb_sn_eff_value_i),
+        .sn_eff_i          (ctrl_mshr_sn_eff),
+        .sn_eff_idx_i      (ctrl_mshr_sn_eff_idx),
+        .sn_eff_value_i    (ctrl_mshr_sn_eff_value),
         .retire_i          (ctrl_mshr_retire),
         .retire_idx_i      (ctrl_mshr_retire_idx),
         .cpl_idx_i         (ctrl_mshr_cpl_idx),
@@ -486,8 +532,8 @@ module jet_control_th
         .drain_done_i    (drain_done_i),
         .sn_line_i       (ctrl_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
-        .sn_data_o       (wb_sn_data_nc),
-        .sn_bresp_cycle_o(wb_sn_bresp_cycle_nc),
+        .sn_data_o       (wb_sn_data),
+        .sn_bresp_cycle_o(wb_sn_bresp_cycle),
         .sn_eff_i        (ctrl_wb_sn_eff),
         .wb_occupancy_o  (wb_occupancy_nc)
     );
@@ -521,8 +567,9 @@ module jet_control_th
     );
 
     // ------------------------------------------------------------------
-    // Tag array.  Port B is the TB backdoor read (no snoop path in Task 6).
-    // Write mux: control (init walk / E->M promotion / commit install) wins
+    // Tag array.  Port B: the DUT's snoop probe (grant cycle) wins over
+    // the TB backdoor read (init-walk readback).  Write mux: control
+    // (init walk / E->M promotion / commit install / snoop effect) wins
     // over the backdoor setup.
     // ------------------------------------------------------------------
     always_comb begin
@@ -530,6 +577,10 @@ module jet_control_th
             bd_tag_wr_way_onehot[w] = (bd_tag_wr_way == WAY_W'(w));
         end
     end
+
+    assign mux_tag_b_set         = ctrl_tag_b_req ? ctrl_tag_b_set
+                                                  : tag_b_set_i;
+    assign tag_b_tag_state_o     = tag_b_tag_state;
 
     assign mux_tag_wr_en         = ctrl_tag_a_wr_en | bd_tag_wr_en;
     assign mux_tag_wr_way_onehot = ctrl_tag_a_wr_en ? ctrl_tag_a_wr_way_onehot
@@ -548,8 +599,8 @@ module jet_control_th
         .clk           (clk),
         .a_set         (ctrl_tag_a_set),
         .a_tag_state   (ctrl_tag_a_tag_state),
-        .b_set         (tag_b_set_i),
-        .b_tag_state   (tag_b_tag_state_o),
+        .b_set         (mux_tag_b_set),
+        .b_tag_state   (tag_b_tag_state),
         .wr_en         (mux_tag_wr_en),
         .wr_way_onehot (mux_tag_wr_way_onehot),
         .wr_set        (mux_tag_wr_set),
@@ -640,5 +691,7 @@ module jet_control_th
     assign wb_cap_gnt_o        = wb_cap_gnt;
     assign wb_cap_slot_o       = wb_cap_slot;
     assign wb_full_o           = wb_full;
+    assign wb_sn_eff_o         = ctrl_wb_sn_eff;
+    assign wb_sn_bresp_cycle_o = wb_sn_bresp_cycle;
 
 endmodule : jet_control_th

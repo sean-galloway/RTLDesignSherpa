@@ -33,6 +33,15 @@ channel. This chapter records the concurrency deltas.
 during the bounded anti-livelock hold-off window (ch02/01). It never waits
 on MSHR or WB occupancy, fill state, or drain state.
 
+**Task 7 landing note.** Because the transport's AC accept *is* the grant,
+acceptance gating lives in `snoop_safe`, which is necessarily
+address-agnostic; the landed safe windows (all bounded, ch02/01 Task 7
+notes): the init walk, an active service (one snoop at a time), a
+fill-done-unretired entry (the commit window — the CU grant's hold-off
+window is this plus the grant cycle itself), and a victim capture
+streaming on port B. None of them is a fill, a drain, or WB/MSHR
+occupancy.
+
 ## Response production
 
 The match order WB → MSHR → arrays (ch02/05) decides the CRRESP and the CD

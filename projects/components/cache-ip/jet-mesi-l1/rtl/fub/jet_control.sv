@@ -137,8 +137,32 @@
 //   contract is enforced by the engine (the unit-TB stub models it and
 //   the scenario suite exercises it end-to-end).
 //
-//   The snoop path (Task 7) is unwired: the WB snarf probe is driven with
-//   the lookup line for the drain-race check and wb_sn_eff is held NONE.
+//   The snoop path (Task 7, MAS ch02_blocks/05): one snoop at a time on
+//   the l1_snoop_resp core-facing contract (the AC accept cycle is the
+//   grant; CRRESP is combinational on the three probes -- WB snarf CAM,
+//   MSHR snoop probe, tag port B -- in the fixed match order WB > MSHR >
+//   array).  A WB match answers at M from a grant-cycle snapshot of the
+//   buffer line (the BRESP-cycle ships-in-the-night corner).  An MSHR
+//   match answers at the entry's post-fill install state (M for an RU
+//   fill, S for RNSD -- never the Invalid row) with PF_GUARD:
+//   DataTransfer/PassDirty are promised only when every fill beat has
+//   landed at the grant (a snoop never waits on a fill), and the state
+//   effect is recorded in the entry's pend_eff (invalidate dominates a
+//   later downgrade -- I-sticks, via the shadow this module keeps as the
+//   record's only driver).  An array hit answers at the installed state
+//   with the downgrade/invalidate on the tag write port at the end of the
+//   service; a tag hit on a claimed way is the doomed victim's stale tag
+//   (amber's stale-victim rule: the Invalid row, no effect).  Snoops
+//   arbitrate ahead of new CPU accepts (the lookup stage holds through
+//   the grant and the service), and the commit pipeline never starts
+//   during a service (the pend record must land before the commit's
+//   snapshot).  sn_safe_o deasserts only in bounded windows: the init
+//   walk, an active service, a fill-done-unretired entry (the commit
+//   window), a victim capture streaming on port B, and the grant cycle of
+//   a CLEAN_UNIQUE completion -- which with the commit window is the
+//   anti-livelock hold-off (ch02/01: snoop service to the upgraded line
+//   resumes when the granted write's commit lands; the bound is the CU
+//   commit's own length, never event-dependent).
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -203,7 +227,8 @@ module jet_control
     localparam int MW         = $clog2(MSHR_COUNT),
     localparam int RSP_DEPTH  = MSHR_COUNT + 2,
     localparam int SEQ_W      = $clog2(RSP_DEPTH),
-    localparam int WB_W       = (VICTIM_DEPTH <= 2) ? 1 : $clog2(VICTIM_DEPTH)
+    localparam int WB_W       = (VICTIM_DEPTH <= 2) ? 1 : $clog2(VICTIM_DEPTH),
+    localparam int LINE_BITS  = LINE_BYTES * 8
 )(
     input  logic                        clk,
     input  logic                        rst_n,
@@ -311,9 +336,41 @@ module jet_control
     output logic [LINE_W-1:0]           wb_sn_line_o,
     input  logic                        wb_sn_hit_i,
     output logic [1:0]                  wb_sn_eff_o,
+    input  logic [LINE_BITS-1:0]        wb_sn_data_i,
+    input  logic                        wb_sn_bresp_cycle_i,
     input  logic                        wb_drain_valid_i,
     output logic                        drain_start_o,
     input  logic                        drain_done_i,
+
+    // tag array port B (snoop lookup probe; the harness muxes the TB
+    // backdoor read when tag_b_req_o is low)
+    output logic                        tag_b_req_o,
+    output logic [SET_W-1:0]            tag_b_set_o,
+    input  logic [WAYS-1:0][TSW-1:0]    tag_b_tag_state_i,
+
+    // MSHR snoop probe + deferred-effect record (jet_mshr sn_*)
+    output logic [LINE_W-1:0]           mshr_sn_line_o,
+    input  logic                        mshr_sn_match_i,
+    input  logic [MW-1:0]               mshr_sn_match_idx_i,
+    input  logic [FILL_BEATS-1:0]       mshr_sn_beats_rcvd_i,
+    input  logic                        mshr_sn_install_i,
+    output logic                        mshr_sn_eff_o,
+    output logic [MW-1:0]               mshr_sn_eff_idx_o,
+    output logic [1:0]                  mshr_sn_eff_value_o,
+
+    // snoop responder (the l1_snoop_resp core-facing contract: the AC
+    // accept cycle IS the grant; CRRESP is combinational that cycle; CD
+    // beats handshake on cdvalid/cdready with cdlast on the final beat)
+    input  logic                        sn_req_i,
+    input  logic [ADDR_WIDTH-1:0]       sn_addr_i,
+    input  logic [2:0]                  sn_type_i,
+    output logic                        sn_ready_o,
+    output logic                        sn_safe_o,
+    output logic [AMBER_CRRESP_WIDTH-1:0] sn_crresp_o,
+    output logic [BUS_WIDTH-1:0]        sn_cddata_o,
+    output logic                        sn_cdlast_o,
+    output logic                        sn_cdvalid_o,
+    input  logic                        sn_cdready_i,
 
     // fill engine launch + beat-stream observation + completion
     output logic                        fill_start_o,
@@ -379,6 +436,19 @@ module jet_control
     // outstanding upgrade (CU)
     localparam int FQ_DEPTH = MSHR_COUNT + 1;
     localparam int FQ_W     = $clog2(FQ_DEPTH);
+
+    // Snoop service FSM (one snoop at a time, MAS ch02_blocks/05)
+    localparam logic [1:0] SN_IDLE   = 2'd0;
+    localparam logic [1:0] SN_DATA   = 2'd1;   // CD beat stream (DT answers)
+    localparam logic [1:0] SN_EFFECT = 2'd2;   // tag write / pend / WB record
+    // snoop answer sources (the fixed match order: WB > MSHR > array)
+    localparam logic [1:0] SRC_NONE  = 2'd0;
+    localparam logic [1:0] SRC_WB    = 2'd1;
+    localparam logic [1:0] SRC_MSHR  = 2'd2;
+    localparam logic [1:0] SRC_ARRAY = 2'd3;
+    // PF_GUARD: a pending-fill answer suppresses DataTransfer and PassDirty
+    // (keeps IsShared/WasUnique -- the post-fill row, never the Invalid row)
+    localparam logic [AMBER_CRRESP_WIDTH-1:0] CRRESP_NO_DT = 5'b11000;
 
     // ------------------------------------------------------------------
     // State
@@ -446,6 +516,23 @@ module jet_control
     logic [SEQ_W-1:0]        r_cmt_seqs [MSHR_COUNT];
     logic [MW:0]             r_cmt_k;
     logic [BUS_WIDTH-1:0]    r_cmt_rdata [MSHR_COUNT];
+    // snoop service (MAS ch02_blocks/05): grant-cycle context + stream
+    logic [1:0]              r_sn_state;
+    logic [LINE_W-1:0]       r_sn_line;
+    logic [SET_W-1:0]        r_sn_set;
+    logic [TAG_W-1:0]        r_sn_tag;
+    logic [2:0]              r_sn_type;
+    logic [1:0]              r_sn_src;
+    logic                    r_sn_allb;   // every fill beat landed at grant
+    logic [WAY_W-1:0]        r_sn_way;    // array hit way / MSHR claimed way
+    logic [MW-1:0]           r_sn_idx;    // the matched MSHR entry
+    logic [2:0]              r_sn_ref;
+    logic [2:0]              r_sn_nxt;
+    logic [BEAT_W-1:0]       r_sn_beat;
+    logic [LINE_BITS-1:0]    r_sn_wb_data;  // WB snarf snapshot (BRESP race)
+    // pend_eff I-sticks shadow: the recorded effect per entry (invalidate
+    // dominates a later downgrade; the MSHR write port is unconditional)
+    logic [1:0]              r_sn_pend [MSHR_COUNT];
 
     // ------------------------------------------------------------------
     // Request address decode
@@ -580,6 +667,194 @@ module jet_control
                                & (r_upgr_line == w_req_line);
 
     // ------------------------------------------------------------------
+    // Snoop service (MAS ch02_blocks/05: the three answer sources in the
+    // fixed match order WB > MSHR > array -- the newest claim on the line
+    // answers).  The l1_snoop_resp transport accepts an AC only while
+    // sn_safe_o, and the accept cycle IS the grant: the CRRESP is
+    // combinational on the three probes that cycle (sn_safe is therefore
+    // necessarily address-agnostic -- an address-dependent safe would
+    // close a combinational loop through the transport's accept mux).
+    // Bounded safe windows: the init walk, an active service (one snoop
+    // at a time), a fill-done-unretired entry (the commit window: the
+    // array answer is the post-commit state only after the install/pend
+    // writes land -- ch02/05 rule 5 -- and a pend record must precede the
+    // commit's snapshot), a victim capture streaming on port B (the
+    // capture completes, then the WB snarf answers), and the grant cycle
+    // of a CLEAN_UNIQUE completion (the anti-livelock hold-off, ch02/01:
+    // the fabric granted ownership but the tag still shows S until the CU
+    // commit lands).
+    // ------------------------------------------------------------------
+    logic [TAG_W-1:0]   w_sn_tag;
+    logic [SET_W-1:0]   w_sn_set;
+    logic [LINE_W-1:0]  w_sn_line;
+    logic               w_sn_thit;
+    logic [WAY_W-1:0]   w_sn_tway;
+    logic [2:0]         w_sn_tstate;
+    logic               w_sn_tclaimed;
+    logic               w_src_wb;
+    logic               w_src_mshr;
+    logic               w_src_array;
+    logic [1:0]         w_sn_src;
+    logic [2:0]         w_sn_ref;
+    logic [2:0]         w_sn_nxt;
+    logic               w_sn_deliver;
+    logic [AMBER_CRRESP_WIDTH-1:0] w_crresp_raw;
+    logic [AMBER_CRRESP_WIDTH-1:0] w_sn_crresp;
+    logic               w_any_done;
+    logic               w_cu_completing;
+    logic               w_sn_gnt;
+    logic               w_sn_block_cpu;
+    logic               w_sn_eff_needed;
+    logic               w_sn_eff_done;
+    logic [1:0]         w_sn_eff_new;
+    logic               w_sn_tagwr;
+    logic               w_sn_portb;
+    logic [WAYS-1:0]    w_sn_way_onehot;
+
+    assign w_sn_tag  = sn_addr_i[ADDR_WIDTH-1 -: TAG_W];
+    assign w_sn_set  = sn_addr_i[OFF_W +: SET_W];
+    assign w_sn_line = sn_addr_i[ADDR_WIDTH-1:OFF_W];
+
+    // the snoop probes carry the snoop line at the grant and through the
+    // service; the WB probe serves the lookup drain-race check otherwise
+    assign tag_b_req_o   = sn_req_i;
+    assign tag_b_set_o   = w_sn_set;
+    assign wb_sn_line_o   = sn_req_i ? w_sn_line
+                            : (r_sn_state != SN_IDLE) ? r_sn_line
+                            : w_req_line;
+    assign mshr_sn_line_o = sn_req_i ? w_sn_line : r_sn_line;
+
+    // port-B tag hit decode (the amber LOOKUP compare on the snoop set)
+    always_comb begin
+        w_sn_thit   = 1'b0;
+        w_sn_tway   = '0;
+        w_sn_tstate = AMBER_STATE_I;
+        for (int w = 0; w < WAYS; w++) begin
+            if (!w_sn_thit
+                && (tag_b_tag_state_i[w][TSW-1 -: TAG_W] == w_sn_tag)
+                && (tag_b_tag_state_i[w][2:0] == AMBER_STATE_S
+                    || tag_b_tag_state_i[w][2:0] == AMBER_STATE_E
+                    || tag_b_tag_state_i[w][2:0] == AMBER_STATE_M)) begin
+                w_sn_thit   = 1'b1;
+                w_sn_tway   = WAY_W'(w);
+                w_sn_tstate = tag_b_tag_state_i[w][2:0];
+            end
+        end
+    end
+
+    // claimed-way suppression (amber's stale-victim rule): a tag hit on a
+    // way claimed by a live MSHR entry of the set is the doomed victim's
+    // stale tag -- the line is dead (a dirty victim matched the WB first;
+    // a clean one is current in memory), so the answer is the Invalid row
+    // with no effect.  The upgrade's way is NOT here: its line is
+    // legitimately resident S until the CU commit.
+    always_comb begin
+        w_sn_tclaimed = 1'b0;
+        for (int e = 0; e < MSHR_COUNT; e++) begin
+            if (r_claim_vld[e] && (r_claim_set[e] == w_sn_set)
+                && (r_claim_way[e] == w_sn_tway)) begin
+                w_sn_tclaimed = 1'b1;
+            end
+        end
+    end
+
+    // the match order: the WB buffer owns a draining line (SINK_WB_ACK --
+    // that data exists NOW), then the pending fill (the post-fill state --
+    // the fill's answer would otherwise be a promise), then the arrays
+    assign w_src_wb    = wb_sn_hit_i;
+    assign w_src_mshr  = ~w_src_wb & mshr_sn_match_i;
+    assign w_src_array = ~w_src_wb & ~w_src_mshr & w_sn_thit
+                         & ~w_sn_tclaimed;
+    assign w_sn_src    = w_src_wb    ? SRC_WB
+                         : w_src_mshr  ? SRC_MSHR
+                         : w_src_array ? SRC_ARRAY
+                         :               SRC_NONE;
+    assign w_sn_ref    = w_src_wb    ? AMBER_STATE_M
+                         : w_src_mshr  ? (mshr_sn_install_i
+                                          ? AMBER_STATE_M : AMBER_STATE_S)
+                         : w_src_array ? w_sn_tstate
+                         :               AMBER_STATE_I;
+    assign w_sn_nxt    = amber_snoop_next_state(w_sn_ref, sn_type_i);
+
+    // PF_GUARD: the bypass promises data only when the fill can actually
+    // deliver it -- every beat landed at the grant (a snoop never waits
+    // on a fill, HAS J4); the guarded answer keeps the post-fill row's
+    // IsShared/WasUnique (never the Invalid row).
+    assign w_sn_deliver = w_src_wb | w_src_array
+                          | (w_src_mshr & (&mshr_sn_beats_rcvd_i));
+    assign w_crresp_raw = amber_snoop_crresp(w_sn_ref, sn_type_i);
+    assign w_sn_crresp  = w_sn_deliver ? w_crresp_raw
+                                       : (w_crresp_raw & CRRESP_NO_DT);
+    assign sn_crresp_o  = w_sn_crresp;
+
+    // safe (AC-accept) windows: all bounded; the commit window expression
+    // is "some fill is done but its commit hasn't retired" (covers the
+    // active commit too -- the pop lands at the retire), plus the grant
+    // cycle of a CU completion (fill_done_i marks the oldest un-done fill
+    // -- the completion queue resolves its class combinationally)
+    assign w_any_done      = (r_fq_cnt != r_fq_undone);
+    assign w_cu_completing = fill_done_i
+                             & (r_fq_cls[r_fq_done_ptr] == JET_CLS_CU);
+    assign sn_safe_o  = ~r_init_busy & (r_sn_state == SN_IDLE)
+                        & ~w_any_done & ~r_cap_busy & ~w_cu_completing;
+    assign w_sn_gnt   = sn_req_i & sn_safe_o;
+    assign sn_ready_o = w_sn_gnt;
+
+    // snoop priority over new CPU accepts (J6): the lookup stage holds the
+    // request (no accept, no stall reason) through the grant and the
+    // service -- bounded by the service length (<= FILL_BEATS + 2)
+    assign w_sn_block_cpu = w_sn_gnt | (r_sn_state != SN_IDLE);
+
+    // the effect to apply at the end of the service: a state change on the
+    // resolved reference (a fixed-point snoop is a no-op); the WB/MSHR
+    // record encodes downgrade-S / invalidate-I, the array path writes
+    // the tag with the resolved next state
+    assign w_sn_eff_needed =
+        ((w_sn_src == SRC_WB) | (w_sn_src == SRC_MSHR)
+         | (w_sn_src == SRC_ARRAY)) & (w_sn_nxt != w_sn_ref);
+    assign w_sn_eff_done  =
+        ((r_sn_src == SRC_WB) | (r_sn_src == SRC_MSHR)
+         | (r_sn_src == SRC_ARRAY)) & (r_sn_nxt != r_sn_ref);
+    assign w_sn_eff_new   = (r_sn_nxt == AMBER_STATE_I)
+                            ? JET_PEND_INVALIDATE_I : JET_PEND_DOWNGRADE_S;
+
+    // pend_eff I-sticks: an armed invalidate dominates a later downgrade
+    // (the shadow mirrors the MSHR record exactly -- this module is its
+    // only driver; the alloc clears the reused entry's)
+    assign mshr_sn_eff_o       = (r_sn_state == SN_EFFECT)
+                                 & (r_sn_src == SRC_MSHR)
+                                 & (r_sn_nxt != r_sn_ref)
+                                 & (r_sn_pend[r_sn_idx]
+                                    != JET_PEND_INVALIDATE_I);
+    assign mshr_sn_eff_idx_o   = r_sn_idx;
+    assign mshr_sn_eff_value_o = w_sn_eff_new;
+    assign wb_sn_eff_o         = ((r_sn_state == SN_EFFECT)
+                                  & (r_sn_src == SRC_WB)
+                                  & (r_sn_nxt != r_sn_ref))
+                                 ? w_sn_eff_new : JET_PEND_NONE;
+    assign w_sn_tagwr          = (r_sn_state == SN_EFFECT)
+                                 & (r_sn_src == SRC_ARRAY)
+                                 & (r_sn_nxt != r_sn_ref);
+
+    // CD beat stream: a WB snarf serves the grant-cycle snapshot (the
+    // entry may retire mid-stream -- the BRESP-cycle corner); the other
+    // sources read the data array on port B (the fill way for a pending
+    // fill, the hit way otherwise), pausing the victim capture
+    assign sn_cdvalid_o = (r_sn_state == SN_DATA);
+    assign sn_cdlast_o  = (r_sn_beat == BEAT_W'(FILL_BEATS - 1));
+    assign sn_cddata_o  = (r_sn_src == SRC_WB)
+                          ? r_sn_wb_data[32'(r_sn_beat) * BUS_WIDTH
+                                         +: BUS_WIDTH]
+                          : dat_b_rdata_i;
+    assign w_sn_portb   = (r_sn_state == SN_DATA) & (r_sn_src != SRC_WB);
+
+    always_comb begin
+        for (int w = 0; w < WAYS; w++) begin
+            w_sn_way_onehot[w] = (r_sn_way == WAY_W'(w));
+        end
+    end
+
+    // ------------------------------------------------------------------
     // Commit pipeline: completion-queue head and FSM decodes
     // ------------------------------------------------------------------
     logic           w_fq_head_done;
@@ -677,7 +952,7 @@ module jet_control
         w_stall      = 1'b0;
         w_reason     = STALL_NONE;
         w_yield      = 1'b0;
-        if (lkup_valid_i && !r_init_busy) begin
+        if (lkup_valid_i && !r_init_busy && !w_sn_block_cpu) begin
             if (w_upgr_line_stall) begin
                 // any access to the in-flight upgrade's line waits for
                 // the CU commit (the held write merges only there)
@@ -821,17 +1096,22 @@ module jet_control
     assign tag_a_set_o = r_init_busy ? r_init_cnt : w_req_set;
     assign tag_a_wr_en_o = (r_init_busy & ~`RST_ASSERTED(rst_n))
                            | w_cmt_tagwr
+                           | w_sn_tagwr
                            | (w_accept_wr & (w_hit_state == AMBER_STATE_E));
     assign tag_a_wr_way_onehot_o = r_init_busy ? {WAYS{1'b1}}
                            : w_cmt_tagwr
                              ? ((r_cmt_state == C_CU_INSTALL)
                                 ? w_upgr_way_onehot : w_cmt_way_onehot)
-                             : w_hit_way_onehot;
+                           : w_sn_tagwr
+                             ? w_sn_way_onehot
+                           : w_hit_way_onehot;
     assign tag_a_wr_set_o        = r_init_busy ? r_init_cnt
                            : w_cmt_tagwr
                              ? ((r_cmt_state == C_CU_INSTALL)
                                 ? r_upgr_set : w_cmt_set)
-                             : w_req_set;
+                           : w_sn_tagwr
+                             ? r_sn_set
+                           : w_req_set;
     assign tag_a_wr_tag_state_o  = r_init_busy
                                    ? {{TAG_W{1'b0}}, AMBER_STATE_I}
                            : (r_cmt_state == C_INSTALL)
@@ -842,7 +1122,9 @@ module jet_control
                                 ? AMBER_STATE_I : AMBER_STATE_S}
                            : (r_cmt_state == C_CU_INSTALL)
                              ? {w_upgr_tag, AMBER_STATE_M}
-                             : {w_req_tag, AMBER_STATE_M};
+                           : w_sn_tagwr
+                             ? {r_sn_tag, r_sn_nxt}
+                           : {w_req_tag, AMBER_STATE_M};
 
     assign dat_a_addr_o         = w_cmt_datrd ? {w_cmt_set, w_slot_beat}
                                               : {w_req_set, w_req_beat};
@@ -868,10 +1150,14 @@ module jet_control
                                   : lkup_be_i;
 
     // ------------------------------------------------------------------
-    // Array port B: the victim capture stream
+    // Array port B: the snoop's CD read owns the port while a data-carrying
+    // snoop streams from the array (MSHR/array sources); the victim capture
+    // stream pauses for it (jet_wb_buffer tolerates capture pauses; the
+    // snoop service is bounded, so the pause is bounded).
     // ------------------------------------------------------------------
-    assign dat_b_addr_o = {r_cap_set, r_cap_beat};
-    assign dat_b_way_o  = r_cap_way;
+    assign dat_b_addr_o = w_sn_portb ? {r_sn_set, r_sn_beat}
+                                     : {r_cap_set, r_cap_beat};
+    assign dat_b_way_o  = w_sn_portb ? r_sn_way : r_cap_way;
 
     // ------------------------------------------------------------------
     // Replacement engine: the victim way is claimed AND the policy
@@ -911,16 +1197,15 @@ module jet_control
     assign cmt_busy_o              = (r_cmt_state != C_IDLE) | w_fq_head_done;
 
     // ------------------------------------------------------------------
-    // WB buffer: capture open + beat stream + snarf probe (lookup use
-    // only; Task 7 muxes the snoop line)
+    // WB buffer: capture open + beat stream (paused while a snoop's CD
+    // stream owns port B) + the snarf probe (the snoop line during a
+    // grant/service, the lookup line for the drain-race check otherwise)
     // ------------------------------------------------------------------
     assign wb_cap_o          = (w_accept_alloc & w_victim_dirty) | r_cap_busy;
     assign wb_cap_line_o     = r_cap_busy ? r_cap_line
                                           : {w_victim_tag, w_req_set};
-    assign wb_cap_beat_o     = r_cap_busy;
+    assign wb_cap_beat_o     = r_cap_busy & ~w_sn_portb;
     assign wb_cap_beat_data_o = dat_b_rdata_i;
-    assign wb_sn_line_o      = w_req_line;
-    assign wb_sn_eff_o       = JET_PEND_NONE;
 
     // Drain-arbiter stub: present drain_start when the head is valid and
     // no drain is outstanding (l1_drain samples victim_valid in D_IDLE).
@@ -967,11 +1252,25 @@ module jet_control
             r_cmt_way    <= '0;
             r_cmt_count  <= '0;
             r_cmt_k      <= '0;
+            r_sn_state   <= SN_IDLE;
+            r_sn_line    <= '0;
+            r_sn_set     <= '0;
+            r_sn_tag     <= '0;
+            r_sn_type    <= '0;
+            r_sn_src     <= SRC_NONE;
+            r_sn_allb    <= 1'b0;
+            r_sn_way     <= '0;
+            r_sn_idx     <= '0;
+            r_sn_ref     <= '0;
+            r_sn_nxt     <= '0;
+            r_sn_beat    <= '0;
+            r_sn_wb_data <= '0;
             for (int e = 0; e < MSHR_COUNT; e++) begin
                 r_claim_set[e] <= '0;
                 r_claim_way[e] <= '0;
                 r_cmt_seqs[e]  <= '0;
                 r_cmt_rdata[e] <= '0;
+                r_sn_pend[e]   <= JET_PEND_NONE;
             end
             for (int q = 0; q < FQ_DEPTH; q++) begin
                 r_fq_idx[q]  <= '0;
@@ -995,15 +1294,16 @@ module jet_control
                 end
             end
             // victim capture: opened by a dirty-victim alloc, then
-            // FILL_BEATS consecutive port-B reads (never paused in the
-            // lookup stage -- port B is lookup-exclusive until Task 7)
+            // FILL_BEATS consecutive port-B reads, pausing while a snoop's
+            // CD stream owns the port (the snoop service is bounded, so
+            // the pause is bounded)
             if (w_accept_alloc & w_victim_dirty) begin
                 r_cap_busy <= 1'b1;
                 r_cap_set  <= w_req_set;
                 r_cap_way  <= repl_victim_way_i;
                 r_cap_line <= {w_victim_tag, w_req_set};
                 r_cap_beat <= '0;
-            end else if (r_cap_busy) begin
+            end else if (r_cap_busy & ~w_sn_portb) begin
                 if (r_cap_beat == BEAT_W'(FILL_BEATS - 1)) begin
                     r_cap_busy <= 1'b0;
                     r_cap_beat <= '0;
@@ -1113,10 +1413,63 @@ module jet_control
                 2'b01:   r_fq_undone <= r_fq_undone - 1'b1;
                 default: ;
             endcase
+            // snoop service: the grant latches the context (a WB snarf
+            // snapshots the whole line -- the entry may retire mid-stream
+            // in its BRESP cycle); SN_DATA streams the CD beats; SN_EFFECT
+            // applies the state effect (array tag write / MSHR pend record
+            // with I-sticks / WB record).  The commit pipeline never runs
+            // during a service (below), so the effect cycle's tag port and
+            // the pend record's snapshot ordering are contention-free.
+            if (w_sn_gnt) begin
+                r_sn_line <= w_sn_line;
+                r_sn_set  <= w_sn_set;
+                r_sn_tag  <= w_sn_tag;
+                r_sn_type <= sn_type_i;
+                r_sn_src  <= w_sn_src;
+                r_sn_allb <= &mshr_sn_beats_rcvd_i;
+                r_sn_way  <= w_src_mshr ? r_claim_way[mshr_sn_match_idx_i]
+                                        : w_sn_tway;
+                r_sn_idx  <= mshr_sn_match_idx_i;
+                r_sn_ref  <= w_sn_ref;
+                r_sn_nxt  <= w_sn_nxt;
+                r_sn_beat <= '0;
+                if (w_src_wb) begin
+                    r_sn_wb_data <= wb_sn_data_i;
+                end
+                if (w_sn_crresp[AMBER_CRRESP_DT]) begin
+                    r_sn_state <= SN_DATA;
+                end else if (w_sn_eff_needed) begin
+                    r_sn_state <= SN_EFFECT;
+                end
+            end else if (r_sn_state == SN_DATA) begin
+                if (sn_cdready_i) begin
+                    if (r_sn_beat == BEAT_W'(FILL_BEATS - 1)) begin
+                        r_sn_state <= w_sn_eff_done ? SN_EFFECT : SN_IDLE;
+                    end else begin
+                        r_sn_beat <= r_sn_beat + 1'b1;
+                    end
+                end
+            end else if (r_sn_state == SN_EFFECT) begin
+                r_sn_state <= SN_IDLE;
+                if ((r_sn_src == SRC_MSHR) && (r_sn_nxt != r_sn_ref)
+                    && (r_sn_pend[r_sn_idx] != JET_PEND_INVALIDATE_I)) begin
+                    r_sn_pend[r_sn_idx] <= w_sn_eff_new;
+                end
+            end
+            // the alloc clears the reused entry's pend shadow (the MSHR
+            // clears its own record at the alloc; this module is the only
+            // sn_eff driver, so the shadow is exact)
+            if (w_accept_alloc) begin
+                r_sn_pend[mshr_alloc_idx_i] <= JET_PEND_NONE;
+            end
             // commit FSM: the four MAS commit steps in order
             case (r_cmt_state)
                 C_IDLE: begin
-                    if (w_fq_head_done) begin
+                    // the commit never starts during a snoop service: the
+                    // pend record of a snoop matching the about-to-commit
+                    // entry must land BEFORE the snapshot (and the effect
+                    // cycle's tag write needs the port)
+                    if (w_fq_head_done && (r_sn_state == SN_IDLE)) begin
                         if (r_fq_cls[r_fq_head] == JET_CLS_CU) begin
                             r_cmt_state <= C_CU_MERGE;
                         end else begin
@@ -1271,6 +1624,42 @@ module jet_control
     assert property (@(posedge clk) disable iff (!rst_n)
         (!w_claim_dup))
         else $error("jet_control: two live entries claim the same (set, way)");
+
+    // The transport presents a snoop only in a safe cycle (l1_snoop_resp
+    // accepts the AC only while ctrl_snoop_safe).
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (sn_req_i |-> sn_safe_o))
+        else $error("jet_control: snoop presented while not safe");
+
+    // A snoop service never overlaps the commit pipeline (the interlock
+    // that lands a pend record before the commit's snapshot and keeps the
+    // effect cycle's tag write contention-free).
+    assert property (@(posedge clk) disable iff (!rst_n)
+        ((r_sn_state != SN_IDLE) |-> (r_cmt_state == C_IDLE)))
+        else $error("jet_control: snoop service overlaps the commit pipeline");
+
+    // PF_GUARD: a data-carrying pending-fill answer had every fill beat
+    // landed at the grant (no CD beat is ever presented for a beat the
+    // fill has not landed).
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (((r_sn_state == SN_DATA) && (r_sn_src == SRC_MSHR)) |-> r_sn_allb))
+        else $error("jet_control: PF_GUARD violated (CD before the fill beat landed)");
+
+    // A deferred effect is recorded only on a live (claimed) entry -- the
+    // matched entry cannot retire mid-service (commits are blocked).
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (mshr_sn_eff_o |-> r_claim_vld[mshr_sn_eff_idx_o]))
+        else $error("jet_control: pend record targets a dead entry");
+
+    // No entry retires during a snoop service.
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (mshr_retire_o |-> (r_sn_state == SN_IDLE)))
+        else $error("jet_control: retire during a snoop service");
+
+    // The snoop effect's tag write never collides with a commit tag write.
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (!(w_sn_tagwr & w_cmt_tagwr)))
+        else $error("jet_control: tag port collision (snoop effect vs commit)");
     // pragma translate_on
 
 endmodule : jet_control

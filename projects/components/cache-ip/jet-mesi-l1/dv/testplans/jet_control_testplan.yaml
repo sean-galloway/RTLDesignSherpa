@@ -1,19 +1,24 @@
-# Testplan for jet_control (lookup stage + commit pipeline)
-# Maps the MAS ch02_blocks/01 contract to the Pattern-B grid DV: directed
-# scenarios for the four-class classify (HIT / MERGE / MISS_ALLOC / STALL
-# with the J6 sub-reasons), hit-under-miss (J2), the merge join (J3), the
-# W-port arbitration, and the commit pipeline (D-4 store merge, tag
-# install with the amber #106 PassDirty rule, deferred snoop effect after
-# the install, per-tag deposits in tag order, entry retire) run against
-# the REAL l1_tag_array / l1_data_array / l1_repl / jet_mshr /
-# jet_wb_buffer / jet_rsp_seq with fill/drain engines as
-# handshake-timing-only stubs (the fill stub accepts launches promptly and
-# serves bursts serially in launch order -- the single-AXI4-ID contract).
-# Single geometry cell (MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128, WAYS=4);
-# the J7 sweeps are experiments, not unit-TB cells.  GATE runs the full
-# scenario set once; FUNC repeats it with perturbed fill/drain stub
-# latencies (timing robustness of the launch-hold, stall-release, and
-# commit/lookup port-arbitration paths).
+# Testplan for jet_control (lookup stage + commit pipeline + snoop path)
+# Maps the MAS ch02_blocks/01 + ch02_blocks/05 contract to the Pattern-B
+# grid DV: directed scenarios for the four-class classify (HIT / MERGE /
+# MISS_ALLOC / STALL with the J6 sub-reasons), hit-under-miss (J2), the
+# merge join (J3), the W-port arbitration, the commit pipeline (D-4 store
+# merge, tag install with the amber #106 PassDirty rule, deferred snoop
+# effect after the install, per-tag deposits in tag order, entry retire),
+# and the snoop path under concurrency (the three answer sources -- WB
+# snarf incl. the BRESP-cycle race, the pending-fill bypass with PF_GUARD,
+# the array hit -- the bounded anti-livelock hold-off, and snoop priority
+# over new CPU accepts) run against the REAL l1_tag_array / l1_data_array
+# / l1_repl / jet_mshr / jet_wb_buffer / jet_rsp_seq with fill/drain
+# engines as handshake-timing-only stubs (the fill stub accepts launches
+# promptly and serves bursts serially in launch order -- the
+# single-AXI4-ID contract) and the TB driving the l1_snoop_resp
+# core-facing snoop contract directly.  Single geometry cell
+# (MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128, WAYS=4); the J7 sweeps are
+# experiments, not unit-TB cells.  GATE runs the full scenario set once;
+# FUNC repeats it with perturbed fill/drain stub latencies plus CD
+# backpressure mid-stream (timing robustness of the launch-hold,
+# stall-release, commit/lookup port-arbitration, and snoop-service paths).
 
 module: jet_control
 rtl_files:
@@ -21,11 +26,15 @@ rtl_files:
 test_files:
   - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_control.py
 
-# Contract: MAS ch02_blocks/01.  One request, one window: tag read (port A)
-# + MSHR CAM + WB match + set claim count classify in the same cycle; one
-# fill completion at a time: D-4 merge, tag install, deferred snoop
-# effect, response deposits, retire.  The snoop responder is Task 7 (the
-# TB drives the deferred-effect record directly into jet_mshr, mid-fill).
+# Contract: MAS ch02_blocks/01 + ch02_blocks/05.  One request, one window:
+# tag read (port A) + MSHR CAM + WB match + set claim count classify in
+# the same cycle; one fill completion at a time: D-4 merge, tag install,
+# deferred snoop effect, response deposits, retire.  One snoop at a time:
+# the grant-cycle CRRESP resolves the three answer sources (WB snarf >
+# pending-fill bypass > array port B), the CD stream serves the selected
+# source (the WB from a grant-cycle snapshot), and the state effect lands
+# at the effect slot (tag write / pend_eff record with I-sticks / WB
+# record).
 
 parameters:
   - name: ADDR_WIDTH / SETS / WAYS / LINE_BYTES / BUS_WIDTH
@@ -154,38 +163,88 @@ scenarios:
     status: covered
   - name: pend_eff_applied_after_install
     level: all
-    what: A snoop recording a deferred effect mid-fill (downgrade-S on a
-      PassDirty install, invalidate-I on an S install) sees it land AFTER
-      the tag install -- the watcher pins the two-write order; the
-      post-commit classify proves the final state (the downgraded line
-      upgrades on a write; the invalidated line misses again).
+    what: A snoop hitting an in-flight entry records its post-commit
+      effect through the REAL snoop service (downgrade-S on an RU fill's M
+      install, invalidate-I on an RNSD fill's S install) and the commit
+      lands it AFTER the tag install -- the watcher pins the two-write
+      order; the post-commit classify proves the final state (the
+      downgraded line upgrades on a write; the invalidated line misses
+      again).
+    status: covered
+  - name: snoop_hit_pending_entry
+    level: all
+    what: A snoop matching an in-flight MSHR entry is answered at the
+      entry's post-fill install state (never the Invalid row), with CD
+      from the array (the fill's claimed way) once every beat has landed;
+      the effect is recorded in pend_eff.  Pins the I-sticks carried
+      review item: an armed invalidate is not overwritten by a later
+      downgrade (the commit's pend write must be I).
+    status: covered
+  - name: snoop_pf_guard
+    level: all
+    what: PF_GUARD (Review Focus 4): with fill beats outstanding the
+      pending-fill answer suppresses DataTransfer and PassDirty and
+      presents no CD beat (a snoop never waits on a fill); the answer
+      keeps the post-fill row's IsShared (never the Invalid row), with
+      zero beats landed included; with every beat landed the full M-row
+      decode and the fill data stream.
+    status: covered
+  - name: snoop_snarf_bresp_race
+    level: all
+    what: Review Focus 3: a snoop matching a WB entry is answered from the
+      buffer (SINK_WB_ACK) -- including a grant landing IN the entry's
+      BRESP cycle: the grant snapshots the line, the CD stream serves the
+      snapshot after the entry retires, and the drain still completes the
+      memory update (the drain stub checks the payload).
+    status: covered
+  - name: snoop_priority
+    level: all
+    what: A snoop presented with a CPU request pending is served first
+      (J6): the lookup stage holds the CPU request (no accept, no stall
+      reason) through the grant, the CD stream, and the effect cycle, then
+      accepts it; the snoop's downgrade is visible to the next classify.
+    status: covered
+  - name: anti_livelock_window
+    level: all
+    what: After a CLEAN_UNIQUE grant for line L, snoop service is held off
+      exactly until the granted write's commit lands -- the window is
+      measured in cycles (the grant cycle itself through the commit's
+      pop; <= 6 with nothing queued) -- then a snoop is served at the
+      committed M with the held write merged.
+    status: covered
+  - name: snoop_never_waits_on_wb_full
+    level: all
+    what: Snoop acceptance and service never gate on WB occupancy or drain
+      state: with the WB full and the drains held, snoops to a resident
+      line (array), a WB-buffered line (snarf), and an absent line are all
+      granted immediately and answered correctly.
     status: covered
 
 coverage_points:
-  - line: 336
+  - line: 391
     type: initial
     content: "elaboration geometry checks"
     covered: true
     note: elaborates clean at the default geometry; the $error branches
       fire only on an out-of-range elaboration (by design not exercised).
-  - line: 473
+  - line: 552
     type: always_comb
     content: "tag hit decode (S/E/M compare, amber LOOKUP semantics)"
     covered: true
     tests: [hit_read, hit_write, miss_alloc]
-  - line: 499
+  - line: 584
     type: always_comb
     content: "pending-fill hazard (claimed-way hit suppression)"
     covered: true
     tests: [miss_alloc, stall_wb_full_only_dirty, stall_wb_drain_race]
-  - line: 551
+  - line: 633
     type: always_comb
     content: "claim-aware victim check (RANDOM/LRU-reorder safety)"
     covered: true
     note: exercised implicitly by every alloc while a claim is live in
       the same set; the no-double-claim assertion pins it.
     tests: [stall_set_oversubscribed, stall_mshr_full]
-  - line: 675
+  - line: 944
     type: always_comb
     content: "the four-class classify + stall sub-reason priority (incl. commit_in_progress and the upgrade-line wait)"
     covered: true
@@ -193,104 +252,154 @@ coverage_points:
             stall_cross_class, stall_mshr_full, stall_wb_full_only_dirty,
             stall_wb_drain_race, stall_set_oversubscribed, stall_tag_full,
             merge_response_completeness]
-  - line: 700
+  - line: 969
     type: always_comb
     content: "write-hit W-port yield (fill beats > commit merge > write hits)"
     covered: true
     tests: [fill_beats_win_wport, commit_merges_store_data]
-  - line: 802
+  - line: 1063
     type: always_comb
     content: "fill launch hold register (start held until fill_accept_i)"
     covered: true
     tests: [miss_alloc, stall_cross_class]
-  - line: 990
+  - line: 1294
     type: always_ff
     content: "D-3 init walk"
     covered: true
     tests: [init_walk]
-  - line: 1000
+  - line: 1302
     type: always_ff
     content: "victim capture engine (port-B beat stream)"
     covered: true
     tests: [stall_wb_full_only_dirty, stall_wb_drain_race]
-  - line: 1033
+  - line: 1336
     type: always_ff
     content: "upgrade tracker (single-outstanding CLEAN_UNIQUE, cleared by the CU's own commit)"
     covered: true
     tests: [stall_cross_class, commit_installs_tag, pend_eff_applied_after_install]
-  - line: 1049
+  - line: 1351
     type: always_ff
     content: "claimed-way scoreboard set/clear (clear at the commit retire)"
     covered: true
     tests: [miss_alloc, stall_mshr_full, stall_set_oversubscribed, commit_retires_entry]
-  - line: 1060
+  - line: 1364
     type: always_ff
     content: "requester sideband (per-slot we/beat/be/wdata for the D-4 walk)"
     covered: true
     tests: [commit_merges_store_data, merge_response_completeness]
-  - line: 1079
+  - line: 1382
     type: always_ff
     content: "fill-completion queue (push at accept, done mark, pop at retire)"
     covered: true
     tests: [all]
-  - line: 1117
+  - line: 1472
     type: always_ff
     content: "commit FSM (snapshot, D-4 merge + read capture, install, pend, deposits, retire; CU tail)"
     covered: true
     tests: [commit_installs_tag, commit_merges_store_data,
             merge_response_completeness, commit_retires_entry,
             pend_eff_applied_after_install, stall_cross_class]
-  - line: 1211
+  - line: 1569
     type: assertion
     content: "simulation-only: dirty-victim alloc always accepted by WB"
     covered: true
     tests: [stall_wb_full_only_dirty]
-  - line: 1216
+  - line: 1575
     type: assertion
     content: "simulation-only: a driven alloc is always granted (classify/grant consistency)"
     covered: true
     tests: [all]
-  - line: 1222
+  - line: 1580
     type: assertion
     content: "simulation-only: fill_done always matches an outstanding un-done fill"
     covered: true
     tests: [all]
-  - line: 1229
+  - line: 1586
     type: assertion
     content: "simulation-only: fill-completion queue never overflows"
     covered: true
     tests: [all]
-  - line: 1235
+  - line: 1593
     type: assertion
     content: "simulation-only: fill_accept only with a launch presented"
     covered: true
     tests: [all]
-  - line: 1240
+  - line: 1598
     type: assertion
     content: "simulation-only: fill beats land only on a live claim's entry"
     covered: true
     tests: [all]
-  - line: 1246
+  - line: 1604
     type: assertion
     content: "simulation-only: retire targets an entry with a live claim"
     covered: true
     tests: [all]
-  - line: 1251
+  - line: 1609
     type: assertion
     content: "simulation-only: a CU commit requires a live upgrade tracker"
     covered: true
     tests: [stall_cross_class, commit_installs_tag]
-  - line: 1271
+  - line: 1614
     type: assertion
     content: "simulation-only: no two live claims share a (set, way)"
     covered: true
     tests: [all]
 
+  - line: 671
+    type: always_comb
+    content: "snoop grant-cycle resolution (WB > MSHR > array match order, PF_GUARD deliverability gate, safe windows)"
+    covered: true
+    tests: [snoop_hit_pending_entry, snoop_pf_guard, snoop_snarf_bresp_race,
+            snoop_priority, anti_livelock_window, snoop_never_waits_on_wb_full]
+  - line: 1422
+    type: always_ff
+    content: "snoop service FSM (grant context latch incl. the WB snapshot, CD stream, effect slot with I-sticks shadow)"
+    covered: true
+    tests: [snoop_hit_pending_entry, snoop_pf_guard, snoop_snarf_bresp_race,
+            snoop_priority, anti_livelock_window, snoop_never_waits_on_wb_full]
+  - line: 1635
+    type: assertion
+    content: "simulation-only: a snoop is presented only in a safe cycle"
+    covered: true
+    tests: [all]
+  - line: 1641
+    type: assertion
+    content: "simulation-only: a snoop service never overlaps the commit pipeline"
+    covered: true
+    tests: [all]
+  - line: 1648
+    type: assertion
+    content: "simulation-only: PF_GUARD (a data-carrying pending-fill answer had every beat landed at the grant)"
+    covered: true
+    tests: [snoop_hit_pending_entry, snoop_pf_guard]
+  - line: 1655
+    type: assertion
+    content: "simulation-only: a pend record targets a live (claimed) entry"
+    covered: true
+    tests: [all]
+  - line: 1661
+    type: assertion
+    content: "simulation-only: no entry retires during a snoop service"
+    covered: true
+    tests: [all]
+  - line: 1666
+    type: assertion
+    content: "simulation-only: the snoop effect's tag write never collides with a commit tag write"
+    covered: true
+    tests: [all]
+
 gaps:
   - Out-of-range geometry elaboration ($error) fails the build by design.
-  - The snoop path (Task 7) is unwired: the WB snarf probe serves the
-    lookup drain-race check only, and the TB drives the deferred-effect
-    record (tb_sn_eff_*) directly into jet_mshr to model a mid-fill snoop.
+  - A snoop to the in-flight upgrade's own line before the CLEAN_UNIQUE
+    grant is served at the installed S; the effect is not carried into the
+    CU commit (amber's killed-upgrade replay needs a CU-commit refetch path
+    jet does not have yet -- Task 8 / pair-integration territory; recorded
+    in MAS ch02_blocks/01 Task 7 notes).
+  - The commit-window snoop hold-off is fill-granular (any fill
+    done-but-unretired blocks AC acceptance, not just the snoop's own
+    line): sn_safe is necessarily address-agnostic (the transport's AC
+    accept is the grant).  Bounded by the commit pipeline draining; a
+    perf-only lever for J7 if the snoop latency shows.
   - Merge-list overflow (MSHR_COUNT+1 requesters on one entry) stalls
     mshr_full by construction; reaching it needs 9 live requesters on one
     line -- a FULL-level random-soak corner, not directed-tested here.

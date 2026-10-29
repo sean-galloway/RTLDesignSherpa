@@ -23,11 +23,15 @@
 
 # The Snoop Path Under Concurrency
 
-**Status:** planned contract. The ACE-shaped responder `l1_snoop_resp` is
-inherited unchanged; what changes is what it can match against: the tag
-array (port B), the MSHR file (pending fills), and the writeback buffer
-(draining victims). The match order is fixed: WB buffer, then MSHR file,
-then the arrays — the newest claim on the line answers.
+**Status:** landed in `jet_control` (Task 7; see ch02/01's Task 7
+implementation notes for the landing decisions — the grant-time PF_GUARD
+deliverability gate, the commit-window hold-off, and the WB∩MSHR
+double-match being unreachable by the drain-race stall). The ACE-shaped
+responder `l1_snoop_resp` is inherited unchanged; what changes is what it
+can match against: the tag array (port B), the MSHR file (pending fills),
+and the writeback buffer (draining victims). The match order is fixed: WB
+buffer, then MSHR file, then the arrays — the newest claim on the line
+answers.
 
 ## The three answer sources
 

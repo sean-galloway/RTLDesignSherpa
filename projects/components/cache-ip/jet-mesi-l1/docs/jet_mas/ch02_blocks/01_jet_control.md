@@ -191,6 +191,71 @@ silent, the landing pinned:
   installs M, echoes the write data as the response, and clears the
   upgrade tracker.
 
+## Task 7 implementation notes (snoop path, as landed)
+
+The snoop service is a small side FSM (SN_DATA beat stream → SN_EFFECT
+effect slot) around a combinational grant-cycle resolution, on the
+`l1_snoop_resp` core-facing contract (the AC accept cycle IS the grant —
+the transport latches the CRRESP that cycle, so every deferral is through
+`sn_safe_o`, which must be address-agnostic: an address-dependent safe
+would close a combinational loop through the transport's accept mux).
+Where the contract text was silent, the landing pinned:
+
+- **Match order WB > MSHR > array**, combinational at the grant.  The
+  WB∩MSHR same-line double match (rule 4) is *unreachable*: a refetch of
+  a WB-resident line stalls on the drain race (Task 5), so no MSHR entry
+  can name a line the buffer holds; the WB-first order is defensive.
+- **PF_GUARD is a grant-time deliverability gate**: a pending-fill answer
+  promises DataTransfer/PassDirty only when every fill beat has landed
+  (`&beats_rcvd`); the guarded answer keeps the post-fill row's
+  IsShared/WasUnique (never the Invalid row) and streams nothing.  A
+  pending fill's post-fill state is M for an RU fill, S for RNSD
+  (`sn_install`); PassDirty never disturbs this — the bypass answers
+  before the RRESP exists, exactly as amber's pf load-time state.
+- **The anti-livelock hold-off is the commit-window gate, not a counter**:
+  `sn_safe_o` covers the CU's grant cycle itself (the completing fill's
+  class resolves combinationally through the completion queue) and every
+  cycle a fill is done-but-unretired (`r_fq_cnt != r_fq_undone`, which
+  also covers the active commit — the pop lands at the retire).  The
+  bound is the CU commit's own length (grant → C_CU_MERGE → C_CU_INSTALL
+  → C_CU_DEPOSIT: 5 cycles with nothing queued), guaranteed by
+  construction, never event-dependent; the window closes at the pop, two
+  cycles past the tag install.  DV measures it (`anti_livelock_window`).
+- **The commit never runs during a snoop service** (C_IDLE start gated on
+  the service idle): a pend record for the about-to-commit entry lands
+  before the snapshot, and SN_EFFECT's tag write is contention-free.
+  Both directions are bounded (service ≤ FILL_BEATS+2 cycles; a commit
+  start waits at most one service), so the interlock is liveness-clean.
+- **The other bounded `sn_safe_o` windows**: the init walk, an active
+  service (one snoop at a time, inherited), and a victim capture
+  streaming on port B (a snoop to a mid-capture dirty victim cannot be
+  served yet — the WB entry validates at capture completion; unrelated
+  snoops are held with it because safe is address-agnostic; bounded by
+  FILL_BEATS plus any in-flight snoop stream).  Snoop acceptance never
+  gates on WB occupancy, fill state, or drain state
+  (`snoop_never_waits_on_wb_full`).
+- **A WB snarf snapshots the whole line at the grant** — the entry may
+  retire mid-stream in its BRESP cycle (the ships-in-the-night corner);
+  the stream serves the snapshot.  An array/MSHR stream reads the data
+  array on port B (the fill's claimed way for a pending fill), pausing
+  the victim capture (jet_wb_buffer tolerates the pause; bounded by the
+  service length).
+- **pend_eff I-sticks lives in the sn_eff drive**: the record port write
+  is unconditional in jet_mshr, so the priority (an armed invalidate
+  dominates a later downgrade) is resolved here via a per-entry shadow
+  (`r_sn_pend`, cleared at the alloc; exact because this module is the
+  record's only driver).  `snoop_hit_pending_entry` pins it.
+- **Snoop priority over new CPU accepts** is a hold, not a stall: the
+  lookup stage accepts nothing from the grant through SN_EFFECT (bounded
+  by the service length), so the snoop's port-B/CRRESP view is race-free.
+- **Known gap (Task 8 territory)**: a snoop to the *in-flight upgrade's
+  own line* before the CU grant is served at the installed S; the effect
+  is NOT carried into the CU commit (amber's killed-upgrade replay — gem5
+  SM x Inv → IM — needs a CU-commit refetch path jet does not have yet).
+  The pair fabric's same-line serialization is what keeps the corner off
+  the unit bench; it is recorded here so the integration task owns it.
+
+
 ## W-port arbitration
 
 One write port feeds: fill beats (fill engine), hit/merged store data

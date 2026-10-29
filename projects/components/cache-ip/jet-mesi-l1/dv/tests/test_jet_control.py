@@ -1,17 +1,20 @@
 """
-jet_control lookup-stage test runner
+jet_control lookup+commit+snoop test runner
 
-The lookup half of the jet control core (MAS ch02_blocks/01): one request,
-one window classify (tag read + MSHR CAM + WB match + set claims) into
-HIT / MERGE / MISS_ALLOC / STALL, hit-under-miss (J2), merge join (J3),
-and the J6 stall story.  The harness (dv/tb/jet_control_th.sv) wires the
-DUT to the REAL l1_tag_array / l1_data_array / l1_repl / jet_mshr /
-jet_wb_buffer / jet_rsp_seq; the TB models the fill/drain engines'
-handshake timing only.  The commit pipeline (Task 6) is internal to the
-DUT: fill_done triggers the D-4 store merge, tag install, deferred snoop
-effect, per-tag deposits, and the retire, all scored from the taps.
-Single geometry cell (the J1 default: MSHR_COUNT=8, VICTIM_DEPTH=2,
-SETS=128, WAYS=4); the J7 sweeps are experiments, not unit-TB cells.
+The jet control core (MAS ch02_blocks/01): one request, one window classify
+(tag read + MSHR CAM + WB match + set claims) into HIT / MERGE / MISS_ALLOC
+/ STALL, hit-under-miss (J2), merge join (J3), the J6 stall story, the
+commit pipeline (Task 6: fill_done triggers the D-4 store merge, tag
+install, deferred snoop effect, per-tag deposits, retire -- all scored from
+the taps), and the snoop path under concurrency (Task 7: the three answer
+sources -- WB snarf / pending-fill bypass with PF_GUARD / array port B --
+the bounded anti-livelock hold-off, and snoop priority over new CPU
+accepts, driven through the l1_snoop_resp core-facing contract).  The
+harness (dv/tb/jet_control_th.sv) wires the DUT to the REAL l1_tag_array /
+l1_data_array / l1_repl / jet_mshr / jet_wb_buffer / jet_rsp_seq; the TB
+models the fill/drain engines' handshake timing only.  Single geometry cell
+(the J1 default: MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128, WAYS=4); the J7
+sweeps are experiments, not unit-TB cells.
 
 Author: RTL Design Sherpa
 Created: 2026-10-28
