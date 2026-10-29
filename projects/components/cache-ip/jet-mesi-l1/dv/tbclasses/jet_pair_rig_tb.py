@@ -1480,65 +1480,73 @@ class JetPairRigTB(TBBase):
     async def _s_ships_in_the_night(self):
         """(f) jet0's pre-BRESP WriteBack + jet1's same-line read: the
         snoop must be answered from the WB buffer snapshot (the entry may
-        retire mid-stream in its BRESP cycle), never "not present"."""
+        retire mid-stream in its BRESP cycle), never "not present".
+
+        Construction: fill all but one way, then drive the evicting fill
+        and jet1's read back-to-back (read fired 2 cycles later).  The
+        evicting fill's launch is held by the victim capture (the
+        launch-level cap_busy contract), so its coh pulse reaches the
+        fabric AFTER jet1's -- the fabric grants jet1 first, and jet1's
+        AC waits out the capture at jet0's responder (sn_safe), granting
+        with the WB entry valid and pre-BRESP.  The margin is the full
+        drain length; the bounded retry covers the FULL-level
+        randomizer's worst-case send skew (a miss is still coherent --
+        the memory path answers -- it just isn't the WB-source pin)."""
         sset = 6 % self.SETS
-        t0 = self._dtag()
-        addr = self._compose_addr(t0, sset)
-        line = self._line_of(addr)
-        # jet0: write miss -> M with a recognizable pattern
-        wdata = 0x5A17_0000_0000_0000 & ((1 << self.BUS_WIDTH) - 1)
-        await self._txn(0, addr, 1, be=(1 << self.STRB_W) - 1,
-                        wdata=wdata, label='f_wr')
-        s0 = self.sides[0]
-        self._score("f: jet0 M", self._installed_state(s0, line), 'M')
-        exp_line = self._content(s0, line)
+        full_be = (1 << self.STRB_W) - 1
+        hit = False
+        for attempt in range(3):
+            t0 = self._dtag()
+            addr = self._compose_addr(t0, sset)
+            line = self._line_of(addr)
+            # jet0: write miss -> M with a recognizable pattern
+            wdata = (0x5A17_0000_0000_0000 + attempt) \
+                & ((1 << self.BUS_WIDTH) - 1)
+            await self._txn(0, addr, 1, be=full_be, wdata=wdata,
+                            label=f'f{attempt}_wr')
+            s0 = self.sides[0]
+            self._score(f"f{attempt}: jet0 M",
+                        self._installed_state(s0, line), 'M')
+            exp_line = self._content(s0, line)
 
-        # jet0: evict the dirty line (fill the set).  The eviction opens
-        # a WB capture; when the model's WB gains the line, the RTL's
-        # capture is open -- jet1's read presented now is held at jet0's
-        # responder until the capture completes (sn_safe), then answered
-        # from the buffer while the drain is still pre-BRESP.
-        vtags = [self._dtag() for _ in range(self.WAYS)]
-        wb_grants0 = s0.wb_grants
-
-        # the eviction fills run SEQUENTIALLY on jet0's one GAXI master
-        # (a single master does not take concurrent send() calls); the
-        # watcher below fires jet1's read the cycle the model sees the
-        # dirty victim enter the WB
-        async def _evict_all():
-            for w, tag in enumerate(vtags):
+            vtags = [self._dtag() for _ in range(self.WAYS)]
+            wb_grants0 = s0.wb_grants
+            for w, tag in enumerate(vtags[:-1]):
                 await self._txn(0, self._compose_addr(tag, sset), 0,
-                                label=f'f_ev{w}')
+                                label=f'f{attempt}_ev{w}')
+            # the evicting fill (its alloc opens the dirty capture) ...
+            ev_n = await self._send(0, self._compose_addr(vtags[-1], sset),
+                                    0, be=full_be, wdata=0,
+                                    label=f'f{attempt}_evL')
+            # ... and jet1's read two cycles behind it
+            for _ in range(2):
+                await self._negedge_settled()
+            rd_n = await self._send(1, addr, 0, label=f'f{attempt}_rd')
+            await self._await_rsp(1, rd_n, f'f{attempt}_rd')
+            await self._await_rsp(0, ev_n, f'f{attempt}_evL')
 
-        evict_task = cocotb.start_soon(_evict_all())
-        sent = False
-        rd_n = None
-        for _ in range(self.RSP_TIMEOUT_CYCLES):
-            if line in s0.wb:
-                rd_n = await self._send(1, addr, 0, label='f_rd')
-                sent = True
+            got = self.rsp_log[1][rd_n][1]
+            self._score(f"f{attempt}: jet1 got the dirty line's data",
+                        got, self._beat_of_line(exp_line, 0))
+            self._score(f"f{attempt}: jet1 installed S",
+                        self._installed_state(self.sides[1], line), 'S')
+            self._score(f"f{attempt}: jet0 line evicted",
+                        self._installed_state(s0, line), 'I')
+            # quiesce, then the memory must hold the dirty bytes (the
+            # drain AND, on a snarf hit, the absorption carry the same
+            # snapshot)
+            for _ in range(60):
+                await self._negedge_settled()
+            self._score(f"f{attempt}: memory has the dirty line",
+                        bytes(self.mem[line]), bytes(exp_line))
+            if s0.wb_grants > wb_grants0:
+                hit = True
                 break
-            await self._negedge_settled()
-        if not sent:
-            raise RuntimeError("f: the dirty victim never entered the WB")
-        await self._await_rsp(1, rd_n, 'f_rd')
-        await evict_task
-        # the snoop was answered from the WB buffer (DT from the snarf)
-        self._score("f: snoop answered from the WB buffer",
-                    s0.wb_grants > wb_grants0, True)
-        got = self.rsp_log[1][rd_n][1]
-        self._score("f: jet1 got the dirty line from the WB snarf",
-                    got, self._beat_of_line(exp_line, 0))
-        self._score("f: jet1 installed S",
-                    self._installed_state(self.sides[1], line), 'S')
-        # the memory ends with the dirty bytes (the drain AND the
-        # absorption carry the same snapshot)
-        for _ in range(40):
-            await self._negedge_settled()
-        self._score("f: memory has the dirty line",
-                    bytes(self.mem[line]), bytes(exp_line))
-        self._score("f: jet0 line evicted",
-                    self._installed_state(s0, line), 'I')
+            self.log.info(f"ships_in_the_night: attempt {attempt} missed "
+                          f"the pre-BRESP window (coherent via memory); "
+                          f"retrying")
+        self._score("f: snoop answered from the WB buffer "
+                    "(within 3 attempts)", hit, True)
         self._scenario('PairShipsInTheNight')
 
     # ------------------------------------------------------------------
