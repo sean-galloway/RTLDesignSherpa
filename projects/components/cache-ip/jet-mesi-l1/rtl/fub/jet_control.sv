@@ -280,7 +280,7 @@ module jet_control
     output logic [BUS_WIDTH-1:0]        dat_a_wr_wdata_o,
     output logic [STRB_W-1:0]           dat_a_wr_be_o,
 
-    // data array port B (victim capture; the snoop path is Task 7)
+    // data array port B (victim capture + the snoop CD read, Task 7)
     output logic [MEM_ADDR_W-1:0]       dat_b_addr_o,
     output logic [WAY_W-1:0]            dat_b_way_o,
     input  logic [BUS_WIDTH-1:0]        dat_b_rdata_i,
@@ -521,7 +521,6 @@ module jet_control
     logic [LINE_W-1:0]       r_sn_line;
     logic [SET_W-1:0]        r_sn_set;
     logic [TAG_W-1:0]        r_sn_tag;
-    logic [2:0]              r_sn_type;
     logic [1:0]              r_sn_src;
     logic                    r_sn_allb;   // every fill beat landed at grant
     logic [WAY_W-1:0]        r_sn_way;    // array hit way / MSHR claimed way
@@ -802,7 +801,8 @@ module jet_control
 
     // snoop priority over new CPU accepts (J6): the lookup stage holds the
     // request (no accept, no stall reason) through the grant and the
-    // service -- bounded by the service length (<= FILL_BEATS + 2)
+    // service -- bounded by the service length (<= FILL_BEATS + 2 in CD
+    // handshakes, extended by cdready backpressure)
     assign w_sn_block_cpu = w_sn_gnt | (r_sn_state != SN_IDLE);
 
     // the effect to apply at the end of the service: a state change on the
@@ -828,6 +828,15 @@ module jet_control
                                     != JET_PEND_INVALIDATE_I);
     assign mshr_sn_eff_idx_o   = r_sn_idx;
     assign mshr_sn_eff_value_o = w_sn_eff_new;
+    // The WB effect may arrive after a mid-service BRESP retired the
+    // snarfed entry (the grant can land in the entry's BRESP cycle; the
+    // effect slot follows the CD stream).  jet_wb_buffer records only on
+    // a CURRENT CAM match of the snoop line, so the effect of a retired
+    // entry is dropped -- semantically moot: the drain completed, memory
+    // holds the data, the fabric took its answer.  Misapplication to a
+    // reused slot is impossible: CPU accepts (hence new captures) are
+    // suppressed for the whole service, and a line occupies at most one
+    // WB slot at a time (the lookup drain-race stall).
     assign wb_sn_eff_o         = ((r_sn_state == SN_EFFECT)
                                   & (r_sn_src == SRC_WB)
                                   & (r_sn_nxt != r_sn_ref))
@@ -841,7 +850,8 @@ module jet_control
     // sources read the data array on port B (the fill way for a pending
     // fill, the hit way otherwise), pausing the victim capture
     assign sn_cdvalid_o = (r_sn_state == SN_DATA);
-    assign sn_cdlast_o  = (r_sn_beat == BEAT_W'(FILL_BEATS - 1));
+    assign sn_cdlast_o  = (r_sn_state == SN_DATA)
+                          & (r_sn_beat == BEAT_W'(FILL_BEATS - 1));
     assign sn_cddata_o  = (r_sn_src == SRC_WB)
                           ? r_sn_wb_data[32'(r_sn_beat) * BUS_WIDTH
                                          +: BUS_WIDTH]
@@ -1256,7 +1266,6 @@ module jet_control
             r_sn_line    <= '0;
             r_sn_set     <= '0;
             r_sn_tag     <= '0;
-            r_sn_type    <= '0;
             r_sn_src     <= SRC_NONE;
             r_sn_allb    <= 1'b0;
             r_sn_way     <= '0;
@@ -1424,7 +1433,6 @@ module jet_control
                 r_sn_line <= w_sn_line;
                 r_sn_set  <= w_sn_set;
                 r_sn_tag  <= w_sn_tag;
-                r_sn_type <= sn_type_i;
                 r_sn_src  <= w_sn_src;
                 r_sn_allb <= &mshr_sn_beats_rcvd_i;
                 r_sn_way  <= w_src_mshr ? r_claim_way[mshr_sn_match_idx_i]

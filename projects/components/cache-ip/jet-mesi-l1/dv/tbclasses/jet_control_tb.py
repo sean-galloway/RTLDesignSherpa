@@ -1844,6 +1844,10 @@ class JetControlTB(TBBase):
         res = await self._snoop(line, SN_MAKE_INVALID, 'snpe:mi',
                                 ref='M', deliver=False)
         self._snoop_eff_model(entry, 'M', SN_MAKE_INVALID)
+        # NOTE: the two entry['pend'] checks below exercise the TB's mirror
+        # model only; the DUT-side I-sticks pin is the commit watcher's
+        # tag-write order check (install M, then pend I -- never pend S)
+        # scored from the harness taps at the commit below.
         self._score("snpe: mi armed the invalidate", entry['pend'], 'I')
         # (2) all beats landed, fill not done: ReadShared answers at the
         # post-fill M row WITH the fill data (PF_GUARD open); the downgrade
@@ -1972,6 +1976,14 @@ class JetControlTB(TBBase):
                                 sync_drain_cd=True)
         self._score("snarf: grant landed in the BRESP cycle",
                     res['bresp'], 1)
+        # the effect is still PRESENTED at the effect slot (a downgrade
+        # here) even though the entry retired at the grant's posedge --
+        # jet_wb_buffer records only on a current CAM match, so it drops
+        # the effect (semantically moot: the drain completed, the fabric
+        # took the data; and no other slot can hold this line, so a
+        # misapplication is impossible by construction).
+        self._score("snarf: bresp-race effect presented (dropped with "
+                    "the retired entry)", res['wb_eff'], PEND_DOWNGRADE_S)
         # the drain retired the victim to memory with the original data
         self._score("snarf: the drain completed the memory update",
                     self._line_int(self._mem_line(vline)),

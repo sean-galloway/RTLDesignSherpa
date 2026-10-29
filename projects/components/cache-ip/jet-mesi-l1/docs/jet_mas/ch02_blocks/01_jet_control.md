@@ -221,6 +221,12 @@ Where the contract text was silent, the landing pinned:
   → C_CU_DEPOSIT: 5 cycles with nothing queued), guaranteed by
   construction, never event-dependent; the window closes at the pop, two
   cycles past the tag install.  DV measures it (`anti_livelock_window`).
+  Precision on the aggregate: each commit-window block closes at a pop
+  (the per-window bound holds), but `w_any_done` re-arms on every
+  `fill_done`, so a sustained merge-heavy fill stream can hold
+  `sn_safe_o` low for a workload-dependent aggregate duration — snoop
+  latency becomes fill-rate-dependent (the §8.3 inverse; never a
+  deadlock: every window closes independently of the snoop side).
 - **The commit never runs during a snoop service** (C_IDLE start gated on
   the service idle): a pend record for the about-to-commit entry lands
   before the snapshot, and SN_EFFECT's tag write is contention-free.
@@ -247,7 +253,9 @@ Where the contract text was silent, the landing pinned:
   record's only driver).  `snoop_hit_pending_entry` pins it.
 - **Snoop priority over new CPU accepts** is a hold, not a stall: the
   lookup stage accepts nothing from the grant through SN_EFFECT (bounded
-  by the service length), so the snoop's port-B/CRRESP view is race-free.
+  by the service length — FILL_BEATS+2 in CD *handshakes*, extended by
+  cdready backpressure, which the fabric legitimately applies), so the
+  snoop's port-B/CRRESP view is race-free.
 - **Known gap (Task 8 territory)**: a snoop to the *in-flight upgrade's
   own line* before the CU grant is served at the installed S; the effect
   is NOT carried into the CU commit (amber's killed-upgrade replay — gem5
