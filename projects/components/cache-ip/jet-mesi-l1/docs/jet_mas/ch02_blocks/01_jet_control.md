@@ -164,8 +164,9 @@ silent, the landing pinned:
 - **The entry context is snapshot at the commit start** (one cycle; the
   jet_mshr commit read port is otherwise the lookup stage's merge-room
   probe, so merges hold for that cycle). The merge list is frozen from
-  `fill_done`: a merge onto a fill-done entry stalls
-  `commit_in_progress` (release: the retire).
+  the cycle after `fill_done` (a merge landing on the done cycle itself
+  is still appended and included in the snapshot); a merge onto a
+  fill-done entry stalls `commit_in_progress` (release: the retire).
 - **Store data lives in a jet_control sideband** (per entry, per
   merge-list slot: we/beat/be/wdata, recorded at the alloc/merge
   accepts). The MSHR stays a MAB — it holds no data.
