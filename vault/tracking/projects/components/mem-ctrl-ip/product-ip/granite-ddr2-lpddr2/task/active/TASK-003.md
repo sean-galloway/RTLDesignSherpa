@@ -651,3 +651,31 @@ The `half_threads` profile exits 2 at both clocks (16 of 32 cells at 75,
 the host count at >= 2 threads, `mismatched` 0, bandwidth reproducible):
 harness accounting, identical on granite and pumice on 2026-10-27, filed as
 pumice ISSUE-025; the bandwidth columns are valid.
+
+### 2026-10-29, where LiteDRAM still leads, and the area
+
+Same 75 MHz point, from the tables above. LiteDRAM is ahead by more than
+noise in four places, all page-thrash or single-thread half-burst reads:
+the col_major read stream (386 vs 333, 16 percent), 1w+1r col_major (248
+vs 213 combined), 1w+2r col_major (281 vs 246), and the one-thread
+half-burst read (286 vs 240). Its stream read latency is 2 cycles better
+(48 vs 50), which is not a lead. Its stock Nexys point is 100 MHz at 1:4
+(800 MT/s, 1.6 GB/s peak), which granite does not build yet (item 6).
+
+Area, routed, hierarchical (`reports_sys100_2026-10-29_ddr400/utilization_hier.txt`
+against the LiteDRAM 2026-10-13 depth-8 report in
+`char_results/area_granite_vs_litedram_2026-10-17.xlsx`):
+
+| controller only, same board, same PHY (420 LUT) | LUTs | FFs | RAMB36 | RAMB18 | DSP |
+|---|---|---|---|---|---|
+| granite `u_ctrl` (core + CSR), 2026-10-29 | 5,654 | 4,267 | 2 | 0 | 0 |
+| LiteDRAM controller proper (`u_core` minus VexRiscv) | 2,435 | 2,069 | 12 | 1 | 0 |
+| LiteDRAM `u_core` as shipped (with the calibration CPU) | 4,358 | 3,348 | 13 | 9 | 4 |
+
+Granite by block: age-FIFO store 2,204 (39 percent), scheduler plane 1,753
+(pick 726, bank timers 568, page policy 203, global timers 165), AXI plane
+1,097 (read-return ring 506), DFI plane 284, CSR 200. Against the 10-17
+FRFCFS snapshot (3,666) the pick core and the age-FIFO store cost +2.0k
+LUT and bought the mixed-traffic column. LiteDRAM's controller is 2.3x
+smaller in LUTs but holds its queues in 12 block RAMs where granite holds
+them in logic by policy (2 RAMB36 for the whole core).
