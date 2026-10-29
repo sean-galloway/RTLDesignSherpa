@@ -75,9 +75,8 @@ def _run_cell(request, sets, ways, line_bytes, bus_width, test_level, use_monito
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
     # Merge the rig closures: jet_top.f (the whole top closure incl. the
     # jet FUBs, the common-ip slice, the monlite transports, the arbiter,
-    # the snoop responder, the sdpram consumer's closure is NOT there --
-    # the harness adds it) + jet_pair_fabric.f (own source only) +
-    # the sdpram slave filelist, dedup'ing order-preserving.
+    # the snoop responder, and the sdpram slave closure) +
+    # jet_pair_fabric.f (own source only), dedup'ing order-preserving.
     verilog_sources = []
     includes = []
     for fl in ('jet_top', 'jet_pair_fabric'):

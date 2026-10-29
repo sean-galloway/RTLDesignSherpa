@@ -30,7 +30,7 @@ mapping is inherited from amber's issue-#106 reconciliation:
 
 | Cache event | ACE transaction |
 |---|---|
-| Read miss | `ReadNotSharedDirty` (ARSNOOP 0x7) |
+| Read miss | `ReadNotSharedDirty` (ARSNOOP 0x3) |
 | Write miss | `ReadUnique` |
 | Upgrade (write hit on S) | `CleanUnique` (AR channel, spec encoding) |
 | Dirty victim drain | `WriteBack` |
