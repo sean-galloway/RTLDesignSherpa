@@ -5,13 +5,13 @@ summary: Replacing DMA scheduler FSMs with a barrel RV32I can eliminate DSPs and
 tags: dma, riscv, fpga, computer-architecture, rtl
 ---
 
-I had read about barrel processors and thought they might be useful for a future project. I turned notes from Hennessy and Patterson, and Harris and Harris, into requirements. Kimi helped with coding and validation. A very lean, N-Barrel RV32i, referred to as gatling, was ready sooner than it is needed for the intended project. So, I tried to use it in another way.
+I had read about barrel processors and thought they might be useful for a future project. I turned notes from Hennessy and Patterson, and Harris and Harris, into requirements. Kimi helped with coding and validation. A very lean, N-Barrel RV32i, referred to as Gatling, was ready sooner than the intended project needed. So, I tried to use it in another way.
 
 ![Gatling barrel processor cover artwork](assets/dma_fsm_barrel_hero.png)
 
 I name my projects to make them easier to talk about. I called it Gatling. Once it worked, I remembered someone’s suggestion: put a processor into a high-performance DMA.
 
-I’ve long preferred microcontrollers for power management and training/calibration control. I was curious whether the same flexibility could apply to DMA FSMs.
+I’ve long preferred microcontrollers for power management and training/calibration control. I was curious whether DMA FSMs could offer the same flexibility.
 
 The idea was to replace scheduler FSMs with small processors: not a host CPU, and not a processor moving every beat. An RV32I core rotates N hardware contexts through one shared datapath, one context per cycle. Descriptor policy becomes firmware; the engine-rate datapath stays hardware.
 
@@ -46,7 +46,7 @@ For DMA control, I cared about four things:
 
 - **Policy and descriptor checks become programmable.** I can add descriptor quality checks on the fly in a writable build, then commit the firmware to ROM.
 - **Work can be moved ahead.** Pre-validation and pre-arming let hardware start a chained descriptor as soon as its predecessor completes.
-- **New debug and error messages are free.** I can send out new messages by changing firmware, not an FSM state or message path. Existing monitor machinery carries them. Verification still costs effort, but there’s no new message RTL.
+- **New debug and error messages are free.** I can send new messages by changing firmware, not by changing an FSM state or message path. Existing monitor machinery carries them. Verification still costs effort, but there’s no new message RTL.
 - **One datapath serves many channels.** At 4 and 8 channels, the default is one hart per channel. At 16 channels, eight harts each serve two slots.
 
 Both RAPIDS-G builds instantiate **one Gatling per direction**, two in total. At 16 channels, FSM LUTs grow from 69,184 to 126,820 and firmware LUTs from 77,975 to 141,067. The extra state is channel windows, base queues, and other per-channel logic, so firmware overhead stays in the 11–13% range.
@@ -55,7 +55,7 @@ Both RAPIDS-G builds instantiate **one Gatling per direction**, two in total. At
 
 Why not use 16 harts? Each channel would get its own hart, but each hart would wait 16 clocks between instructions. The two-slot build wins the lone-channel short-descriptor test, **3,131 cycles to 4,731**; the 16-hart build wins with every channel busy, **4,620 to 5,383**. The 1 MB results are effectively tied. The eight-hart build keeps half the hart state and stays within 0.6% of the best EXT result. Two 8-hart Gatlings per direction could avoid slot sharing without the longer rotation, but would duplicate core resources. I haven’t built or measured that option.
 
-One example shows the benefit: the firmware build supports next-address selector 1, a Z-order algorithm that the FSM build refuses. That doesn’t mean every feature is cheaper in software. The EXT measurements show the opposite for address arithmetic, but there’s real value in having somewhere to put a new algorithm.
+One example shows the benefit: the firmware build supports next-address selector 1, a Z-order algorithm that the FSM build refuses. That doesn’t mean every feature is cheaper in software. The EXT measurements show the opposite for address arithmetic, but it’s still valuable to have a place to put a new algorithm.
 
 ## The implementation bill
 
@@ -75,7 +75,7 @@ These FPGA implementation results are not ASIC area or power measurements. Utili
 
 ## Context count is a latency/throughput knob
 
-I ran every scheduler-limit scenario with 4 and 8 contexts on the same 8-channel build and the same committed firmware. Four contexts mean two channel slots per hart; eight mean one. Two contexts isn’t supported by the current RTL.
+I ran every scheduler-limit scenario with 4 and 8 contexts on the same 8-channel build and the same committed firmware. Four contexts mean two channel slots per hart; eight mean one. The current RTL doesn’t support two contexts.
 
 | Scenario | FSM cycles | 4-context cycles | 8-context cycles |
 |---|---:|---:|---:|
@@ -94,7 +94,7 @@ The EXT rows expose a different wall. A base costs firmware about **15–35 inst
 
 ## Firmware tricks that hide the latency
 
-The first working image wasn’t fast. Gains came from changing *where* and *when* the firmware did its work.
+The first working image wasn’t fast. We gained performance by changing *where* and *when* the firmware did its work.
 
 **Pre-validate and pre-arm.** The descriptor engine pre-fetches up to four descriptors ahead when the chain and FIFO space allow. `STAGE_ARM` stages and arms the next descriptor before its predecessor finishes. Without it, arming during the active descriptor takes about 25 instructions: 200 cycles at 8 contexts. The 64-beat sink-chain case drops from 672 clocks per descriptor to about 90 with the fast paths.
 
@@ -106,11 +106,11 @@ The first working image wasn’t fast. Gains came from changing *where* and *whe
 
 **Specialize the two-slot loop.** The firmware unrolls both slots and puts the chain hook in each slot’s branch. The final ordering reads `SUMMARY` first, then handles each slot that needs attention. On the 16-channel build, where eight harts each serve two slots, this reduced chained cost from **184 to 103 clocks** and improved the corresponding board measurement from **1,122 to 2,008 MB/s**. An earlier HEAD_SUM-first version alternated between 36- and 156-clock waits: catching the head early was better, but missing it sent the pass back through the slow path.
 
-**Use table dispatch, not a branch ladder.** After the poll, `step` reads `STATUS` and indexes a 64-entry policy table with its six-bit state field. Four instructions reach any state’s row. A handler makes one or two command writes and returns without re-reading `STATUS` or dispatching itself, so no handler holds a hart for several descriptors. The table links below 2 KB, eliminating a base register for its jump; the firmware generator rejects larger images. Every saved instruction saves N cycles for that channel.
+**Use table dispatch, not a branch ladder.** After the poll, the `step` reads `STATUS` and indexes a 64-entry policy table with its six-bit state field. Four instructions reach any state’s row. A handler makes one or two command writes and returns without re-reading `STATUS` or dispatching itself, so no handler holds a hart for several descriptors. The table links below 2 KB, eliminating a base register for its jump; the firmware generator rejects larger images. Every saved instruction saves N cycles for that channel.
 
-**Keep handlers run-to-completion.** Each poll gives a slot at most one handler. There’s no preemption, stack, or handler loop. That makes latency predictable and lets the other harts continue issuing.
+**Keep handlers run-to-completion.** Each poll gives at most one handler a slot. There’s no preemption, stack, or handler loop. That makes latency predictable and lets the other harts continue issuing.
 
-These techniques hide control behind the descriptor in flight and behind other channels. They don’t make an individual context issue faster than once per N cycles. Custom DMA instructions could provide a future EXT assist, but I’m not claiming a measured benefit for them here.
+These techniques hide control behind the in-flight descriptor and behind other channels. They don’t make an individual context issue faster than once per N cycles. Custom DMA instructions could provide a future EXT assist, but I’m not claiming a measured benefit for them here.
 
 ## Where the crossover lands
 
@@ -158,4 +158,4 @@ The useful question isn’t “is a processor better than an FSM?” It’s **ho
 6. G. Alverson, R. Alverson, D. Callahan, B. Koblenz, A. Porterfield, and B. Smith, “Exploiting Heterogeneous Parallelism on a Multithreaded Multiprocessor,” *Proceedings of Supercomputing ’92*, 1992, pp. 188–197. The Tera MTA and high-context-count latency hiding.
 7. P. Kongetira, K. Aingaran, and K. Olukotun, “Niagara: A 32-Way Multithreaded Sparc Processor,” *IEEE Micro*, 25(2), March–April 2005, pp. 21–29. A modern fine-grained implementation with stalled-thread skipping.
 8. RTL Design Sherpa, [RAPIDS-G architecture](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/dma-ip/rapids/docs/rapids_mas/ch05_rapids_g/01_overview.md), [sequencer and firmware](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/dma-ip/rapids/docs/rapids_mas/ch05_rapids_g/03_sequencer_and_firmware.md), and [verification and measurements](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/dma-ip/rapids/docs/rapids_mas/ch05_rapids_g/05_verification_and_measurements.md). The implementation and all RAPIDS measurements used in this article.
-9. RTL Design Sherpa, [Gatling barrel model](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/riscv-ip/gatling-rv32i/docs/barrel_model/barrel_model.md) and [curated microarchitecture references](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/riscv-ip/references/microarchitecture-papers.md). Gatling’s design trade-offs and the historical sources above.
+9. RTL Design Sherpa, [Gatling barrel model](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/riscv-ip/gatling-rv32i/docs/barrel_model/barrel_model.md), and [curated microarchitecture references](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/riscv-ip/references/microarchitecture-papers.md). Gatling’s design trade-offs and the historical sources above.
