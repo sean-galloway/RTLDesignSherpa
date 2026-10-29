@@ -127,7 +127,7 @@ coverage_points:
     content: "wb_occupancy_o popcount"
     covered: true
     tests: [capture_then_drain, full_stall, random_model_scored]
-  - line: 324
+  - line: 327
     type: assertion
     content: "simulation-only: partial capture must complete within bounded pause"
     covered: true

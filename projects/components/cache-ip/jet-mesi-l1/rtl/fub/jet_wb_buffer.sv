@@ -308,7 +308,10 @@ module jet_wb_buffer
     // must eventually resume and complete; otherwise the slot leaks.
     // We bound the pause in simulation so a stuck-open slot fails loudly.
     localparam int MAX_PAUSE_CYC = 1023;
-    localparam int PAUSE_CNT_W   = $clog2(MAX_PAUSE_CYC + 1);
+    // Make the counter one bit wider than the maximum pause so it can
+    // represent MAX_PAUSE_CYC + 1; the assertion below then has a real
+    // reachable state in which it can fire.
+    localparam int PAUSE_CNT_W   = $clog2(MAX_PAUSE_CYC + 2);
     logic [PAUSE_CNT_W-1:0] r_pause_cnt;
 
     always_ff @(posedge clk or negedge rst_n) begin

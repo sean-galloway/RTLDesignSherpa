@@ -93,3 +93,30 @@ $ SEED=1 REG_LEVEL=FUNC python3 -m pytest test_jet_wb_buffer.py -v
 - `sn_eff_i` hazard is closed.
 - No MAS docs were touched, per controller ruling.
 - Remaining gap: the J7 VICTIM_DEPTH {1,2,4} sweep is still out of scope; only the default depth=2 cell is verified.
+
+---
+
+## Follow-up fix: vacuous partial-capture assertion
+
+### Problem
+The `translate_off` bounded-pause assertion used a 10-bit counter (`$clog2(1023 + 1) = 10`) to count up to `MAX_PAUSE_CYC = 1023`. Because the counter wrapped from 1023 back to 0, the expression `r_pause_cnt <= 1023` was always true and the assertion could never fire.
+
+### Fix
+Widened the counter to 11 bits by computing `PAUSE_CNT_W = $clog2(MAX_PAUSE_CYC + 2)`. The counter can now represent the value `MAX_PAUSE_CYC + 1 = 1024`, so after 1024 paused cycles the assertion `r_pause_cnt <= 1023` evaluates false and the `$error` fires.
+
+### Files changed
+- `projects/components/cache-ip/jet-mesi-l1/rtl/fub/jet_wb_buffer.sv`
+- `projects/components/cache-ip/jet-mesi-l1/dv/testplans/jet_wb_buffer_testplan.yaml` (assertion line number)
+
+### Verification
+```bash
+$ cd projects/components/cache-ip/jet-mesi-l1/dv/tests
+$ SEED=1 REG_LEVEL=GATE python3 -m pytest test_jet_wb_buffer.py -v
+# test_jet_wb_buffer[2-64-64-gate] PASSED — 183 checks, 0 mismatches
+$ SEED=1 REG_LEVEL=FUNC python3 -m pytest test_jet_wb_buffer.py -v
+# test_jet_wb_buffer[2-64-64-gate] PASSED
+# test_jet_wb_buffer[2-64-64-func] PASSED — 956 checks, 0 mismatches
+```
+
+### Why the assertion is now firable
+With `PAUSE_CNT_W = 11`, `r_pause_cnt` ranges 0..2047. The assertion checks `r_pause_cnt <= 1023`. During a real pause the counter increments every cycle while `r_open && !cap_i`; after 1023 paused cycles `r_pause_cnt == 1023` (pass), and on the 1024th paused cycle it becomes `1024` (fail), so the `$error` can be reached. The existing directed `capture_pause_resume` scenario exercises legal short pauses; an artificially long pause would trigger the assertion.
