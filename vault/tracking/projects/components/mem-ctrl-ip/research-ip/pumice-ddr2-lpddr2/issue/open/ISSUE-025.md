@@ -43,3 +43,11 @@ suspect, as in BUG-010's second layer), and until then stop the note from
 flipping `ok`: `ok` should follow `mismatched`, with the 1:1 gap kept as a
 note and a separate column, so the profile's exit code means what a caller
 assumes.
+
+**Clue (2026-10-29, granite TASK-005):** a granite bitstream whose host edge
+capped reads in flight at four (an aggregator side queue sized 4) ran the
+same `half_threads` profile with the 1:1 note on NO cell (32 of 32 ok,
+`char_granite_halfagg75_half_threads_2026-10-29.csv`); the same RTL with the
+cap at 32 is expected to show the note again. The under-count tracks the
+number of reads outstanding, which points at the histogram's timestamp
+queue depth against the engines' admission, the shape BUG-010 had.

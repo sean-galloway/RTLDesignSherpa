@@ -62,6 +62,10 @@ module mc_axi4_plane #(
     parameter int SKID_DEPTH_R     = 4,    // axi4_slave_rd R skid
     parameter int SKID_DEPTH_W     = 4,    // axi4_slave_wr W skid
     parameter bit SHARED_ADDR_MAP  = 1'b0, // 1 = one address mapper for both intakes, reads first
+    parameter bit HALF_AGG         = 1'b0, // 1 = mc_axi4_half_agg at the host edge: two adjacent half-width single beats become one
+                                           //     full-width beat (one DRAM burst, not two). granite TASK-005; 0 = none (pumice)
+    parameter int HALF_AGG_HOLD    = 4,    // cycles a lone lo waits for its hi (HALF_AGG only)
+    parameter int HALF_AGG_DEPTH   = RD_RET_DEPTH, // side-queue depth = commands in flight per direction; below the plane's outstanding capacity it throttles full-width traffic (proxy: +8 rd cycles at 4)
 
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
@@ -214,6 +218,87 @@ module mc_axi4_plane #(
     logic sw_aw_agg, sw_aw_last;   // wr_split -> wr_intake
     logic sr_ar_agg, sr_ar_last;   // rd chopper -> rd_intake
 
+    // ======================================================================
+    // host edge: the half-width aggregator (HALF_AGG) or straight wires
+    // ======================================================================
+    logic [IW-1:0] ha_awid;   logic [AW-1:0] ha_awaddr;  logic [7:0] ha_awlen;  logic [2:0] ha_awsize;
+    logic [1:0]    ha_awburst; logic ha_awlock; logic [3:0] ha_awcache; logic [2:0] ha_awprot;
+    logic [3:0]    ha_awqos;  logic [3:0] ha_awregion; logic [UW-1:0] ha_awuser; logic ha_awvalid, ha_awready;
+    logic [DW-1:0] ha_wdata;  logic [SW-1:0] ha_wstrb; logic ha_wlast; logic [UW-1:0] ha_wuser; logic ha_wvalid, ha_wready;
+    logic [IW-1:0] ha_bid;    logic [1:0] ha_bresp; logic [UW-1:0] ha_buser; logic ha_bvalid, ha_bready;
+    logic [IW-1:0] ha_arid;   logic [AW-1:0] ha_araddr;  logic [7:0] ha_arlen;  logic [2:0] ha_arsize;
+    logic [1:0]    ha_arburst; logic ha_arlock; logic [3:0] ha_arcache; logic [2:0] ha_arprot;
+    logic [3:0]    ha_arqos;  logic [3:0] ha_arregion; logic [UW-1:0] ha_aruser; logic ha_arvalid, ha_arready;
+    logic [IW-1:0] ha_rid;    logic [DW-1:0] ha_rdata; logic [1:0] ha_rresp; logic ha_rlast; logic [UW-1:0] ha_ruser; logic ha_rvalid, ha_rready;
+
+    generate
+    if (HALF_AGG) begin : g_half_agg
+        mc_axi4_half_agg #(
+            .AXI_ID_WIDTH   (IW),
+            .AXI_ADDR_WIDTH (AW),
+            .AXI_DATA_WIDTH (DW),
+            .AXI_USER_WIDTH (UW),
+            .HOLD_CYCLES    (HALF_AGG_HOLD),
+            .AGG_FIFO_DEPTH (HALF_AGG_DEPTH)
+        ) u_half_agg (
+            .aclk        (aclk),
+            .aresetn     (aresetn),
+            .fub_awid    (s_axi_awid),    .fub_awaddr  (s_axi_awaddr),  .fub_awlen   (s_axi_awlen),
+            .fub_awsize  (s_axi_awsize),  .fub_awburst (s_axi_awburst), .fub_awlock  (s_axi_awlock),
+            .fub_awcache (s_axi_awcache), .fub_awprot  (s_axi_awprot),  .fub_awqos   (s_axi_awqos),
+            .fub_awregion(s_axi_awregion),.fub_awuser  (s_axi_awuser),  .fub_awvalid (s_axi_awvalid),
+            .fub_awready (s_axi_awready),
+            .fub_wdata   (s_axi_wdata),   .fub_wstrb   (s_axi_wstrb),   .fub_wlast   (s_axi_wlast),
+            .fub_wuser   (s_axi_wuser),   .fub_wvalid  (s_axi_wvalid),  .fub_wready  (s_axi_wready),
+            .fub_bid     (s_axi_bid),     .fub_bresp   (s_axi_bresp),   .fub_buser   (s_axi_buser),
+            .fub_bvalid  (s_axi_bvalid),  .fub_bready  (s_axi_bready),
+            .fub_arid    (s_axi_arid),    .fub_araddr  (s_axi_araddr),  .fub_arlen   (s_axi_arlen),
+            .fub_arsize  (s_axi_arsize),  .fub_arburst (s_axi_arburst), .fub_arlock  (s_axi_arlock),
+            .fub_arcache (s_axi_arcache), .fub_arprot  (s_axi_arprot),  .fub_arqos   (s_axi_arqos),
+            .fub_arregion(s_axi_arregion),.fub_aruser  (s_axi_aruser),  .fub_arvalid (s_axi_arvalid),
+            .fub_arready (s_axi_arready),
+            .fub_rid     (s_axi_rid),     .fub_rdata   (s_axi_rdata),   .fub_rresp   (s_axi_rresp),
+            .fub_rlast   (s_axi_rlast),   .fub_ruser   (s_axi_ruser),   .fub_rvalid  (s_axi_rvalid),
+            .fub_rready  (s_axi_rready),
+            .m_awid      (ha_awid),       .m_awaddr    (ha_awaddr),     .m_awlen     (ha_awlen),
+            .m_awsize    (ha_awsize),     .m_awburst   (ha_awburst),    .m_awlock    (ha_awlock),
+            .m_awcache   (ha_awcache),    .m_awprot    (ha_awprot),     .m_awqos     (ha_awqos),
+            .m_awregion  (ha_awregion),   .m_awuser    (ha_awuser),     .m_awvalid   (ha_awvalid),
+            .m_awready   (ha_awready),
+            .m_wdata     (ha_wdata),      .m_wstrb     (ha_wstrb),      .m_wlast     (ha_wlast),
+            .m_wuser     (ha_wuser),      .m_wvalid    (ha_wvalid),     .m_wready    (ha_wready),
+            .m_bid       (ha_bid),        .m_bresp     (ha_bresp),      .m_buser     (ha_buser),
+            .m_bvalid    (ha_bvalid),     .m_bready    (ha_bready),
+            .m_arid      (ha_arid),       .m_araddr    (ha_araddr),     .m_arlen     (ha_arlen),
+            .m_arsize    (ha_arsize),     .m_arburst   (ha_arburst),    .m_arlock    (ha_arlock),
+            .m_arcache   (ha_arcache),    .m_arprot    (ha_arprot),     .m_arqos     (ha_arqos),
+            .m_arregion  (ha_arregion),   .m_aruser    (ha_aruser),     .m_arvalid   (ha_arvalid),
+            .m_arready   (ha_arready),
+            .m_rid       (ha_rid),        .m_rdata     (ha_rdata),      .m_rresp     (ha_rresp),
+            .m_rlast     (ha_rlast),      .m_ruser     (ha_ruser),      .m_rvalid    (ha_rvalid),
+            .m_rready    (ha_rready)
+        );
+    end else begin : g_no_half_agg
+        assign ha_awid = s_axi_awid;   assign ha_awaddr = s_axi_awaddr;   assign ha_awlen = s_axi_awlen;
+        assign ha_awsize = s_axi_awsize; assign ha_awburst = s_axi_awburst; assign ha_awlock = s_axi_awlock;
+        assign ha_awcache = s_axi_awcache; assign ha_awprot = s_axi_awprot; assign ha_awqos = s_axi_awqos;
+        assign ha_awregion = s_axi_awregion; assign ha_awuser = s_axi_awuser; assign ha_awvalid = s_axi_awvalid;
+        assign s_axi_awready = ha_awready;
+        assign ha_wdata = s_axi_wdata; assign ha_wstrb = s_axi_wstrb; assign ha_wlast = s_axi_wlast;
+        assign ha_wuser = s_axi_wuser; assign ha_wvalid = s_axi_wvalid; assign s_axi_wready = ha_wready;
+        assign s_axi_bid = ha_bid; assign s_axi_bresp = ha_bresp; assign s_axi_buser = ha_buser;
+        assign s_axi_bvalid = ha_bvalid; assign ha_bready = s_axi_bready;
+        assign ha_arid = s_axi_arid;   assign ha_araddr = s_axi_araddr;   assign ha_arlen = s_axi_arlen;
+        assign ha_arsize = s_axi_arsize; assign ha_arburst = s_axi_arburst; assign ha_arlock = s_axi_arlock;
+        assign ha_arcache = s_axi_arcache; assign ha_arprot = s_axi_arprot; assign ha_arqos = s_axi_arqos;
+        assign ha_arregion = s_axi_arregion; assign ha_aruser = s_axi_aruser; assign ha_arvalid = s_axi_arvalid;
+        assign s_axi_arready = ha_arready;
+        assign s_axi_rid = ha_rid; assign s_axi_rdata = ha_rdata; assign s_axi_rresp = ha_rresp;
+        assign s_axi_rlast = ha_rlast; assign s_axi_ruser = ha_ruser; assign s_axi_rvalid = ha_rvalid;
+        assign ha_rready = s_axi_rready;
+    end
+    endgenerate
+
     // ---- WR request side: chop AW into DFI-burst sub-commands + reframe W ---
     mc_wr_splitter #(
         .AXI_ID_WIDTH  (IW),
@@ -224,25 +309,25 @@ module mc_axi4_plane #(
     ) u_wr_split (
         .aclk        (aclk),
         .aresetn     (aresetn),
-        .fub_awid    (s_axi_awid),
-        .fub_awaddr  (s_axi_awaddr),
-        .fub_awlen   (s_axi_awlen),
-        .fub_awsize  (s_axi_awsize),
-        .fub_awburst (s_axi_awburst),
-        .fub_awlock  (s_axi_awlock),
-        .fub_awcache (s_axi_awcache),
-        .fub_awprot  (s_axi_awprot),
-        .fub_awqos   (s_axi_awqos),
-        .fub_awregion(s_axi_awregion),
-        .fub_awuser  (s_axi_awuser),
-        .fub_awvalid (s_axi_awvalid),
-        .fub_awready (s_axi_awready),
-        .fub_wdata   (s_axi_wdata),
-        .fub_wstrb   (s_axi_wstrb),
-        .fub_wlast   (s_axi_wlast),
-        .fub_wuser   (s_axi_wuser),
-        .fub_wvalid  (s_axi_wvalid),
-        .fub_wready  (s_axi_wready),
+        .fub_awid    (ha_awid),
+        .fub_awaddr  (ha_awaddr),
+        .fub_awlen   (ha_awlen),
+        .fub_awsize  (ha_awsize),
+        .fub_awburst (ha_awburst),
+        .fub_awlock  (ha_awlock),
+        .fub_awcache (ha_awcache),
+        .fub_awprot  (ha_awprot),
+        .fub_awqos   (ha_awqos),
+        .fub_awregion(ha_awregion),
+        .fub_awuser  (ha_awuser),
+        .fub_awvalid (ha_awvalid),
+        .fub_awready (ha_awready),
+        .fub_wdata   (ha_wdata),
+        .fub_wstrb   (ha_wstrb),
+        .fub_wlast   (ha_wlast),
+        .fub_wuser   (ha_wuser),
+        .fub_wvalid  (ha_wvalid),
+        .fub_wready  (ha_wready),
         .m_awid      (sw_awid),
         .m_awaddr    (sw_awaddr),
         .m_awlen     (sw_awlen),
@@ -276,19 +361,19 @@ module mc_axi4_plane #(
     ) u_rd_split (
         .aclk        (aclk),
         .aresetn     (aresetn),
-        .fub_axid    (s_axi_arid),
-        .fub_axaddr  (s_axi_araddr),
-        .fub_axlen   (s_axi_arlen),
-        .fub_axsize  (s_axi_arsize),
-        .fub_axburst (s_axi_arburst),
-        .fub_axlock  (s_axi_arlock),
-        .fub_axcache (s_axi_arcache),
-        .fub_axprot  (s_axi_arprot),
-        .fub_axqos   (s_axi_arqos),
-        .fub_axregion(s_axi_arregion),
-        .fub_axuser  (s_axi_aruser),
-        .fub_axvalid (s_axi_arvalid),
-        .fub_axready (s_axi_arready),
+        .fub_axid    (ha_arid),
+        .fub_axaddr  (ha_araddr),
+        .fub_axlen   (ha_arlen),
+        .fub_axsize  (ha_arsize),
+        .fub_axburst (ha_arburst),
+        .fub_axlock  (ha_arlock),
+        .fub_axcache (ha_arcache),
+        .fub_axprot  (ha_arprot),
+        .fub_axqos   (ha_arqos),
+        .fub_axregion(ha_arregion),
+        .fub_axuser  (ha_aruser),
+        .fub_axvalid (ha_arvalid),
+        .fub_axready (ha_arready),
         .m_axid      (sr_arid),
         .m_axaddr    (sr_araddr),
         .m_axlen     (sr_arlen),
@@ -363,11 +448,11 @@ module mc_axi4_plane #(
         .s_axi_wvalid  (sw_wvalid),
         .s_axi_wready  (sw_wready),
         // consolidated B straight to the host (one B per host burst)
-        .s_axi_bid      (s_axi_bid),
-        .s_axi_bresp    (s_axi_bresp),
-        .s_axi_buser    (s_axi_buser),
-        .s_axi_bvalid   (s_axi_bvalid),
-        .s_axi_bready   (s_axi_bready),
+        .s_axi_bid      (ha_bid),
+        .s_axi_bresp    (ha_bresp),
+        .s_axi_buser    (ha_buser),
+        .s_axi_bvalid   (ha_bvalid),
+        .s_axi_bready   (ha_bready),
         .aw_push_valid_o(aw_push_valid_o),
         .aw_push_ready_i(aw_push_ready_i),
         .aw_push_rank_o (),
@@ -440,13 +525,13 @@ module mc_axi4_plane #(
         .ar_agg_i      (sr_ar_agg),
         .ar_last_i     (sr_ar_last),
         // collapsed R straight to the host (one RLAST per host burst)
-        .s_axi_rid          (s_axi_rid),
-        .s_axi_rdata        (s_axi_rdata),
-        .s_axi_rresp        (s_axi_rresp),
-        .s_axi_rlast        (s_axi_rlast),
-        .s_axi_ruser        (s_axi_ruser),
-        .s_axi_rvalid       (s_axi_rvalid),
-        .s_axi_rready       (s_axi_rready),
+        .s_axi_rid          (ha_rid),
+        .s_axi_rdata        (ha_rdata),
+        .s_axi_rresp        (ha_rresp),
+        .s_axi_rlast        (ha_rlast),
+        .s_axi_ruser        (ha_ruser),
+        .s_axi_rvalid       (ha_rvalid),
+        .s_axi_rready       (ha_rready),
         .ar_push_valid_o    (ar_push_valid_o),
         .ar_push_ready_i    (ar_push_ready_i),
         .ar_push_rank_o     (),

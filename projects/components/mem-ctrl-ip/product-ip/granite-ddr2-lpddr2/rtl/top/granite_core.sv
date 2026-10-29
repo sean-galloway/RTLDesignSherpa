@@ -76,6 +76,7 @@ module granite_core
     parameter int RFC_W             = 8,    // pick core tRFC / tZQCS recovery counter width (16-bit CSR saturates in; DDR2 tRFC <= 35 cycles)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter bit BANK_EVT_REG      = 1'b1, // bank timer counters load one register after the pick's fire strobe (TASK-003 100 MHz; readiness exact); 0 = the live load
+    parameter bit HALF_AGG          = 1'b0, // the half-width AXI aggregator at the host edge (TASK-005, DEFERRED: no gain on the pair cell, 30 percent hold cost on unpaired halves, a write hang on open_page); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
@@ -396,7 +397,8 @@ module granite_core
         .WDATA_FIFO_DEPTH (INTAKE_FIFO_DEPTH),
         .SKID_DEPTH_R     (AXI_SKID_DEPTH),
         .SKID_DEPTH_W     (AXI_SKID_DEPTH),
-        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP)
+        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP),
+        .HALF_AGG         (HALF_AGG)
     ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),

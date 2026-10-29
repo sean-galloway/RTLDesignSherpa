@@ -348,6 +348,7 @@ def test_granite_core(request, test_level):
               "HAS_PAGE_POLICY": os.environ.get("GRANITE_HAS_PAGE_POLICY", "1"),
               "BANK_TW": os.environ.get("GRANITE_BANK_TW", "5"),
               "BANK_EVT_REG": os.environ.get("GRANITE_BANK_EVT_REG", "1"),
+              "HALF_AGG": os.environ.get("GRANITE_HALF_AGG", "0"),
               "BANK_CAP_MIXED": os.environ.get("GRANITE_BANK_CAP_MIXED", "6"),
               "HAS_AGE": os.environ.get("GRANITE_HAS_AGE", "0"),
               "PP_TIMEOUT_CLOSE": os.environ.get("GRANITE_PP_TIMEOUT_CLOSE", "1"),

@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — tasks
 
-**Next ID: TASK-005** — never recycle a number, even when its item closed.
+**Next ID: TASK-006** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -17,7 +17,7 @@ state by construction rather than by discipline.
 | [active/](active/) | 3 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 1 | parked pending a named condition |
+| [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Active
 
@@ -39,3 +39,8 @@ state by construction rather than by discipline.
   the pick trim measured and not levers) -- DEFERRED 2026-10-29, pending a build
   that no longer closes at 100 MHz with the shipped directives, or a product
   point above 100 MHz. [deferred/TASK-004.md](deferred/TASK-004.md).
+- **TASK-005** — the simple AXI aggregator in granite's AXI plane (`HALF_AGG`,
+  block kept, off) -- DEFERRED 2026-10-29, measured: pairs only same-ID adjacent
+  halves, the open_page pair cell is host-rate bound (no gain), unpaired halves
+  pay the hold (-30 percent), a write hang on open_page. Wakes for a DRAM-bound
+  same-ID master or a per-port placement. [deferred/TASK-005.md](deferred/TASK-005.md).

@@ -40,6 +40,7 @@ much pacing the merge window tolerates.
 from __future__ import annotations
 
 import math
+import os
 from typing import Dict, List, Optional, Tuple
 
 FAM_HALF_PAIR       = "half_pair"
@@ -103,7 +104,11 @@ def programs(fam: str, n_bursts: int, geom, dc, *, burst_bytes: int, threads: in
                         stride_1=half, wrap_mask_1=0,
                         idx1_shift=k, idx1_bit=True, addr_lfsr=False,
                         burst_len=1, txn_count=2 * n_bursts, gap=gap, gap_sweep=sweep,
-                        id_mode=dc.ID_MODE_COUNTER, axi_id=(t * IDS_PER_THREAD) & 0xFF,
+                        # HALF_ID_FIXED=1: one ID per thread (a single in-order master's
+                        # halves); default COUNTER (distinct IDs). granite TASK-005.
+                        id_mode=(dc.ID_MODE_FIXED if os.environ.get("HALF_ID_FIXED", "0") not in ("", "0")
+                                 else dc.ID_MODE_COUNTER),
+                        axi_id=(t * IDS_PER_THREAD) & 0xFF,
                         axi_size=size, data_mode=True, gen=t, **fields))
     return out
 
