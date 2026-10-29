@@ -52,10 +52,10 @@ decode from `l1_pkg`.
 
 | Class | Condition | Action |
 |---|---|---|
-| HIT | line resident (S/E/M), no pending-fill hazard | serve from port A; write hits take the W port subject to fill-beat priority (J2); responses release in order |
-| MERGE | line not resident, MSHR match, same class | append the request's sequence tag to the entry's merge list; no new traffic |
+| HIT | line resident (S/E/M), no pending-fill hazard | serve from port A; write hits take the W port subject to fill-beat/commit-merge priority (J2); responses release in order |
+| MERGE | line not resident, MSHR match, same class, entry not committing | append the request's sequence tag to the entry's merge list; no new traffic |
 | MISS_ALLOC | line not resident, no MSHR match, resources free | allocate MSHR entry; claim victim way from `l1_repl`; if victim dirty, capture to WB buffer (J5); launch fill |
-| STALL | MSHR full; or WB full AND dirty victim; or set oversubscribed (WAYS outstanding in this set); or cross-class wait (write miss behind a read fill, J3) | hold the request at the front end; retried next cycle |
+| STALL | MSHR full; or WB full AND dirty victim; or set oversubscribed (WAYS outstanding in this set); or cross-class wait (write miss behind a read fill, J3); or the matched entry is committing | hold the request at the front end; retried next cycle |
 
 The STALL classes are the whole congestion story (J6): they never drop a
 request, and each has a bounded release condition (an entry retires, a
@@ -103,13 +103,11 @@ cycle. Where the table above was silent, the landing pinned:
 
 - **Upgrades classify at lookup.** An S-write hit launches `JET_CLS_CU`
   (jet_pkg extension) to the fill engine; no MSHR entry, no victim. One
-  upgrade is outstanding at a time (single tracker); a write to its line
-  waits as `cross_class_wait`, and the upgrade's (set, way) counts as a
-  claim for victim selection. The tracker currently clears on ANY
-  `fill_done_i` — sound only because the single AXI4 read ID completes
-  fills in launch order and no earlier fill's done may arrive during an
-  in-flight upgrade; Task 6 qualifies the clear by the completing fill's
-  identity (or moves it into the commit pipeline).
+  upgrade is outstanding at a time (single tracker), and the upgrade's
+  (set, way) counts as a claim for victim selection. Task 6 made the
+  tracker hold the full request context (seq tag, beat, be, wdata) and
+  clear it only at the upgrade's own CU commit, qualified by the
+  completing fill's identity through the completion queue.
 - **The pending-fill hazard is a claimed-way scoreboard** in jet_control
   (per live MSHR entry: the claimed set+way). A tag hit on a claimed way
   is suppressed (the doomed victim's data is being captured/overwritten)
@@ -130,9 +128,15 @@ cycle. Where the table above was silent, the landing pinned:
   beats before that entry's victim capture has completed
   (`cap_busy_o` low) — the beats land in the claimed victim way.
 - **Victim policy is updated at the alloc** (claim == the update); the
-  commit must not `repl_update` again at install. With LRU/FIFO this
-  makes back-to-back claims in a set distinct; RANDOM would need a
-  claimed-way mask (recorded gap).
+  commit must not `repl_update` again at install.
+- **The victim proposal is claim-aware** (Task 6): a proposed victim way
+  already claimed by a live entry of the set stalls the alloc
+  (`set_oversubscribed`; release: the conflicting entry's commit).
+  `l1_repl` has no claim-mask input (common-ip is shared), so the check
+  lives in jet_control — it makes RANDOM (which can repeat a way) and LRU
+  under hit reordering (which can re-propose a claimed way once every
+  other way has been touched) safe. A `translate_off` assertion pins that
+  no two live claims ever share a (set, way).
 - **jet_mshr** grew the overlay-free lookup probe
   (`lkup_reg_match_o/idx/cls`): the classify drives the alloc from the
   match outcome, so it must see the registered-entries-only match or the
@@ -146,13 +150,57 @@ cycle. Where the table above was silent, the landing pinned:
   request's hit completion immediately — the deposit must survive the
   release (the old record's response left on the wire that cycle).
 
+## Task 6 implementation notes (commit pipeline, as landed)
+
+The commit pipeline is a small FSM (C_MERGE → C_INSTALL → [C_PEND] →
+C_DEPOSIT → C_RETIRE, plus the CU tail C_CU_MERGE → C_CU_INSTALL →
+C_CU_DEPOSIT) fed by a **fill-completion queue**: every fill launch
+(alloc or upgrade) is pushed at `fill_accept`, and `fill_done` marks the
+oldest un-done entry — the single AXI4 read ID completes fills in launch
+order, so the queue resolves each `fill_done` to its entry/upgrade
+identity without a done-side index. Where the commit section above was
+silent, the landing pinned:
+
+- **The entry context is snapshot at the commit start** (one cycle; the
+  jet_mshr commit read port is otherwise the lookup stage's merge-room
+  probe, so merges hold for that cycle). The merge list is frozen from
+  `fill_done`: a merge onto a fill-done entry stalls
+  `commit_in_progress` (release: the retire).
+- **Store data lives in a jet_control sideband** (per entry, per
+  merge-list slot: we/beat/be/wdata, recorded at the alloc/merge
+  accepts). The MSHR stays a MAB — it holds no data.
+- **A read requester's response beat is captured from the data array at
+  its own position in the requester order** (during the D-4 walk), so a
+  read observes exactly the writes that precede it and never a later one;
+  deposits then replay the captured beats in tag order.
+- **pend_eff is a second tag write after the install** (C_PEND), so the
+  order is observable and pinned by DV; the claimed way stays claimed
+  until the retire, keeping hits on the committing line suppressed (they
+  fall to the MSHR match and stall `commit_in_progress`).
+- **Any hit on the in-flight upgrade's line stalls** (`cross_class_wait`)
+  until the CU commit lands — the held write's data merges only there,
+  so a read overtaking it would return stale data.
+- **The commit wins the deposit port; hit accepts hold** in deposit-phase
+  cycles (bounded by the merge-list depth; no deposit is ever dropped).
+  The data W port orders fill beats > commit store merge > write-hit
+  merge, the tag W port orders init > commit install/pend > E→M
+  promotion, and the port-A read address is the commit's during the
+  read-capture cycles (read hits hold).
+- **A CU commit** merges the held write onto the resident line (D-4),
+  installs M, echoes the write data as the response, and clears the
+  upgrade tracker.
+
 ## W-port arbitration
 
 One write port feeds: fill beats (fill engine), hit/merged store data
 (port A writes), WB capture reads are on port B. Priority: **fill beats >
-write hits** (J2): a fill once in its beat stream finishes it (bounded:
-FILL_BEATS cycles), then write hits proceed. This is the liveness-safe
-order — fills retiring is what frees MSHR entries.
+commit store merge > write hits** (J2): a fill once in its beat stream
+finishes it (bounded: FILL_BEATS cycles), then commit merges (bounded by
+the merge-list depth), then write hits proceed. This is the liveness-safe
+order — fills retiring is what frees MSHR entries. The tag write port
+orders init walk > commit install/pend > E→M promotion, and the response
+deposit port orders commit deposits > hit deposits; the held side retries
+next cycle (all holds bounded, no deposit is ever dropped).
 
 ## Interface sketch (planned)
 

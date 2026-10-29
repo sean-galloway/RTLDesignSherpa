@@ -1,14 +1,19 @@
-# Testplan for jet_control (lookup stage)
-# Maps the MAS ch02_blocks/01 lookup-half contract to the Pattern-B grid DV:
-# directed scenarios for the four-class classify (HIT / MERGE / MISS_ALLOC /
-# STALL with the J6 sub-reasons), hit-under-miss (J2), the merge join (J3),
-# and the W-port arbitration, run against the REAL l1_tag_array /
-# l1_data_array / l1_repl / jet_mshr / jet_wb_buffer / jet_rsp_seq with
-# fill/drain engines as handshake-timing-only stubs.  Single geometry cell
-# (MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128, WAYS=4); the J7 sweeps are
-# experiments, not unit-TB cells.  GATE runs the full scenario set once;
-# FUNC repeats it with perturbed fill/drain stub latencies (timing
-# robustness of the launch-hold and stall-release paths).
+# Testplan for jet_control (lookup stage + commit pipeline)
+# Maps the MAS ch02_blocks/01 contract to the Pattern-B grid DV: directed
+# scenarios for the four-class classify (HIT / MERGE / MISS_ALLOC / STALL
+# with the J6 sub-reasons), hit-under-miss (J2), the merge join (J3), the
+# W-port arbitration, and the commit pipeline (D-4 store merge, tag
+# install with the amber #106 PassDirty rule, deferred snoop effect after
+# the install, per-tag deposits in tag order, entry retire) run against
+# the REAL l1_tag_array / l1_data_array / l1_repl / jet_mshr /
+# jet_wb_buffer / jet_rsp_seq with fill/drain engines as
+# handshake-timing-only stubs (the fill stub accepts launches promptly and
+# serves bursts serially in launch order -- the single-AXI4-ID contract).
+# Single geometry cell (MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128, WAYS=4);
+# the J7 sweeps are experiments, not unit-TB cells.  GATE runs the full
+# scenario set once; FUNC repeats it with perturbed fill/drain stub
+# latencies (timing robustness of the launch-hold, stall-release, and
+# commit/lookup port-arbitration paths).
 
 module: jet_control
 rtl_files:
@@ -17,9 +22,10 @@ test_files:
   - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_control.py
 
 # Contract: MAS ch02_blocks/01.  One request, one window: tag read (port A)
-# + MSHR CAM + WB match + set claim count classify in the same cycle.  The
-# commit pipeline is Task 6 (stubbed TB-side: cmt_retire_*, backdoor tag
-# install, tb_cpl_* deposit); the snoop path is Task 7 (unwired).
+# + MSHR CAM + WB match + set claim count classify in the same cycle; one
+# fill completion at a time: D-4 merge, tag install, deferred snoop
+# effect, response deposits, retire.  The snoop responder is Task 7 (the
+# TB drives the deferred-effect record directly into jet_mshr, mid-fill).
 
 parameters:
   - name: ADDR_WIDTH / SETS / WAYS / LINE_BYTES / BUS_WIDTH
@@ -50,7 +56,7 @@ scenarios:
     level: all
     what: A miss allocates an MSHR entry, claims the victim way (repl_req +
       repl_update, LRU-model parity), launches the fill, and is not held.
-      After the TB-side commit the line serves hits.
+      After the commit the line serves hits.
     status: covered
   - name: merge_read_onto_ru
     level: all
@@ -62,12 +68,15 @@ scenarios:
     level: all
     what: A write miss behind an outstanding RNSD fill stalls
       cross_class_wait (no alloc, no fill) until the fill commits, then
-      proceeds as an upgrade -- the lookup launches JET_CLS_CU (J3).
+      proceeds as an upgrade (J3); the CLEAN_UNIQUE commits through the CU
+      path (held write merged, tag installs M, echo deposit) and the
+      merged data reads back.
     status: covered
   - name: stall_mshr_full
     level: all
-    what: MSHR_COUNT allocs fill the file; the next miss stalls mshr_full
-      until a commit retires an entry (bounded release), then allocates.
+    what: MSHR_COUNT allocs fill the file (fills slowed so all entries
+      stay live to the cap); the next miss stalls mshr_full until the
+      first fill's commit retires an entry (bounded release).
     status: covered
   - name: stall_wb_full_only_dirty
     level: all
@@ -76,11 +85,21 @@ scenarios:
       wb_full_dirty_victim until a drain completes.  The capture payload is
       checked end-to-end at the drain head (addr + data, oldest first).
     status: covered
+  - name: stall_wb_drain_race
+    level: all
+    what: A miss whose line sits in the WB buffer (a dirty victim
+      mid-capture / awaiting drain) stalls wb_full_dirty_victim until the
+      drain completes (Chinnakonda 10.10.1 -- the refetch must not race
+      the outstanding writeback); the refetched line's commit returns the
+      drained (dirty) data.
+    status: covered
   - name: stall_set_oversubscribed
     level: all
-    what: WAYS outstanding claims in one set refuse a further alloc to that
-      set (set_oversubscribed) while a different set is unaffected; a retire
-      of one of the set's entries releases the stall.
+    what: WAYS outstanding claims in one set refuse a further alloc to
+      that set (a different set is unaffected) until one of the set's
+      entries retires.  The claim-aware victim check (a proposed victim
+      way already claimed by a live entry) folds into the same reason --
+      the RANDOM/LRU-reorder safety fix.
     status: covered
   - name: fill_beats_win_wport
     level: all
@@ -101,96 +120,180 @@ scenarios:
       set per cycle; a stray request during the walk is not accepted;
       port-B readback confirms all-Invalid.
     status: covered
+  - name: commit_installs_tag
+    level: all
+    what: The commit installs the entry's tag with the install state --
+      S for an RNSD fill without PassDirty, M when PassDirty was received
+      (amber #106), M for a write (RU) fill.  The watcher scores the
+      install write; a following write's classify (upgrade iff S) proves
+      the installed state end-to-end.
+    status: covered
+  - name: commit_merges_store_data
+    level: all
+    what: Amber D-4 at commit: the entry's store data merges onto the
+      just-filled beats with byte enables, in requester order; a read
+      between two writes to the same beat sees the earlier write but not
+      the later one (request order pinned by per-slot golden data); a read
+      presented after fill_done stalls commit_in_progress until the retire
+      and then hits the installed line; the committed line reads back
+      fully merged.
+    status: covered
+  - name: merge_response_completeness
+    level: all
+    what: Allocator + 3 merged requesters + 1 cross-class waiter -> exactly
+      one response per sequence tag, in tag order, in consecutive cycles
+      at the deposit port (the watcher pins order/adjacency/no-double);
+      the waiter proceeds as an upgrade after the commit; all five
+      responses release in J4 order.
+    status: covered
+  - name: commit_retires_entry
+    level: all
+    what: The commit retires the MSHR entry (occupancy returns to 0), frees
+      the entry (the next alloc reuses the lowest free index) and the
+      victim-way claim; both committed lines serve hits afterwards.
+    status: covered
+  - name: pend_eff_applied_after_install
+    level: all
+    what: A snoop recording a deferred effect mid-fill (downgrade-S on a
+      PassDirty install, invalidate-I on an S install) sees it land AFTER
+      the tag install -- the watcher pins the two-write order; the
+      post-commit classify proves the final state (the downgraded line
+      upgrades on a write; the invalidated line misses again).
+    status: covered
 
 coverage_points:
-  - line: 285
+  - line: 336
     type: initial
     content: "elaboration geometry checks"
     covered: true
     note: elaborates clean at the default geometry; the $error branches
       fire only on an out-of-range elaboration (by design not exercised).
-  - line: 367
+  - line: 473
     type: always_comb
     content: "tag hit decode (S/E/M compare, amber LOOKUP semantics)"
     covered: true
     tests: [hit_read, hit_write, miss_alloc]
-  - line: 393
+  - line: 499
     type: always_comb
     content: "pending-fill hazard (claimed-way hit suppression)"
     covered: true
-    note: exercised implicitly by every miss alloc; a direct lookup of a
-      doomed victim mid-fill is a Task 6/7 corner (see gaps).
-    tests: [miss_alloc, stall_wb_full_only_dirty]
-  - line: 467
+    tests: [miss_alloc, stall_wb_full_only_dirty, stall_wb_drain_race]
+  - line: 551
     type: always_comb
-    content: "the four-class classify + stall sub-reason priority"
+    content: "claim-aware victim check (RANDOM/LRU-reorder safety)"
+    covered: true
+    note: exercised implicitly by every alloc while a claim is live in
+      the same set; the no-double-claim assertion pins it.
+    tests: [stall_set_oversubscribed, stall_mshr_full]
+  - line: 675
+    type: always_comb
+    content: "the four-class classify + stall sub-reason priority (incl. commit_in_progress and the upgrade-line wait)"
     covered: true
     tests: [hit_read, hit_write, miss_alloc, merge_read_onto_ru,
             stall_cross_class, stall_mshr_full, stall_wb_full_only_dirty,
-            stall_set_oversubscribed, stall_tag_full]
-  - line: 476
+            stall_wb_drain_race, stall_set_oversubscribed, stall_tag_full,
+            merge_response_completeness]
+  - line: 700
     type: always_comb
-    content: "write-hit W-port yield (fill beats > write hits)"
+    content: "write-hit W-port yield (fill beats > commit merge > write hits)"
     covered: true
-    tests: [fill_beats_win_wport]
-  - line: 559
+    tests: [fill_beats_win_wport, commit_merges_store_data]
+  - line: 802
     type: always_comb
     content: "fill launch hold register (start held until fill_accept_i)"
     covered: true
     tests: [miss_alloc, stall_cross_class]
-  - line: 686
+  - line: 990
     type: always_ff
     content: "D-3 init walk"
     covered: true
     tests: [init_walk]
-  - line: 694
+  - line: 1000
     type: always_ff
     content: "victim capture engine (port-B beat stream)"
     covered: true
-    tests: [stall_wb_full_only_dirty]
-  - line: 725
+    tests: [stall_wb_full_only_dirty, stall_wb_drain_race]
+  - line: 1033
     type: always_ff
-    content: "upgrade tracker (single-outstanding CLEAN_UNIQUE)"
+    content: "upgrade tracker (single-outstanding CLEAN_UNIQUE, cleared by the CU's own commit)"
     covered: true
-    tests: [stall_cross_class]
-  - line: 735
+    tests: [stall_cross_class, commit_installs_tag, pend_eff_applied_after_install]
+  - line: 1049
     type: always_ff
-    content: "claimed-way scoreboard set/clear"
+    content: "claimed-way scoreboard set/clear (clear at the commit retire)"
     covered: true
-    tests: [miss_alloc, stall_mshr_full, stall_set_oversubscribed]
-  - line: 753
+    tests: [miss_alloc, stall_mshr_full, stall_set_oversubscribed, commit_retires_entry]
+  - line: 1060
+    type: always_ff
+    content: "requester sideband (per-slot we/beat/be/wdata for the D-4 walk)"
+    covered: true
+    tests: [commit_merges_store_data, merge_response_completeness]
+  - line: 1079
+    type: always_ff
+    content: "fill-completion queue (push at accept, done mark, pop at retire)"
+    covered: true
+    tests: [all]
+  - line: 1117
+    type: always_ff
+    content: "commit FSM (snapshot, D-4 merge + read capture, install, pend, deposits, retire; CU tail)"
+    covered: true
+    tests: [commit_installs_tag, commit_merges_store_data,
+            merge_response_completeness, commit_retires_entry,
+            pend_eff_applied_after_install, stall_cross_class]
+  - line: 1211
     type: assertion
     content: "simulation-only: dirty-victim alloc always accepted by WB"
     covered: true
     tests: [stall_wb_full_only_dirty]
-  - line: 758
+  - line: 1216
+    type: assertion
+    content: "simulation-only: a driven alloc is always granted (classify/grant consistency)"
+    covered: true
+    tests: [all]
+  - line: 1222
+    type: assertion
+    content: "simulation-only: fill_done always matches an outstanding un-done fill"
+    covered: true
+    tests: [all]
+  - line: 1229
+    type: assertion
+    content: "simulation-only: fill-completion queue never overflows"
+    covered: true
+    tests: [all]
+  - line: 1235
+    type: assertion
+    content: "simulation-only: fill_accept only with a launch presented"
+    covered: true
+    tests: [all]
+  - line: 1240
+    type: assertion
+    content: "simulation-only: fill beats land only on a live claim's entry"
+    covered: true
+    tests: [all]
+  - line: 1246
     type: assertion
     content: "simulation-only: retire targets an entry with a live claim"
     covered: true
     tests: [all]
-  - line: 763
+  - line: 1251
     type: assertion
-    content: "simulation-only: a driven alloc is always granted (classify/grant consistency)"
+    content: "simulation-only: a CU commit requires a live upgrade tracker"
+    covered: true
+    tests: [stall_cross_class, commit_installs_tag]
+  - line: 1271
+    type: assertion
+    content: "simulation-only: no two live claims share a (set, way)"
     covered: true
     tests: [all]
 
 gaps:
   - Out-of-range geometry elaboration ($error) fails the build by design.
-  - The commit pipeline (tag install, D-4 store-data merge, response
-    deposit per merge-list tag, retire) is Task 6 -- the TB stubs it
-    (cmt_retire_* / bd_tag_wr_* / tb_cpl_*).  A read hit on a line whose
-    committed entry carried a write would read the unmerged array copy;
-    no scenario does this (Task 6 closes it).
   - The snoop path (Task 7) is unwired: the WB snarf probe serves the
-    lookup drain-race check only.
-  - A direct lookup of a doomed victim line while its WB entry is valid
-    (the drain-race stall, STALL_WB) is implemented but not directed-tested;
-    the J3/J6 scenarios never address an in-flight victim.  Candidate for
-    the Task 6/7 TB extension.
-  - The RANDOM replacement policy can re-propose a claimed victim way
-    (LRU/FIFO/tree-PLRU cannot, given update-at-alloc + in-order commit);
-    the unit grid runs the default LRU.  A claimed-way mask is the recorded
-    fix if RANDOM is ever enabled.
+    lookup drain-race check only, and the TB drives the deferred-effect
+    record (tb_sn_eff_*) directly into jet_mshr to model a mid-fill snoop.
   - Merge-list overflow (MSHR_COUNT+1 requesters on one entry) stalls
     mshr_full by construction; reaching it needs 9 live requesters on one
     line -- a FULL-level random-soak corner, not directed-tested here.
+  - The unit grid runs the default LRU policy; the claim-aware victim
+    check (not policy state) is what makes RANDOM/FIFO safe, and the
+    no-double-claim assertion would fire in any RANDOM grid run (T12).

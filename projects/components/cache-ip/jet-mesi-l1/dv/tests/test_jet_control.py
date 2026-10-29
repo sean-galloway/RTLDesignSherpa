@@ -7,7 +7,9 @@ HIT / MERGE / MISS_ALLOC / STALL, hit-under-miss (J2), merge join (J3),
 and the J6 stall story.  The harness (dv/tb/jet_control_th.sv) wires the
 DUT to the REAL l1_tag_array / l1_data_array / l1_repl / jet_mshr /
 jet_wb_buffer / jet_rsp_seq; the TB models the fill/drain engines'
-handshake timing only and stubs the Task 6 commit pipeline TB-side.
+handshake timing only.  The commit pipeline (Task 6) is internal to the
+DUT: fill_done triggers the D-4 store merge, tag install, deferred snoop
+effect, per-tag deposits, and the retire, all scored from the taps.
 Single geometry cell (the J1 default: MSHR_COUNT=8, VICTIM_DEPTH=2,
 SETS=128, WAYS=4); the J7 sweeps are experiments, not unit-TB cells.
 
