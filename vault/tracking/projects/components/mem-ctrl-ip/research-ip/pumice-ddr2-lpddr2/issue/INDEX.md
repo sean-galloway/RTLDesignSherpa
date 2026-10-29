@@ -12,19 +12,23 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 21 | done (kept for history) |
+| [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-021** — mc_training_plane ties ZQ demand to 0, so the defer/ZQCL/
-  overdue policy is unreachable.
+(none)
 
 ## Closed
 
+- **ISSUE-021** — CLOSED 2026-10-29 (option 1): `mc_training_plane` gained
+  `demand_i`, driven in both cores from the store's scheduler request
+  vectors, so the ZQ block's defer / ZQCL / overdue policy is reachable and
+  its three CSRs are live; the plane test pins deferral, release-as-ZQCL,
+  the overdue cut and the defer-off state. [closed/ISSUE-021.md](closed/ISSUE-021.md).
 - **ISSUE-023** — CLOSED 2026-10-29 (fixed): the perf proxy's DRAM checker
   anchors write recovery at the controller's programmed WR -> PRE field
   (`_McAnchoredDram`), the slave's CL / CWL / BL untouched; the proxy asserts

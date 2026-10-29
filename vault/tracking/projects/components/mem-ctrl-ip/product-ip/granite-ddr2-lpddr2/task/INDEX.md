@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — tasks
 
-**Next ID: TASK-006** — never recycle a number, even when its item closed.
+**Next ID: TASK-007** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -13,11 +13,18 @@ state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 2 | parked pending a named condition |
+
+## Open
+
+- **TASK-006** — close_page half-width traffic: an address-matching
+  combiner at the store (pumice's form), after the port aggregator (TASK-005)
+  won one cell and cost 30 percent elsewhere. Owner 2026-10-29.
+  [open/TASK-006.md](open/TASK-006.md).
 
 ## Active
 

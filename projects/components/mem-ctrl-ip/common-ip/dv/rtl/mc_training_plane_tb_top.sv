@@ -24,6 +24,7 @@ module mc_training_plane_tb_top
 
     input  logic [2:0]                memtype,
     input  logic                      init_done,
+    input  logic                      demand,
     input  logic                      zq_en,
     input  logic                      zq_defer_en,
     input  logic [31:0]               zq_interval,
@@ -64,6 +65,7 @@ module mc_training_plane_tb_top
         .mc_rst_n         (mc_rst_n),
         .init_done_i      (init_done),
         .memtype_i        (memtype_e'(memtype)),
+        .demand_i         (demand),
         .zq_en_i          (zq_en),
         .zq_defer_en_i    (zq_defer_en),
         .zq_interval_i    (zq_interval),

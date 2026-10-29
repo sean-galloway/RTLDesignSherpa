@@ -9,10 +9,14 @@ docs/superpowers/specs/2026-10-15-mc-init-plane-design.md §6 (TASK-042/G-16
 verification gap):
   1. Periodic ZQCS at zq_interval_i: OP_MRS with row {MR10, 0x56} on
      trn_cmd_*, grant handshake, zq_busy_o hold window, zqcs_total_o counts.
-  2. zq_overdue_o pinned at 0: the plane ties zq_ctrl demand_i to 1'b0
-     (mc_training_plane.sv:125), so the DEFER/ZQCL/overdue policy is
-     structurally unreachable at this boundary (vault ISSUE-021). This test
-     PINS that documented behavior so a future demand wiring change is loud.
+  2. Demand-gated Mode-C policy through the plane's demand_i (pumice
+     ISSUE-021, wired 2026-10-29; before that the plane tied demand to 0 and
+     the policy was unreachable): with zq_defer_en and demand held, the
+     interval expiry DEFERS (zq_overdue_o high, no request); loss of demand
+     releases a ZQCL (row {MR10, 0xAB}); with zq_overdue_max the deferral is
+     cut at the limit with demand still high, again as ZQCL. With
+     zq_defer_en=0 demand changes nothing: ZQCS at the interval and
+     zq_overdue_o stays 0 (the OFF state of the knob, tested on its own).
   3. Gating: no trn_cmd activity before init_done, or for DDR2, or with
      zq_en=0.
   4. DQ cal: cal_start -> MRR32 (row {MR32,0}) -> cal_expect_o pulse ->
@@ -44,6 +48,7 @@ MEMTYPE_DDR2   = 0x0
 MEMTYPE_LPDDR2 = 0x4
 
 ZQCS_ROW = (10 << 8) | 0x56
+ZQCL_ROW = (10 << 8) | 0xAB
 MRR32_ROW = (32 << 8)
 MRR40_ROW = (40 << 8)
 
@@ -55,7 +60,8 @@ PAT40 = 0x0FED_CBA9_8765_4321_0FED_CBA9_8765_4321 & ((1 << CAL_DATA_W) - 1)
 
 async def _drive_config(dut, *, memtype=MEMTYPE_LPDDR2, zq_en=0, zq_interval=0,
                         t_zqcs=2, t_zqcl=8, defer=0, overdue_max=0,
-                        init_done=1):
+                        init_done=1, demand=0):
+    dut.demand.value = demand
     dut.memtype.value = memtype
     dut.zq_en.value = zq_en
     dut.zq_interval.value = zq_interval
@@ -145,7 +151,73 @@ async def cocotb_test_zqcs_interval(dut):
     for _ in range(10):
         await RisingEdge(dut.mc_clk)
     assert int(dut.zqcs_total.value) == 2, f"zqcs_total={int(dut.zqcs_total.value)}"
-    # Pinned: demand is tied 0 inside the plane (ISSUE-021) -> no overdue path.
+    # No demand driven in this test -> no deferral, no overdue.
+    assert int(dut.zq_overdue.value) == 0
+
+
+async def _no_req_for(dut, n):
+    for _ in range(n):
+        await RisingEdge(dut.mc_clk)
+        assert int(dut.trn_cmd_req.value) == 0, "request raised while deferring"
+
+
+@cocotb.test()
+async def cocotb_test_zq_defer_releases_zqcl(dut):
+    """defer=1, demand held: the interval expiry defers (overdue high, no
+    request); dropping demand releases ONE request, and it is ZQCL."""
+    cocotb.start_soon(Clock(dut.mc_clk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.dfi_clk, 14, units="ns").start())
+    await _drive_config(dut, zq_en=1, zq_interval=20, t_zqcs=3, t_zqcl=9,
+                        defer=1, overdue_max=0, demand=1)
+    await _reset(dut)
+    assert await _wait_high(dut.mc_clk, dut.zq_overdue, n=40), \
+        "zq_overdue never rose while deferring under demand"
+    await _no_req_for(dut, 60)          # held as long as demand holds
+    dut.demand.value = 0
+    op, row, mrr = await _grant_when_req(dut)
+    assert op == OP_MRS and row == ZQCL_ROW and mrr == 0, \
+        f"release cmd op={op:#x} row={row:#x} (want ZQCL {ZQCL_ROW:#x})"
+    for _ in range(4):
+        await RisingEdge(dut.mc_clk)
+    assert int(dut.zq_overdue.value) == 0, "overdue stuck after the grant"
+    assert int(dut.zq_busy.value) == 1, "zq_busy not holding t_zqcl"
+
+
+@cocotb.test()
+async def cocotb_test_zq_overdue_limit_forces_zqcl(dut):
+    """defer=1, overdue_max=6, demand held forever: the deferral is cut at the
+    limit and the request is ZQCL with demand still high."""
+    cocotb.start_soon(Clock(dut.mc_clk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.dfi_clk, 14, units="ns").start())
+    await _drive_config(dut, zq_en=1, zq_interval=20, t_zqcs=3, t_zqcl=9,
+                        defer=1, overdue_max=6, demand=1)
+    await _reset(dut)
+    op, row, mrr = await _grant_when_req(dut)
+    assert op == OP_MRS and row == ZQCL_ROW and mrr == 0, \
+        f"limit cmd op={op:#x} row={row:#x} (want ZQCL {ZQCL_ROW:#x})"
+    assert int(dut.demand.value) == 1
+
+
+@cocotb.test()
+async def cocotb_test_zq_defer_off_ignores_demand(dut):
+    """defer=0 (the knob's OFF state), demand held: ZQCS at the interval
+    exactly as without demand, and zq_overdue stays 0 once granted."""
+    cocotb.start_soon(Clock(dut.mc_clk, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.dfi_clk, 14, units="ns").start())
+    await _drive_config(dut, zq_en=1, zq_interval=20, t_zqcs=3, t_zqcl=9,
+                        defer=0, overdue_max=6, demand=1)
+    await _reset(dut)
+    op, row, mrr = await _grant_when_req(dut)
+    assert op == OP_MRS and row == ZQCS_ROW and mrr == 0, \
+        f"defer-off cmd op={op:#x} row={row:#x} (want ZQCS {ZQCS_ROW:#x})"
+    # Let the hold window start before looking for the next request: the
+    # granted request stays visible for one more edge (see _wait_high).
+    assert await _wait_high(dut.mc_clk, dut.zq_busy), "zq_busy never set"
+    op, row, mrr = await _grant_when_req(dut)
+    assert row == ZQCS_ROW, f"second cmd row={row:#x}"
+    for _ in range(10):
+        await RisingEdge(dut.mc_clk)
+    assert int(dut.zqcs_total.value) == 2
     assert int(dut.zq_overdue.value) == 0
 
 
@@ -228,6 +300,9 @@ TESTS = [
     "cocotb_test_zqcs_interval",
     "cocotb_test_gated",
     "cocotb_test_dq_cal_mrr32_40",
+    "cocotb_test_zq_defer_releases_zqcl",
+    "cocotb_test_zq_overdue_limit_forces_zqcl",
+    "cocotb_test_zq_defer_off_ignores_demand",
 ]
 
 

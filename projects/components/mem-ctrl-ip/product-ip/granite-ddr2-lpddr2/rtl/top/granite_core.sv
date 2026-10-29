@@ -979,6 +979,7 @@ module granite_core
         .mc_rst_n        (aresetn),
         .init_done_i     (init_done_o),
         .memtype_i       (memtype_i),
+        .demand_i        ((|w_wr_sch_v) || (|w_rd_sch_v)),
         .zq_en_i         (zq_en_i),
         .zq_defer_en_i   (zq_defer_en_i),
         .zq_interval_i   (zq_interval_i),

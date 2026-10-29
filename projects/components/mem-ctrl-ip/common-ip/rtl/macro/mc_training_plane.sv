@@ -38,6 +38,13 @@ module mc_training_plane
     // ----- run-time enable / build guard ------------------------------------
     input  logic                      init_done_i,
     input  memtype_e                  memtype_i,
+    // Scheduler has read or write work pending (the cores drive it from the
+    // store's rd/wr sch_valid vectors, the same term the page policy and
+    // refresh postpone use). The ZQ block's Mode-C policy is demand-gated:
+    // ZQ_DEFER, ZQCL and obs_overdue are reachable only through it. It was
+    // tied 0 inside this plane (pumice ISSUE-021), which made the
+    // zq_defer_en / t_zqcl / zq_overdue_max CSRs dead.
+    input  logic                      demand_i,
 
     // ----- CSR controls -----------------------------------------------------
     input  logic                      zq_en_i,
@@ -122,7 +129,7 @@ module mc_training_plane
                 .t_zqcl_i          (t_zqcl_i),
                 .zq_defer_en_i     (zq_defer_en_i),
                 .overdue_max_i     (zq_overdue_max_i),
-                .demand_i          (1'b0),
+                .demand_i          (demand_i),
                 .zq_req_o          (w_zq_req),
                 .zq_grant_i        (w_zq_grant),
                 .zq_op_o           (w_zq_op),

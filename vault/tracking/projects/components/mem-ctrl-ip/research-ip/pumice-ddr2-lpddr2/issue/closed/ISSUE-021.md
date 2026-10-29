@@ -5,7 +5,7 @@
 > placement policy).
 
 **Priority:** P2
-**Status:** open
+**Status:** closed 2026-10-29 (option 1 taken, owner's call; see the closing entry)
 **Owner:** TBD
 
 ## Finding
@@ -37,3 +37,25 @@ silently drops half of it.
 
 Owner decision needed. Until then the shipped behavior is: periodic ZQCS at
 `zq_interval_i`, no deferral, no ZQCL, no overdue.
+
+## Resolution (2026-10-29, owner: "do the recommended" = option 1)
+
+`mc_training_plane` gained `demand_i`, wired to the ZQ block's `demand_i`
+in place of the `1'b0`. Both cores drive it from the store's scheduler
+request vectors, `(|w_wr_sch_v) || (|w_rd_sch_v)`, the same term the
+scheduler plane derives its own `w_demand` from for the page policy and
+refresh postpone. The plane is instantiated only by `granite_core`,
+`pumice_core` and its TB (scoria and andesite carry their own ZQ blocks;
+scoria's does not use demand), so the change is those four files plus the
+test. For DDR2 builds `HAS_LP_ZQ` is 0 and nothing is instantiated, so the
+shipped DDR2 bitstreams are untouched; LPDDR2 builds now get the Mode-C
+policy their CSRs already describe.
+
+The plane test (`test_mc_training_plane.py`) drives the port and pins the
+policy at the plane boundary: deferral under demand with `zq_overdue_o`
+high and no request, release on loss of demand as ZQCL (`{MR10, 0xAB}`),
+the `zq_overdue_max` cut as ZQCL with demand still high, and the knob's
+OFF state (`zq_defer_en=0`, demand held: ZQCS at the interval, overdue 0).
+6/6 on a clean build. The earlier test's "pinned at 0" case is now simply
+the no-demand case. Regressions: common-ip fub+macro, granite top func,
+pumice top func-parallel (results in the commit).
