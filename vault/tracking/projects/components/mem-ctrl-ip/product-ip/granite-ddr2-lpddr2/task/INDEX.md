@@ -14,23 +14,28 @@ state by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 3 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [active/](active/) | 1 | in progress right now |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Active
 
-- **TASK-001** — granite first build: steps 1-2 done (wrappers dissolved
-  into common macros; `granite_core` built — no storage layer,
-  `mc_xddr2_entry_store` seam, reduced refresh options). Remaining: product
-  CSR baseline, board + frequency plan. [active/TASK-001.md](active/TASK-001.md).
-- **TASK-002** — bank queues as gaxi_age_fifo_sync (PEEK 2) carrying the pool age;
-  a head's rd_age_thresh is the record's age_exceed. Owner's choice 2026-10-25. [active/TASK-002.md](active/TASK-002.md).
 - **TASK-003** — granite at 100 MHz and ahead of LiteDRAM through the same
   harness: 100 MHz closes (b8665155e, timer loads registered); DDR2-400 board
   point measured 2026-10-29 (streams 772/774 of 800, 1w+1r 761-773 combined,
   3x LiteDRAM at 75); thrash cells remain the gap. [active/TASK-003.md](active/TASK-003.md).
+
+## Closed
+
+- **TASK-001** — granite first build: wrappers dissolved, `granite_core`
+  composed from common-ip, CSR baseline, Nexys A7 at 75 MHz. The split-burst
+  wedge it carried was fixed under MC-003. CLOSED 2026-10-29.
+  [closed/TASK-001.md](closed/TASK-001.md).
+- **TASK-002** — bank queues as gaxi_age_fifo_sync (PEEK 2) carrying the pool
+  age; landed 3a1479820, cycle-identical, controller worst path 0.34 -> 0.93
+  ns. Residual (where the aged class sits in the select, `HAS_AGE` 0) folded
+  into TASK-003 item 5. CLOSED 2026-10-29. [closed/TASK-002.md](closed/TASK-002.md).
 
 ## Deferred
 

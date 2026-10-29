@@ -96,7 +96,12 @@ is exactly 1,410,331 cycles for 16,000 bursts.
 3. Fire cone: per-pair precompute of the fire checks.
 4. Harness at 100 MHz (char framework; separate owner).
 5. Within-class age tie-break, then CSR weights on the select (the
-   cost-function form the owner asked about), tuned on the board.
+   cost-function form the owner asked about), tuned on the board. This
+   absorbs TASK-002's residual (closed 2026-10-29): the age-FIFO store
+   exposes the oldest-in-pool bit per head; thresh at the TOP of the
+   select was measured and rejected (mixed halves, stream reads -10
+   percent at 8 threads), so `HAS_AGE` stays 0 until the within-class
+   placement is measured. The owner's call on the pick core.
 6. DFI 1:4 at 100 MHz with BL8: LiteDRAM's stock Nexys point is 100 MHz
    1:4 (800 MT/s, 1.6 GB/s peak); at 1:4 a BL4 burst is half a cycle and
    one command per cycle caps at 50 percent, so the 1:4 product point is BL8.

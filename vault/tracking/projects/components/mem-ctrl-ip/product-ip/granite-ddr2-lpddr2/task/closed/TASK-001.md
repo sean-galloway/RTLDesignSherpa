@@ -5,7 +5,7 @@ summary: Dissolve the pumice layer wrappers into the common-ip layer macros, the
 
 # TASK-001 — granite first build (wrapper dissolution + product top)
 
-**State:** active · **Area:** product-ip/granite-ddr2-lpddr2 · **Opened:** 2026-10-11
+**State:** closed 2026-10-29 · **Area:** product-ip/granite-ddr2-lpddr2 · **Opened:** 2026-10-11
 
 ## Progress
 
@@ -59,3 +59,15 @@ summary: Dissolve the pumice layer wrappers into the common-ip layer macros, the
 - pumice lint + registry green after wrapper dissolution — DONE.
 - Product config values that were TBD are committed or carry an explicit
   bring-up owner — pending steps 3-4.
+
+## Closed 2026-10-29
+
+Every step above is done. The split-burst (blen >= 2) wedge recorded as
+"open" in the A7 section was root-caused and fixed under memory-controllers
+MC-003 (write fill rotation in the entry store, `0cd0a7ab2`), and the entry
+store itself has since been replaced by the age-FIFO store (TASK-002). The
+board runs every characterization profile with zero mismatched beats at 75
+MHz and at the DDR2-400 100 MHz point (TASK-003, 2026-10-29). The product
+config values are committed: `regs/granite_csr.rdl`, Nexys A7-100T,
+`targets/granite` with the 75 MHz default plan and `GRANITE_SYS_100`.
+Nothing remains here; granite's open work is TASK-003.

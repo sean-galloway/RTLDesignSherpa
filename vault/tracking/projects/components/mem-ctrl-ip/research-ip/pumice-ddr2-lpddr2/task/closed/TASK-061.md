@@ -18,7 +18,7 @@
 > record; if the original is found, link it here.
 
 **Priority:** P2
-**Status:** open (filed 2026-10-25)
+**Status:** closed 2026-10-29 (delivered as `gaxi_age_fifo_sync` under granite TASK-002)
 **Owner:** TBD
 
 ## The block
@@ -93,3 +93,13 @@ pumice-like ordering at FIFO-store area.
 ## What landed / Measured / Gates
 
 (not started)
+
+## Closed 2026-10-29
+
+Delivered the same day it was filed, as `rtl/amba/gaxi/gaxi_age_fifo_sync.sv`
+(47938c0c3, PEEK parameter and the empty-pool writer-rule fix under granite
+TASK-002, 3a1479820): entries carry `{age, data}`, the plane writes the pool
+age on push, `age_dec` moves every age toward 0 saturating, and the per-head
+thresh flop is the OLDEST flag of the second message (proof in the FIFO
+header and doc page). Sixteen of them are granite's bank queues. Where the
+flag sits in the pick's select is granite TASK-003 item 5.

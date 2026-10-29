@@ -5,7 +5,7 @@ summary: Replace the store's linked-list bank queues with sixteen gaxi_age_fifo_
 
 # TASK-002 — bank queues as gaxi_age_fifo_sync; oldest-in-pool is the aged request class
 
-**State:** active · **Area:** product-ip/granite-ddr2-lpddr2 · **Opened:** 2026-10-25
+**State:** closed 2026-10-29 · **Area:** product-ip/granite-ddr2-lpddr2 · **Opened:** 2026-10-25
 
 ## Owner's decision
 
@@ -171,3 +171,17 @@ and overrides the ACT/column alternation and the direction batching. If the
 oldest alternates direction the bus turns around on every pick (tWTR/tRTW).
 The alternative is thresh as the tie-break inside each class. HAS_AGE stays
 0 as the product default until the A/B says otherwise.
+
+## Closed 2026-10-29
+
+The structure is in and committed (`3a1479820`): sixteen
+`gaxi_age_fifo_sync` bank queues (PEEK 2) carrying the pool age, the
+linked lists gone, cycle-identical to them with the class off, smaller,
+and the controller's worst routed path moved 0.34 -> 0.93 ns. It carried
+granite through the 100 MHz close and the DDR2-400 board point (TASK-003).
+
+The one residual, where the aged class sits in the pick's select (thresh
+at the top was measured and rejected; `HAS_AGE` stays 0), is the same
+decision as TASK-003 item 5 (within-class age tie-break, then CSR weights)
+and is tracked there. pumice TASK-061, the owner's spec for this FIFO,
+closes with this item.
