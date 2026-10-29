@@ -45,7 +45,20 @@ module mc_bank_timer
     // LOOKAHEAD block). Off keeps the original conservative la for the FRFCFS
     // research core; the per-bank pick core turns it on so an RDA/WRA row
     // switch requests its ACT exactly tRP after the internal close.
-    parameter bit LA_AP     = 1'b0
+    parameter bit LA_AP     = 1'b0,
+    // 1 = the COUNTERS load one cycle after the strobe, from a register in
+    // this module, at (t - 2) instead of (t - 1). The strobe is the end of
+    // the scheduler's fire cone, and the counter loads were its widest set
+    // of endpoints on the board (granite at 100 MHz, 2026-10-28: 59 of the
+    // 89 paths within 0.3 ns of failing ended in these five counters). With
+    // the lag the fire cone drives one register stage here and nothing
+    // behind it; the row image (row_valid, open_row, the AP bit) stays on
+    // the live strobe, so every row-state reader sees the command when it
+    // always did. The readiness outputs stay EXACT: in the one cycle between
+    // the strobe and the load the pending load is folded into every counter
+    // read (the "effective" view below), so safe_* and the lookahead twins
+    // read what the live load would have given them. 0 = the live load.
+    parameter bit SET_LAG   = 1'b0
 ) (
     input  logic                 clk,
     input  logic                 rst_n,
@@ -97,9 +110,68 @@ module mc_bank_timer
     logic [ROW_WIDTH-1:0] r_open_row;
     logic                 r_ap_pending;
 
+    // ---- load strobes: live, or one register late (SET_LAG) --------------
+    logic w_ld_act, w_ld_rd, w_ld_wr, w_ld_pre;
+    generate if (SET_LAG) begin : g_set_lag
+        logic r_set_act, r_set_rd, r_set_wr, r_set_pre;
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) begin
+                r_set_act <= 1'b0; r_set_rd <= 1'b0; r_set_wr <= 1'b0; r_set_pre <= 1'b0;
+            end else begin
+                r_set_act <= set_act_i; r_set_rd <= set_rd_i; r_set_wr <= set_wr_i; r_set_pre <= set_pre_i;
+            end
+        )
+        assign w_ld_act = r_set_act;
+        assign w_ld_rd  = r_set_rd;
+        assign w_ld_wr  = r_set_wr;
+        assign w_ld_pre = r_set_pre;
+    end else begin : g_set_live
+        assign w_ld_act = set_act_i;
+        assign w_ld_rd  = set_rd_i;
+        assign w_ld_wr  = set_wr_i;
+        assign w_ld_pre = set_pre_i;
+    end endgenerate
+
+    // Load value: the command fired D cycles before the load is visible, so
+    // the counter loads (t - D), saturating at 0, and "safe at count == 0"
+    // lands exactly at C + t. D = 1 live (the t-1 load of MC-003 2026-10-17,
+    // owner-approved with the BL8 control measured), 2 with SET_LAG. The
+    // auto-precharge self-close below is internal and always loads at D = 1.
+    localparam int LD = SET_LAG ? 2 : 1;
+    function automatic logic [TW-1:0] f_ld(input logic [TW-1:0] t, input int d);
+        return (t <= TW'(d)) ? '0 : (t - TW'(d));
+    endfunction
+
+    // ---- the EFFECTIVE counters: the pending load folded in --------------
+    // With SET_LAG, the cycle in which w_ld_* is high is the cycle after the
+    // command: the counter still holds its pre-command value while the
+    // constraint it is about to load is in force. Every reader below goes
+    // through these, never through r_* directly, so the outputs are what
+    // the live load would give them. Live (SET_LAG = 0) the w_pend_* terms
+    // are constant 0 and everything folds back to the plain counter reads.
+    //   rcd / ras / rc (ACT) and rp (PRE): a 0- or 1-cycle tRCD / tRAS / tRC
+    //   / tRP is no DRAM timing, so "zero" is simply masked by the pending
+    //   load (keeps the zero-detect one LUT); such a value would read one
+    //   cycle conservative.
+    //   preblk (RD / WR): tRTP IS one cycle at the board clock, so this one
+    //   is exact -- a pending RD reads zero iff t_rtp <= 1.
+    logic w_pend_act, w_pend_rd, w_pend_wr, w_pend_pre;
+    assign w_pend_act = SET_LAG && w_ld_act;
+    assign w_pend_rd  = SET_LAG && w_ld_rd;
+    assign w_pend_wr  = SET_LAG && w_ld_wr;
+    assign w_pend_pre = SET_LAG && w_ld_pre;
+    logic w_rcd_z, w_ras_z, w_rc_z, w_rp_z, w_preblk_z;   // "count is zero", effective
+    assign w_rcd_z    = (r_rcd == '0) && !w_pend_act;
+    assign w_ras_z    = (r_ras == '0) && !w_pend_act;
+    assign w_rc_z     = (r_rc  == '0) && !w_pend_act;
+    assign w_rp_z     = (r_rp  == '0) && !w_pend_pre;
+    assign w_preblk_z = w_pend_rd ? (t_rtp_i <= TW'(1))
+                      : w_pend_wr ? (t_wr_i  <= TW'(1))
+                      :             (r_preblk == '0);
+
     // auto-precharge fires once the read/write recovery (preblk) AND tRAS elapse.
     logic w_ap_fire;
-    assign w_ap_fire = r_ap_pending && (r_preblk == '0) && (r_ras == '0);
+    assign w_ap_fire = r_ap_pending && w_preblk_z && w_ras_z;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
@@ -107,32 +179,37 @@ module mc_bank_timer
             r_row_valid <= 1'b0; r_open_row <= '0; r_ap_pending <= 1'b0;
         end else begin
             // tRCD / tRAS / tRC: reload on ACT, else count down (saturate at 0).
-            // Load t-1 (saturating): the command fires in cycle C, the load is
-            // visible at C+1, and "safe at count==0" then lands exactly at
-            // C+t -- JEDEC-exact, the same load-(t-1) semantics the tCCD
-            // forward counter uses (mc_bank_sched r_tccd_fwd). Loading t
-            // would enforce t+1 (one cycle conservative per transition, which
-            // is what made the col_major bubble 9 against a 6-cycle floor;
-            // MC-003 2026-10-17, owner-approved with the BL8 control measured).
-            if (set_act_i)         r_rcd <= (t_rcd_i == '0) ? '0 : (t_rcd_i - 1'b1);
+            // Load (t - LD), saturating -- see f_ld: "safe at count == 0"
+            // lands exactly at C + t, JEDEC-exact, the same semantics the
+            // tCCD forward counter uses (mc_bank_sched r_tccd_fwd). Loading
+            // t would enforce t+1 (one cycle conservative per transition,
+            // which is what made the col_major bubble 9 against a 6-cycle
+            // floor; MC-003 2026-10-17).
+            if (w_ld_act)          r_rcd <= f_ld(t_rcd_i, LD);
             else if (r_rcd != '0)  r_rcd <= r_rcd - 1'b1;
 
-            if (set_act_i)         r_ras <= (t_ras_i == '0) ? '0 : (t_ras_i - 1'b1);
+            if (w_ld_act)          r_ras <= f_ld(t_ras_i, LD);
             else if (r_ras != '0)  r_ras <= r_ras - 1'b1;
 
-            if (set_act_i)         r_rc  <= (t_rc_i == '0) ? '0 : (t_rc_i - 1'b1);
+            if (w_ld_act)          r_rc  <= f_ld(t_rc_i, LD);
             else if (r_rc  != '0)  r_rc  <= r_rc - 1'b1;
 
-            // tRP: reload on explicit PRE or auto-PRE fire, else count down
-            if (set_pre_i || w_ap_fire) r_rp <= (t_rp_i == '0) ? '0 : (t_rp_i - 1'b1);
-            else if (r_rp != '0)        r_rp <= r_rp - 1'b1;
+            // tRP: reload on the auto-PRE fire (live, D = 1) or the explicit
+            // PRE strobe, else count down. The self-close is the later of the
+            // two when both land in one cycle, so it wins (conservative).
+            if (w_ap_fire)         r_rp <= f_ld(t_rp_i, 1);
+            else if (w_ld_pre)     r_rp <= f_ld(t_rp_i, LD);
+            else if (r_rp != '0)   r_rp <= r_rp - 1'b1;
 
             // preblk: reload on RD (tRTP) / WR (tWR), else count down
-            if (set_rd_i)              r_preblk <= (t_rtp_i == '0) ? '0 : (t_rtp_i - 1'b1);
-            else if (set_wr_i)         r_preblk <= (t_wr_i == '0) ? '0 : (t_wr_i - 1'b1);
+            if (w_ld_rd)               r_preblk <= f_ld(t_rtp_i, LD);
+            else if (w_ld_wr)          r_preblk <= f_ld(t_wr_i, LD);
             else if (r_preblk != '0)   r_preblk <= r_preblk - 1'b1;
 
-            // row-open + auto-precharge bit (ACT > explicit PRE > auto-PRE)
+            // row-open + auto-precharge bit (ACT > explicit PRE > auto-PRE).
+            // Always on the LIVE strobe, SET_LAG or not: the row image is
+            // what the scheduler's decode and the page policy read, and it
+            // sees the command exactly when it always did.
             if (set_act_i) begin
                 r_row_valid  <= 1'b1;
                 r_open_row   <= row_i;
@@ -151,12 +228,12 @@ module mc_bank_timer
 
     // ---- combinational "safe" (single register stage = the timers) ----------
     // ACT: bank precharged (row closed), tRP since PRE, tRC since last ACT.
-    assign safe_act_o = !r_row_valid && (r_rp == '0) && (r_rc == '0);
+    assign safe_act_o = !r_row_valid && w_rp_z && w_rc_z;
     // RD/WR: row open, tRCD met, not auto-precharging.
-    assign safe_rd_o  = r_row_valid && (r_rcd == '0) && !r_ap_pending;
+    assign safe_rd_o  = r_row_valid && w_rcd_z && !r_ap_pending;
     assign safe_wr_o  = safe_rd_o;
     // PRE: row open, tRAS + tRTP/tWR met, not auto-precharging.
-    assign safe_pre_o = r_row_valid && (r_ras == '0) && (r_preblk == '0) && !r_ap_pending;
+    assign safe_pre_o = r_row_valid && w_ras_z && w_preblk_z && !r_ap_pending;
 
     // ---- LOOKAHEAD: "will be safe in LA cycles" (ADVISORY ONLY) -----------
     // Every constraint above is a saturating down-counter that decrements once
@@ -184,19 +261,37 @@ module mc_bank_timer
     // Both omissions are conservative: they can only UNDER-report safety.
     //
     // LA=0 collapses every term to its safe_*_o twin, so the plumbing can be
-    // landed and gated as a provable no-op before the depth is turned up.
+    // landed and gated as a provable no-op before the depth is turned up
+    // (with SET_LAG the twin is the exact form of the masked terms above:
+    // a pending 1-cycle tRCD / tRP reads "within 0" here and not-safe there).
+    //
+    // A PENDING load (SET_LAG, the cycle after the command) reaches zero at
+    // C + t, which is t - 1 cycles from now: "within LA" is t <= LA + 1,
+    // and the self-close wait is t - 1. Live these terms are the plain reads.
+    logic w_rcd_la, w_ras_la, w_rc_la, w_rp_la, w_preblk_la;
+    assign w_rcd_la    = w_pend_act ? (t_rcd_i <= TW'(LA + 1)) : (r_rcd <= TW'(LA));
+    assign w_ras_la    = w_pend_act ? (t_ras_i <= TW'(LA + 1)) : (r_ras <= TW'(LA));
+    assign w_rc_la     = w_pend_act ? (t_rc_i  <= TW'(LA + 1)) : (r_rc  <= TW'(LA));
+    assign w_rp_la     = w_pend_pre ? (t_rp_i  <= TW'(LA + 1)) : (r_rp  <= TW'(LA));
+    assign w_preblk_la = w_pend_rd  ? (t_rtp_i <= TW'(LA + 1))
+                       : w_pend_wr  ? (t_wr_i  <= TW'(LA + 1))
+                       :              (r_preblk <= TW'(LA));
+    logic [TW-1:0] w_preblk_wait, w_ras_wait;   // cycles until each reaches zero
+    assign w_preblk_wait = w_pend_rd ? f_ld(t_rtp_i, 1)
+                         : w_pend_wr ? f_ld(t_wr_i, 1)
+                         :             r_preblk;
+    assign w_ras_wait    = w_pend_act ? f_ld(t_ras_i, 1) : r_ras;
     logic [TW:0]   w_ap_wait;       // cycles until the self-close fires
     logic [TW+1:0] w_ap_act_in;     // ... plus tRP: cycles until ACT is safe
     logic          w_ap_act_la;
-    assign w_ap_wait   = (r_preblk > r_ras) ? {1'b0, r_preblk} : {1'b0, r_ras};
+    assign w_ap_wait   = (w_preblk_wait > w_ras_wait) ? {1'b0, w_preblk_wait} : {1'b0, w_ras_wait};
     assign w_ap_act_in = {1'b0, w_ap_wait} + {2'b00, t_rp_i};
     assign w_ap_act_la = LA_AP && r_row_valid && r_ap_pending
-                      && (w_ap_act_in <= (TW+2)'(LA)) && (r_rc <= TW'(LA));
-    assign safe_act_la_o  = (!r_row_valid && (r_rp  <= TW'(LA)) && (r_rc <= TW'(LA)))
+                      && (w_ap_act_in <= (TW+2)'(LA)) && w_rc_la;
+    assign safe_act_la_o  = (!r_row_valid && w_rp_la && w_rc_la)
                          || w_ap_act_la;
-    assign safe_rdwr_la_o = r_row_valid  && (r_rcd <= TW'(LA)) && !r_ap_pending;
-    assign safe_pre_la_o  = r_row_valid  && (r_ras <= TW'(LA))
-                         && (r_preblk <= TW'(LA)) && !r_ap_pending;
+    assign safe_rdwr_la_o = r_row_valid  && w_rcd_la && !r_ap_pending;
+    assign safe_pre_la_o  = r_row_valid  && w_ras_la && w_preblk_la && !r_ap_pending;
 
     assign row_valid_o = r_row_valid;
     assign open_row_o  = r_open_row;

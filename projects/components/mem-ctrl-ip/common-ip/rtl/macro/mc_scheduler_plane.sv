@@ -60,6 +60,12 @@ module mc_scheduler_plane
     parameter bit PP_TIMEOUT_CLOSE   = 1'b1, // mc_page_policy HAS_TIMEOUT_CLOSE (pumice TASK-059)
     parameter bit PP_TELEMETRY       = 1'b1, // mc_page_policy HAS_TELEMETRY
     parameter int BANK_TW            = 8,    // per-bank timer width (mc_bank_timers TW); 8 = the CSR field width
+    // mc_bank_timers EVT_REG: the per-bank counters load one register after
+    // the core's fire strobe (readiness stays exact; mc_bank_timer SET_LAG).
+    // On for the pick core, whose fire cone the counters were the widest set
+    // of near-failing endpoints of (granite 100 MHz, 2026-10-28); the FR-FCFS
+    // research core and pumice are unchanged.
+    parameter bit BANK_EVT_REG       = (SCHED_CORE == MC_SCHED_BANK_PICK),
     parameter bit HAS_STALL_STATS    = 1'b1, // 0 = the stall_*_o counters read 0 (mc_bank_pick)
     parameter int RFC_W              = 16,   // mc_bank_pick tRFC / tZQCS recovery counter width (saturating load)
     parameter bit HAS_CMD_HISTORY    = 1'b0,
@@ -611,7 +617,8 @@ module mc_scheduler_plane
         .ROW_WIDTH (ROW_WIDTH),
         .BANK_LA   (BANK_LA_EFF),
         .BANK_LA_AP(SCHED_CORE == MC_SCHED_BANK_PICK),
-        .TW        (BANK_TW)
+        .TW        (BANK_TW),
+        .EVT_REG   (BANK_EVT_REG)
     ) u_bank_timers (
         .aclk             (aclk),
         .aresetn          (aresetn),

@@ -370,3 +370,107 @@ command was taken by a reset-valued `cmd_ready` and dropped. INPUT_REG = 1
 hung on it; INPUT_REG = 0 had passed only because the bypass presented the
 dropped command and the response FSM acked it. The TB now waits the
 synchronizer out.
+
+### 2026-10-28 evening, the seven: placer sweep, the pick's tail, fanout, and the bank timers' loads
+
+The seven failing endpoints are all route (11-12 levels, 1.8 ns of logic
+against 8.2 ns of wire on the worst). Four levers tried in order, each on
+one build, baseline directive `AltSpreadLogic_high` unless stated.
+
+**Placer directive sweep (same RTL as the -0.114 build).** Not the lever:
+the cone is placement-bound and the four directives land inside one
+build's noise band, which is about half a nanosecond.
+
+| directive | WNS | failing | worst class |
+|---|---|---|---|
+| AltSpreadLogic_high (the flow's default) | -0.114 | 7 | `r_req` -> `r_pick_cls`, 11 levels |
+| ExtraTimingOpt | -0.228 | 8 | `r_hold` (134 loads) -> `r_pick_cls`, 11 levels |
+| ExtraPostPlacementOpt | -0.227 | 8 | `r_stale_pick` -> `r_stale_pick` |
+| Explore | -0.575 | 14 | `r_spec_taken` -> `r_stale_pick` |
+
+**Trimming the pick's tail.** The full trim (stage-1 pre-decode of
+`r_req_col` / `r_req_row` / per-direction "columns pending", AND the class
+behind the encoder as an AND-OR over the one-hot winner instead of an index
+mux) measured WORSE: -0.817, 26 failing, 13 levels to `r_pick_cls` through
+the one-hot's carry chain against 11 through the mux, and phys_opt had split
+`r_spec_taken` into three copies with a copy still on the worst path. The
+one-hot class is reverted (comment in the RTL). The pre-decodes alone stay in
+the text as the "reduced trim": lint clean, granite_core 2 passed, common-ip
+fub + macro 34 passed / 3 xfail, granite top FUNC 6 passed / 1 xfail, and
+the char perf proxy cycle-identical to the 11:43 baseline on all four
+families (fixed seed 2882343476: incremental 2164 / 2157, row_major 2154 /
+2141, col_ilv 2672 / 2717, col_major 3972 / 3464 wr / rd cycles, 0
+mismatches). Its build is in the table below.
+
+**Could replicating flops help ("the same info goes to disparate places")?**
+Measured on the -0.114 routed checkpoint (pre phys_opt, so slacks sit about
+0.2 ns under the final report): 89 paths within 0.3 ns of failing, grouped
+45 page policy `r_keep_open` -> bank timer counters and idle timers, 14
+bank timer `r_rp` -> idle timers, 12 the pick's own select, 4 timer -> ring
+issue queue / command FIFO, 9 harness (all above +0.07). Register-driven
+nets with 13 or more loads on those paths: only three in the core.
+
+| flop | loads | first hop | on |
+|---|---|---|---|
+| pick `r_hold` | 134 | 0.69 ns | 6 pick paths, the worst in the set |
+| pick `r_spec_taken` | 24 | 1.2 ns (earlier build) | 1 pick path |
+| global timers `r_slot_pick` | 24 | n/a | 2 paths, both positive |
+
+The wide nets on the 59 timer-cone paths are LUT outputs ten levels into
+the fire cone: `evt_bank` 58 loads (1.05 ns), `set_act` 32 (1.1 ns), the
+issue-queue valid 36 (0.75 ns), the pick's select intermediates 17-25.
+Replicating those means duplicating the cone that drives them, which is
+what phys_opt's `_comp` / `_repN` copies already are. The 2026-10-27 forced
+MAX_FANOUT run (`r_spec_taken` 6, `r_req` 8, AW meta FIFO pointer 12) is the
+same story: two paths left the worst list and 74 entered it. The start
+flops of the seven have fanout 1-6; their 0.75-0.96 ns first hops are
+distance. So: replication as a flow knob is worth exactly one build, on
+`r_hold` (`MAX_FANOUT 32`, scratch XDC, baseline RTL), expected ceiling a
+few hundred ps on the pick paths alone; replication as a DESIGN move is to
+make the wide nets flops, which is the next item.
+
+**The bank timers' loads come off a register (`mc_bank_timer` `SET_LAG`).**
+The counter loads were 59 of the 89 cusp endpoints: every `r_rcd` / `r_ras`
+/ `r_rc` / `r_rp` / `r_preblk` D input hung off `evt_* && (evt_bank == b)` at
+the end of the fire cone. With `SET_LAG` each bank registers its four
+`set_*` strobes and loads the counters one cycle later at (t - 2) instead
+of (t - 1), saturating at 0; "safe at count == 0" still lands at C + t.
+The readiness outputs stay EXACT: in the one cycle between the strobe and
+the load, every counter read goes through an "effective" view that folds
+the pending load in -- for tRCD / tRAS / tRC / tRP "zero" is masked by the
+pending load (a 0- or 1-cycle value of those is no DRAM timing; the mask
+keeps the zero-detect one LUT6), for preblk it is exact (`t_rtp <= 1` IS the
+board value at some clocks), the lookahead twins use `t <= LA + 1` for a
+pending load and the auto-precharge wait uses `t - 1`, and the self-close
+`w_ap_fire` reads the same view. The row image (`r_row_valid`, `r_open_row`,
+the AP bit) stays on the LIVE strobe, so the decode, the page policy and the
+refresh drain see the command when they always did; nothing observable
+moves by a cycle. `mc_bank_timers` `EVT_REG` -> the plane's `BANK_EVT_REG`,
+default `SCHED_CORE == BANK_PICK` (the FR-FCFS core and pumice unchanged);
+`granite_core` / `granite_top_geared` carry `BANK_EVT_REG` (default 1) and
+the top tests read `GRANITE_BANK_EVT_REG` so the OFF state runs on the same
+bench. `mc_global_timers` stays on the live events (its registered-ok form
+already folds the event at the D input; its paths were positive).
+
+Lint clean at SET_LAG 0 and 1 (leaf, wrapper, plane with both cores,
+granite_core at BANK_EVT_REG 0 and 1, geared top, pumice_core: only the
+pre-existing warnings). granite_core func: ON 2 passed, OFF 2 passed.
+Full gates and the three builds (reduced trim; `r_hold` MAX_FANOUT on the
+baseline text; reduced trim + SET_LAG) below as they land.
+
+| build (100 MHz, AltSpreadLogic_high) | WNS | failing | core | worst class | levels |
+|---|---|---|---|---|---|
+| baseline (reports_sys100_2026-10-28_harness_regs) | -0.114 | 7 | 7 | `r_req` -> `r_pick_cls` | 11-12 |
+| reduced trim (pre-decoded request flops) | -0.219 | 20 | 20 | `r_spec_taken_replica` -> `r_stale_pick` (7), `r_stale_fire` -> `r_pick_cls` (2), `wr_head2_o[vld]` -> timer CE (6), `r_pre_rdy` -> ring issue-q / cmd FIFO flags (4) | 11-13 |
+| baseline + `r_hold` MAX_FANOUT 32 (scratch XDC) | -0.297 | 34 | 34 | `r_stale_win` -> `r_pick_cls` (2), `wr_head_o[vld]` -> page policy `r_idle` CE (16), `r_hold_rep__1` -> `r_stale_pick` (6, the replica still on the path), `policy_mode` -> `r_idle` (8) | 9-14 |
+| reduced trim + bank timer SET_LAG | -0.014 | 2 | 2 | `r_stale_pick` -> `r_stale_pick` (1), `r_spec_taken` -> `r_pick_cls` (1, -0.001); no timer, ring or page-policy endpoint left | 11, 13 |
+| baseline pick + bank timer SET_LAG | +0.004 | 0 of 107,847 | 0 | (hold +0.025) | -- |
+
+The bank timers' loads were the lever: with the counters off the fire cone
+the placer no longer has to pull sixteen banks' worth of counters toward the
+pick, and the pick's own select closes with them (0 failing, 36,681 LUTs,
++103 over the baseline). The reduced trim of the pick is REVERTED: on its own
+it measured -0.219 / 20 (noise against -0.114 / 7, no level gain), and with
+SET_LAG it left two pick endpoints at -0.014 where the untrimmed pick leaves
+none. The committed text is the baseline pick + `SET_LAG`; reports kept as
+`targets/granite/fpga/reports_sys100_2026-10-28_timer_set_lag/`.

@@ -75,6 +75,7 @@ module granite_core
     parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
     parameter int RFC_W             = 8,    // pick core tRFC / tZQCS recovery counter width (16-bit CSR saturates in; DDR2 tRFC <= 35 cycles)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
+    parameter bit BANK_EVT_REG      = 1'b1, // bank timer counters load one register after the pick's fire strobe (TASK-003 100 MHz; readiness exact); 0 = the live load
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
@@ -792,6 +793,7 @@ module granite_core
         .PP_TIMEOUT_CLOSE   (PP_TIMEOUT_CLOSE),
         .PP_TELEMETRY       (1'b0),   // granite wires no *_STATS CSRs (the stat_* outputs below are open)
         .BANK_TW            (BANK_TW),
+        .BANK_EVT_REG       (BANK_EVT_REG),
         .HAS_STALL_STATS    (1'b0),   // granite wires no STALL_* CSRs (the outputs below are open)
         .RFC_W              (RFC_W),
         .NUM_RANKS     (NUM_RANKS),

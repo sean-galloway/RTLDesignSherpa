@@ -37,7 +37,11 @@ module mc_bank_timers
     // value above its range to the maximum it can hold (conservative, never unsafe).
     // DDR2 bank timings at <= 100 MHz fit in 5 bits (tRC 60 ns = 6 cycles).
     parameter int TW      = 8,
-    parameter bit BANK_LA_AP = 1'b0  // extrapolate the AP self-close into safe_act_la (mc_bank_timer LA_AP)
+    parameter bit BANK_LA_AP = 1'b0, // extrapolate the AP self-close into safe_act_la (mc_bank_timer LA_AP)
+    // 1 = each bank's counters load one register after the evt_* strobe
+    // (mc_bank_timer SET_LAG): the fire cone drives one flop per bank here
+    // and nothing behind it; the readiness outputs stay exact.
+    parameter bit EVT_REG    = 1'b0
 ) (
     input  logic                       aclk,
     input  logic                       aresetn,
@@ -99,7 +103,8 @@ module mc_bank_timers
             logic w_sel;
             assign w_sel = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
 
-            mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(BANK_LA), .LA_AP(BANK_LA_AP)) u_bt (
+            mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(BANK_LA), .LA_AP(BANK_LA_AP),
+                            .SET_LAG(EVT_REG)) u_bt (
                 .clk             (aclk),
                 .rst_n           (aresetn),
                 .t_rcd_i         (w_t_rcd),
