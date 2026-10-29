@@ -32,9 +32,15 @@ this chapter records how jet drives them differently, not new engines.
   the engine's AR goes out as soon as the AXI4 read channel accepts it.
 - **Single AXI4 read ID (v1):** ARs issue in alloc order and R beats return
   in the same order — the memory side serializes fills (design spec §2).
-  MSHR concurrency is still what the experiment measures: the engine never
-  goes idle between unrelated misses (AR pipelining), hits proceed under
-  fills, and merges remove duplicate fetches entirely.
+  MSHR concurrency is still what the experiment measures: hits proceed
+  under fills and merges remove duplicate fetches entirely.
+  **Task-8 landing note:** the landed `l1_fill` is single-outstanding
+  (F_IDLE→F_AR→F_R→F_DONE) with no accept output, so `jet_top`'s launch
+  adapter serializes the launches — one fill in the engine at a time, the
+  next launch accepted the cycle after `fill_done`, and never while a
+  victim capture streams (the cap_busy contract, enforced at the launch
+  since the engine cannot be gated — see ch02/01's Task-8 notes).  True
+  AR pipelining remains the future step below.
 - Each R beat writes the data array at top W-port priority and marks
   `beats_rcvd` in its MSHR entry (PF_GUARD feed). `fill_done` (last beat +
   response handshake) triggers the commit pipeline.

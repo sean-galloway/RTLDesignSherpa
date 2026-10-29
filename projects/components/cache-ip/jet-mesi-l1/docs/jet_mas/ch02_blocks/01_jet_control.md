@@ -93,6 +93,55 @@ The sticky CTRL_ERROR contract is inherited: a reserved state encoding or
 an unreachable transition drops the pipeline to ERROR, exactly as amber's
 (the DV illegal-state scenario pins it).
 
+## Task 8 implementation notes (integration, as landed)
+
+- **Sticky CTRL_ERROR, landed.** `ctrl_error_o` latches when the commit
+  FSM or the snoop-service FSM presents a reserved encoding (the commit
+  FSM's `default:` still recovers the state to `C_IDLE`; the flag is
+  sticky).  While latched the lookup stage accepts nothing
+  (`tag_req_o` gated) and `jet_top` dead-stops the GAXI boundary;
+  reset is the only exit.  `test_jet_core.py::IllegalStateError` pins it
+  (force a reserved `r_cmt_state`, observe the sticky
+  `ctrl_state == AMBER_CTRL_ERROR`, recover through reset).
+- **Killed-upgrade demote, landed** (closes the Task-7 known gap below):
+  a snoop service that resolves an array hit on the in-flight upgrade's
+  own line to Invalid now sets `r_upgr_killed`, and the CU commit
+  installs I instead of blindly resurrecting M (`C_CU_INSTALL`).  The
+  held write's response still echoes (the response tag was spent at the
+  accept); the write's data is dropped with the invalidated line.  That
+  last part is a fabric-contract corner, not a jet corner: the pair
+  fabric's same-line serialization (the peer's snoop and our CLEAN_UNIQUE
+  cannot interleave) keeps it off the rig — the demote is the defensive
+  contract that turns a would-be silent M resurrection into a clean,
+  visible Invalid.  `test_jet_core.py::KilledUpgrade` drives the corner
+  through the real ACE port and scores the demoted install.  The same
+  fabric argument covers the analogous killed-write-fill shape (a
+  write-class fill whose pend_eff invalidates: responses echo, the merge
+  data drops with the I install) — jet has no replay path by design
+  (J4 re-sequencing replaces amber's replay), so these corners are
+  documented demotes, not refetches.
+- **The fill-engine contract moved to the launch level.**  The MAS text
+  below assigns "start no beat stream while `cap_busy_o` is high" to the
+  engine; the real `l1_fill` (single-outstanding
+  F_IDLE→F_AR→F_R→F_DONE, no accept output, common-ip unchanged) cannot
+  be gated, so `jet_top`'s launch adapter enforces it instead: a
+  presented launch is accepted exactly when the engine is idle AND
+  `cap_busy_o` is low AND the current cycle is not a dirty-victim alloc
+  (the capture opens one cycle ahead of `cap_busy_o`).  Fills serialize
+  through the one engine in launch order (the single-AXI4-read-ID
+  contract); the adapter carries the in-flight fill's MSHR identity for
+  beat routing.  Pinned by RTL assertions in `jet_top` and the
+  `WindowedFillStart` scenario's every-cycle check.
+- **The amber frontend needed a skid.**  `l1_cpu_frontend`'s pulse-style
+  `req_valid` (presented only in a cycle `ctrl_req_ready` is already
+  high) deadlocks jet's hold-until-accepted lookup and closes a
+  combinational loop through the classify; a 2-deep `gaxi_fifo_sync`
+  (DECISION D-6) between the frontend and the lookup stage holds the
+  request until `lkup_ready_o`.  The response side backpressures
+  `jet_rsp_seq` with the frontend staging FIFO's room (read-only
+  `stage_wr_ready` tap) so a backed-up CPU channel cannot overflow the
+  depth-2 staging queue.
+
 ## Task 5 implementation notes (lookup stage, as landed)
 
 The lookup stage is combinational classify around a small amount of
@@ -256,12 +305,13 @@ Where the contract text was silent, the landing pinned:
   by the service length — FILL_BEATS+2 in CD *handshakes*, extended by
   cdready backpressure, which the fabric legitimately applies), so the
   snoop's port-B/CRRESP view is race-free.
-- **Known gap (Task 8 territory)**: a snoop to the *in-flight upgrade's
-  own line* before the CU grant is served at the installed S; the effect
-  is NOT carried into the CU commit (amber's killed-upgrade replay — gem5
-  SM x Inv → IM — needs a CU-commit refetch path jet does not have yet).
-  The pair fabric's same-line serialization is what keeps the corner off
-  the unit bench; it is recorded here so the integration task owns it.
+- **Known gap — RESOLVED in Task 8** (kept for the record): a snoop to
+  the *in-flight upgrade's own line* before the CU grant is served at
+  the installed S; the effect is now carried by `r_upgr_killed` and the
+  CU commit demotes to I (see the Task-8 notes above).  The pair
+  fabric's same-line serialization keeps the corner off the rig; the
+  demote is the defensive contract, pinned by `KilledUpgrade` in the
+  core TB.
 
 
 ## W-port arbitration

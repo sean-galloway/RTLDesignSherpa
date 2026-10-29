@@ -120,7 +120,11 @@
 //   A CU completion walks C_CU_MERGE -> C_CU_INSTALL -> C_CU_DEPOSIT from
 //   the upgrade tracker (merge the held write, install M, echo), clearing
 //   the tracker -- the tracker clear is qualified by the completing
-//   fill's identity through the completion queue.
+//   fill's identity through the completion queue.  A snoop that
+//   invalidated the upgrade's line before the CU grant marks the tracker
+//   killed; the killed commit installs I instead of resurrecting M
+//   (Task 8; the pair fabric's same-line serialization keeps the corner
+//   off the rig -- this is the defensive contract).
 //
 //   Port arbitration (all holds bounded; commit progress is the liveness
 //   anchor -- fills retiring is what frees MSHR entries):
@@ -134,8 +138,10 @@
 //   in alloc order and fills launch in the same order, the simple engine
 //   rule is: start no beat stream while cap_busy_o is high.  jet_control
 //   owns the launch but cannot gate the engine's W-port drives, so the
-//   contract is enforced by the engine (the unit-TB stub models it and
-//   the scenario suite exercises it end-to-end).
+//   contract is enforced at the launch: jet_top's fill-launch adapter
+//   accepts a launch only when the engine is idle AND cap_busy_o is low
+//   AND the cycle is not a dirty-victim alloc (Task 8; the unit TB's stub
+//   models the same rule).
 //
 //   The snoop path (Task 7, MAS ch02_blocks/05): one snoop at a time on
 //   the l1_snoop_resp core-facing contract (the AC accept cycle is the
@@ -384,7 +390,12 @@ module jet_control
     input  logic                        fill_done_i,
 
     // commit pipeline observability
-    output logic                        cmt_busy_o
+    output logic                        cmt_busy_o,
+
+    // sticky CTRL_ERROR (MAS ch02/01 "Illegal states", inherited from
+    // amber): a reserved commit-FSM or snoop-FSM encoding latches the flag
+    // and dead-stops the lookup stage; reset is the only exit
+    output logic                        ctrl_error_o
 );
 
     // ------------------------------------------------------------------
@@ -467,7 +478,8 @@ module jet_control
     logic [ADDR_WIDTH-1:0]   r_fill_addr;
     logic [1:0]              r_fill_cls;
     logic [MW-1:0]           r_fill_idx;
-    // drain-arbiter stub (Task 8: the real l1_drain handshake)
+    // drain arbiter: present drain_start when the WB head is valid and no
+    // drain is outstanding (the real l1_drain samples it in D_IDLE, Task 8)
     logic                    r_drain_busy;
     // single-outstanding upgrade (CLEAN_UNIQUE) tracker: the full request
     // context -- the CU commit merges the held write and echoes it
@@ -479,6 +491,14 @@ module jet_control
     logic [BEAT_W-1:0]       r_upgr_beat;
     logic [STRB_W-1:0]       r_upgr_be;
     logic [BUS_WIDTH-1:0]    r_upgr_wdata;
+    // killed-upgrade record (Task 8, MAS ch02/01): a snoop that invalidates
+    // the in-flight upgrade's line BEFORE the CU grant writes I to the tag
+    // (the line is legitimately resident S); without this record the CU
+    // commit would blindly reinstall M, silently resurrecting a line the
+    // peer now owns.  The killed CU commit demotes the install to I.
+    logic                    r_upgr_killed;
+    // sticky CTRL_ERROR (MAS ch02/01 "Illegal states")
+    logic                    r_ctrl_err;
     // claimed-way scoreboard: which (set, way) each live MSHR entry's fill
     // will install into -- the pending-fill hazard for hit suppression
     logic [MSHR_COUNT-1:0]   r_claim_vld;
@@ -1044,7 +1064,8 @@ module jet_control
     logic w_accept_merge;
     logic w_accept_alloc;
 
-    assign tag_req_o     = lkup_valid_i & ~r_init_busy & w_acceptable;
+    assign tag_req_o     = lkup_valid_i & ~r_init_busy & w_acceptable
+                           & ~r_ctrl_err;
     assign w_accept      = tag_req_o & tag_gnt_i;
     assign lkup_ready_o  = w_accept;
 
@@ -1067,6 +1088,7 @@ module jet_control
     assign lkup_upgrade_o    = w_accept_upgr;
     assign cap_busy_o        = r_cap_busy;
     assign init_busy_o       = r_init_busy;
+    assign ctrl_error_o      = r_ctrl_err;
 
     // ------------------------------------------------------------------
     // Fill launch (held until fill_accept_i) + completion-queue push.
@@ -1131,7 +1153,11 @@ module jet_control
                                 (r_cmt_pend == JET_PEND_INVALIDATE_I)
                                 ? AMBER_STATE_I : AMBER_STATE_S}
                            : (r_cmt_state == C_CU_INSTALL)
-                             ? {w_upgr_tag, AMBER_STATE_M}
+                             // a killed upgrade (the line was invalidated
+                             // by a pre-grant snoop) demotes to I instead
+                             // of resurrecting M
+                             ? {w_upgr_tag, r_upgr_killed ? AMBER_STATE_I
+                                                          : AMBER_STATE_M}
                            : w_sn_tagwr
                              ? {r_sn_tag, r_sn_nxt}
                            : {w_req_tag, AMBER_STATE_M};
@@ -1217,7 +1243,7 @@ module jet_control
     assign wb_cap_beat_o     = r_cap_busy & ~w_sn_portb;
     assign wb_cap_beat_data_o = dat_b_rdata_i;
 
-    // Drain-arbiter stub: present drain_start when the head is valid and
+    // Drain arbiter: present drain_start when the head is valid and
     // no drain is outstanding (l1_drain samples victim_valid in D_IDLE).
     assign drain_start_o = wb_drain_valid_i & ~r_drain_busy;
 
@@ -1246,6 +1272,8 @@ module jet_control
             r_upgr_beat  <= '0;
             r_upgr_be    <= '0;
             r_upgr_wdata <= '0;
+            r_upgr_killed <= 1'b0;
+            r_ctrl_err   <= 1'b0;
             r_claim_vld  <= '0;
             r_efill_done <= '0;
             r_fq_head    <= '0;
@@ -1348,8 +1376,26 @@ module jet_control
                 r_upgr_beat  <= w_req_beat;
                 r_upgr_be    <= lkup_be_i;
                 r_upgr_wdata <= lkup_wdata_i;
+                r_upgr_killed <= 1'b0;
             end else if (r_cmt_state == C_CU_DEPOSIT) begin
-                r_upgr_valid <= 1'b0;
+                r_upgr_valid  <= 1'b0;
+                r_upgr_killed <= 1'b0;
+            end
+            // killed-upgrade record: a snoop service that resolves an ARRAY
+            // hit on the in-flight upgrade's own line to Invalid writes I to
+            // the tag at its effect cycle -- remember it so the CU commit
+            // demotes its install to I instead of resurrecting M.  (The
+            // snoop service and the CU commit are mutually exclusive, and
+            // the tag-hit way IS the upgrade's way for its own line.)
+            if ((r_sn_state == SN_EFFECT) && (r_sn_src == SRC_ARRAY)
+                && r_upgr_valid && (r_sn_line == r_upgr_line)
+                && (r_sn_nxt == AMBER_STATE_I)) begin
+                r_upgr_killed <= 1'b1;
+            end
+            // sticky CTRL_ERROR (MAS ch02/01): a reserved commit-FSM or
+            // snoop-FSM encoding latches the flag; reset is the only exit
+            if ((r_cmt_state > C_CU_DEPOSIT) || (r_sn_state == 2'd3)) begin
+                r_ctrl_err <= 1'b1;
             end
             // claimed-way scoreboard (pending-fill hazard): set at the
             // alloc, cleared by the commit's retire -- hits on the way
@@ -1557,7 +1603,9 @@ module jet_control
                     r_cmt_state <= C_IDLE;
                 end
                 default: begin
-                    r_cmt_state <= C_IDLE;   // defensive (amber engines)
+                    // defensive recovery (amber engines); the reserved
+                    // encoding also latches the sticky CTRL_ERROR below
+                    r_cmt_state <= C_IDLE;
                 end
             endcase
         end

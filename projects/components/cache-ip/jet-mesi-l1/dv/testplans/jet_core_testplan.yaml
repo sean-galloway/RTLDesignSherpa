@@ -1,0 +1,105 @@
+# Testplan for jet_top (the pair-rig top, Task 8)
+# Maps the MAS ch01 hierarchy + ch02 contracts to the full-core
+# integration DV: jet_control + jet_mshr + jet_wb_buffer + jet_rsp_seq
+# composed with the REAL common-ip slice (l1_cpu_frontend, l1_tag_array,
+# l1_data_array, l1_repl, l1_fill, l1_drain, l1_snoop_resp, l1_monlite)
+# and the house axi4_master_*_monlite transports + MonBus arbiter.
+# Scoring is the event-stream scoreboard (JetCoreTB): amber's
+# per-transaction slice checks re-based as per-line oracle lockstep at
+# every snoop grant + commit, with timing as windowed properties.  Single
+# geometry cell (the J1 default: MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128,
+# WAYS=4); GATE runs the directed set, FUNC adds the random soak, FULL
+# extends it.
+
+module: jet_top
+rtl_files:
+  - projects/components/cache-ip/jet-mesi-l1/rtl/top/jet_top.sv
+test_files:
+  - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_core.py
+
+# Contract: MAS ch01/02 port list (amber_top shape), the ch02/01
+# lookup/commit core driven by the REAL engines (fill beats through the
+# monlite-wrapped AXI4 read path, drains through the write path, the WB
+# head in the l1_victim shape), the ch02/05 snoop path behind the REAL
+# l1_snoop_resp transport, and the Task-8 rulings: the launch-level
+# cap_busy contract, the sticky CTRL_ERROR, and the killed-upgrade
+# demote.
+
+parameters:
+  - name: ADDR_WIDTH / SETS / WAYS / LINE_BYTES / BUS_WIDTH
+    default: l1_pkg defaults (32/128/4/64/64)
+    description: geometry, shared with the arrays
+  - name: MSHR_COUNT
+    default: jet_pkg.MSHR_COUNT (8)
+    description: outstanding misses (J1)
+  - name: VICTIM_DEPTH
+    default: jet_pkg.VICTIM_DEPTH (2)
+    description: WB buffer rows (J5)
+
+scenarios:
+  - name: InitWalk
+    level: all
+    what: A request presented mid-walk is held (cpu_req_wr_ready low)
+      until the D-3 walk completes, then served; the walk is bounded.
+    status: covered
+  - name: HitSequence
+    level: all
+    what: Miss/fill then read hits, the S->M upgrade (CLEAN_UNIQUE through
+      the real l1_fill no-data burst), an M write hit, read-back data
+      integrity -- the amber hit-sequence shape re-run on jet.
+    status: covered
+  - name: MissSequence
+    level: all
+    what: Clean and dirty evictions through the real drain engine; the
+      dirty victim's writeback payload audited at drain_done against the
+      capture-time snapshot; the refetch observes the writeback; a
+      partial-BE write miss merges at the commit.
+    status: covered
+  - name: BeZeroWrite
+    level: all
+    what: be == 0 writes merge nothing (the line keeps the fill bytes).
+    status: covered
+  - name: SnoopSequence
+    level: all
+    what: READ_SHARED on M (DT+PD+IS, CD content from the array,
+      downgrade to S), MAKE_INVALID (invalidate, refetch after),
+      READ_UNIQUE on I (no transfer) -- through the real ACE transport.
+    status: covered
+  - name: SnoopPendingFill
+    level: all
+    what: Snoops to an in-flight fill's line resolve through the bypass
+      at the post-fill state with PF_GUARD (no DataTransfer before every
+      beat has landed); pend_eff lands after the install.
+    status: covered
+  - name: KilledUpgrade
+    level: all
+    what: A pre-grant MAKE_INVALID to the in-flight upgrade's line writes
+      I to the tag; the CU commit demotes its install to I (never
+      resurrect M -- the Task-8 fix); the write response still echoes;
+      a later read re-fetches.
+    status: covered
+  - name: IllegalStateError
+    level: all
+    what: A reserved commit-FSM encoding latches the sticky CTRL_ERROR
+      (ctrl_state = AMBER_CTRL_ERROR, accepts dead-stopped); only reset
+      exits; the cache re-initializes and serves after.
+    status: covered
+  - name: ResponseTagOrder
+    level: all
+    what: A slow miss, a hit behind it, and a merge onto the fill
+      release in issue order (J4; every release is scored against the
+      issue-order head by the FIFO pop).
+    status: covered
+  - name: WindowedFillStart
+    level: all
+    what: Every alloc's fill launch lands within FILL_LAUNCH_WINDOW
+      cycles, and never while a victim capture streams (the launch-level
+      cap_busy contract, checked every cycle).
+    status: covered
+  - name: OracleLockstepSoak
+    level: func+
+    what: Random read/write traffic over the bounded working set with
+      random snoops (biased toward pending-fill lines) and responder
+      profile switches; per-line coherence lockstep against the oracle
+      throughout, 0 mismatches.
+    status: covered

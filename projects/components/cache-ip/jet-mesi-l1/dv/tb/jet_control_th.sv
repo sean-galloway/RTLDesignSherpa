@@ -105,6 +105,7 @@ module jet_control_th
     output logic                        lkup_stall_o,
     output logic [2:0]                  lkup_stall_reason_o,
     output logic                        lkup_wr_yield_o,
+    output logic                        ctrl_error_o,
 
     // fill engine stub (handshake timing only; PassDirty carried to done)
     input  logic                        fill_accept_i,
@@ -340,6 +341,7 @@ module jet_control_th
         .lkup_wr_yield_o         (lkup_wr_yield_o),
         .cap_busy_o              (cap_busy_o),
         .cmt_busy_o              (cmt_busy_o),
+        .ctrl_error_o            (ctrl_error_o),
         .tag_req_o               (ctrl_tag_req),
         .tag_gnt_i               (rsp_tag_gnt),
         .tag_i                   (rsp_tag),

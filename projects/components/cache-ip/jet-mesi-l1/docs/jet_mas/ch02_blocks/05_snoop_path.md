@@ -41,6 +41,21 @@ answers.
 | MSHR entry (pending fill) | the post-fill state, per amber's pending-fill bypass generalized per entry; CD beats only for beats the fill has landed (PF_GUARD: `beats_rcvd`) | recorded in `pend_eff`, applied at commit (amber's `pending` semantics) |
 | Tag array | amber's Table 3.0 decode, unchanged | tag downgrade/invalidate on port B, as amber |
 
+**PassDirty and the pre-RRESP answer (inherited amber semantic, Task 8
+integration note).**  A pending RNSD fill is answered at the
+S row — never with DataTransfer/PassDirty before the fill's RRESP exists,
+because the bypass answers from the *post-fill install state the entry
+committed to at alloc* (`sn_install`: M for RU, S for RNSD) and PassDirty
+is only known when the last beat returns.  If the RRESP later carries
+PassDirty, the commit installs M (amber's #106 rule) — the snoop's
+earlier answer stays correct: the pre-RRESP S-row answer is what a
+fabric that had already shared the line would have produced, and the
+install upgrade S→M is the fill's own business.  `jet_top` changes
+nothing here — the semantic is jet_control's, exercised end-to-end
+through the real `l1_fill` by the core TB (this bench's plain-AXI4
+responders never raise RRESP[2], so the PassDirty→M install itself
+remains pinned at the unit level, Tasks 6–7).
+
 ## Ordering and progress rules
 
 1. **A snoop never stalls behind a fill or a drain** (Chinnakonda §7.8).
