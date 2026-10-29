@@ -105,7 +105,11 @@ cycle. Where the table above was silent, the landing pinned:
   (jet_pkg extension) to the fill engine; no MSHR entry, no victim. One
   upgrade is outstanding at a time (single tracker); a write to its line
   waits as `cross_class_wait`, and the upgrade's (set, way) counts as a
-  claim for victim selection.
+  claim for victim selection. The tracker currently clears on ANY
+  `fill_done_i` — sound only because the single AXI4 read ID completes
+  fills in launch order and no earlier fill's done may arrive during an
+  in-flight upgrade; Task 6 qualifies the clear by the completing fill's
+  identity (or moves it into the commit pipeline).
 - **The pending-fill hazard is a claimed-way scoreboard** in jet_control
   (per live MSHR entry: the claimed set+way). A tag hit on a claimed way
   is suppressed (the doomed victim's data is being captured/overwritten)

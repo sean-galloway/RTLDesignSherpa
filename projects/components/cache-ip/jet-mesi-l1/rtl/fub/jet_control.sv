@@ -50,8 +50,12 @@
 //        request unaccepted until the stream releases the port.  A write
 //        hit on S is an upgrade: JET_CLS_CU is launched to the fabric and
 //        the single-outstanding upgrade tracker holds same-line writes
-//        (cross-class wait) until the upgrade's fill_done (the commit
-//        side of upgrades is Task 6).
+//        (cross-class wait) until the tracker clears.  The Task-5 stub
+//        clears the tracker on ANY fill_done_i -- correct only because the
+//        single AXI4 read ID completes fills in launch order and the TB
+//        never overlaps an in-flight upgrade with an earlier fill's done;
+//        Task 6 qualifies the clear by the completing fill's identity (or
+//        moves it into the commit pipeline).
 //     2. MERGE -- no hit, MSHR match, compatible class (a read joins any
 //        fill; a write joins only an RU fill): the request's sequence tag
 //        is appended to the entry's merge list.  A write behind an RNSD
@@ -409,7 +413,6 @@ module jet_control
     logic           w_hit_upgr;
     logic           w_xclass;
     logic           w_merge_room;
-    logic           w_miss;
     logic [2:0]     w_victim_state;
     logic [TAG_W-1:0] w_victim_tag;
     logic           w_victim_dirty;
@@ -432,7 +435,6 @@ module jet_control
                             & (mshr_lkup_reg_match_cls_i == JET_CLS_RNSD);
     assign w_merge_room   = (mshr_cpl_merge_count_i < (MW+1)'(MSHR_COUNT));
 
-    assign w_miss         = ~w_serve_hit & ~mshr_lkup_reg_match_i;
     assign w_victim_state = tag_a_tag_state_i[repl_victim_way_i][2:0];
     assign w_victim_tag   = tag_a_tag_state_i[repl_victim_way_i][TSW-1 -: TAG_W];
     assign w_victim_dirty = (w_victim_state == AMBER_STATE_M);
@@ -722,8 +724,10 @@ module jet_control
             end else if (drain_done_i) begin
                 r_drain_busy <= 1'b0;
             end
-            // upgrade tracker: set at the launch, cleared by the
-            // upgrade's fill_done (the commit-side clear is Task 6)
+            // upgrade tracker: set at the launch, cleared by ANY
+            // fill_done_i (the Task-5 stub -- sound only while no earlier
+            // fill's done can arrive during an in-flight upgrade; Task 6
+            // qualifies the clear by the completing fill's identity)
             if (w_accept_upgr) begin
                 r_upgr_valid <= 1'b1;
                 r_upgr_line  <= w_req_line;
