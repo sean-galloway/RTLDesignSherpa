@@ -374,18 +374,18 @@ class JetMonliteTB(TBBase):
         await RisingEdge(self.dut.clk)
 
     async def _stall_cycle(self, reason=5):
+        """Hold ctrl_stall_i high for one cycle."""
         d = self.dut
         d.ctrl_stall_i.value = 1
         d.ctrl_stall_reason_i.value = reason
         await self._negedge_settled()
-        await RisingEdge(d.clk)
 
     async def _unstall(self):
+        """Release ctrl_stall_i."""
         d = self.dut
         d.ctrl_stall_i.value = 0
         d.ctrl_stall_reason_i.value = 0
         await self._negedge_settled()
-        await RisingEdge(d.clk)
 
     # ------------------------------------------------------------------
     # scenarios
@@ -433,6 +433,120 @@ class JetMonliteTB(TBBase):
         for ev in (EV_MSHR_ALLOC, EV_MSHR_MERGE, EV_MSHR_RETIRE):
             self._score(f"counts: {EV_NAMES[ev]} observed",
                         ev in seen, True)
+
+    async def _s_alloc_retire_occ_payloads(self):
+        """Drive mshr_occupancy_i from a live model and verify that the
+        MSHR_ALLOC payload carries occupancy-after = pre+1 and the
+        MSHR_RETIRE payload carries occupancy-before = pre."""
+        self._scenario('AllocRetireOccPayloads')
+        self.mon_mode = 'free'
+        d = self.dut
+        occ = 0
+        n_pkt0 = len(self.pkt_log)
+
+        def set_occ(o):
+            nonlocal occ
+            occ = o
+            d.mshr_occupancy_i.value = occ
+
+        # alloc entry 0 with pre-occupancy 0 -> payload occ-after = 1
+        set_occ(0)
+        await self._pulse_alloc(set_idx=5, cls=JET_CLS_RNSD, idx=0)
+
+        # alloc entry 1 with pre-occupancy 1 -> payload occ-after = 2
+        set_occ(1)
+        await self._pulse_alloc(set_idx=7, cls=JET_CLS_RU, idx=1)
+
+        # retire entry 0 with pre-occupancy 2 -> payload occ-before = 2
+        set_occ(2)
+        await self._pulse_retire(idx=0)
+
+        # retire entry 1 with pre-occupancy 1 -> payload occ-before = 1
+        set_occ(1)
+        await self._pulse_retire(idx=1)
+
+        # return occupancy to 0 so the final gauge event is emitted and
+        # drained inside this scenario
+        set_occ(0)
+
+        # drain until the queue is empty so occupancy-gauge packets do not
+        # leak into the next scenario
+        idle_cycles = 0
+        end_cyc = None
+        for _ in range(200):
+            await self._negedge_settled()
+            if not int(d.monbus_valid.value):
+                idle_cycles += 1
+            else:
+                idle_cycles = 0
+            if idle_cycles >= 5:
+                end_cyc = self.cyc
+                break
+        # filter alloc/retire packets from this scenario and score fields
+        alloc_pkts = [p for _, p, _, _ in self.pkt_log[n_pkt0:]
+                      if p['event_code'] == EV_MSHR_ALLOC]
+        retire_pkts = [p for _, p, _, _ in self.pkt_log[n_pkt0:]
+                       if p['event_code'] == EV_MSHR_RETIRE]
+        self._score('occ payloads: 2 allocs observed', len(alloc_pkts), 2)
+        self._score('occ payloads: 2 retires observed', len(retire_pkts), 2)
+
+        def occ_after(p):
+            return (p['data'] >> 18) & 0x3F
+
+        def occ_before(p):
+            return (p['data'] >> 16) & 0xFF
+
+        if len(alloc_pkts) == 2:
+            self._score('occ payloads: alloc0 occ-after = 1',
+                        occ_after(alloc_pkts[0]), 1)
+            self._score('occ payloads: alloc1 occ-after = 2',
+                        occ_after(alloc_pkts[1]), 2)
+        if len(retire_pkts) == 2:
+            self._score('occ payloads: retire0 occ-before = 2',
+                        occ_before(retire_pkts[0]), 2)
+            self._score('occ payloads: retire1 occ-before = 1',
+                        occ_before(retire_pkts[1]), 1)
+
+    async def _s_stall_duration(self):
+        """Tag-full stall duration is measured from assertion to release and
+        emitted as a STALL_TAG_FULL event on release."""
+        self._scenario('StallDuration')
+        self.mon_mode = 'free'
+        d = self.dut
+        d.mshr_occupancy_i.value = 0
+        n_pkt0 = len(self.pkt_log)
+        n_exp0 = len(self.exp_events)
+        trace0 = len(self.q_trace)
+
+        # 3-cycle tag-full stall
+        for _ in range(3):
+            await self._stall_cycle(reason=5)
+        await self._unstall()
+        self._exp_stall(3)
+
+        # 5-cycle tag-full stall
+        for _ in range(5):
+            await self._stall_cycle(reason=5)
+        await self._unstall()
+        self._exp_stall(5)
+
+        # drain until the queue is empty so no stall packets leak into the
+        # next scenario
+        idle_cycles = 0
+        for _ in range(200):
+            await self._negedge_settled()
+            q_count = int(d.u_monlite.u_out_q.count.value)
+            valid = int(d.monbus_valid.value)
+            if not valid:
+                idle_cycles += 1
+            else:
+                idle_cycles = 0
+            if idle_cycles >= 5 and q_count == 0:
+                break
+        self._strict_stream_match('stall', n_pkt0, n_exp0, trace0)
+        seen = {p['event_code'] for _, p, _, _ in self.pkt_log[n_pkt0:]}
+        self._score('stall: STALL_TAG_FULL observed',
+                    EV_STALL_TAG_FULL in seen, True)
 
     async def _s_occupancy_gauge_tracks(self):
         """MSHR and WB occupancy gauges emit on every change and the emitted
@@ -590,6 +704,8 @@ class JetMonliteTB(TBBase):
 
         await self._s_event_counts()
         await self._s_occupancy_gauge_tracks()
+        await self._s_stall_duration()
+        await self._s_alloc_retire_occ_payloads()
         if self.TEST_LEVEL in ('func', 'full'):
             await self._s_drop_and_count()
             await self._s_observer_transparency()

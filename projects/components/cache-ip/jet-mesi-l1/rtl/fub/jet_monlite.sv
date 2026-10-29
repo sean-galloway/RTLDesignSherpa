@@ -240,6 +240,8 @@ module jet_monlite
     logic [63:0] c_data    [N_CAND];
     logic        c_fire    [N_CAND];
 
+    // Occupancy sampled at the event edge is the PRE-UPDATE value.  An alloc
+    // increments occupancy, so occupancy-after = mshr_occupancy_i + 1.
     wire [63:0] w_alloc_data =
         64'(mshr_alloc_set_i)
         | (64'(mshr_alloc_cls_i) << 16)
@@ -251,6 +253,8 @@ module jet_monlite
         | ((mshr_merge_i ? (i_mon_time - r_alloc_cyc[mshr_merge_idx_i]) : 64'd0)
            << (MW + 8));
 
+    // Occupancy sampled at the event edge is the PRE-UPDATE value.  A retire
+    // decrements occupancy, so occupancy-before = mshr_occupancy_i.
     wire [63:0] w_retire_data =
         64'(mshr_retire_idx_i)
         | (64'(mshr_occupancy_i) << 16)

@@ -48,3 +48,23 @@ Same 128-bit MonBus packet + 64-bit timestamp sideband as amber; the UNIT
 id distinguishes the core observer from the two transport observers;
 event-class codes allocate from the jet extension space so amber streams
 decode identically.
+
+## Tap sourcing note
+
+The Task 10 implementation splices the stall and WB-occupancy taps at
+`jet_top` from wires that already exist on the proven blocks, rather than
+adding new event-tap ports to `jet_control` or `jet_wb_buffer`:
+
+- `STALL_TAG_FULL` is driven from `ctrl_lkup_stall_o` and
+  `ctrl_lkup_stall_reason_o`, which `jet_control` already exposes for
+  congestion accounting.
+- `WB_OCCUPANCY` is driven from `wb_occupancy_o`, which `jet_wb_buffer`
+  already exposes as its occupancy gauge.
+
+No new ports were added to `jet_control` or `jet_wb_buffer` because the
+required information is already available at the top level; adding
+single-purpose tap ports would churn the proven functional blocks without
+changing the information content. Only `jet_mshr` received new event-tap
+ports (`alloc_o`, `alloc_set_o`, `alloc_cls_o`, `merge_o`, `merge_idx_o`,
+`merge_depth_o`, `retire_o`, `retire_idx_o`) because the alloc/merge/retire
+instantiation details are internal to that block.
