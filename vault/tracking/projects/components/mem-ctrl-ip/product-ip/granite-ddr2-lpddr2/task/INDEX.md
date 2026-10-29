@@ -28,9 +28,9 @@ state by construction rather than by discipline.
 - **TASK-002** — bank queues as gaxi_age_fifo_sync (PEEK 2) carrying the pool age;
   a head's rd_age_thresh is the record's age_exceed. Owner's choice 2026-10-25. [active/TASK-002.md](active/TASK-002.md).
 - **TASK-003** — granite at 100 MHz and ahead of LiteDRAM through the same
-  harness: 100 MHz build -0.686 ns (132 core endpoints, two cones), board
-  1w+1r collapse (54 MB/s vs pumice 552) traced to the select order; row gate
-  in the pick. [active/TASK-003.md](active/TASK-003.md).
+  harness: 100 MHz closes (b8665155e, timer loads registered); DDR2-400 board
+  point measured 2026-10-29 (streams 772/774 of 800, 1w+1r 761-773 combined,
+  3x LiteDRAM at 75); thrash cells remain the gap. [active/TASK-003.md](active/TASK-003.md).
 
 ## Deferred
 

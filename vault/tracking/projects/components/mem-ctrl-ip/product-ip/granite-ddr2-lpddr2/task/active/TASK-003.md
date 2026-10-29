@@ -569,3 +569,85 @@ the page-thrash read (333 vs 386), ahead 1.3 to 2.3x on the page-friendly
 mixed cells, and behind on the two thrash cells under mixed traffic
 (col_major 213 vs 248 at 1w+1r, 246 vs 281 at 1w+2r): those are the
 within-bank-order / page-policy cells, not the direction logic.
+
+### 2026-10-29, the 100 MHz board point: DDR2-400, measured
+
+Owner's go: "do the DDR2-400 build after 75 finishes". `GRANITE_SYS_100`
+now selects the DDR2-400 plan (VCO 800, sys 100, sys2x and DQS 200, idelay
+200 = /4, pumice's `PUMICE_SYS_100` block), the 3:2 plan is gone from the
+top, README and `create_project.tcl`. Build of the tree: WNS **+0.021 ns**,
+0 of 107,862, hold +0.053, 36,695 LUTs; reports kept as
+`targets/granite/fpga/reports_sys100_2026-10-29_ddr400/`.
+
+**Bring-up.** Leveling with the 75 MHz read-path tuple found no eye (the
+smoke's 512 of 512 again). A joint probe on the board (the pumice
+`host_bringup_joint_probe` with the granite regmap and the JEDEC timings
+derived at 100 MHz, wrlat 0..3 x rddata_delay 0..15 x bitslip 0..7 at tap
+16, t_rddata_en 1) found exactly one clean cell, **wrlat 1 / rden 1 /
+rddata_delay 1**, with its two diagonal neighbours one beat off (wrlat 0 /
+delay 2; wrlat 2 / delay 0): at DDR2-400 the data-vs-valid offset is 0
+cycles where the 75 MHz plan has 1. Two host plumbing fixes were needed to
+run on it: (1) `pumice_master.A7Leveling` and `SimpleTest` hardcoded
+`t_rddata_en = 6` for the leveling pass, so the test's env override never
+reached it and leveling ran on (6, 1); both constructors now take
+`TEST_T_RDDATA_EN` with the default unchanged; (2) the char path derives
+its JEDEC cycle counts from `PUMICE_MC_CLK_HZ` (default 75e6), separate
+from the measured clock the smoke uses, so the first char pass ran a 100
+MHz controller on 75 MHz counts (tRC 5, tRFC 11) and was discarded; the
+run was repeated with `PUMICE_MC_CLK_HZ=100000000` (tRC 7, tRAS 5, tRFC 14,
+tREFI 780, tFAW 5). Leveling on (1, 1): bitslip 1, tap 16, eye 2..30 (28
+taps; the 75 MHz eye is 9). Smoke init, write_read and memtest passed;
+level cache in the session scratch. Env for the run:
+`TEST_T_PHY_WRLAT=1 TEST_T_RDDATA_EN=1 TEST_RDDATA_DELAY=1
+PUMICE_MC_CLK_HZ=100000000`.
+
+**Results**, zero mismatched beats in every cell of every profile at both
+clocks. CSVs `char_granite_sys100ddr400_{open_min,concurrent,multigen,
+paging_grade,half_threads}_2026-10-29.csv` and
+`char_granite_setlag75_half_threads_2026-10-29.csv` (the 75 MHz
+multi-thread run of the same RTL, within 0.1 MB/s of 2026-10-27 on all 32
+cells). LiteDRAM columns as in the entry above (mixed rows x 0.75; its
+half_threads is the 2026-10-27 CSV, its host has no close_page config).
+
+| MB/s | LiteDRAM 75 (peak 600) | granite 75 (peak 600) | granite 100 / DDR2-400 (peak 800) |
+|---|---|---|---|
+| streams wr / rd: incremental | 554 / 564 | 576 / 578 | 772 / 774 |
+| streams wr / rd: row_major | 569 / 579 | 578 / 580 | 775 / 777 |
+| streams wr / rd: col_major | 304 / 386 | 292 / 333 | 390 / 445 |
+| streams wr / rd: col_major_interleaved | 277 / 280 | 512 / 514 | 688 / 688 |
+| stream read latency, cycles (incremental) | 48 | 50 | 50 |
+| 1w+1r combined: incremental | 248 | 569 | 761 |
+| 1w+1r combined: row_major | 286 | 576 | 773 |
+| 1w+1r combined: col_major | 248 | 213 | 287 |
+| 1w+1r combined: col_major_interleaved | 246 | 400 | 539 |
+| 1w+1r read latency, cycles (row_major) | 107 | 79 | 71 |
+| 1w+2r combined: incremental | 279 | 385 | 516 |
+| 1w+2r combined: row_major | 317 | 509 | 691 |
+| 1w+2r combined: col_major | 281 | 246 | 325 |
+| 1w+2r combined: col_major_interleaved | 246 | 270 | 384 |
+| open_page half_pair wr / rd, 1 thread | 243 / 286 | 288 / 240 | 387 / 320 |
+| open_page half_pair wr / rd, 2 threads | 71 / 72 | 287 / 288 | 385 / 386 |
+| open_page half_pair wr / rd, 3 threads | 70 / 71 | 257 / 281 | 344 / 376 |
+| open_page half_pair wr / rd, 4 threads | 70 / 71 | 214 / 249 | 286 / 334 |
+| open_page half_oct wr / rd, 1 thread | 243 / 286 | 288 / 239 | 387 / 320 |
+| open_page half_oct wr / rd, 2 threads | 71 / 72 | 287 / 288 | 385 / 386 |
+| open_page half_oct wr / rd, 3 threads | 70 / 71 | 256 / 281 | 344 / 377 |
+| open_page half_oct wr / rd, 4 threads | 70 / 71 | 214 / 249 | 288 / 334 |
+| close_page half_pair wr / rd, 1 / 2 / 3 / 4 threads | - | 30/37, 49/59, 73/87, 96/96 | 40/44, 66/87, 97/129, 129/129 |
+| close_page half_oct wr / rd, 1 / 2 / 3 / 4 threads | - | 30/37, 49/59, 73/87, 96/96 | 40/44, 66/87, 97/129, 129/129 |
+
+Threads 5 to 8 clamp to 4 (four injectors per direction) and repeat the
+4-thread cell. Every 100 MHz cell is the 75 MHz cell times 4/3 to within
+rounding: the controller is cycle-identical across the two plans, as the
+proxy is, and the DDR2-400 point simply moves the whole table up. Streams
+reach 96.6 percent of the 800 MB/s peak; 1w+1r on the page-friendly
+families reaches 761 to 773 combined, three times LiteDRAM at 75 MHz; the
+page-thrash and mixed-thrash cells remain the gap (col_major read 445 vs
+LiteDRAM's 386 at 75, so now ahead in absolute terms, still the lowest
+fraction of peak).
+
+The `half_threads` profile exits 2 at both clocks (16 of 32 cells at 75,
+14 at 100) on the latency histogram's 1:1 note (7 to 40 returns short of
+the host count at >= 2 threads, `mismatched` 0, bandwidth reproducible):
+harness accounting, identical on granite and pumice on 2026-10-27, filed as
+pumice ISSUE-025; the bandwidth columns are valid.

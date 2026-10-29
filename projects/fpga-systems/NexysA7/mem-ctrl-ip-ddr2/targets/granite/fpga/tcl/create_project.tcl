@@ -184,8 +184,8 @@ if {$_sys75} {
 } else {
     set _freq_note "66.67 MHz (PUMICE_SYS_75=0 -- NOT the board design point)"
 }
-# Granite 100 MHz timing-push profile: env GRANITE_SYS_100=1 builds the
-# 100 MHz sys / DDR2-300 sys2x MMCM profile in granite_char_top.sv. Default
+# Granite 100 MHz profile: env GRANITE_SYS_100=1 builds the
+# 100 MHz sys / 200 MHz sys2x (DDR2-400) MMCM profile in granite_char_top.sv. Default
 # off -- 75 MHz is the characterization design point. The loud banner below
 # prints which profile the .bit actually carries.
 if {[info exists ::env(GRANITE_SYS_100)] && $::env(GRANITE_SYS_100) ne "" && $::env(GRANITE_SYS_100) ne "0"} {

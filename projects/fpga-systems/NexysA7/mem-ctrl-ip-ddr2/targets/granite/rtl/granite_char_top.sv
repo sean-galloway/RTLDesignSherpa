@@ -90,12 +90,16 @@ module granite_char_top #(
     localparam int  MMCM_CO2  = 6;     // sys2x_dqs = 133.3 MHz
     localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
 `elsif GRANITE_SYS_100
-    // 100 MHz sys / 150 MHz sys2x = DDR2-300 (granite timing-push build).
-    localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz
-    localparam real MMCM_CO0  = 6.0;   // sys       = 100 MHz
-    localparam int  MMCM_CO1  = 4;     // sys2x     = 150 MHz (DDR2-300)
-    localparam int  MMCM_CO2  = 4;     // sys2x_dqs = 150 MHz
-    localparam int  MMCM_CO3  = 3;     // idelay    = 200 MHz (/3)
+    // 100 MHz sys / 200 MHz sys2x = DDR2-400 (granite 100 MHz board point,
+    // same plan as pumice's PUMICE_SYS_100). sys2x MUST be exactly 2 x sys:
+    // the a7ddrphy serializers take CLKDIV = sys and CLK = sys2x, and the
+    // earlier 100 / 150 "timing-push" plan (3:2) levelled no read eye and
+    // mismatched every beat on the board (2026-10-29).
+    localparam real MMCM_MULT = 8.0;   // VCO = 800 MHz
+    localparam real MMCM_CO0  = 8.0;   // sys       = 100 MHz
+    localparam int  MMCM_CO1  = 4;     // sys2x     = 200 MHz (DDR2-400)
+    localparam int  MMCM_CO2  = 4;     // sys2x_dqs = 200 MHz
+    localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
 `else
     // DEFAULT: 75 MHz sys / 150 MHz sys2x = DDR2-300 (Granite A7 plan).
     localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz

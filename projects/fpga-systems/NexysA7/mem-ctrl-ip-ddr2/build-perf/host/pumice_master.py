@@ -164,7 +164,11 @@ class A7Leveling:
                  burst_len: int = 8, txn_count: int = 2,
                  seed: int = 0x1EAF_F00D,
                  t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
-                 t_rddata_en: int = 6,
+                 # Env-overridable like wrlat / rddata_delay: leveling and test must
+                 # use the SAME (rden, delay) pair, and the clean pair is clock-plan
+                 # dependent (75 MHz: rden 1 / delay 2; 100 MHz DDR2-400: rden 1 /
+                 # delay 1, joint probe 2026-10-29). Default unchanged.
+                 t_rddata_en: int = int(os.environ.get("TEST_T_RDDATA_EN", "6")),
                  rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
                  rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
         self.drv = drv
@@ -404,7 +408,11 @@ class SimpleTest:
     # as the TEST_DRAM_BL geometry overrides.
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
-                 t_rddata_en: int = 6,
+                 # Env-overridable like wrlat / rddata_delay: leveling and test must
+                 # use the SAME (rden, delay) pair, and the clean pair is clock-plan
+                 # dependent (75 MHz: rden 1 / delay 2; 100 MHz DDR2-400: rden 1 /
+                 # delay 1, joint probe 2026-10-29). Default unchanged.
+                 t_rddata_en: int = int(os.environ.get("TEST_T_RDDATA_EN", "6")),
                  rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
                  rd_phase: int = 0,
                  level_cache: Optional[str] = None):
