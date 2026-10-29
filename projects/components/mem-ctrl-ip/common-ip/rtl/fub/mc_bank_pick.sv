@@ -153,6 +153,10 @@ module mc_bank_pick
     // and cost one cycle per burst on the write ceiling (fires every 5
     // cycles at tCCD 4).
     input  logic                      wr_commit_ready_now_i,
+    // per slot, LIVE: the store still owes this slot a merged fill (its
+    // registered record may still say filled); a write column is not fired
+    // on it (granite TASK-006). Tie 0 on a store without combining.
+    input  logic [NUM_ENTRIES-1:0]    wr_fill_pending_i,
     output logic                      wr_commit_valid_o,
     output logic [PTRW-1:0]           wr_commit_slot_o,
     input  logic                      rd_issue_ready_i,
@@ -879,7 +883,7 @@ module mc_bank_pick
         if (w_fis_col) begin
             // the write sink re-check: registers only (see the port note)
             w_class_ok = w_sel_cand.vld && w_sel_hit
-                      && (!w_sel_is_wr || wr_commit_ready_now_i);
+                      && (!w_sel_is_wr || (wr_commit_ready_now_i && !wr_fill_pending_i[w_sel_slot]));
             w_timer_ok = bank_rdwr_ready_i[RK0][w_sel_bank] && w_tccd_fwd_ok
                       && (w_sel_is_wr ? (trtw_ok_i && !r_rdfire0)
                                       : (twtr_ok_i && !r_wrfire0));

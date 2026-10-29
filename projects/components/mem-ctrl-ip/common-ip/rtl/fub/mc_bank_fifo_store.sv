@@ -221,6 +221,16 @@ module mc_bank_fifo_store
     input  logic                wr_commit_valid_i,
     output logic                wr_commit_ready_o,
     output logic                wr_commit_ready_now_o,
+    // MERGE_EN: per slot, a merged write's beats are still to land. The
+    // head records are registered at this edge, one cycle behind
+    // r_wr_fdone, so the pick re-checks this LIVE vector for the slot it
+    // fires: a column on a slot whose merge fill is pending would commit a
+    // write the DFI plane then holds for its data while the scheduler's
+    // tWR / auto-precharge / ACT timers run from the commit -- the DRAM
+    // sees a PRE/ACT too soon after the WRITE it actually got (granite
+    // TASK-006, 2026-10-29: 83 percent of a merged open-page pair walk never
+    // landed on the board; tWR=8 hid it). Constant 0 without MERGE_EN.
+    output logic [NUM_ENTRIES-1:0] wr_fill_pending_o,
     input  logic [PTRW-1:0]     wr_commit_slot_i,
     input  logic                rd_issue_valid_i,
     output logic                rd_issue_ready_o,
@@ -267,7 +277,15 @@ module mc_bank_fifo_store
     localparam int QD   = ((BANK_FIFO_DEPTH <= 0) || (BANK_FIFO_DEPTH > NUM_ENTRIES))
                         ? NUM_ENTRIES : BANK_FIFO_DEPTH;
     localparam int QCW  = $clog2(QD + 1);          // per-bank occupancy 0..QD
-    localparam int FOW  = $clog2(NUM_ENTRIES + 1); // fill-order occupancy 0..N
+    // Fill-order FIFO depth: one pending fill per slot, plus one more per slot
+    // with MERGE_EN (a merge target owes its own fill AND the merged write's,
+    // and both can be pending at once when the W stream lags the AW stream).
+    // Sized to NUM_ENTRIES the FIFO overflowed on the board at 32 outstanding
+    // half-width writes -- fills landed in the wrong slots (granite TASK-006,
+    // 2026-10-29).
+    localparam int FO_DEPTH = MERGE_EN ? 2 * NUM_ENTRIES : NUM_ENTRIES;
+    localparam int FOPW = (FO_DEPTH > 1) ? $clog2(FO_DEPTH) : 1;   // fill-order position
+    localparam int FOW  = $clog2(FO_DEPTH + 1);    // fill-order occupancy 0..FO_DEPTH
     // Pool age: rank among the live entries of BOTH directions, so at most
     // 2 * NUM_ENTRIES - 1; the FIFO saturates at 0, the writer clamps at max.
     localparam int AGEW = $clog2(2 * NUM_ENTRIES);
@@ -330,8 +348,23 @@ module mc_bank_fifo_store
     logic [IW-1:0]   r_if_id;
     logic            r_if_mgv,  r_sk_mgv  [SKID_DEPTH];
     logic [IW-1:0]   r_if_mgid, r_sk_mgid [SKID_DEPTH];
-    logic            r_done2_vld;      // the merged write's B, the cycle after its slot's own
-    logic [IW-1:0]   r_done2_id;
+    // The merged write's B. It must not cost the drain a cycle: the DFI
+    // command path can take a column every cycle, and a data path that
+    // delivers one beat per two cycles for merged entries runs out of the
+    // commit-to-DFI slack and leaves WRITEs held at the DFI head for their
+    // data (granite TASK-006: 904 one-cycle holds on a 1024-pair walk when
+    // the drain paused one beat per merge). So the extra ids queue here and
+    // go out in cycles with no done of their own; the drain holds only
+    // when the queue is full. An AW whose id sits in the queue waits (its B
+    // would otherwise overtake the queued one on the same id).
+    localparam int D2Q  = NUM_ENTRIES;
+    localparam int D2QW = $clog2(D2Q + 1);
+    localparam int D2PW = (D2Q > 1) ? $clog2(D2Q) : 1;
+    logic [IW-1:0]   r_d2q_id [D2Q];
+    logic [D2PW-1:0] r_d2q_rd, r_d2q_wr;
+    logic [D2QW-1:0] r_d2q_cnt;
+    logic            w_d2q_full, w_d2q_push, w_d2q_pop, w_done1;
+    logic            w_d2q_idhit;     // the held AW's id is a queued merged B
 
     // Free slot: lowest free index
     logic            w_wr_have_free;
@@ -348,17 +381,19 @@ module mc_bank_fifo_store
 
     // Fill-order FIFO: slots in AW order; the head is the slot the next W beat
     // belongs to (AXI4 write data is non-interleaved and arrives in AW order).
-    logic [PTRW-1:0] r_fo     [NUM_ENTRIES];   // circular: head at r_fo_rd, r_fo_cnt entries
-    logic            r_fo_mg  [NUM_ENTRIES];   // this fill merges into its slot (MERGE_EN)
-    logic [PTRW-1:0] r_fo_rd;
+    // FO_DEPTH entries (see the localparam): a slot appears at most once
+    // without MERGE_EN, at most twice with it (own fill, then its merge fill).
+    logic [PTRW-1:0] r_fo     [FO_DEPTH];      // circular: head at r_fo_rd, r_fo_cnt entries
+    logic            r_fo_mg  [FO_DEPTH];      // this fill merges into its slot (MERGE_EN)
+    logic [FOPW-1:0] r_fo_rd;
     logic [FOW-1:0]  r_fo_cnt;
     logic            w_fill_vld;
     logic [PTRW-1:0] w_fill_slot;
-    function automatic logic [PTRW-1:0] fopos(input logic [PTRW-1:0] base, input int off);
+    function automatic logic [FOPW-1:0] fopos(input logic [FOPW-1:0] base, input int off);
         int v;
         v = int'(base) + off;
-        if (v >= NUM_ENTRIES) v = v - NUM_ENTRIES;
-        return PTRW'(v);
+        if (v >= FO_DEPTH) v = v - FO_DEPTH;
+        return FOPW'(v);
     endfunction
     assign w_fill_vld  = (r_fo_cnt != '0);
     assign w_fill_slot = r_fo[r_fo_rd];
@@ -416,11 +451,19 @@ module mc_bank_fifo_store
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             if (r_wr_valid[i] && !w_mg_match[i] && (r_wr_id[i] == r_awh_id)) w_mg_idclash = 1'b1;
         end
+        if (w_d2q_idhit) w_mg_idclash = 1'b1;
+    end
+    always_comb begin
+        w_d2q_idhit = 1'b0;
+        for (int q = 0; q < D2Q; q++) begin
+            if ((q < int'(r_d2q_cnt)) && (r_d2q_id[(int'(r_d2q_rd) + q) % D2Q] == r_awh_id))
+                w_d2q_idhit = 1'b1;
+        end
     end
     assign w_aw_merge  = MERGE_EN && r_awh_vld && r_awh_last && w_mg_found && !w_mg_idclash;
     // admit: the held AW enters the pool and its bank queue (registers only);
     // a merge takes no slot and no queue entry
-    assign w_aw_fire   = r_awh_vld && !w_aw_merge
+    assign w_aw_fire   = r_awh_vld && !w_aw_merge && !w_d2q_idhit
                        && w_wr_have_free && (r_wq_cnt[r_awh_bank] != QCW'(QD))
                        && w_wq_wr_ready[r_awh_bank] && w_wr_cap_ok;
     assign aw_push_ready_o = !r_awh_vld || w_aw_fire || w_aw_merge;
@@ -465,6 +508,9 @@ module mc_bank_fifo_store
     assign w_dq_pop         = w_dq_rd_valid && w_dq_rd_ready;
     assign wr_commit_ready_o     = w_dq_wr_ready && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
     assign wr_commit_ready_now_o = w_dq_wr_ready && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) wr_fill_pending_o[i] = MERGE_EN && r_wr_mgfill[i];
+    end
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) r_dq_occ <= '0;
@@ -503,7 +549,8 @@ module mc_bank_fifo_store
 
     // The cycle the merged B goes out, the drain holds one beat so the two
     // dones (the slot's own, then the merge's) never coincide.
-    assign wr_cm_rd_valid_o = w_hd_vld && !r_done2_vld;
+    assign w_d2q_full       = (r_d2q_cnt == D2QW'(D2Q));
+    assign wr_cm_rd_valid_o = w_hd_vld && !w_d2q_full;
     assign wr_cm_rd_data_o  = w_hd_data[DW-1:0];
     assign wr_cm_rd_strb_o  = w_hd_data[SRW-1:DW];
     logic w_hd_mgv; logic [IW-1:0] w_hd_mgid;
@@ -578,8 +625,10 @@ module mc_bank_fifo_store
             end
             r_if_mgv    <= 1'b0;
             r_if_mgid   <= '0;
-            r_done2_vld <= 1'b0;
-            r_done2_id  <= '0;
+            r_d2q_rd  <= '0;
+            r_d2q_wr  <= '0;
+            r_d2q_cnt <= '0;
+            for (int q = 0; q < D2Q; q++) r_d2q_id[q] <= '0;
             for (int k = 0; k < SKID_DEPTH; k++) begin
                 r_sk_mgv[k]  <= 1'b0;
                 r_sk_mgid[k] <= '0;
@@ -615,8 +664,9 @@ module mc_bank_fifo_store
 
             // fill-order FIFO: circular; pop (head + 1) at fill-done, push at
             // insert behind the current occupancy (a push never sees a full
-            // FIFO: it needs a free slot, and every slot in the pool is at
-            // most once in this FIFO)
+            // FIFO: an admit needs a free slot and a merge needs an un-merged
+            // target, so every slot is in this FIFO at most FO_DEPTH /
+            // NUM_ENTRIES times)
             if (w_fill_done) r_fo_rd <= fopos(r_fo_rd, 1);
             if (w_aw_fire || w_aw_merge) begin
                 r_fo   [fopos(r_fo_rd, int'(r_fo_cnt))] <= w_aw_merge ? w_mg_slot : w_wr_free_slot;
@@ -624,10 +674,18 @@ module mc_bank_fifo_store
             end
             r_fo_cnt <= r_fo_cnt - (w_fill_done ? FOW'(1) : FOW'(0)) + ((w_aw_fire || w_aw_merge) ? FOW'(1) : FOW'(0));
 
-            // fill bookkeeping (the beat itself lands in the BRAM below)
+            // fill bookkeeping (the beat itself lands in the BRAM below).
+            // fdone means EVERY fill the slot owes has landed: a slot's own
+            // fill completing while its merge fill is still pending (admitted
+            // earlier, or in this very cycle) leaves it not-done; the merge
+            // fill, always the later one, sets it. Before this rule the own
+            // fill re-entered the slot into the schedulable set and the
+            // commit came ahead of the merged beats (the fill-lag test holds
+            // a WRITE 114 cycles at the DFI head that way).
             if (w_wd_fire) begin
                 if (w_fill_done) begin
-                    r_wr_fdone[w_fill_slot] <= 1'b1;
+                    if (w_fill_mg || !(r_wr_mgfill[w_fill_slot] || (w_aw_merge && (w_mg_slot == w_fill_slot))))
+                        r_wr_fdone[w_fill_slot] <= 1'b1;
                     r_wr_bcnt [w_fill_slot] <= '0;
                     if (w_fill_mg) r_wr_mgfill[w_fill_slot] <= 1'b0;
                 end else begin
@@ -676,8 +734,13 @@ module mc_bank_fifo_store
                 r_wr_mgv  [w_dq_rd_slot] <= 1'b0;
             end
             // the merged write's B rides out the cycle after its slot's own
-            r_done2_vld <= w_cm_fire && w_hd_blast && w_hd_slast && w_hd_mgv;
-            r_done2_id  <= w_hd_mgid;
+            // merged-B queue
+            if (w_d2q_push) begin
+                r_d2q_id[r_d2q_wr] <= w_hd_mgid;
+                r_d2q_wr <= (int'(r_d2q_wr) == D2Q - 1) ? '0 : r_d2q_wr + 1'b1;
+            end
+            if (w_d2q_pop) r_d2q_rd <= (int'(r_d2q_rd) == D2Q - 1) ? '0 : r_d2q_rd + 1'b1;
+            r_d2q_cnt <= r_d2q_cnt + (w_d2q_push ? D2QW'(1) : D2QW'(0)) - (w_d2q_pop ? D2QW'(1) : D2QW'(0));
         end
     end)
 
@@ -1126,8 +1189,11 @@ module mc_bank_fifo_store
     assign snarf_rd_data_o  = '0;
     assign snarf_rd_last_o  = 1'b0;
 
-    assign wr_done_valid_o = r_done2_vld || (w_cm_fire && w_hd_blast && w_hd_slast);
-    assign wr_done_id_o    = r_done2_vld ? r_done2_id : w_hd_id;
+    assign w_done1         = w_cm_fire && w_hd_blast && w_hd_slast;
+    assign w_d2q_push      = w_done1 && w_hd_mgv;
+    assign w_d2q_pop       = !w_done1 && (r_d2q_cnt != '0);
+    assign wr_done_valid_o = w_done1 || w_d2q_pop;
+    assign wr_done_id_o    = w_done1 ? w_hd_id : r_d2q_id[r_d2q_rd];
 
     always_comb begin
         busy_o = w_dq_rd_valid || w_hd_vld || r_if_valid || r_awh_vld || r_arh_vld;

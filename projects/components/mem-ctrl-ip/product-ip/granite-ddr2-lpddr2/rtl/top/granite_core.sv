@@ -302,6 +302,7 @@ module granite_core
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                w_bank_row_active;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] w_bank_open_row;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
+    logic [NUM_ENTRIES-1:0]    w_wr_fill_pending;   // FIFO store combiner: merged fill still pending, per slot
     logic w_wr_commit_rdy_now;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
@@ -576,6 +577,7 @@ module granite_core
             .wr_commit_valid_i  (w_wr_commit_v),
             .wr_commit_ready_o  (w_wr_commit_rdy),
             .wr_commit_ready_now_o (w_wr_commit_rdy_now),
+            .wr_fill_pending_o  (w_wr_fill_pending),
             .wr_commit_slot_i   (w_wr_commit_slot),
             .rd_issue_valid_i   (w_rd_issue_v),
             .rd_issue_ready_o   (w_rd_issue_rdy),
@@ -622,6 +624,7 @@ module granite_core
         assign rt_alloc_merge  = 1'b0;
         assign rt_alloc_src    = '0;
         assign stat_wr_merge_o = '0;
+        assign w_wr_fill_pending = '0;
         assign stat_rd_merge_o = '0;
         // ======================================================================
         // Plane 1b: storage-lite entry store (N=1 in-order seam)
@@ -919,6 +922,7 @@ module granite_core
         .wr_head2_i         (w_wr_head2),
         .wr_commit_ready_i  (w_wr_commit_rdy),
         .wr_commit_ready_now_i  (w_wr_commit_rdy_now),
+        .wr_fill_pending_i  (w_wr_fill_pending),
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
         .rd_sch_valid_i     (w_rd_sch_v),

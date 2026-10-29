@@ -403,8 +403,95 @@ async def cocotb_test_granite_core_merge(dut):
         assert rd_merges == 0, f"STORE_MERGE_EN=0 must not merge reads, counted {rd_merges}"
         assert rds[0][1][:BL_WORDS] == d1 and rds[1][1][:BL_WORDS] == d2, \
             "without combining the two reads serve the two bursts in write order"
+    _assert_no_held_write(dut)
     dut._log.info("PASS: store combining %s", "merges a same-burst pair" if merge_en
                   else "off: no merges, two bursts")
+
+
+@cocotb.test(timeout_time=20000, timeout_unit="us")
+async def cocotb_test_granite_core_merge_fill_lag(dut):
+    """Store combining with the write DATA lagging the addresses (TASK-006,
+    2026-10-29): eight same-burst pairs from distinct ids arrive with the W
+    channel on the slow_producer profile, so every entry in the pool is
+    allocated and merged before its own fill lands -- up to two pending
+    fills per entry, sixteen in all. The fill-order FIFO must hold them:
+    sized to one per entry it overflowed, fills landed in the wrong slots
+    and the board read back ~83% of the pair walk wrong at 32 outstanding
+    (open page, counter ids). With STORE_MERGE_EN=1 the DFI bus sees eight
+    bursts carrying each pair's second write; with 0 it sees all sixteen
+    in order. Either way every burst that reaches the bus must be one the
+    host wrote."""
+    merge_en = int(os.environ.get("STORE_MERGE_EN", "0"))
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
+    _idle(dut)
+    dut.aresetn.value = 0
+    dut.dfi_rstn.value = 0
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    dut.dfi_rstn.value = 1
+    for _ in range(6):
+        await RisingEdge(dut.aclk)
+    bfm = _init_masters(dut)
+    bfm.set_profile("backtoback", channels=["aw", "b"])
+    bfm.set_profile("slow_producer", channels=["w"])    # W beats 8..20 cycles apart
+    captured = []
+    cocotb.start_soon(_dfi_model(dut, captured))
+    for _ in range(400):
+        await RisingEdge(dut.aclk)
+        if int(dut.init_done_o.value):
+            break
+    assert int(dut.init_done_o.value) == 1, "init never completed"
+
+    rng = random.Random(int(os.environ.get("SEED", "1")))
+    n_pairs = 8                                   # == NUM_ENTRIES: every slot a merge target
+    burst_bytes = BL_WORDS * (DW // 8)
+    addrs = [0x4000 + k * burst_bytes for k in range(n_pairs)]   # one row, one bank
+    first = [[rng.randrange(1 << DW) for _ in range(BL_WORDS)] for _ in range(n_pairs)]
+    second = [[rng.randrange(1 << DW) for _ in range(BL_WORDS)] for _ in range(n_pairs)]
+    reqs = []
+    for k in range(n_pairs):
+        reqs.append((addrs[k], first[k]))
+        reqs.append((addrs[k], second[k]))
+    captured.clear()
+    await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: k & 0xF), _PHASE_TIMEOUT_US, "us")
+    want_words = (n_pairs if merge_en else 2 * n_pairs) * BL_WORDS
+    for _ in range(2000):
+        await RisingEdge(dut.dfi_clk)
+        if len(captured) >= want_words:
+            break
+    for _ in range(50):                           # nothing more may trickle out
+        await RisingEdge(dut.dfi_clk)
+    wr_merges = int(dut.stat_wr_merge_o.value)
+    bursts = [tuple(captured[i:i + BL_WORDS]) for i in range(0, len(captured), BL_WORDS)]
+    dut._log.info("fill-lag: STORE_MERGE_EN=%d write merges=%d dfi bursts=%d",
+                  merge_en, wr_merges, len(bursts))
+    assert len(captured) == want_words, \
+        f"expected {want_words} DFI words on the bus, saw {len(captured)}"
+    if merge_en:
+        assert wr_merges == n_pairs, f"expected {n_pairs} write merges, counted {wr_merges}"
+        want = sorted(tuple(d) for d in second)
+    else:
+        assert wr_merges == 0, f"STORE_MERGE_EN=0 must not merge, counted {wr_merges}"
+        want = sorted(tuple(d) for d in first + second)
+    got = sorted(bursts)
+    bad = [i for i, (g, w) in enumerate(zip(got, want)) if g != w]
+    assert got == want, \
+        f"{len(bad)} of {len(want)} DFI bursts are not what the host wrote (a fill landed in the wrong slot)"
+    _assert_no_held_write(dut)
+    dut._log.info("PASS: %d pending fills kept their slots", 2 * n_pairs if merge_en else n_pairs)
+
+
+def _assert_no_held_write(dut):
+    """Contract (granite TASK-006): a committed write's data is staged by the
+    time its WRITE reaches the DFI command head. The DFI command path counts
+    the cycles a WRITE sat at the head waiting (simulation-only); the
+    scheduler's tWR / auto-precharge / ACT timers run from the commit, so a
+    held WRITE is a JEDEC violation at the DRAM that no model here sees."""
+    cmd = dut.u_dfi_plane.u_cmd
+    held = int(cmd.r_wr_held_cnt.value)
+    assert held == 0, f"{held} cycles with a WRITE held at the DFI head for its data (max run {int(cmd.r_wr_held_max.value)})"
 
 
 def _core_params():
@@ -489,6 +576,37 @@ def test_granite_core_merge(request, merge_en):
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_granite_core_merge",
+        sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
+        compile_args=["+define+USE_ASYNC_RESET", "--assert"],
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")
+
+
+@pytest.mark.parametrize("merge_en", [0, 1])
+def test_granite_core_merge_fill_lag(request, merge_en):
+    """TASK-006 store combining with the write data lagging the addresses, both parameter states (FUNC level)."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "granite_core"
+    test_name = f"cocotb_test_granite_core_merge_fill_lag_{merge_en}"
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    params = dict(_core_params())
+    params["STORE_MERGE_EN"] = str(merge_en)
+    # Whole-window return FIFO: at the product default (4) the OFF state's two
+    # back-to-back reads of one burst trip the rd aligner's lost-beat
+    # assertion in this TB (pumice ISSUE-026); the combining under test is
+    # independent of that depth.
+    params["DFI_RD_FIFO_DEPTH"] = "0"
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+                 "COCOTB_LOG_LEVEL": "INFO",
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env("func")}
+    extra_env.update(params)
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module, testcase="cocotb_test_granite_core_merge_fill_lag",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert"],
         waves=bool(int(os.environ.get("WAVES", "0"))),

@@ -1011,7 +1011,11 @@ class PageStats:
 
     @property
     def counted(self) -> bool:
-        return (self.col_ops or 0) > 0 or self.acts > 0 or self.refs > 0
+        # granite carries only the two merge counters (TASK-006): a delta
+        # with merges and nothing else is still a measurement, not "no
+        # telemetry" (that gate hid every granite merge count, 2026-10-29).
+        return ((self.col_ops or 0) > 0 or self.acts > 0 or self.refs > 0
+                or (self.merges or 0) > 0 or (self.rd_merges or 0) > 0)
 
 
 @dataclass(frozen=True)
@@ -1513,7 +1517,7 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
     # ---- write phase (the merge happens here) ----
     drv.freeze_trace(True)
     for p in prog:
-        drv.program_wr_engine(**p)
+        drv.program_wr_engine(**dict(p, id_mode=hbf.id_mode_for("wr", dc)))
     drv.clear_stats()
     _ps_wr0 = _try_page_stats(drv)
     drv.timer_clear()
@@ -1528,7 +1532,7 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
 
     # ---- read phase ----
     for p in prog:
-        drv.program_rd_engine(**p)
+        drv.program_rd_engine(**dict(p, id_mode=hbf.id_mode_for("rd", dc)))
     drv.clear_stats()
     _ps_rd0 = _try_page_stats(drv)
     _st_rd0 = _try_stalls(drv)
@@ -2503,13 +2507,33 @@ def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
         raise ValueError(f"unknown run profile {profile!r}; "
                          f"available: {sorted(RUN_PROFILES)}")
     p = RUN_PROFILES[profile]
-    return run_matrix(drv, configs=p["configs"], level=p["level"],
-                      families=p["families"], txn_scale=txn_scale,
+    # One cell of a profile, for a repro: CHAR_CONFIGS / CHAR_FAMILIES narrow
+    # the lists, CHAR_THREADS narrows a threads sweep (comma-separated).
+    configs = p["configs"]
+    families = p["families"]
+    sc_sweep = p.get("sc_sweep")
+    if os.environ.get("CHAR_CONFIGS"):
+        # any CONFIGS name, not only the profile's own: a repro may want the
+        # profile's families under another config
+        configs = [c.strip() for c in os.environ["CHAR_CONFIGS"].split(",") if c.strip()]
+    if os.environ.get("CHAR_FAMILIES") and families is not None:
+        families = tuple(f for f in families if f in os.environ["CHAR_FAMILIES"].split(","))
+    if os.environ.get("CHAR_THREADS") and sc_sweep and "threads" in sc_sweep:
+        want = tuple(int(t) for t in os.environ["CHAR_THREADS"].split(","))
+        sc_sweep = dict(sc_sweep, threads=tuple(t for t in sc_sweep["threads"] if t in want))
+    # CHAR_SC_OVER="field=int,field=int": scenario field overrides (e.g.
+    # max_outstanding=4) on top of the profile's own sc_over.
+    sc_over = dict(p.get("sc_over") or {})
+    for kv in filter(None, os.environ.get("CHAR_SC_OVER", "").split(",")):
+        k, v = kv.split("=", 1)
+        sc_over[k.strip()] = int(v, 0)
+    return run_matrix(drv, configs=configs, level=p["level"],
+                      families=families, txn_scale=txn_scale,
                       base_addr=base_addr, timeout_s=timeout_s, geom=geom,
                       clk_mhz=clk_mhz, progress=progress,
                       concurrent=p.get("concurrent"),
-                      gen_mix=p.get("gen_mix"), sc_over=p.get("sc_over"),
-                      sc_sweep=p.get("sc_sweep"),
+                      gen_mix=p.get("gen_mix"), sc_over=sc_over or None,
+                      sc_sweep=sc_sweep,
                       same_bank_rows=p.get("same_bank_rows", 8),
                       n_hot=p.get("n_hot"),
                       bank_spread=p.get("bank_spread", 1),

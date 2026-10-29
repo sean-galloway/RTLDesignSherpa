@@ -91,6 +91,15 @@ def programs(fam: str, n_bursts: int, geom, dc, *, burst_bytes: int, threads: in
     k, sweep = spec(fam)
     bb = burst_bytes
     half = half_bytes(bb)
+    # HALF_SEED_SALT: vary the data between otherwise identical runs. A cell's
+    # data is a pure function of its name, so a write that never lands reads
+    # back clean wherever an earlier run of the same cell left the same bytes
+    # (granite TASK-006, 2026-10-29).
+    seed = (seed + int(os.environ.get("HALF_SEED_SALT", "0") or 0, 0) * 0x1F1F_1F1F) & 0xFFFF_FFFF
+    # HALF_GAP: idle cycles between the halves (pacing repro knob), overriding
+    # the scenario's gap.
+    if os.environ.get("HALF_GAP", "") != "":
+        gap = int(os.environ["HALF_GAP"], 0)
     assert bb <= geom.beat_bytes, ("half-burst families assume one DRAM burst per AXI "
                                    f"beat (board geometry); burst {bb} B, beat {geom.beat_bytes} B")
     assert n_bursts >= (1 << k), f"{fam}: need at least {1 << k} bursts per thread, got {n_bursts}"
@@ -111,6 +120,17 @@ def programs(fam: str, n_bursts: int, geom, dc, *, burst_bytes: int, threads: in
                         axi_id=(t * IDS_PER_THREAD) & 0xFF,
                         axi_size=size, data_mode=True, gen=t, **fields))
     return out
+
+
+def id_mode_for(direction: str, dc) -> int:
+    """The id mode for one pass: HALF_ID_FIXED covers both passes (one
+    in-order master's halves); HALF_ID_FIXED_WR / HALF_ID_FIXED_RD pin one
+    direction, to split a combiner fault between the write and the read
+    merge (granite TASK-006, 2026-10-29). Default COUNTER (distinct ids)."""
+    both = os.environ.get("HALF_ID_FIXED", "0") not in ("", "0")
+    one = os.environ.get(f"HALF_ID_FIXED_{direction.upper()}", "")
+    fixed = both if one == "" else one not in ("", "0")
+    return dc.ID_MODE_FIXED if fixed else dc.ID_MODE_COUNTER
 
 
 def _default_seed_fields(t: int, seed: int) -> dict:
@@ -166,7 +186,7 @@ def measure_dict(drv, dc, pm, pc, geom, *, fam: str, n_bursts: int, n_gen: int,
 
     drv.freeze_trace(True)
     for p in prog:
-        drv.program_wr_engine(**p)
+        drv.program_wr_engine(**dict(p, id_mode=id_mode_for("wr", dc)))
     drv.clear_stats(); drv.timer_clear()
     ps0 = snap()
     drv.freeze_trace(False)
@@ -186,7 +206,7 @@ def measure_dict(drv, dc, pm, pc, geom, *, fam: str, n_bursts: int, n_gen: int,
     rdelta = None
     if reads:
         for p in prog:
-            drv.program_rd_engine(**p)
+            drv.program_rd_engine(**dict(p, id_mode=id_mode_for("rd", dc)))
         drv.clear_stats(); drv.timer_clear()
         rs0 = snap()
         drv.freeze_trace(False)

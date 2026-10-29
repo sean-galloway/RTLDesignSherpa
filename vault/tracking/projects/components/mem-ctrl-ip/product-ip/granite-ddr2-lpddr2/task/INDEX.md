@@ -14,8 +14,8 @@ state by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 2 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [active/](active/) | 1 | in progress right now |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 2 | parked pending a named condition |
 
@@ -25,17 +25,20 @@ state by construction rather than by discipline.
 
 ## Active
 
-- **TASK-006** — store combining behind `STORE_MERGE_EN` (default 0): built,
-  tested, on the board the close_page pair walk doubles and matches pumice;
-  OPEN DEFECT: counter-id open_page pair walk at 1-2 threads corrupts
-  (write merge under an open row), reads-only merging clean. ACTIVE
-  2026-10-29. [active/TASK-006.md](active/TASK-006.md).
 - **TASK-003** — granite at 100 MHz and ahead of LiteDRAM through the same
   harness: 100 MHz closes (b8665155e, timer loads registered); DDR2-400 board
   point measured 2026-10-29 (streams 772/774 of 800, 1w+1r 761-773 combined,
   3x LiteDRAM at 75); thrash cells remain the gap. [active/TASK-003.md](active/TASK-003.md).
 
 ## Closed
+
+- **TASK-006** — store combining behind `STORE_MERGE_EN` (default 0): the
+  close_page pair walk doubles both ways and matches pumice, open_page pair
+  at 3-4 threads +14..25 percent. The board corruption was a WRITE reaching
+  the DFI head before its data (merged-B drain bubble, stale head record,
+  own-fill fdone) with the scheduler's timers running from the commit; fixed
+  in the store and the pick, held-WRITE asserted 0 in sim, 64/64 board cells
+  clean. CLOSED 2026-10-29. [closed/TASK-006.md](closed/TASK-006.md).
 
 - **TASK-001** — granite first build: wrappers dissolved, `granite_core`
   composed from common-ip, CSR baseline, Nexys A7 at 75 MHz. The split-burst

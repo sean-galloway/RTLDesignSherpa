@@ -270,6 +270,20 @@ async def cocotb_test_granite_perf(dut):
                 continue
         if st is None:
             return {"n/a": "no store handle"}
+        # The DFI command path's "WRITE sat at the head without its data"
+        # counters (simulation-only). A committed write whose data is not
+        # staged within the plane's fixed command delay breaks the
+        # scheduler's timing contract: its tWR / auto-precharge / ACT spacing
+        # is counted from the commit while the DRAM sees the WRITE later
+        # (granite TASK-006, 2026-10-29: the board lost 83% of a merged pair
+        # walk this way; the proxy's DRAM model anchors tWR at the commit and
+        # cannot see it). Any non-zero count is a bug.
+        try:
+            cmd = core.u_dfi_plane.u_cmd
+            res["wr_held_cnt"] = int(cmd.r_wr_held_cnt.value)
+            res["wr_held_max"] = int(cmd.r_wr_held_max.value)
+        except AttributeError as e:
+            res["wr_held"] = f"n/a ({e!r})"
 
         def rd(name):
             try:
@@ -421,6 +435,14 @@ async def cocotb_test_granite_perf(dut):
         if page_pol:
             drv.set_page_policy(int(page_pol, 0))
             out["page_policy"] = int(page_pol, 0)
+        # TEST_ADDR_SCHEME: the board configs program the address map
+        # (open_page = SCHEME_ROW_MAJOR, one bank per walk); without it the
+        # proxy runs the build default and never sees a same-bank column
+        # stream (granite TASK-006, 2026-10-29).
+        scheme = os.environ.get("TEST_ADDR_SCHEME", "")
+        if scheme:
+            drv.set_addr_map_scheme(int(scheme, 0))
+            out["addr_scheme"] = int(scheme, 0)
         # SCHED_POLICY.age_thresh: with the age-FIFO store (2026-10-25) a
         # non-zero value ENABLES the oldest-first request class (the magnitude
         # is not read); it needs TEST_HAS_AGE=1 or the field is inert.
@@ -447,9 +469,18 @@ async def cocotb_test_granite_perf(dut):
         if diag:
             out["diag"] = diag
             dut._log.info("perf proxy diag: %s", json.dumps(diag, indent=1, default=str))
+        # Contract check (granite TASK-006): a committed write's data must be
+        # staged by the time its WRITE reaches the DFI head. A held WRITE is
+        # a scheduler-timing lie the DRAM model cannot see (its tWR anchor is
+        # the controller's own); the board loses the write. Hard failure.
+        held = _store_probe()
+        out["wr_held"] = {k: v for k, v in held.items() if "held" in k}
         if dump_path:
             with open(dump_path, "w") as fh:
                 json.dump(out, fh, indent=2)
+        if isinstance(held.get("wr_held_cnt"), int):
+            assert held["wr_held_cnt"] == 0, \
+                f"{held['wr_held_cnt']} cycles with a WRITE held at the DFI head for its data (max run {held.get('wr_held_max')}): a write was committed before its data was complete"
         return out
 
     cmd_log = []
@@ -530,6 +561,7 @@ def test_granite_char_perf(request):
         "MISM_DUMP": os.environ.get("MISM_DUMP", ""),
         "DFI_CMD_TRACE": os.environ.get("DFI_CMD_TRACE", "0"),
         "TEST_PAGE_POLICY": os.environ.get("TEST_PAGE_POLICY", ""),
+        "TEST_ADDR_SCHEME": os.environ.get("TEST_ADDR_SCHEME", ""),
         "TEST_TREFI": os.environ.get("TEST_TREFI", "585"),
         "TEST_TXN": os.environ.get("TEST_TXN", "256"),
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),

@@ -139,6 +139,7 @@ module mc_store_arbiter_macro_tb_top
     // ------------------------------------------------------------------
     logic                     wr_commit_valid, wr_commit_ready;
     logic                     wr_commit_ready_now;
+    logic [NUM_ENTRIES-1:0] wr_fill_pending;
     logic [PTRW-1:0]          wr_commit_slot;
     logic                     rd_issue_valid, rd_issue_ready;
     logic [PTRW-1:0]          rd_issue_slot;
@@ -246,6 +247,7 @@ module mc_store_arbiter_macro_tb_top
             .busy_o             (),
             // combining (MERGE_EN, default 0): decision and counters unused here
             .ar_merge_o         (),
+            .wr_fill_pending_o  (wr_fill_pending),
             .ar_merge_ticket_o  (),
             .stat_wr_merge_o    (),
             .stat_rd_merge_o    ()
@@ -424,6 +426,7 @@ module mc_store_arbiter_macro_tb_top
             .rd_slot_row_i      (rd_sch_row),
             .rd_slot_col_i      (rd_sch_col),
             .wr_commit_ready_now_i  (wr_commit_ready_now),
+            .wr_fill_pending_i      (wr_fill_pending),
             .wr_commit_valid_o  (wr_commit_valid),
             .wr_commit_slot_o   (wr_commit_slot),
             .rd_issue_ready_i   (rd_issue_ready),

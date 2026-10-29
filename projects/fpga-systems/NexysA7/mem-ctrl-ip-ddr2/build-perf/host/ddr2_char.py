@@ -519,8 +519,16 @@ class DDR2CharDriver:
                       f"ck_per_mc stays at the 1:2 default")
         if "cl" not in align:
             align["cl"] = (int(self.BOARD_MR0) >> 4) & 0x7
-        return self.pumice.set_jedec_timings(
-            ddr2_timings_mc_cycles(mc_clk_hz, **align))
+        timings = dict(ddr2_timings_mc_cycles(mc_clk_hz, **align))
+        # JEDEC_OVERRIDE="tCCD=2,tWTR=5": pin individual derived fields (MC
+        # cycles) for a board experiment, e.g. to force a write cadence.
+        for kv in filter(None, os.environ.get("JEDEC_OVERRIDE", "").split(",")):
+            k, v = kv.split("=", 1)
+            if k.strip() not in timings:
+                raise ValueError(f"JEDEC_OVERRIDE: unknown timing {k.strip()!r}; have {sorted(timings)}")
+            timings[k.strip()] = int(v, 0)
+            print(f"[timings] JEDEC_OVERRIDE {k.strip()} = {int(v, 0)}")
+        return self.pumice.set_jedec_timings(timings)
 
     def set_sched_wr_wm(self, high_wm: int, low_wm: int) -> None:
         """Write-batching watermarks -- see Pumice.set_sched_wr_wm."""

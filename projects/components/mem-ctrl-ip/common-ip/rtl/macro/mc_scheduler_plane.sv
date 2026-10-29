@@ -222,6 +222,7 @@ module mc_scheduler_plane
     // the accept condition itself for the BANK_PICK core (registers only,
     // no commit_valid term)
     input  logic                                wr_commit_ready_now_i,
+    input  logic [NUM_ENTRIES-1:0]              wr_fill_pending_i,   // BANK_PICK: per-slot merged fill still pending (store combiner); tie 0 otherwise
     output logic                                wr_commit_valid_o,
     output logic [PTRW-1:0]                     wr_commit_slot_o,
 
@@ -750,6 +751,7 @@ module mc_scheduler_plane
             .rd_slot_row_i      (rd_sch_row_i),
             .rd_slot_col_i      (rd_sch_col_i),
             .wr_commit_ready_now_i  (wr_commit_ready_now_i),
+            .wr_fill_pending_i  (wr_fill_pending_i),
             .wr_commit_valid_o  (wr_commit_valid_o),
             .wr_commit_slot_o   (wr_commit_slot_o),
             .rd_issue_ready_i   (rd_issue_ready_i),
@@ -962,7 +964,7 @@ module mc_scheduler_plane
     );
         wire _unused_arb = &{1'b0, wr_head_i, wr_head2_i, rd_head_i, rd_head2_i,
                              r_rd_ret_busy_sync1, sched_wr_batch_max_i,
-                             wr_commit_ready_now_i};
+                             wr_commit_ready_now_i, wr_fill_pending_i};
     end endgenerate
 
     assign maint_grant_o = w_maint_grant;
