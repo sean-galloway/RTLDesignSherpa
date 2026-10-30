@@ -55,7 +55,14 @@ read_xdc "$self/constraints/litedram_char.xdc"
 # endpoint). Read it AFTER ours so it only adds the false paths.
 read_xdc "$self/gen/board/gateware/litedram_core.xdc"
 
-synth_design -top litedram_char_top -part $part -include_dirs $incdirs
+# LITEDRAM_SYS_100=1 in the environment: the 100 MHz regen (regen.sh with
+# LITEDRAM_SYS_CLK=100e6); the top's UART divisor follows the define.
+set defines {}
+if {[info exists ::env(LITEDRAM_SYS_100)] && $::env(LITEDRAM_SYS_100) ne ""} {
+    lappend defines LITEDRAM_SYS_100=1
+    puts "verilog_define: LITEDRAM_SYS_100=1"
+}
+synth_design -top litedram_char_top -part $part -include_dirs $incdirs -verilog_define $defines
 opt_design
 place_design
 route_design

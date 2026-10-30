@@ -4,10 +4,10 @@ Same board (Nexys A7-100T, MT47H64M16HR x16), same harness, same host
 program, same transaction scale (`--txn-scale 4000`, clamped to the engine's
 65,535 per scenario), the same day. granite is the STORE_MERGE_EN default
 (commit b8b08375c), LiteDRAM is the 2026-10-27 75 MHz build. Both at
-75 MHz sys / DDR2-300: **peak 600 MB/s** each direction. The three stream
-families the board host cannot drive (mixed / row_thrash / random, the
-window families) are compared through the two proxies, four injectors, in
-the last section. CSVs: `char_granite_sweep75_<profile>_2026-10-29.csv`
+75 MHz sys / DDR2-300: **peak 600 MB/s** each direction. The window
+families (mixed / row_thrash / random) ran on the board too, through the
+`windows` profile added the same evening; their proxy numbers are kept
+in the last section for the cross-check. CSVs: `char_granite_sweep75_<profile>_2026-10-29.csv`
 and `char_litedram_sweep75_<profile>_2026-10-29.csv` beside this file.
 
 Columns are MB/s write / read; "granite best" is the best of its configs,
@@ -18,6 +18,52 @@ the same bank-cycle-bound walk (193/193 everywhere, 137-cycle read latency):
 a property of that map, not a measurement failure. `half_burst8` runs on the
 build's four injectors (threads clamped 8 -> 4, as the records say).
 
+
+## Pattern legend (what each name means)
+
+**Families** are what one injector walks. The DRAM is x16, a burst is BL8 =
+16 bytes, a page (row) is 2 KB, eight banks.
+
+| name | what the injector does | what it measures |
+|---|---|---|
+| `incremental` | linear march, one burst after the next, across columns, then banks, then rows | the best-case stream |
+| `row_major` | the same march wrapped inside ONE page | every burst a page hit: pure column throughput |
+| `col_major` | stride = one row, same bank | every burst a page miss: PRE + ACT each time, the tRC / tRP floor |
+| `col_major_interleaved` | stride = one bank | every burst a new bank, activates pipeline: bank parallelism |
+| `random` | an LFSR walk inside a region (two rows x all banks per thread) | mixed hits and misses, no order |
+| `row_thrash` | one bank, two rows, a burst to each in turn | the row-buffer conflict a scheduling window can reorder |
+| `mixed` | bank-paired threads one row apart, reads and writes at once | read/write turnaround under row conflicts |
+| `half_pair` | **aggregation**: every DRAM burst issued as TWO half-width host transactions, low half then high half, back to back: l0 h0 l1 h1 ... | whether the controller merges a pair into one burst (a combiner does; without one each half costs a full burst) |
+| `half_oct` | the same halves, but all eight low halves then the eight high halves: l0..l7 h0..h7 | the merge window has to hold eight transactions |
+| `half_pair_sweep`, `half_oct_sweep` | as above, with the idle gap after each transaction looping 0,1,..7 clocks inside the run | the merge window against arrival spacing, averaged |
+
+**Scenario suffixes**: `_bl4` / `_bl8` / `_bl16` = host transaction length in
+beats (AxLEN+1), i.e. DRAM bursts per transaction; `_multiid` = AXI IDs from
+an LFSR (out-of-order allowed) instead of a counter; `_gap` = 8 idle clocks
+between transactions; `_thrN` = N injectors at once, each in its own
+region (the board builds have four, so 5..8 run as four and say so);
+`_gapN` = a FIXED N idle clocks between transactions (the `half_gap`
+profile: 512 pairs per cell).
+
+**Presets** (the controller's config for a run): `open_page` = row-major
+address map (column, bank, row from the low bits up), pages left open;
+`close_page` = the same map, every access auto-closes its page;
+`bank_interleave` = bank bits below the column, so consecutive bursts hop
+banks (close-page policy); `defaults` = the controller's reset state.
+LiteDRAM has one config (row/bank/col, open page with auto-precharge).
+
+**Profiles** (which cells a run covers): `every` = the four stream families
+x bl 4/8/16 + the multiid and gap variants x three presets; `windows` =
+mixed, row_thrash and random on four injectors at bl8 under open and close
+page; `half_threads`
+= pair and oct at 1..8 threads; `half_burst` = pair, oct and their sweeps
+on one thread; `half_burst8` = the same on eight; `half_gap` = the pair walk
+at fixed gaps 0..7; `concurrent` = one writer and one reader at once per
+family; `multigen` = one writer and two readers.
+
+**Numbers**: write / read MB/s = bytes moved over the pass's cycles at the
+harness clock; peak is 600 MB/s at 75 MHz (DDR2-300 x16) and 800 at 100
+(DDR2-400). "merges 512/1024 (ratio 0.5)" means every pair merged.
 
 ## every  (54 granite cells, 18 LiteDRAM cells)
 
@@ -134,15 +180,32 @@ granite ahead on 3 of 4 scenarios (best-config vs LiteDRAM, max of wr/rd)
 granite ahead on 3 of 4 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
 
+## windows (the window families on the BOARD), four injectors, bl8, 75 MHz, peak 600 MB/s
+
+`char_{granite,litedram}_sweep75_windows_2026-10-29.csv`. mixed is four
+writers and four readers from one GO (bank-paired, one row group apart);
+the per-direction figure is each direction over its own window, the union
+figure both over the whole run.
+
+| family | granite open_page | granite close_page | LiteDRAM | granite best / LiteDRAM |
+|---|---|---|---|---|
+| mixed (per direction; union) | 147/147; union 295 | 35/42; union 70 | 119/119; union 238 | 1.24x |
+| row_thrash | 512/514 | 131/158 | 271/279 | 1.85x |
+| random | 468/481 | 112/135 | 286/298 | 1.61x |
+
+mismatched 0 on all nine cells. The proxies below land within 1 percent of
+the board on LiteDRAM and within 10 percent on granite (its proxy has the
+sim DRAM model's timing, not the PHY's).
+
 ## window families, proxies (sim), four injectors, 75 MHz, 1:2, peak 600 MB/s
 
 `mixed` (bank-paired threads one row apart, reads and writes concurrent),
 `row_thrash` (one thread alternating two rows of one bank per burst) and
-`random` (an LFSR walk inside a region) exist only in the perf proxies
+`random` (an LFSR walk inside a region) through the perf proxies
 (`test_granite_char_perf.py`, `test_litedram_char_perf.py`,
-`TEST_NUM_GEN=4 TEST_FAMILIES=mixed,row_thrash,random`); the board host has
-no program builder for them. Same families, same injector count, same DRAM
-model, write / read MB/s:
+`TEST_NUM_GEN=4 TEST_FAMILIES=mixed,row_thrash,random`), the same program
+builder the board profile uses. Same families, same injector count, same
+DRAM model, write / read MB/s:
 
 | family | granite (proxy) | LiteDRAM (proxy) | granite / LiteDRAM |
 |---|---|---|---|
@@ -256,3 +319,13 @@ is regenerated at sys_clk 100e6 and rebuilt (its yml is 75e6). CSVs:
 | col_major_bl8 | 107/213 | 213 / 164 = 1.30x | 213 / 187 = 1.14x |
 | col_major_interleaved_bl8 | 128/256 | 256 / 180 = 1.42x | 256 / 164 = 1.56x |
 
+
+### windows (granite 100 MHz, merge off), four injectors, bl8, peak 800 MB/s
+
+| family | granite 100 open_page | granite 100 close_page | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 |
+|---|---|---|---|---|
+| mixed (per direction; union) | 198/199; union 395 | 46/54; union 92 | 1.35x | 1.67x |
+| row_thrash | 688/688 | 175/211 | 1.34x | 2.47x |
+| random | 627/644 | 149/183 | 1.34x | 2.16x |
+
+mismatched 0 on all six (`char_granite_sweep100_windows_2026-10-29.csv`).

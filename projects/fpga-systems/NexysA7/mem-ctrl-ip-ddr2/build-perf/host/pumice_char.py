@@ -42,12 +42,13 @@ field sits just above the column and a full page is contiguous:
                         parallelism.
 
   mixed / row_thrash / random
-                        the WINDOW families (not in the sweeps above): bank-
+                        the WINDOW families (profile `windows`, board and proxy
+                        alike since 2026-10-29 via measure_window): bank-
                         paired threads one row apart with reads and writes
                         concurrent; one thread alternating two rows of one
                         bank per burst (the textbook row-buffer conflict a
                         window re-orders and an oldest-first picker cannot);
-                        an LFSR walk inside a region. Perf proxies only.
+                        an LFSR walk inside a region.
 
 The two headline "perf issue" signals the summary flags:
   * incremental_BW / col_major_BW           -> the page-management penalty
@@ -82,6 +83,7 @@ from ddr2_char import DDR2CharDriver
 # this module lazily (in main), so there is no import cycle.
 from pumice_master import ensure_leveled, wait_engine
 import half_burst_family as hbf
+import perf_mixed_family as pmf          # the window families' program builders (mixed / row_thrash / random)
 
 # Shared bench leveling cache (bitslip/tap eye), refreshed by any re-level.
 DEFAULT_LEVEL_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1471,6 +1473,134 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         notes=tuple(notes))
 
 
+def measure_window(drv: DDR2CharDriver, sc: Scenario, *,
+                   cfg: ControllerConfig = CLOSE_PAGE, geom: Geometry = DEFAULT_GEOM,
+                   base_addr: int = 0x0, clk_mhz: "Optional[float]" = None,
+                   timeout_s: float = 20.0) -> CharRecord:
+    """The window families on the BOARD: `row_thrash` and `random` as a write
+    pass then a read pass on `threads` injectors at once (each injector its
+    own bank / region, the proxy's placement), `mixed` as the proxy's one-GO
+    concurrent pass (bank-paired writers and readers one row group apart).
+    The injectors have had the two-dimensional walk and the LFSR index since
+    pumice TASK-049; what was missing until 2026-10-29 was this program
+    builder on the host side, so the three families only ever ran in the
+    proxies. Programs come from perf_mixed_family, the same module the
+    proxies use, so a board cell and a proxy cell are the same stimulus."""
+    clk_mhz = resolve_clk_mhz(drv, clk_mhz)
+    try:
+        drv.sync_gen_config()
+    except Exception:                                      # noqa: BLE001  (sim model without GEN_CONFIG)
+        pass
+    n_gen = max(1, min(int(sc.threads), drv.num_gen))
+    notes: List[str] = []
+    if int(sc.threads) > drv.num_gen:
+        notes.append(f"threads clamped {int(sc.threads)} -> {n_gen} "
+                     f"(build has {drv.num_gen} injectors per direction)")
+    blen, txn, gap = sc.burst_len, sc.txn_count, sc.gap
+    beat_bytes = 1 << sc.axi_size
+    cfg.apply(drv)
+
+    if sc.family == FAM_MIXED:
+        if n_gen < pmf.MIN_GENS:
+            notes.append(f"mixed needs {pmf.MIN_GENS} injectors, build has {n_gen}: not run")
+            return CharRecord(scenario=sc, config=cfg.name, ok=False, mismatched=0,
+                              wr_cycles=0, wr_meter=Meter(0, 0, 0, 0), rd_cycles=0, rd_meter=Meter(0, 0, 0, 0),
+                              rd_hist=(0,) * 16, rd_hist_total=0, bytes_moved=0, clk_mhz=clk_mhz,
+                              notes=tuple(notes))
+        diag: Dict[str, object] = {}
+        r = pmf.measure(drv, dc, _pm_shim, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
+                        clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0, diag=diag, host_diag=None,
+                        timeout_s=max(timeout_s, 60.0))
+        notes.append(f"mixed: {n_gen} writers + {n_gen} readers from one GO, union "
+                     f"{r['mixed_bw_mb_s']} MB/s over {r['mixed_cycles']} cycles; layout {r['layout']}")
+        if not r["prepass_ok"]:
+            notes.append("read-region pre-pass did not complete")
+        if not r["wr_ok"]:
+            notes.append("write engines did not complete")
+        if not r["rd_ok"]:
+            notes.append("read engines did not complete")
+        if r["mismatched"]:
+            notes.append(f"{r['mismatched']} beats mismatched")
+        per_dir = r["bytes_moved"] // 2
+        return CharRecord(scenario=sc, config=cfg.name,
+                          ok=bool(r["wr_ok"] and r["rd_ok"] and r["mismatched"] == 0),
+                          mismatched=int(r["mismatched"]),
+                          wr_cycles=int(r["wr_cycles"]), wr_meter=_read_meter(drv, "wr"),
+                          rd_cycles=int(r["rd_cycles"]), rd_meter=_read_meter(drv, "rd"),
+                          rd_hist=(0,) * 16, rd_hist_total=0,
+                          bytes_moved=per_dir, clk_mhz=clk_mhz,
+                          n_wr_gen=n_gen, n_rd_gen=n_gen, notes=tuple(notes))
+
+    progs = pmf.family_programs(sc.family, n_gen, geom, dc, blen=blen, txn=txn, gap=gap)
+    assert progs is not None, f"{sc.family} is not a window family"
+    for p in progs:
+        p["max_outstanding"] = sc.max_outstanding
+        p["axi_size"] = sc.axi_size
+    bytes_moved = txn * blen * beat_bytes * n_gen
+    mask = (1 << n_gen) - 1
+
+    drv.freeze_trace(True)
+    for p in progs:
+        drv.program_wr_engine(**p)
+    drv.clear_stats()
+    _ps_wr0 = _try_page_stats(drv)
+    drv.timer_clear()
+    drv.freeze_trace(False)
+    drv.start_wr(mask)
+    wr_ok = wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    drv.freeze_trace(True)
+    _tw = drv.timer()
+    wr_cycles = max(int(_tw.w_last) - int(_tw.w_first), 0)
+    wr_meter = _read_meter(drv, "wr")
+    wr_stats = _delta_page_stats(_ps_wr0, _try_page_stats(drv))
+
+    for p in progs:
+        drv.program_rd_engine(**p)
+    drv.clear_stats()
+    _ps_rd0 = _try_page_stats(drv)
+    _st_rd0 = _try_stalls(drv)
+    drv.timer_clear()
+    drv.freeze_trace(False)
+    drv.start_rd(mask)
+    rd_ok = wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
+    drv.freeze_trace(True)
+    _tr = drv.timer()
+    rd_cycles = max(int(_tr.r_last) - int(_tr.r_first), 0)
+    rd_meter = _read_meter(drv, "rd")
+    rd_stats = _delta_page_stats(_ps_rd0, _try_page_stats(drv))
+    rd_stalls = _delta_stalls(_st_rd0, _try_stalls(drv))
+    rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    drv.freeze_trace(False)
+
+    mism = drv.beats_mismatched()
+    ok = wr_ok and rd_ok and mism == 0
+    if not wr_ok:
+        notes.append("write engines did not complete")
+    if not rd_ok:
+        notes.append("read engines did not complete")
+    if mism:
+        notes.append(f"{mism} beats mismatched")
+    notes.append(f"{sc.family}: {n_gen} injector(s), " +
+                 ("one bank, two rows alternating per burst" if sc.family == FAM_ROW_THRASH
+                  else f"LFSR walk in a {pmf.RANDOM_ROWS}-row region per injector"))
+    return CharRecord(scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
+                      wr_cycles=wr_cycles, wr_meter=wr_meter,
+                      rd_cycles=rd_cycles, rd_meter=rd_meter,
+                      rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+                      rd_hist_gap=txn * n_gen - rd_total,
+                      bytes_moved=bytes_moved, clk_mhz=clk_mhz,
+                      wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
+                      n_wr_gen=n_gen, n_rd_gen=n_gen, notes=tuple(notes))
+
+
+class _PmShim:
+    """perf_mixed_family.measure takes the pumice_master module for wait_engine."""
+    wait_engine = staticmethod(wait_engine)
+
+
+_pm_shim = _PmShim()
+
+
 def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
                        cfg: ControllerConfig = CLOSE_PAGE, geom: Geometry = DEFAULT_GEOM,
                        base_addr: int = 0x0, clk_mhz: "Optional[float]" = None,
@@ -2181,6 +2311,10 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                 recs.append(measure_half_burst(drv, sc, cfg=cfg, geom=geom,
                                                base_addr=base_addr, clk_mhz=clk_mhz,
                                                timeout_s=timeout_s))
+            elif sc.family in WINDOW_FAMILIES:
+                recs.append(measure_window(drv, sc, cfg=cfg, geom=geom,
+                                           base_addr=base_addr, clk_mhz=clk_mhz,
+                                           timeout_s=timeout_s))
             elif concurrent:
                 n_wr, n_rd = concurrent
                 scen = (hotcold_scenarios(sc, n_wr + n_rd, n_hot=n_hot,
@@ -2516,6 +2650,14 @@ RUN_PROFILES: Dict[str, dict] = {
     # they are compared in sim through test_{granite,litedram}_char_perf.
     "every": dict(configs=["open_page", "close_page", "bank_interleave"], level="full",
                   families=None),
+    # The window families on the board (2026-10-29): mixed (bank-paired
+    # writers and readers one row group apart, one GO), row_thrash (one
+    # bank, two rows, a burst to each in turn) and random (an LFSR walk in a
+    # two-row region per injector), four injectors as the proxies run them,
+    # bl8, under open and close page. Same stimulus as the proxies'
+    # TEST_FAMILIES=mixed,row_thrash,random (perf_mixed_family builds both).
+    "windows": dict(configs=["open_page", "close_page"], level="basic",
+                    families=WINDOW_FAMILIES, sc_over=dict(threads=4)),
 }
 
 

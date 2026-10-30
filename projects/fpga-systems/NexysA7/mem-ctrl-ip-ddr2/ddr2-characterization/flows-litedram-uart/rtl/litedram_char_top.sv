@@ -145,7 +145,11 @@ module litedram_char_top (
         // PUMICE_SYS_75 operating point). This sets the UART baud divisor; the
         // earlier 100_000_000 here predated the 75 MHz regen and would have
         // left the console at the wrong baud.
+`ifdef LITEDRAM_SYS_100
+        .FPGA_CLK_HZ        (100_000_000),  // regen with LITEDRAM_SYS_CLK=100e6 (DDR2-400)
+`else
         .FPGA_CLK_HZ        (75_000_000),
+`endif
         .UART_BAUD          (115_200),
         // x16 BL4 / host-64: one AXI beat per DRAM burst -> quantum 1.
         .BURST_LEN_MULTIPLE (1),
