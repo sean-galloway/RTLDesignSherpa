@@ -12,15 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-004** — pend_eff repeat-snoop resolution drops a store (armed DOWNGRADE_S then READ_ONCE on an in-flight write-miss fill commits I; amber l1_control + jet_control share the defect; found by the jet FULL grid 2026-10-29).
+(none)
 
 ## Active
 
@@ -45,3 +45,12 @@ by construction rather than by discipline.
   freeze while the tally's registered readback leaked mid-RMW counts of the
   UNEXPECTED bin. Fixed test-side 2026-10-27; the wrapper wart filed as
   misc BUG-003.
+- **BUG-004** — pend_eff repeat-snoop resolution dropped a store: an armed
+  DOWNGRADE_S then READ_ONCE on an in-flight write-miss fill resolved the
+  repeat snoop against the original post-fill M, armed INVALIDATE_I, and
+  the commit installed I over the merged store. Real RTL bug in common-ip
+  l1_control, inherited by jet_control (found by the jet FULL grid,
+  2026-10-29). Fixed in 31db0cc9a (effect chains against the armed state;
+  CRRESP stays at the post-fill row); pinned by PendArmedDowngradeRO
+  (directed, RED pre-fix), the oracle row IM+SNOOP_READ_ONCE+in_pending=S,
+  and the formal ap_pend_chain property. Closed 2026-10-29.
