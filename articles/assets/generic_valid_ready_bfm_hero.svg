@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Generic valid-ready BFM collateral in Cocotb</title>
+  <desc id="desc">Flat data, packed fields, and separate packet signals enter one field-driven BFM. A readable packet with named values leaves on the right.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050D18"/>
+      <stop offset="0.55" stop-color="#0A1B2D"/>
+      <stop offset="1" stop-color="#102A3B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#29D3E2" stop-opacity="0.20"/>
+      <stop offset="0.6" stop-color="#29D3E2" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#29D3E2" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173B52"/>
+      <stop offset="1" stop-color="#0B1E31"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#91C7D8" stroke-opacity="0.045"/>
+      <circle cx="0" cy="0" r="1.4" fill="#91C7D8" fill-opacity="0.08"/>
+    </pattern>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000712" flood-opacity="0.55"/>
+    </filter>
+    <filter id="lineGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#42E8F5"/>
+    </marker>
+    <marker id="arrowGold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#FFCB6B"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+  <ellipse cx="790" cy="490" rx="600" ry="390" fill="url(#glow)"/>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif">
+    <text x="92" y="102" fill="#74A9BA" font-size="15" font-weight="600" letter-spacing="5">COCOTB VERIFICATION</text>
+    <text x="88" y="177" fill="#F2FAFC" font-size="66" font-weight="700" letter-spacing="2">VALID / READY</text>
+    <text x="94" y="220" fill="#B6D2DC" font-size="24" letter-spacing="0.5">One packet description. Every FUB interface.</text>
+    <path d="M96 248H330" stroke="#FFCB6B" stroke-width="3"/>
+    <path d="M342 248H394" stroke="#42E8F5" stroke-width="3"/>
+  </g>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif" filter="url(#shadow)">
+    <g>
+      <text x="112" y="350" fill="#74A9BA" font-size="13" font-weight="600" letter-spacing="3">FLAT DATA</text>
+      <rect x="104" y="370" width="320" height="92" rx="13" fill="#102B40" stroke="#38647A" stroke-width="2"/>
+      <path d="M138 416H388" stroke="#42E8F5" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
+      <rect x="230" y="407" width="52" height="17" rx="8" fill="#B6F6FC"/>
+    </g>
+    <g>
+      <text x="112" y="510" fill="#74A9BA" font-size="13" font-weight="600" letter-spacing="3">PACKED STRUCT</text>
+      <rect x="104" y="530" width="320" height="92" rx="13" fill="#102B40" stroke="#38647A" stroke-width="2"/>
+      <rect x="136" y="558" width="78" height="35" rx="5" fill="#FFCB6B" opacity="0.85"/>
+      <rect x="220" y="558" width="60" height="35" rx="5" fill="#42E8F5" opacity="0.75"/>
+      <rect x="286" y="558" width="102" height="35" rx="5" fill="#6B91A5" opacity="0.75"/>
+      <text x="175" y="581" text-anchor="middle" fill="#15202B" font-size="13" font-weight="700">OP</text>
+      <text x="250" y="581" text-anchor="middle" fill="#102735" font-size="12" font-weight="700">BANK</text>
+      <text x="337" y="581" text-anchor="middle" fill="#E7F7FA" font-size="12" font-weight="700">ROW</text>
+    </g>
+    <g>
+      <text x="112" y="670" fill="#74A9BA" font-size="13" font-weight="600" letter-spacing="3">PACKET SIGNALS</text>
+      <rect x="104" y="690" width="320" height="92" rx="13" fill="#102B40" stroke="#38647A" stroke-width="2"/>
+      <path d="M140 720H382M140 739H340M140 758H365" stroke="#8EB4C2" stroke-width="5" stroke-linecap="round" opacity="0.65"/>
+      <circle cx="386" cy="720" r="6" fill="#FFCB6B"/>
+      <circle cx="344" cy="739" r="6" fill="#42E8F5"/>
+      <circle cx="369" cy="758" r="6" fill="#42E8F5"/>
+    </g>
+  </g>
+
+  <g fill="none" stroke-linecap="round">
+    <path d="M440 416C520 416 548 446 622 460" stroke="#42E8F5" stroke-width="3" stroke-opacity="0.65" marker-end="url(#arrowCyan)"/>
+    <path d="M440 576C522 576 548 548 622 526" stroke="#FFCB6B" stroke-width="3" stroke-opacity="0.70" marker-end="url(#arrowGold)"/>
+    <path d="M440 736C534 736 552 602 630 558" stroke="#42E8F5" stroke-width="3" stroke-opacity="0.55" marker-end="url(#arrowCyan)"/>
+  </g>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif" filter="url(#shadow)">
+    <g stroke="#3B8297" stroke-width="4" stroke-linecap="round">
+      <path d="M620 420H650M620 462H650M620 504H650M620 546H650M620 588H650"/>
+      <path d="M930 420H960M930 462H960M930 504H960M930 546H960M930 588H960"/>
+    </g>
+    <rect x="650" y="372" width="280" height="254" rx="24" fill="url(#chip)" stroke="#67D9E7" stroke-width="2.5"/>
+    <rect x="666" y="388" width="248" height="222" rx="16" fill="none" stroke="#6EA4B7" stroke-opacity="0.25"/>
+    <circle cx="790" cy="414" r="4" fill="#FFCB6B" filter="url(#lineGlow)"/>
+    <text x="790" y="474" text-anchor="middle" fill="#F3FCFE" font-size="27" font-weight="700" letter-spacing="1.2">GENERIC BFM</text>
+    <text x="790" y="510" text-anchor="middle" fill="#9CC6D3" font-size="14" font-weight="600" letter-spacing="2.2">FIELD-DRIVEN</text>
+    <text x="790" y="543" text-anchor="middle" fill="#9CC6D3" font-size="14" font-weight="600" letter-spacing="2.2">COCOTB</text>
+    <path d="M716 575H864" stroke="#42E8F5" stroke-width="3" marker-end="url(#arrowCyan)"/>
+    <path d="M864 598H716" stroke="#FFCB6B" stroke-width="3" marker-end="url(#arrowGold)"/>
+    <text x="700" y="568" fill="#B6D2DC" font-size="11" letter-spacing="1.4">VALID</text>
+    <text x="833" y="592" fill="#B6D2DC" font-size="11" letter-spacing="1.4">READY</text>
+  </g>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif" filter="url(#shadow)">
+    <text x="1080" y="350" fill="#74A9BA" font-size="13" font-weight="600" letter-spacing="3">READABLE PACKET</text>
+    <rect x="1068" y="374" width="424" height="250" rx="16" fill="#102B40" stroke="#4B7B90" stroke-width="2"/>
+    <rect x="1068" y="374" width="10" height="250" rx="5" fill="#42E8F5"/>
+    <text x="1110" y="424" fill="#F2FAFC" font-size="24" font-weight="700">GAXIPacket</text>
+    <text x="1110" y="478" fill="#FFCB6B" font-size="22" font-family="JetBrains Mono, monospace">op   = ACT</text>
+    <text x="1110" y="522" fill="#B6D2DC" font-size="22" font-family="JetBrains Mono, monospace">bank = 2</text>
+    <text x="1110" y="566" fill="#42E8F5" font-size="22" font-family="JetBrains Mono, monospace">row  = 0x1234</text>
+  </g>
+
+  <path d="M962 500C1008 500 1024 500 1050 500" fill="none" stroke="#42E8F5" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowCyan)" filter="url(#lineGlow)"/>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif">
+    <text x="96" y="842" fill="#6F9AAA" font-size="13" font-weight="600" letter-spacing="3">FIELDCONFIG  /  PACKET  /  SIGNALRESOLVER</text>
+    <text x="1504" y="842" text-anchor="end" fill="#6F9AAA" font-size="13" letter-spacing="2">RTL DESIGN SHERPA</text>
+  </g>
+</svg>

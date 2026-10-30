@@ -1,0 +1,24 @@
+// render: no-key
+digraph payload_shapes {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         label=<<B>One packet description, three RTL payload shapes</B>>,
+         labelloc=t, labeljust=c, nodesep="0.70", ranksep="0.85", splines=ortho];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+         fillcolor="white", color="#333333", margin="0.18,0.10"];
+  edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+  packet [label="Transaction\nop=ACT, bank=2, row=0x1234", shape=box,
+          style="rounded,filled", fillcolor="#E2EFDA", penwidth=1.6];
+  flat [label="Plain data\nvalid + ready + one data signal"];
+  packed [label="Packed struct or vector\nmulti_sig=False"];
+  multi [label="Separate packet signals\nmulti_sig=True"];
+  rtl [label="RTL interface: one payload representation per BFM instance\n(valid and ready use the same handshake in every case)",
+       shape=box, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=7.4];
+
+  packet -> flat [xlabel="one value"];
+  packet -> packed [xlabel="named fields"];
+  packet -> multi [xlabel="named fields"];
+  flat -> rtl [xlabel="data"];
+  packed -> rtl [xlabel="pkt = {row, bank, op}"];
+  multi -> rtl [xlabel="op / bank / row"];
+}

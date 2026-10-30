@@ -1,0 +1,30 @@
+// render: no-key
+digraph bfm_architecture {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         label=<<B>One field description drives the entire BFM</B>>,
+         labelloc=t, labeljust=c, nodesep="0.85", ranksep="0.75", splines=ortho];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+         fillcolor="white", color="#333333", margin="0.18,0.10"];
+  edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+  description [label="Dictionary or FieldConfig\nnames, widths, order, formats", shape=box,
+               style="rounded,filled", fillcolor="#E2EFDA", penwidth=1.6];
+  factory [label="GAXI BFM factory\nmaster or slave"];
+  readable [label="Human-readable output\nrow=0x1234, bank=2, op=ACT", shape=note];
+  resolver [label="SignalResolver\nautomatic discovery + overrides"];
+  packet [label="Packet\nnamed values, compare, pack, format", shape=note];
+  driver [label="Data driving strategy\npack one vector or drive each field"];
+  collector [label="Data collection strategy\nread one vector or each field"];
+  dut [label="DUT valid/ready boundary\nvalid + ready + payload", shape=box,
+       style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=6.6];
+
+  description -> factory [xlabel="interface schema"];
+  factory -> resolver [xlabel="protocol and naming"];
+  factory -> packet [xlabel="field metadata"];
+  resolver -> driver [xlabel="resolved signals"];
+  packet -> driver [xlabel="named\nvalues"];
+  driver -> dut [penwidth=1.8, xlabel="valid + ready + payload"];
+  collector -> dut [dir=back, color="#1A7A1A", xlabel="received handshake"];
+  packet -> collector [dir=back, color="#1A7A1A", xlabel="decoded fields"];
+  readable -> packet [dir=back, color="#1A7A1A", xlabel="formatted packet"];
+}
