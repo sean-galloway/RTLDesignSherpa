@@ -12,7 +12,8 @@ sequence tag in tag order, then the MSHR retire.  The harness
 l1_data_array / l1_repl / jet_mshr / jet_wb_buffer / jet_rsp_seq; this TB
 models the partner handshakes timing-only (fill engine incl. PassDirty,
 drain engine) and drives the snoop side through the l1_snoop_resp
-core-facing contract (sn_req only when sn_safe; the grant-cycle CRRESP
+core-facing contract (sn_want held from the AC until the grant, sn_req
+presented only when sn_safe; the grant-cycle CRRESP
 sampled combinationally; CD beats on cdvalid/cdready -- the transport is
 amber's, unit-verified in amber-mesi-l1).
 
@@ -174,6 +175,11 @@ class JetControlTB(TBBase):
         # CD backpressure knob (the FUNC pass turns it on): drop cdready
         # for one cycle mid-stream of every data-carrying snoop
         self.sn_cd_gap = False
+        # snoop_starvation_bound streams misses while commits deposit: a
+        # merge/alloc accept may legitimately coincide with a commit's
+        # deposit (the commit owns the port; hit deposits are unaffected --
+        # hit accepts are held in deposit cycles)
+        self.deposit_overlap_ok = False
 
         # golden models
         self.tags = {}
@@ -312,6 +318,7 @@ class JetControlTB(TBBase):
         d.fillbeat_wr_be.value = 0
         d.drain_done_i.value = 0
         d.sn_req_i.value = 0
+        d.sn_want_i.value = 0
         d.sn_addr_i.value = 0
         d.sn_type_i.value = 0
         d.sn_cdready_i.value = 0
@@ -800,7 +807,8 @@ class JetControlTB(TBBase):
 
     # ------------------------------------------------------------------
     # snoop driver: the l1_snoop_resp core-facing contract (the AC accept
-    # cycle IS the grant -- present sn_req only when sn_safe; CRRESP is
+    # cycle IS the grant -- sn_want held from the AC until the grant, sn_req
+    # presented only when sn_safe; CRRESP is
     # combinational at the grant; CD beats handshake on cdvalid/cdready).
     # ------------------------------------------------------------------
     async def _snoop(self, line, stype, label, ref, deliver, exp_cd=None,
@@ -833,6 +841,9 @@ class JetControlTB(TBBase):
         bresp = 0
         granted = False
         present_next = False
+        # the transport raises want with the AC and holds it until the
+        # grant (the ACVALID rule); req is presented only in a safe cycle
+        d.sn_want_i.value = 1
         for _ in range(max_wait * 4):
             await self._drive_pt()
             if sync_drain_cd and not present_next:
@@ -869,6 +880,7 @@ class JetControlTB(TBBase):
             for _ in range(max_wait * 4):
                 await self._drive_pt()
                 d.sn_req_i.value = 0
+                d.sn_want_i.value = 0
                 ready = 1
                 if self.sn_cd_gap and len(beats) == 1 and not gap_done:
                     ready = 0
@@ -890,6 +902,7 @@ class JetControlTB(TBBase):
             for _ in range(3):
                 await self._drive_pt()
                 d.sn_req_i.value = 0
+                d.sn_want_i.value = 0
                 await self._settle()
                 self._score(f"{label} no CD beat for a non-DT answer",
                             int(d.sn_cdvalid_o.value), 0)
@@ -1098,8 +1111,9 @@ class JetControlTB(TBBase):
                         len(cands) == 1, True)
             self._score(f"{label} merge: no alloc",
                         int(d.mshr_alloc_gnt_o.value), 0)
-            self._score(f"{label} merge: no deposit",
-                        int(d.cpl_valid_o.value), 0)
+            if not self.deposit_overlap_ok:
+                self._score(f"{label} merge: no deposit",
+                            int(d.cpl_valid_o.value), 0)
             if cands:
                 cands[0]['requesters'].append(
                     {'tag': tag, 'we': we, 'beat': beat, 'be': be,
@@ -1107,8 +1121,9 @@ class JetControlTB(TBBase):
         elif cls['alloc']:
             self._score(f"{label} alloc gnt",
                         int(d.mshr_alloc_gnt_o.value), 1)
-            self._score(f"{label} alloc: no deposit",
-                        int(d.cpl_valid_o.value), 0)
+            if not self.deposit_overlap_ok:
+                self._score(f"{label} alloc: no deposit",
+                            int(d.cpl_valid_o.value), 0)
             way = rec['victim_way']
             vline = self.tags.get((set_idx, way))
             vdirty = (vline is not None
@@ -2078,6 +2093,7 @@ class JetControlTB(TBBase):
         d.lkup_be_i.value = 0xFF
         d.lkup_wdata_i.value = 0
         self._score("prio: safe for the snoop", int(d.sn_safe_o.value), 1)
+        d.sn_want_i.value = 1
         d.sn_req_i.value = 1
         d.sn_addr_i.value = (line_c & self.LINE_MASK) << self.OFFSET_BITS
         d.sn_type_i.value = SN_READ_SHARED
@@ -2094,6 +2110,7 @@ class JetControlTB(TBBase):
         for _ in range(64):
             await self._drive_pt()
             d.sn_req_i.value = 0
+            d.sn_want_i.value = 0
             d.sn_cdready_i.value = 1
             await self._settle()
             self._score("prio: CPU held during the service",
@@ -2290,6 +2307,119 @@ class JetControlTB(TBBase):
         await self._reset_pipeline()
 
 
+    async def _scen_snoop_starvation_bound(self):
+        """snoop_starvation_bound (J6 fairness -- the formal Task-11 L3
+        counterexample made reproducible in sim): under sustained max-rate
+        CPU miss traffic the fills complete as fast as the commits retire,
+        so the completion queue never empties and sn_safe_o's w_any_done
+        term would hold a pending snoop out UNBOUNDEDLY.  The rule under
+        test: a WAITING snoop (sn_want_i) throttles new CPU accepts, the
+        outstanding fills (<= MSHR_COUNT) drain, and the safe window opens
+        -- the wait is bounded by the pipe drain, never by the workload.
+
+        Bound arithmetic (this scenario pins the partner knobs: fill accept
+        0, beats 1/cycle, done 0; clean victims, so no capture/CU terms):
+          fill_done interval  = 1 (burst AR) + FILL_BEATS (8) + 1 (done)
+                                = 10 cycles
+          commit length       = 1 (snapshot) + 4 (merge walk: 1 write +
+                                3 reads) + 1 (install) + 4 (deposits)
+                                + 1 (retire) = 11 cycles
+          once the throttle closes, <= MSHR_COUNT (8) fills are
+          outstanding: the last fill_done lands <= 8 x 10 = 80 cycles
+          out, and the serial commit drain of the remaining queue takes
+          <= 8 x 11 = 88 more; the grant follows immediately.
+          BOUND = 80 + 88 + 16 (slack) = 184 cycles from want to grant.
+        Pre-fix the grant comes only after the traffic stops (~30 fills
+        x >= 11 cycles past the priming point), so the scenario fails the
+        bound; post-fix the measured wait is ~95-115 cycles.
+        """
+        r0 = self.release_count
+        e0 = len(self.entries)
+        d = self.dut
+        BOUND = 184
+        N_LINES = 32
+        base_set, base_tag = 70, 0x600
+        saved = (self.fill_accept_latency, self.fill_beat_latency,
+                 self.fill_done_latency)
+        self.fill_accept_latency = 0
+        self.fill_beat_latency = 0
+        self.fill_done_latency = 0
+        self.deposit_overlap_ok = True
+
+        async def traffic():
+            # max-rate miss stream: one write miss (RU alloc) + three read
+            # merges per line, every line a fresh set (clean victims)
+            for i in range(N_LINES):
+                await self._req(self._compose_addr(base_tag + i,
+                                                   base_set + i, 0),
+                                1, 0xFF, 0xD00D0000 + i,
+                                label=f'starv:alloc{i}')
+                for b in (1, 2, 3):
+                    await self._req(self._compose_addr(base_tag + i,
+                                                       base_set + i, b),
+                                    0, 0xFF, 0, label=f'starv:merge{i}.{b}')
+
+        tsk = cocotb.start_soon(traffic())
+        # prime: raise want only once the completion queue has a permanent
+        # backlog -- the second fill_done lands while the first commit is
+        # still walking (commit 11 cy > fill interval 10 cy from here on)
+        self._ev_pos = len(self.events)
+        dones = 0
+        while dones < 2:
+            await self._drive_pt()
+            await self._settle()
+            while self._ev_pos < len(self.events):
+                _, kind, _p = self.events[self._ev_pos]
+                self._ev_pos += 1
+                if kind == 'fill_done':
+                    dones += 1
+        # a pending snoop to an absent line: want held (the ACVALID rule),
+        # the transport presents req only in a safe cycle.  Raise want at
+        # a DRIVE point (the priming loop exits at a settle): a request
+        # coroutine sampling lkup_ready in the raise cycle must already
+        # see the throttle, or its accept lands on a posedge the throttle
+        # owns and the TB/DUT requester models diverge.
+        await self._drive_pt()
+        d.sn_want_i.value = 1
+        d.sn_addr_i.value = self._compose_addr(0x7E0, 100)
+        d.sn_type_i.value = SN_READ_ONCE
+        wait = 0
+        allocs = 0
+        granted = False
+        for _ in range(3000):
+            d.sn_req_i.value = int(d.sn_safe_o.value)
+            await self._settle()
+            allocs += int(d.lkup_miss_alloc_o.value)
+            if int(d.sn_safe_o.value) and int(d.sn_ready_o.value):
+                granted = True
+                break
+            wait += 1
+            await self._drive_pt()
+        if not granted:
+            raise RuntimeError("starv: snoop never granted (3000 cycles)")
+        self.log.info(f"starv: snoop granted after {wait} cycles "
+                      f"(bound {BOUND})")
+        self._score("starv: grant within the pipe-drain bound",
+                    wait <= BOUND, True)
+        self._score("starv: no new miss allocs while the snoop pends",
+                    allocs, 0)
+        # grant-cycle answer: the Invalid row, no data, no CD
+        self._score("starv: crresp (absent line, ReadOnce)",
+                    int(d.sn_crresp_o.value), 0)
+        await self._drive_pt()
+        d.sn_req_i.value = 0
+        d.sn_want_i.value = 0
+        await self._settle()
+        await tsk.join()
+        for e in self.entries[e0:]:
+            await self._await_commit(e, label='starv:commit')
+        await self._wait_releases(r0, N_LINES * 4)
+        (self.fill_accept_latency, self.fill_beat_latency,
+         self.fill_done_latency) = saved
+        self.deposit_overlap_ok = False
+        self.scenarios['snoop_starvation_bound'] = True
+        await self._reset_pipeline()
+
     # ------------------------------------------------------------------
     # test
     # ------------------------------------------------------------------
@@ -2317,6 +2447,7 @@ class JetControlTB(TBBase):
         await self._scen_snoop_priority()
         await self._scen_anti_livelock_window()
         await self._scen_snoop_never_waits_on_wb_full()
+        await self._scen_snoop_starvation_bound()
 
     async def run(self) -> bool:
         await self._run_all()

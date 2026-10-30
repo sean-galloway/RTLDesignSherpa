@@ -270,12 +270,17 @@ Where the contract text was silent, the landing pinned:
   → C_CU_DEPOSIT: 5 cycles with nothing queued), guaranteed by
   construction, never event-dependent; the window closes at the pop, two
   cycles past the tag install.  DV measures it (`anti_livelock_window`).
-  Precision on the aggregate: each commit-window block closes at a pop
-  (the per-window bound holds), but `w_any_done` re-arms on every
-  `fill_done`, so a sustained merge-heavy fill stream can hold
-  `sn_safe_o` low for a workload-dependent aggregate duration — snoop
-  latency becomes fill-rate-dependent (the §8.3 inverse; never a
-  deadlock: every window closes independently of the snoop side).
+  Precision on the aggregate (RESOLVED in Task 11): `w_any_done` re-arms
+  on every `fill_done`, so a sustained max-rate fill stream can hold
+  `sn_safe_o` low for as long as the stream continues — the per-window
+  bound holds, but the aggregate was workload-dependent and the formal
+  liveness harness (L3) produced a 113-cycle starvation counterexample
+  that is scale-free in the fill rate.  The fix is the pending-snoop
+  throttle below: with new CPU accepts blocked, no new fills allocate,
+  the outstanding fills (≤ MSHR_COUNT) complete and commit in bounded
+  time, and `w_any_done` clears — the aggregate snoop wait is now bounded
+  by the pipe drain (fills × commit length + capture windows), never by
+  the workload.
 - **The commit never runs during a snoop service** (C_IDLE start gated on
   the service idle): a pend record for the about-to-commit entry lands
   before the snapshot, and SN_EFFECT's tag write is contention-free.
@@ -304,7 +309,21 @@ Where the contract text was silent, the landing pinned:
   lookup stage accepts nothing from the grant through SN_EFFECT (bounded
   by the service length — FILL_BEATS+2 in CD *handshakes*, extended by
   cdready backpressure, which the fabric legitimately applies), so the
-  snoop's port-B/CRRESP view is race-free.
+  snoop's port-B/CRRESP view is race-free.  Since Task 11 the hold starts
+  EARLIER: a *pending* snoop (`sn_want_i` — an AC valid at the transport,
+  granted or not) throttles new accepts while the safe window is still
+  closed, so the commit-window aggregate above can never starve the
+  snoop.  The throttle gates only the classify accept — the commit
+  pipeline, fill beats, WB capture/drain, and an in-progress service
+  never depend on new accepts — and the remaining `sn_safe_o` terms stay
+  bounded under it (`r_cap_busy` is one ≤FILL_BEATS-beat capture per
+  dirty-victim commit and no new allocs means no new captures;
+  `w_cu_completing` is the single CU grant cycle — the hold-off above is
+  unchanged).  `jet_top`/`jet_ace_top` derive `sn_want_i` from a registered count of
+  AC handshakes not yet granted (the transport's skid hides an accepted
+  AC from the pins, and a combinational AC-valid tap would close a
+  combinational loop through the fabric).  DV pins the bound under sustained miss streaming
+  (`snoop_starvation_bound`); the formal harness proves it (L3).
 - **Known gap — RESOLVED in Task 8** (kept for the record): a snoop to
   the *in-flight upgrade's own line* before the CU grant is served at
   the installed S; the effect is now carried by `r_upgr_killed` and the

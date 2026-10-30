@@ -78,7 +78,13 @@ remains pinned at the unit level, Tasks 6–7).
 
 1. **A snoop never stalls behind a fill or a drain** (Chinnakonda §7.8).
    AC acceptance is gated only by snoop-service occupancy, and snoops
-   arbitrate ahead of new CPU accepts (J6).
+   arbitrate ahead of new CPU accepts (J6).  The arbitration starts at
+   *pend*, not at grant (Task 11): a waiting snoop throttles new CPU
+   accepts, so the outstanding fills drain and the safe window opens —
+   the snoop wait is bounded by the pipe drain (fills × commit length +
+   capture windows), never workload-unbounded.  (Pre-fix, sustained
+   max-rate miss traffic kept the commit window closed forever — the
+   formal L3 counterexample.)
 2. **The anti-livelock hold-off** (ch02/01): the one bounded exception.
 3. **CD before CR** — the family convention, inherited.
 4. **A snoop matching both a WB entry and an MSHR entry** (the victim was

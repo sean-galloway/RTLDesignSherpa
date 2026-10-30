@@ -506,6 +506,7 @@ module jet_top
     logic                       eng_drain_done;
     // snoop responder core-facing contract
     logic                       sn_req;
+    logic                       sn_want;
     logic [ADDR_WIDTH-1:0]      sn_addr;
     logic [2:0]                 sn_type;
     logic                       sn_ready;
@@ -757,6 +758,7 @@ module jet_top
         .mshr_sn_eff_idx_o       (ctrl_mshr_sn_eff_idx),
         .mshr_sn_eff_value_o     (ctrl_mshr_sn_eff_value),
         .sn_req_i                (sn_req),
+        .sn_want_i               (sn_want),
         .sn_addr_i               (sn_addr),
         .sn_type_i               (sn_type),
         .sn_ready_o              (sn_ready),
@@ -1120,6 +1122,41 @@ module jet_top
         .ctrl_cdvalid      (sn_cdvalid),
         .ctrl_cdready      (sn_cdready)
     );
+
+    // ------------------------------------------------------------------
+    // Snoop-pending indication for jet_control's J6 throttle (Task 11):
+    // a WAITING snoop -- an AC accepted at the responder pins but not yet
+    // granted -- throttles new CPU accepts so the safe window always
+    // opens (without it, sustained max-rate miss traffic keeps sn_safe_o's
+    // commit-window term closed forever and the snoop starves -- the
+    // formal L3 counterexample).  The transport's AC skid (depth 2) hides
+    // a waiting AC from the pins once accepted, so the pending count is
+    // tracked here: +1 on the external AC handshake, -1 on the grant
+    // (sn_req is the accept cycle itself); an AC handshaking in the grant
+    // cycle is the NEXT snoop, so the two net out.  Registered only: a
+    // combinational tap of m_axi_acvalid would close a combinational
+    // loop through the pair fabric (acvalid -> throttle -> classify ->
+    // launch/response -> fabric -> acvalid).  The one-cycle tracking
+    // delay adds at most one classify accept to the drain set -- the
+    // bound stands.  No combinational loop: sn_safe_o does not depend on
+    // the throttle.
+    // ------------------------------------------------------------------
+    logic [1:0] r_sn_pend_cnt;
+
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
+            r_sn_pend_cnt <= '0;
+        end else begin
+            case ({(m_axi_acvalid & m_axi_acready), sn_req})
+                2'b10:   r_sn_pend_cnt <= r_sn_pend_cnt + 2'd1;
+                2'b01:   r_sn_pend_cnt <= (r_sn_pend_cnt != '0)
+                                          ? r_sn_pend_cnt - 2'd1 : '0;
+                default: ;  // 00: none; 11: one arrives as one is granted
+            endcase
+        end
+    )
+
+    assign sn_want = (r_sn_pend_cnt != '0);
 
     // ------------------------------------------------------------------
     // Pair-rig coherence sideband (D-8): one pulse per fill launch

@@ -168,8 +168,13 @@
 //   port at the end of the service; a tag hit on a claimed way is the
 //   doomed victim's stale tag (amber's stale-victim rule: the Invalid
 //   row, no effect).  Snoops
-//   arbitrate ahead of new CPU accepts (the lookup stage holds through
-//   the grant and the service), and the commit pipeline never starts
+//   arbitrate ahead of new CPU accepts: the lookup stage holds through
+//   the grant and the service, AND a pending-but-not-yet-safe snoop
+//   (sn_want_i) throttles new accepts so the safe window always opens --
+//   without it, sustained max-rate miss traffic keeps the completion
+//   queue non-empty forever and the snoop starves (the Task-11 formal
+//   counterexample); the throttled wait is bounded by the pipe drain.
+//   The commit pipeline never starts
 //   during a service (the pend record must land before the commit's
 //   snapshot).  sn_safe_o deasserts only in bounded windows: the init
 //   walk, an active service, a fill-done-unretired entry (the commit
@@ -375,8 +380,12 @@ module jet_control
 
     // snoop responder (the l1_snoop_resp core-facing contract: the AC
     // accept cycle IS the grant; CRRESP is combinational that cycle; CD
-    // beats handshake on cdvalid/cdready with cdlast on the final beat)
+    // beats handshake on cdvalid/cdready with cdlast on the final beat).
+    // sn_want_i is the transport's snoop-pending indication (an AC valid
+    // at the shim, granted or not) -- a WAITING snoop throttles new CPU
+    // accepts (J6 fairness; see w_sn_block_cpu)
     input  logic                        sn_req_i,
+    input  logic                        sn_want_i,
     input  logic [ADDR_WIDTH-1:0]       sn_addr_i,
     input  logic [2:0]                  sn_type_i,
     output logic                        sn_ready_o,
@@ -863,8 +872,24 @@ module jet_control
     // snoop priority over new CPU accepts (J6): the lookup stage holds the
     // request (no accept, no stall reason) through the grant and the
     // service -- bounded by the service length (<= FILL_BEATS + 2 in CD
-    // handshakes, extended by cdready backpressure)
-    assign w_sn_block_cpu = w_sn_gnt | (r_sn_state != SN_IDLE);
+    // handshakes, extended by cdready backpressure).  A WAITING snoop
+    // (sn_want_i: an AC at the transport, granted or not) joins the
+    // throttle (Task 11: the formal liveness harness's L3 counterexample
+    // -- sustained max-rate miss traffic completes fills as fast as the
+    // commits retire, so w_any_done never clears and a pending snoop
+    // starved unboundedly).  With new accepts throttled, no misses
+    // allocate; the outstanding fills (<= MSHR_COUNT) complete and commit
+    // in bounded time, w_any_done clears, and the safe window opens --
+    // the snoop wait is bounded by the pipe drain (fills x commit length
+    // + capture windows), never workload-unbounded.  The throttle gates
+    // only the classify accept: the commit pipeline, fill beats, WB
+    // capture/drain, and an in-progress snoop service never depend on new
+    // CPU accepts, so the drain always completes.  The remaining sn_safe_o
+    // terms stay bounded under the throttle: r_cap_busy is one capture of
+    // <= FILL_BEATS port-B reads per dirty-victim commit (and no new
+    // allocs means no new captures), w_cu_completing is the single CU
+    // grant cycle (the Task-7 anti-livelock hold-off, unchanged).
+    assign w_sn_block_cpu = w_sn_gnt | (r_sn_state != SN_IDLE) | sn_want_i;
 
     // the effect to apply at the end of the service: a state change on the
     // resolved reference (a fixed-point snoop is a no-op); the WB/MSHR

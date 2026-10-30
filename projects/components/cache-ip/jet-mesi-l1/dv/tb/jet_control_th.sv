@@ -136,8 +136,11 @@ module jet_control_th
     output logic [ADDR_WIDTH-1:0]       wb_drain_addr_o,
     output logic [LINE_BITS-1:0]        wb_drain_data_o,
 
-    // snoop responder (l1_snoop_resp core-facing contract, TB-driven)
+    // snoop responder (l1_snoop_resp core-facing contract, TB-driven;
+    // sn_want_i is the snoop-pending line -- the transport raises it with
+    // the AC and holds it until the grant)
     input  logic                        sn_req_i,
+    input  logic                        sn_want_i,
     input  logic [ADDR_WIDTH-1:0]       sn_addr_i,
     input  logic [2:0]                  sn_type_i,
     input  logic                        sn_cdready_i,
@@ -439,6 +442,7 @@ module jet_control_th
         .mshr_sn_eff_idx_o       (ctrl_mshr_sn_eff_idx),
         .mshr_sn_eff_value_o     (ctrl_mshr_sn_eff_value),
         .sn_req_i                (sn_req_i),
+        .sn_want_i               (sn_want_i),
         .sn_addr_i               (sn_addr_i),
         .sn_type_i               (sn_type_i),
         .sn_ready_o              (sn_ready_o),

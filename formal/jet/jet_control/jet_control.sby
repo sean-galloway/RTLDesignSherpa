@@ -1,0 +1,42 @@
+[tasks]
+prove
+cover
+
+[options]
+# Safety BMC depth 64: the deepest safety violation path is the
+# claim-vs-upgrade / dup-claim family (an S line must be installed by a
+# real RNSD fill before an upgrade accept can collide with a claim):
+# init walk 17 + fill ~30 + upgrade ~2 + conflicting alloc ~2 ≈ 51 steps.
+# Depth 64 retains ~25% margin while avoiding the boolector step-time
+# explosion seen past ~step 50 at depth 96.  Cover depth 112: the composed
+# corner (MSHR-full && WB-full && snoop waiting) needs two dirty lines
+# installed and retired before the two dirty-victim allocs fill the WB --
+# witnessed ~90.
+prove: mode bmc
+prove: depth 64
+cover: mode cover
+cover: depth 112
+
+# Engine: boolector, not the house-default z3 (the amber Task 13 finding:
+# z3 incremental grows exponentially per step on this model family;
+# boolector passes in minutes).
+[engines]
+prove: smtbmc boolector
+cover: smtbmc boolector
+
+[script]
+read_verilog -formal -sv jet_control_flat.v
+read -formal -sv formal_jet_control.sv
+expose jet_control/r_cmt_state jet_control/r_sn_state jet_control/r_sn_src jet_control/r_sn_allb jet_control/r_upgr_valid jet_control/r_upgr_line jet_control/r_upgr_set jet_control/r_upgr_way jet_control/r_upgr_killed jet_control/r_fill_pend jet_control/r_fill_idx jet_control/r_ar_done jet_control/r_claim_vld jet_control/r_fq_undone jet_control/w_src_wb jet_control/w_src_mshr jet_control/w_src_array jet_control/w_sn_ref jet_control/w_sn_deliver jet_control/w_mshr_pre_ar
+prep -top formal_jet_control
+# memories -> discrete FFs: the tag model / leaf arrays as SMT arrays grow
+# a store chain per step and collapse solver throughput at depth (the
+# house apb4_slave_cdc / amber_control pattern).
+memory_map
+# sv2v keeps the RTL's elaboration-time $error guards as $print cells
+delete t:$print
+
+[files]
+formal_jet_control.sv
+jet_control_flat.v
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
