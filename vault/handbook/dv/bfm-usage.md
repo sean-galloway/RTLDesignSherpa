@@ -16,6 +16,8 @@ BFM = add it to RDS-DV, never inline.
 | AXI4 | axi4 factories + AXI4Sequence (never hand-poke s_axi_*) |
 | AXI4-Lite / APB / AXIS | axil4 / apb / axis4+axis5 factories |
 | Wishbone B4 (pipelined) | wb4 factories (components.wb4): WB4Master / WB4Slave / WB4Monitor; STALL, CYC and in-order termination are why it is not a GAXI composition |
+| CXS (credited flit stream) | cxs factories (components.cxs): CXSTransmitter / CXSReceiver / CXSMonitor; no READY, so its own clocked loop, but it binds through the shared SignalResolver (`cxs` flat config) like every family (2026-10-30) |
+| CHI (IHI 0050 Issue H) | chi factories (components.chi, 2026-10-30): `create_chi_requester` (RN-F), `create_chi_home` (HN-F, memory-backed; several ports can share one `CHIHome`), `create_chi_monitor`. Credited flits, FLITPEND, one LINKACTIVE pair per direction, so like CXS it is its own loop. Binds through the shared SignalResolver (`chi_<node>_port` flat configs): `prefix` / `bus_name` find `txreqflitv`, `tx_req_flit_v` or `TXREQFLITV` alike, no `signal_map` needed; the BFM always drives the DUT's `rx*` and samples its `tx*` (a DUT names pins from its own side), so a CHI port binds with a prefix and nothing else. Call `monitor.unfinished()` at the end of a test: a CompAck or write data that never came is reported only there. Scope list (no Resource Planes, Fwd snoops, stash, atomics, DVM, MTE, RME) is in the DV docs `docs/components/chi/` |
 | MonBus receive | TBClasses.monbus.MonbusSlave |
 | MonBus decode | TBClasses.monbus.parse() ONLY |
 | MonBus groups | MonbusGroupHarness (scoreboards.monbus_group) |
