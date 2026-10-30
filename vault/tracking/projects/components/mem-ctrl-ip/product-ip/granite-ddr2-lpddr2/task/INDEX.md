@@ -32,7 +32,7 @@ state by construction rather than by discipline.
 
 ## Closed
 
-- **TASK-006** — store combining behind `STORE_MERGE_EN` (default 0): the
+- **TASK-006** — store combining behind `STORE_MERGE_EN` (default 1 since 2026-10-29): the
   close_page pair walk doubles both ways and matches pumice, open_page pair
   at 3-4 threads +14..25 percent. The board corruption was a WRITE reaching
   the DFI head before its data (merged-B drain bubble, stale head record,

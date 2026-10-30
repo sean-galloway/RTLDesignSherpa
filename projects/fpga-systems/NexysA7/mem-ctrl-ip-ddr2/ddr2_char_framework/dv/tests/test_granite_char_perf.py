@@ -586,7 +586,7 @@ def test_granite_char_perf(request):
               "UART_BAUD": str(UART_BAUD),
               "ROW_WIDTH": str(ROW_W),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT_BYTES * 8),
-              "STORE_MERGE_EN": os.environ.get("TEST_STORE_MERGE_EN", "0"),
+              "STORE_MERGE_EN": os.environ.get("TEST_STORE_MERGE_EN", "1"),
               "AXI_DATA_WIDTH": os.environ.get("TEST_AXI_DATA_WIDTH", "64"),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEVICE_BYTES * 8),
               "DFI_RATE": str(DFI_RATE),

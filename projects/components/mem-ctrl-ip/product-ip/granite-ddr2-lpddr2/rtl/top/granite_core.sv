@@ -76,7 +76,7 @@ module granite_core
     parameter int RFC_W             = 8,    // pick core tRFC / tZQCS recovery counter width (16-bit CSR saturates in; DDR2 tRFC <= 35 cycles)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter bit BANK_EVT_REG      = 1'b1, // bank timer counters load one register after the pick's fire strobe (TASK-003 100 MHz; readiness exact); 0 = the live load
-    parameter bit STORE_MERGE_EN    = 1'b0, // FIFO-store combining (TASK-006): a write into a live uncommitted same-{bank,row,col} write entry, a read as a shadow of a live unissued same-key read ticket; 0 = every access its own entry
+    parameter bit STORE_MERGE_EN    = 1'b1, // FIFO-store combining (TASK-006, default ON since 2026-10-29): a write into a live uncommitted same-{bank,row,col} write entry, a read as a shadow of a live unissued same-key read ticket; 0 = every access its own entry
     parameter bit HALF_AGG          = 1'b0, // the half-width AXI aggregator at the host edge (TASK-005, DEFERRED: no gain on the pair cell, 30 percent hold cost on unpaired halves, a write hang on open_page); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)

@@ -187,9 +187,13 @@ open_min and concurrent unchanged. wr / rd MB/s, DRAM peak 600 each way:
 The combiner now delivers what TASK-006 asked for: the close_page pair
 walk doubles both ways at every thread count and is level with pumice,
 the open_page pair cells at three and four threads gain 14 to 25
-percent, nothing else moves, and the data is right. `STORE_MERGE_EN`
-stays 0 as the product default until the owner picks it up; the board
-bitstream and the proxy both run it on.
+percent, nothing else moves, and the data is right. `STORE_MERGE_EN` is
+the product default (1) as of 2026-10-29, the owner's call after the
+board table above: granite_core, granite_top_geared, the board target
+wrappers and the test runners' env defaults all say 1, a no-knob board
+build and a no-override proxy run were taken against it, and the merge
+tests keep the OFF state covered (`test_granite_core_merge[0]`,
+`_fill_lag[0]`).
 
 **CLOSED 2026-10-29.** Outside this task: the proxy's DRAM model still
 anchors tWR at the controller's commit (pumice ISSUE-023); the held-WRITE
