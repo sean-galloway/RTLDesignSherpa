@@ -141,8 +141,16 @@ module axi_perf_latency_hist #(
             if (lat >= (32'h1 << b)) latency_bin = b[BINW-1:0];
     endfunction
 
-    // Per-channel timestamp FIFO (command-phase start times).
-    logic [31:0]   r_ts   [NUM_CHANNELS][MAX_OUTSTANDING];
+    // Per-channel timestamp FIFO (command-phase start times). One flat
+    // array indexed {channel, pointer}: Vivado infers memory from a
+    // one-dimensional array with one write and one read index, and turned
+    // the earlier [NUM_CHANNELS][MAX_OUTSTANDING] form into flops without
+    // a message (pumice ISSUE-025, +6.1k registers at depth 128).
+    localparam int TSN = NUM_CHANNELS * MAX_OUTSTANDING;
+    localparam int TSW = (TSN > 1) ? $clog2(TSN) : 1;
+    (* ram_style = "distributed" *)  // synthesis ram_style = "distributed"
+    logic [31:0]   r_ts   [TSN];
+    logic [TSW-1:0] w_ts_rd_idx, w_ts_wr_idx;
     logic [PW-1:0] r_head [NUM_CHANNELS];
     logic [PW-1:0] r_tail [NUM_CHANNELS];
     logic [PW:0]   r_cnt  [NUM_CHANNELS];   // occupancy (extra bit for full)
@@ -181,7 +189,9 @@ module axi_perf_latency_hist #(
     // Start timestamp of the oldest outstanding command on the completing
     // channel (the latency subtract is done in the pipeline below, not here).
     logic [31:0] w_start_ts;
-    assign w_start_ts = r_ts[w_ch_done][r_head[w_ch_done]];
+    assign w_ts_rd_idx = TSW'(w_ch_done * MAX_OUTSTANDING + r_head[w_ch_done]);
+    assign w_ts_wr_idx = TSW'(w_ch_cmd  * MAX_OUTSTANDING + r_tail[w_ch_cmd]);
+    assign w_start_ts  = r_ts[w_ts_rd_idx];
 
     // First-beat detect for reads (metric 0 = AR->first R). For writes the only
     // metric (0) is recorded at the B handshake directly.
@@ -260,9 +270,15 @@ module axi_perf_latency_hist #(
             s0_start_ts <= '0; s0_time <= '0; s1_lat <= '0; s2_bin <= '0;
         end else begin
             // ---- FIFO management (single cycle, gated by freeze) ----
+            // The timestamp array itself is written in its own reset-free
+            // block below (it never was reset or cleared; only the pointers
+            // are), so the tools can keep it in LUT RAM. In this block it
+            // synthesized as flops: 32 bits x MAX_OUTSTANDING x NUM_CHANNELS
+            // per histogram, +6.1k registers and +1.9k LUTs on the Nexys A7
+            // characterization build when the depth went 32 -> 128 (pumice
+            // ISSUE-025). Same lesson as the pumice BRAM CAM.
             if (!i_freeze) begin
                 if (w_push) begin
-                    r_ts[w_ch_cmd][r_tail[w_ch_cmd]] <= r_time;
                     r_tail[w_ch_cmd] <= (r_tail[w_ch_cmd] == PW'(MAX_OUTSTANDING-1))
                                         ? '0 : (r_tail[w_ch_cmd] + PW'(1));
                 end
@@ -284,7 +300,7 @@ module axi_perf_latency_hist #(
             s0_valid    <= w_ev    && !i_freeze;
             s0_m0       <= w_ev_m0 && !i_freeze;
             s0_m1       <= w_ev_m1 && !i_freeze;
-            s0_start_ts <= w_start_ts;   // r_ts[w_ch_done][r_head[w_ch_done]]
+            s0_start_ts <= w_start_ts;   // r_ts at {w_ch_done, r_head[w_ch_done]}
             s0_time     <= r_time;
 
             // ---- Stage 1: latency = completion time - start time ----
@@ -307,6 +323,16 @@ module axi_perf_latency_hist #(
         end
     )
 
+
+    // Timestamp FIFO storage: write-on-push, no reset, no clear. A push
+    // seen while reset is asserted lands under the reset tail pointer (0)
+    // and is overwritten by the first real push before any pop can read
+    // it, so the write needs no reset term (which would also make the
+    // reset net both async and sync).
+    always_ff @(posedge aclk) begin
+        if (!i_clear && !i_freeze && w_push)
+            r_ts[w_ts_wr_idx] <= r_time;
+    end
     // CSR-indexed readout (combinational mux).
     assign o_hist_count = r_hist[i_hist_metric ? 1 : 0][i_hist_bin];
     assign o_hist_total = r_total[i_hist_metric ? 1 : 0];

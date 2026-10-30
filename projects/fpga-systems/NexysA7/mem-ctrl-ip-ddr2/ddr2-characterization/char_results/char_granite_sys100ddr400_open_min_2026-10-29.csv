@@ -1,0 +1,2 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,threads,notes
+open_page,col_major_bl8,col_major,8,8000,0,0,1,0,512000,100.0,131206,0.0080,390.23,115018,0.0080,445.15,95.98,8000,1,

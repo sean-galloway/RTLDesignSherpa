@@ -74,16 +74,43 @@ BOARD_DRAM_BL    = DDR2CharDriver.BOARD_DRAM_BL
 BOARD_MR0        = DDR2CharDriver.BOARD_MR0
 
 
-def program_geometry(drv: DDR2CharDriver, rd_phase: int = 0,
-                     wr_phase: int = 0, restart_init: bool = True) -> None:
+def program_geometry(drv: DDR2CharDriver, rd_phase: int = None,
+                     wr_phase: int = None, restart_init: bool = True) -> None:
     """Program the DFI/burst geometry this bitstream was built for.
 
     rd_phase stays 0: at nphases=2 LiteDRAM issues the READ command on
     rdcmdphase = rdphase-1 = 0 (multiplexer.py:234) and takes the data at
     rdphase=1, which the a7ddrphy applies internally.
     """
+    if rd_phase is None:
+        rd_phase = int(os.environ.get("DFI_RD_PHASE", "0"), 0)
+    if wr_phase is None:
+        wr_phase = int(os.environ.get("DFI_WR_PHASE", "0"), 0)
     drv.program_geometry(rd_phase=rd_phase, wr_phase=wr_phase,
                          restart_init=restart_init)
+    # PHY_RDPHASE / PHY_WRPHASE (env): the a7ddrphy's own rdphase0 / wrphase0
+    # CSRs, the DFI phase it expects the controller's read / write command
+    # on. Each generated netlist has its own default (1:2: rd 1 / wr 0; the
+    # 1:4 netlists: rd 3 / wr 0 at 75 MHz, rd 2 / wr 3 at 100 MHz), and the
+    # controller issues on phase 0, so a 1:4 build needs the PHY told
+    # (granite TASK-003 item 6: with rdphase 3 the best read cell was 1 of 8
+    # beats wrong and no tap eye). Applied with the geometry so every flow
+    # (leveling, smoke, char) carries it.
+    for env, knob in (("PHY_RDPHASE", dc.PHY_RDPHASE), ("PHY_WRPHASE", dc.PHY_WRPHASE)):
+        v = os.environ.get(env, "")
+        if v != "":
+            drv.phy_poke(knob, int(v, 0))
+    # PHY_WDLY_BITSLIP=<n> (env): the a7ddrphy's write DQ bitslip (its write
+    # leveling), both lanes: reset, then n advances. The 1:4 netlist
+    # serializes 8 bits per cycle and its write alignment is not the 1:2
+    # netlist's (granite TASK-003 item 6).
+    wb = os.environ.get("PHY_WDLY_BITSLIP", "")
+    if wb != "":
+        drv.phy_poke(dc.PHY_DLY_SEL, 0b11)
+        drv.phy_poke(dc.PHY_WDLY_DQ_BITSLIP_RST, 1)
+        for _ in range(int(wb, 0)):
+            drv.phy_poke(dc.PHY_WDLY_DQ_BITSLIP, 1)
+        drv.phy_poke(dc.PHY_DLY_SEL, 0)
 
 
 # =============================================================================
@@ -92,7 +119,8 @@ def program_geometry(drv: DDR2CharDriver, rd_phase: int = 0,
 # read-only phase).
 # =============================================================================
 def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
-                ignore_error: bool = False) -> bool:
+                ignore_error: bool = False, progress_poll_s: float = None,
+                max_extensions: int = 60) -> bool:
     """Wait for one engine to finish. Returns False on error or timeout.
 
     ignore_error=True waits purely for the done flag. Use it when a data
@@ -101,17 +129,43 @@ def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
     "did not run" and the measurement is silently discarded. Callers that want
     the mismatch COUNT must pass ignore_error=True and check `done` themselves;
     only a read that never asserts done is a real non-measurement.
+
+    timeout_s bounds the time WITHOUT PROGRESS, not the whole run. The
+    engine's progress is its bus meter's productive-beat count (OBS_*_PROD,
+    live while the trace is unfrozen), sampled every progress_poll_s; each
+    advance moves the deadline out by timeout_s again, at most max_extensions
+    times. On the board that is the old wall-clock bound (a stuck engine
+    stops counting and times out exactly as before); in simulation, where
+    the same deadline used to expire with the engine mid-phase whenever the
+    machine was loaded (pumice ISSUE-024: 10 of 222 framework cells, 10/10
+    on a rerun alone), a slow but moving engine is waited for.
     """
     assert which in ("wr", "rd")
-    deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline:
+    if progress_poll_s is None:
+        # WAIT_ENGINE_PROGRESS_POLL_S=0 disables the progress probe (the
+        # pre-ISSUE-024 wall-clock wait), for A/Bs of the probe itself.
+        progress_poll_s = float(os.environ.get("WAIT_ENGINE_PROGRESS_POLL_S", "1.0") or 0)
+    now = time.monotonic()
+    deadline = now + timeout_s
+    hard_deadline = now + timeout_s * (max_extensions + 1)
+    next_probe = now + progress_poll_s
+    last_prod = None
+    while True:
         s = drv.status()
         if s.any_error and not ignore_error:
             return False
         if (which == "wr" and s.wr_done) or (which == "rd" and s.rd_done):
             return True
+        now = time.monotonic()
+        if now >= deadline or now >= hard_deadline:
+            return False
+        if progress_poll_s > 0 and now >= next_probe:
+            prod = drv.perf_meters()[which].prod
+            if last_prod is not None and prod != last_prod:
+                deadline = now + timeout_s
+            last_prod = prod
+            next_probe = now + progress_poll_s
         time.sleep(0.005)
-    return False
 
 
 # =============================================================================
@@ -164,7 +218,11 @@ class A7Leveling:
                  burst_len: int = 8, txn_count: int = 2,
                  seed: int = 0x1EAF_F00D,
                  t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
-                 t_rddata_en: int = 6,
+                 # Env-overridable like wrlat / rddata_delay: leveling and test must
+                 # use the SAME (rden, delay) pair, and the clean pair is clock-plan
+                 # dependent (75 MHz: rden 1 / delay 2; 100 MHz DDR2-400: rden 1 /
+                 # delay 1, joint probe 2026-10-29). Default unchanged.
+                 t_rddata_en: int = int(os.environ.get("TEST_T_RDDATA_EN", "6")),
                  rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
                  rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
         self.drv = drv
@@ -404,7 +462,11 @@ class SimpleTest:
     # as the TEST_DRAM_BL geometry overrides.
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
-                 t_rddata_en: int = 6,
+                 # Env-overridable like wrlat / rddata_delay: leveling and test must
+                 # use the SAME (rden, delay) pair, and the clean pair is clock-plan
+                 # dependent (75 MHz: rden 1 / delay 2; 100 MHz DDR2-400: rden 1 /
+                 # delay 1, joint probe 2026-10-29). Default unchanged.
+                 t_rddata_en: int = int(os.environ.get("TEST_T_RDDATA_EN", "6")),
                  rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
                  rd_phase: int = 0,
                  level_cache: Optional[str] = None):

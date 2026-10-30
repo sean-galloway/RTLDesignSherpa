@@ -62,6 +62,8 @@ import ddr2_char as dc                                    # noqa: E402
 import pumice_char as pc                                  # noqa: E402
 import pumice_master as pm                                # noqa: E402
 import perf_mixed_family as pmf                           # noqa: E402
+import perf_half_rot_family as phr                        # noqa: E402
+import half_burst_family as hbf                           # noqa: E402  (build-perf/host, shared with the board)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_granite_char_uart import (                      # noqa: E402,F401
@@ -227,6 +229,19 @@ async def _bringup(dut):
     return drv, chan, dfi_slave, memory
 
 
+# The stream families drive full-width AXI beats at the TB's host width: one
+# beat = one DRAM burst on the 128-bit host of the DFI 1:4 build, as on the
+# board. With the 8-byte size hard-wired (the 64-bit convention) every beat on
+# a 128-bit bus was a narrow transfer, so each 16-byte line cost TWO back-to-
+# back BL8 reads and the 1:4 proxy's "two valids per read" (TASK-003 item 6,
+# 2026-10-29) was the host, not the PHY model.
+# TEST_AXI_SIZE=<n> forces a beat size (3 = 8 bytes on the 128-bit host: the
+# narrow-transfer repro, granite TASK-007).
+_AXI_SIZE = int(os.environ.get("TEST_AXI_SIZE") or
+                {4: dc.AXI_SIZE_4, 8: dc.AXI_SIZE_8, 16: dc.AXI_SIZE_16}[
+                    int(os.environ.get("TEST_AXI_DATA_WIDTH", "64")) // 8])
+
+
 @cocotb.test(timeout_time=60000, timeout_unit="ms")
 async def cocotb_test_granite_perf(dut):
     drv, chan, _dfi, _mem = await _bringup(dut)
@@ -268,6 +283,20 @@ async def cocotb_test_granite_perf(dut):
                 continue
         if st is None:
             return {"n/a": "no store handle"}
+        # The DFI command path's "WRITE sat at the head without its data"
+        # counters (simulation-only). A committed write whose data is not
+        # staged within the plane's fixed command delay breaks the
+        # scheduler's timing contract: its tWR / auto-precharge / ACT spacing
+        # is counted from the commit while the DRAM sees the WRITE later
+        # (granite TASK-006, 2026-10-29: the board lost 83% of a merged pair
+        # walk this way; the proxy's DRAM model anchors tWR at the commit and
+        # cannot see it). Any non-zero count is a bug.
+        try:
+            cmd = core.u_dfi_plane.u_cmd
+            res["wr_held_cnt"] = int(cmd.r_wr_held_cnt.value)
+            res["wr_held_max"] = int(cmd.r_wr_held_max.value)
+        except AttributeError as e:
+            res["wr_held"] = f"n/a ({e!r})"
 
         def rd(name):
             try:
@@ -306,6 +335,25 @@ async def cocotb_test_granite_perf(dut):
         return out_d
 
     def measure_family(fam_key):
+        if hbf.is_half_family(fam_key):
+            # the four board half-burst patterns (pumice TASK-060, granite
+            # TASK-006): TEST_HALF_BURSTS DRAM bursts per thread, TEST_HALF_THREADS
+            # active threads; the write pass is where a merge happens
+            return hbf.measure_dict(drv, dc, pm, pc, geom, fam=fam_key,
+                                    n_bursts=int(os.environ.get("TEST_HALF_BURSTS", "32"), 0),
+                                    n_gen=n_gen, burst_bytes=DRAM_BL * DRAM_DEVICE_BYTES,
+                                    clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0, diag=diag,
+                                    host_diag=_host_diag, always_diag=always_diag,
+                                    threads=os.environ.get("TEST_HALF_THREADS", "1"),
+                                    seed_fields=lambda t: pmf.seed_fields(t, seed=pmf.PERF_SEED),
+                                    reads=os.environ.get("TEST_HALF_ROT_READS", "1") == "1")
+        if fam_key.startswith("half_rot"):
+            return phr.measure(drv, dc, pm, pc, geom, d=phr.parse_distance(fam_key), n_gen=n_gen,
+                               burst_bytes=DRAM_BL * DRAM_DEVICE_BYTES,
+                               clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0, diag=diag,
+                               host_diag=_host_diag, always_diag=always_diag,
+                               reads=os.environ.get("TEST_HALF_ROT_READS", "1") == "1",
+                               threads=os.environ.get("TEST_HALF_ROT_THREADS"))
         if fam_key in pmf.CONC_FAMILIES:
             return pmf.measure_conc(fam_key, drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn,
                                     gap=gap, clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0,
@@ -323,7 +371,7 @@ async def cocotb_test_granite_perf(dut):
             stride, wrap = pc.strides_for(pc.Scenario(name=fam, family=fam,
                                                       burst_len=blen, txn_count=txn),
                                           geom)
-        beat_bytes = 1 << dc.AXI_SIZE_8
+        beat_bytes = 1 << _AXI_SIZE
         bytes_moved = txn * blen * beat_bytes * n_gen
         def prog_for(g):
             if window is not None:
@@ -333,7 +381,7 @@ async def cocotb_test_granite_perf(dut):
             # and the threads bank-interleave on col_major.
             return dict(start_addr=g * geom.bank_stride, burst_len=blen,
                         txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,
-                        id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8,
+                        id_mode=dc.ID_MODE_FIXED, axi_size=_AXI_SIZE,
                         data_mode=True, gen=g, **pmf.seed_fields(g))
 
         mask = (1 << n_gen) - 1
@@ -400,6 +448,14 @@ async def cocotb_test_granite_perf(dut):
         if page_pol:
             drv.set_page_policy(int(page_pol, 0))
             out["page_policy"] = int(page_pol, 0)
+        # TEST_ADDR_SCHEME: the board configs program the address map
+        # (open_page = SCHEME_ROW_MAJOR, one bank per walk); without it the
+        # proxy runs the build default and never sees a same-bank column
+        # stream (granite TASK-006, 2026-10-29).
+        scheme = os.environ.get("TEST_ADDR_SCHEME", "")
+        if scheme:
+            drv.set_addr_map_scheme(int(scheme, 0))
+            out["addr_scheme"] = int(scheme, 0)
         # SCHED_POLICY.age_thresh: with the age-FIFO store (2026-10-25) a
         # non-zero value ENABLES the oldest-first request class (the magnitude
         # is not read); it needs TEST_HAS_AGE=1 or the field is inert.
@@ -411,17 +467,33 @@ async def cocotb_test_granite_perf(dut):
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL)
         # Real DDR2-650 timings derived at the 75 MHz board clock (like the board).
+        # The derived tRTW follows the SAME alignment the controller was
+        # configured with above (TEST_T_RDDATA_EN / TEST_RDDATA_DELAY /
+        # TEST_T_PHY_WRLAT); a fixed 4/0/0 here with another tuple on the
+        # controller is the pumice BUG-014 shape one layer up.
         out["timings"] = drv.set_jedec_timings(
-            float(FPGA_CLK_HZ), t_rddata_en=4, rddata_delay=0, t_phy_wrlat=0)
+            float(FPGA_CLK_HZ),
+            t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
+            rddata_delay=int(os.environ.get("TEST_RDDATA_DELAY", "0")),
+            t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")))
         drv.set_refresh_interval(t_refi)
         for fam_key in fam_names:
             out["families"][fam_key] = measure_family(fam_key)
         if diag:
             out["diag"] = diag
             dut._log.info("perf proxy diag: %s", json.dumps(diag, indent=1, default=str))
+        # Contract check (granite TASK-006): a committed write's data must be
+        # staged by the time its WRITE reaches the DFI head. A held WRITE is
+        # a scheduler-timing lie the DRAM model cannot see (its tWR anchor is
+        # the controller's own); the board loses the write. Hard failure.
+        held = _store_probe()
+        out["wr_held"] = {k: v for k, v in held.items() if "held" in k}
         if dump_path:
             with open(dump_path, "w") as fh:
                 json.dump(out, fh, indent=2)
+        if isinstance(held.get("wr_held_cnt"), int):
+            assert held["wr_held_cnt"] == 0, \
+                f"{held['wr_held_cnt']} cycles with a WRITE held at the DFI head for its data (max run {held.get('wr_held_max')}): a write was committed before its data was complete"
         return out
 
     cmd_log = []
@@ -502,6 +574,7 @@ def test_granite_char_perf(request):
         "MISM_DUMP": os.environ.get("MISM_DUMP", ""),
         "DFI_CMD_TRACE": os.environ.get("DFI_CMD_TRACE", "0"),
         "TEST_PAGE_POLICY": os.environ.get("TEST_PAGE_POLICY", ""),
+        "TEST_ADDR_SCHEME": os.environ.get("TEST_ADDR_SCHEME", ""),
         "TEST_TREFI": os.environ.get("TEST_TREFI", "585"),
         "TEST_TXN": os.environ.get("TEST_TXN", "256"),
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),
@@ -526,6 +599,8 @@ def test_granite_char_perf(request):
               "UART_BAUD": str(UART_BAUD),
               "ROW_WIDTH": str(ROW_W),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT_BYTES * 8),
+              "STORE_MERGE_EN": os.environ.get("TEST_STORE_MERGE_EN", "1"),
+              "AXI_DATA_WIDTH": os.environ.get("TEST_AXI_DATA_WIDTH", "64"),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEVICE_BYTES * 8),
               "DFI_RATE": str(DFI_RATE),
               "DRAM_BL": str(DRAM_BL),

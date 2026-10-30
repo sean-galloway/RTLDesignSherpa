@@ -442,11 +442,21 @@ class DDR2CharDriver:
             self.init_restart()
 
     def soft_reset(self, restore_geometry: bool = True,
-                   rd_phase: int = 0, wr_phase: int = 0) -> None:
+                   rd_phase: int = None, wr_phase: int = None) -> None:
         """Pulse CTRL.soft_reset, then restore the build geometry.
 
         Pass restore_geometry=False only to observe the raw reset state.
         """
+        # DFI_RD_PHASE / DFI_WR_PHASE (env): the DFI phase the controller
+        # issues read / write commands on. The a7ddrphy netlists expect them
+        # on their own rdphase - 1 / wrphase - 1 (nphases=2: read on 0; the
+        # 1:4 netlists: rdphase 3 at 75 MHz, 2 at 100), so a 1:4 board sets
+        # these (granite TASK-003 item 6). Explicit arguments still win.
+        if rd_phase is None:
+            rd_phase = int(os.environ.get("DFI_RD_PHASE", "0"), 0)
+        if wr_phase is None:
+            wr_phase = int(os.environ.get("DFI_WR_PHASE", "0"), 0)
+
         self.regs.write("CTRL", soft_reset=1)
         # The reset just reverted every pumice CSR to its RTL default — drop
         # the write-through shadow so subsequent shadowed writes re-seed from
@@ -495,8 +505,30 @@ class DDR2CharDriver:
         a turnaround for a read window the controller is not using. That is not
         hypothetical: it is the pumice BUG-014 (was PUMICE-037) failure mode, one layer up."""
         from pumice_device import ddr2_timings_mc_cycles
-        return self.pumice.set_jedec_timings(
-            ddr2_timings_mc_cycles(mc_clk_hz, **align))
+        # CK per MC cycle is the build's DFI rate (BUILD_CONFIG, the 1:2 and
+        # 1:4 bitstreams differ) and CL is MR0's CL field (TEST_MR0), so a
+        # 1:4 / BL8 / CL5 board is derived as such rather than as 1:2 / CL3
+        # (granite TASK-003 item 6). Explicit kwargs still win.
+        if "ck_per_mc" not in align:
+            try:
+                rate = int(self.build_info()["dfi_rate"])
+                if rate in (1, 2, 4, 8):
+                    align["ck_per_mc"] = rate
+            except Exception as exc:              # harness without build regs
+                print(f"[timings] build registers unreadable ({exc!r}); "
+                      f"ck_per_mc stays at the 1:2 default")
+        if "cl" not in align:
+            align["cl"] = (int(self.BOARD_MR0) >> 4) & 0x7
+        timings = dict(ddr2_timings_mc_cycles(mc_clk_hz, **align))
+        # JEDEC_OVERRIDE="tCCD=2,tWTR=5": pin individual derived fields (MC
+        # cycles) for a board experiment, e.g. to force a write cadence.
+        for kv in filter(None, os.environ.get("JEDEC_OVERRIDE", "").split(",")):
+            k, v = kv.split("=", 1)
+            if k.strip() not in timings:
+                raise ValueError(f"JEDEC_OVERRIDE: unknown timing {k.strip()!r}; have {sorted(timings)}")
+            timings[k.strip()] = int(v, 0)
+            print(f"[timings] JEDEC_OVERRIDE {k.strip()} = {int(v, 0)}")
+        return self.pumice.set_jedec_timings(timings)
 
     def set_sched_wr_wm(self, high_wm: int, low_wm: int) -> None:
         """Write-batching watermarks -- see Pumice.set_sched_wr_wm."""

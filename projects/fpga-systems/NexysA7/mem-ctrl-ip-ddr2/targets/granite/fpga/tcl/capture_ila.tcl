@@ -50,7 +50,17 @@ refresh_hw_device -update_hw_probes false [current_hw_device]
 
 set_property PROGRAM.FILE $bit [current_hw_device]
 set_property PROBES.FILE  $ltx [current_hw_device]
-program_hw_devices [current_hw_device]
+# CAP_NO_PROGRAM=1: attach to the ILA WITHOUT reprogramming. Programming
+# resets the board, so the read-path cell the host just levelled (tap,
+# bitslip, rddata_delay, the DFI phase) is gone and the capture shows an
+# unlevelled read. Program the ILA bitstream once (`make program
+# BITSTREAM=.../ddr2_char_ila.bit`), level and set up over UART, then arm
+# with this set and drive the traffic (granite TASK-003 item 6, 2026-10-29).
+if {[info exists ::env(CAP_NO_PROGRAM)] && $::env(CAP_NO_PROGRAM) ne ""} {
+    puts "NOTE: CAP_NO_PROGRAM set -- not reprogramming; the board keeps its levelled state."
+} else {
+    program_hw_devices [current_hw_device]
+}
 refresh_hw_device [current_hw_device]
 
 set ila [get_hw_ilas -of_objects [current_hw_device]]

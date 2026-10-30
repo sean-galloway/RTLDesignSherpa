@@ -1,0 +1,17 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+close_page,half_pair_gap0,half_pair,1,1024,0,1,1,0,4096,100.0,10417,0.0001,39.32,9391,0.0001,43.62,189.09,1024,0,1,no merge / column-op telemetry on this build
+close_page,half_pair_gap1,half_pair,1,1024,1,1,1,0,4096,100.0,10425,0.0001,39.29,9385,0.0001,43.64,189.09,1024,0,1,no merge / column-op telemetry on this build
+close_page,half_pair_gap2,half_pair,1,1024,2,1,1,0,4096,100.0,10410,0.0001,39.35,9389,0.0001,43.63,189.80,1024,0,1,no merge / column-op telemetry on this build
+close_page,half_pair_gap3,half_pair,1,1024,3,1,1,0,4096,100.0,10417,0.0001,39.32,9389,0.0001,43.63,189.09,1024,0,1,no merge / column-op telemetry on this build
+close_page,half_pair_gap4,half_pair,1,1024,4,1,1,0,4096,100.0,10412,0.0001,39.34,9388,0.0001,43.63,189.09,1024,0,1,no merge / column-op telemetry on this build
+close_page,half_pair_gap5,half_pair,1,1024,5,1,1,0,4096,100.0,10407,0.0001,39.36,9389,0.0001,43.63,189.09,1024,0,1,no merge / column-op telemetry on this build
+close_page,half_pair_gap6,half_pair,1,1024,6,1,1,0,4096,100.0,10399,0.0001,39.39,9384,0.0001,43.65,189.19,1024,0,1,no merge / column-op telemetry on this build
+close_page,half_pair_gap7,half_pair,1,1024,7,1,1,0,4096,100.0,10424,0.0001,39.29,9384,0.0001,43.65,189.56,1024,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_gap0,half_pair,1,1024,0,1,1,0,4096,100.0,1071,0.0001,382.45,1305,0.0001,313.87,48.00,1024,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_gap1,half_pair,1,1024,1,1,1,0,4096,100.0,3090,0.0001,132.56,2094,0.0001,195.61,48.00,1024,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_gap2,half_pair,1,1024,2,1,1,0,4096,100.0,4115,0.0001,99.54,3111,0.0001,131.66,95.06,1024,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_gap3,half_pair,1,1024,3,1,1,0,4096,100.0,5137,0.0001,79.74,4134,0.0001,99.08,95.30,1024,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_gap4,half_pair,1,1024,4,1,1,0,4096,100.0,6161,0.0001,66.48,5157,0.0001,79.43,188.81,1024,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_gap5,half_pair,1,1024,5,1,1,0,4096,100.0,7182,0.0001,57.03,6180,0.0001,66.28,189.23,1024,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_gap6,half_pair,1,1024,6,1,1,0,4096,100.0,8209,0.0001,49.90,7203,0.0001,56.87,189.66,1024,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_gap7,half_pair,1,1024,7,1,1,0,4096,100.0,9230,0.0001,44.38,8226,0.0001,49.79,189.89,1024,0,1,no merge / column-op telemetry on this build

@@ -48,6 +48,12 @@ module a7ddrphy (
     input  logic sys2x_rst_1,
     input  logic sys2x_dqs_clk,
     input  logic sys2x_dqs_rst,
+    // nphases=4 generated PHY clocks (a7ddrphy_nph4_generated.v); unused by
+    // the nphases=2 netlist. Both sets exist here so either top lints.
+    input  logic sys4x_clk,
+    input  logic sys4x_rst,
+    input  logic sys4x_dqs_clk,
+    input  logic sys4x_dqs_rst,
 
     // DFI phase 0
     input  logic [12:0] dfi_p0_address,

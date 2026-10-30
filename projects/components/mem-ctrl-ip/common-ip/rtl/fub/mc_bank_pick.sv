@@ -153,6 +153,10 @@ module mc_bank_pick
     // and cost one cycle per burst on the write ceiling (fires every 5
     // cycles at tCCD 4).
     input  logic                      wr_commit_ready_now_i,
+    // per slot, LIVE: the store still owes this slot a merged fill (its
+    // registered record may still say filled); a write column is not fired
+    // on it (granite TASK-006). Tie 0 on a store without combining.
+    input  logic [NUM_ENTRIES-1:0]    wr_fill_pending_i,
     output logic                      wr_commit_valid_o,
     output logic [PTRW-1:0]           wr_commit_slot_o,
     input  logic                      rd_issue_ready_i,
@@ -619,18 +623,16 @@ module mc_bank_pick
                                        || (r_hint_pair[0] ? w_wr_sink_ok : rd_issue_ready_i));
         w_hint_vec    = NPAIR'(1) << r_hint_pair;
 
-        // Request set. Aged requests first (starvation relief). Then the two
-        // classes ALTERNATE: after a row command prefer columns, after a
-        // column prefer row commands -- with both classes pending this
-        // interleaves one bank's ACT with another's column (A0 A1 C0 A2 C1
-        // ...: the ACT stream runs at tRRD and the columns fill the gaps),
-        // where a fixed priority either starves the columns behind a run of
-        // ACTs or holds every ACT behind the column stream. With one class
-        // pending the other falls through, so a single-bank stream is
-        // untouched. Within a class the hint leads, then the current
-        // direction's columns, then any.
-        if (|w_req_aged)                       w_sel = w_req_aged;
-        else if (r_last_was_row) begin
+        // Request set. The two classes ALTERNATE: after a row command prefer
+        // columns, after a column prefer row commands -- with both classes
+        // pending this interleaves one bank's ACT with another's column (A0
+        // A1 C0 A2 C1 ...: the ACT stream runs at tRRD and the columns fill
+        // the gaps), where a fixed priority either starves the columns
+        // behind a run of ACTs or holds every ACT behind the column stream.
+        // With one class pending the other falls through, so a single-bank
+        // stream is untouched. Within a class the hint leads, then the
+        // current direction's columns, then any.
+        if (r_last_was_row) begin
             if (w_hint_ok && w_hint_is_col)    w_sel = w_hint_vec;
             else if (|w_req_col_dir)           w_sel = w_req_col_dir;
             else if (|w_req_col && w_xdir_ok)  w_sel = w_req_col;
@@ -644,6 +646,19 @@ module mc_bank_pick
             else if (w_xdir_ok)                w_sel = w_req_col;
             else                               w_sel = '0;
         end
+
+        // Age as the WITHIN-CLASS tie-break (granite TASK-003 item 5, owner's
+        // placement): among the pairs the choice above left in the set, an
+        // aged one (the store's oldest-in-pool flag, age_exceed under a
+        // nonzero age_thresh) goes ahead of the rotor. The choice itself --
+        // direction, alternation, hint -- is not overridden: measured at the
+        // TOP of the select (the previous form, 2026-10-25) the oldest head
+        // outranked the direction register and the bus turned around on
+        // nearly every pick with both directions live (stream reads -10
+        // percent at 8 threads, the mixed family halved). A hint is a single
+        // pair, so this either keeps it or leaves it alone. With the ages
+        // compiled out (HAS_AGE 0) r_aged is all-zero and this is a no-op.
+        if (|(w_sel & w_req_aged))             w_sel = w_sel & w_req_aged;
 
         // round-robin: lowest index at or above the (effective) rotor, else lowest overall
         for (int p = 0; p < NPAIR; p++) w_below_mask[p] = (PAIRW'(p) < w_rotor_eff);
@@ -868,7 +883,7 @@ module mc_bank_pick
         if (w_fis_col) begin
             // the write sink re-check: registers only (see the port note)
             w_class_ok = w_sel_cand.vld && w_sel_hit
-                      && (!w_sel_is_wr || wr_commit_ready_now_i);
+                      && (!w_sel_is_wr || (wr_commit_ready_now_i && !wr_fill_pending_i[w_sel_slot]));
             w_timer_ok = bank_rdwr_ready_i[RK0][w_sel_bank] && w_tccd_fwd_ok
                       && (w_sel_is_wr ? (trtw_ok_i && !r_rdfire0)
                                       : (twtr_ok_i && !r_wrfire0));

@@ -12,16 +12,15 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 49 | done (kept for history) |
+| [closed/](closed/) | 50 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
 - **TASK-062** — OPEN 2026-10-25: ocelus on the memory controllers (owner): a monbus port out of granite and pumice, axi_monitor_lite on the slave port plus a controller event source (first event: the TASK-061 age invariant as an ERROR), through the ocelus monbus arbiter; the shared decoder on the sim side.
-- **TASK-061** — OPEN 2026-10-25: age-carrying per-bank FIFO for granite (owner's spec: push age = 1 + greatest head age across the N bank FIFOs; `age_decr` on any pop decrements every age toward 0, saturating) -- the scheduler level below FR-FCFS without CAMs; no earlier spec found in the tree.
 - **TASK-047** — dual issue on DFI 1:2: a row command on the other phase of
   the column's DFI word, so the ACT/PRE slot is free rather than well
   placed (bounded gain: 1 slot in 9 on bank walks; nothing on streams).
@@ -54,6 +53,7 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-061** — CLOSED 2026-10-29: the age-carrying per-bank FIFO, delivered as `gaxi_age_fifo_sync` (PEEK, pool age, `age_dec`, per-head OLDEST/thresh flop) and installed as granite's sixteen bank queues under granite TASK-002; the flag's place in the select is granite TASK-003 item 5.
 - **TASK-059** — CLOSED 2026-10-24: ASAP7 per-plane baseline on the fixed intake (granite 21 220 / pumice 46 227 cells); `HAS_AGE=0` granite default (-1 443 ASAP7 cells, board 5 631 -> 5 140 LUT / 3 532 -> 3 196 FF, cycle-identical, smoked + charred); `PP_TIMEOUT_CLOSE=0` measured and REJECTED (-8 % column streams: the idle-timeout close is the engine's live function in granite, tr_init 1); `make smoke`. Report 5.19 / 5.20.
 - **TASK-058** — CLOSED 2026-10-24: the store's per-bank cap made conditional
   on the other direction holding entries (`BANK_CAP_MIXED`, granite 6): every

@@ -454,6 +454,32 @@ _PART_NS = dict(tRCD_ns=15.0, tRP_ns=15.0, tRAS_min_ns=45.0, tRC_ns=60.0,
                 tFAW_ns=45.0, tREFI_ns=7800.0, tRFC_ns=127.5)
 
 
+class _McAnchoredDram(DramStateModel):
+    """DramStateModel whose write-recovery anchor is the controller's own
+    WR -> PRE interval (pumice ISSUE-023).
+
+    The stock model anchors tWR (and tWTR) at `WR + CWL + BL - 1`, with CWL
+    and BL the SLAVE's data-path values, which this checker keeps on purpose
+    (see _calibrated_checker). In MC cycles that put the last write beat ~7
+    cycles after the command and demanded PRE at WR + 9, while the
+    controller's `t_wr` field closes at WR + (WL + BL/2 + tWR)_CK in MC
+    cycles (4 at 75 MHz): 256 phantom tWR, or tRP with close-on-drain, per
+    col_major run. Once the host has programmed the timings, the proxy sets
+    `wr_to_pre_cycles` to that field and the anchor becomes
+    `WR + wr_to_pre_cycles - tWR_cycles`, so the model's `+ tWR_cycles`
+    lands PRE exactly where the controller does; tWTR reads off the same
+    (earlier, correct) last-beat point. Until it is set the stock anchor
+    applies, which only matters before the first programmed timing.
+    """
+    wr_to_pre_cycles = None
+
+    def on_write(self, bank_idx: int) -> None:
+        super().on_write(bank_idx)
+        if self.wr_to_pre_cycles is not None:
+            self._bank(bank_idx).last_wr_data_cycle = (
+                self.cycle + int(self.wr_to_pre_cycles) - int(self.timings.tWR_cycles))
+
+
 def _calibrated_checker(dut, slave):
     """Replace the BFM's violation checker with one whose cycle unit is the
     MC clock the DUT and the harness actually run. Returns the model so the
@@ -472,9 +498,9 @@ def _calibrated_checker(dut, slave):
     t = timings_from_params(tCK_ns=CLK_PERIOD_NS, CL=int(base_t.CL),
                             CWL=int(base_t.CWL), BL=int(base_t.BL),
                             **_PART_NS)
-    model = DramStateModel(timings=t, num_banks=NUM_BANKS,
-                           policy=ViolationPolicy(hard=frozenset()),
-                           log=dut._log)
+    model = _McAnchoredDram(timings=t, num_banks=NUM_BANKS,
+                            policy=ViolationPolicy(hard=frozenset()),
+                            log=dut._log)
     slave.dram = model
     return model
 
@@ -755,6 +781,9 @@ async def cocotb_test_pumice_perf(dut):
             timings.update(drv.pumice.set_jedec_timings(overrides))
             out["timing_overrides"] = overrides
         out["timings"] = timings
+        # The checker's write-recovery anchor follows the programmed field
+        # (ISSUE-023); the model is the one _calibrated_checker installed.
+        _dfi.dram.wr_to_pre_cycles = int(timings["tWR"])
         drv.set_refresh_interval(t_refi)
         # One DRAM column command moves DRAM_BL device words.
         out["floors"] = _floors(timings, blen, DRAM_BL * DRAM_DEVICE_BYTES, clk_mhz)
@@ -848,6 +877,11 @@ async def cocotb_test_pumice_perf(dut):
         dut._log.info("STALLED %s -- RTL snapshot: %s", stalled, r["rtl_snapshot"])
     dut._log.info("DRAM model soft violations (MC-cycle calibrated): %s",
                   r["model_violations"])
+    # The counter is the proxy's one JEDEC verdict. The write-recovery
+    # phantoms (ISSUE-023) are gone with the anchor above, so a nonzero
+    # count here is a real violation and the proxy says so.
+    _viol = {k: v for k, v in r["model_violations"].items() if v}
+    assert not _viol, f"DRAM model violations at the programmed timings: {_viol}"
     if dump_path:
         with open(dump_path, "w") as fh:
             json.dump(r, fh, indent=2)

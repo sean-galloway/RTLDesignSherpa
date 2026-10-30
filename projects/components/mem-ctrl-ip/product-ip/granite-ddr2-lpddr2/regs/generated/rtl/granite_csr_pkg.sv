@@ -98,10 +98,28 @@ package granite_csr_pkg;
     } granite_csr__CAL_STATUS__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } granite_csr__STORE_STATS_MERGE__VAL__in_t;
+
+    typedef struct {
+        granite_csr__STORE_STATS_MERGE__VAL__in_t VAL;
+    } granite_csr__STORE_STATS_MERGE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } granite_csr__STORE_STATS_RD_MERGE__VAL__in_t;
+
+    typedef struct {
+        granite_csr__STORE_STATS_RD_MERGE__VAL__in_t VAL;
+    } granite_csr__STORE_STATS_RD_MERGE__in_t;
+
+    typedef struct {
         granite_csr__STATUS__in_t STATUS;
         granite_csr__CAL_MRR32_DATA__in_t CAL_MRR32_DATA[4];
         granite_csr__CAL_MRR40_DATA__in_t CAL_MRR40_DATA[4];
         granite_csr__CAL_STATUS__in_t CAL_STATUS;
+        granite_csr__STORE_STATS_MERGE__in_t STORE_STATS_MERGE;
+        granite_csr__STORE_STATS_RD_MERGE__in_t STORE_STATS_RD_MERGE;
     } granite_csr__in_t;
 
     typedef struct {

@@ -110,3 +110,24 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
   Verilator and saturated at 0xFFFFFFFF on the Genesys 2 from the first board
   run -- mean latency 21,474,836 cycles. A mean <= max check now runs in the
   pair test; it cannot catch the synthesis-only reading, the board can.*
+
+- **A per-slot FIFO must be re-sized when a feature lets one slot appear in
+  it twice.** "At most once per slot, so NUM_ENTRIES deep" is an invariant
+  of the feature set that existed when it was written. A feature that adds a
+  second pending event per slot (a merge target that owes its own fill AND
+  the merged write's) silently doubles the bound, and the `assert`-free
+  comment keeps saying NUM_ENTRIES. *Case (granite TASK-006, 2026-10-29):
+  `mc_bank_fifo_store`'s fill-order FIFO (`r_fo`, the slot each W beat
+  belongs to) was NUM_ENTRIES deep; with the write combiner a slot sits in
+  it twice, so once the W stream lags the admitted AWs by more than eight
+  fills the push wraps over the head and beats land in the wrong slots.
+  `cocotb_test_granite_core_merge_fill_lag` drives the W channel on the
+  slow_producer profile so sixteen fills are pending at once: against the
+  old depth it hangs (an entry whose fill went elsewhere never completes),
+  against `MERGE_EN ? 2*NUM_ENTRIES : NUM_ENTRIES` it passes. It was found
+  while bisecting a board corruption that turned out to be a DIFFERENT
+  fault -- the fix did not change the board -- so the lesson is the sizing
+  rule, not the symptom.* The general rule: when a feature adds a second
+  state to a slot, grep for every structure sized "one per slot" (fill
+  order, done queue, credit counter) and re-derive each bound from the new
+  maximum, not the old comment.

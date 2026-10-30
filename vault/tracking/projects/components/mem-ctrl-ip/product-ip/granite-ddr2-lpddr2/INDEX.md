@@ -5,7 +5,7 @@ summary: Task rollup for the granite-ddr2-lpddr2 product (projects/components/me
 
 # granite-ddr2-lpddr2 — task rollup
 
-**Next ID: TASK-002** — never recycle a number, even when its task closed.
+**Next ID: TASK-008** — never recycle a number, even when its task closed.
 
 **Every item is its own file**, `<ID>.md`, filed under the directory for its
 state (`open/`, `active/`, `closed/`, `dropped/`, `deferred/`). Moving an
@@ -16,11 +16,24 @@ construction.
 
 | Lane | For | Next ID |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-002` |
+| [task/](task/INDEX.md) | planned work we decided to do | `TASK-008` |
 
 ## Open shortlist
 
-None — TASK-001 (granite first build) is **active**: wrappers dissolved into
-the common macros and `granite_core` built (no storage layer,
-`mc_xddr2_entry_store` seam, reduced refresh options). Remaining: product
-CSR baseline + board. Details: [task/active/TASK-001.md](task/active/TASK-001.md).
+One active item, one open (TASK-007, narrow beats on the 1:4 host), two deferred (2026-10-29). TASK-001 (first build),
+TASK-002 (age-FIFO store) and TASK-006 (store combining) are closed; the
+board runs every profile clean at 75 MHz and at the DDR2-400 100 MHz point,
+with and without the combiner.
+
+- **TASK-003** (active) -- 100 MHz and ahead of LiteDRAM through the same
+  harness: items 5 (where the aged class sits in the pick's select, then
+  CSR weights) and 6 (DFI 1:4 at 100 MHz, BL8) are what is left.
+  [task/active/TASK-003.md](task/active/TASK-003.md).
+- **TASK-006** (closed 2026-10-29) -- store combining behind
+  `STORE_MERGE_EN`: close_page pair walk doubled, open_page pair +14..25
+  percent at 3-4 threads, the board corruption root-caused and fixed
+  (a WRITE at the DFI head before its data). [task/closed/TASK-006.md](task/closed/TASK-006.md).
+- **TASK-004** (deferred) -- the 100 MHz timing margin levers.
+  [task/deferred/TASK-004.md](task/deferred/TASK-004.md).
+- **TASK-005** (deferred) -- the half-width AXI aggregator, kept behind
+  `HALF_AGG=0`. [task/deferred/TASK-005.md](task/deferred/TASK-005.md).

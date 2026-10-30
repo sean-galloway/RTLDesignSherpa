@@ -75,6 +75,9 @@ module granite_core
     parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
     parameter int RFC_W             = 8,    // pick core tRFC / tZQCS recovery counter width (16-bit CSR saturates in; DDR2 tRFC <= 35 cycles)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
+    parameter bit BANK_EVT_REG      = 1'b1, // bank timer counters load one register after the pick's fire strobe (TASK-003 100 MHz; readiness exact); 0 = the live load
+    parameter bit STORE_MERGE_EN    = 1'b1, // FIFO-store combining (TASK-006, default ON since 2026-10-29): a write into a live uncommitted same-{bank,row,col} write entry, a read as a shadow of a live unissued same-key read ticket; 0 = every access its own entry
+    parameter bit HALF_AGG          = 1'b0, // the half-width AXI aggregator at the host edge (TASK-005, DEFERRED: no gain on the pair cell, 30 percent hold cost on unpaired halves, a write hang on open_page); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
@@ -188,6 +191,9 @@ module granite_core
     output logic                       zq_busy_o,
     output logic                       zq_overdue_o,
     output logic [15:0]                zqcs_total_o,
+    // store combining telemetry (STORE_MERGE_EN; constant 0 otherwise)
+    output logic [31:0]                stat_wr_merge_o,
+    output logic [31:0]                stat_rd_merge_o,
 
     // ---- host AXI4 ----
     input  logic [IW-1:0]  s_axi_awid,   input logic [AW-1:0] s_axi_awaddr,
@@ -296,6 +302,7 @@ module granite_core
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                w_bank_row_active;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] w_bank_open_row;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
+    logic [NUM_ENTRIES-1:0]    w_wr_fill_pending;   // FIFO store combiner: merged fill still pending, per slot
     logic w_wr_commit_rdy_now;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
@@ -395,7 +402,8 @@ module granite_core
         .WDATA_FIFO_DEPTH (INTAKE_FIFO_DEPTH),
         .SKID_DEPTH_R     (AXI_SKID_DEPTH),
         .SKID_DEPTH_W     (AXI_SKID_DEPTH),
-        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP)
+        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP),
+        .HALF_AGG         (HALF_AGG)
     ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -511,6 +519,7 @@ module granite_core
             .HEAD2_EN           (HEAD2_EN),
             .BANK_CAP_MIXED     (BANK_CAP_MIXED),
             .HAS_AGE            (HAS_AGE),
+            .MERGE_EN           (STORE_MERGE_EN),
             .AXI_ID_WIDTH       (IW),
             .AXI_DATA_WIDTH     (DW),
             .NUM_RANKS          (NUM_RANKS),
@@ -568,6 +577,7 @@ module granite_core
             .wr_commit_valid_i  (w_wr_commit_v),
             .wr_commit_ready_o  (w_wr_commit_rdy),
             .wr_commit_ready_now_o (w_wr_commit_rdy_now),
+            .wr_fill_pending_o  (w_wr_fill_pending),
             .wr_commit_slot_i   (w_wr_commit_slot),
             .rd_issue_valid_i   (w_rd_issue_v),
             .rd_issue_ready_o   (w_rd_issue_rdy),
@@ -587,7 +597,11 @@ module granite_core
             .wr_cm_rd_data_o    (w_cm_data),
             .wr_cm_rd_strb_o    (w_cm_strb),
             .wr_cm_rd_last_o    (w_cm_last),
-            .busy_o             ()
+            .busy_o             (),
+            .ar_merge_o         (rt_alloc_merge),
+            .ar_merge_ticket_o  (rt_alloc_src),
+            .stat_wr_merge_o    (stat_wr_merge_o),
+            .stat_rd_merge_o    (stat_rd_merge_o)
         );
         // The FR-FCFS core's N-wide vectors do not exist on this backend; the
         // scheduler plane's BANK_PICK branch sinks them.
@@ -604,13 +618,14 @@ module granite_core
         assign w_rd_sch_agex  = '0;
         assign w_rd_sch_qos   = '0;
         assign w_rd_sch_hrel  = '0;
-        assign rt_alloc_merge = 1'b0;   // no read combiner on the FIFO store
-        assign rt_alloc_src   = '0;
     end else begin : g_entry_store
-        // mc_xddr2_entry_store has no read combiner either: the shadow alloc
-        // is a pumice (mc_storage_plane) feature
-        assign rt_alloc_merge = 1'b0;
-        assign rt_alloc_src   = '0;
+        // mc_xddr2_entry_store has no combiner: the shadow alloc is the FIFO
+        // store's (STORE_MERGE_EN) and pumice's (mc_storage_plane)
+        assign rt_alloc_merge  = 1'b0;
+        assign rt_alloc_src    = '0;
+        assign stat_wr_merge_o = '0;
+        assign w_wr_fill_pending = '0;
+        assign stat_rd_merge_o = '0;
         // ======================================================================
         // Plane 1b: storage-lite entry store (N=1 in-order seam)
         // ======================================================================
@@ -792,6 +807,7 @@ module granite_core
         .PP_TIMEOUT_CLOSE   (PP_TIMEOUT_CLOSE),
         .PP_TELEMETRY       (1'b0),   // granite wires no *_STATS CSRs (the stat_* outputs below are open)
         .BANK_TW            (BANK_TW),
+        .BANK_EVT_REG       (BANK_EVT_REG),
         .HAS_STALL_STATS    (1'b0),   // granite wires no STALL_* CSRs (the outputs below are open)
         .RFC_W              (RFC_W),
         .NUM_RANKS     (NUM_RANKS),
@@ -906,6 +922,7 @@ module granite_core
         .wr_head2_i         (w_wr_head2),
         .wr_commit_ready_i  (w_wr_commit_rdy),
         .wr_commit_ready_now_i  (w_wr_commit_rdy_now),
+        .wr_fill_pending_i  (w_wr_fill_pending),
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
         .rd_sch_valid_i     (w_rd_sch_v),
@@ -975,6 +992,7 @@ module granite_core
         .mc_rst_n        (aresetn),
         .init_done_i     (init_done_o),
         .memtype_i       (memtype_i),
+        .demand_i        ((|w_wr_sch_v) || (|w_rd_sch_v)),
         .zq_en_i         (zq_en_i),
         .zq_defer_en_i   (zq_defer_en_i),
         .zq_interval_i   (zq_interval_i),

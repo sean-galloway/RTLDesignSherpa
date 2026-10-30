@@ -1,0 +1,5 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+litedram,half_pair,half_pair,1,32000,0,1,1,0,512000,75.0,551549,0.0071,69.62,541061,0.0048,70.97,25.08,128000,0,4,threads clamped 8 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_oct,half_oct,1,32000,0,1,1,0,512000,75.0,551547,0.0071,69.62,541026,0.0048,70.98,25.08,128000,0,4,threads clamped 8 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_pair_sweep,half_pair_sweep,1,32000,0,1,1,0,512000,75.0,551545,0.0071,69.62,541029,0.0048,70.98,25.08,128000,0,4,threads clamped 8 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_oct_sweep,half_oct_sweep,1,32000,0,1,1,0,512000,75.0,551548,0.0071,69.62,541027,0.0048,70.98,25.08,128000,0,4,threads clamped 8 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build

@@ -820,6 +820,30 @@ addrmap granite_csr {
     } LP_MR3_OP @ 0x188;
 
     //=========================================================================
+    // Store combining telemetry (0x18C - 0x193), granite TASK-006. The same
+    // two registers as pumice's TASK-060 pair, at the same addresses, so the
+    // shared host reads them by name on either controller. Free-running;
+    // read as a delta around a run. Constant 0 when STORE_MERGE_EN = 0.
+    //=========================================================================
+    reg {
+        name = "Store Stats: Write Merges";
+        desc = "TASK-006. Writes MERGED into a live, uncommitted write entry of the same
+                {bank,row,col} in the FIFO store (their strobed bytes land in that entry,
+                which then owes a second B). Free-running; read as a delta around a run.
+                0 when STORE_MERGE_EN = 0.";
+        field { sw = r; hw = w; desc = "write merges performed"; } VAL[31:0];
+    } STORE_STATS_MERGE @ 0x18C;
+
+    reg {
+        name = "Store Stats: Read Merges";
+        desc = "TASK-006. Reads COMBINED into a live, unissued read entry of the same
+                {bank,row,col} in the FIFO store (one DRAM burst, returned twice through
+                the return ring as a shadow ticket). Free-running; read as a delta around
+                a run. 0 when STORE_MERGE_EN = 0.";
+        field { sw = r; hw = w; desc = "read merges performed"; } VAL[31:0];
+    } STORE_STATS_RD_MERGE @ 0x190;
+
+    //=========================================================================
     // Module Identification (0xFF0 – 0xFFC)
     //=========================================================================
 

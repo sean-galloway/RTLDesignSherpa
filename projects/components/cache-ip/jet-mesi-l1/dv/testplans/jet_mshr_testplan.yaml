@@ -1,0 +1,158 @@
+# Testplan for jet_mshr (the MAB file)
+# Maps the MAS ch02_blocks/02 contract to the Pattern-B grid DV: directed
+# scenarios per hazard rule plus a model-scored random phase. Single
+# geometry cell (J1 default MSHR_COUNT=8, SETS=128, WAYS=4); the 2/4/8/16
+# MSHR_COUNT sweep is the J7 experiment, not a unit-TB cell.
+
+module: jet_mshr
+rtl_files:
+  - projects/components/cache-ip/jet-mesi-l1/rtl/fub/jet_mshr.sv
+test_files:
+  - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_mshr.py
+
+# Contract: MAS ch02_blocks/02. Entry fields valid/line/cls/install_state/
+# victim_way/wb_slot/merge/beats_rcvd/pend_eff/seq. Alloc grant + index and
+# both CAM probes are combinational; alloc/match same-cycle resolves
+# alloc-first (the entry is visible to the match from the alloc cycle, an
+# existing match wins the index). Per-set claim counters cap a set at WAYS
+# outstanding victim claims; a same-cycle alloc+retire to one set nets the
+# counter. Merge appends past the per-entry depth are dropped (the
+# aggregate RSP_DEPTH bound is the front-end tag allocator's job, Task 5).
+
+parameters:
+  - name: MSHR_COUNT
+    default: jet_pkg.MSHR_COUNT (8)
+    description: J1 outstanding misses, range 2-16; elaboration $error outside
+  - name: SETS / WAYS
+    default: 128 / 4 (l1_pkg)
+    description: claim-bank size / per-set claim cap
+  - name: LINE_W
+    default: 26 (AMBER_ADDR_WIDTH - line-offset bits)
+    description: CAM key width (miss line address)
+  - name: SEQ_W / VICTIM_DEPTH
+    default: jet_pkg.SEQ_W / jet_pkg.VICTIM_DEPTH (2)
+    description: merge-tag width / WB-slot field width (J5)
+
+scenarios:
+  - name: alloc_and_match
+    level: all
+    what: Alloc drives both probes to the alloc line in the alloc cycle —
+      both see the entry (match, free-slot index, cls, install, beats=0)
+      before the clock edge; after the edge the registered entry matches;
+      a non-alloc line misses. Commit port reads the stored fields back.
+    status: covered
+  - name: full_stall
+    level: all
+    what: MSHR_COUNT allocs (one claim per set) grant; the next alloc sees
+      alloc_gnt_o=0 with full_o=1 and set_full_o=0, and a stalled cycle
+      writes nothing. Retire reopens the freed slot.
+    status: covered
+  - name: set_claim_cap
+    level: all
+    what: At WAYS=4, four allocs to one set grant; the fifth to that set
+      sees set_full_o=1 and no grant while an alloc to a different set
+      still grants. Retire of a claim holder reopens the set.
+    status: covered
+  - name: set_claim_same_cycle
+    level: all
+    what: alloc+retire to the SAME set in one cycle nets the claim counter
+      (Review Focus 1): from claims=2, the paired cycle leaves the counter
+      at 2 — verified by refilling to the cap, which must take exactly
+      WAYS-2 more grants before set_full_o rises. Occupancy nets too.
+    status: covered
+  - name: merge_appends
+    level: all
+    what: Merge tags accumulate in order behind the allocator's own tag
+      (slot 0); cpl_merge_seqs_o/cpl_merge_count_o read back the list.
+    status: covered
+  - name: beat_marks
+    level: all
+    what: beat_i sets bits of the entry's PF_GUARD bitmask;
+      sn_beats_rcvd_o tracks it on the snoop probe (beats 3, 0, last).
+    status: covered
+  - name: pend_eff_records
+    level: all
+    what: sn_eff_i records the deferred snoop effect (downgrade-S,
+      invalidate-I, clear-to-none); cpl_pend_eff_o reads it back.
+    status: covered
+  - name: retire_frees
+    level: all
+    what: Retire drops the entry (probes miss), the occupancy, and the
+      victim-way claim — verified by refilling the freed set to its cap.
+      Also reads back the wb_slot/wb_valid fields on a live entry first.
+    status: covered
+  - name: occupancy_gauge
+    level: all
+    what: occupancy_o equals the model's live-entry count after every
+      alloc and retire, including the drain to empty.
+    status: covered
+  - name: random_model_scored
+    level: gate 60 / func 800 / full 6000 ops
+    what: Random legal alloc/merge/beat/sn_eff/retire/idle mix (allocs
+      biased to a 16-set window for claim-cap pressure, 20% of allocs
+      paired with a same-cycle retire); probes and the commit port scored
+      against the Python golden model on most cycles, occupancy on every
+      alloc/retire.
+    status: covered
+
+coverage_points:
+  - line: 205
+    type: initial
+    content: "elaboration range checks (MSHR_COUNT 2-16, geometry)"
+    covered: true
+    note: elaborates clean at the default geometry; the $error branches
+      fire only on an out-of-range elaboration (by design not exercised).
+  - line: 241
+    type: always_comb
+    content: "first-free-entry select (lowest invalid index)"
+    covered: true
+    tests: [alloc_and_match, full_stall, random_model_scored]
+  - line: 252
+    type: assign
+    content: "full_o / set_full_o / alloc_gnt_o / alloc_idx_o"
+    covered: true
+    tests: [full_stall, set_claim_cap, set_claim_same_cycle]
+  - line: 265
+    type: always_comb
+    content: "CAM compare vectors (both probes)"
+    covered: true
+    tests: [alloc_and_match, random_model_scored]
+  - line: 275
+    type: always_comb
+    content: "lookup probe: lowest-index match + alloc-first same-cycle"
+    covered: true
+    tests: [alloc_and_match]
+  - line: 293
+    type: always_comb
+    content: "snoop probe: lowest-index match + alloc-first same-cycle"
+    covered: true
+    tests: [alloc_and_match, beat_marks]
+  - line: 316
+    type: always_comb
+    content: "commit read port (line/install/pend_eff/merge list/wb)"
+    covered: true
+    tests: [merge_appends, pend_eff_records, retire_frees]
+  - line: 332
+    type: always_comb
+    content: "occupancy popcount"
+    covered: true
+    tests: [occupancy_gauge, full_stall]
+  - line: 345
+    type: always_ff
+    content: "entry updates: merge append / beat mark / pend_eff / retire / alloc init"
+    covered: true
+    tests: [all scenarios]
+  - line: 404
+    type: always_ff
+    content: "per-set claim counters with same-cycle alloc+retire netting"
+    covered: true
+    tests: [set_claim_cap, set_claim_same_cycle, retire_frees]
+
+gaps:
+  - Out-of-range MSHR_COUNT elaboration ($error) is intentionally not
+    exercised — it fails the build by design.
+  - The J1 2/4/8/16 MSHR_COUNT sweep is the J7 experiment; the unit grid
+    runs the default geometry only.
+  - The aggregate live merge-tag bound (RSP_DEPTH) is enforced by the
+    front-end tag allocator (Task 5); here only the per-entry depth guard
+    is checked (overflow appends are a contract violation and dropped).

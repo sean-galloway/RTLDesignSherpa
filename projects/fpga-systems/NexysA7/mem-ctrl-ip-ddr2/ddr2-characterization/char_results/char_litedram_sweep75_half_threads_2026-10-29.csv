@@ -1,0 +1,17 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+litedram,half_pair_thr1,half_pair,1,32000,0,1,1,0,128000,75.0,39499,0.0018,243.04,33602,0.0012,285.70,24.77,32000,0,1,no merge / column-op telemetry on this build
+litedram,half_pair_thr2,half_pair,1,32000,0,1,1,0,256000,75.0,271639,0.0036,70.68,266721,0.0024,71.99,24.68,64000,0,2,no merge / column-op telemetry on this build
+litedram,half_pair_thr3,half_pair,1,32000,0,1,1,0,384000,75.0,410275,0.0053,70.20,402890,0.0036,71.48,24.91,96000,0,3,no merge / column-op telemetry on this build
+litedram,half_pair_thr4,half_pair,1,32000,0,1,1,0,512000,75.0,551554,0.0071,69.62,541033,0.0048,70.98,25.08,128000,0,4,no merge / column-op telemetry on this build
+litedram,half_pair_thr5,half_pair,1,32000,0,1,1,0,512000,75.0,551555,0.0071,69.62,541023,0.0048,70.98,25.08,128000,0,4,threads clamped 5 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_pair_thr6,half_pair,1,32000,0,1,1,0,512000,75.0,551536,0.0071,69.62,541035,0.0049,70.98,25.08,128000,0,4,threads clamped 6 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_pair_thr7,half_pair,1,32000,0,1,1,0,512000,75.0,551545,0.0071,69.62,541054,0.0049,70.97,25.08,128000,0,4,threads clamped 7 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_pair_thr8,half_pair,1,32000,0,1,1,0,512000,75.0,551540,0.0071,69.62,541028,0.0048,70.98,25.08,128000,0,4,threads clamped 8 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_oct_thr1,half_oct,1,32000,0,1,1,0,128000,75.0,39524,0.0018,242.89,33602,0.0012,285.70,24.78,32000,0,1,no merge / column-op telemetry on this build
+litedram,half_oct_thr2,half_oct,1,32000,0,1,1,0,256000,75.0,271650,0.0036,70.68,266720,0.0024,71.99,24.68,64000,0,2,no merge / column-op telemetry on this build
+litedram,half_oct_thr3,half_oct,1,32000,0,1,1,0,384000,75.0,410239,0.0053,70.20,402885,0.0036,71.48,24.91,96000,0,3,no merge / column-op telemetry on this build
+litedram,half_oct_thr4,half_oct,1,32000,0,1,1,0,512000,75.0,551541,0.0071,69.62,541028,0.0048,70.98,25.08,128000,0,4,no merge / column-op telemetry on this build
+litedram,half_oct_thr5,half_oct,1,32000,0,1,1,0,512000,75.0,551541,0.0071,69.62,541032,0.0049,70.98,25.08,128000,0,4,threads clamped 5 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_oct_thr6,half_oct,1,32000,0,1,1,0,512000,75.0,551545,0.0071,69.62,541032,0.0048,70.98,25.08,128000,0,4,threads clamped 6 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_oct_thr7,half_oct,1,32000,0,1,1,0,512000,75.0,551539,0.0071,69.62,541022,0.0048,70.98,25.08,128000,0,4,threads clamped 7 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build
+litedram,half_oct_thr8,half_oct,1,32000,0,1,1,0,512000,75.0,551548,0.0071,69.62,541035,0.0048,70.98,25.08,128000,0,4,threads clamped 8 -> 4 (build has 4 injectors per direction); no merge / column-op telemetry on this build

@@ -170,20 +170,21 @@ dip on the eight-channel single-descriptor sink points (`beat_ch8_b4` to `b256`)
 ## Scheduler Limit
 
 Measured with `cocotb_test_perf`: engines that take every burst in one cycle and never stall, so the
-scheduler is the only limit; 8 channels and 8 harts, DATA_WIDTH 256, cycles at 100 MHz. The bench
+scheduler is the only limit; 8 channels, DATA_WIDTH 256, cycles at 100 MHz. The bench
 runs both directions on every channel, twice the load of one RAPIDS half (each half moves one
-direction).
+direction). The 4- and 8-hart columns were rerun together on the committed executive image on
+2026-10-28, so their comparison uses one firmware image and one simulation phase sequence.
 
-| Scenario | rapids-8ch | rapids-g-8ch, 10-22 | rapids-g-8ch, executive | executive / rapids-8ch |
-|----------------------------------|-------------:|-------------:|-------------:|-------------:|
-| 16 one-beat descriptors, one channel | 131 | 2,371 | 2,371 | 18x |
-| 16 one-beat descriptors on each channel | 131 | 2,316 | 2,316 | 18x |
-| 16 64-beat descriptors on each channel | 1,255 | 2,389 | 2,389 | 1.9x |
-| 4 64 KB descriptors on each channel | 9,248 | 9,529 | 9,412 | 1.02x |
-| 2 1 MB descriptors on each channel | 84,277 | 84,420 | 84,443 (*) | 1.002x |
-| EXT, runs of 4, 64 beats, 4 per channel | 407 | 40,433 | 39,201 | 96x |
-| EXT, per beat, 64 beats, 4 per channel | 1,043 | 135,848 | 130,086 | 125x |
-| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 72,329 | 70,641 | 2.4x |
+| Scenario | rapids-8ch | rapids-g-8ch, 10-22, 8 harts | rapids-g-8ch, executive, 4 harts | rapids-g-8ch, executive, 8 harts | 8-hart executive / rapids-8ch |
+|----------------------------------|-------------:|-------------:|-------------:|-------------:|-------------:|
+| 16 one-beat descriptors, one channel | 131 | 2,371 | 1,571 | 2,371 | 18x |
+| 16 one-beat descriptors on each channel | 131 | 2,316 | 2,699 | 2,316 | 18x |
+| 16 64-beat descriptors on each channel | 1,255 | 2,389 | 2,777 | 2,389 | 1.9x |
+| 4 64 KB descriptors on each channel | 9,248 | 9,529 | 9,415 | 9,412 | 1.02x |
+| 2 1 MB descriptors on each channel | 84,277 | 84,420 | 84,444 | 84,443 (*) | 1.002x |
+| EXT, runs of 4, 64 beats, 4 per channel | 407 | 40,433 | 39,002 | 39,201 | 96x |
+| EXT, per beat, 64 beats, 4 per channel | 1,043 | 135,848 | 128,922 | 130,086 | 125x |
+| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 72,329 | 70,253 | 70,641 | 2.4x |
 
 : Table 5.5.5: Cycles to finish, schedulers alone
 
@@ -191,12 +192,18 @@ The executive image (rapids TASK-037) is 2-4% faster on every EXT row and unchan
 linear ones: an XFER_DATA step costs four instructions of dispatch and returns, where `service`
 re-read STATUS and re-judged the head before returning. (*) The scenarios run in sequence in one
 simulation, so when the 64 KB row finishes sooner the 1 MB row starts at another phase of the
-barrel; run alone from the same cycle, both images take 84,420 (and 9,454 for 64 KB).
+barrel; run alone from the same cycle, both 8-hart images take 84,420 (and 9,454 for 64 KB).
 
 With one hart per channel the channels no longer share a hart, so one busy channel and eight
-busy channels cost the same (2,371 and 2,316). On 4 harts the same rows were 7,215 and 14,139.
+busy channels cost nearly the same at 8 harts (2,371 and 2,316). At 4 harts each hart walks two
+slots: one busy channel is 34% faster than at 8 harts (1,571 against 2,371), but all channels busy
+is 17% slower (2,699 against 2,316), and the 64-beat all-channel case is 16% slower (2,777 against
+2,389). The large linear transfers hide either configuration's control work: 4 and 8 harts differ
+by one cycle on two 1 MB descriptors per channel. The RTL permits 4, 8 or 16 harts; 2 harts is not
+a supported configuration. These are context counts within one Gatling per direction, not counts
+of Gatling instances.
 Pre-validation hides the firmware behind the descriptor in flight whenever the transfer outlasts
-it: two 1 MB descriptors per channel finish 0.17% behind rapids-8ch, and what remains is each
+it: two 1 MB descriptors per channel finish 0.20% behind rapids-8ch, and what remains is each
 channel's first descriptor. Descriptors shorter than the firmware's work still pay it in full.
 EXT descriptors are limited by base generation: a base costs the firmware about 15-35
 instructions, each NUM_HARTS clocks, against one cycle in `stream_run_addr_gen`, so with both

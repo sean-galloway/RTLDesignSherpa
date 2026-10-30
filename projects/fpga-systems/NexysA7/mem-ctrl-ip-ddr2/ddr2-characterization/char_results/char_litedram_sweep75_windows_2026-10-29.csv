@@ -1,0 +1,4 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+litedram,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,75.0,5172981,0.0853,118.77,5172972,0.0853,118.77,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 237.5 MB/s over 5172981 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+litedram,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,75.0,2264425,0.0533,271.33,2206134,0.0371,278.50,91.76,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+litedram,random_bl8,random,8,32000,0,0,1,0,8192000,75.0,2146041,0.0533,286.29,2063445,0.0371,297.75,64.41,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"

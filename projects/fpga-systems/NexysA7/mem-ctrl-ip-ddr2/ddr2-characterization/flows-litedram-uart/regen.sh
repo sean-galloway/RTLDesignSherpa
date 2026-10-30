@@ -12,6 +12,16 @@ set -euo pipefail
 VENV="${LITEX_VENV:-/tmp/litex-venv310}"
 GEN="$VENV/bin/litedram_gen"
 CFG=litedram_hp.yml
+# LITEDRAM_SYS_CLK=100e6: the same core at another sys clock (the 100 MHz /
+# 1:2 / DDR2-400 point granite is measured at, 2026-10-29). The yml stays the
+# 75 MHz one; a temp copy carries the override. Build the top with
+# LITEDRAM_SYS_100=1 so its UART divisor follows (see build_all.tcl).
+if [ -n "${LITEDRAM_SYS_CLK:-}" ]; then
+  CFG=$(mktemp /tmp/litedram_hp_XXXX.yml)
+  sed "s/\"sys_clk_freq\": *[0-9.e]*,/\"sys_clk_freq\":     ${LITEDRAM_SYS_CLK},/" litedram_hp.yml > "$CFG"
+  grep -q "sys_clk_freq\":     ${LITEDRAM_SYS_CLK}" "$CFG" || { echo "sys_clk override did not apply"; exit 1; }
+  echo "[regen] sys_clk_freq overridden to ${LITEDRAM_SYS_CLK} ($CFG)"
+fi
 # Generated cores land under gen/ (gen/board, gen/sim), one named subdirectory
 # per CRITICAL RULE #0.1 -- they used to be written as build_board/ + build_sim/
 # at the flow root, where they sat beside hand-written sources.

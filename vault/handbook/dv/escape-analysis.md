@@ -206,5 +206,23 @@ agreeing, and a ceiling on the accepted-in-error fraction set far enough above
 the measured rate that sampling noise cannot trip it, but low enough that a
 decoder which starts accepting what it should flag does.
 
+- **A checker anchored on the controller's own view of time cannot catch
+  the controller lying about time.** The granite perf proxy's DRAM model
+  anchors tWR at the scheduler's commit (pumice ISSUE-023 moved it there to
+  stop phantom violations), so a WRITE the DFI plane holds for late data is
+  invisible to it: the model sees the write where the scheduler thinks it
+  is. On the board the DRAM sees it where it actually is, and a PRE or ACT
+  counted from the commit arrives too soon -- 83 percent of a merged
+  open-page pair walk never landed (granite TASK-006, 2026-10-29) while
+  every proxy run of the same traffic was clean. The gap was closed with a
+  contract check instead of a better model: the DFI command path counts
+  the cycles a WRITE sits at its head waiting for data (`r_wr_held_cnt`,
+  simulation-only), and the proxy and the core TB fail on any non-zero
+  count. The row-major merged walk showed 903 held cycles before the fix.
+  *Rule: when a model is anchored on the DUT's own bookkeeping, add a check
+  on the DUT's promise to that bookkeeping -- here "a committed write's
+  data is staged within the command delay" -- or the model only ever
+  confirms the DUT's story.*
+
 Related: [[kimi-review-rounds]], [[randomization]], [[running-regressions]],
 [[coverage]], [[measure-over-the-window]].

@@ -42,12 +42,13 @@ field sits just above the column and a full page is contiguous:
                         parallelism.
 
   mixed / row_thrash / random
-                        the WINDOW families (not in the sweeps above): bank-
+                        the WINDOW families (profile `windows`, board and proxy
+                        alike since 2026-10-29 via measure_window): bank-
                         paired threads one row apart with reads and writes
                         concurrent; one thread alternating two rows of one
                         bank per burst (the textbook row-buffer conflict a
                         window re-orders and an oldest-first picker cannot);
-                        an LFSR walk inside a region. Perf proxies only.
+                        an LFSR walk inside a region.
 
 The two headline "perf issue" signals the summary flags:
   * incremental_BW / col_major_BW           -> the page-management penalty
@@ -82,6 +83,7 @@ from ddr2_char import DDR2CharDriver
 # this module lazily (in main), so there is no import cycle.
 from pumice_master import ensure_leveled, wait_engine
 import half_burst_family as hbf
+import perf_mixed_family as pmf          # the window families' program builders (mixed / row_thrash / random)
 
 # Shared bench leveling cache (bitslip/tap eye), refreshed by any re-level.
 DEFAULT_LEVEL_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -513,7 +515,12 @@ class ControllerConfig:
         # the result would depend on suite order rather than on the config.
         drv.set_sched_policy(
             order_mode=self.order_mode if self.order_mode is not None else 0,
-            age_thresh=self.age_thresh if self.age_thresh is not None else 0,
+            # CHAR_AGE_THRESH=<n> (env) fills the field for every config that
+            # leaves it unset: granite's store reads it as an enable for the
+            # oldest-in-pool class (HAS_AGE builds, TASK-003 item 5), pumice
+            # as 16*n cycles under order_mode 3. Default 0 = off, as before.
+            age_thresh=(self.age_thresh if self.age_thresh is not None
+                        else int(os.environ.get("CHAR_AGE_THRESH", "0") or 0, 0)),
             prio_sub=self.prio_sub if self.prio_sub is not None else 0,
             row_sel=self.row_sel if self.row_sel is not None else 0,
             col_sel=self.col_sel if self.col_sel is not None else 0,
@@ -894,7 +901,7 @@ class PageStats:
        point looks progressively worse than the last. Always take a before/after
        delta -- that is what `__sub__` is for.
     """
-    col_ops: int        # PAGE_STATS_HIT   -- every column op (NOT hits)
+    col_ops: Optional[int]  # PAGE_STATS_HIT -- every column op (NOT hits); None on a build without the counter (granite)
     miss:    int        # PAGE_STATS_MISS  -- ACT after a conflict PRE (thrash)
     empty:   int        # PAGE_STATS_EMPTY -- ACT to an idle bank (cold open)
     acts:    int        # SCHED_STATS_ACT  -- == miss + empty
@@ -922,7 +929,8 @@ class PageStats:
         allowed to go negative -- a negative 'count' would sail through every
         downstream ratio as a small positive-looking anomaly."""
         m = lambda a, b: (a - b) & 0xFFFF_FFFF
-        return PageStats(m(self.col_ops, other.col_ops), m(self.miss, other.miss),
+        return PageStats((None if (self.col_ops is None or other.col_ops is None)
+                          else m(self.col_ops, other.col_ops)), m(self.miss, other.miss),
                          m(self.empty, other.empty), m(self.acts, other.acts),
                          m(self.pres, other.pres), m(self.refs, other.refs),
                          refs_busy=m(self.refs_busy, other.refs_busy),
@@ -940,7 +948,7 @@ class PageStats:
         None when nothing was counted -- a vacuous 0.0 here reads as
         'every access missed', which is the opposite of 'we measured nothing'
         (see [[feedback_checker_verdict_needs_a_count]])."""
-        if self.col_ops <= 0:
+        if self.col_ops is None or self.col_ops <= 0:
             return None
         if self.row_hits is not None:
             # DIRECT: OBS_ROW_HIT[8] counts hits at the bank, so no clamp is
@@ -957,7 +965,7 @@ class PageStats:
 
     @property
     def acts_per_access(self) -> Optional[float]:
-        if self.col_ops <= 0:
+        if self.col_ops is None or self.col_ops <= 0:
             return None
         return self.acts / self.col_ops
 
@@ -1005,7 +1013,11 @@ class PageStats:
 
     @property
     def counted(self) -> bool:
-        return self.col_ops > 0 or self.acts > 0 or self.refs > 0
+        # granite carries only the two merge counters (TASK-006): a delta
+        # with merges and nothing else is still a measurement, not "no
+        # telemetry" (that gate hid every granite merge count, 2026-10-29).
+        return ((self.col_ops or 0) > 0 or self.acts > 0 or self.refs > 0
+                or (self.merges or 0) > 0 or (self.rd_merges or 0) > 0)
 
 
 @dataclass(frozen=True)
@@ -1082,18 +1094,27 @@ def read_page_stats(drv: DDR2CharDriver) -> PageStats:
     generated regmap ([[feedback_registers_by_name]]) -- these offsets sit in
     the 0x148..0x15C block that has already moved once."""
     f = drv.pumice.regs.field
+    has = drv.pumice.has
+    # Granite carries the two STORE_STATS_* registers (TASK-006) but none of
+    # the PAGE / SCHED / REF research counters: those read as 0 here and the
+    # column-op figure as None, so a merge count on granite is reported while
+    # its "column ops per write" stays unknown rather than a vacuous 0.
+    def opt(reg, fld):
+        return int(f(reg, fld)) if has(reg) else None
+    def cnt(reg, fld):
+        return int(f(reg, fld)) if has(reg) else 0
     return PageStats(
-        col_ops=int(f("PAGE_STATS_HIT",   "VAL")),
-        miss=   int(f("PAGE_STATS_MISS",  "VAL")),
-        empty=  int(f("PAGE_STATS_EMPTY", "VAL")),
-        acts=   int(f("SCHED_STATS_ACT",  "VAL")),
-        pres=   int(f("SCHED_STATS_PRE",  "VAL")),
-        refs=   int(f("REF_STATS_REF",    "VAL")),
-        refs_busy=int(f("REF_STATS_REF_BUSY", "VAL")),
+        col_ops=opt("PAGE_STATS_HIT",   "VAL"),
+        miss=   cnt("PAGE_STATS_MISS",  "VAL"),
+        empty=  cnt("PAGE_STATS_EMPTY", "VAL"),
+        acts=   cnt("SCHED_STATS_ACT",  "VAL"),
+        pres=   cnt("SCHED_STATS_PRE",  "VAL"),
+        refs=   cnt("REF_STATS_REF",    "VAL"),
+        refs_busy=cnt("REF_STATS_REF_BUSY", "VAL"),
         t_refi= int(f("TIMINGS_RFC_REFI",  "tREFI")),
-        row_hits=_read_row_hits(drv),
-        merges=(int(f("STORE_STATS_MERGE", "VAL")) if drv.pumice.has("STORE_STATS_MERGE") else None),
-        rd_merges=(int(f("STORE_STATS_RD_MERGE", "VAL")) if drv.pumice.has("STORE_STATS_RD_MERGE") else None),
+        row_hits=(_read_row_hits(drv) if has("OBS_ROW_HIT") else None),
+        merges=opt("STORE_STATS_MERGE", "VAL"),
+        rd_merges=opt("STORE_STATS_RD_MERGE", "VAL"),
     )
 
 
@@ -1137,6 +1158,12 @@ class CharRecord:
     bytes_moved: int                 # per phase (wr == rd == txn*blen*beat)
     clk_mhz:     float
     notes:       Tuple[str, ...] = ()
+    # Latency-histogram 1:1 gap: reads the host issued minus samples the
+    # histogram took (positive = MISSING samples, negative = EXTRA). It is a
+    # harness-observability figure, not a data-path one, so it no longer flips
+    # `ok` (pumice ISSUE-025: `ok` follows wr/rd done and `mismatched`); it is
+    # kept as a note and as its own CSV column so a nonzero gap is still seen.
+    rd_hist_gap: int = 0
     # Generators actually programmed. 1/1 on the single-engine path;
     # measure_concurrent fills in the real counts so a caller can scale a
     # per-generator invariant -- the latency histogram holds ONE entry per
@@ -1424,7 +1451,8 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     # 1:1 accounting: the histogram must see EXACTLY txn_count read
     # transactions — too many (stray/duplicate returns) is as much an error
     # as too few.
-    ok = wr_ok and rd_ok and mism == 0 and rd_total == sc.txn_count
+    ok = wr_ok and rd_ok and mism == 0
+    rd_hist_gap = sc.txn_count - rd_total
     if not wr_ok:
         notes.append("write engine did not complete")
     if not rd_ok:
@@ -1439,10 +1467,138 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=wr_cycles, wr_meter=wr_meter,
         rd_cycles=rd_cycles, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=bytes_moved, clk_mhz=clk_mhz,
         wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
         notes=tuple(notes))
+
+
+def measure_window(drv: DDR2CharDriver, sc: Scenario, *,
+                   cfg: ControllerConfig = CLOSE_PAGE, geom: Geometry = DEFAULT_GEOM,
+                   base_addr: int = 0x0, clk_mhz: "Optional[float]" = None,
+                   timeout_s: float = 20.0) -> CharRecord:
+    """The window families on the BOARD: `row_thrash` and `random` as a write
+    pass then a read pass on `threads` injectors at once (each injector its
+    own bank / region, the proxy's placement), `mixed` as the proxy's one-GO
+    concurrent pass (bank-paired writers and readers one row group apart).
+    The injectors have had the two-dimensional walk and the LFSR index since
+    pumice TASK-049; what was missing until 2026-10-29 was this program
+    builder on the host side, so the three families only ever ran in the
+    proxies. Programs come from perf_mixed_family, the same module the
+    proxies use, so a board cell and a proxy cell are the same stimulus."""
+    clk_mhz = resolve_clk_mhz(drv, clk_mhz)
+    try:
+        drv.sync_gen_config()
+    except Exception:                                      # noqa: BLE001  (sim model without GEN_CONFIG)
+        pass
+    n_gen = max(1, min(int(sc.threads), drv.num_gen))
+    notes: List[str] = []
+    if int(sc.threads) > drv.num_gen:
+        notes.append(f"threads clamped {int(sc.threads)} -> {n_gen} "
+                     f"(build has {drv.num_gen} injectors per direction)")
+    blen, txn, gap = sc.burst_len, sc.txn_count, sc.gap
+    beat_bytes = 1 << sc.axi_size
+    cfg.apply(drv)
+
+    if sc.family == FAM_MIXED:
+        if n_gen < pmf.MIN_GENS:
+            notes.append(f"mixed needs {pmf.MIN_GENS} injectors, build has {n_gen}: not run")
+            return CharRecord(scenario=sc, config=cfg.name, ok=False, mismatched=0,
+                              wr_cycles=0, wr_meter=Meter(0, 0, 0, 0), rd_cycles=0, rd_meter=Meter(0, 0, 0, 0),
+                              rd_hist=(0,) * 16, rd_hist_total=0, bytes_moved=0, clk_mhz=clk_mhz,
+                              notes=tuple(notes))
+        diag: Dict[str, object] = {}
+        r = pmf.measure(drv, dc, _pm_shim, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
+                        clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0, diag=diag, host_diag=None,
+                        timeout_s=max(timeout_s, 60.0))
+        notes.append(f"mixed: {n_gen} writers + {n_gen} readers from one GO, union "
+                     f"{r['mixed_bw_mb_s']} MB/s over {r['mixed_cycles']} cycles; layout {r['layout']}")
+        if not r["prepass_ok"]:
+            notes.append("read-region pre-pass did not complete")
+        if not r["wr_ok"]:
+            notes.append("write engines did not complete")
+        if not r["rd_ok"]:
+            notes.append("read engines did not complete")
+        if r["mismatched"]:
+            notes.append(f"{r['mismatched']} beats mismatched")
+        per_dir = r["bytes_moved"] // 2
+        return CharRecord(scenario=sc, config=cfg.name,
+                          ok=bool(r["wr_ok"] and r["rd_ok"] and r["mismatched"] == 0),
+                          mismatched=int(r["mismatched"]),
+                          wr_cycles=int(r["wr_cycles"]), wr_meter=_read_meter(drv, "wr"),
+                          rd_cycles=int(r["rd_cycles"]), rd_meter=_read_meter(drv, "rd"),
+                          rd_hist=(0,) * 16, rd_hist_total=0,
+                          bytes_moved=per_dir, clk_mhz=clk_mhz,
+                          n_wr_gen=n_gen, n_rd_gen=n_gen, notes=tuple(notes))
+
+    progs = pmf.family_programs(sc.family, n_gen, geom, dc, blen=blen, txn=txn, gap=gap)
+    assert progs is not None, f"{sc.family} is not a window family"
+    for p in progs:
+        p["max_outstanding"] = sc.max_outstanding
+        p["axi_size"] = sc.axi_size
+    bytes_moved = txn * blen * beat_bytes * n_gen
+    mask = (1 << n_gen) - 1
+
+    drv.freeze_trace(True)
+    for p in progs:
+        drv.program_wr_engine(**p)
+    drv.clear_stats()
+    _ps_wr0 = _try_page_stats(drv)
+    drv.timer_clear()
+    drv.freeze_trace(False)
+    drv.start_wr(mask)
+    wr_ok = wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    drv.freeze_trace(True)
+    _tw = drv.timer()
+    wr_cycles = max(int(_tw.w_last) - int(_tw.w_first), 0)
+    wr_meter = _read_meter(drv, "wr")
+    wr_stats = _delta_page_stats(_ps_wr0, _try_page_stats(drv))
+
+    for p in progs:
+        drv.program_rd_engine(**p)
+    drv.clear_stats()
+    _ps_rd0 = _try_page_stats(drv)
+    _st_rd0 = _try_stalls(drv)
+    drv.timer_clear()
+    drv.freeze_trace(False)
+    drv.start_rd(mask)
+    rd_ok = wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
+    drv.freeze_trace(True)
+    _tr = drv.timer()
+    rd_cycles = max(int(_tr.r_last) - int(_tr.r_first), 0)
+    rd_meter = _read_meter(drv, "rd")
+    rd_stats = _delta_page_stats(_ps_rd0, _try_page_stats(drv))
+    rd_stalls = _delta_stalls(_st_rd0, _try_stalls(drv))
+    rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    drv.freeze_trace(False)
+
+    mism = drv.beats_mismatched()
+    ok = wr_ok and rd_ok and mism == 0
+    if not wr_ok:
+        notes.append("write engines did not complete")
+    if not rd_ok:
+        notes.append("read engines did not complete")
+    if mism:
+        notes.append(f"{mism} beats mismatched")
+    notes.append(f"{sc.family}: {n_gen} injector(s), " +
+                 ("one bank, two rows alternating per burst" if sc.family == FAM_ROW_THRASH
+                  else f"LFSR walk in a {pmf.RANDOM_ROWS}-row region per injector"))
+    return CharRecord(scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
+                      wr_cycles=wr_cycles, wr_meter=wr_meter,
+                      rd_cycles=rd_cycles, rd_meter=rd_meter,
+                      rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+                      rd_hist_gap=txn * n_gen - rd_total,
+                      bytes_moved=bytes_moved, clk_mhz=clk_mhz,
+                      wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
+                      n_wr_gen=n_gen, n_rd_gen=n_gen, notes=tuple(notes))
+
+
+class _PmShim:
+    """perf_mixed_family.measure takes the pumice_master module for wait_engine."""
+    wait_engine = staticmethod(wait_engine)
+
+
+_pm_shim = _PmShim()
 
 
 def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
@@ -1491,7 +1647,7 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
     # ---- write phase (the merge happens here) ----
     drv.freeze_trace(True)
     for p in prog:
-        drv.program_wr_engine(**p)
+        drv.program_wr_engine(**dict(p, id_mode=hbf.id_mode_for("wr", dc)))
     drv.clear_stats()
     _ps_wr0 = _try_page_stats(drv)
     drv.timer_clear()
@@ -1506,7 +1662,7 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
 
     # ---- read phase ----
     for p in prog:
-        drv.program_rd_engine(**p)
+        drv.program_rd_engine(**dict(p, id_mode=hbf.id_mode_for("rd", dc)))
     drv.clear_stats()
     _ps_rd0 = _try_page_stats(drv)
     _st_rd0 = _try_stalls(drv)
@@ -1524,7 +1680,8 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
     drv.freeze_trace(False)
 
     mism = drv.beats_mismatched()
-    ok = wr_ok and rd_ok and mism == 0 and rd_total == txn_total
+    ok = wr_ok and rd_ok and mism == 0
+    rd_hist_gap = txn_total - rd_total
     if not wr_ok:
         notes.append("write engine did not complete")
     if not rd_ok:
@@ -1553,7 +1710,7 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=wr_cycles, wr_meter=wr_meter,
         rd_cycles=rd_cycles, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=bytes_moved, clk_mhz=clk_mhz,
         n_rd_gen=threads, n_wr_gen=threads,
         wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
@@ -1961,7 +2118,8 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
 
     mism = drv.beats_mismatched()
     expect_rd_txn = sc.txn_count * n_rd
-    ok = wr_ok and rd_ok and mism == 0 and rd_total == expect_rd_txn
+    ok = wr_ok and rd_ok and mism == 0
+    rd_hist_gap = expect_rd_txn - rd_total
     if not wr_ok:
         notes.append("write engines did not complete")
     if not rd_ok:
@@ -1996,7 +2154,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=window, wr_meter=wr_meter,
         rd_cycles=window, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=per_gen_bytes * max(n_rd, 1),
         wr_bytes=per_gen_bytes * max(n_wr, 1), clk_mhz=clk_mhz,
         wr_window_cyc=wr_window, rd_window_cyc=rd_window,
@@ -2153,6 +2311,10 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
                 recs.append(measure_half_burst(drv, sc, cfg=cfg, geom=geom,
                                                base_addr=base_addr, clk_mhz=clk_mhz,
                                                timeout_s=timeout_s))
+            elif sc.family in WINDOW_FAMILIES:
+                recs.append(measure_window(drv, sc, cfg=cfg, geom=geom,
+                                           base_addr=base_addr, clk_mhz=clk_mhz,
+                                           timeout_s=timeout_s))
             elif concurrent:
                 n_wr, n_rd = concurrent
                 scen = (hotcold_scenarios(sc, n_wr + n_rd, n_hot=n_hot,
@@ -2194,7 +2356,7 @@ def run_suite(drv: DDR2CharDriver, *, level: str = "medium", txn_scale: int = 1,
 # long soak), exactly analogous to lowering the UART baud in sim. Add a profile
 # here once; both targets pick it up.
 # Scenario-name tag per swept field (run_matrix sc_sweep).
-_SWEEP_TAG: Dict[str, str] = {"threads": "thr"}
+_SWEEP_TAG: Dict[str, str] = {"threads": "thr", "gap": "gap"}
 
 RUN_PROFILES: Dict[str, dict] = {
     # pumice TASK-060: the four half-burst patterns (pair / oct, plain / gap
@@ -2215,6 +2377,19 @@ RUN_PROFILES: Dict[str, dict] = {
     "half_threads": dict(configs=["close_page", "open_page"], level="basic",
                          families=(hbf.FAM_HALF_PAIR, hbf.FAM_HALF_OCT),
                          sc_sweep=dict(threads=tuple(range(1, 9)))),
+    # The gap sweep (owner 2026-10-29): the pair walk (l0 h0 l1 h1 ...), 512
+    # pairs (1024 half transactions) on one thread, with a FIXED idle gap of
+    # 0 clocks between consecutive transactions, then the same walk again at
+    # 1, 2, ... 7 clocks: one cell per gap (`half_pair_gap3`). Unlike
+    # `half_pair_sweep`, whose gap loops 0..7 inside one run, each cell here
+    # holds one cadence, so the merge ratio and the bandwidth can be read per
+    # gap: where a combiner's merge window closes shows as the gap at which
+    # the write merges stop. txn_count is pinned (sc_over wins over
+    # --txn-scale) so the walk is 512 pairs on sim and board alike.
+    "half_gap": dict(configs=["close_page", "open_page"], level="basic",
+                     families=(hbf.FAM_HALF_PAIR,),
+                     sc_over=dict(txn_count=1024),
+                     sc_sweep=dict(gap=tuple(range(0, 8)))),
     # Sim CI + quick board check: covers the config-apply path (scheme switch +
     # scheduler CSRs) and the best-case/worst-case access patterns. Small.
     "smoke": dict(configs=["close_page", "bank_interleave", "open_page", "inorder"],
@@ -2464,6 +2639,25 @@ RUN_PROFILES: Dict[str, dict] = {
                      concurrent=(1, 2)),
     # Everything: every preset x the full grid.
     "full": dict(configs="all", level="full", families=None),
+    # Every stream pattern the board injectors make (owner 2026-10-29, the
+    # granite-vs-LiteDRAM sweep): the four families at the full level
+    # (burst_len 4/8/16, the OOO-id and gapped variants) under the three
+    # presets a controller without pumice's scheduler CSRs still
+    # distinguishes -- open page, close page and the bank-interleaved map.
+    # `full` is the pumice CSR matrix; this is the pattern matrix. The window
+    # families (mixed / row_thrash / random) are perf-proxy only (see the
+    # module docstring): the board host has no program builder for them, so
+    # they are compared in sim through test_{granite,litedram}_char_perf.
+    "every": dict(configs=["open_page", "close_page", "bank_interleave"], level="full",
+                  families=None),
+    # The window families on the board (2026-10-29): mixed (bank-paired
+    # writers and readers one row group apart, one GO), row_thrash (one
+    # bank, two rows, a burst to each in turn) and random (an LFSR walk in a
+    # two-row region per injector), four injectors as the proxies run them,
+    # bl8, under open and close page. Same stimulus as the proxies'
+    # TEST_FAMILIES=mixed,row_thrash,random (perf_mixed_family builds both).
+    "windows": dict(configs=["open_page", "close_page"], level="basic",
+                    families=WINDOW_FAMILIES, sc_over=dict(threads=4)),
 }
 
 
@@ -2479,13 +2673,33 @@ def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
         raise ValueError(f"unknown run profile {profile!r}; "
                          f"available: {sorted(RUN_PROFILES)}")
     p = RUN_PROFILES[profile]
-    return run_matrix(drv, configs=p["configs"], level=p["level"],
-                      families=p["families"], txn_scale=txn_scale,
+    # One cell of a profile, for a repro: CHAR_CONFIGS / CHAR_FAMILIES narrow
+    # the lists, CHAR_THREADS narrows a threads sweep (comma-separated).
+    configs = p["configs"]
+    families = p["families"]
+    sc_sweep = p.get("sc_sweep")
+    if os.environ.get("CHAR_CONFIGS"):
+        # any CONFIGS name, not only the profile's own: a repro may want the
+        # profile's families under another config
+        configs = [c.strip() for c in os.environ["CHAR_CONFIGS"].split(",") if c.strip()]
+    if os.environ.get("CHAR_FAMILIES") and families is not None:
+        families = tuple(f for f in families if f in os.environ["CHAR_FAMILIES"].split(","))
+    if os.environ.get("CHAR_THREADS") and sc_sweep and "threads" in sc_sweep:
+        want = tuple(int(t) for t in os.environ["CHAR_THREADS"].split(","))
+        sc_sweep = dict(sc_sweep, threads=tuple(t for t in sc_sweep["threads"] if t in want))
+    # CHAR_SC_OVER="field=int,field=int": scenario field overrides (e.g.
+    # max_outstanding=4) on top of the profile's own sc_over.
+    sc_over = dict(p.get("sc_over") or {})
+    for kv in filter(None, os.environ.get("CHAR_SC_OVER", "").split(",")):
+        k, v = kv.split("=", 1)
+        sc_over[k.strip()] = int(v, 0)
+    return run_matrix(drv, configs=configs, level=p["level"],
+                      families=families, txn_scale=txn_scale,
                       base_addr=base_addr, timeout_s=timeout_s, geom=geom,
                       clk_mhz=clk_mhz, progress=progress,
                       concurrent=p.get("concurrent"),
-                      gen_mix=p.get("gen_mix"), sc_over=p.get("sc_over"),
-                      sc_sweep=p.get("sc_sweep"),
+                      gen_mix=p.get("gen_mix"), sc_over=sc_over or None,
+                      sc_sweep=sc_sweep,
                       same_bank_rows=p.get("same_bank_rows", 8),
                       n_hot=p.get("n_hot"),
                       bank_spread=p.get("bank_spread", 1),
@@ -2791,7 +3005,7 @@ def write_csv(recs: List[CharRecord], path: str) -> None:
             "id_mode", "ok", "mismatched", "bytes_moved", "clk_mhz",
             "wr_cycles", "wr_util", "wr_bw_mb_s",
             "rd_cycles", "rd_util", "rd_bw_mb_s", "rd_avg_latency_cyc",
-            "rd_hist_total", "threads", "notes"]
+            "rd_hist_total", "rd_hist_gap", "threads", "notes"]
     with open(path, "w", newline="") as fh:
         w = _csv.writer(fh)
         w.writerow(cols)
@@ -2803,4 +3017,4 @@ def write_csv(recs: List[CharRecord], path: str) -> None:
                         r.wr_cycles, f"{r.wr_meter.util:.4f}", f"{r.wr_bw_mb_s:.2f}",
                         r.rd_cycles, f"{r.rd_meter.util:.4f}", f"{r.rd_bw_mb_s:.2f}",
                         f"{r.rd_avg_latency_cyc:.2f}", r.rd_hist_total,
-                        r.n_rd_gen, "; ".join(r.notes)])
+                        r.rd_hist_gap, r.n_rd_gen, "; ".join(r.notes)])

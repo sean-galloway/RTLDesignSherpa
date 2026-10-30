@@ -182,6 +182,7 @@ def get_sources_from_filelist(repo_root, filelist_path=None, *, module=None):
         'CONVERTERS_ROOT': os.path.join(components_root, 'utility-ip', 'converters'),
         'DELTA_ROOT': os.path.join(components_root, 'fabric-gen-ip', 'delta'),
         'AMBER_ROOT': os.path.join(components_root, 'cache-ip', 'amber-mesi-l1'),
+        'JET_ROOT': os.path.join(components_root, 'cache-ip', 'jet-mesi-l1'),
         'CACHE_COMMON_ROOT': os.path.join(components_root, 'cache-ip', 'common-ip'),
         'GATLING_ROOT': os.path.join(components_root, 'riscv-ip', 'gatling-rv32i'),
         'RV32I_COMMON_ROOT': os.path.join(components_root, 'riscv-ip', 'common-rv32i'),

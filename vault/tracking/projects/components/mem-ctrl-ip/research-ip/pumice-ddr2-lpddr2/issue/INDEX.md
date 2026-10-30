@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-025** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-027** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,27 +12,41 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-024** — the perf proxies' `wait_engine` is a wall-clock deadline;
-  on a loaded machine the framework suite fails "did not complete" cells
-  that pass alone (10 of 222 on 2026-10-23, 10 / 10 re-run). Bound the wait
-  in simulated cycles in sim.
-
-- **ISSUE-023** — perf-proxy DRAM checker anchors tWR on the slave's uncalibrated
-  CWL + BL: 256 phantom tWR (explicit PRE) or tRP (WRA) per col_major run on
-  both cores; reads are clean. Calibrate the WR-to-PRE anchor, then assert zero.
-- **ISSUE-021** — mc_training_plane ties ZQ demand to 0, so the defer/ZQCL/
-  overdue policy is unreachable.
+- **ISSUE-026** — two back-to-back reads of one burst trip the rd aligner's
+  lost-beat assertion at DFI_RD_FIFO_DEPTH 4 in the granite core TB
+  (STORE_MERGE_EN=0 directed test); passes at the whole-window depth. TB
+  service timing or a ring not-ready case. [open/ISSUE-026.md](open/ISSUE-026.md).
 
 ## Closed
 
+- **ISSUE-021** — CLOSED 2026-10-29 (option 1): `mc_training_plane` gained
+  `demand_i`, driven in both cores from the store's scheduler request
+  vectors, so the ZQ block's defer / ZQCL / overdue policy is reachable and
+  its three CSRs are live; the plane test pins deferral, release-as-ZQCL,
+  the overdue cut and the defer-off state. [closed/ISSUE-021.md](closed/ISSUE-021.md).
+- **ISSUE-023** — CLOSED 2026-10-29 (fixed): the perf proxy's DRAM checker
+  anchors write recovery at the controller's programmed WR -> PRE field
+  (`_McAnchoredDram`), the slave's CL / CWL / BL untouched; the proxy asserts
+  an empty violation dict. Pumice and granite proxies clean; the mutation
+  (anchor off) reproduces the 256 phantoms and fails. [closed/ISSUE-023.md](closed/ISSUE-023.md).
+- **ISSUE-025** — CLOSED 2026-10-29 (bug, fixed): the engine block's latency
+  histograms sat on the merged port behind NUM_GEN x GEN_MAX_OUTSTANDING
+  admitted reads with a 32-deep timestamp FIFO, dropping 7 to 42 samples per
+  cell at >= 2 threads; sized to the product (and the array kept in LUT RAM),
+  `ok` follows integrity with the gap as its own CSV column. Board: 32/32
+  cells exact, bandwidth unchanged. [closed/ISSUE-025.md](closed/ISSUE-025.md).
+- **ISSUE-024** — CLOSED 2026-10-29 (fixed): `wait_engine` bounds the time
+  WITHOUT PROGRESS (bus-meter productive count sampled each second, deadline
+  extended on advance, 60 extensions max); board behaviour unchanged, a slow
+  sim is waited for. Both proxies clean. [closed/ISSUE-024.md](closed/ISSUE-024.md).
 - **ISSUE-022** — CLOSED 2026-10-22 (bug, fixed): the BANK_PICK core pulsed
   the refresh grant for the init sequence's two REFs, the refresh controller
   banked them as pull-in credits, and the credits consumed the first two

@@ -1,0 +1,9 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+open_page,incremental_bl8,incremental,8,8000,0,0,1,0,512000,75.0,66669,0.0067,575.98,66471,0.0067,577.70,50.32,8000,0,1,
+open_page,row_major_bl8,row_major,8,8000,0,0,1,0,512000,75.0,66395,0.0067,578.36,66188,0.0067,580.17,50.29,8000,0,1,
+open_page,col_major_bl8,col_major,8,8000,0,0,1,0,512000,75.0,131611,0.0067,291.77,115309,0.0067,333.02,95.98,8000,0,1,
+open_page,col_major_interleaved_bl8,col_major_interleaved,8,8000,0,0,1,0,512000,75.0,75022,0.0067,511.85,74705,0.0067,514.02,50.46,8000,0,1,
+close_page,incremental_bl8,incremental,8,8000,0,0,1,0,512000,75.0,642660,0.0067,59.75,514658,0.0067,74.61,214.77,8000,0,1,
+close_page,row_major_bl8,row_major,8,8000,0,0,1,0,512000,75.0,657977,0.0067,58.36,525788,0.0067,73.03,215.30,8000,0,1,
+close_page,col_major_bl8,col_major,8,8000,0,0,1,0,512000,75.0,646641,0.0067,59.38,517332,0.0067,74.23,191.97,8000,0,1,
+close_page,col_major_interleaved_bl8,col_major_interleaved,8,8000,0,0,1,0,512000,75.0,293048,0.0067,131.04,243166,0.0067,157.92,191.96,8000,0,1,

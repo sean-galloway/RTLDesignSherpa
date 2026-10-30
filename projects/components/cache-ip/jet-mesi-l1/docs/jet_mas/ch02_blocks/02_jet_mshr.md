@@ -65,14 +65,18 @@ J7 experiment).
 
 - **Set oversubscription (§9.10.2):** a set with WAYS outstanding victim
   claims refuses further allocs to that set until one commits. The claim
-  count is a per-set counter bank next to the CAM (SETS counters, 2 bits at
-  4 ways).
+  count is a per-set counter bank next to the CAM (SETS counters, 3 bits at
+  4 ways — `$clog2(WAYS+1)`; the cap value WAYS itself must be representable)
 - **Cross-class wait (J3):** a write miss matching an RNSD entry does not
   allocate; lookup reports STALL-until-commit. A read miss matching an RU
   entry merges (it will hit the committed M line).
 - **Alloc/match same cycle:** an alloc and a snoop match against the same
   line in one cycle resolve alloc-first (the entry is visible to the snoop
-  compare from the alloc cycle — the snoop must see the pending fill).
+  compare from the alloc cycle — the snoop must see the pending fill). The
+  lookup probe also carries the alloc-first overlay; jet_control's classify
+  instead consumes the overlay-free `lkup_reg_match_o/idx/cls` triple (the
+  classify drives the alloc from the match outcome — using the overlay
+  version would close a combinational loop through the alloc).
 
 ## Occupancy gauge
 

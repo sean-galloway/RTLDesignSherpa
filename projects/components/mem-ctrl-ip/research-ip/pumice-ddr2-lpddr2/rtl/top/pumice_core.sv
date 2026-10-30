@@ -801,6 +801,7 @@ module pumice_core
         .wr_sch_head_rel_i  (w_wr_sch_hrel),
         .wr_commit_ready_i  (w_wr_commit_rdy),
         .wr_commit_ready_now_i  (w_wr_commit_rdy_now),
+        .wr_fill_pending_i  ('0),                 // no FIFO-store combiner here
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
         // rd CAM per-entry vectors + issue
@@ -878,6 +879,7 @@ module pumice_core
         .mc_rst_n        (aresetn),
         .init_done_i     (init_done_o),
         .memtype_i       (memtype_i),
+        .demand_i        ((|w_wr_sch_v) || (|w_rd_sch_v)),
         .zq_en_i         (zq_en_i),
         .zq_defer_en_i   (zq_defer_en_i),
         .zq_interval_i   (zq_interval_i),

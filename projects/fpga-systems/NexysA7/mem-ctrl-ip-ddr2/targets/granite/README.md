@@ -22,6 +22,12 @@ Optional define `GRANITE_SYS_66` selects the 66.67 MHz known-good fallback
 (133.3 MHz CK, DDR2-266). The UART baud divisor and timer CSRs must track the
 selected frequency.
 
+`GRANITE_SYS_100` selects 100 MHz sys / 200 MHz sys2x = DDR2-400 (peak 800
+MB/s), the same plan as pumice's `PUMICE_SYS_100`. sys2x must be exactly 2 x
+sys: the a7ddrphy serializers take `CLKDIV = sys` and `CLK = sys2x`. The
+earlier 100 / 150 MHz (3:2) timing-push plan levelled no read eye and
+mismatched every beat on the board (2026-10-29) and is gone.
+
 ## Build
 
 ```bash

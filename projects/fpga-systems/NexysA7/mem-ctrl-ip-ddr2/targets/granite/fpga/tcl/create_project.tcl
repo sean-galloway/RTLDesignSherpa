@@ -104,7 +104,18 @@ foreach src $sv_sources {
 }
 # Real generated PHY (regenerate via bin/elaborate_a7ddrphy.py; see
 # bin/README_a7ddrphy.md). Same module name `a7ddrphy` as the stub.
+# GRANITE_DFI4=1 / GRANITE_DFI4_100=1 (env): the four-phase netlist
+# (nphases=4, sys4x clocks) and the matching define; the harness then runs
+# DFI 1:4 with BL8 (granite TASK-003 item 6).
 set a7ddrphy_gen "$build_root/rtl-vivado/a7ddrphy/a7ddrphy_generated.v"
+set _dfi4 ""
+if {[info exists ::env(GRANITE_DFI4_100)] && $::env(GRANITE_DFI4_100) ne "" && $::env(GRANITE_DFI4_100) ne "0"} {
+    set a7ddrphy_gen "$build_root/rtl-vivado/a7ddrphy/a7ddrphy_nph4_100_generated.v"
+    set _dfi4 "GRANITE_DFI4_100"
+} elseif {[info exists ::env(GRANITE_DFI4)] && $::env(GRANITE_DFI4) ne "" && $::env(GRANITE_DFI4) ne "0"} {
+    set a7ddrphy_gen "$build_root/rtl-vivado/a7ddrphy/a7ddrphy_nph4_75_generated.v"
+    set _dfi4 "GRANITE_DFI4"
+}
 if {![file exists $a7ddrphy_gen]} {
     puts stderr "ERROR: generated a7ddrphy not found: $a7ddrphy_gen"
     puts stderr "Generate it first (bin/README_a7ddrphy.md)."
@@ -150,7 +161,7 @@ lappend current_defines "DDR2_CHAR_SYNTH"
 # GRANITE_HEAD2_EN=0 is the one-record-per-bank variant. Unset =
 # the shipped build. (The 2026-10-23 B/C builds set these in the environment
 # before this block existed and came out byte-identical to the default.)
-foreach knob {GRANITE_FIXED_TIMINGS GRANITE_STORE_BACKEND GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN GRANITE_DFI_CDC_EN GRANITE_HAS_SNARF GRANITE_INTAKE_FIFO_DEPTH GRANITE_AXI_SKID_DEPTH GRANITE_SHARED_ADDR_MAP GRANITE_HAS_PAGE_POLICY GRANITE_DFI_CMD_FIFO_DEPTH GRANITE_DFI_WD_FIFO_DEPTH GRANITE_DFI_RD_FIFO_DEPTH GRANITE_BANK_TW GRANITE_BANK_CAP_MIXED GRANITE_HAS_AGE GRANITE_PP_TIMEOUT_CLOSE} {
+foreach knob {GRANITE_FIXED_TIMINGS GRANITE_STORE_BACKEND GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN GRANITE_DFI_CDC_EN GRANITE_HAS_SNARF GRANITE_INTAKE_FIFO_DEPTH GRANITE_AXI_SKID_DEPTH GRANITE_SHARED_ADDR_MAP GRANITE_HAS_PAGE_POLICY GRANITE_DFI_CMD_FIFO_DEPTH GRANITE_DFI_WD_FIFO_DEPTH GRANITE_DFI_RD_FIFO_DEPTH GRANITE_BANK_TW GRANITE_BANK_CAP_MIXED GRANITE_HAS_AGE GRANITE_PP_TIMEOUT_CLOSE GRANITE_STORE_MERGE_EN} {
     if {[info exists ::env($knob)] && $::env($knob) ne ""} {
         lappend current_defines "$knob=$::env($knob)"
         puts "verilog_define: $knob=$::env($knob)"
@@ -184,14 +195,23 @@ if {$_sys75} {
 } else {
     set _freq_note "66.67 MHz (PUMICE_SYS_75=0 -- NOT the board design point)"
 }
-# Granite 100 MHz timing-push profile: env GRANITE_SYS_100=1 builds the
-# 100 MHz sys / DDR2-300 sys2x MMCM profile in granite_char_top.sv. Default
+# Granite 100 MHz profile: env GRANITE_SYS_100=1 builds the
+# 100 MHz sys / 200 MHz sys2x (DDR2-400) MMCM profile in granite_char_top.sv. Default
 # off -- 75 MHz is the characterization design point. The loud banner below
 # prints which profile the .bit actually carries.
 if {[info exists ::env(GRANITE_SYS_100)] && $::env(GRANITE_SYS_100) ne "" && $::env(GRANITE_SYS_100) ne "0"} {
     lappend current_defines "GRANITE_SYS_100"
     set _freq_note "100.00 MHz (GRANITE_SYS_100 -- granite timing-push profile)"
     puts "verilog_define: GRANITE_SYS_100 (100 MHz sys profile)"
+}
+if {$_dfi4 ne ""} {
+    lappend current_defines $_dfi4
+    if {$_dfi4 eq "GRANITE_DFI4_100"} {
+        set _freq_note "100.00 MHz, DFI 1:4, BL8, CK 400 MHz = DDR2-800 (GRANITE_DFI4_100)"
+    } else {
+        set _freq_note "75.00 MHz, DFI 1:4, BL8, CK 300 MHz = DDR2-600 (GRANITE_DFI4)"
+    }
+    puts "verilog_define: $_dfi4 (four-phase a7ddrphy: $a7ddrphy_gen)"
 }
 # Say it loudly and unconditionally. "Which clock is this .bit" must never be
 # inferred from a board log two hundred lines in.

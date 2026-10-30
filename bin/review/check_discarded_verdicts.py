@@ -33,6 +33,10 @@ import re
 import sys
 
 SKIP = ("venv", "__pycache__", "local_sim_build", ".git", "obj_dir",
+        # sim_build/ is gitignored scratch (.gitignore:207) -- article rigs
+        # and debug copies land there. Same rule as worktrees: never report
+        # on a tree that is not the repo's tracked source.
+        "sim_build",
         # Worktrees are OTHER sessions' checkouts of this same repo. Scanning
         # them double-counts every finding and attributes it to a path nobody
         # can fix from here: the one scenario-level discard this tool reported

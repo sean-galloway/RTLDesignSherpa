@@ -1,0 +1,143 @@
+# Testplan for jet_wb_buffer (decoupled writeback buffer)
+# Maps the MAS ch02_blocks/03 contract to the Pattern-B grid DV: directed
+# scenarios covering lifecycle, FIFO order, snarf, and the ships-in-the-night
+# BRESP corner, plus a model-scored random phase.  Single geometry cell
+# (VICTIM_DEPTH=2, LINE_BYTES=64, BUS_WIDTH=64); the {1,2,4} depth sweep is
+# the J7 experiment, not a unit-TB cell.
+
+module: jet_wb_buffer
+rtl_files:
+  - projects/components/cache-ip/jet-mesi-l1/rtl/fub/jet_wb_buffer.sv
+test_files:
+  - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_wb_buffer.py
+
+# Contract: MAS ch02_blocks/03.  VICTIM_DEPTH entries hold valid/line/state/
+# data.  Capture allocates a slot and writes beats; the entry becomes valid
+# only after the last beat.  Drain is oldest-first in the l1_victim shape
+# {drain_valid_o, drain_addr_o, drain_data_o}; BRESP (drain_done_i) retires
+# the head.  Snoops snarf from the buffer and record a post-snoop effect; an
+# invalidated snarfed victim still drains.
+
+parameters:
+  - name: VICTIM_DEPTH
+    default: jet_pkg.VICTIM_DEPTH (2)
+    description: WB buffer rows, range 1-4; elaboration $error outside
+  - name: LINE_W
+    default: 26 (AMBER_ADDR_WIDTH - line-offset bits)
+    description: snoop-compare key width
+  - name: ADDR_WIDTH
+    default: 32 (l1_pkg.AMBER_ADDR_WIDTH)
+    description: full byte-address width presented to l1_drain
+  - name: LINE_BYTES / BUS_WIDTH
+    default: 64 / 64 (l1_pkg)
+    description: cache line size / data-bus width (sets FILL_BEATS)
+
+scenarios:
+  - name: capture_then_drain
+    level: all
+    what: Capture a victim line over FILL_BEATS cycles, then drain it via
+      the l1_victim-shaped head and BRESP retire.  Occupancy rises to 1 then
+      returns to 0; drain_valid_o/drain_addr_o/drain_data_o track the oldest
+      entry.
+    status: covered
+  - name: capture_pause_resume
+    level: all
+    what: A capture pauses (cap_i deasserts) after a partial beat sequence
+      and resumes on the same slot without leaking it; the entry becomes
+      valid and drainable after the final beat.
+    status: covered
+  - name: full_stall
+    level: all
+    what: VICTIM_DEPTH captures fill the buffer; wb_full_o rises and a
+      further cap_i sees cap_gnt_o=0.  Draining one entry drops wb_full_o
+      and allows one new capture.
+    status: covered
+  - name: oldest_first_order
+    level: all
+    what: Capture A, B; drain order is A then B regardless of when BRESP
+      retires A.  Delaying BRESP for A does not let B advance to the head.
+    status: covered
+  - name: snarf_hit
+    level: all
+    what: A snoop matching a valid WB entry asserts sn_hit_o and returns the
+      full line on sn_data_o; a non-matching line misses.
+    status: covered
+  - name: snarf_at_bresp
+    level: all
+    what: A snoop landing in the exact cycle the matching entry's BRESP
+      retires it is still answered (sn_hit_o=1, sn_data_o valid,
+      sn_bresp_cycle_o=1) — ships-in-the-night, Review Focus 3.
+    status: covered
+  - name: snarf_invalidated_still_drains
+    level: all
+    what: A snarf with sn_eff_i=INVALIDATE records the effect and the entry
+      still drains to completion (the fabric already took the data; BRESP
+      completes the memory update).
+    status: covered
+  - name: random_model_scored
+    level: gate 50 / func 500 / full 4000 ops
+    what: Random legal capture/drain/bresp/snarf mix; occupancy and drain
+      head scored against the Python golden model on most cycles.
+    status: covered
+
+coverage_points:
+  - line: 147
+    type: initial
+    content: "address-shape elaboration check (LINE_W + OFFSET_W == ADDR_WIDTH)"
+    covered: true
+    note: fires only on a parameter mismatch; default geometry passes.
+  - line: 157
+    type: initial
+    content: "elaboration range check (VICTIM_DEPTH 1-4, geometry)"
+    covered: true
+    note: elaborates clean at the default depth; the $error branches fire
+      only on an out-of-range elaboration (by design not exercised).
+  - line: 191
+    type: always_comb
+    content: "free/full status / cap_gnt_o / cap_slot_o / wb_full_o"
+    covered: true
+    tests: [capture_then_drain, full_stall, random_model_scored]
+  - line: 202
+    type: always_comb
+    content: "l1_victim-shaped drain head {valid, addr, data}"
+    covered: true
+    tests: [capture_then_drain, oldest_first_order, random_model_scored]
+  - line: 207
+    type: always_comb
+    content: "snarf CAM match, data mux, and bresp-cycle flag"
+    covered: true
+    tests: [snarf_hit, snarf_at_bresp, snarf_invalidated_still_drains]
+  - line: 261
+    type: always_ff
+    content: "capture allocation, beat accumulation, valid promotion"
+    covered: true
+    tests: [capture_then_drain, capture_pause_resume, full_stall]
+  - line: 295
+    type: always_ff
+    content: "BRESP retire (head pointer update)"
+    covered: true
+    tests: [capture_then_drain, oldest_first_order]
+  - line: 290
+    type: always_ff
+    content: "sn_eff_i recorded on matching entry (gated non-NONE)"
+    covered: true
+    tests: [snarf_invalidated_still_drains, random_model_scored]
+  - line: 233
+    type: always_comb
+    content: "wb_occupancy_o popcount"
+    covered: true
+    tests: [capture_then_drain, full_stall, random_model_scored]
+  - line: 327
+    type: assertion
+    content: "simulation-only: partial capture must complete within bounded pause"
+    covered: true
+    tests: [capture_pause_resume]
+
+gaps:
+  - Out-of-range VICTIM_DEPTH elaboration ($error) is intentionally not
+    exercised — it fails the build by design.
+  - The J7 VICTIM_DEPTH {1,2,4} sweep is a separate experiment; the unit
+    grid runs the default depth only.
+  - Multi-capture concurrency (more than one open slot) is not supported by
+    the single data-array read port; the unit TB captures one victim at a
+    time.

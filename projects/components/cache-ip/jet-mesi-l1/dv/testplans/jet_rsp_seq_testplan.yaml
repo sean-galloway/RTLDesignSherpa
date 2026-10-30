@@ -1,0 +1,114 @@
+# Testplan for jet_rsp_seq (response sequencer)
+# Maps the MAS ch02_blocks/04 contract to the Pattern-B grid DV: directed
+# scenarios covering in-order release, head-of-line blocking, backpressure
+# freedom, tag reuse, pointer wraparound, plus a model-scored random phase.
+# Single geometry cell (RSP_DEPTH=10, BUS_WIDTH=64); the {2,4,8,16} depth
+# sweep is the J7 experiment, not a unit-TB cell.
+
+module: jet_rsp_seq
+rtl_files:
+  - projects/components/cache-ip/jet-mesi-l1/rtl/fub/jet_rsp_seq.sv
+test_files:
+  - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_rsp_seq.py
+
+# Contract: MAS ch02_blocks/04.  A monotonic sequence tag is stamped on every
+# accepted CPU request.  Hits deposit at lookup; misses deposit at commit for
+# every tag on the MSHR entry's merge list.  The release pointer walks tags in
+# order: an incomplete head blocks only the response port, never the internal
+# completion paths.  rsp_ready_i low holds only the release pointer.
+
+parameters:
+  - name: RSP_DEPTH
+    default: jet_pkg.RSP_DEPTH (10)
+    description: sequencer ring depth, range 2-32; elaboration $error outside
+  - name: BUS_WIDTH
+    default: 64 (l1_pkg.AMBER_BUS_WIDTH)
+    description: response data width
+  - name: SEQ_W
+    default: 4 (jet_pkg.SEQ_W)
+    description: tag width, $clog2(RSP_DEPTH)
+
+scenarios:
+  - name: in_order_release
+    level: all
+    what: Deposits complete out of order; responses still leave in strict tag
+      order once each predecessor has released.
+    status: covered
+  - name: head_of_line
+    level: all
+    what: An incomplete head tag blocks rsp_valid_o; later completed tags do
+      not pass it.
+    status: covered
+  - name: backpressure_freedom
+    level: all
+    what: rsp_ready_i held low for 50 cycles while completions continue to be
+      deposited.  Every deposit is accepted, none are dropped, and release
+      resumes in tag order once rsp_ready_i returns high.
+    status: covered
+  - name: tag_reuse
+    level: all
+    what: After the head tag is released, the next allocation reuses that tag;
+      the ring wraps and a new completion record writes the same slot.
+    status: covered
+  - name: wraparound
+    level: all
+    what: Sustained allocate/deposit/release traffic walks the alloc and
+      release pointers around the RSP_DEPTH boundary multiple times while
+      preserving order.
+    status: covered
+  - name: random_model_scored
+    level: gate 50 / func 500 / full 4000 ops
+    what: Random legal alloc/deposit/release mix; response head and tag grant
+      scored against the Python golden model on most cycles.
+    status: covered
+
+coverage_points:
+  - line: 117
+    type: initial
+    content: "elaboration range check (RSP_DEPTH 2-32, BUS_WIDTH)"
+    covered: true
+    note: elaborates clean at the default depth; the $error branches fire
+      only on an out-of-range elaboration (by design not exercised).
+  - line: 148
+    type: always_comb
+    content: "tag grant and tag value (tag_gnt_o / tag_o)"
+    covered: true
+    tests: [tag_reuse, wraparound, random_model_scored]
+  - line: 142
+    type: always_comb
+    content: "release head valid and data (rsp_valid_o / rsp_data_o)"
+    covered: true
+    tests: [in_order_release, head_of_line, backpressure_freedom]
+  - line: 167
+    type: always_ff
+    content: "deposit write to per-tag completion record"
+    covered: true
+    tests: [in_order_release, backpressure_freedom, wraparound]
+  - line: 175
+    type: always_ff
+    content: "release pointer advance and valid clear"
+    covered: true
+    tests: [in_order_release, head_of_line, backpressure_freedom]
+  - line: 183
+    type: always_ff
+    content: "alloc pointer advance"
+    covered: true
+    tests: [tag_reuse, wraparound, random_model_scored]
+  - line: 190
+    type: always_ff
+    content: "occupancy counter (alloc/release net)"
+    covered: true
+    tests: [backpressure_freedom, tag_reuse, wraparound]
+  - line: 197
+    type: assertion
+    content: "simulation-only: deposit tag must be within RSP_DEPTH"
+    covered: true
+    tests: [all scenarios]
+
+gaps:
+  - Out-of-range RSP_DEPTH elaboration ($error) is intentionally not
+    exercised — it fails the build by design.
+  - The J7 RSP_DEPTH {2,4,8,16} sweep is a separate experiment; the unit
+    grid runs the default depth only.
+  - Multi-cycle back-to-back deposits to the same tag are not exercised;
+    each tag is deposited exactly once per lifetime in the unit TB.

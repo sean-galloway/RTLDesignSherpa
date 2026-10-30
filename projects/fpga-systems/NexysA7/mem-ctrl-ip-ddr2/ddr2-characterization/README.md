@@ -27,6 +27,55 @@ with its own HAS and MAS in that component's `docs/`.
 
 ---
 
+## Pattern legend (what each name means)
+
+The names in every `char_results/*.csv` and in `pumice_char.py`'s profiles,
+in plain words. The aggregation (half-burst) families are the `half_*` rows.
+
+**Families** are what one injector walks. The DRAM is x16, a burst is BL8 =
+16 bytes, a page (row) is 2 KB, eight banks.
+
+| name | what the injector does | what it measures |
+|---|---|---|
+| `incremental` | linear march, one burst after the next, across columns, then banks, then rows | the best-case stream |
+| `row_major` | the same march wrapped inside ONE page | every burst a page hit: pure column throughput |
+| `col_major` | stride = one row, same bank | every burst a page miss: PRE + ACT each time, the tRC / tRP floor |
+| `col_major_interleaved` | stride = one bank | every burst a new bank, activates pipeline: bank parallelism |
+| `random` | an LFSR walk inside a region (two rows x all banks per thread) | mixed hits and misses, no order |
+| `row_thrash` | one bank, two rows, a burst to each in turn | the row-buffer conflict a scheduling window can reorder |
+| `mixed` | bank-paired threads one row apart, reads and writes at once | read/write turnaround under row conflicts |
+| `half_pair` | **aggregation**: every DRAM burst issued as TWO half-width host transactions, low half then high half, back to back: l0 h0 l1 h1 ... | whether the controller merges a pair into one burst (a combiner does; without one each half costs a full burst) |
+| `half_oct` | the same halves, but all eight low halves then the eight high halves: l0..l7 h0..h7 | the merge window has to hold eight transactions |
+| `half_pair_sweep`, `half_oct_sweep` | as above, with the idle gap after each transaction looping 0,1,..7 clocks inside the run | the merge window against arrival spacing, averaged |
+
+**Scenario suffixes**: `_bl4` / `_bl8` / `_bl16` = host transaction length in
+beats (AxLEN+1), i.e. DRAM bursts per transaction; `_multiid` = AXI IDs from
+an LFSR (out-of-order allowed) instead of a counter; `_gap` = 8 idle clocks
+between transactions; `_thrN` = N injectors at once, each in its own
+region (the board builds have four, so 5..8 run as four and say so);
+`_gapN` = a FIXED N idle clocks between transactions (the `half_gap`
+profile: 512 pairs per cell).
+
+**Presets** (the controller's config for a run): `open_page` = row-major
+address map (column, bank, row from the low bits up), pages left open;
+`close_page` = the same map, every access auto-closes its page;
+`bank_interleave` = bank bits below the column, so consecutive bursts hop
+banks (close-page policy); `defaults` = the controller's reset state.
+LiteDRAM has one config (row/bank/col, open page with auto-precharge).
+
+**Profiles** (which cells a run covers): `every` = the four stream families
+x bl 4/8/16 + the multiid and gap variants x three presets; `windows` =
+mixed, row_thrash and random on four injectors at bl8 under open and close
+page; `half_threads`
+= pair and oct at 1..8 threads; `half_burst` = pair, oct and their sweeps
+on one thread; `half_burst8` = the same on eight; `half_gap` = the pair walk
+at fixed gaps 0..7; `concurrent` = one writer and one reader at once per
+family; `multigen` = one writer and two readers.
+
+**Numbers**: write / read MB/s = bytes moved over the pass's cycles at the
+harness clock; peak is 600 MB/s at 75 MHz (DDR2-300 x16) and 800 at 100
+(DDR2-400). "merges 512/1024 (ratio 0.5)" means every pair merged.
+
 ## Validation methodology
 
 DFI v2.1 is the boundary between the controller and the DRAM PHY. The PHY itself
