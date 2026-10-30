@@ -362,6 +362,7 @@ module mc_bank_fifo_store
     logic [D2QW-1:0] r_d2q_cnt;
     logic            w_d2q_full, w_d2q_push, w_d2q_pop, w_done1;
     logic            w_d2q_idhit;     // the held AW's id is a queued merged B
+    logic [IW-1:0]   w_hd_mgid;       // the drain head's merged id (declared ahead of the AW compares that read it)
 
     // Free slot: lowest free index
     logic            w_wr_have_free;
@@ -417,6 +418,8 @@ module mc_bank_fifo_store
     logic [COL_WIDTH-1:0] r_awh_col;
     logic [IW-1:0]        r_awh_id;
     logic                 r_awh_last;
+    logic [NUM_ENTRIES-1:0] r_awh_am, r_awh_ie;   // registered compares, see below
+    logic                 r_awh_dh;
     logic w_aw_take, w_aw_fire, w_wd_fire, w_fill_done;
     logic w_wr_cap_ok, w_rd_cap_ok;   // conditional per-bank cap (BANK_CAP_MIXED), assigned below the RD slots
     // ---- write merge candidate (MERGE_EN): a live write entry with the held
@@ -442,21 +445,50 @@ module mc_bank_fifo_store
         w_mg_idclash = 1'b0;
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             w_mg_match[i] = MERGE_EN && r_wr_valid[i] && !r_wr_cmt[i] && !r_wr_mgv[i]
-                          && r_wr_last[i]
-                          && (r_wr_bank[i] == r_awh_bank) && (r_wr_row[i] == r_awh_row)
-                          && (r_wr_col[i]  == r_awh_col);
+                          && r_wr_last[i] && r_awh_am[i];
             if (w_mg_match[i]) begin w_mg_found = 1'b1; w_mg_slot = PTRW'(i); end
         end
         for (int i = 0; i < NUM_ENTRIES; i++) begin
-            if (r_wr_valid[i] && !w_mg_match[i] && (r_wr_id[i] == r_awh_id)) w_mg_idclash = 1'b1;
+            if (r_wr_valid[i] && !w_mg_match[i] && r_awh_ie[i]) w_mg_idclash = 1'b1;
         end
         if (w_d2q_idhit) w_mg_idclash = 1'b1;
     end
+    assign w_d2q_idhit = r_awh_dh;
+
+    // ---- the held AW's comparisons, REGISTERED (100 MHz, TASK-003
+    //      2026-10-30). r_awh_am[i]: entry i has the held AW's {bank,row,col};
+    //      r_awh_ie[i]: entry i has its id; r_awh_dh: the merged-B id queue
+    //      holds its id. Computed when the AW is LOADED, against the incoming
+    //      push, with forwarding for the entry the departing AW allocates in
+    //      that same cycle (it takes r_awh's fields). They stay exact while
+    //      the AW holds: only the held AW allocates, so no entry's address or
+    //      id changes under it; the id queue moves on its own, so r_awh_dh is
+    //      recomputed every cycle from this cycle's push and pop. Same values
+    //      as the old per-cycle compares, without the 27-bit address and id
+    //      compares in front of the admission's fan-out.
+    logic [NUM_ENTRIES-1:0] w_awp_am, w_awp_ie;
+    logic                   w_dh_push, w_dh_hold;
     always_comb begin
-        w_d2q_idhit = 1'b0;
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            if (w_aw_fire && (w_wr_free_slot == PTRW'(i))) begin
+                w_awp_am[i] = (aw_push_bank_i == r_awh_bank) && (aw_push_row_i == r_awh_row)
+                           && (aw_push_col_i  == r_awh_col);
+                w_awp_ie[i] = (aw_push_id_i == r_awh_id);
+            end else begin
+                w_awp_am[i] = (aw_push_bank_i == r_wr_bank[i]) && (aw_push_row_i == r_wr_row[i])
+                           && (aw_push_col_i  == r_wr_col[i]);
+                w_awp_ie[i] = (aw_push_id_i == r_wr_id[i]);
+            end
+        end
+        // the id queue's contents NEXT cycle: this cycle's entries less the
+        // one popped, plus the one pushed
+        w_dh_push = w_d2q_push && (w_hd_mgid == aw_push_id_i);
+        w_dh_hold = w_d2q_push && (w_hd_mgid == r_awh_id);
         for (int q = 0; q < D2Q; q++) begin
-            if ((q < int'(r_d2q_cnt)) && (r_d2q_id[(int'(r_d2q_rd) + q) % D2Q] == r_awh_id))
-                w_d2q_idhit = 1'b1;
+            if ((q < int'(r_d2q_cnt)) && !(w_d2q_pop && (q == 0))) begin
+                if (r_d2q_id[(int'(r_d2q_rd) + q) % D2Q] == aw_push_id_i) w_dh_push = 1'b1;
+                if (r_d2q_id[(int'(r_d2q_rd) + q) % D2Q] == r_awh_id)     w_dh_hold = 1'b1;
+            end
         end
     end
     // The pick's column candidate is excluded from the merge, but NOT by
@@ -496,6 +528,19 @@ module mc_bank_fifo_store
             r_awh_last <= aw_push_last_i;
         end else if (w_aw_fire || w_aw_merge) begin
             r_awh_vld  <= 1'b0;
+        end
+    end)
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_awh_am <= '0;
+            r_awh_ie <= '0;
+            r_awh_dh <= 1'b0;
+        end else begin
+            if (w_aw_take) begin
+                r_awh_am <= w_awp_am;
+                r_awh_ie <= w_awp_ie;
+            end
+            r_awh_dh <= w_aw_take ? w_dh_push : w_dh_hold;
         end
     end)
 
@@ -557,7 +602,7 @@ module mc_bank_fifo_store
     assign wr_cm_rd_valid_o = w_hd_vld && !w_d2q_full;
     assign wr_cm_rd_data_o  = w_hd_data[DW-1:0];
     assign wr_cm_rd_strb_o  = w_hd_data[SRW-1:DW];
-    logic w_hd_mgv; logic [IW-1:0] w_hd_mgid;
+    logic w_hd_mgv;
     assign w_hd_mgv  = r_sk_mgv [r_sk_rd];
     assign w_hd_mgid = r_sk_mgid[r_sk_rd];
     assign wr_cm_rd_last_o  = w_hd_blast;
