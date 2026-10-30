@@ -122,6 +122,21 @@ clock gating is an FPGA-only concern here.
 
 : Table 4: The two CXS wrappers
 
+### The two CHI wrappers (2026-10-30)
+
+A CHI port (Arm IHI 0050 H) is a pair of credited links carrying
+transactions, so it gets its own core, [`chi_monitor_lite`](chi_monitor_lite.md)
+(amba TASK-050): request slots keyed by TxnID and DBID, a snoop table, and
+the lite delivery contract. The monitor taps the port's six FUB handshakes
+and its registered status, never the link pins. No `_cg` variants.
+
+| Family | Role | Lite wrapper | Wraps | Tapped |
+|---|---|---|---|---|
+| CHI | RN-F port (requester) | `chi_rnf_port_monlite` | `chi_rnf_port` | `fub_txreq/txrsp/txdat` (upstream of the skids), `fub_rxrsp/rxdat/rxsnp` (downstream of the receive FIFOs) + port status |
+| CHI | HN-F port (home) | `chi_hnf_port_monlite` | `chi_hnf_port` | `fub_txrsp/txdat/txsnp`, `fub_rxreq/rxrsp/rxdat` + port status |
+
+: Table 5: The two CHI wrappers
+
 There are no `_cg` ACE wrappers in this release. The front-side ACE wrappers carry the same monitor port list as the AXI4 wrappers (with the core's ACE fields passed through). The snoop-side wrappers expose the smaller control set of `axi4ace_snoop_monitor_lite`: `clear`, `cfg_monitor_enable`, `cfg_error_enable`, `cfg_timeout_enable`, `cfg_compl_enable`, `cfg_timeout_cycles`, `cfg_freq_sel`, `i_mon_time`, plus the monbus and status outputs.
 
 The AXIS wrappers' monitor section is the AXIS core's, not the AXI one's: parameters

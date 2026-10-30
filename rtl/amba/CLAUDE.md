@@ -256,11 +256,50 @@ Python decode in `bin/TBClasses/monbus` is checked against that file.
 | `cxs_stream_key.sv`, `cxs_link_snoop.sv` | Per-stream framing key; passive wire-level link model (credits, link state, checks) | `docs/markdown/rtl-amba/cxs/README.md` |
 | `shared/cxs_master_injector.sv` / `shared/cxs_slave_pattern_check.sv` | CXS pattern source / checker, CRC-identical to the AXIS pair | `docs/markdown/rtl-amba/shared/cxs_injectors.md` |
 
-Traps: packet framing is PER STREAM (`CXS_STREAM_*_BITS`, default 0 = one stream); both ends and every monitor on a link must use the same key, and interleaved channels need it ([[frame-per-stream]]). `CXS_CREDIT_BEYOND_SPEC` lifts the 63-credit cap only. `monbus_group_core` filters `PROTOCOL_CXS` through the AXIS mask slot
-(before 2026-10-15 it dropped every CXS packet silently). With `CXS_LINK_CTRL=0` the `_cg` wrappers can NEVER gate (a credit or
+Traps: packet framing is PER STREAM (`CXS_STREAM_*_BITS`, default 0 = one stream); both ends and every monitor on a link must use the same key, and interleaved channels need it ([[frame-per-stream]]). `CXS_CREDIT_BEYOND_SPEC` lifts the 63-credit cap only. `monbus_group_core` filters `PROTOCOL_CXS` through the stream mask family
+(`filter_family()` in `ocelus_common_pkg`; before 2026-10-15 it dropped every CXS packet silently). With `CXS_LINK_CTRL=0` the `_cg` wrappers can NEVER gate (a credit or
 flit may arrive any cycle) -- by design, tested. `gaxi_fifo_sync` cannot be
 built 1 deep; `cxs_slave` floors its FIFO at 2 and keeps accounting at
 `RX_FIFO_DEPTH`.
+
+### CHI -- Coherent Hub Interface link layer (`rtl/amba/chi/`, 2026-10-29)
+
+Arm IHI 0050 Issue H, chapters B13 and B14 ONLY: credits, FLITPEND, the two
+LINKACTIVE pairs, LCrdReturn, SACTIVE. A CHI port is a PAIR of links; the
+Protocol layer (B2-B12) lives on the FUB side. No READY: each RX channel's
+FIFO is its credit pool. Property legality is `chi_pkg::config_error` (rule
+numbers shared with the RDS-DV `CHIConfig`, rule 1 = Issue H is not a
+parameter). Base + `_monlite` (2026-10-30): no `_cg`, no Resource Planes,
+no parity. The monitor is `ocelus/chi_monitor_lite.sv`, packets tagged
+`PROTOCOL_CHI` (4'h7) with codes in `includes/ocelus_chi_pkg.sv`; Python
+decode in `bin/TBClasses/monbus` is parity-tested against that file. The BFMs are `CocoTBFramework.components.chi` (home on the RN-F
+port with prefix `m_chi_`, requester on the HN-F port with `s_chi_`, a
+`CHIMonitor` on each); TB classes in `bin/TBClasses/chi/`.
+
+| Module | Purpose | Documentation |
+|---|---|---|
+| `chi_rnf_port.sv` | RN-F port: TX REQ/RSP/DAT, RX RSP/DAT/SNP, both link controllers, SACTIVE | `docs/markdown/rtl-amba/chi/chi_rnf_port.md` |
+| `chi_hnf_port.sv` | HN-F port facing one RN-F: TX RSP/DAT/SNP, RX REQ/RSP/DAT | `docs/markdown/rtl-amba/chi/chi_hnf_port.md` |
+| `includes/chi_pkg.sv` | Flit widths (Tables B13.6-B13.9), Opcode / TxnID offsets, link-state pairs, `config_error` | `docs/markdown/rtl-amba/chi/README.md` |
+| `chi_tx_channel.sv` / `chi_rx_channel.sv` | One credited channel each: skid + credit counter + FLITPEND; receive FIFO = pool + LCrdReturn decode | `docs/markdown/rtl-amba/chi/README.md` |
+| `chi_link_tx.sv` / `chi_link_rx.sv` | TXLINKACTIVEREQ / RXLINKACTIVEACK controllers, cross-coupled for B14.6 and B14.6.3.4 | `docs/markdown/rtl-amba/chi/README.md` |
+| `chi_{rnf,hnf}_port_monlite.sv`, `ocelus/chi_monitor_lite.sv` | Ports with the CHI lite Ocelus tapping the six FUB handshakes + port status: request slots by TxnID/DBID, snoop table, stamps not counters, one retire per cycle | `docs/markdown/rtl-amba/monitor/chi_monitor_lite.md` |
+
+Traps: the FUB flit word is ONE packed word per channel, bit 0 first in
+table order, and must be built (RDS-DV `CHIReqFlit` etc., `pack()`) from
+the same `NODEID_WIDTH` / `ADDR_WIDTH` / `DATA_WIDTH` / optional-bus widths
+as the DUT -- a word built from different widths moves the Opcode, and the
+receive channel then reads a protocol flit as an LCrdReturn or the reverse.
+`LINK_CTRL=0` never leaves RUN (the LINKACTIVE pins are tied and
+`*_link_state` reads 11, RUN). A one-credit receiver (`RX_FIFO_DEPTH=1`) is built
+2 deep because `gaxi_fifo_sync` cannot be 1 deep; the grant still counts
+against 1. `fub_sactive` is the Protocol layer's job: the link layer cannot
+know when a transaction completes, so hold it from the first request flit
+until the last completing flit (B14.7.2). `cfg_rx_enable=0` keeps the WHOLE
+port in STOP (no activation acknowledged or started); `cfg_link_enable=0`
+only stops the TX link being kept up. The group cores pass `PROTOCOL_CHI`
+through the stream mask family (`filter_family()`, 2026-10-30); every
+protocol value now lands in a family, so none is dropped for being unnamed.
 
 ### Supporting Infrastructure — `rtl/amba/ocelus/` + `rtl/amba/shared/`
 

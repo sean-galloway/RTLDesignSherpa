@@ -19,7 +19,8 @@ summary: RTL rules with the failures that taught them.
 - [[arbitrate-at-the-acceptor]] - a pick that feeds a queue ahead of a slow slave is not round-robin: share follows outstanding (fabric benchmark W3 40%)
 - [[axi-burst-splitting]] - a burst cut into pieces restarts every later piece on the size grid; test the split with an UNALIGNED start (converters BUG-011)
 - [[observers-do-not-drive]] - a parallel snoop must not gate the bus it taps
-- [[new-monbus-protocol]] - a new PROTOCOL_* value must be passed by every monbus filter (the group core drops unknown ones silently)
+- [[new-monbus-protocol]] - a new PROTOCOL_* value must reach every consumer; the group cores filter by `filter_family()` (no hard drop since 2026-10-30), but decoders, tallies and configs still name values
+- [[transaction-monitor-keys]] - a monitor's slot table is keyed by what the protocol lets the other side reuse; enumerate per-opcode debts from the spec's flow tables and review before writing the TB (CHI lite review found 7 leaks)
 - [[frame-per-stream]] - packet-open state must be per stream wherever streams can interleave (CXS 2.5.2, AXIS TID)
   (in-path `*_mon` wrappers own ready by design; the rule is not about them)
 - [[streaming-no-fsm]] - the pipeline pattern for datapaths
