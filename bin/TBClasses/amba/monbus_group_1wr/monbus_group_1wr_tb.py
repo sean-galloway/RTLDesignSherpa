@@ -208,17 +208,26 @@ class MonbusGroup1wrTB(TBBase):
     # stimulus
     # ------------------------------------------------------------------
 
+    # The AXI filter family: these share cfg_axi_* (filter_family() in
+    # ocelus_common_pkg), so their Error packets take the error window.
+    AXI_FAMILY = (ProtocolType.PROTOCOL_AXI, ProtocolType.PROTOCOL_APB,
+                  ProtocolType.PROTOCOL_ARB, ProtocolType.PROTOCOL_WB)
+
     def make_record(self, is_err: bool, i: int) -> Tuple[int, int, bool]:
         """(packet, source_ts, is_err). Error-type packets select the error
-        path through cfg_axi_err_select; completions take the trace path."""
+        path through cfg_axi_err_select; completions take the trace path.
+        The protocol field cycles: errors over the AXI family, trace records
+        over all sixteen values (the named ones and the unnamed), so a
+        protocol the filter silently drops fails the record-count check and
+        a protocol it rewrites fails the packet compare."""
         if is_err:
             pkt = create_monitor_packet(
-                PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
+                PktType.PktTypeError, self.AXI_FAMILY[i % len(self.AXI_FAMILY)],
                 AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, i % 8, 0x21,
                 self.rng.randint(0, 0xFFFF_FFFF_FFFF_FFFF))
         else:
             pkt = create_monitor_packet(
-                PktType.PktTypeCompletion, ProtocolType.PROTOCOL_AXI,
+                PktType.PktTypeCompletion, i % 16,
                 0, 0, i % 8, 0x22, self.rng.randint(0, 0xFFFF_FFFF_FFFF_FFFF))
         return pkt, self.rng.randint(0, TS_MASK), is_err
 

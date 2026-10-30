@@ -5,9 +5,10 @@
 // (USE_COMPRESSION=0), small FIFOs. Everything is checked at the PORTS
 // against a harness-side reference model of the routing decision and the
 // 3-beat expander, so the proof does not depend on internal names:
-//   - routing: drop / error-FIFO / write-path is exactly the per-protocol
-//     pkt_mask, err_select and event-mask rule (1 = drop; an unknown
-//     protocol is dropped; a masked event never reaches either FIFO)
+//   - routing: drop / error-FIFO / write-path is exactly the per-family
+//     pkt_mask, err_select and event-mask rule (1 = drop; every protocol
+//     value maps to a family, none is dropped for being unnamed; a masked
+//     event never reaches either FIFO)
 //   - monbus_ready is asserted iff the packet is dropped or its target can
 //     take it this cycle (error FIFO not full; expander idle and write FIFO
 //     not full) -- so the group never withholds ready from a packet the
@@ -42,8 +43,18 @@ module formal_monbus_group_core (
     localparam int FLUSH_TIMEOUT    = 8;    // short so the timeout-flush cover is reachable at depth 40
 
     // packet field positions (ocelus_common_pkg)
-    localparam [3:0] PROTOCOL_AXI = 4'h0, PROTOCOL_AXIS = 4'h1, PROTOCOL_CORE = 4'h4,
-                     PROTOCOL_CXS = 4'h6;   // filtered through the AXIS slot
+    localparam [3:0] PROTOCOL_AXI = 4'h0, PROTOCOL_AXIS = 4'h1, PROTOCOL_APB = 4'h2,
+                     PROTOCOL_CORE = 4'h4, PROTOCOL_WB = 4'h5, PROTOCOL_CXS = 4'h6,
+                     PROTOCOL_CHI = 4'h7;
+    // Mirror of ocelus_common_pkg::filter_family(): stream family = AXIS/CXS/CHI,
+    // CORE on its own, everything else (AXI, APB, ARB, WB, ACE, unnamed) = AXI family.
+    function [1:0] filter_family(input [3:0] proto);
+        case (proto)
+            PROTOCOL_AXIS, PROTOCOL_CXS, PROTOCOL_CHI: filter_family = 2'd1;
+            PROTOCOL_CORE:                            filter_family = 2'd2;
+            default:                                  filter_family = 2'd0;
+        endcase
+    endfunction
     localparam [3:0] T_ERROR = 4'h0, T_COMPL = 4'h1, T_THRESH = 4'h2, T_TIMEOUT = 4'h3,
                      T_PERF = 4'h4, T_CREDIT = 4'h5, T_CHANNEL = 4'h6, T_STREAM = 4'h7,
                      T_ADDRM = 4'h8, T_DEBUG = 4'hF;
@@ -228,8 +239,8 @@ module formal_monbus_group_core (
     reg m_drop, m_err, m_masked;
     always @* begin
         m_drop = 1'b0; m_err = 1'b0; m_masked = 1'b0;
-        case (p_proto)
-            PROTOCOL_AXI: begin
+        case (filter_family(p_proto))
+            2'd0: begin
                 m_drop = cfg_axi_pkt_mask[p_type];
                 m_err  = cfg_axi_err_select[p_type] && !m_drop;
                 if (ec_rng) case (p_type)
@@ -243,7 +254,7 @@ module formal_monbus_group_core (
                     default:   m_masked = 1'b0;
                 endcase
             end
-            PROTOCOL_AXIS, PROTOCOL_CXS: begin
+            2'd1: begin
                 m_drop = cfg_axis_pkt_mask[p_type];
                 m_err  = cfg_axis_err_select[p_type] && !m_drop;
                 if (ec_rng) case (p_type)
@@ -256,7 +267,7 @@ module formal_monbus_group_core (
                     default:   m_masked = 1'b0;
                 endcase
             end
-            PROTOCOL_CORE: begin
+            2'd2: begin
                 m_drop = cfg_core_pkt_mask[p_type];
                 m_err  = cfg_core_err_select[p_type] && !m_drop;
                 if (ec_rng) case (p_type)
@@ -269,7 +280,7 @@ module formal_monbus_group_core (
                     default:   m_masked = 1'b0;
                 endcase
             end
-            default: m_drop = 1'b1;
+            default: begin end
         endcase
         if (m_masked) begin m_drop = 1'b1; m_err = 1'b0; end
     end
@@ -301,7 +312,7 @@ module formal_monbus_group_core (
     // ---- P1: routing and ready ------------------------------------------
     always @(posedge clk) if (live) begin
         ap_ready_exact:     assert (monbus_ready == exp_ready);
-        // a masked or unknown-protocol packet is consumed without a trace
+        // a masked packet is consumed without a trace
         ap_drop_no_trace:   assert (!(m_dropped && (mb_hs && (x_accept || (m_to_err && !err_fifo_full)))));
     end
 
@@ -417,11 +428,14 @@ module formal_monbus_group_core (
     always @(posedge clk) if (live) begin
         cp_drop_pkt_mask:   cover (mb_hs && m_drop && !m_masked && p_proto == PROTOCOL_AXI);
         cp_drop_event_mask: cover (mb_hs && m_masked && p_proto == PROTOCOL_AXI);
-        cp_drop_unknown:    cover (mb_hs && p_proto == 4'h7);
         cp_to_err:          cover (rec_push);
         cp_to_write_axis:   cover (mb_hs && m_to_write && p_proto == PROTOCOL_AXIS);
         cp_to_write_core:   cover (mb_hs && m_to_write && p_proto == PROTOCOL_CORE);
         cp_to_write_cxs:    cover (mb_hs && m_to_write && p_proto == PROTOCOL_CXS);
+        cp_to_write_chi:    cover (mb_hs && m_to_write && p_proto == PROTOCOL_CHI);
+        cp_to_write_apb:    cover (mb_hs && m_to_write && p_proto == PROTOCOL_APB);
+        cp_to_err_wb:       cover (mb_hs && m_err && p_proto == PROTOCOL_WB);
+        cp_to_write_unnamed: cover (mb_hs && m_to_write && p_proto == 4'hF);
         cp_irq:             cover (irq_out);
         cp_err_full:        cover (err_fifo_full);
         cp_record_read:     cover (rec_pop && s_rlast);

@@ -106,7 +106,7 @@ module monbus_group_core
     // ------------------------------------------------------------------
     // Per-protocol filter masks (same shape as legacy monbus_axil_group)
     // ------------------------------------------------------------------
-    // AXI (protocol 0)
+    // AXI (protocol 0) -- the AXI family: also APB (2), ARB (3), WB (5), ACE (tagged 0) and any unnamed value
     input  logic [15:0]                   cfg_axi_pkt_mask,
     input  logic [15:0]                   cfg_axi_err_select,
     input  logic [15:0]                   cfg_axi_error_mask,
@@ -116,7 +116,7 @@ module monbus_group_core
     input  logic [15:0]                   cfg_axi_perf_mask,
     input  logic [15:0]                   cfg_axi_addr_mask,
     input  logic [15:0]                   cfg_axi_debug_mask,
-    // AXIS (protocol 1) -- also filters CXS (protocol 6), see the case below
+    // AXIS (protocol 1) -- the stream family: also CXS (6) and CHI (7), see filter_family()
     input  logic [15:0]                   cfg_axis_pkt_mask,
     input  logic [15:0]                   cfg_axis_err_select,
     input  logic [15:0]                   cfg_axis_error_mask,
@@ -312,8 +312,8 @@ module monbus_group_core
         pkt_event_masked  = 1'b0;
 
         if (monbus_valid) begin
-            case (pkt_protocol)
-                PROTOCOL_AXI: begin
+            case (filter_family(pkt_protocol))
+                FILTER_AXI: begin
                     pkt_drop        = cfg_axi_pkt_mask[pkt_type];
                     pkt_to_err_fifo = cfg_axi_err_select[pkt_type] && !pkt_drop;
                     if (ec_in_mask_range) begin
@@ -329,12 +329,10 @@ module monbus_group_core
                         endcase
                     end
                 end
-                // CXS is a stream protocol with exactly the AXIS packet-type
-                // set (Error/Timeout/Completion/Credit/Channel/Stream), so it
-                // shares the stream filter slot rather than adding eight more
-                // mask ports to every group wrapper. Event masks index the
-                // low nibble of each protocol's own codes.
-                PROTOCOL_AXIS, PROTOCOL_CXS: begin
+                // The stream family (AXIS, CXS, CHI) shares one mask set:
+                // the same packet-type set, so no new mask ports per protocol.
+                // Event masks index the low nibble of each protocol's own codes.
+                FILTER_STREAM: begin
                     pkt_drop        = cfg_axis_pkt_mask[pkt_type];
                     pkt_to_err_fifo = cfg_axis_err_select[pkt_type] && !pkt_drop;
                     if (ec_in_mask_range) begin
@@ -349,7 +347,7 @@ module monbus_group_core
                         endcase
                     end
                 end
-                PROTOCOL_CORE: begin
+                FILTER_CORE: begin
                     pkt_drop        = cfg_core_pkt_mask[pkt_type];
                     pkt_to_err_fifo = cfg_core_err_select[pkt_type] && !pkt_drop;
                     if (ec_in_mask_range) begin
@@ -364,7 +362,9 @@ module monbus_group_core
                         endcase
                     end
                 end
-                default: pkt_drop = 1'b1;
+                // No protocol is dropped for being unnamed: filter_family()
+                // in ocelus_common_pkg maps every value to a mask set.
+                default: begin end
             endcase
 
             if (pkt_event_masked) begin

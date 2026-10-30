@@ -20,9 +20,11 @@ memory exposed it.
 
 ## How to apply
 
-- When you add a protocol, grep for `case (pkt_protocol)` and for every
-  `PROTOCOL_` enumeration in the RTL and the formal reference models
-  (`formal/amba/monbus_group_core/`), and give the new value a decision in each one.
+- When you add a protocol, give it a line in `ocelus_common_pkg::filter_family()`
+  (and its mirror in `formal/amba/monbus_group_core/` and `TBClasses.monbus`)
+  if its packet-type set is not the AXI family's; an unnamed value already
+  takes the AXI masks and is seen. Then grep for `PROTOCOL_` in every
+  consumer anyway: a decoder name table or a tally still needs the value.
 - A stream-shaped protocol can share an existing mask slot instead of adding
   ports to every group wrapper. CXS uses the AXIS slot because its packet types
   are the same set.
@@ -30,4 +32,15 @@ memory exposed it.
   the capture. A test that taps the monitor port proves the monitor and nothing
   downstream of it.
 
-Related: [[observers-do-not-drive]], [[generated-rtl-discipline]].
+- Closed 2026-10-30 (owner: "fix all of it so new packet types can be seen
+  at all"): the filter in both group cores and the formal model is now
+  `case (filter_family(pkt_protocol))` with NO hard-drop default.
+  `ocelus_common_pkg::filter_family()` is the one source, mirrored by
+  `TBClasses.monbus.filter_family` with a parity test. APB, ARB, WB and CHI
+  had all been dropped at every group; the 1wr test now sends every one of
+  the sixteen protocol values through to the capture. Dropping most classes
+  by DEFAULT stays the design (mask registers reset to drop so an all-on
+  system cannot flood itself), but a mask is configurable and the hard
+  drop was not.
+
+Related: [[observers-do-not-drive]], [[generated-rtl-discipline]], [[transaction-monitor-keys]].

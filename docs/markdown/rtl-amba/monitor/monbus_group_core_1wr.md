@@ -51,7 +51,7 @@ The filter, the trace path (expander, optional compressor and half-beat packer, 
 
 ### Key Features
 
-- Single MonBus ingress with per-protocol filter masks (AXI, AXIS, CORE; CXS shares the AXIS masks)
+- Single MonBus ingress with the three filter-mask families of `monbus_group_core` (AXI family, stream family, CORE; `filter_family()` in `ocelus_common_pkg`, no protocol dropped outright)
 - Error window: raw 3-beat records, own beat FIFO, own watermark and (shorter) timeout flush, priority at the write port
 - Trace window: raw records or runtime-selectable compression, as `monbus_group_core`
 - One AXI4-shaped master-write FUB: W follows AW order, B credits routed back to the writer that issued the AW

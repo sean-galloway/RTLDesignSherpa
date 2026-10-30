@@ -49,6 +49,27 @@ class ProtocolType(IntEnum):
     PROTOCOL_CORE = 0b100  # 0x4
     PROTOCOL_WB   = 0b101  # 0x5  Wishbone B4 (event codes: ocelus_wb4_pkg.sv)
     PROTOCOL_CXS  = 0b110  # 0x6  CXS, Arm IHI 0079 (event codes: ocelus_cxs_pkg.sv)
+    PROTOCOL_CHI  = 0b111  # 0x7  CHI, Arm IHI 0050 (event codes: ocelus_chi_pkg.sv)
+
+
+class FilterFamily(IntEnum):
+    """Which of a monbus group's three mask sets applies to a protocol
+    (ocelus_common_pkg::filter_family_t). Mirrors the SV function exactly;
+    tests/test_monbus_filter_family.py re-parses it."""
+    FILTER_AXI    = 0   # AXI, APB, ARB, WB, ACE (tagged AXI) and every unnamed value
+    FILTER_STREAM = 1   # AXIS, CXS, CHI
+    FILTER_CORE   = 2   # CORE
+
+
+def filter_family(protocol) -> FilterFamily:
+    """The mask set a monbus group applies to `protocol` (a 4-bit value).
+    No value is dropped outright: the group's cfg_<family>_* masks decide."""
+    p = int(protocol) & 0xF
+    if p in (ProtocolType.PROTOCOL_AXIS, ProtocolType.PROTOCOL_CXS, ProtocolType.PROTOCOL_CHI):
+        return FilterFamily.FILTER_STREAM
+    if p == ProtocolType.PROTOCOL_CORE:
+        return FilterFamily.FILTER_CORE
+    return FilterFamily.FILTER_AXI
     # 0x7-0xF reserved for future use
 
 
@@ -838,6 +859,132 @@ class CXSStreamCode(IntEnum):
     CXS_STREAM_RESERVED_E          = 0xE
     CXS_STREAM_USER_DEFINED        = 0xF
 
+
+# =============================================================================
+# CHI EVENT CODES (ocelus_chi_pkg.sv, package ocelus_chi_pkg) - PROTOCOL_CHI
+# =============================================================================
+# Extracted mechanically from the SV enums; tests/test_monbus_chi.py re-parses
+# the package and fails on any difference.
+
+class CHIErrorCode(IntEnum):
+    """CHI error event codes (PROTOCOL_CHI)."""
+    CHI_ERR_PROTOCOL               = 0x0  # the port's protocol_error rose (credit / FLITPEND / LCrdReturn rule broken)
+    CHI_ERR_RESP_ERR               = 0x1  # a completion or read data toward the requester carried RespErr DERR / NDERR
+    CHI_ERR_ORPHAN_RSP             = 0x2  # a RSP toward the requester matched no open request (TxnID)
+    CHI_ERR_ORPHAN_DAT             = 0x3  # read data toward the requester matched no open request (TxnID)
+    CHI_ERR_ORPHAN_ACK             = 0x4  # a CompAck or write data from the requester matched no DBID handed out
+    CHI_ERR_ORPHAN_SNP_RSP         = 0x5  # a snoop response matched no open snoop (TxnID)
+    CHI_ERR_TABLE_FULL             = 0x6  # a request found no free slot: counted, not tracked
+    CHI_ERR_SNP_TABLE_FULL         = 0x7  # a snoop found no free slot: counted, not tracked
+    CHI_ERR_RESERVED_8             = 0x8
+    CHI_ERR_RESERVED_9             = 0x9
+    CHI_ERR_RESERVED_A             = 0xA
+    CHI_ERR_RESERVED_B             = 0xB
+    CHI_ERR_RESERVED_C             = 0xC
+    CHI_ERR_RESERVED_D             = 0xD
+    CHI_ERR_EVENT_DROPPED          = 0xE  # events lost to monbus backpressure (event_data = count)
+    CHI_ERR_USER_DEFINED           = 0xF
+
+
+class CHITimeoutCode(IntEnum):
+    """CHI timeout event codes (PROTOCOL_CHI)."""
+    CHI_TIMEOUT_TXN                = 0x0  # a request open (no completion, data, DBID or CompAck owed) for cfg us
+    CHI_TIMEOUT_SNP                = 0x1  # a snoop unanswered for cfg us
+    CHI_TIMEOUT_CREDIT             = 0x2  # a TX channel starved of credits for cfg us
+    CHI_TIMEOUT_LINK               = 0x3  # a direction sat in ACTIVATE or DEACTIVATE for cfg us
+    CHI_TIMEOUT_RESERVED_4         = 0x4
+    CHI_TIMEOUT_RESERVED_5         = 0x5
+    CHI_TIMEOUT_RESERVED_6         = 0x6
+    CHI_TIMEOUT_RESERVED_7         = 0x7
+    CHI_TIMEOUT_RESERVED_8         = 0x8
+    CHI_TIMEOUT_RESERVED_9         = 0x9
+    CHI_TIMEOUT_RESERVED_A         = 0xA
+    CHI_TIMEOUT_RESERVED_B         = 0xB
+    CHI_TIMEOUT_RESERVED_C         = 0xC
+    CHI_TIMEOUT_RESERVED_D         = 0xD
+    CHI_TIMEOUT_RESERVED_E         = 0xE
+    CHI_TIMEOUT_USER_DEFINED       = 0xF
+
+
+class CHICompletionCode(IntEnum):
+    """CHI completion event codes (PROTOCOL_CHI)."""
+    CHI_COMPL_TXN                  = 0x0  # a request retired: every completion, data packet, write data and CompAck it owed is in
+    CHI_COMPL_RETRY                = 0x1  # a request retired by RetryAck (it will be re-sent with a P-Credit)
+    CHI_COMPL_SNP                  = 0x2  # a snoop answered (SnpResp, or the last SnpRespData packet)
+    CHI_COMPL_RESERVED_3           = 0x3
+    CHI_COMPL_RESERVED_4           = 0x4
+    CHI_COMPL_RESERVED_5           = 0x5
+    CHI_COMPL_RESERVED_6           = 0x6
+    CHI_COMPL_RESERVED_7           = 0x7
+    CHI_COMPL_RESERVED_8           = 0x8
+    CHI_COMPL_RESERVED_9           = 0x9
+    CHI_COMPL_RESERVED_A           = 0xA
+    CHI_COMPL_RESERVED_B           = 0xB
+    CHI_COMPL_RESERVED_C           = 0xC
+    CHI_COMPL_RESERVED_D           = 0xD
+    CHI_COMPL_RESERVED_E           = 0xE
+    CHI_COMPL_USER_DEFINED         = 0xF
+
+
+class CHICreditCode(IntEnum):
+    """CHI credit event codes (PROTOCOL_CHI)."""
+    CHI_CREDIT_STARVED             = 0x0  # a TX channel held a flit with no credit for cfg_stall_threshold cycles
+    CHI_CREDIT_BACKPRESSURE        = 0x1  # a FUB-side receive channel held valid without ready for cfg_stall_threshold cycles
+    CHI_CREDIT_RESERVED_2          = 0x2
+    CHI_CREDIT_RESERVED_3          = 0x3
+    CHI_CREDIT_RESERVED_4          = 0x4
+    CHI_CREDIT_RESERVED_5          = 0x5
+    CHI_CREDIT_RESERVED_6          = 0x6
+    CHI_CREDIT_RESERVED_7          = 0x7
+    CHI_CREDIT_RESERVED_8          = 0x8
+    CHI_CREDIT_RESERVED_9          = 0x9
+    CHI_CREDIT_RESERVED_A          = 0xA
+    CHI_CREDIT_RESERVED_B          = 0xB
+    CHI_CREDIT_RESERVED_C          = 0xC
+    CHI_CREDIT_RESERVED_D          = 0xD
+    CHI_CREDIT_RESERVED_E          = 0xE
+    CHI_CREDIT_USER_DEFINED        = 0xF
+
+
+class CHIChannelCode(IntEnum):
+    """CHI channel event codes (PROTOCOL_CHI)."""
+    CHI_CHAN_PCRD_GRANT            = 0x0  # a PCrdGrant toward the requester (B2.10)
+    CHI_CHAN_PCRD_RETURN           = 0x1  # a PCrdReturn request (B2.10.1)
+    CHI_CHAN_READ_RECEIPT          = 0x2  # a ReadReceipt toward the requester (ordered read accepted)
+    CHI_CHAN_RESERVED_3            = 0x3
+    CHI_CHAN_RESERVED_4            = 0x4
+    CHI_CHAN_RESERVED_5            = 0x5
+    CHI_CHAN_RESERVED_6            = 0x6
+    CHI_CHAN_RESERVED_7            = 0x7
+    CHI_CHAN_RESERVED_8            = 0x8
+    CHI_CHAN_RESERVED_9            = 0x9
+    CHI_CHAN_RESERVED_A            = 0xA
+    CHI_CHAN_RESERVED_B            = 0xB
+    CHI_CHAN_RESERVED_C            = 0xC
+    CHI_CHAN_RESERVED_D            = 0xD
+    CHI_CHAN_RESERVED_E            = 0xE
+    CHI_CHAN_USER_DEFINED          = 0xF
+
+
+class CHIStreamCode(IntEnum):
+    """CHI stream event codes (PROTOCOL_CHI)."""
+    CHI_STREAM_TX_ACTIVATE         = 0x0  # TX: STOP -> ACTIVATE (TXLINKACTIVEREQ rose)
+    CHI_STREAM_TX_UP               = 0x1  # TX: -> RUN
+    CHI_STREAM_TX_DEACTIVATE       = 0x2  # TX: RUN -> DEACTIVATE
+    CHI_STREAM_TX_DOWN             = 0x3  # TX: -> STOP
+    CHI_STREAM_RX_ACTIVATE         = 0x4  # RX: STOP -> ACTIVATE (RXLINKACTIVEREQ seen)
+    CHI_STREAM_RX_UP               = 0x5  # RX: -> RUN
+    CHI_STREAM_RX_DEACTIVATE       = 0x6  # RX: RUN -> DEACTIVATE
+    CHI_STREAM_RX_DOWN             = 0x7  # RX: -> STOP
+    CHI_STREAM_RESERVED_8          = 0x8
+    CHI_STREAM_RESERVED_9          = 0x9
+    CHI_STREAM_RESERVED_A          = 0xA
+    CHI_STREAM_RESERVED_B          = 0xB
+    CHI_STREAM_RESERVED_C          = 0xC
+    CHI_STREAM_RESERVED_D          = 0xD
+    CHI_STREAM_RESERVED_E          = 0xE
+    CHI_STREAM_USER_DEFINED        = 0xF
+
 # =============================================================================
 # PACKET FIELD EXTRACTION FUNCTIONS — 128-bit format
 # =============================================================================
@@ -968,6 +1115,12 @@ _EVENT_CODE_ENUM_LOOKUP = {
     (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeCredit):     CXSCreditCode,
     (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeChannel):    CXSChannelCode,
     (ProtocolType.PROTOCOL_CXS,  PktType.PktTypeStream):     CXSStreamCode,
+    (ProtocolType.PROTOCOL_CHI,  PktType.PktTypeError):      CHIErrorCode,
+    (ProtocolType.PROTOCOL_CHI,  PktType.PktTypeTimeout):    CHITimeoutCode,
+    (ProtocolType.PROTOCOL_CHI,  PktType.PktTypeCompletion): CHICompletionCode,
+    (ProtocolType.PROTOCOL_CHI,  PktType.PktTypeCredit):     CHICreditCode,
+    (ProtocolType.PROTOCOL_CHI,  PktType.PktTypeChannel):    CHIChannelCode,
+    (ProtocolType.PROTOCOL_CHI,  PktType.PktTypeStream):     CHIStreamCode,
 }
 
 

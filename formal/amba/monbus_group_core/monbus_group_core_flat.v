@@ -1628,6 +1628,14 @@ module monbus_group_core (
 	localparam [3:0] ocelus_common_pkg_PktTypeStream = 4'h7;
 	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
 	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
+	function automatic [1:0] ocelus_common_pkg_filter_family;
+		input reg [3:0] protocol;
+		case (protocol)
+			4'h1, 4'h6, 4'h7: ocelus_common_pkg_filter_family = 2'd1;
+			4'h4: ocelus_common_pkg_filter_family = 2'd2;
+			default: ocelus_common_pkg_filter_family = 2'd0;
+		endcase
+	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -1636,8 +1644,8 @@ module monbus_group_core (
 		pkt_to_write_path = 1'b0;
 		pkt_event_masked = 1'b0;
 		if (monbus_valid) begin
-			case (pkt_protocol)
-				4'h0: begin
+			case (ocelus_common_pkg_filter_family(pkt_protocol))
+				2'd0: begin
 					pkt_drop = cfg_axi_pkt_mask[pkt_type];
 					pkt_to_err_fifo = cfg_axi_err_select[pkt_type] && !pkt_drop;
 					if (ec_in_mask_range)
@@ -1652,7 +1660,7 @@ module monbus_group_core (
 							default: pkt_event_masked = 1'b0;
 						endcase
 				end
-				4'h1, 4'h6: begin
+				2'd1: begin
 					pkt_drop = cfg_axis_pkt_mask[pkt_type];
 					pkt_to_err_fifo = cfg_axis_err_select[pkt_type] && !pkt_drop;
 					if (ec_in_mask_range)
@@ -1666,7 +1674,7 @@ module monbus_group_core (
 							default: pkt_event_masked = 1'b0;
 						endcase
 				end
-				4'h4: begin
+				2'd2: begin
 					pkt_drop = cfg_core_pkt_mask[pkt_type];
 					pkt_to_err_fifo = cfg_core_err_select[pkt_type] && !pkt_drop;
 					if (ec_in_mask_range)
@@ -1680,7 +1688,8 @@ module monbus_group_core (
 							default: pkt_event_masked = 1'b0;
 						endcase
 				end
-				default: pkt_drop = 1'b1;
+				default:
+					;
 			endcase
 			if (pkt_event_masked) begin
 				pkt_drop = 1'b1;

@@ -50,7 +50,8 @@ package ocelus_common_pkg;
         PROTOCOL_ARB    = 4'h3,  // Arbiter specific packets
         PROTOCOL_CORE   = 4'h4,  // Core specific packets
         PROTOCOL_WB     = 4'h5,  // Wishbone B4 (event codes: ocelus_wb4_pkg)
-        PROTOCOL_CXS    = 4'h6   // CXS, Arm IHI 0079 (event codes: ocelus_cxs_pkg)
+        PROTOCOL_CXS    = 4'h6,  // CXS, Arm IHI 0079 (event codes: ocelus_cxs_pkg)
+        PROTOCOL_CHI    = 4'h7   // CHI, Arm IHI 0050 (event codes: ocelus_chi_pkg)
     } protocol_type_t;
 
     // Ocelus bus packet types (used in packet_type field [127:124])
@@ -278,6 +279,37 @@ package ocelus_common_pkg;
         endcase
     endfunction
 
+    // ------------------------------------------------------------------
+    // Filter family: which of the three mask sets a monbus filter applies to
+    // a packet. The group cores (monbus_group_core, _1wr) and the formal model
+    // all call THIS function, so a protocol added to protocol_type_t is
+    // visible at every capture the moment it is named here. The family is
+    // the packet-type set a protocol emits, not the protocol itself:
+    //   STREAM: AXIS, CXS, CHI       (Error/Timeout/Completion/Credit/Channel/Stream)
+    //   CORE:   CORE
+    //   AXI:    AXI, APB, ARB, WB, ACE (tagged PROTOCOL_AXI), and every value
+    //           not yet named -- a new protocol is NEVER dropped outright.
+    // Before 2026-10-30 the filters ended in `default: pkt_drop = 1`, which
+    // silently consumed APB, ARB, WB and CHI packets (and CXS until
+    // 2026-10-15). Dropping by DEFAULT is still the design -- the per-family
+    // cfg_*_pkt_mask / event masks are programmed from registers whose reset
+    // values drop most classes so a fully enabled system cannot flood itself
+    // -- but that drop is configurable; an unnamed protocol's was not.
+    // ------------------------------------------------------------------
+    typedef enum logic [1:0] {
+        FILTER_AXI    = 2'd0,
+        FILTER_STREAM = 2'd1,
+        FILTER_CORE   = 2'd2
+    } filter_family_t;
+
+    function automatic filter_family_t filter_family(logic [3:0] protocol);
+        case (protocol)
+            PROTOCOL_AXIS, PROTOCOL_CXS, PROTOCOL_CHI: return FILTER_STREAM;
+            PROTOCOL_CORE:                            return FILTER_CORE;
+            default:                                  return FILTER_AXI;
+        endcase
+    endfunction
+
     function automatic string get_protocol_name(protocol_type_t protocol);
         case (protocol)
             PROTOCOL_AXI   : return "AXI";
@@ -287,6 +319,7 @@ package ocelus_common_pkg;
             PROTOCOL_CORE  : return "CORE";
             PROTOCOL_WB    : return "WB";
             PROTOCOL_CXS   : return "CXS";
+            PROTOCOL_CHI   : return "CHI";
             default        : return "UNKNOWN";
         endcase
     endfunction

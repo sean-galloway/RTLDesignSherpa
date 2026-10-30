@@ -47,6 +47,10 @@ from .monbus_types import (
     WBPerformanceCode, WBDebugCode,
     CXSErrorCode, CXSTimeoutCode, CXSCompletionCode,
     CXSCreditCode, CXSChannelCode, CXSStreamCode,
+    CHIErrorCode, CHITimeoutCode, CHICompletionCode,
+    CHICreditCode, CHIChannelCode, CHIStreamCode,
+    # Group filter family (which mask set a protocol takes)
+    FilterFamily, filter_family,
     # Standalone parser (no cocotb dep)
     MonitorPacket,
     # Field accessors (work on raw int)
@@ -259,6 +263,9 @@ __all__ = [
     "WBPerformanceCode", "WBDebugCode",
     "CXSErrorCode", "CXSTimeoutCode", "CXSCompletionCode",
     "CXSCreditCode", "CXSChannelCode", "CXSStreamCode",
+    "CHIErrorCode", "CHITimeoutCode", "CHICompletionCode",
+    "CHICreditCode", "CHIChannelCode", "CHIStreamCode",
+    "FilterFamily", "filter_family",
     # Raw accessors
     "get_packet_type", "get_protocol", "get_event_code",
     "get_channel_id", "get_unit_id", "get_agent_id", "get_event_data",

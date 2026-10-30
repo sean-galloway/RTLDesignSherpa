@@ -39,7 +39,7 @@ This core is the single source of truth for filtering, FIFO management, optional
 
 ### Key Features
 
-- Single MonBus ingress with per-protocol filter masks (AXI, AXIS, CORE); CXS shares the AXIS masks
+- Single MonBus ingress with three filter-mask families: AXI (also APB, ARB, WB, ACE and any unnamed protocol), stream (AXIS, CXS, CHI) and CORE. No protocol value is dropped outright
 - Free-running timestamp generator distributed to every monitor (`mon_time_out`)
 - Error/interrupt FIFO: record-granular (192-bit records = 128-bit packet + 64-bit timestamp)
 - Write FIFO: beat-granular (one entry = one 64-bit beat)
@@ -119,7 +119,7 @@ Aggregated monitor packets have to serve two consumers with very different needs
 
 ### Per-Protocol Filter Masks
 
-Three protocol groups (AXI = protocol 0, AXIS = protocol 1, CORE = protocol 4), each with a packet-drop mask, an error-select mask, and per-packet-type event masks. All are 16 bits. CXS (protocol 6) packets go through the AXIS masks: CXS is a stream protocol with the same packet types as AXIS (Error, Timeout, Completion, Credit, Channel, Stream), so it uses the AXIS slot instead of adding another eight mask ports to every group wrapper. Each event-mask bit indexes the low nibble of the packet's own protocol's event code, so one AXIS bit masks both the AXIS event and the CXS event with the same code number.
+Three mask families, each with a packet-drop mask, an error-select mask, and per-packet-type event masks, all 16 bits. Which family a packet takes is `ocelus_common_pkg::filter_family(protocol)`, the one source for the RTL, the formal model and the Python decoder: the stream family (AXIS, CXS, CHI, protocols 1, 6, 7) shares the `cfg_axis_*` masks because those protocols emit the same packet-type set (Error, Timeout, Completion, Credit, Channel, Stream); CORE (4) has `cfg_core_*`; everything else, AXI (0), APB (2), ARB (3), WB (5), ACE (tagged 0) and every value not yet named, takes `cfg_axi_*`. Sharing a family costs nothing in ports and means a protocol added tomorrow is visible at the capture the day it is named. Each event-mask bit indexes the low nibble of the packet's own protocol's event code, so one stream bit masks the AXIS, CXS and CHI events with the same code number.
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -223,7 +223,7 @@ Each incoming packet is decomposed into `pkt_type`, `pkt_protocol` (bits [108:10
 2. **Error-select** (`cfg_*_err_select[pkt_type]`) — if set (and not dropped), the packet routes to the error FIFO; otherwise it routes to the write path.
 3. **Event mask** — when the event code's high nibble is 0 (`ec_in_mask_range`), the low nibble indexes a per-packet-type event mask; a set bit forces a drop and clears the error-FIFO routing.
 
-An unrecognized protocol drops the packet. Before 2026-10-15 that included CXS, which meant every `PROTOCOL_CXS` packet was dropped without any sign that it had been. The final routing decision is `pkt_to_write_path = !pkt_drop && !pkt_to_err_fifo`.
+No protocol value drops a packet by itself; only the family's masks do. Until 2026-10-30 the filter ended in a hard drop for any protocol it had not been told about, which silently consumed every APB, ARB, WB and CHI packet (and CXS until 2026-10-15) at every group in the repo while the monitors' own tests, which read the monitor port, stayed green. Dropping most classes by DEFAULT is still the design: the mask registers reset to drop so that a system with every monitor enabled cannot flood itself; the difference is that a mask can be opened and the hard drop could not. The final routing decision is `pkt_to_write_path = !pkt_drop && !pkt_to_err_fifo`.
 
 ### Error FIFO and Slave-Read Drain
 
@@ -373,6 +373,8 @@ tests of the modules that instantiate it:
 - `monbus_axil4_axil4_group` -- `val/amba/test_monbus_axil4_axil4_group.py`
 
 Indirect coverage exercises this module only in the configurations its parents elaborate. A parameter or mode no parent uses is untested.
+
+The filter itself is proven on the 1wr core, which shares it verbatim: `val/amba/test_monbus_group_core_1wr.py` sends trace records cycling through all sixteen protocol values and error records over the AXI family (AXI, APB, ARB, WB), and compares every landed record with what was sent. Reinstating the old hard drop for non-AXI protocols fails it (3 error records landed, 4 sent). The formal harness in `formal/amba/monbus_group_core/` mirrors `filter_family()` and covers a packet of every family, CHI and an unnamed protocol reaching the write path.
 
 ---
 
