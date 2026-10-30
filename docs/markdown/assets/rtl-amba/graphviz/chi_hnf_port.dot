@@ -1,0 +1,102 @@
+// chi_hnf_port block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Kept in step with chi_rnf_port.dot: one layout, the channel names, prefix and role substituted.
+// Geometry: the FUB side (Protocol layer) is the green bar at the top, the CHI
+// link the green bar at the bottom. Each TX channel is one column dropping
+// FUB -> skid (cylinder) -> credit / FLITPEND logic -> link. Each RX channel
+// is one column climbing link -> LCrdReturn decode + credit grant -> FIFO
+// (cylinder, the credit pool) -> FUB, drawn green (return). The two link
+// controllers and SACTIVE sit in the centre, one rank above the link bar.
+// Source of truth: rtl/amba/chi/chi_hnf_port.sv.
+digraph chi_hnf_port {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.95", splines=ortho, newrank=true,
+           label=<<B>chi_hnf_port - HN-F (home) link layer: TXRSP/DAT/SNP out, RXREQ/RSP/DAT in<BR/>one L-Credit pool per channel, one LINKACTIVE pair per direction (single clock: aclk, aresetn)</B>>,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    prm [label="Parameters (fixed at build)\lMAX_LCREDIT: credits per channel, 1 .. 15\lSKID_DEPTH: TX skid slots, 2 .. 8\lRX_FIFO_DEPTH: RX pool per channel (floored at 2)\lLINK_CTRL: 0 = always RUN, LINKACTIVE pins tied\lLINKACTIVE_SYNC_STAGES: flops on RXLINKACTIVEREQ\l", shape=note, fillcolor="white"];
+
+    fub [label="FUB side: the Protocol layer (valid/ready, flopped)\nfub_tx{rsp, dat, snp}_valid / ready / flit in: completions, read data, snoops\nfub_rx{req, rsp, dat}_valid / ready / flit out: requests, snoop responses / CompAck, write data\nfub_sactive in: transactions in progress (B14.7.2); fub_rxsactive out: RXSACTIVE passed through",
+         shape=box, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=25.2, height=0.7];
+
+    rsp_skid [group=trsp, label="TXRSP skid\ngaxi_skid_buffer - u_txrsp.u_skid\nDEPTH = SKID_DEPTH, mux read", shape=cylinder, fillcolor="#E8DFF5"];
+    rsp_tx [group=trsp, label="TXRSP credits + FLITPEND\nchi_tx_channel - u_txrsp\nr_credits, r_pend (FLITPEND a cycle ahead)\nDEACTIVATE: an LCrdReturn per credit", peripheries=2, fillcolor="#D6E4F0"];
+    dat_skid [group=tdat, label="TXDAT skid\ngaxi_skid_buffer - u_txdat.u_skid\nDEPTH = SKID_DEPTH, mux read", shape=cylinder, fillcolor="#E8DFF5"];
+    dat_tx [group=tdat, label="TXDAT credits + FLITPEND\nchi_tx_channel - u_txdat\nr_credits, r_pend (FLITPEND a cycle ahead)\nDEACTIVATE: an LCrdReturn per credit", peripheries=2, fillcolor="#D6E4F0"];
+    snp_skid [group=tsnp, label="TXSNP skid\ngaxi_skid_buffer - u_txsnp.u_skid\nDEPTH = SKID_DEPTH, mux read", shape=cylinder, fillcolor="#E8DFF5"];
+    snp_tx [group=tsnp, label="TXSNP credits + FLITPEND\nchi_tx_channel - u_txsnp\nr_credits, r_pend (FLITPEND a cycle ahead)\nDEACTIVATE: an LCrdReturn per credit", peripheries=2, fillcolor="#D6E4F0"];
+
+    req_fifo [group=rreq, label="RXREQ FIFO = credit pool\ngaxi_fifo_sync - u_rxreq.u_rx_fifo\nDEPTH = RX_FIFO_DEPTH, mux read", shape=cylinder, fillcolor="#E8DFF5"];
+    req_rx [group=rreq, label="RXREQ credit grant + Link flit decode\nchi_rx_channel - u_rxreq\nOpcode 0 = LCrdReturn, not delivered\ngrant: occupancy + r_out < pool, RUN", peripheries=2, fillcolor="#D6E4F0"];
+    rsp_fifo [group=rrsp, label="RXRSP FIFO = credit pool\ngaxi_fifo_sync - u_rxrsp.u_rx_fifo\nDEPTH = RX_FIFO_DEPTH, mux read", shape=cylinder, fillcolor="#E8DFF5"];
+    rsp_rx [group=rrsp, label="RXRSP credit grant + Link flit decode\nchi_rx_channel - u_rxrsp\nOpcode 0 = LCrdReturn, not delivered\ngrant: occupancy + r_out < pool, RUN", peripheries=2, fillcolor="#D6E4F0"];
+    dat_fifo [group=rdat, label="RXDAT FIFO = credit pool\ngaxi_fifo_sync - u_rxdat.u_rx_fifo\nDEPTH = RX_FIFO_DEPTH, mux read", shape=cylinder, fillcolor="#E8DFF5"];
+    dat_rx [group=rdat, label="RXDAT credit grant + Link flit decode\nchi_rx_channel - u_rxdat\nOpcode 0 = LCrdReturn, not delivered\ngrant: occupancy + r_out < pool, RUN", peripheries=2, fillcolor="#D6E4F0"];
+
+    ltx [ label="TX link control\nchi_link_tx - u_link_tx\nr_req (TXLINKACTIVEREQ), r_ack_q\nraise: queued | hold | RX left STOP\n(never without cfg_rx_enable)\ndrop: idle | enable low | RX deactivating\nrun / deact to all 3 TX channels", peripheries=2, fillcolor="#D6E4F0"];
+    sact [group=c, label="SACTIVE (combinational)\nTXSACTIVE = fub_sactive | any TX flit queued,\nheld one more cycle by r_sactive (B14.7.2)\nRXSACTIVE to fub_rxsactive (wire)", fillcolor="white"];
+    lrx [ label="RX link control\nchi_link_rx - u_link_rx\nREQ synchronizer, r_ack\nACK up: REQ & rx_enable & TXREQ\nACK down: REQ low & credits home\ngrant_ok to all 3 RX channels", peripheries=2, fillcolor="#D6E4F0"];
+
+    bar [label="CHI link to the RN-F (flits, LCRDV, LINKACTIVE: flops or muxes of flops; TXSACTIVE: comb)\nFLITPEND / FLITV / FLIT spend a credit, LCRDV grants one (B14.2.1.1)\ns_chi_tx{rsp,dat,snp}flitpend / flitv / flit / lcrdv, s_chi_rx{req,rsp,dat}flitpend / flitv / flit / lcrdv\ns_chi_txlinkactivereq / ack, s_chi_rxlinkactivereq / ack, s_chi_txsactive / rxsactive",
+         shape=box, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=25.2, height=0.7];
+
+    // invisible centre spine so SACTIVE and its fub_sactive lane sit between the TX and RX groups
+    p1 [group=c, shape=point, style=invis, label="", width=0.01];
+    p2 [group=c, shape=point, style=invis, label="", width=0.01];
+    fub -> p1 -> p2 -> sact [style=invis, weight=10];
+    { rank=min; prm; }
+    prm -> fub [style=invis];
+    { rank=same; rsp_skid; dat_skid; snp_skid; p1; req_fifo; rsp_fifo; dat_fifo; }
+    { rank=same; rsp_tx; dat_tx; snp_tx; p2; req_rx; rsp_rx; dat_rx; }
+    // rank D: one invisible point per channel column keeps the lanes straight; the
+    // controllers sit in the gaps beside them (TX: between the first two columns,
+    // RX: between the last two)
+    pd_trsp [group=trsp, shape=point, style=invis, label="", width=0.01];
+    rsp_tx -> pd_trsp -> bar [style=invis, weight=10];
+    pd_tdat [group=tdat, shape=point, style=invis, label="", width=0.01];
+    dat_tx -> pd_tdat -> bar [style=invis, weight=10];
+    pd_tsnp [group=tsnp, shape=point, style=invis, label="", width=0.01];
+    snp_tx -> pd_tsnp -> bar [style=invis, weight=10];
+    pd_rreq [group=rreq, shape=point, style=invis, label="", width=0.01];
+    req_rx -> pd_rreq -> bar [style=invis, weight=10];
+    pd_rrsp [group=rrsp, shape=point, style=invis, label="", width=0.01];
+    rsp_rx -> pd_rrsp -> bar [style=invis, weight=10];
+    pd_rdat [group=rdat, shape=point, style=invis, label="", width=0.01];
+    dat_rx -> pd_rdat -> bar [style=invis, weight=10];
+    { rank=same; pd_trsp; pd_tdat; pd_tsnp; ltx; sact; lrx; pd_rreq; pd_rrsp; pd_rdat; }
+    rsp_skid -> dat_skid -> snp_skid -> p1 -> req_fifo -> rsp_fifo -> dat_fifo [style=invis];
+    rsp_tx -> dat_tx -> snp_tx -> p2 -> req_rx -> rsp_rx -> dat_rx [style=invis];
+    pd_trsp -> ltx -> pd_tdat -> pd_tsnp -> sact -> pd_rreq -> pd_rrsp -> lrx -> pd_rdat [style=invis];
+
+    // TX flows: top-down, solid
+    fub -> rsp_skid [xlabel="TXRSP flit\n(valid / ready)"];
+    rsp_skid -> rsp_tx [xlabel="rd_valid, rd_data"];
+    rsp_tx -> bar [penwidth=1.8, dir=both, xlabel="TXRSP flit down\n(spends a credit)\nLCRDV up"];
+    fub -> dat_skid [xlabel="TXDAT flit\n(valid / ready)"];
+    dat_skid -> dat_tx [xlabel="rd_valid, rd_data"];
+    dat_tx -> bar [penwidth=1.8, dir=both, xlabel="TXDAT flit down\n(spends a credit)\nLCRDV up"];
+    fub -> snp_skid [xlabel="TXSNP flit\n(valid / ready)"];
+    snp_skid -> snp_tx [xlabel="rd_valid, rd_data"];
+    snp_tx -> bar [penwidth=1.8, dir=both, xlabel="TXSNP flit down\n(spends a credit)\nLCRDV up"];
+
+    // RX flows: climb on their own columns, green (drawn down with dir=back)
+    bar -> req_rx [dir=back, color="#1A7A1A", penwidth=1.8, xlabel="RXREQ flit up\nLCRDV down (grant)"];
+    req_rx -> req_fifo [dir=back, color="#1A7A1A", xlabel="protocol flit push\n(LCrdReturn dropped)"];
+    req_fifo -> fub [dir=back, color="#1A7A1A", xlabel="RXREQ flit\n(valid / ready)"];
+    bar -> rsp_rx [dir=back, color="#1A7A1A", penwidth=1.8, xlabel="RXRSP flit up\nLCRDV down (grant)"];
+    rsp_rx -> rsp_fifo [dir=back, color="#1A7A1A", xlabel="protocol flit push\n(LCrdReturn dropped)"];
+    rsp_fifo -> fub [dir=back, color="#1A7A1A", xlabel="RXRSP flit\n(valid / ready)"];
+    bar -> dat_rx [dir=back, color="#1A7A1A", penwidth=1.8, xlabel="RXDAT flit up\nLCRDV down (grant)"];
+    dat_rx -> dat_fifo [dir=back, color="#1A7A1A", xlabel="protocol flit push\n(LCrdReturn dropped)"];
+    dat_fifo -> fub [dir=back, color="#1A7A1A", xlabel="RXDAT flit\n(valid / ready)"];
+
+    // Link control sidebands
+    rsp_tx -> ltx [style=dashed, color="#777777", dir=both, xlabel="run / deact\nqueued"];
+    dat_rx -> lrx [style=dashed, color="#777777", dir=both, xlabel="grant_ok\nreturned"];
+    ltx -> bar [style=dashed, color="#777777", dir=both, xlabel="TXLINKACTIVEREQ down\nACK up (sampled)"];
+    lrx -> bar [style=dashed, color="#777777", dir=both, xlabel="RXLINKACTIVEACK down\nREQ up (synchronized)"];
+    sact -> bar [style=dashed, color="#777777", dir=both, xlabel="TXSACTIVE down\nRXSACTIVE up"];
+    fub -> sact [style=dashed, color="#777777", dir=both, xlabel="fub_sactive down\nfub_rxsactive up"];
+}

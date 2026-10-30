@@ -2,7 +2,7 @@
 
 # amba — tasks
 
-**Next ID: TASK-049** — never recycle a number, even when its item closed.
+**Next ID: TASK-051** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -13,7 +13,7 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 2 | in progress right now |
 | [closed/](closed/) | 45 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
@@ -24,6 +24,9 @@ by construction rather than by discipline.
 
 
 ## Active
+
+- **TASK-049** — CHI link-layer family (IHI 0050 H): chi_pkg, tx/rx channels, link controllers, chi_rnf_port / chi_hnf_port, tests over the RDS-DV CHI BFMs, docs
+- **TASK-050** — CHI monitor-lite: chi_monitor_lite (TxnID/DBID slots, snoop table, lite queue), chi_{rnf,hnf}_port_monlite, PROTOCOL_CHI decoder, tests, docs
 
 
 ## Deferred

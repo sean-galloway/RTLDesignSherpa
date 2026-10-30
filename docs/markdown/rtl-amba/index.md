@@ -261,6 +261,19 @@ Credited point-to-point packet streaming for wide links (on-chip interconnect to
 
 ---
 
+### CHI (Coherent Hub Interface)
+
+The link layer of Arm's coherent interconnect protocol (IHI 0050 Issue H, chapters B13 and B14): per-channel L-Credits, FLITPEND, one LINKACTIVE pair per direction, LCrdReturn and SACTIVE. A port is a pair of links; the Protocol layer lives on the FUB side.
+
+**[CHI Module Documentation](chi/README.md)**
+
+- **[chi_rnf_port](chi/chi_rnf_port.md)** - RN-F port: TX REQ/RSP/DAT, RX RSP/DAT/SNP, link prefix `m_chi_`
+- **[chi_hnf_port](chi/chi_hnf_port.md)** - HN-F port facing one RN-F: TX RSP/DAT/SNP, RX REQ/RSP/DAT, link prefix `s_chi_`
+- **chi_pkg / chi_tx_channel / chi_rx_channel / chi_link_tx / chi_link_rx** - the building blocks, documented on the [family page](chi/README.md)
+- **chi_rnf_port_monlite / chi_hnf_port_monlite** - the ports with the CHI lite Ocelus ([chi_monitor_lite](monitor/chi_monitor_lite.md))
+
+---
+
 ## Shared Infrastructure and Utilities
 
 Infrastructure components used across all AMBA protocols.
