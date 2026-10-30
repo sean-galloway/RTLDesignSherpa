@@ -1026,3 +1026,67 @@ AP accounting (tWR + tRP after a write with AP, tRTP + tRP after a read
 with AP) is conservative against the explicit PRE path by about two
 cycles. That is a scheduler-timing lead, not a page-policy one, and the
 next item on the col_major gap to LiteDRAM.
+
+### 2026-10-30, the combiner's timing, taken apart build by build
+
+Owner: the original combiner was "very simple, not adversarial to timing";
+was a new mechanism introduced? Partly: the 2026-10-29 corruption fix
+exported the store's live per-slot fill-pending vector into the pick's
+fire term (a store-to-pick-to-store loop in one cycle), which the task's
+own scope had excluded ("not this task: anything on the pick core"). It
+is gone: the race it closed (a merge admitted into a filled entry in the
+one cycle its registered head record still says schedulable) is closed in
+the store instead, by masking the merge target out of the head record in
+the admission cycle (`h.vld && !(w_aw_merge && w_mg_slot == s)`), store
+registers only, ending in the record register. Refusing the merge
+instead was tried first and merged nothing (0 of 1024 pairs: the first
+half's fill completes before the second half is admitted). With the
+mask: proxy pair walk 1024 / 1024 merged, 0 held writes, 289.8 MB/s;
+common-ip 37 passed, granite top 14, pumice top 217.
+
+| build, merge default | 75 MHz WNS | 100 MHz WNS | 100 MHz failing |
+|---|---|---|---|
+| merge off (same tree) | +0.756 | +0.011 | 0 |
+| combiner, first form (store only) | +0.358 | not built | |
+| + the three corruption fixes, live pick check | +0.002 | -2.544 | 3,242 |
+| pick check removed, admission refused | | -2.153 | 2,189 |
+| pick check removed, record mask (this) | +0.135 | -1.609 | 2,105 |
+
+So the pick path was 0.9 ns of the 100 MHz miss and the combiner itself
+is the other 1.6: the failing cone runs from the bank timers through the
+pick's fire into the store's bank-queue pointers (755 endpoints) and the
+read ring's shadow-source registers (390), 12 ns with 75 percent route,
+the cone the TASK-003 placer sweep and pblock attempts already found
+"not the lever". The lever at 100 MHz is a registered commit stage (the
+fire into the store pop and the ring allocation, one cycle), which moves
+the tCCD=1 cadence unless the pick speculates across it -- the owner's
+call (2026-10-30, asked). Until then: 75 MHz ships the merge default
+(+0.135), 100 MHz ships merge-off (+0.011).
+
+### 2026-10-30, merge default at 100 MHz: the cones taken out one by one
+
+Owner: "Merge default stays on; build 100mhz." Every step below is the
+same merge rate on the proxy pair walk (1 thread 256/256; 4 threads 1019 /
+1024 writes, 1024 / 1024 reads; 0 mismatched, 0 held writes) and clean
+common-ip / granite top, except where noted.
+
+| step | 100 MHz WNS | failing | what it removed |
+|---|---|---|---|
+| record mask (the TASK-006 fix, store-local) | -1.609 | 2,105 | the pick's live fill-pending check |
+| merge searches exclude the pick's HELD candidate, not the live commit | -0.296 | 132 | bank timers -> fire -> merge -> queue pointers / ring |
+| + registered AR decode stage in mc_rd_intake (AR_STAGE_REG) | -0.233 | 92 | ADDR_MAP CSR -> AR decode -> read merge -> ring |
+| candidate as coordinates (bank, record 1/2), resolved in the store | -0.256 | 90 | the record-slot round trip (no gain: not the long part) |
+| + ring shadow marking one cycle late (MERGE_MARK_REG) + AW waits when its match is the candidate | -0.462 | 80 | merge -> ring r_src; candidate -> AW allocation |
+
+Tried and rejected on merge rate: a store-local "fireable head" set in
+place of the candidate (-0.119 / 19 failing, but 4-thread merges fell from
+1019 to 6 of 1024: with several threads the target is usually a fireable
+head).
+
+At the last step no combiner cone tops the report: the worst two paths are
+the pick's own tail (`r_stale_pick` / `r_cls` -> `r_pick_cls`, -0.46), the
+cone the placer sweep above put in a half-nanosecond noise band on the
+merge-off RTL; the combiner's worst is the held AW's address match into the
+bank-queue count, -0.24, registers only. Next: placer directives on this
+RTL; then, if needed, a registered AW match (a second AW stage with
+forwarding from the AW allocated in the previous cycle).

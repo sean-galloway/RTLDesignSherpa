@@ -222,7 +222,6 @@ module mc_scheduler_plane
     // the accept condition itself for the BANK_PICK core (registers only,
     // no commit_valid term)
     input  logic                                wr_commit_ready_now_i,
-    input  logic [NUM_ENTRIES-1:0]              wr_fill_pending_i,   // BANK_PICK: per-slot merged fill still pending (store combiner); tie 0 otherwise
     output logic                                wr_commit_valid_o,
     output logic [PTRW-1:0]                     wr_commit_slot_o,
 
@@ -245,6 +244,12 @@ module mc_scheduler_plane
     input  logic                                rd_issue_ready_i,
     output logic                                rd_issue_valid_o,
     output logic [PTRW-1:0]                     rd_issue_slot_o,
+    // the column candidate's coordinates (BANK_PICK only, registers; see
+    // mc_bank_pick). The FRFCFS core never pairs with the FIFO store: tied 0.
+    output logic                                wr_commit_cand_o,
+    output logic                                rd_issue_cand_o,
+    output logic [$clog2(NUM_BANKS)-1:0]        cand_bank_o,
+    output logic                                cand_second_o,
 
     // ---- read-return busy from DFI plane (BANK_PICK core: REF stays out of
     // an open read-return window) ----
@@ -751,12 +756,15 @@ module mc_scheduler_plane
             .rd_slot_row_i      (rd_sch_row_i),
             .rd_slot_col_i      (rd_sch_col_i),
             .wr_commit_ready_now_i  (wr_commit_ready_now_i),
-            .wr_fill_pending_i  (wr_fill_pending_i),
             .wr_commit_valid_o  (wr_commit_valid_o),
             .wr_commit_slot_o   (wr_commit_slot_o),
             .rd_issue_ready_i   (rd_issue_ready_i),
             .rd_issue_valid_o   (rd_issue_valid_o),
             .rd_issue_slot_o    (rd_issue_slot_o),
+            .wr_commit_cand_o   (wr_commit_cand_o),
+            .rd_issue_cand_o    (rd_issue_cand_o),
+            .cand_bank_o        (cand_bank_o),
+            .cand_second_o      (cand_second_o),
             .init_done_i        (init_done),
             .init_cmd_valid_i   (init_cmd_valid),
             .init_cmd_op_i      (init_cmd_op),
@@ -838,6 +846,10 @@ module mc_scheduler_plane
                               wr_sch_valid_i, rd_sch_valid_i, wr_commit_ready_i,
                               wr_sch_pend_i, rd_sch_pend_i, w_pp_drain_ok};
     end else begin : g_arbiter
+    assign wr_commit_cand_o = 1'b0;
+    assign rd_issue_cand_o  = 1'b0;
+    assign cand_bank_o      = '0;
+    assign cand_second_o    = 1'b0;
     // ======================================================================
     // mc_cmd_arbiter — the FRFCFS research pick core.
     // ======================================================================
@@ -964,7 +976,7 @@ module mc_scheduler_plane
     );
         wire _unused_arb = &{1'b0, wr_head_i, wr_head2_i, rd_head_i, rd_head2_i,
                              r_rd_ret_busy_sync1, sched_wr_batch_max_i,
-                             wr_commit_ready_now_i, wr_fill_pending_i};
+                             wr_commit_ready_now_i};
     end endgenerate
 
     assign maint_grant_o = w_maint_grant;

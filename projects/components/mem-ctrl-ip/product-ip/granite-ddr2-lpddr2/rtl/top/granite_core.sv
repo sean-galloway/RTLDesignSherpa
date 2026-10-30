@@ -302,11 +302,13 @@ module granite_core
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                w_bank_row_active;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] w_bank_open_row;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
-    logic [NUM_ENTRIES-1:0]    w_wr_fill_pending;   // FIFO store combiner: merged fill still pending, per slot
     logic w_wr_commit_rdy_now;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
     logic [PTRW-1:0]           w_rd_issue_slot;
+    logic                      w_wr_cmt_cand, w_rd_iss_cand;   // the pick's column candidate (pick registers)
+    logic [$clog2(NUM_BANKS)-1:0] w_cand_bank;
+    logic                      w_cand_second;
 
     // ---- entry store wr commit-data -> DFI wrdata ----
     logic                      w_cm_v, w_cm_rdy, w_cm_last;
@@ -398,6 +400,10 @@ module granite_core
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH),
         .HAS_SNARF        (HAS_SNARF),
+        // the read combiner matches the AR in its push cycle: decode it into a
+        // register first when combining is on (100 MHz closure, TASK-003)
+        .RD_AR_STAGE_REG  (HAS_SNARF || STORE_MERGE_EN),
+        .RD_MERGE_MARK_REG(STORE_MERGE_EN),
         .RD_FIFO_DEPTH    (INTAKE_FIFO_DEPTH),
         .WDATA_FIFO_DEPTH (INTAKE_FIFO_DEPTH),
         .SKID_DEPTH_R     (AXI_SKID_DEPTH),
@@ -577,11 +583,14 @@ module granite_core
             .wr_commit_valid_i  (w_wr_commit_v),
             .wr_commit_ready_o  (w_wr_commit_rdy),
             .wr_commit_ready_now_o (w_wr_commit_rdy_now),
-            .wr_fill_pending_o  (w_wr_fill_pending),
             .wr_commit_slot_i   (w_wr_commit_slot),
             .rd_issue_valid_i   (w_rd_issue_v),
             .rd_issue_ready_o   (w_rd_issue_rdy),
             .rd_issue_slot_i    (w_rd_issue_slot),
+            .wr_commit_cand_i   (w_wr_cmt_cand),
+            .rd_issue_cand_i    (w_rd_iss_cand),
+            .cand_bank_i        (w_cand_bank),
+            .cand_second_i      (w_cand_second),
             .bank_row_active_i  (w_bank_row_active[0]),
             .bank_open_row_i    (w_bank_open_row[0]),
             .wr_head_o          (w_wr_head),
@@ -624,7 +633,6 @@ module granite_core
         assign rt_alloc_merge  = 1'b0;
         assign rt_alloc_src    = '0;
         assign stat_wr_merge_o = '0;
-        assign w_wr_fill_pending = '0;
         assign stat_rd_merge_o = '0;
         // ======================================================================
         // Plane 1b: storage-lite entry store (N=1 in-order seam)
@@ -922,7 +930,6 @@ module granite_core
         .wr_head2_i         (w_wr_head2),
         .wr_commit_ready_i  (w_wr_commit_rdy),
         .wr_commit_ready_now_i  (w_wr_commit_rdy_now),
-        .wr_fill_pending_i  (w_wr_fill_pending),
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
         .rd_sch_valid_i     (w_rd_sch_v),
@@ -938,6 +945,10 @@ module granite_core
         .rd_issue_ready_i   (w_rd_issue_rdy),
         .rd_issue_valid_o   (w_rd_issue_v),
         .rd_issue_slot_o    (w_rd_issue_slot),
+        .wr_commit_cand_o   (w_wr_cmt_cand),
+        .rd_issue_cand_o    (w_rd_iss_cand),
+        .cand_bank_o        (w_cand_bank),
+        .cand_second_o      (w_cand_second),
         .rd_ret_busy_i      (w_rd_ret_busy),
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),

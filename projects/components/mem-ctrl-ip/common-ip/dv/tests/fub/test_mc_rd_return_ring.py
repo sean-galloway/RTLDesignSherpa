@@ -284,7 +284,15 @@ async def cocotb_test_ring_random(dut):
         # ---- alloc: keep presenting one request until it fires ----
         if pending_alloc is None and allocs < n_alloc and rng.random() < 0.5:
             cands = [e for e in live if not e.shadow and not e.issued]
-            if cands and rng.random() < 0.3:
+            # The seed is per run (conftest pins it per node id from a rolled
+            # base), and a walk whose sources all issue before the next alloc
+            # lands has no candidates when the 30 percent fires: one gate-level
+            # run rolled 150 allocs with no shadow at all (2026-10-30) and the
+            # final assertion turned a stimulus gap into a red test. Past the
+            # half-way point a candidate is taken whenever one exists, so every
+            # seed exercises the combiner path at least once.
+            force = (merges == 0 and allocs >= n_alloc // 2)
+            if cands and (force or rng.random() < 0.3):
                 pending_alloc = (1, rng.choice(cands))
             else:
                 pending_alloc = (0, None)
@@ -378,9 +386,12 @@ async def cocotb_test_ring_random(dut):
     assert merges > 0, "the walk produced no shadows; the combiner path was not exercised"
 
 
+@pytest.mark.parametrize("mark", [0, 1])
 @pytest.mark.parametrize("bpb", [1, 4])
 @pytest.mark.parametrize("cell", ["pin", "random"])
-def test_mc_rd_return_ring(request, bpb, cell):
+def test_mc_rd_return_ring(request, bpb, cell, mark):
+    """MERGE_MARK_REG both states: 1 = a shadow's marking lands the cycle after
+    its allocation (granite's merge build, 100 MHz closure, 2026-10-30)."""
     from cocotb_test.simulator import run
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "mc_rd_return_ring"
@@ -390,7 +401,8 @@ def test_mc_rd_return_ring(request, bpb, cell):
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
-    params = {"DEPTH": str(DEPTH), "AXI_DATA_WIDTH": str(DW), "AXI_BEATS_PER_BURST": str(bpb)}
+    params = {"DEPTH": str(DEPTH), "AXI_DATA_WIDTH": str(DW), "AXI_BEATS_PER_BURST": str(bpb),
+              "MERGE_MARK_REG": str(mark)}
     extra_env = {"DUT": dut_name,
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),

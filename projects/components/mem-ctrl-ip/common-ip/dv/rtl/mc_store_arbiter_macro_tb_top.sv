@@ -139,10 +139,12 @@ module mc_store_arbiter_macro_tb_top
     // ------------------------------------------------------------------
     logic                     wr_commit_valid, wr_commit_ready;
     logic                     wr_commit_ready_now;
-    logic [NUM_ENTRIES-1:0] wr_fill_pending;
     logic [PTRW-1:0]          wr_commit_slot;
     logic                     rd_issue_valid, rd_issue_ready;
     logic [PTRW-1:0]          rd_issue_slot;
+    logic                     wr_commit_cand, rd_issue_cand;
+    logic [$clog2(NUM_BANKS)-1:0] cand_bank;
+    logic                     cand_second;
 
     logic [NUM_ENTRIES-1:0]             wr_sch_valid, rd_sch_valid, wr_sch_pend;
     logic [NUM_ENTRIES*BKW-1:0]         wr_sch_bank,  rd_sch_bank;
@@ -229,6 +231,10 @@ module mc_store_arbiter_macro_tb_top
             .rd_issue_valid_i   (rd_issue_valid),
             .rd_issue_ready_o   (rd_issue_ready),
             .rd_issue_slot_i    (rd_issue_slot),
+            .wr_commit_cand_i   (wr_commit_cand),
+            .rd_issue_cand_i    (rd_issue_cand),
+            .cand_bank_i        (cand_bank),
+            .cand_second_i      (cand_second),
             .bank_row_active_i  (stub_row_active[0]),
             .bank_open_row_i    ('0),
             .wr_head_o          (w_wr_head),
@@ -247,7 +253,6 @@ module mc_store_arbiter_macro_tb_top
             .busy_o             (),
             // combining (MERGE_EN, default 0): decision and counters unused here
             .ar_merge_o         (),
-            .wr_fill_pending_o  (wr_fill_pending),
             .ar_merge_ticket_o  (),
             .stat_wr_merge_o    (),
             .stat_rd_merge_o    ()
@@ -426,12 +431,15 @@ module mc_store_arbiter_macro_tb_top
             .rd_slot_row_i      (rd_sch_row),
             .rd_slot_col_i      (rd_sch_col),
             .wr_commit_ready_now_i  (wr_commit_ready_now),
-            .wr_fill_pending_i      (wr_fill_pending),
             .wr_commit_valid_o  (wr_commit_valid),
             .wr_commit_slot_o   (wr_commit_slot),
             .rd_issue_ready_i   (rd_issue_ready),
             .rd_issue_valid_o   (rd_issue_valid),
             .rd_issue_slot_o    (rd_issue_slot),
+            .wr_commit_cand_o   (wr_commit_cand),
+            .rd_issue_cand_o    (rd_issue_cand),
+            .cand_bank_o        (cand_bank),
+            .cand_second_o      (cand_second),
             .init_done_i        (init_done),
             .init_cmd_valid_i   (init_cmd_valid),
             .init_cmd_op_i      (dram_op_e'(init_cmd_op)),
@@ -505,6 +513,10 @@ module mc_store_arbiter_macro_tb_top
                         : rd_issue_valid  ? rd_issue_slot
                         : PTRW'(u_pick.w_sel_cand.slot);
     end else begin : g_arb
+        assign wr_commit_cand = 1'b0;
+        assign rd_issue_cand  = 1'b0;
+        assign cand_bank      = '0;
+        assign cand_second    = 1'b0;
         mc_cmd_arbiter #(
             .NUM_RANKS  (NUM_RANKS),
             .NUM_BANKS  (NUM_BANKS),

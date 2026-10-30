@@ -202,3 +202,10 @@ board builds set `GRANITE_STORE_MERGE_EN=0` until that path is registered
 **CLOSED 2026-10-29.** Outside this task: the proxy's DRAM model still
 anchors tWR at the controller's commit (pumice ISSUE-023); the held-WRITE
 assertion is the guard, a DFI-anchored model would be the cure.
+
+**Addendum 2026-10-30.** The corruption fix's pick-side live check
+(`wr_fill_pending`) is removed; the race is closed in the store by masking
+the merge target out of the head record in the admission cycle. Same
+merge rate, same held-write result, 0.13 ns back at 75 MHz; the combiner
+still does not close at 100 MHz on its own (-1.6 ns, the fire-to-store /
+ring cone). TASK-003 log, 2026-10-30.

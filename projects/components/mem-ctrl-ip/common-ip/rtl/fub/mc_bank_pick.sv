@@ -153,15 +153,25 @@ module mc_bank_pick
     // and cost one cycle per burst on the write ceiling (fires every 5
     // cycles at tCCD 4).
     input  logic                      wr_commit_ready_now_i,
-    // per slot, LIVE: the store still owes this slot a merged fill (its
-    // registered record may still say filled); a write column is not fired
-    // on it (granite TASK-006). Tie 0 on a store without combining.
-    input  logic [NUM_ENTRIES-1:0]    wr_fill_pending_i,
     output logic                      wr_commit_valid_o,
     output logic [PTRW-1:0]           wr_commit_slot_o,
     input  logic                      rd_issue_ready_i,
     output logic                      rd_issue_valid_o,
     output logic [PTRW-1:0]           rd_issue_slot_o,
+    // The column the fire stage holds this cycle, whether or not it fires,
+    // as COORDINATES: direction (a write / read column), bank, and which of
+    // that bank's two head records (cand_second_o = the shadow). All pick
+    // registers (the held/picked pair and class, r_shadow). The commit /
+    // issue slot is always that record's slot; the FIFO store resolves the
+    // coordinates against its own registered record flags and skips the
+    // slot in its merge searches, so the merge admission never waits on the
+    // timer-qualified fire, and no record slot makes the store -> pick ->
+    // store round trip (granite TASK-003, 2026-10-30: the live commit in the
+    // merge search cost -1.6 ns at 100 MHz, the candidate SLOT -0.3).
+    output logic                      wr_commit_cand_o,
+    output logic                      rd_issue_cand_o,
+    output logic [BKW-1:0]            cand_bank_o,
+    output logic                      cand_second_o,
 
     // ---- init passthrough ----
     input  logic                      init_done_i,
@@ -881,9 +891,12 @@ module mc_bank_pick
         w_timer_ok = 1'b0;
         w_blocked  = w_ref_dmd_block[w_sel_bank] || w_rfc_dmd_block[w_sel_bank];
         if (w_fis_col) begin
-            // the write sink re-check: registers only (see the port note)
+            // the write sink re-check: registers only (see the port note).
+            // No live store state here: a merge target is never a
+            // schedulable record (the store admits merges only into
+            // entries still filling), so the record is the whole truth.
             w_class_ok = w_sel_cand.vld && w_sel_hit
-                      && (!w_sel_is_wr || (wr_commit_ready_now_i && !wr_fill_pending_i[w_sel_slot]));
+                      && (!w_sel_is_wr || wr_commit_ready_now_i);
             w_timer_ok = bank_rdwr_ready_i[RK0][w_sel_bank] && w_tccd_fwd_ok
                       && (w_sel_is_wr ? (trtw_ok_i && !r_rdfire0)
                                       : (twtr_ok_i && !r_wrfire0));
@@ -1013,6 +1026,10 @@ module mc_bank_pick
     assign wr_commit_slot_o  = PTRW'(w_sel_cand.slot);
     assign rd_issue_valid_o  = w_dmd_fire && w_fis_col && !w_sel_is_wr;
     assign rd_issue_slot_o   = PTRW'(w_sel_cand.slot);
+    assign wr_commit_cand_o   = w_fis_col &&  w_sel_is_wr;
+    assign rd_issue_cand_o    = w_fis_col && !w_sel_is_wr;
+    assign cand_bank_o        = BKW'(w_win_pair >> 1);
+    assign cand_second_o      = r_shadow[w_win_pair];
 
     // A grant is a REF the refresh controller asked for. The init sequence's
     // refreshes pass through the same override (DDR2 init issues two), and

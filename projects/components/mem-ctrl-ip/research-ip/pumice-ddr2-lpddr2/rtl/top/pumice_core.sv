@@ -801,7 +801,6 @@ module pumice_core
         .wr_sch_head_rel_i  (w_wr_sch_hrel),
         .wr_commit_ready_i  (w_wr_commit_rdy),
         .wr_commit_ready_now_i  (w_wr_commit_rdy_now),
-        .wr_fill_pending_i  ('0),                 // no FIFO-store combiner here
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
         // rd CAM per-entry vectors + issue
@@ -820,6 +819,10 @@ module pumice_core
         .rd_issue_ready_i   (w_rd_issue_rdy),
         .rd_issue_valid_o   (w_rd_issue_v),
         .rd_issue_slot_o    (w_rd_issue_slot),
+        .wr_commit_cand_o   (),
+        .rd_issue_cand_o    (),
+        .cand_bank_o        (),
+        .cand_second_o      (),
         .rd_ret_busy_i      (w_rd_ret_busy),
         // scheduling knobs
         .sched_order_mode_i (sched_order_mode_i),

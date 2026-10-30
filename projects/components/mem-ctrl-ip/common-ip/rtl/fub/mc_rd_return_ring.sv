@@ -46,6 +46,13 @@
 
 module mc_rd_return_ring #(
     parameter int DEPTH           = 32,     // in-flight reads (power of 2)
+    // 1 = a shadow's marking (r_shadow / r_src) lands the cycle AFTER its
+    // allocation, from registered {ticket, src}. The merge decision then
+    // never fans into the ring's per-slot registers in the push cycle (granite
+    // 100 MHz closure, TASK-003 2026-10-30). Safe: a merge source is always
+    // still unissued when the merge is decided, so its DFI return is many
+    // cycles away, and the source slot is live (not pinnable) until it drains.
+    parameter bit MERGE_MARK_REG = 1'b0,
     parameter int AXI_DATA_WIDTH  = 64,
     parameter int AXI_BEATS_PER_BURST = 4,  // beats per DRAM burst
 
@@ -117,6 +124,8 @@ module mc_rd_return_ring #(
     // issued, or issuing from the CAM regardless of this port) and on the R
     // drain, neither of which waits on an allocation.
     logic w_alloc, w_tail_pinned;
+    logic          r_mk_vld;                       // MERGE_MARK_REG: a shadow marking pending
+    logic [TW-1:0] r_mk_ticket, r_mk_src;
     always_comb begin
         w_tail_pinned = 1'b0;
         for (int i = 0; i < DEPTH; i++)
@@ -223,6 +232,7 @@ module mc_rd_return_ring #(
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_head <= '0; r_tail <= '0; r_occ <= '0;
+            r_mk_vld <= 1'b0; r_mk_ticket <= '0; r_mk_src <= '0;
             r_ret_beat <= '0; r_fptr <= '0; r_fbeat <= '0; r_focc <= '0;
             r_sk_rd <= 1'b0; r_sk_wr <= 1'b0; r_sk_cnt <= 2'd0;
             r_credits <= 2'(SKID_DEPTH);
@@ -254,10 +264,21 @@ module mc_rd_return_ring #(
             // claimed; a freed slot is never a shadow (cleared at fetch).
             if (w_alloc) begin
                 r_ready [r_tail] <= 1'b0;
-                r_shadow[r_tail] <= alloc_merge_i;
-                r_src   [r_tail] <= alloc_merge_i ? alloc_src_i : r_tail;
+                r_shadow[r_tail] <= MERGE_MARK_REG ? 1'b0 : alloc_merge_i;
+                r_src   [r_tail] <= (!MERGE_MARK_REG && alloc_merge_i) ? alloc_src_i : r_tail;
                 r_tail           <= r_tail + 1'b1;
             end
+            // MERGE_MARK_REG: last cycle's merged allocation becomes a shadow
+            // now; a return of its source in this very cycle readies it too.
+            if (MERGE_MARK_REG && r_mk_vld) begin
+                r_shadow[r_mk_ticket] <= 1'b1;
+                r_src   [r_mk_ticket] <= r_mk_src;
+                if (w_ret_fire && dfi_ret_last_i && (w_iq_rd_ticket == r_mk_src))
+                    r_ready[r_mk_ticket] <= 1'b1;
+            end
+            r_mk_vld    <= MERGE_MARK_REG && w_alloc && alloc_merge_i;
+            r_mk_ticket <= r_tail;
+            r_mk_src    <= alloc_src_i;
 
             // fetch stage 1: issue the BRAM read of the fetch slot's next beat
             r_if_valid <= w_fetch;

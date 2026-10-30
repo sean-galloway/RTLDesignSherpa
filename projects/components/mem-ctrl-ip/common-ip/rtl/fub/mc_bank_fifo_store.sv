@@ -221,20 +221,17 @@ module mc_bank_fifo_store
     input  logic                wr_commit_valid_i,
     output logic                wr_commit_ready_o,
     output logic                wr_commit_ready_now_o,
-    // MERGE_EN: per slot, a merged write's beats are still to land. The
-    // head records are registered at this edge, one cycle behind
-    // r_wr_fdone, so the pick re-checks this LIVE vector for the slot it
-    // fires: a column on a slot whose merge fill is pending would commit a
-    // write the DFI plane then holds for its data while the scheduler's
-    // tWR / auto-precharge / ACT timers run from the commit -- the DRAM
-    // sees a PRE/ACT too soon after the WRITE it actually got (granite
-    // TASK-006, 2026-10-29: 83 percent of a merged open-page pair walk never
-    // landed on the board; tWR=8 hid it). Constant 0 without MERGE_EN.
-    output logic [NUM_ENTRIES-1:0] wr_fill_pending_o,
     input  logic [PTRW-1:0]     wr_commit_slot_i,
     input  logic                rd_issue_valid_i,
     output logic                rd_issue_ready_o,
     input  logic [PTRW-1:0]     rd_issue_slot_i,
+    // the pick's column candidate this cycle as coordinates (registers in
+    // the pick; see mc_bank_pick): direction, bank, record 1 or 2. The
+    // merge searches skip the entry those coordinates name.
+    input  logic                wr_commit_cand_i,
+    input  logic                rd_issue_cand_i,
+    input  logic [BKW-1:0]      cand_bank_i,
+    input  logic                cand_second_i,
 
     // The scheduler's registered row image (bank timers' flops), for the
     // records' hit flag -- one cycle stale by contract, like the records module
@@ -433,6 +430,9 @@ module mc_bank_fifo_store
     //      unordered, so any match is a valid target (at most one can match:
     //      a second same-key write would have merged into the first).
     //      Registers only, like w_aw_fire.
+    // the entry the pick's column candidate names this cycle; computed after
+    // the per-entry record flags it reads (head-record register block)
+    logic [NUM_ENTRIES-1:0] w_wr_is_cand, w_rd_is_cand;
     logic [NUM_ENTRIES-1:0] w_mg_match;
     logic                   w_mg_found, w_mg_idclash, w_aw_merge;
     logic [PTRW-1:0]        w_mg_slot;
@@ -442,7 +442,6 @@ module mc_bank_fifo_store
         w_mg_idclash = 1'b0;
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             w_mg_match[i] = MERGE_EN && r_wr_valid[i] && !r_wr_cmt[i] && !r_wr_mgv[i]
-                          && !(wr_commit_valid_i && (wr_commit_slot_i == PTRW'(i)))
                           && r_wr_last[i]
                           && (r_wr_bank[i] == r_awh_bank) && (r_wr_row[i] == r_awh_row)
                           && (r_wr_col[i]  == r_awh_col);
@@ -460,10 +459,18 @@ module mc_bank_fifo_store
                 w_d2q_idhit = 1'b1;
         end
     end
-    assign w_aw_merge  = MERGE_EN && r_awh_vld && r_awh_last && w_mg_found && !w_mg_idclash;
+    // The pick's column candidate is excluded from the merge, but NOT by
+    // falling through to an allocation: an AW whose match is the candidate
+    // waits (neither merges nor allocates) and re-evaluates next cycle, when
+    // the target has either committed (no longer a match: allocate) or is no
+    // longer the candidate (merge). So w_aw_fire reads registers only and the
+    // allocation's fan-out never sees the pick (100 MHz, TASK-003 2026-10-30).
+    logic w_mg_ok;
+    assign w_mg_ok     = MERGE_EN && r_awh_vld && r_awh_last && w_mg_found && !w_mg_idclash;
+    assign w_aw_merge  = w_mg_ok && !w_wr_is_cand[w_mg_slot];
     // admit: the held AW enters the pool and its bank queue (registers only);
     // a merge takes no slot and no queue entry
-    assign w_aw_fire   = r_awh_vld && !w_aw_merge && !w_d2q_idhit
+    assign w_aw_fire   = r_awh_vld && !w_mg_ok && !w_d2q_idhit
                        && w_wr_have_free && (r_wq_cnt[r_awh_bank] != QCW'(QD))
                        && w_wq_wr_ready[r_awh_bank] && w_wr_cap_ok;
     assign aw_push_ready_o = !r_awh_vld || w_aw_fire || w_aw_merge;
@@ -508,9 +515,6 @@ module mc_bank_fifo_store
     assign w_dq_pop         = w_dq_rd_valid && w_dq_rd_ready;
     assign wr_commit_ready_o     = w_dq_wr_ready && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
     assign wr_commit_ready_now_o = w_dq_wr_ready && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
-    always_comb begin
-        for (int i = 0; i < NUM_ENTRIES; i++) wr_fill_pending_o[i] = MERGE_EN && r_wr_mgfill[i];
-    end
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) r_dq_occ <= '0;
@@ -810,7 +814,7 @@ module mc_bank_fifo_store
         w_rdmg_ticket = '0;
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             w_rdmg_match[i] = MERGE_EN && r_rd_valid[i]
-                            && !(w_rd_issue_fire && (rd_issue_slot_i == PTRW'(i)))
+                            && !w_rd_is_cand[i]
                             && (r_rd_bank[i] == ar_push_bank_i) && (r_rd_row[i] == ar_push_row_i)
                             && (r_rd_col[i]  == ar_push_col_i);
             if (w_rdmg_match[i]) begin w_rdmg_found = 1'b1; w_rdmg_ticket = r_rd_ticket[i]; end
@@ -1113,15 +1117,32 @@ module mc_bank_fifo_store
             has0 = w_wq_rd_valid[b];
             has1 = w_wq_pk_vld[b][0];
             has2 = w_wq_pk_vld[b][1];
+            // The head records are registered one cycle behind r_wr_fdone. A
+            // merge admitted THIS cycle into a filled entry clears its fdone
+            // at the edge, but the record built from this cycle's fdone would
+            // still say schedulable for one cycle, and the pick could commit
+            // the write with its merged beats still to land: the DFI plane
+            // then holds the WRITE for its data while the scheduler's tWR /
+            // auto-precharge / ACT timers run from the commit, and the DRAM
+            // sees a PRE or ACT too soon after the WRITE it actually got
+            // (granite TASK-006, 2026-10-29: 83 percent of a merged open-page
+            // pair walk never landed on the board). So the merge target is
+            // masked out of the record in the admission cycle itself. Store
+            // registers only, ending in the record register: the first form
+            // exported a live fill-pending vector into the pick's fire term,
+            // a store-to-pick-to-store loop that cost 0.36 ns at 75 MHz and
+            // missed 100 MHz by 2.5 ns (2026-10-30). Refusing the merge
+            // instead merged nothing (0 of 1024 pairs: the first half's fill
+            // is complete before the second half is admitted).
             h = '0;
-            h.vld             = has0 && r_wr_fdone[s0];
+            h.vld             = has0 && r_wr_fdone[s0] && !(w_aw_merge && (w_mg_slot == s0));
             h.slot            = MC_HEAD_SLOT_W'(s0);
             h.behind_empty    = h.vld && !(has1 && r_wr_fdone[s1]);
             h.behind_same_row = h.vld && has1 && sp1;
             h.age_exceed      = w_wq_aged[b] && w_wq_thr[b];
             h.hit             = bank_row_active_i[b] && (r_wr_row[s0] == orow);
             h2 = '0;
-            h2.vld             = has1 && r_wr_fdone[s1];
+            h2.vld             = has1 && r_wr_fdone[s1] && !(w_aw_merge && (w_mg_slot == s1));
             h2.slot            = MC_HEAD_SLOT_W'(s1);
             h2.behind_empty    = h2.vld && !(has2 && r_wr_fdone[s2]);
             h2.behind_same_row = h2.vld && has2 && sp2;
@@ -1167,19 +1188,46 @@ module mc_bank_fifo_store
         end
     end
 
+    // Per entry: is it the valid record 1 / record 2 of its bank, registered
+    // at the same edge as the records the pick fires on. With the pick's
+    // candidate coordinates this names the commit / issue slot exactly
+    // (record 1 or 2 of bank B), without the slot itself leaving the store.
+    logic [NUM_ENTRIES-1:0] r_wr_h1, r_wr_h2, r_rd_h1, r_rd_h2;
+    logic [NUM_ENTRIES-1:0] w_wr_h1, w_wr_h2, w_rd_h1, w_rd_h2;
+    always_comb begin
+        w_wr_h1 = '0; w_wr_h2 = '0; w_rd_h1 = '0; w_rd_h2 = '0;
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            if (w_wr_head [b].vld) w_wr_h1[PTRW'(w_wr_head [b].slot)] = 1'b1;
+            if (w_wr_head2[b].vld) w_wr_h2[PTRW'(w_wr_head2[b].slot)] = 1'b1;
+            if (w_rd_head [b].vld) w_rd_h1[PTRW'(w_rd_head [b].slot)] = 1'b1;
+            if (w_rd_head2[b].vld) w_rd_h2[PTRW'(w_rd_head2[b].slot)] = 1'b1;
+        end
+    end
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             wr_head_o  <= '0;
             wr_head2_o <= '0;
             rd_head_o  <= '0;
             rd_head2_o <= '0;
+            r_wr_h1 <= '0; r_wr_h2 <= '0; r_rd_h1 <= '0; r_rd_h2 <= '0;
         end else begin
             wr_head_o  <= w_wr_head;
             wr_head2_o <= w_wr_head2;
             rd_head_o  <= w_rd_head;
             rd_head2_o <= w_rd_head2;
+            r_wr_h1 <= w_wr_h1; r_wr_h2 <= w_wr_h2;
+            r_rd_h1 <= w_rd_h1; r_rd_h2 <= w_rd_h2;
         end
     )
+    // resolve the pick's candidate coordinates against the record flags
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            w_wr_is_cand[i] = wr_commit_cand_i && (r_wr_bank[i] == cand_bank_i)
+                           && (cand_second_i ? r_wr_h2[i] : r_wr_h1[i]);
+            w_rd_is_cand[i] = rd_issue_cand_i  && (r_rd_bank[i] == cand_bank_i)
+                           && (cand_second_i ? r_rd_h2[i] : r_rd_h1[i]);
+        end
+    end
 
     // ======================================================================
     // Snarf (storage-lite: disabled), B consolidation, busy

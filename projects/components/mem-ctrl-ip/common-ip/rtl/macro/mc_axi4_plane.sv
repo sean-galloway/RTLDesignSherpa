@@ -57,6 +57,8 @@ module mc_axi4_plane #(
     parameter int RD_RET_DEPTH    = 32,
     // Lean-intake knobs (granite; the defaults are the pumice form):
     parameter bit HAS_SNARF        = 1'b1, // 0 = no snarf probe / stage / source arbiter in mc_rd_intake
+    parameter bit RD_AR_STAGE_REG  = HAS_SNARF, // registered AR decode stage in mc_rd_intake (see AR_STAGE_REG)
+    parameter bit RD_MERGE_MARK_REG = 1'b0,    // mc_rd_return_ring MERGE_MARK_REG
     parameter int RD_FIFO_DEPTH    = 16,   // 0 = no rd-data FIFO (the ring feeds the R skid directly)
     parameter int WDATA_FIFO_DEPTH = 16,   // 0 = no wr-data FIFO (the W skid feeds the store directly)
     parameter int SKID_DEPTH_R     = 4,    // axi4_slave_rd R skid
@@ -502,6 +504,7 @@ module mc_axi4_plane #(
         .RD_FIFO_DEPTH    (RD_FIFO_DEPTH),
         .SKID_DEPTH_R     (SKID_DEPTH_R),
         .HAS_SNARF        (HAS_SNARF),
+        .AR_STAGE_REG     (RD_AR_STAGE_REG),
         .HAS_ADDR_MAP     (!SHARED_ADDR_MAP)
     ) u_rd_intake (
         .aclk          (aclk),
@@ -616,7 +619,8 @@ module mc_axi4_plane #(
     mc_rd_return_ring #(
         .DEPTH              (RD_RET_DEPTH),
         .AXI_DATA_WIDTH     (DW),
-        .AXI_BEATS_PER_BURST(AXI_BEATS_PER_BURST)
+        .AXI_BEATS_PER_BURST(AXI_BEATS_PER_BURST),
+        .MERGE_MARK_REG     (RD_MERGE_MARK_REG)
     ) u_rd_ring (
         .aclk            (aclk),
         .aresetn         (aresetn),

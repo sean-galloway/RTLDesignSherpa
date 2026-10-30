@@ -54,6 +54,12 @@ module mc_rd_intake #(
     //     straight from the skid head, the snarf ports are tied off, R comes
     //     from the DFI return only. Granite's FIFO store has no snarf.
     parameter bit HAS_SNARF         = 1'b1,
+    // 1 = the AR is decoded into a registered stage (r_s_*) before ar_push,
+    // as the snarf build does, without the snarf probe. Cuts the address
+    // decode (ADDR_MAP CSR + mapper) off the store's read-merge search and
+    // the return ring's shadow alloc in the push cycle; one cycle of AR
+    // latency. Default follows HAS_SNARF (granite TASK-003, 2026-10-30).
+    parameter bit AR_STAGE_REG      = HAS_SNARF,
     // RD_FIFO_DEPTH = 0: no rd-data FIFO; the source beat goes straight to
     // the R skid in axi4_slave_rd (the return ring already holds the data).
     // 1 = the address mapper is inside (one per intake). 0 = the plane owns
@@ -252,6 +258,7 @@ module mc_rd_intake #(
     // 64->128 dwidth converter is what produces unaligned beats here, by
     // turning one narrow host beat into a wide beat in its lane.
     localparam int BEAT_BO = $clog2(DW / 8);
+    logic map_req_o_int;   // declared ahead of the mapper block that reads it
     logic [AW-1:0] w_map_addr_rd;
     assign w_map_addr_rd = {fub_araddr[AW-1:BEAT_BO], {BEAT_BO{1'b0}}};
 
@@ -337,7 +344,7 @@ module mc_rd_intake #(
     logic [3:0]           r_s_qos;
 
     logic w_hit, w_can_admit, w_admit, w_s_load;
-    logic fub_arready_nomap, map_req_o_int, map_req_stage_ok;
+    logic fub_arready_nomap, map_req_stage_ok;
 
     // Order-FIFO handshake, declared here because the admit condition below
     // depends on it (the FIFO itself is instantiated further down).
@@ -356,10 +363,11 @@ module mc_rd_intake #(
     // plane alternates the grant when both ask.
     assign map_req_o_int = fub_arvalid && map_req_stage_ok;
 
-    generate if (HAS_SNARF) begin : g_snarf
+    generate if (HAS_SNARF || AR_STAGE_REG) begin : g_snarf
     // w_hit belongs to whatever was probed last cycle, which is by
-    // construction the AR now in the stage.
-    assign w_hit = snarf_hit_i;
+    // construction the AR now in the stage. Without snarf (AR_STAGE_REG
+    // only) nothing hits: the stage is a plain register.
+    assign w_hit = HAS_SNARF ? snarf_hit_i : 1'b0;
 
     assign w_can_admit = w_ord_wr_ready && (w_hit ? 1'b1 : ar_push_ready_i);
     assign w_admit     = r_s_valid && w_can_admit;
