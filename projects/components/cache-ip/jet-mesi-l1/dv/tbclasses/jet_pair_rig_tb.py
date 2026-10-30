@@ -85,9 +85,10 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden.amber_fsm_oracle impor
     SNOOP_CODES,
     step as oracle_step,
 )
-from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_core_tb import (
-    LruModel,
-    FifoModel,
+from projects.components.cache_ip.jet_mesi_l1.dv.tbclasses.jet_repl_models import (
+    REPL_LRU,
+    REPL_NAMES,
+    make_repl_model,
 )
 
 # jet_fill_class_t (jet_pkg)
@@ -127,8 +128,6 @@ FAB_SNOOP_BY_TYPE = {ACE_READ_SHARED: FAB_SNOOP_RS,
 # the fabric's true-miss classes (the kill rule matches these)
 TRUE_MISS_TYPES = (ACE_READ_SHARED, ACE_READ_NOT_SHARED_DIRTY,
                    ACE_READ_UNIQUE)
-
-REPL_LRU = 0
 
 # fabric FSM states (jet_pair_fabric dbg encoding)
 FAB_F_IDLE = 0
@@ -181,8 +180,11 @@ class Side:
         self.draining = None
         self.committing = None
         self.promo = None        # pending E->M promotion tag write
-        self.lru = (LruModel(tb.SETS, tb.WAYS) if tb.REPL_POLICY == REPL_LRU
-                    else FifoModel(tb.SETS, tb.WAYS))
+        # victim-way parity model per policy (update-at-alloc for all;
+        # hits move the policy state only under LRU -- l1_repl's
+        # FIFO/RANDOM branches ignore repl_hit, and the models mirror
+        # that)
+        self.lru = make_repl_model(tb.REPL_POLICY, tb.SETS, tb.WAYS)
         self.exp_sn_tagwr = deque()
         self.rspq = deque()      # issue-order expected responses
         self.pending_slot = None  # the alloc-causing request's slot
@@ -218,6 +220,12 @@ class JetPairRigTB(TBBase):
         self.BUS_WIDTH = int(os.environ.get('BUS_WIDTH', '64'))
         self.REPL_POLICY = int(os.environ.get('REPL_POLICY', '0'))
         self.USE_MONITOR = int(os.environ.get('USE_MONITOR', '1'))
+        self.MSHR_COUNT = int(os.environ.get('MSHR_COUNT', '8'))
+        self.VICTIM_DEPTH = int(os.environ.get('VICTIM_DEPTH', '2'))
+        # hits move the policy state only under LRU (l1_repl's FIFO and
+        # RANDOM branches ignore repl_hit; jet fires repl_update at the
+        # alloc for every policy)
+        self._hit_updates_repl = (self.REPL_POLICY == REPL_LRU)
         self.STRB_W = self.BUS_WIDTH // 8
         self.FILL_BEATS = self.LINE_BYTES // self.STRB_W
         self.SET_BITS = (self.SETS - 1).bit_length()
@@ -268,7 +276,9 @@ class JetPairRigTB(TBBase):
 
         self.log.info(f"JetPairRigTB sets={self.SETS} ways={self.WAYS} "
                       f"line={self.LINE_BYTES} bus={self.BUS_WIDTH} "
-                      f"repl={self.REPL_POLICY} monitor={self.USE_MONITOR} "
+                      f"mshr={self.MSHR_COUNT} victim={self.VICTIM_DEPTH} "
+                      f"repl={REPL_NAMES[self.REPL_POLICY]} "
+                      f"monitor={self.USE_MONITOR} "
                       f"level={self.TEST_LEVEL} seed={self.SEED}")
 
     # ------------------------------------------------------------------
@@ -552,7 +562,7 @@ class JetPairRigTB(TBBase):
             if we:
                 rsp['exp'] = wdata
                 rsp['ready'] = True
-                if int(uc.repl_hit_o.value):
+                if self._hit_updates_repl and int(uc.repl_hit_o.value):
                     side.lru.update(set_idx, int(uc.repl_hit_way_o.value))
                 st = side.slot_state.get((set_idx, way), 'I') \
                     if way is not None else 'I'
@@ -565,7 +575,7 @@ class JetPairRigTB(TBBase):
                 rsp['exp'] = self._beat_of_line(self._content(side, line),
                                                 beat)
                 rsp['ready'] = True
-                if int(uc.repl_hit_o.value):
+                if self._hit_updates_repl and int(uc.repl_hit_o.value):
                     side.lru.update(set_idx, int(uc.repl_hit_way_o.value))
         elif int(uc.lkup_upgrade_o.value):
             # S->M upgrade: the write is held in the tracker (it merges
@@ -576,7 +586,7 @@ class JetPairRigTB(TBBase):
                          'killed': False}
             rsp['exp'] = wdata
             rsp['ready'] = True
-            if int(uc.repl_hit_o.value):
+            if self._hit_updates_repl and int(uc.repl_hit_o.value):
                 side.lru.update(set_idx, int(uc.repl_hit_way_o.value))
         elif int(uc.lkup_merge_o.value):
             # a join onto an in-flight fill: the slot rides to the commit
@@ -830,14 +840,15 @@ class JetPairRigTB(TBBase):
                         e['way'])
             self._score(f"install{c} state line={e['line']:#x}", state,
                         exp_state)
-            # the victim slot's pre-write state decides the eviction
-            # accounting (BUG-001/002 guard); then the install lands
-            victim_slot_state = side.slot_state.get((e['set'], e['way']),
-                                                    'I')
-            evicted = side.tags.get((e['set'], e['way']))
-            if evicted is not None and evicted != e['line'] \
-                    and victim_slot_state != 'I':
-                side.cache_data.pop(evicted, None)
+            # the eviction accounting happened at the ALLOC (the victim
+            # leaves the cache domain then; cache_data popped there).
+            # The slot's tag/state cannot change between the alloc and
+            # this install (a snoop hit on the claimed way is the
+            # stale-tag Invalid row, no effect) -- nothing to account
+            # here, and re-popping by the slot's stale tag would clobber
+            # the resident content of a line RE-INCARNATED (re-filled)
+            # in the alloc->commit window (the Task-12 drain-payload
+            # find in the core TB).
             side.tags[(e['set'], e['way'])] = e['line']
             side.slot_state[(e['set'], e['way'])] = (
                 'S' if exp_state == AMBER_STATE_S else 'M')

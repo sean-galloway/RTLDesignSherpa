@@ -505,7 +505,7 @@ module jet_ace_top
     logic                       wb_drain_valid;
     logic [ADDR_WIDTH-1:0]      wb_drain_addr;
     logic [LINE_BITS-1:0]       wb_drain_data;
-    logic [WB_W:0]              wb_occupancy;
+    logic [$clog2(VICTIM_DEPTH+1)-1:0] wb_occupancy;
     logic                       ctrl_drain_start;
     logic                       eng_drain_done;
     // snoop responder core-facing contract

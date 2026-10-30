@@ -19,9 +19,17 @@ directed coherence families + ships-in-the-night; func = + randomized
 dual-CPU lockstep; full = + dual-CPU soak.  A USE_MONITOR=0 gate cell per
 geometry re-runs the gate suite asserting observer non-perturbation.
 
-One generated test function per (geometry, level, monitor) cell so the
-node ids are the exact required names (test_jet_pair_rig_s016w2_gate et
-al).
+Task 12 grid (MAS ch06/02): gate/func run the J1 default knobs
+(MSHR_COUNT=8, VICTIM_DEPTH=2, LRU); full adds the sweep corners --
+MSHR_COUNT {2,16} x VICTIM_DEPTH {1,4} x policy {LRU,FIFO} at both
+geometries, plus the (4,2,LRU) / (8,2,FIFO) interior samples at the
+default geometry.  RANDOM runs on the core grid (the WB-snarf and
+dirty-eviction directed constructions are eldest-victim timed; the
+policy axis's cache_sim parity is single-cache by construction).
+
+One generated test function per (geometry, level, monitor[, knobs])
+cell so the node ids are the exact required names
+(test_jet_pair_rig_s016w2l64b64_mon_gate et al).
 
 Author: RTL Design Sherpa
 Created: 2026-10-29
@@ -56,6 +64,18 @@ GEOMS = [
     (128, 4, 64, 64),
 ]
 
+# (mshr_count, victim_depth, repl_policy): the J1/J5/pkg-default cell
+DEFAULT_KNOBS = (8, 2, 0)
+
+# FULL-grid policy axis on the rig (amber_repl_t encodings; RANDOM lives
+# on the core grid -- see the header note)
+RIG_POLICIES = ((0, 'lru'), (2, 'fifo'))
+# corners: MSHR {2,16} x VICTIM {1,4}; interior samples at the default
+# geometry
+CORNER_MSHR = (2, 16)
+CORNER_VIC = (1, 4)
+INTERIOR = [(4, 2, 0), (8, 2, 2)]
+
 DUT_TOP = 'jet_pair_rig_tb'
 TEST_PREFIX = 'jet_pair_rig'
 
@@ -70,7 +90,8 @@ async def cocotb_test_jet_pair_rig(dut):
     assert ok, f"jet_pair_rig: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
-def _run_cell(request, sets, ways, line_bytes, bus_width, test_level, use_monitor):
+def _run_cell(request, sets, ways, line_bytes, bus_width, test_level,
+              use_monitor, mshr=8, victim=2, repl=0, knob_suffix=''):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
     # Merge the rig closures: jet_top.f (the whole top closure incl. the
@@ -102,7 +123,7 @@ def _run_cell(request, sets, ways, line_bytes, bus_width, test_level, use_monito
     test_name_plus_params = (
         f"test_{TEST_PREFIX}"
         f"_s{TBBase.format_dec(sets, 3)}w{ways}l{line_bytes}b{bus_width}"
-        f"_{mon}_{test_level}")
+        f"{knob_suffix}_{mon}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -111,10 +132,14 @@ def _run_cell(request, sets, ways, line_bytes, bus_width, test_level, use_monito
     rtl_parameters = {'SETS': str(sets), 'WAYS': str(ways),
                       'LINE_BYTES': str(line_bytes), 'BUS_WIDTH': str(bus_width),
                       'USE_MONITOR': '1' if use_monitor else '0',
+                      'MSHR_COUNT': str(mshr), 'VICTIM_DEPTH': str(victim),
+                      'REPL_POLICY': str(repl),
                       'MEM_DEPTH': str(mem_depth)}
     extra_env = level_env(test_level, SETS=sets, WAYS=ways,
                           LINE_BYTES=line_bytes, BUS_WIDTH=bus_width,
                           USE_MONITOR='1' if use_monitor else '0',
+                          MSHR_COUNT=mshr, VICTIM_DEPTH=victim,
+                          REPL_POLICY=repl,
                           MEM_DEPTH=mem_depth,
                           DUT=TEST_PREFIX, LOG_PATH=log_path,
                           COCOTB_LOG_LEVEL='INFO')
@@ -149,28 +174,62 @@ def _run_cell(request, sets, ways, line_bytes, bus_width, test_level, use_monito
 
 
 def _generate_cells():
-    """One test function per (geometry, level, monitor) cell -> exact node ids."""
+    """One test function per (geometry, level, monitor[, knobs]) cell.
+
+    gate/func: the default-knob cells (mon + the nomon gate re-run), ids
+    unchanged.  full (mon only): the default-knob cell (id unchanged)
+    plus the ch06/02 sweep -- corners MSHR {2,16} x VICTIM {1,4} x
+    {LRU,FIFO} at both geometries, interior samples at the default
+    geometry.
+    """
     for sets, ways, line_bytes, bus_width in GEOMS:
         for use_monitor in (True, False):
             for test_level in reg_level_grid():
                 if not use_monitor and test_level != 'gate':
                     continue   # the pva cell re-runs the gate suite (scenario g)
-                mon = 'mon' if use_monitor else 'nomon'
-                name = (f"test_{TEST_PREFIX}"
-                        f"_s{TBBase.format_dec(sets, 3)}w{ways}l{line_bytes}b{bus_width}"
-                        f"_{mon}_{test_level}")
+                # the knob cells of this (geometry, monitor, level)
+                if test_level == 'full' and use_monitor:
+                    knob_cells = [(DEFAULT_KNOBS, '')]
+                    for repl, pol_name in RIG_POLICIES:
+                        for mshr in CORNER_MSHR:
+                            for victim in CORNER_VIC:
+                                knob_cells.append(
+                                    ((mshr, victim, repl),
+                                     f"_m{TBBase.format_dec(mshr, 2)}"
+                                     f"v{victim}_{pol_name}"))
+                    if (sets, ways) == (128, 4):
+                        for mshr, victim, repl in INTERIOR:
+                            pol_name = dict(RIG_POLICIES)[repl]
+                            knob_cells.append(
+                                ((mshr, victim, repl),
+                                 f"_m{TBBase.format_dec(mshr, 2)}"
+                                 f"v{victim}_{pol_name}"))
+                else:
+                    knob_cells = [(DEFAULT_KNOBS, '')]
+                for (mshr, victim, repl), suffix in knob_cells:
+                    mon = 'mon' if use_monitor else 'nomon'
+                    name = (f"test_{TEST_PREFIX}"
+                            f"_s{TBBase.format_dec(sets, 3)}w{ways}"
+                            f"l{line_bytes}b{bus_width}"
+                            f"{suffix}_{mon}_{test_level}")
 
-                def make(s=sets, w=ways, lb=line_bytes, bw=bus_width,
-                         um=use_monitor, lvl=test_level, n=name):
-                    def _cell(request):
-                        _run_cell(request, s, w, lb, bw, lvl, um)
-                    _cell.__name__ = n
-                    _cell.__doc__ = (f"jet_pair_rig {n}: two jets + fabric + "
-                                     f"shared memory (geometry s{s}/w{w}/l{lb}/b{bw} "
-                                     f"monitor={'on' if um else 'off'}, level {lvl})")
-                    return _cell
+                    def make(s=sets, w=ways, lb=line_bytes, bw=bus_width,
+                             um=use_monitor, lvl=test_level, m=mshr,
+                             v=victim, r=repl, sfx=suffix, n=name):
+                        def _cell(request):
+                            _run_cell(request, s, w, lb, bw, lvl, um,
+                                      mshr=m, victim=v, repl=r,
+                                      knob_suffix=sfx)
+                        _cell.__name__ = n
+                        _cell.__doc__ = (
+                            f"jet_pair_rig {n}: two jets + fabric + shared "
+                            f"memory (geometry s{s}/w{w}/l{lb}/b{bw} "
+                            f"MSHR={m} VICTIM={v} policy={r} "
+                            f"monitor={'on' if um else 'off'}, "
+                            f"level {lvl})")
+                        return _cell
 
-                globals()[name] = make()
+                    globals()[name] = make()
 
 
 _generate_cells()

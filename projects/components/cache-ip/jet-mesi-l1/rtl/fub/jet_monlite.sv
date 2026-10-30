@@ -93,6 +93,7 @@ module jet_monlite
     import ocelus_common_pkg::*;
 #(
     parameter int MSHR_COUNT  = jet_pkg::MSHR_COUNT,
+    parameter int VICTIM_DEPTH = jet_pkg::VICTIM_DEPTH,
     parameter int SETS        = AMBER_SETS,
     parameter int WAYS        = AMBER_WAYS,
     parameter logic [15:0] AGENT_ID   = 16'h00A2,
@@ -103,7 +104,8 @@ module jet_monlite
     localparam int SET_W      = $clog2(SETS),
     localparam int WAY_W      = $clog2(WAYS),
     localparam int MW         = $clog2(MSHR_COUNT),
-    localparam int OCC_W      = MW + 1
+    localparam int OCC_W      = MW + 1,
+    localparam int WBOCC_W    = $clog2(VICTIM_DEPTH + 1)
 )(
     input  logic                        clk,
     input  logic                        rst_n,
@@ -121,7 +123,7 @@ module jet_monlite
     input  logic [OCC_W-1:0]            mshr_occupancy_i,
 
     // ---- WB event taps ----
-    input  logic [$clog2(jet_pkg::VICTIM_DEPTH + 1)-1:0] wb_occupancy_i,
+    input  logic [WBOCC_W-1:0]          wb_occupancy_i,
 
     // ---- control stall taps ----
     input  logic                        ctrl_stall_i,
@@ -212,7 +214,7 @@ module jet_monlite
     // Occupancy gauge change detection
     // ------------------------------------------------------------------
     logic [OCC_W-1:0] r_mshr_occ_q;
-    logic [$clog2(jet_pkg::VICTIM_DEPTH + 1)-1:0] r_wb_occ_q;
+    logic [WBOCC_W-1:0] r_wb_occ_q;
     wire              w_mshr_occ_fire = (mshr_occupancy_i != r_mshr_occ_q);
     wire              w_wb_occ_fire   = (wb_occupancy_i != r_wb_occ_q);
 

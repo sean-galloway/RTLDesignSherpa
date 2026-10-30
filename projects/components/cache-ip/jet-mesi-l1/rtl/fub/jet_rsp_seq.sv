@@ -206,8 +206,11 @@ module jet_rsp_seq
     )
 
     // pragma translate_off
+    // (the cast needs SEQ_W+1 bits: RSP_DEPTH itself does not fit in
+    // SEQ_W when RSP_DEPTH is a power of two -- MSHR_COUNT=2 gives
+    // RSP_DEPTH=4, SEQ_W=2, and 2'(4) == 0 would fire on every deposit)
     assert property (@(posedge clk) disable iff (!rst_n)
-        (cpl_i |-> cpl_tag_i < SEQ_W'(RSP_DEPTH)))
+        (cpl_i |-> ({1'b0, cpl_tag_i} < (SEQ_W+1)'(RSP_DEPTH))))
         else $error("jet_rsp_seq: cpl_tag_i out of range (%0d >= %0d)",
                     cpl_tag_i, RSP_DEPTH);
     // pragma translate_on

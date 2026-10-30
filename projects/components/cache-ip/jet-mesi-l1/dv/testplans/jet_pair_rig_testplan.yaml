@@ -31,6 +31,13 @@ parameters:
   - name: USE_MONITOR
     default: 1 (a nomon gate cell per geometry re-runs the gate suite)
     description: observer present-vs-absent equivalence
+  - name: MSHR_COUNT / VICTIM_DEPTH / REPL_POLICY
+    default: 8 / 2 / LRU; FULL adds the sweep corners (MSHR {2,16} x
+      VICTIM {1,4} x {LRU,FIFO} at both geometries + interior samples)
+    description: Task-12 soak knobs (J1/J5/policy).  RANDOM runs on the
+      core grid -- the WB-snarf and dirty-eviction directed
+      constructions are eldest-victim timed (LRU/FIFO), and the policy
+      axis's cache_sim parity is single-cache by construction.
 
 scenarios:
   - name: InitWalk

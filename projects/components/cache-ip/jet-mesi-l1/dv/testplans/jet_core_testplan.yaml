@@ -1,4 +1,4 @@
-# Testplan for jet_top (the pair-rig top, Task 8)
+# Testplan for jet_top (the pair-rig top, Task 8; FULL grid Task 12)
 # Maps the MAS ch01 hierarchy + ch02 contracts to the full-core
 # integration DV: jet_control + jet_mshr + jet_wb_buffer + jet_rsp_seq
 # composed with the REAL common-ip slice (l1_cpu_frontend, l1_tag_array,
@@ -6,10 +6,12 @@
 # and the house axi4_master_*_monlite transports + MonBus arbiter.
 # Scoring is the event-stream scoreboard (JetCoreTB): amber's
 # per-transaction slice checks re-based as per-line oracle lockstep at
-# every snoop grant + commit, with timing as windowed properties.  Single
-# geometry cell (the J1 default: MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128,
-# WAYS=4); GATE runs the directed set, FUNC adds the random soak, FULL
-# extends it.
+# every snoop grant + commit, with timing as windowed properties.
+# GATE/FUNC run the J1 default cell (MSHR_COUNT=8, VICTIM_DEPTH=2,
+# LRU, both geometries); FULL runs the ch06/02 sign-off sweep:
+# geometry {16/2, 128/4} x MSHR_COUNT {2,4,8,16} x VICTIM_DEPTH {1,2,4}
+# x policy {LRU,FIFO,RANDOM} -- corners (MSHR {2,16} x VICTIM {1,4}) at
+# every policy and geometry, interior sampled.
 
 module: jet_top
 rtl_files:
@@ -96,8 +98,54 @@ scenarios:
       cycles, and never while a victim capture streams (the launch-level
       cap_busy contract, checked every cycle).
     status: covered
+  - name: VictimClaimStall
+    level: all (LRU cells; the construction needs hit reordering)
+    what: The Task-6-review deferred pin.  One live claim in a set;
+      send-only read hits to the other ways walk the LRU victim back
+      onto the claimed way; a true miss then stalls set_oversubscribed
+      with every other contributor scored absent (set-full / mshr-full /
+      WB-full / capture / drain-race / upgrade-way), so the stall IS
+      w_victim_claimed.  Release at the conflicting entry's retire.
+    status: covered
+  - name: MshrSaturation
+    level: full
+    what: MSHR-pressure miss stream (ch06/02) with concurrent hits +
+      snoops and merge pressure on alternate lines.  Pins the
+      engine-paced plateau (>= min(K,4) live entries sustained; the
+      single-outstanding fill engine paces allocs, so occupancy at
+      MSHR_COUNT is literal only at the K=2/K=4 cells -- the wider file
+      is burst headroom by design), the RTL occupancy gauge against the
+      model, the mshr_full stall where the file fills, and J6
+      backpressure at the wider cells.
+    status: covered
+  - name: MergeStorm
+    level: full
+    what: Merge storm (ch06/02): 2*MSHR_COUNT+2 read/write aliases onto
+      one outstanding RU fill -- the merge list fills (mshr_full stall),
+      the fill completing mid-storm freezes the list (commit_in_progress
+      stall), post-commit aliases hit; every response scored by the
+      event stream (a read observes exactly the writes that precede it).
+    status: covered
+  - name: SetOversubscription
+    level: full
+    what: Miss burst into ONE set (ch06/02) with merge pressure on the
+      first fill.  Per-set live claims peak at min(WAYS, MSHR_COUNT)
+      (exact at the min<=2 cells, floored at 3 elsewhere); the overflow
+      stalls set_oversubscribed (or mshr_full when the file is the
+      smaller resource) until a commit frees a claim.
+    status: covered
+  - name: ComposedCorner
+    level: full
+    what: The composed corner reached dynamically (ch06/02): a
+      write-biased miss stream over a tight set window with slow
+      responders drives WB-full (VICTIM_DEPTH reached) with the MSHR
+      file at its plateau while snoops rotate across WB lines (snarf),
+      pending entries (bypass), and the arrays; simultaneous
+      MSHR-full AND WB-full corner cycles are asserted at the K=2
+      corner cell.
+    status: covered
   - name: OracleLockstepSoak
-    level: func+
+    level: func+ (full = 10k: the amber FULL soak depth re-run on jet)
     what: Random read/write traffic over the bounded working set with
       random snoops (biased toward pending-fill lines) and responder
       profile switches; per-line coherence lockstep against the oracle

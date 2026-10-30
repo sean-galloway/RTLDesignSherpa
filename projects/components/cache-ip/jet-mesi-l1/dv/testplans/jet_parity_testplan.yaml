@@ -1,0 +1,45 @@
+# Testplan for the jet cache_sim parity grid (Task 12)
+# The policy axis's golden reference: the committed amber cache_sim
+# traces replayed through jet_top, pinned EXACTLY (hits / misses /
+# compulsory / capacity / conflict) against the cache_sim JS golden
+# model (bin/apps/cache_sim/js/model.js, via amber's
+# dv/golden/cache_sim_harness.py -- LRU/FIFO native, RANDOM via the
+# recorded LFSR extension).  The TB is JetCoreTB's event-stream
+# scoreboard, so every response / fill beat / drain / alloc victim way
+# is also lockstep-scored during the replay.
+
+module: jet_top
+rtl_files:
+  - projects/components/cache-ip/jet-mesi-l1/rtl/top/jet_top.sv
+test_files:
+  - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_parity.py
+
+# The replay is merge-free by construction (alias-free bursts + a full
+# quiesce between bursts): a merge is a hit that does not move LRU
+# state while model.js's hit WOULD reorder, so merges would break exact
+# per-access LRU parity; with merges impossible, jet's update-at-alloc
+# is cache_sim's access-time install and parity is exact for every
+# policy.  The MSHR/VICTIM sweep cells pin the victim way at every alloc
+# against the same policy models under full concurrency, so this grid
+# runs at the J1 default knobs (MSHR_COUNT=8, VICTIM_DEPTH=2).
+# Golden-runner validation (app selftest, hand-computed runner
+# expectations, LFSR extension pin) lives with amber's parity suite
+# (test_amber_parity.py) -- this grid reuses that harness unchanged.
+
+parameters:
+  - name: REPL_POLICY
+    default: swept {LRU, FIFO, RANDOM} (amber_repl_t 0/2/3)
+    description: the policy axis under test
+  - name: SETS / WAYS
+    default: (128,4) and (16,2)
+    description: geometry (pkg default + tiny formal config)
+
+scenarios:
+  - name: TraceReplayParity
+    level: all (gate = seq_1k only; func/full = the full committed set)
+    what: hits/misses/compulsory/capacity/conflict per cell, EXACTLY
+      equal to the cache_sim golden; per-access hit/miss lockstep
+      against the Python model.js port; RANDOM additionally pins every
+      alloc's victim way against the per-set LFSR (the scoreboard's
+      alloc check).  No snoops (the golden has no coherence).
+    status: covered
