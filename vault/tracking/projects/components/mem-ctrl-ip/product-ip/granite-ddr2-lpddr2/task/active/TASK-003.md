@@ -953,3 +953,38 @@ TASK-004 material: register the pick's fire into the store (one cycle of
 commit latency), or keep the fill-pending check out of the fire path by
 qualifying it a cycle earlier, then re-floorplan the store beside the
 pick.
+
+### 2026-10-29 night, the page policy against LiteDRAM's: the lookahead close is already on
+
+Owner: "LiteDRAM's hybrid page policy, wouldn't that help?" Read against
+the RTL and then measured. LiteDRAM's bank machine keeps a row open and
+sets auto-precharge on a column only when its one-entry lookahead holds a
+different row for that bank. granite's pick has the same rule as
+`CLOSE_ON_DRAIN` (a column carries AP when no same-row entry sits behind
+it in its bank), and it is ACTIVE on the board: every host preset writes
+`policy_mode` 0 (legacy), where the pick's AP is `page_policy_or == CLOSE
+|| (CLOSE_ON_DRAIN && !behind_same_row)`. Proof: the `defaults` preset
+(page_policy_or 0) and `open_page` (1) are the same mode and measured
+bit-identical on 54 + 6 + 32 + 4 cells
+(`char_granite_pagepol75_{every,windows,half_threads,concurrent}_2026-10-29.csv`).
+The adaptive modes that were removed (4 adapt_time, 5 adapt_access, 6/7
+rbl, the HYBRID override encoding) were predictors on top of this, retired
+on measurement (mode 4 redundant to fixed_open, 6 lost 26 percent, 7
+converged to open page) or by decision (5, mis-plumbed into AP).
+
+granite's remaining page lever is mode 3 `fixed_open` (idle-timeout
+PRE; it turns the drain-AP off). On `every`, tr_init 1 / 2 / 4 identical:
+
+| cell, MB/s wr/rd | open_page (drain AP) | fixed_open | LiteDRAM |
+|---|---|---|---|
+| col_major_bl8 | 292/333 | 311/360 | 304/386 |
+| col_major_bl16 | 387/426 | 404/442 | 396/464 |
+| col_major_interleaved_bl8 | 512/514 | 459/459 | 277/280 |
+| incremental / row_major | 576/578, 578/580 | 574/575, 578/580 | 554/564, 569/580 |
+
+So the timeout buys 6 to 8 percent on the all-miss walk and costs 10
+percent on the bank-hop walk; neither closes the col_major READ gap to
+LiteDRAM (360 vs 386), which is the pick's per-hop pipeline latency on a
+dependent PRE -> ACT -> RD chain (TASK-044's "gap 9 vs the floor of 6"),
+not the policy. A combined form (drain AP plus idle timeout in one mode)
+does not exist today; it is the one untried page-policy variant.
