@@ -217,115 +217,139 @@ mismatched 0 on all six. The two proxies share the DRAM model but not a
 PHY model, so these are controller-vs-controller numbers under the same
 JEDEC windows, not board numbers.
 
-## granite at 100 MHz (DDR2-400, STORE_MERGE_EN=0), peak 800 MB/s, against granite 75 and LiteDRAM 75
+## 100 MHz: granite (DDR2-400, STORE_MERGE_EN=0) vs LiteDRAM (DDR2-400), peak 800 MB/s
 
-The merge default misses timing at 100 MHz by 2.5 ns (TASK-003 log), so the
-100 MHz granite point is the merge-off build (+0.011 ns). The only LiteDRAM
-100 MHz bitstream is the 2026-10-03 one, built before the four-injector
-harness and the address modes: today's host finds no generators on it and
-nothing completes, so there is no LiteDRAM 100 MHz column until LiteDRAM
-is regenerated at sys_clk 100e6 and rebuilt (its yml is 75e6). CSVs:
-`char_granite_sweep100_<profile>_2026-10-29.csv`.
+The merge default misses timing at 100 MHz by 2.5 ns (TASK-003 log), so
+the 100 MHz granite point is the merge-off build (+0.011 ns). LiteDRAM is
+regenerated at `sys_clk_freq` 100e6 with today's harness (`regen.sh` with
+`LITEDRAM_SYS_CLK=100e6`, top built with `LITEDRAM_SYS_100=1`, bitstream
+`litedram_char_100mhz_2026-10-29.bit`, WNS +0.241 ns, 32,698 LUT), its BIOS calibrating as at 75; the
+host scales by `LITEDRAM_CLK_MHZ=100`. CSVs:
+`char_{granite,litedram}_sweep100_<profile>_2026-10-29.csv`. Every cell on
+both controllers: 0 mismatched.
 
-### every
 
-| scenario | granite 100 open_page | granite 100 close_page | granite 100 bank_interleave | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 best |
+### every  (54 granite cells, 18 LiteDRAM cells)
+
+| scenario | granite open_page | granite close_page | granite bank_interleave | LiteDRAM | granite best / LiteDRAM best |
 |---|---|---|---|---|---|
-| incremental_bl4 | 772/774 | 80/89 | 258/258 | 774 / 578 = 1.34x | 774 / 564 = 1.37x |
-| incremental_bl8 | 772/774 | 80/89 | 258/258 | 774 / 578 = 1.34x | 774 / 564 = 1.37x |
-| incremental_bl16 | 772/774 | 80/89 | 258/258 | 774 / 578 = 1.34x | 774 / 564 = 1.37x |
-| row_major_bl4 | 775/777 | 78/87 | 258/258 | 777 / 580 = 1.34x | 777 / 579 = 1.34x |
-| row_major_bl8 | 775/777 | 78/87 | 258/258 | 777 / 581 = 1.34x | 777 / 580 = 1.34x |
-| row_major_bl16 | 775/777 | 78/87 | 258/258 | 777 / 581 = 1.34x | 777 / 580 = 1.34x |
-| col_major_bl4 | 259/311 | 80/89 | 258/258 | 311 / 233 = 1.33x | 311 / 290 = 1.07x |
-| col_major_bl8 | 390/445 | 79/88 | 258/258 | 445 / 333 = 1.34x | 445 / 386 = 1.15x |
-| col_major_bl16 | 518/565 | 79/87 | 258/258 | 565 / 426 = 1.33x | 565 / 464 = 1.22x |
-| col_major_interleaved_bl4 | 615/619 | 236/254 | 258/258 | 619 / 461 = 1.34x | 619 / 184 = 3.36x |
-| col_major_interleaved_bl8 | 688/688 | 175/211 | 258/258 | 688 / 514 = 1.34x | 688 / 280 = 2.46x |
-| col_major_interleaved_bl16 | 729/730 | 121/158 | 258/258 | 730 / 545 = 1.34x | 730 / 380 = 1.92x |
-| col_major_bl8_multiid | 390/445 | 79/88 | 258/258 | 445 / 333 = 1.34x | 445 / 386 = 1.15x |
-| col_major_bl8_gap | 376/400 | 79/88 | 258/258 | 400 / 300 = 1.33x | 400 / 300 = 1.33x |
-| incremental_bl8_multiid | 772/774 | 80/89 | 258/258 | 774 / 578 = 1.34x | 774 / 564 = 1.37x |
-| row_major_bl8_multiid | 775/777 | 78/87 | 258/258 | 777 / 580 = 1.34x | 777 / 579 = 1.34x |
-| col_major_interleaved_bl8_multiid | 688/688 | 175/211 | 258/258 | 688 / 514 = 1.34x | 688 / 280 = 2.46x |
+| incremental_bl4 | 772/774 | 80/89 | 258/258 | 746/756 | 774 / 756 = 1.02x |
+| incremental_bl8 | 772/774 | 80/89 | 258/258 | 746/756 | 774 / 756 = 1.02x |
+| incremental_bl16 | 772/774 | 80/89 | 258/258 | 746/756 | 774 / 756 = 1.02x |
+| row_major_bl4 | 775/777 | 78/87 | 258/258 | 766/776 | 777 / 776 = 1.00x |
+| row_major_bl8 | 775/777 | 78/87 | 258/258 | 766/776 | 777 / 776 = 1.00x |
+| row_major_bl16 | 775/777 | 78/87 | 258/258 | 766/776 | 777 / 776 = 1.00x |
+| col_major_bl4 | 259/311 | 80/89 | 258/258 | 279/388 | 311 / 388 = 0.80x |
+| col_major_bl8 | 390/445 | 79/88 | 258/258 | 409/518 | 445 / 518 = 0.86x |
+| col_major_bl16 | 518/565 | 79/87 | 258/258 | 534/621 | 565 / 621 = 0.91x |
+| col_major_interleaved_bl4 | 615/619 | 236/254 | 258/258 | 241/246 | 619 / 246 = 2.52x |
+| col_major_interleaved_bl8 | 688/688 | 175/211 | 258/258 | 368/372 | 688 / 372 = 1.85x |
+| col_major_interleaved_bl16 | 729/730 | 121/158 | 258/258 | 500/507 | 730 / 507 = 1.44x |
+| col_major_bl8_multiid | 390/445 | 79/88 | 258/258 | 409/518 | 445 / 518 = 0.86x |
+| col_major_bl8_gap | 376/400 | 79/88 | 258/258 | 376/400 | 400 / 400 = 1.00x |
+| incremental_bl8_multiid | 772/774 | 80/89 | 258/258 | 746/756 | 774 / 756 = 1.02x |
+| row_major_bl8_multiid | 775/777 | 78/87 | 258/258 | 766/776 | 777 / 776 = 1.00x |
+| col_major_interleaved_bl8_multiid | 688/688 | 175/211 | 258/258 | 368/372 | 688 / 372 = 1.85x |
 
-### half_threads
+granite ahead on 13 of 17 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
-| scenario | granite 100 open_page | granite 100 close_page | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 best |
+### windows  (6 granite cells, 3 LiteDRAM cells)
+
+| scenario | granite open_page | granite close_page | LiteDRAM | granite best / LiteDRAM best |
 |---|---|---|---|---|
-| half_pair_thr1 | 387/320 | 40/44 | 387 / 294 = 1.31x | 387 / 286 = 1.35x |
-| half_pair_thr2 | 385/386 | 66/87 | 386 / 293 = 1.32x | 386 / 72 = 5.36x |
-| half_pair_thr3 | 340/375 | 97/129 | 375 / 292 = 1.28x | 375 / 71 = 5.25x |
-| half_pair_thr4 | 286/334 | 129/129 | 334 / 289 = 1.15x | 334 / 71 = 4.70x |
-| half_pair_thr5 | 289/334 | 129/129 | 334 / 290 = 1.15x | 334 / 71 = 4.70x |
-| half_pair_thr6 | 287/334 | 129/129 | 334 / 290 = 1.15x | 334 / 71 = 4.70x |
-| half_pair_thr7 | 287/334 | 129/129 | 334 / 290 = 1.15x | 334 / 71 = 4.70x |
-| half_pair_thr8 | 285/334 | 129/129 | 334 / 290 = 1.15x | 334 / 71 = 4.70x |
-| half_oct_thr1 | 387/320 | 40/44 | 387 / 286 = 1.35x | 387 / 286 = 1.35x |
-| half_oct_thr2 | 385/386 | 66/87 | 386 / 288 = 1.34x | 386 / 72 = 5.36x |
-| half_oct_thr3 | 342/377 | 97/129 | 377 / 282 = 1.34x | 377 / 71 = 5.28x |
-| half_oct_thr4 | 286/334 | 129/129 | 334 / 249 = 1.34x | 334 / 71 = 4.70x |
-| half_oct_thr5 | 288/334 | 129/129 | 334 / 248 = 1.34x | 334 / 71 = 4.70x |
-| half_oct_thr6 | 286/334 | 129/129 | 334 / 248 = 1.34x | 334 / 71 = 4.70x |
-| half_oct_thr7 | 286/334 | 129/129 | 334 / 248 = 1.34x | 334 / 71 = 4.70x |
-| half_oct_thr8 | 286/334 | 129/129 | 334 / 248 = 1.34x | 334 / 71 = 4.70x |
+| mixed_bl8 | 198/199 | 46/54 | 159/159 | 199 / 159 = 1.25x |
+| row_thrash_bl8 | 688/688 | 175/211 | 364/368 | 688 / 368 = 1.87x |
+| random_bl8 | 627/644 | 149/183 | 383/397 | 644 / 397 = 1.62x |
 
-### half_burst
+granite ahead on 3 of 3 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
-| scenario | granite 100 open_page | granite 100 close_page | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 best |
+### half_threads  (32 granite cells, 16 LiteDRAM cells)
+
+| scenario | granite close_page | granite open_page | LiteDRAM | granite best / LiteDRAM best |
 |---|---|---|---|---|
-| half_pair | 387/320 | 40/44 | 387 / 294 = 1.31x | 387 / 286 = 1.35x |
-| half_oct | 387/320 | 40/44 | 387 / 287 = 1.35x | 387 / 286 = 1.35x |
-| half_pair_sweep | 73/89 | 40/44 | 89 / 67 = 1.33x | 89 / 67 = 1.33x |
-| half_oct_sweep | 73/89 | 40/44 | 89 / 67 = 1.33x | 89 / 67 = 1.33x |
+| half_pair_thr1 | 40/44 | 387/320 | 324/383 | 387 / 383 = 1.01x |
+| half_pair_thr2 | 66/87 | 385/386 | 95/96 | 386 / 96 = 4.00x |
+| half_pair_thr3 | 97/129 | 340/375 | 95/96 | 375 / 96 = 3.91x |
+| half_pair_thr4 | 129/129 | 286/334 | 94/95 | 334 / 95 = 3.50x |
+| half_pair_thr5 | 129/129 | 289/334 | 94/95 | 334 / 95 = 3.50x |
+| half_pair_thr6 | 129/129 | 287/334 | 94/95 | 334 / 95 = 3.50x |
+| half_pair_thr7 | 129/129 | 287/334 | 94/95 | 334 / 95 = 3.49x |
+| half_pair_thr8 | 129/129 | 285/334 | 94/95 | 334 / 95 = 3.50x |
+| half_oct_thr1 | 40/44 | 387/320 | 324/383 | 387 / 383 = 1.01x |
+| half_oct_thr2 | 66/87 | 385/386 | 95/96 | 386 / 96 = 4.00x |
+| half_oct_thr3 | 97/129 | 342/377 | 95/96 | 377 / 96 = 3.93x |
+| half_oct_thr4 | 129/129 | 286/334 | 94/95 | 334 / 95 = 3.50x |
+| half_oct_thr5 | 129/129 | 288/334 | 94/95 | 334 / 95 = 3.50x |
+| half_oct_thr6 | 129/129 | 286/334 | 94/95 | 334 / 95 = 3.50x |
+| half_oct_thr7 | 129/129 | 286/334 | 94/95 | 334 / 95 = 3.50x |
+| half_oct_thr8 | 129/129 | 286/334 | 94/95 | 334 / 95 = 3.50x |
 
-### half_burst8
+granite ahead on 16 of 16 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
-| scenario | granite 100 open_page | granite 100 close_page | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 best |
+merge ratios (granite): close_page/half_pair_thr1 no merge / column-op telemetry on this build, close_page/half_pair_thr2 no merge / column-op telemetry on this build, close_page/half_pair_thr3 no merge / column-op telemetry on this build, close_page/half_pair_thr4 no merge / column-op telemetry on this build ...
+
+### half_burst  (8 granite cells, 4 LiteDRAM cells)
+
+| scenario | granite close_page | granite open_page | LiteDRAM | granite best / LiteDRAM best |
 |---|---|---|---|---|
-| half_pair | 286/334 | 129/129 | 334 / 290 = 1.15x | 334 / 71 = 4.70x |
-| half_oct | 286/334 | 129/129 | 334 / 248 = 1.34x | 334 / 71 = 4.70x |
-| half_pair_sweep | 273/312 | 129/129 | 312 / 261 = 1.19x | 312 / 71 = 4.39x |
-| half_oct_sweep | 273/311 | 129/129 | 311 / 231 = 1.35x | 311 / 71 = 4.39x |
+| half_pair | 40/44 | 387/320 | 324/383 | 387 / 383 = 1.01x |
+| half_oct | 40/44 | 387/320 | 324/383 | 387 / 383 = 1.01x |
+| half_pair_sweep | 40/44 | 73/89 | 73/89 | 89 / 89 = 1.00x |
+| half_oct_sweep | 40/44 | 73/89 | 73/89 | 89 / 89 = 1.00x |
 
-### half_gap
+granite ahead on 2 of 4 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
-| scenario | granite 100 open_page | granite 100 close_page | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 best |
+merge ratios (granite): close_page/half_pair no merge / column-op telemetry on this build, close_page/half_oct no merge / column-op telemetry on this build, close_page/half_pair_sweep no merge / column-op telemetry on this build, close_page/half_oct_sweep no merge / column-op telemetry on this build ...
+
+### half_burst8  (8 granite cells, 4 LiteDRAM cells)
+
+| scenario | granite close_page | granite open_page | LiteDRAM | granite best / LiteDRAM best |
 |---|---|---|---|---|
-| half_pair_gap0 | 382/314 | 39/44 | 382 / 286 = 1.34x | 382 / 280 = 1.37x |
-| half_pair_gap1 | 133/196 | 39/44 | 196 / 147 = 1.33x | 196 / 148 = 1.32x |
-| half_pair_gap2 | 100/132 | 39/44 | 132 / 99 = 1.33x | 132 / 99 = 1.33x |
-| half_pair_gap3 | 80/99 | 39/44 | 99 / 74 = 1.33x | 99 / 75 = 1.33x |
-| half_pair_gap4 | 66/79 | 39/44 | 79 / 60 = 1.33x | 79 / 60 = 1.33x |
-| half_pair_gap5 | 57/66 | 39/44 | 66 / 50 = 1.33x | 66 / 50 = 1.33x |
-| half_pair_gap6 | 50/57 | 39/44 | 57 / 43 = 1.33x | 57 / 43 = 1.33x |
-| half_pair_gap7 | 44/50 | 39/44 | 50 / 37 = 1.33x | 50 / 37 = 1.33x |
+| half_pair | 129/129 | 286/334 | 94/95 | 334 / 95 = 3.50x |
+| half_oct | 129/129 | 286/334 | 94/95 | 334 / 95 = 3.50x |
+| half_pair_sweep | 129/129 | 273/312 | 94/95 | 312 / 95 = 3.26x |
+| half_oct_sweep | 129/129 | 273/311 | 94/95 | 311 / 95 = 3.26x |
 
-### concurrent
+granite ahead on 4 of 4 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
-| scenario | granite 100 open_page | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 best |
+merge ratios (granite): close_page/half_pair threads clamped 8 -> 4 (build has 4 injectors per direction), close_page/half_oct threads clamped 8 -> 4 (build has 4 injectors per direction), close_page/half_pair_sweep threads clamped 8 -> 4 (build has 4 injectors per direction), close_page/half_oct_sweep threads clamped 8 -> 4 (build has 4 injectors per direction) ...
+
+### half_gap  (16 granite cells, 8 LiteDRAM cells)
+
+| scenario | granite close_page | granite open_page | LiteDRAM | granite best / LiteDRAM best |
+|---|---|---|---|---|
+| half_pair_gap0 | 39/44 | 382/314 | 320/370 | 382 / 370 = 1.03x |
+| half_pair_gap1 | 39/44 | 133/196 | 133/197 | 196 / 197 = 0.99x |
+| half_pair_gap2 | 39/44 | 100/132 | 100/132 | 132 / 132 = 1.00x |
+| half_pair_gap3 | 39/44 | 80/99 | 80/99 | 99 / 99 = 1.00x |
+| half_pair_gap4 | 39/44 | 66/79 | 67/80 | 79 / 80 = 1.00x |
+| half_pair_gap5 | 39/44 | 57/66 | 57/66 | 66 / 66 = 1.00x |
+| half_pair_gap6 | 39/44 | 50/57 | 50/57 | 57 / 57 = 1.00x |
+| half_pair_gap7 | 39/44 | 44/50 | 44/50 | 50 / 50 = 1.00x |
+
+granite ahead on 1 of 8 scenarios (best-config vs LiteDRAM, max of wr/rd)
+
+merge ratios (granite): close_page/half_pair_gap0 no merge / column-op telemetry on this build, close_page/half_pair_gap1 no merge / column-op telemetry on this build, close_page/half_pair_gap2 no merge / column-op telemetry on this build, close_page/half_pair_gap3 no merge / column-op telemetry on this build ...
+
+### concurrent  (4 granite cells, 4 LiteDRAM cells)
+
+| scenario | granite open_page | LiteDRAM | granite best / LiteDRAM best |
 |---|---|---|---|
-| incremental_bl8 | 380/380 | 380 / 285 = 1.34x | 380 / 124 = 3.07x |
-| row_major_bl8 | 386/386 | 386 / 288 = 1.34x | 386 / 143 = 2.70x |
-| col_major_bl8 | 144/144 | 144 / 106 = 1.35x | 144 / 124 = 1.16x |
-| col_major_interleaved_bl8 | 270/270 | 270 / 201 = 1.34x | 270 / 123 = 2.20x |
+| incremental_bl8 | 380/380 | 167/167 | 380 / 167 = 2.28x |
+| row_major_bl8 | 386/386 | 192/192 | 386 / 192 = 2.01x |
+| col_major_bl8 | 144/144 | 167/167 | 144 / 167 = 0.86x |
+| col_major_interleaved_bl8 | 270/270 | 164/164 | 270 / 164 = 1.65x |
 
-### multigen
+granite ahead on 3 of 4 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
-| scenario | granite 100 open_page | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 best |
+### multigen  (4 granite cells, 4 LiteDRAM cells)
+
+| scenario | granite open_page | LiteDRAM | granite best / LiteDRAM best |
 |---|---|---|---|
-| incremental_bl8 | 172/344 | 344 / 257 = 1.34x | 344 / 186 = 1.85x |
-| row_major_bl8 | 231/461 | 461 / 340 = 1.36x | 461 / 211 = 2.19x |
-| col_major_bl8 | 107/213 | 213 / 164 = 1.30x | 213 / 187 = 1.14x |
-| col_major_interleaved_bl8 | 128/256 | 256 / 180 = 1.42x | 256 / 164 = 1.56x |
+| incremental_bl8 | 172/344 | 126/252 | 344 / 252 = 1.37x |
+| row_major_bl8 | 231/461 | 142/284 | 461 / 284 = 1.62x |
+| col_major_bl8 | 107/213 | 126/252 | 213 / 252 = 0.84x |
+| col_major_interleaved_bl8 | 128/256 | 110/220 | 256 / 220 = 1.16x |
 
+granite ahead on 3 of 4 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
-### windows (granite 100 MHz, merge off), four injectors, bl8, peak 800 MB/s
-
-| family | granite 100 open_page | granite 100 close_page | granite 100 best / granite 75 best | granite 100 best / LiteDRAM 75 |
-|---|---|---|---|---|
-| mixed (per direction; union) | 198/199; union 395 | 46/54; union 92 | 1.35x | 1.67x |
-| row_thrash | 688/688 | 175/211 | 1.34x | 2.47x |
-| random | 627/644 | 149/183 | 1.34x | 2.16x |
-
-mismatched 0 on all six (`char_granite_sweep100_windows_2026-10-29.csv`).

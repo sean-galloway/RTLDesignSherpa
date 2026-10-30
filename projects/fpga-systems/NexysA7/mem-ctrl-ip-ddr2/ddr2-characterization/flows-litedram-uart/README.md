@@ -59,6 +59,18 @@ record is tagged `litedram`. The host waits on `STATUS.init_done`
 (`litedram_core.init_done`, asserted by the BIOS after calibration) before
 launching generators, as it waits on pumice's init.
 
+## The 100 MHz point
+
+`LITEDRAM_SYS_CLK=100e6 ./regen.sh --bios` regenerates the same core at
+100 MHz sys / 1:2 / DDR2-400 (a temp yml carries the override; the tracked
+yml stays 75e6), `LITEDRAM_SYS_100=1 make bitstream` builds the top with its
+UART divisor at 100 MHz (WNS +0.241 ns on 2026-10-29), and the host takes
+`LITEDRAM_CLK_MHZ=100`. The regen needs a LiteX venv with the software data
+packages (picolibc, compiler_rt) and meson/ninja on the path;
+`/mnt/data/tools/litex-venv` has them. `gen/board` is shared by both
+clocks: keep a copy of the 75 MHz core (or regen at 75) before a 75 MHz
+build.
+
 ## Simulation (the three-way proxy)
 
 `ddr2_char_framework/dv/tests/test_litedram_char_perf.py` runs the same
