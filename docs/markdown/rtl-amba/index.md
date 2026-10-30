@@ -319,6 +319,9 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 - **[axi_split_combi](shared/axi_split_combi.md)** - AXI combinational splitting logic
 - **[axi_master_rd_splitter](shared/axi_master_rd_splitter.md)** - AXI read master splitter
 - **[axi_master_wr_splitter](shared/axi_master_wr_splitter.md)** - AXI write master splitter
+- **[axi4_wr_aggregator](shared/axi4_wr_aggregator.md)** - Poor man's write aggregator (adjacent lo/hi into one 2-beat write)
+- **[axi4_rd_aggregator](shared/axi4_rd_aggregator.md)** - Poor man's read aggregator (adjacent lo/hi into one 2-beat read)
+- **[axi4_aggregator_cmd](shared/axi4_aggregator_cmd.md)** - The aggregators' shared pairing core
 
 ### Clock and Reset Management
 

@@ -1,0 +1,35 @@
+// axi4_rd_aggregator block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Upstream FUB read port at the top, the downstream m_axi port as the bottom bar.
+// AR drops down the left through the pairing core; R climbs the right lane with
+// RLAST forced on both beats of an aggregated burst. The side queue holds one
+// agg bit per issued AR.
+// Source of truth: rtl/amba/shared/axi4_rd_aggregator.sv.
+digraph axi4_rd_aggregator {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.8", ranksep="0.7", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi4_rd_aggregator - merges adjacent lo/hi single-beat reads into one 2-beat read (one clock: aclk)";
+
+    params [group=P, label="Parameters (fixed at build)\nHOLD_CYCLES: wait for the hi (0 = pass-through)\nAGG_FIFO_DEPTH: outstanding ARs", shape=note];
+    fport  [group=A, label="Upstream FUB Read Port (flopped)\nfub_ar in   |   fub_r out", style="rounded,filled", fillcolor="#E2EFDA"];
+
+    core   [group=A, label="Pairing Core\naxi4_aggregator_cmd - u_cmd\n(see its diagram)\nAR issues only when the side queue has room"];
+    rinfo  [group=R, label="R Side Queue\ngaxi_fifo_sync - u_rinfo\nagg per issued AR\npop at the downstream RLAST", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rlast  [group=R, label="RLAST Force (combinational)\nagg: rlast 1 on both beats\n(each half is its own burst upstream)\nplain: rlast as given"];
+
+    bar    [label="Downstream AXI Read Port (m_axi)\nm_axi_ar + m_axi_ar_agg out   |   m_axi_r in",
+            width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+
+    fport -> core  [xlabel="AR", penwidth=1.8];
+    core  -> bar   [xlabel="AR (merged or plain)\n+ ar_agg", penwidth=1.8];
+    core  -> rinfo [xlabel="agg at\nAR issue"];
+    rinfo -> rlast [style=dashed, color="#777777", xlabel="agg"];
+    rlast -> bar   [color="#1A7A1A", dir=back, xlabel="R beats"];
+    rlast -> fport [color="#1A7A1A", xlabel="R (rlast per half)"];
+
+    { rank=same; params; fport; }
+    params -> fport [style=invis];
+}

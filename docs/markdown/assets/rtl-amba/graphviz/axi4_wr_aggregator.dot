@@ -1,0 +1,45 @@
+// axi4_wr_aggregator block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// Upstream FUB write port at the top, the downstream m_axi port as the bottom bar.
+// AW drops down the left through the pairing core; W drops down the center and
+// has its WLAST reframed; B climbs the right lane and an aggregated B is replayed
+// twice. The two side queues hold one agg bit per issued AW.
+// Source of truth: rtl/amba/shared/axi4_wr_aggregator.sv.
+digraph axi4_wr_aggregator {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.8", ranksep="0.7", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi4_wr_aggregator - merges adjacent lo/hi single-beat writes into one 2-beat write (one clock: aclk)";
+
+    params [group=P, label="Parameters (fixed at build)\nHOLD_CYCLES: wait for the hi (0 = pass-through)\nAGG_FIFO_DEPTH: outstanding AWs", shape=note];
+    fport  [group=A, label="Upstream FUB Write Port (flopped)\nfub_aw, fub_w in   |   fub_b out", style="rounded,filled", fillcolor="#E2EFDA"];
+
+    core   [group=A, label="Pairing Core\naxi4_aggregator_cmd - u_cmd\n(see its diagram)\nAW issues only when both side queues have room"];
+    winfo  [group=S, label="W Side Queue\ngaxi_fifo_sync - u_winfo\nagg per issued AW\npop at the downstream WLAST", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    binfo  [group=T, label="B Side Queue\ngaxi_fifo_sync - u_binfo\nagg per issued AW\npop at the downstream B", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    wre    [group=W, label="WLAST Reframe (combinational)\nW held until its AW has issued\nagg: wlast 0 then 1 (r_w_second flop)\nplain: wlast as given"];
+    brep   [group=B, label="B Replay (combinational)\nagg: fub_b twice, same id / resp\n(r_b_second flop), m_axi_bready on the second\nplain: once"];
+
+    bar    [label="Downstream AXI Write Port (m_axi)\nm_axi_aw + m_axi_aw_agg out   |   m_axi_w out   |   m_axi_b in",
+            width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+
+    fport -> core  [xlabel="AW", penwidth=1.8];
+    core  -> bar   [xlabel="AW (merged or plain)\n+ aw_agg", penwidth=1.8];
+    core  -> winfo [xlabel="agg at\nAW issue"];
+    core  -> binfo [xlabel="agg at\nAW issue"];
+    fport -> wre   [xlabel="W beats"];
+    winfo -> wre   [style=dashed, color="#777777", xlabel="agg"];
+    wre   -> bar   [xlabel="W (wlast reframed)"];
+    brep  -> bar   [color="#1A7A1A", dir=back, xlabel="B"];
+    binfo -> brep  [style=dashed, color="#777777", xlabel="agg"];
+    brep  -> fport [color="#1A7A1A", xlabel="B (x2 when agg)"];
+
+    { rank=same; params; fport; }
+    params -> fport [style=invis];
+    { rank=same; winfo; binfo; }
+    winfo -> binfo [style=invis];
+    { rank=same; wre; brep; }
+    wre -> brep [style=invis];
+}

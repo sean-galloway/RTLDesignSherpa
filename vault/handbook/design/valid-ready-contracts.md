@@ -183,6 +183,33 @@ summary: Stability rules; observers gate commands only, never responses.
   The gate counts W bursts begun minus AWs accepted
   (`axi_stress_w_first_gate`), and the pair test mirrors the same count, so
   a check written against the model cannot pass what the model would hang.
+- **A timed hold that flushes on expiry must freeze its timer while VALID is
+  shown, and must refuse the merge once expired.** A block that holds a
+  command waiting for a partner has two ways to present it: merged (the
+  partner came) or alone (it did not). Both are VALID with a payload, and
+  the payload must not move until READY. If the timer keeps running under
+  backpressure, a presented merge expires into a flush and AxLEN changes
+  under VALID; if a late partner is still allowed to merge, a presented
+  flush turns into a merge the same way. *Case (2026-10-28, review of
+  `axi4_aggregator_cmd` before any test existed): hold expires with nothing
+  arriving, the lone lo is presented with AWLEN 0, AWREADY is low, the hi
+  arrives, and the pair condition flipped AWLEN to 1 and the agg flag with
+  it. A slave that latched the AW when VALID rose would take one beat and
+  the W path would send two.* The fix is two guards, no new state: the
+  counter increments only while nothing is presented, and pairing requires
+  the hold not to have expired; the late partner passes through alone the
+  cycle after.
+- **A master-side block must not hold WVALID until AWREADY.** AXI A3.3.1
+  binds both sides: the slave MAY wait for W before AWREADY (the data-first
+  case above), and because it may, the master MUST NOT wait for AWREADY
+  before WVALID. A block that needs per-AW information to shape W (a WLAST
+  reframe, a beat count) must capture it when the AW is PRESENTED, not when
+  it handshakes, which is legal exactly because the AW payload is stable
+  under VALID. *Case (2026-10-28, `axi4_wr_aggregator` first cut): the W
+  side queue was written at the AW handshake and W waited on it; in front
+  of a data-first slave both sides wait forever.* One flop (`r_aw_logged`,
+  set on presented-not-accepted, cleared on the handshake) records that the
+  entry is in and keeps VALID up while the queue is full.
 
 Related: [[streaming-no-fsm]], [[no-assertions-in-rtl]], [[randomization]].
 

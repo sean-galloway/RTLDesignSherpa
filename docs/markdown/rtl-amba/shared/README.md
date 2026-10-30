@@ -1,6 +1,6 @@
 # AMBA Shared Infrastructure
 
-The 21 modules in `rtl/amba/shared/` are the protocol-adjacent utility layer: bus characterization blocks, performance meters, boundary splitters, a BRAM-backed slave family, address generation, and clock gating. Every module has its own page in this directory — this file is the map, not a second copy of the module documentation. The per-module pages are the reference; when this table and a module page disagree, trust the page (and fix the table).
+The 24 modules in `rtl/amba/shared/` are the protocol-adjacent utility layer: bus characterization blocks, performance meters, boundary splitters, a BRAM-backed slave family, address generation, and clock gating. Every module has its own page in this directory — this file is the map, not a second copy of the module documentation. The per-module pages are the reference; when this table and a module page disagree, trust the page (and fix the table).
 
 An earlier version of this README carried full parameter tables, port lists, and usage examples for a subset of the modules. Those copies rotted — a review round found a `monbus_arbiter` example that could not elaborate, invented clock-gate ports, pre-widening "64-bit packet" claims, and a complete section for a CDC module that had moved to `rtl/cdc/` — so the catalog now lives only in the pages that track their RTL. One copy of the truth. It's the only way this stays honest.
 
@@ -21,6 +21,9 @@ An earlier version of this README carried full parameter tables, port lists, and
 | `axi_master_rd_splitter` | Boundary-crossing read splitter (RLAST consolidated to one per original burst) | [page](axi_master_rd_splitter.md) |
 | `axi_master_wr_splitter` | Boundary-crossing write splitter with B consolidation | [page](axi_master_wr_splitter.md) |
 | `axi_split_combi` | Pure combinational split decision used by both splitters | [page](axi_split_combi.md) |
+| `axi4_wr_aggregator` | Poor man's write aggregator: adjacent lo/hi single-beat writes become one 2-beat write with `m_axi_aw_agg`; B replayed twice | [page](axi4_wr_aggregator.md) |
+| `axi4_rd_aggregator` | Poor man's read aggregator: adjacent lo/hi single-beat reads become one 2-beat read with `m_axi_ar_agg`; RLAST on both beats | [page](axi4_rd_aggregator.md) |
+| `axi4_aggregator_cmd` | The pairing core shared by both aggregators (one held command, a hold counter, no CAM) | [page](axi4_aggregator_cmd.md) |
 | `sdpram_core` | BRAM glue + clear FSM backend of the slave family | [page](sdpram_core.md) |
 | `sdpram_slave_axi4_axi4` / `_axi4_axil` / `_axil_axi4` / `_axil_axil` | Protocol-shaped wrappers over `sdpram_core` | [family page](sdpram_slave.md) |
 | `axi_gen_addr` | AXI burst next-address generation (FIXED/INCR/WRAP) | [page](axi_gen_addr.md) |

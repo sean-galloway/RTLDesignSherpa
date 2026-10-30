@@ -1,0 +1,34 @@
+// axi4_aggregator_cmd block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The pairing core: one command port in at the top, the merged/plain command out
+// through the bottom bar. The command drops down the center; the held lo sits
+// beside the path and feeds the output select; the hold counter is in its label.
+// Source of truth: rtl/amba/shared/axi4_aggregator_cmd.sv.
+digraph axi4_aggregator_cmd {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.9", ranksep="0.75", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="axi4_aggregator_cmd - pairs two adjacent single-beat commands into one 2-beat command (one clock: aclk)";
+
+    sport  [group=C, label="Upstream Command (flopped)\ns_id, s_addr, s_len, s_size, s_burst, s_lock, s_mergeable, s_qual\ns_valid / s_ready", style="rounded,filled", fillcolor="#E2EFDA"];
+    params [group=P, label="Parameters (fixed at build)\nHOLD_CYCLES: how long a lone lo waits (0 = pass-through)\nDATA_WIDTH: one beat = DW/8 bytes, pair = two beats\nQUAL_WIDTH: qualifiers that must match", shape=note];
+
+    cls    [group=C, label="Classify (combinational)\nsingle: len 0, full size, INCR, not locked, mergeable\nlo: single and 2-beat aligned\npair: held lo (hold not expired) and s is its hi\n(same id, qual, addr = lo + beat)"];
+    held   [group=H, label="Held lo + hold counter (flops)\nr_pend_id / addr / qual\nr_hold_cnt saturates at HOLD_CYCLES,\nfrozen while a command is presented\ncapture on lo, clear on issue", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sel    [group=C, label="Output Select (combinational)\npair:  held lo, len 1, m_agg 1, s consumed\nflush: held lo, len 0, m_agg 0 (s waits)\ncapture: nothing out, s accepted\npass:  s fields through, m_agg 0"];
+
+    bar    [label="Downstream Command (same cycle as select)\nm_id, m_addr, m_len, m_size, m_burst, m_lock, m_qual, m_agg\nm_valid / m_ready",
+            width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+
+    sport -> cls  [xlabel="command", penwidth=1.8];
+    cls   -> held [style=dashed, color="#777777", dir=both, xlabel="capture lo down /\nheld fields up (pair compare)"];
+    cls   -> sel  [xlabel="pass-through fields,\npair / flush / lo", penwidth=1.8];
+    held  -> sel  [xlabel="held lo,\nhold expired"];
+    sel   -> bar  [xlabel="one command\n(merged or plain)", penwidth=1.8];
+    sel   -> sport [style=dashed, color="#777777", constraint=false, xlabel="s_ready"];
+
+    { rank=same; params; sport; }
+    params -> sport [style=invis];
+}
