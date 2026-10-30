@@ -261,6 +261,15 @@ set_property INTERNAL_VREF 0.900 [get_iobanks 35]
 ## CAMs never needs to meet a per-cycle deadline. Relax paths that START there.
 set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *field_storage_reg*bank_lsb*}]
 
+## The JEDEC timing CSRs (TIMINGS_*: tRCD, tRP, tRAS, tRC, tWR, tRTP, tRTW, tCCD,
+## tFAW, tRRD, tWTR, tREFI, tRFC, CL/CWL) are the same class: the host writes them
+## in set_jedec_timings / ControllerConfig.apply with the controller idle, before
+## a run, and never during DRAM traffic. Their fan-out into the bank timers, the
+## page-policy timer and the pick need not meet a per-cycle deadline. Added
+## 2026-10-30 for the 100 MHz merge-default build (granite TASK-003), where
+## TIMINGS_RTP_RTW.tRTP -> the bank timers was 9 of the last 24 failing paths.
+set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *field_storage_reg*TIMINGS_*}]
+
 ##==============================================================================
 ## Configuration / Bitstream
 ##==============================================================================
