@@ -1,9 +1,10 @@
-# Testplan for l1_snoop_kmap (HAS Table 3.0 decode as a module boundary)
+# Testplan for l1_snoop_kmap_test (HAS Table 3.0 decode as a module
+# boundary; validation harness -- not instantiated in the design)
 # Maps functional scenarios to the exhaustive truth-table DV.
 
-module: l1_snoop_kmap
+module: l1_snoop_kmap_test
 rtl_files:
-  - projects/components/cache-ip/common-ip/rtl/fub/l1_snoop_kmap.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_snoop_kmap_test.sv
   - projects/components/cache-ip/common-ip/rtl/includes/l1_pkg.sv
 test_files:
   - projects/components/cache-ip/common-ip/dv/tests/test_l1_snoop_kmap.py
@@ -60,4 +61,7 @@ gaps:
   - X-propagation on inputs is not checked (Verilator two-state; matches the
     house simulation posture).
   - SOP-literal diff against the QM-derived kmap covers is deferred until
-    l1_snoop_resp integration — see amber_mas ch05_verification/01.
+    l1_snoop_resp integration — see amber_mas ch05_verification/01. (The
+    module was renamed l1_snoop_kmap_test on 2026-10-30 to mark its
+    validation-only role; the design applies the same l1_pkg functions
+    inline.)

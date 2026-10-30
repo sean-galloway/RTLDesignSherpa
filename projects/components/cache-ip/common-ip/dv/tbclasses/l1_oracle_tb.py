@@ -1,7 +1,7 @@
 """
 l1_fsm_oracle pkg-pin testbench
 
-Drives the landed l1_snoop_kmap leaf (the module-boundary wrapper over the
+Drives the landed l1_snoop_kmap_test leaf (the validation-harness wrapper over the
 l1_pkg Table 3.0 decode functions) with every {state, snoop} cell the
 gem5-derived oracle produces a CRRESP for, and scores the DUT against the
 ORACLE -- not against a table copy -- so the simulation is a direct
@@ -10,7 +10,7 @@ snoop codes 6/7) are checked against the contracted safe default, and the
 oracle is asserted to refuse them.
 
 The DUT is combinational: each check drives the inputs, waits a delta, and
-compares, exactly like the l1_snoop_kmap TB this class is modeled on.
+compares, exactly like the l1_snoop_kmap_test TB this class is modeled on.
 
 Author: RTL Design Sherpa
 Created: 2026-10-07
@@ -29,7 +29,7 @@ from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
 
 
 class L1OracleTB(TBBase):
-    """Scores l1_snoop_kmap against the gem5-derived FSM oracle."""
+    """Scores l1_snoop_kmap_test against the gem5-derived FSM oracle."""
 
     # cache_state_t encodings (l1_pkg): 3-bit, MESI now + MOESI headroom
     STATE_I = 0b000
@@ -71,7 +71,7 @@ class L1OracleTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.checks = 0
         self.mismatches = 0
-        self.log.info("L1OracleTB: oracle<->pkg pin via l1_snoop_kmap")
+        self.log.info("L1OracleTB: oracle<->pkg pin via l1_snoop_kmap_test")
 
     # -- the three mandatory methods; the DUT is purely combinational --------
     async def setup_clocks_and_reset(self):

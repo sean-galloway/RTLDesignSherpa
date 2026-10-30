@@ -79,7 +79,7 @@ filelist_dirs = ["projects/components/ecc-ip/bch/rtl/filelists"]
 name = "amber"
 kind = "component"
 # cache-ip family. Registered 2026-10-06 with its first RTL, the amber
-# MESI L1 slice (l1_pkg, l1_snoop_kmap, l1_tag_array,
+# MESI L1 slice (l1_pkg, l1_snoop_kmap_test, l1_tag_array,
 # l1_data_array), so --check has owned these modules from the first
 # commit rather than discovering them at an audit.
 rtl_roots = ["projects/components/cache-ip/amber-mesi-l1/rtl"]

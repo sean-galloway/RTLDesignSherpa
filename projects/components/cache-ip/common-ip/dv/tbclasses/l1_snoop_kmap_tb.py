@@ -1,5 +1,5 @@
 """
-l1_snoop_kmap testbench
+l1_snoop_kmap_test testbench
 
 Combinational decode of {line_state, snoop_type} -> {crresp, next_state}
 per the amber HAS Table 3.0 MESI snoop matrix. The DUT has no clock and no
@@ -24,7 +24,7 @@ from TBClasses.shared.tbbase import TBBase
 
 
 class L1SnoopKmapTB(TBBase):
-    """Scores l1_snoop_kmap against the HAS Table 3.0 truth table."""
+    """Scores l1_snoop_kmap_test against the HAS Table 3.0 truth table."""
 
     # cache_state_t encodings (l1_pkg): 3-bit, MESI now + MOESI headroom
     STATE_I = 0b000
@@ -137,7 +137,7 @@ class L1SnoopKmapTB(TBBase):
         else:  # full: exhaustive over the whole 3-bit x 3-bit space
             cells = [(s, n) for s in range(8) for n in range(8)]
 
-        self.log.info(f"l1_snoop_kmap: {len(cells)} cells at {level}")
+        self.log.info(f"l1_snoop_kmap_test: {len(cells)} cells at {level}")
         for s, n in cells:
             await self._check_cell(s, n)
         return self.mismatches == 0

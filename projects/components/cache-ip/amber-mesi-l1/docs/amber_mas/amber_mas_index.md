@@ -98,7 +98,7 @@
 | `l1_fill` | `cache-ip/common-ip/rtl/fub/l1_fill.sv` | Line-fill read master interface |
 | `l1_drain` | `cache-ip/common-ip/rtl/fub/l1_drain.sv` | Dirty victim write-back interface |
 | `l1_snoop_resp` | `cache-ip/common-ip/rtl/fub/l1_snoop_resp.sv` | ACE snoop adapter, CR/CD ordering |
-| `l1_snoop_kmap` | `cache-ip/common-ip/rtl/fub/l1_snoop_kmap.sv` | Snoop-response decision logic as a standalone K-map-checked block (unit-tested; not instantiated by `l1_core`) |
+| `l1_snoop_kmap_test` | `cache-ip/common-ip/rtl/fub/l1_snoop_kmap_test.sv` | Snoop-response decision logic as a standalone K-map-checked block (unit-tested validation harness; not instantiated by `l1_core`) |
 | `l1_cpu_frontend` | `cache-ip/common-ip/rtl/fub/l1_cpu_frontend.sv` | GAXI slave request/response latch |
 | `l1_monlite` | `cache-ip/common-ip/rtl/fub/l1_monlite.sv` | Drop-and-count MonBus observer |
 | `l1_pkg` | `cache-ip/common-ip/rtl/includes/l1_pkg.sv` | Geometry defaults, MESI encodings, snoop types |

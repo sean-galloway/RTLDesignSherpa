@@ -51,7 +51,7 @@ selected source. CRRESP is computed from:
 - WB match: the buffered victim's state (M row of the Table 3.0 decode);
 - MSHR match: the entry's post-fill state (with PF_GUARD gating CD on
   `beats_rcvd`);
-- array hit: the line's state, amber's `l1_snoop_kmap`-equivalent decode.
+- array hit: the line's state, amber's `l1_snoop_kmap_test`-equivalent decode.
 
 ## Concurrency rules
 

@@ -13,7 +13,7 @@
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
 
 # Leaf FUBs (first RTL slice, 2026-10-06)
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_kmap.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_kmap_test.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_tag_array.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_data_array.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_repl.f

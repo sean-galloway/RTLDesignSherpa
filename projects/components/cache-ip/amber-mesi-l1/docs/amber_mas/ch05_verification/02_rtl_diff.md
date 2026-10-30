@@ -32,7 +32,7 @@ After the first RTL commit for a module, update the corresponding sheet in [`gen
 3. Re-run the generator.
 4. Review each sheet's verdict.
 
-First landing (2026-10-06): the snoop CRRESP / next-state decode exists as `l1_pkg` functions + `l1_snoop_kmap`. See [01_kmap_verdicts.md](01_kmap_verdicts.md) for why its sheets record truth-table PASS but the SOP-literal diff is classified RTL-REDUNDANT; the procedure above applies to every sheet still at `rtl_sop=None`.
+First landing (2026-10-06): the snoop CRRESP / next-state decode exists as `l1_pkg` functions + `l1_snoop_kmap_test`. See [01_kmap_verdicts.md](01_kmap_verdicts.md) for why its sheets record truth-table PASS but the SOP-literal diff is classified RTL-REDUNDANT; the procedure above applies to every sheet still at `rtl_sop=None`.
 
 ## Diff Checklist
 

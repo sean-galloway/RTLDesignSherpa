@@ -213,8 +213,8 @@ All citations are `transition(...)` blocks in `MESI_Two_Level-L1cache.sm`.
 ## 6. What the pkg-pin simulation proves
 
 `cache-ip/common-ip/dv/tests/test_l1_oracle.py::test_amber_oracle_pkg_pin` drives the landed
-`amber_snoop_kmap` (the module wrapper over `amber_pkg.amber_snoop_crresp` /
-`amber_snoop_next_state`, compiled via `amber_snoop_kmap.f` → `amber_pkg.f`)
+`l1_snoop_kmap_test` (the validation-harness module wrapper over `l1_pkg.amber_snoop_crresp` /
+`amber_snoop_next_state`, compiled via `l1_snoop_kmap_test.f` → `l1_pkg.f`)
 with every snoop row of the oracle's table — stable rows at their own state,
 transient rows at their §4 reference state — and compares the SystemVerilog
 outputs against `oracle.step()`. FULL additionally sweeps all reserved

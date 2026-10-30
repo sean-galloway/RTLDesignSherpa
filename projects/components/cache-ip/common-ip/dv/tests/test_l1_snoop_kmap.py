@@ -1,10 +1,11 @@
 """
-l1_snoop_kmap test runner
+l1_snoop_kmap_test test runner
 
 Combinational {state, snoop} -> {CRRESP, next_state} decode against an
 independent copy of the amber HAS Table 3.0 truth table. Exhaustive at func
 (reserved encodings contract to the safe default) and full (whole 3-bit x
-3-bit space).
+3-bit space). The DUT is a validation harness -- the design applies the
+same l1_pkg functions inline in l1_snoop_resp / l1_control.
 
 Author: RTL Design Sherpa
 Created: 2026-10-06
@@ -36,7 +37,7 @@ async def cocotb_test_l1_snoop_kmap(dut):
     ok = await tb.run()
     report = tb.get_test_report()
     tb.log.info(f"Test report: {report}")
-    assert ok, f"l1_snoop_kmap: {report['mismatches']} mismatches in {report['checks']} checks"
+    assert ok, f"l1_snoop_kmap_test: {report['mismatches']} mismatches in {report['checks']} checks"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
@@ -45,9 +46,9 @@ def test_l1_snoop_kmap(request, test_level):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'projects/components/cache-ip/common-ip/rtl/fub',
     })
-    dut_name = "l1_snoop_kmap"
+    dut_name = "l1_snoop_kmap_test"
     verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/l1_snoop_kmap.f')
+        repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/l1_snoop_kmap_test.f')
 
     test_name_plus_params = f"test_{dut_name}_{test_level}"
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/

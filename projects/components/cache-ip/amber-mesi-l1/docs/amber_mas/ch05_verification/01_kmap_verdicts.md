@@ -61,9 +61,9 @@ All RTL for the amber MESI L1 control plane has landed. The workbook contains th
 
 No NEW differences were found that are not already covered by the known errata pinned in the plan and recorded in [`02_rtl_diff.md`](02_rtl_diff.md).
 
-### `K-maps snoop CRRESP` (l1_snoop_kmap / l1_pkg)
+### `K-maps snoop CRRESP` (l1_snoop_kmap_test / l1_pkg)
 
-Authority: HAS Table 3.0, implemented in `cache-ip/common-ip/rtl/includes/l1_pkg.sv` function `amber_snoop_crresp` and wrapped by `cache-ip/common-ip/rtl/fub/l1_snoop_kmap.sv`.
+Authority: HAS Table 3.0, implemented in `cache-ip/common-ip/rtl/includes/l1_pkg.sv` function `amber_snoop_crresp` and wrapped by `cache-ip/common-ip/rtl/fub/l1_snoop_kmap_test.sv` (validation-harness boundary, not instantiated in the design).
 
 | Row | Verdict | Rationale / Review Focus |
 |-----|---------|--------------------------|
@@ -72,9 +72,9 @@ Authority: HAS Table 3.0, implemented in `cache-ip/common-ip/rtl/includes/l1_pkg
 | IS (IsShared) | **RTL-REDUNDANT** | Same case-decode implementation and truth-table match as DT. Notably, M + CleanInvalid returns IS=1 per the corrected Table 3.0 (this was the discrepancy caught and fixed during the first-verdict TB bring-up). |
 | WU (WasUnique) | **RTL-REDUNDANT** | Same case-decode implementation and truth-table match as DT. WU=1 only for E-state data-transfer snoops. |
 
-### `K-maps snoop next-state` (l1_snoop_kmap / l1_pkg)
+### `K-maps snoop next-state` (l1_snoop_kmap_test / l1_pkg)
 
-Authority: HAS Table 3.0 next-state column, implemented in `cache-ip/common-ip/rtl/includes/l1_pkg.sv` function `amber_snoop_next_state` and wrapped by `cache-ip/common-ip/rtl/fub/l1_snoop_kmap.sv`.
+Authority: HAS Table 3.0 next-state column, implemented in `cache-ip/common-ip/rtl/includes/l1_pkg.sv` function `amber_snoop_next_state` and wrapped by `cache-ip/common-ip/rtl/fub/l1_snoop_kmap_test.sv` (validation-harness boundary, not instantiated in the design).
 
 | Row | Verdict | Rationale / Review Focus |
 |-----|---------|--------------------------|
@@ -107,7 +107,7 @@ The workbook does not contain K-map sheets for MonBus events or address decode. 
 
 ### First-Verdict Status (2026-10-06)
 
-The first RTL slice landed: `l1_pkg` (the Table 3.0 decode functions `amber_snoop_crresp` / `amber_snoop_next_state`) and its module wrapper `l1_snoop_kmap`. Verdicts for the six snoop sheets (the four CRRESP maps and the two next-state maps):
+The first RTL slice landed: `l1_pkg` (the Table 3.0 decode functions `amber_snoop_crresp` / `amber_snoop_next_state`) and its module wrapper `l1_snoop_kmap_test`. Verdicts for the six snoop sheets (the four CRRESP maps and the two next-state maps):
 
 - **Truth-table equivalence: PASS at gate/func/full.** The TB (`cache-ip/common-ip/dv/tests/test_l1_snoop_kmap.py`) carries an independent copy of HAS Table 3.0 and exhausts the reachable space at gate, adds the reserved encodings at func, and the whole 3-bit x 3-bit space at full. One real discrepancy was caught and resolved in the TB's favor of the documentation: Modified + CleanInvalid carries `IsShared=1` per Table 3.0.
 - **SOP-literal diff against the QM-derived covers: NOT CHECKED, deferred.** The RTL implements the table as a case decode, not minimal SOP literals; the meaningful diff is the truth-table one above. Supplying `rtl_sop=` and re-deriving is deferred until `l1_snoop_resp` integrates this decode — if the integration restructures the logic, the literal diff would be repeated work.
