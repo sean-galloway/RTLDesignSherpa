@@ -52,7 +52,7 @@ sys.path.insert(0, repo_root)
 from projects.components.cache_ip.jet_mesi_l1.dv.tbclasses.jet_parity_tb import (
     JetParityTB,
 )
-from projects.components.cache_ip.amber_mesi_l1.dv.golden import (
+from projects.components.cache_ip.common_ip.dv.golden import (
     cache_sim_harness as golden,
 )
 
@@ -61,7 +61,7 @@ JET_FL = 'projects/components/cache-ip/jet-mesi-l1/rtl/filelists'
 # the same external shape)
 HARNESS = 'projects/components/cache-ip/jet-mesi-l1/dv/tb/jet_core_th.sv'
 TRACES_DIR = os.path.join(repo_root,
-                          'projects/components/cache-ip/amber-mesi-l1/dv/traces')
+                          'projects/components/cache-ip/common-ip/dv/traces')
 
 # (sets, ways): tiny formal config + pkg default
 GEOMS = [(128, 4), (16, 2)]

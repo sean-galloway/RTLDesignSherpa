@@ -23,11 +23,11 @@ Author: RTL Design Sherpa
 Created: 2026-10-29
 """
 
-from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_core_tb import (
+from projects.components.cache_ip.common_ip.dv.tbclasses.l1_core_tb import (
     LruModel,
     FifoModel,
 )
-from projects.components.cache_ip.amber_mesi_l1.dv.golden.cache_sim_harness import (
+from projects.components.cache_ip.common_ip.dv.golden.cache_sim_harness import (
     LfsrRng,
     REPL_SEED,
 )

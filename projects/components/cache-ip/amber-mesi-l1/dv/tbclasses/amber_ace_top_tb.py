@@ -64,7 +64,7 @@ from CocoTBFramework.components.ace.ace_transaction import (
     CRRESP,
 )
 
-from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_core_tb import (
+from projects.components.cache_ip.common_ip.dv.tbclasses.l1_core_tb import (
     AmberCoreTB,
     _parse_packet,
     ST_ERROR,

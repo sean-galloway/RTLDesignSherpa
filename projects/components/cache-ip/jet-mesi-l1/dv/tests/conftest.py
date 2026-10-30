@@ -17,10 +17,10 @@ sys.path.insert(0, _REPO_ROOT)
 sys.path.insert(0, os.path.join(_TESTS_DIR, os.pardir, 'tbclasses'))
 sys.path.insert(0, _TESTS_DIR)
 
-# Jet reuses amber's golden model and TB machinery; make them importable
-# by jet tests without copying.
-sys.path.insert(0, os.path.join(_REPO_ROOT, 'projects', 'components', 'cache-ip', 'amber-mesi-l1', 'dv', 'tbclasses'))
-sys.path.insert(0, os.path.join(_REPO_ROOT, 'projects', 'components', 'cache-ip', 'amber-mesi-l1', 'dv', 'golden'))
+# Jet reuses the shared l1_* TB machinery and golden model (common-ip);
+# make them importable by jet tests without copying.
+sys.path.insert(0, os.path.join(_REPO_ROOT, 'projects', 'components', 'cache-ip', 'common-ip', 'dv', 'tbclasses'))
+sys.path.insert(0, os.path.join(_REPO_ROOT, 'projects', 'components', 'cache-ip', 'common-ip', 'dv', 'golden'))
 
 import pytest  # noqa: E402
 from cov_utils.conftest_base import configure, sessionfinish, ignore_collect  # noqa: E402

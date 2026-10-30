@@ -38,12 +38,20 @@ against belongs to neither of them; the unit-level modules each IP owns
 (amber's `amber_top`/`amber_ace_top`/`amber_pair_fabric`/`amber_ace_issue`)
 keep their codename prefix.
 
+## The dv area (2026-10-30)
+
+[`dv/`](dv/) holds the lowest-level checkout of everything in `rtl/` — the
+unit TBs (moved from amber, where they were written), the test harnesses,
+the testplans, the shared golden model ([`dv/golden/`](dv/golden/): the
+gem5-derived FSM oracle and the cache_sim harness), and the trace corpus
+([`dv/traces/`](dv/traces/)). Test names and harnesses carry the `l1_*`
+prefix of the modules they pin; the TB class names keep their amber
+heritage for now (a class rename is its own cleanup). Run from
+`dv/tests/`: `SEED=1 REG_LEVEL=GATE python3 -m pytest test_l1_<unit>.py`.
+
 ## What deliberately does not live here (yet)
 
 - Integration tops and IP-specific issuers — owned by each IP dir.
-- The `cache_sim` golden model — currently in
-  [`../amber-mesi-l1/dv/golden/`](../amber-mesi-l1/dv/golden/); it moves here
-  when jet's DV starts extending it (its consumer arrives with it).
 - onyx/basalt RTL — onyx is a coherency manager, not a cache; basalt is
   penciled only. Neither shares RTL with the L1 core today.
 

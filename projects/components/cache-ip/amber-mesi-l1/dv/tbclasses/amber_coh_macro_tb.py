@@ -54,7 +54,7 @@ Created: 2026-10-08
 
 import random
 
-from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_snoop_resp_tb import (
+from projects.components.cache_ip.common_ip.dv.tbclasses.l1_snoop_resp_tb import (
     AmberSnoopRespTB,
 )
 

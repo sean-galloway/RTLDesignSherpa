@@ -59,7 +59,7 @@ sys.path.insert(0, repo_root)
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_parity_tb import (
     AmberParityTB,
 )
-from projects.components.cache_ip.amber_mesi_l1.dv.golden import (
+from projects.components.cache_ip.common_ip.dv.golden import (
     cache_sim_harness as golden,
 )
 
@@ -68,7 +68,7 @@ FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 DUT_TOP = 'l1_core'
 TEST_PREFIX = 'amber_parity'
 TRACES_DIR = os.path.join(repo_root,
-                          'projects/components/cache-ip/amber-mesi-l1/dv/traces')
+                          'projects/components/cache-ip/common-ip/dv/traces')
 
 # committed regression traces (see dv/traces/gen_traces.py); gate = smoke
 # trace only. func and full both run the complete committed set: parity

@@ -90,11 +90,11 @@ from CocoTBFramework.components.ace.ace_factories import (
 )
 from CocoTBFramework.components.ace.ace_transaction import SnoopType
 
-from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_control_tb import (
+from projects.components.cache_ip.common_ip.dv.tbclasses.l1_control_tb import (
     AmberControlTB,
     STATE_CODE,
 )
-from projects.components.cache_ip.amber_mesi_l1.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
     SNOOP_CODES,
     step as oracle_step,
 )

@@ -25,7 +25,7 @@ Created: 2026-10-08
 
 import random
 
-from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_control_tb import (
+from projects.components.cache_ip.common_ip.dv.tbclasses.l1_control_tb import (
     AmberControlTB,
 )
 

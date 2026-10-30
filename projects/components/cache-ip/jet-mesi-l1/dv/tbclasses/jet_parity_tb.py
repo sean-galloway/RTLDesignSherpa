@@ -51,7 +51,7 @@ import cocotb
 from projects.components.cache_ip.amber_mesi_l1.dv.tbclasses.amber_parity_tb import (
     ModelJsCache,
 )
-from projects.components.cache_ip.amber_mesi_l1.dv.golden.cache_sim_harness import (
+from projects.components.cache_ip.common_ip.dv.golden.cache_sim_harness import (
     COUNT_KEYS,
     POLICY_BY_REPL,
     check_totals,

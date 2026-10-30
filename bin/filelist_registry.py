@@ -1160,6 +1160,9 @@ def testplan_broken_refs() -> list[str]:
     for plan in sorted(REPO_ROOT.rglob("*_testplan.yaml")):
         if ".git" in plan.parts:
             continue
+        if "sim_build" in plan.parts:
+            continue            # gitignored scratch snapshot (same rule as
+                                # check_discarded_verdicts SKIP)
         rel_plan = rel(plan)
         try:
             text = plan.read_text()
