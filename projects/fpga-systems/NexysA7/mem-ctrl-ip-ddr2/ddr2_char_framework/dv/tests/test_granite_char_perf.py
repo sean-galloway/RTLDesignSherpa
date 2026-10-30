@@ -229,6 +229,19 @@ async def _bringup(dut):
     return drv, chan, dfi_slave, memory
 
 
+# The stream families drive full-width AXI beats at the TB's host width: one
+# beat = one DRAM burst on the 128-bit host of the DFI 1:4 build, as on the
+# board. With the 8-byte size hard-wired (the 64-bit convention) every beat on
+# a 128-bit bus was a narrow transfer, so each 16-byte line cost TWO back-to-
+# back BL8 reads and the 1:4 proxy's "two valids per read" (TASK-003 item 6,
+# 2026-10-29) was the host, not the PHY model.
+# TEST_AXI_SIZE=<n> forces a beat size (3 = 8 bytes on the 128-bit host: the
+# narrow-transfer repro, granite TASK-007).
+_AXI_SIZE = int(os.environ.get("TEST_AXI_SIZE") or
+                {4: dc.AXI_SIZE_4, 8: dc.AXI_SIZE_8, 16: dc.AXI_SIZE_16}[
+                    int(os.environ.get("TEST_AXI_DATA_WIDTH", "64")) // 8])
+
+
 @cocotb.test(timeout_time=60000, timeout_unit="ms")
 async def cocotb_test_granite_perf(dut):
     drv, chan, _dfi, _mem = await _bringup(dut)
@@ -358,7 +371,7 @@ async def cocotb_test_granite_perf(dut):
             stride, wrap = pc.strides_for(pc.Scenario(name=fam, family=fam,
                                                       burst_len=blen, txn_count=txn),
                                           geom)
-        beat_bytes = 1 << dc.AXI_SIZE_8
+        beat_bytes = 1 << _AXI_SIZE
         bytes_moved = txn * blen * beat_bytes * n_gen
         def prog_for(g):
             if window is not None:
@@ -368,7 +381,7 @@ async def cocotb_test_granite_perf(dut):
             # and the threads bank-interleave on col_major.
             return dict(start_addr=g * geom.bank_stride, burst_len=blen,
                         txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,
-                        id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8,
+                        id_mode=dc.ID_MODE_FIXED, axi_size=_AXI_SIZE,
                         data_mode=True, gen=g, **pmf.seed_fields(g))
 
         mask = (1 << n_gen) - 1

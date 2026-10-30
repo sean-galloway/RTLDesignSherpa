@@ -2222,7 +2222,7 @@ def run_suite(drv: DDR2CharDriver, *, level: str = "medium", txn_scale: int = 1,
 # long soak), exactly analogous to lowering the UART baud in sim. Add a profile
 # here once; both targets pick it up.
 # Scenario-name tag per swept field (run_matrix sc_sweep).
-_SWEEP_TAG: Dict[str, str] = {"threads": "thr"}
+_SWEEP_TAG: Dict[str, str] = {"threads": "thr", "gap": "gap"}
 
 RUN_PROFILES: Dict[str, dict] = {
     # pumice TASK-060: the four half-burst patterns (pair / oct, plain / gap
@@ -2243,6 +2243,19 @@ RUN_PROFILES: Dict[str, dict] = {
     "half_threads": dict(configs=["close_page", "open_page"], level="basic",
                          families=(hbf.FAM_HALF_PAIR, hbf.FAM_HALF_OCT),
                          sc_sweep=dict(threads=tuple(range(1, 9)))),
+    # The gap sweep (owner 2026-10-29): the pair walk (l0 h0 l1 h1 ...), 512
+    # pairs (1024 half transactions) on one thread, with a FIXED idle gap of
+    # 0 clocks between consecutive transactions, then the same walk again at
+    # 1, 2, ... 7 clocks: one cell per gap (`half_pair_gap3`). Unlike
+    # `half_pair_sweep`, whose gap loops 0..7 inside one run, each cell here
+    # holds one cadence, so the merge ratio and the bandwidth can be read per
+    # gap: where a combiner's merge window closes shows as the gap at which
+    # the write merges stop. txn_count is pinned (sc_over wins over
+    # --txn-scale) so the walk is 512 pairs on sim and board alike.
+    "half_gap": dict(configs=["close_page", "open_page"], level="basic",
+                     families=(hbf.FAM_HALF_PAIR,),
+                     sc_over=dict(txn_count=1024),
+                     sc_sweep=dict(gap=tuple(range(0, 8)))),
     # Sim CI + quick board check: covers the config-apply path (scheme switch +
     # scheduler CSRs) and the best-case/worst-case access patterns. Small.
     "smoke": dict(configs=["close_page", "bank_interleave", "open_page", "inorder"],
@@ -2492,6 +2505,17 @@ RUN_PROFILES: Dict[str, dict] = {
                      concurrent=(1, 2)),
     # Everything: every preset x the full grid.
     "full": dict(configs="all", level="full", families=None),
+    # Every stream pattern the board injectors make (owner 2026-10-29, the
+    # granite-vs-LiteDRAM sweep): the four families at the full level
+    # (burst_len 4/8/16, the OOO-id and gapped variants) under the three
+    # presets a controller without pumice's scheduler CSRs still
+    # distinguishes -- open page, close page and the bank-interleaved map.
+    # `full` is the pumice CSR matrix; this is the pattern matrix. The window
+    # families (mixed / row_thrash / random) are perf-proxy only (see the
+    # module docstring): the board host has no program builder for them, so
+    # they are compared in sim through test_{granite,litedram}_char_perf.
+    "every": dict(configs=["open_page", "close_page", "bank_interleave"], level="full",
+                  families=None),
 }
 
 

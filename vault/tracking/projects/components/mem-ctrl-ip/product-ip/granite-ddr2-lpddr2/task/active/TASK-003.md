@@ -857,3 +857,99 @@ transaction wrong. The two symptoms may be the same mechanism seen through
 different return timings (the PHY's valid is one cycle per enable cycle;
 the slave's is not). Not resolved today; the 1:2 DDR2-400 point remains
 granite's 100 MHz number.
+
+### 2026-10-29 evening, item 6: both residuals read off the bus
+
+**The proxy's "two valids per read" was the host.** The perf proxy's
+stream families programmed every beat at `AXI_SIZE_8` (the 64-bit
+convention); on the 1:4 build's 128-bit host that is a NARROW transfer,
+two per 16-byte line, and each one is its own BL8 read: 2048 RD commands,
+2048 enables, 2048 valids for 1024 lines, nothing duplicated at the PHY
+(the aligner's probe and the smoke's cycle timeline agree: one RD, one
+enable, one valid, one capture per read). With the beat size derived
+from `TEST_AXI_DATA_WIDTH` (full-width beats, as on the board) the 1:4
+proxy is clean on all four stream families:
+
+| 1:4 proxy, 128-bit host, 75 MHz sys / CK 300 (peak 1200 MB/s) | wr / rd MB/s |
+|---|---|
+| incremental | 1135 / 1151 |
+| row_major | 1148 / 1148 |
+| col_major_interleaved | 918 / 913 |
+| col_major | 666 / 713 |
+
+mismatched 0 everywhere, held WRITEs 0. The narrow-beat case is a real
+defect of its own (adjacent narrow reads of one line return wrong data;
+the 64-bit host's 4-byte beats do not) and is filed as **TASK-007**.
+`TEST_AXI_SIZE` keeps it reproducible.
+
+**The board's one wrong beat is the PHY's first word of a read run.** An
+ILA on the DFI boundary of the 1:4 128-bit bitstream (`make bitstream-ila`,
+depth 4096, trigger on `dfi_rddata_valid`), driven by the same 2 x 4-beat
+write and read the probes use, on the best cell found by a fresh scan
+(ctrl rd_phase 0 / bitslip 2 / rddata_delay 2 at wrlat 1, rden 1, tap 16:
+1 of 8 beats wrong; rd_phase 1 / bitslip 4 is the other 1-of-8 cell, every
+other cell 8 of 8):
+
+| cycle | bus | what |
+|---|---|---|
+| -9 .. -2 | RD b0 col 0x0, 0x8, ... 0x38 | eight BL8 reads, one per cycle, one run |
+| -8 .. -1 | rddata_en = f | one enable cycle per read |
+| -2, -1 | PHY rddata = W0 (low device word 0x2fff, written 0x1db6), W1 | data two cycles ahead of valid (rddata_delay 2 slides it under) |
+| 0 .. 7 | rddata_valid = f; delayed rddata = W0' W1 W2 W3 W4 W5 W6 W7 | the controller's input: all eight words in order under the valid, W0 with its first device word wrong |
+| +6, +7 (PHY side) | 0x0fd9 (W7's last device word) then 0 | the ISERDES holding the last captured bits after DQS stops |
+
+Written vs read, controller side: words 1..7 identical, word 0's lowest 16
+bits (the FIRST device word on DQ of the run) 0x2fff for 0x1db6. The low
+byte all ones is the bus before the DRAM drives it. So: the first DQ beat
+of every read run is sampled before the device's first data bit on this
+cell, every later beat is inside a wide eye (the tap sweep's 14..30), and
+the controller, aligner and return path carry exactly what the PHY gives
+them. One wrong word per RUN, not per transaction: two adjacent
+transactions were one 8-read run here and cost one word, as `exp_which`
+found; its "3 for three same-transaction reads" were three runs (the
+same address re-read serializes).
+
+Not a controller defect, and not reachable from the controller: the data is
+wrong on `w_dfi_rddata` before the harness's delay line. The 1:2 points
+(DDR2-300 at 75, DDR2-400 at 100) do not show it. Candidates, in order,
+all board experiments on the `board75_dfi4ila` bitstream: (1) the DRAM's
+output drive and ODT (EMRS1: full vs reduced drive, RTT off / 75 / 150 --
+the host needs an EMRS1 override like `TEST_MR0`), (2) the FPGA-side DQ
+termination (`IN_TERM UNTUNED_SPLIT_50` in the XDC) against a first bit
+that starts from high-Z, (3) a first-word-aware leveling pattern (the
+cell scan compares the whole burst; LiteDRAM's own calibration does too,
+but LiteDRAM has never been run at nphases 4 on this board -- its 75 MHz
+build is CK 150), (4) the `a7ddrphy_nph4` read path's bitslip/rdphase
+pairing (one phase = two bitslips, so the first-word position is quantised
+to half a word).
+
+Also seen on the 1:4 bitstream: a write started after a mismatching read
+(full-width or narrow) hangs the write engine until a soft reset. Logged
+under TASK-007 to attribute (harness latched error vs controller).
+
+Scratch: `board75_dfi4ila/` (ILA bitstream, `cap_rd.py`, `cap_wr.csv`,
+`cap_rd.csv`, `cap.log`), `sims_dfi4b/` (the smoke timeline, the
+full-width and narrow proxy runs).
+
+### 2026-10-29 evening, the STORE_MERGE_EN default does not close at 100 MHz
+
+Two builds of HEAD (b8b08375c) on the DDR2-400 plan (`GRANITE_SYS_100=1`):
+
+| build | WNS | failing | LUT / FF |
+|---|---|---|---|
+| STORE_MERGE_EN=1 (the new default) | **-2.544 ns** | 3,242 of 106,699 | 37,811 / 32,221 |
+| STORE_MERGE_EN=0 | +0.011 ns | 0 of 105,519 | 36,381 / 31,773 |
+
+The failing cone is the TASK-006 pick-to-store path: `u_bank_pick/r_held_pair`
+-> `u_fifo_store/r_wr_fdone`, the per-bank queues' `rd_empty` / `wr_full`
+and the fill-order FIFO, 12.5 ns with **78 percent route** (9.7 ns of
+wire, 15-16 levels), 786 endpoints in the store, 456 in the read-return
+ring, and the harness's W channels and skid dragged in behind them
+(placement spread, not logic). At 75 MHz the same cone is the +0.002 ns
+margin. So the 100 MHz board point stays STORE_MERGE_EN=0 (the merge-off
+bitstream `board100c/ddr2_char_granite_100mhz_nomerge_2026-10-29.bit` is
+what the 100 MHz sweep runs on), and a merge build that closes at 100 is
+TASK-004 material: register the pick's fire into the store (one cycle of
+commit latency), or keep the fill-pending check out of the fire path by
+qualifying it a cycle earlier, then re-floorplan the store beside the
+pick.

@@ -88,3 +88,31 @@ CAM writes went BEFORE the call, where the reset undid them; it was binning
 on reset-default cones. One program, one hook, proven in the cosim first:
 `test_stream_mon_compress` runs `bin/mon_compress.measure_compression` over
 the sim channel, the same function `host_mon_compress.py` runs on the board.
+
+### A board probe and a proxy drive the BOARD's beat width (granite TASK-003 item 6, 2026-10-29)
+
+A read/write program carries an AXI beat size. The 64-bit builds made
+`AXI_SIZE_8` the habit, and on the 128-bit host of the DFI 1:4 build every
+8-byte beat is a legal NARROW transfer: the controller turns each one into
+its own BL8 read of the same 16-byte line, two reads per line, and the
+proxy's DFI probe counted "two valids per read" for an afternoon before the
+host was suspected. The same habit in the board probe made the transaction
+stride overlap (the "3-of-8 floor") the day before. Rule: the beat size and
+the stride come from the build's `axi_data_width` (`build_info()` on the
+board, `TEST_AXI_DATA_WIDTH` in the proxy), never from a constant; a narrow
+beat is a test of its own (`TEST_AXI_SIZE`, granite TASK-007), not the
+default stimulus.
+
+### An ILA capture must not reprogram a levelled board
+
+`capture_ila.tcl` programmed the ILA bitstream before arming, which resets
+the FPGA: the read-path cell the host had just found (IDELAY tap, bitslip,
+rddata_delay, DFI phase) was gone and the capture showed an unlevelled
+read. `CAP_NO_PROGRAM=1` attaches and arms only; program once with `make
+program BITSTREAM=.../ddr2_char_ila.bit`, level and set up over UART, then
+capture. The granite 1:4 capture (`board75_dfi4ila/cap_rd.py`) is the
+pattern: scan the cell, write under a "wr" trigger, read under a "rd"
+trigger, decode both CSVs and diff the DFI words written against the DFI
+words read, on both sides of the harness's `dfi_rddata_delay` -- that is
+how the one wrong beat per read run became "the first device word of the
+run, wrong on the PHY's own output" in one pass.

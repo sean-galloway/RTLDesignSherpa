@@ -39,7 +39,11 @@ from boards import get_board                            # noqa: E402
 
 BUILD_ID_LITEDRAM = 0x4C44_5232   # "LDR2" -- char_engine_harness BUILD_ID
 # litedram_hp.yml sys_clk_freq: the user_clk the harness timer counts in.
-LITEDRAM_CLK_MHZ = 75.0
+# The harness clock the bandwidth figures are scaled by. The shipped
+# bitstream is the 75 MHz build; LITEDRAM_CLK_MHZ=100 names the 100 MHz one
+# (bitstream/litedram_char_100mhz_*.bit) so its MB/s are not under-reported
+# by 4/3 (granite-vs-LiteDRAM 100 MHz sweep, 2026-10-29).
+LITEDRAM_CLK_MHZ = float(os.environ.get("LITEDRAM_CLK_MHZ", "75"))
 
 
 class LiteDRAMCharDriver(DDR2CharDriver):

@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — tasks
 
-**Next ID: TASK-007** — never recycle a number, even when its item closed.
+**Next ID: TASK-008** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -13,7 +13,7 @@ state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,7 +21,10 @@ state by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **TASK-007** — narrow AXI beats on the 128-bit host of the DFI 1:4 build
+  return wrong data back to back (8-byte beats, incremental: 1020 of 1024;
+  full-width and the 64-bit host's 4-byte beats clean); a write after a
+  mismatching read hangs the engine. [open/TASK-007.md](open/TASK-007.md).
 
 ## Active
 

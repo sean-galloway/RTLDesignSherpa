@@ -1,0 +1,9 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+close_page,half_pair,half_pair,1,32000,0,1,1,0,128000,100.0,323269,0.0025,39.60,290373,0.0025,44.08,189.00,32000,0,1,no merge / column-op telemetry on this build
+close_page,half_oct,half_oct,1,32000,0,1,1,0,128000,100.0,323254,0.0025,39.60,290361,0.0025,44.08,189.01,32000,0,1,no merge / column-op telemetry on this build
+close_page,half_pair_sweep,half_pair_sweep,1,32000,0,1,1,0,128000,100.0,323266,0.0025,39.60,290356,0.0025,44.08,189.01,32000,0,1,no merge / column-op telemetry on this build
+close_page,half_oct_sweep,half_oct_sweep,1,32000,0,1,1,0,128000,100.0,323254,0.0025,39.60,290379,0.0025,44.08,188.97,32000,0,1,no merge / column-op telemetry on this build
+open_page,half_pair,half_pair,1,32000,0,1,1,0,128000,100.0,33092,0.0025,386.80,40050,0.0025,319.60,48.02,32000,0,1,no merge / column-op telemetry on this build
+open_page,half_oct,half_oct,1,32000,0,1,1,0,128000,100.0,33092,0.0025,386.80,40044,0.0025,319.65,48.02,32000,0,1,no merge / column-op telemetry on this build
+open_page,half_pair_sweep,half_pair_sweep,1,32000,0,1,1,0,128000,100.0,176014,0.0025,72.72,144034,0.0025,88.87,107.96,32000,0,1,no merge / column-op telemetry on this build
+open_page,half_oct_sweep,half_oct_sweep,1,32000,0,1,1,0,128000,100.0,176014,0.0025,72.72,144043,0.0025,88.86,107.97,32000,0,1,no merge / column-op telemetry on this build
