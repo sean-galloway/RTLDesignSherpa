@@ -23,12 +23,17 @@
 
 # DV Matrix Dimensions
 
-**Status:** BLOCKED on a real RTL bug found by the grid (Task 12,
-2026-10-29): the pend_eff repeat-snoop resolution in `jet_control`
-(inherited from amber's `l1_control`) resolves a repeat snoop against the
-original post-fill state instead of chaining the armed pending effect —
-armed DOWNGRADE_S + READ_ONCE on an in-flight write-miss fill invalidates
-the line at commit and silently drops the store.  See the Task-12 report
+**Status:** the grid's RTL find is FIXED (BUG-004, 2026-10-29): the
+pend_eff repeat-snoop resolution in `jet_control` (inherited from
+amber's `l1_control`) resolved a repeat snoop against the original
+post-fill state instead of chaining the armed pending effect — armed
+DOWNGRADE_S + READ_ONCE on an in-flight write-miss fill invalidated the
+line at commit and silently dropped the store.  Both modules now chain
+the effect against the armed state (the grant-cycle CRRESP still answers
+at the post-fill row); the corner is pinned by the `PendArmedDowngradeRO`
+directed test (all levels), the amber oracle row
+`IM + SNOOP_READ_ONCE+in_pending=S`, and the formal `ap_pend_chain`
+safety property.  See the Task-12 report
 (.superpowers/sdd/2026-10-28-jet-mshr-implementation/task-12-report.md).
 The grid multiplies amber's matrix by the two jet knobs:
 
@@ -44,7 +49,7 @@ The grid multiplies amber's matrix by the two jet knobs:
 FULL at the sweep corners is the sign-off grid; the interior is sampled
 (seeds pinned per node by the repo-root conftest, as everywhere else).
 
-**Grid cells (the sign-off run is pending the RTL ruling above):**
+**Grid cells (the sign-off run):**
 
 - `test_jet_core` FULL: 32 cells -- every corner (MSHR {2,16} x VICTIM
   {1,4}) x {LRU,FIFO,RANDOM} x both geometries (24) + interior samples
@@ -82,7 +87,16 @@ FULL at the sweep corners is the sign-off grid; the interior is sampled
   plateau floor and, at K=2, literal full + the `mshr_full` stall.
 - Merge storms: repeated aliases to outstanding lines (`MergeStorm`).
 - Set-oversubscription pressure: miss bursts into one set
-  (`SetOversubscription`).
+  (`SetOversubscription`).  The stall window is `L_commit0 > 2 fast fill
+  times` (the overflow miss allocates at `fill_done(2)`; claim 0 frees
+  at commit-0 retire), so the v4 construction holds fill 0 GLACIAL while
+  the miss pair allocates and the merge list fills (cap `MSHR_COUNT`),
+  then runs FAST fills behind commit 0's merge lag.  The
+  `set_oversubscribed`/`mshr_full` stall is pinned at every cell except
+  K=4/WAYS=4, where the merge cap bounds the commit lag at ~19 cycles
+  against the ~26-cycle requirement — there the pin is the claim floor
+  (>= 3) and the stall stays covered by the K=2/WAYS=2 cells, the unit
+  TB, and the formal K=2 corner (the plateau finding above).
 - The composed corner: maximal MSHR pressure + WB-full (VICTIM_DEPTH
   reached) + snoop soak, dynamically (`ComposedCorner`) --
   complementing the formal proof (ch05/01) at the tiny geometry; the

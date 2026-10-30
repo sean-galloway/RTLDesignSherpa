@@ -806,11 +806,66 @@ module formal_jet_control (
                         : f_xsrc_array ? f_tstate
                         :                ST_I;
 
+    // ------------------------------------------------------------------
+    // Shadow of the pend_eff records (BUG-004): the MSHR effect record is
+    // written only by dut_mshr_sn_eff pulses (already I-sticks-gated in
+    // the DUT) and cleared at the alloc that reuses the entry, so this
+    // shadow is exact.  The last-grant shadow tracks the service in
+    // flight (grants land only at SN_IDLE -- one service at a time).
+    // ------------------------------------------------------------------
+    localparam [1:0] PEND_NONE  = 2'b00;
+    localparam [1:0] PEND_DN_S  = 2'b01;
+    localparam [1:0] PEND_INV_I = 2'b10;
+    // shared-domain (non-invalidating) snoop encodings (l1_pkg)
+    localparam [2:0] SN_RS = 3'b000;
+    localparam [2:0] SN_RO = 3'b001;
+    localparam [2:0] SN_CS = 3'b011;
+
+    reg [1:0] sh_pend [0:1];
+    reg [2:0] sh_gnt_type;
+    reg       sh_gnt_idx;
+    reg       sh_gnt_mshr;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            sh_pend[0] <= PEND_NONE;
+            sh_pend[1] <= PEND_NONE;
+        end else begin
+            // mirror the DUT's same-cycle ordering: the alloc clear wins
+            if (dut_mshr_sn_eff)
+                sh_pend[dut_mshr_sn_eff_idx] <= dut_mshr_sn_eff_value;
+            if (mshr_ev_alloc)
+                sh_pend[mshr_alloc_idx] <= PEND_NONE;
+        end
+    end
+    always @(posedge clk) begin
+        if (w_sn_gnt) begin
+            sh_gnt_type <= sn_type;
+            sh_gnt_idx  <= mshr_sn_match_idx;
+            sh_gnt_mshr <= f_xsrc_mshr;
+        end
+    end
+
     // =========================================================================
     // Safety properties (MAS ch05/01)
     // =========================================================================
     always @(posedge clk) begin
         if (rst_n) begin
+            // S5 (BUG-004): an armed downgrade-S survives a shared-domain
+            // repeat snoop on the pending fill -- RS/RO/CS are fixed
+            // points of the ARMED S, so the effect record for such a
+            // service is never INVALIDATE_I.  (The repeat snoop chains
+            // against the armed state; resolving it against the original
+            // post-fill M armed I and the commit silently dropped the
+            // merged store -- the Task-12 grid find.)
+            ap_pend_chain: assert (!(dut_mshr_sn_eff
+                                     && (dut_mshr_sn_eff_value == PEND_INV_I)
+                                     && sh_gnt_mshr
+                                     && (sh_gnt_idx == dut_mshr_sn_eff_idx)
+                                     && (sh_pend[dut_mshr_sn_eff_idx]
+                                         == PEND_DN_S)
+                                     && ((sh_gnt_type == SN_RS)
+                                         || (sh_gnt_type == SN_RO)
+                                         || (sh_gnt_type == SN_CS))));
             // S1: the grant-cycle answer-source pins -- the fixed match
             // order WB > MSHR > array with the pre-AR suppression and the
             // claimed-way (stale-victim) suppression, all against the
@@ -930,6 +985,16 @@ module formal_jet_control (
             cp_wb_bresp: cover (w_sn_gnt && obs_src_wb && wb_sn_bresp_cycle);
             // a retire straight out of a full MSHR file (the J6 release)
             cp_retire_full: cover (mshr_ev_retire && mshr_full);
+            // BUG-004 reachability: the armed-downgrade + repeat-snoop
+            // corner itself (grant on a pending fill whose shadow effect
+            // is DOWNGRADE_S, with a shared-domain snoop), and the armed
+            // downgrade surviving to the commit (the fill commits S)
+            cp_pend_armed_s_ro: cover (w_sn_gnt && f_xsrc_mshr
+                && (sh_pend[mshr_sn_match_idx] == PEND_DN_S)
+                && (sn_type == SN_RO));
+            cp_pend_armed_s_rs: cover (w_sn_gnt && f_xsrc_mshr
+                && (sh_pend[mshr_sn_match_idx] == PEND_DN_S)
+                && (sn_type == SN_RS));
         end
     end
 

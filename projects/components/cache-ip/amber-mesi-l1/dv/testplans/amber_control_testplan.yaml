@@ -144,6 +144,26 @@ scenarios:
       deterministic-but-UNCITED clear) and pinned with four new table rows
       in test_amber_oracle.py.
     status: covered
+  - name: ImStepArmedDowngradeReadOnce
+    level: func
+    what: >
+      BUG-004 (the jet Task-12 FULL-soak find; fixed in common-ip
+      l1_control): the symmetric ImStepPendingClearCorner hole -- a write
+      miss (IM fill); READ_SHARED arms the post-commit pending 'S'; a
+      later READ_ONCE must resolve the effect against the ARMED S (an
+      S-fixed-point), leaving the downgrade armed: the fill commits S with
+      the store merged. The pre-fix RTL resolved the repeat snoop against
+      the original post-fill M (divergence 1's M x RO -> I row), armed
+      pending 'I', and the commit silently dropped the store. CRRESP is
+      still answered at the post-fill M row either way. Pinned by the
+      oracle table row IM + SNOOP_READ_ONCE+in_pending=S and the chaining
+      pin test_oracle_pending_chains_armed_downgrade
+      (test_amber_oracle.py), plus the mapping-notes divergence-3 BUG-004
+      addendum; RTL-level, jet's PendArmedDowngradeRO directed test covers
+      the sibling jet_control implementation and amber's oracle-lockstep
+      soak covers l1_control organically. No dedicated amber RTL directed
+      stimulus (recorded, not silently taken).
+    status: covered
   - name: SnoopPendingFillBypass
     level: func
     what: >

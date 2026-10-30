@@ -129,7 +129,18 @@ All citations are `transition(...)` blocks in `MESI_Two_Level-L1cache.sm`.
    test. A second snoop inside the killed-upgrade window (SM converted to
    IM before the re-fetch commits) is answered at the installed S state in
    the RTL vs gem5's converted-IM M — a one-cycle window, recorded in the
-   control testplan gaps.
+   control testplan gaps. **BUG-004 pin (2026-10-29, the jet Task-12 grid
+   find):** the stickiness is *chaining*, not just non-clearing — a repeat
+   snoop's post-commit effect resolves against the **armed** state
+   (`_im_step`: `effective = pending or 'M'`), so an armed downgrade-S
+   followed by ReadOnce is an S-fixed-point and the fill commits S with
+   the store merged. Resolving the repeat snoop against the original
+   post-fill M instead arms invalidate-I (divergence 1's M row) and the
+   commit silently drops the store — the exact bug the jet FULL soak
+   caught in `jet_control`/`l1_control` (both fixed; CRRESP stays at the
+   post-fill row either way). New oracle row
+   `IM + SNOOP_READ_ONCE+in_pending=S` and the
+   `PendArmedDowngradeRO` directed test pin it.
 4. **Snoop during a fill is answered at the post-fill state** (the
    pending-fill bypass, MAS ch02/02). gem5 cannot see this case — a
    forwarded request never targets a line the directory knows is only

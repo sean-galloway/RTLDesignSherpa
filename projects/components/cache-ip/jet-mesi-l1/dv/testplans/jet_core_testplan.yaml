@@ -73,6 +73,14 @@ scenarios:
       at the post-fill state with PF_GUARD (no DataTransfer before every
       beat has landed); pend_eff lands after the install.
     status: covered
+  - name: PendArmedDowngradeRO
+    level: all
+    what: "BUG-004: an in-flight write-miss fill takes READ_SHARED (arms
+      pend_eff DOWNGRADE_S) then READ_ONCE; the effect chains against the
+      armed S, so the fill commits S with the store merged (readback hits
+      and returns the store) -- the pre-fix RTL resolved RO against the
+      post-fill M, armed INVALIDATE_I, and silently dropped the store."
+    status: covered
   - name: KilledUpgrade
     level: all
     what: A pre-grant MAKE_INVALID to the in-flight upgrade's line writes
@@ -132,7 +140,15 @@ scenarios:
       first fill.  Per-set live claims peak at min(WAYS, MSHR_COUNT)
       (exact at the min<=2 cells, floored at 3 elsewhere); the overflow
       stalls set_oversubscribed (or mshr_full when the file is the
-      smaller resource) until a commit frees a claim.
+      smaller resource) until a commit frees a claim.  The v4
+      construction: scrub the set clean, hold fill 0 GLACIAL while the
+      miss pair allocates and line 0's merge list fills (cap
+      MSHR_COUNT), then FAST fills behind commit 0's merge lag (the
+      stall window is L_commit0 > 2 fast fill times).  At K=4/WAYS=4
+      the window is unreachable by construction (merge-cap-bounded lag
+      ~19 cycles < the ~26-cycle requirement), so that cell pins the
+      claim floor only; the stall itself is pinned at the K=2/WAYS=2
+      cells, the unit TB, and the formal K=2 corner.
     status: covered
   - name: ComposedCorner
     level: full

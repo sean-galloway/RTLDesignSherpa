@@ -153,9 +153,12 @@
 //   fill, S for RNSD -- never the Invalid row) with PF_GUARD:
 //   DataTransfer/PassDirty are promised only when every fill beat has
 //   landed at the grant (a snoop never waits on a fill), and the state
-//   effect is recorded in the entry's pend_eff (invalidate dominates a
-//   later downgrade -- I-sticks, via the shadow this module keeps as the
-//   record's only driver).  Task 9 adds the pre-AR boundary to that
+//   effect is recorded in the entry's pend_eff.  Repeat snoops chain
+//   against the armed effect (BUG-004: the effect's next state resolves
+//   against the armed state, so an armed downgrade survives READ_ONCE
+//   and invalidate dominates a later downgrade -- I-sticks, via the
+//   shadow this module keeps as the record's only driver).  Task 9 adds
+//   the pre-AR boundary to that
 //   answer (the amber BUG-002 analog): an entry whose fill AR has not
 //   been accepted yet -- launch unaccepted, or the engine's AR
 //   outstanding (fill_ar_done_i low) -- is answered at the Invalid row
@@ -843,7 +846,26 @@ module jet_control
                                           ? AMBER_STATE_M : AMBER_STATE_S)
                          : w_src_array ? w_sn_tstate
                          :               AMBER_STATE_I;
-    assign w_sn_nxt    = amber_snoop_next_state(w_sn_ref, sn_type_i);
+    // pend_eff chaining (BUG-004): on a pending-fill-source snoop with an
+    // armed post-commit effect, the effect's next state resolves against
+    // the ARMED state -- the state the commit will install -- not the
+    // original post-fill reference (gem5 _im_step chaining; mapping-notes
+    // divergence 3: the armed effect is sticky).  The grant-cycle CRRESP
+    // stays at the post-fill row (w_sn_ref below): the bypass answers at
+    // pf_state, never at the pending effect.  I-sticks falls out: armed I
+    // -> effective I -> every next state is I.  An armed effect implies
+    // post-AR (effects arm only on SRC_MSHR resolutions), so the pre-AR
+    // exclusion above already covers the shadow's lifetime.
+    logic [2:0] w_sn_eff_ref;
+    assign w_sn_eff_ref =
+        (w_src_mshr
+         && (r_sn_pend[mshr_sn_match_idx_i] == JET_PEND_INVALIDATE_I))
+            ? AMBER_STATE_I
+        : (w_src_mshr
+           && (r_sn_pend[mshr_sn_match_idx_i] == JET_PEND_DOWNGRADE_S))
+            ? AMBER_STATE_S
+            : w_sn_ref;
+    assign w_sn_nxt    = amber_snoop_next_state(w_sn_eff_ref, sn_type_i);
 
     // PF_GUARD: the bypass promises data only when the fill can actually
     // deliver it -- every beat landed at the grant (a snoop never waits

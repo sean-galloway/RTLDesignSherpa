@@ -651,9 +651,23 @@ module l1_control
     assign sn_crresp_grant = amber_snoop_crresp(sn_ref_grant,
                                                 ctrl_snoop_type);
 
-    // snoop-side decode of the latched context (final service cycle)
+    // snoop-side decode of the latched context (final service cycle).
+    // pend_eff chaining (BUG-004): on a pending-fill / upgrade-line
+    // resolution with an armed post-commit effect, the next state
+    // resolves against the ARMED state -- the state the commit will
+    // install -- not the original post-fill reference (gem5 _im_step
+    // chaining; mapping-notes divergence 3: the armed effect is sticky).
+    // The grant-cycle CRRESP stays at the post-fill row (sn_ref_grant
+    // above): the bypass answers at pf_state, never at the pending
+    // effect.  Scoped to the pending line only: an installed-line tag
+    // write (sn_wr_tag) has !sn_pf_q && !sn_upgr_line_q, so it still
+    // resolves against the array hit state.  I-sticks falls out: armed I
+    // -> effective I -> every next state is I.
+    logic [2:0] sn_eff_ref;
     logic [2:0] w_sn_nxt;
-    assign w_sn_nxt = amber_snoop_next_state(sn_ref_q, sn_type_q);
+    assign sn_eff_ref = ((sn_pf_q || sn_upgr_line_q) && pend_vld_q)
+                        ? pend_state_q : sn_ref_q;
+    assign w_sn_nxt = amber_snoop_next_state(sn_eff_ref, sn_type_q);
 
     // tag downgrade/invalidate write on an installed line, applied on the
     // port-A cycle inside the service
@@ -821,9 +835,10 @@ module l1_control
             // end of the snoop service, consumed at fill commit. Only a
             // snoop that CHANGES the resolved reference state arms the
             // register (a fixed-point snoop -- e.g. READ_SHARED on an
-            // installed/pending S -- is a no-op); once armed, an
-            // invalidation is never overwritten by a later downgrade
-            // (invalidation-sticks).
+            // installed/pending S -- is a no-op); the resolution chains
+            // against the armed state (sn_eff_ref above, BUG-004), so an
+            // armed downgrade survives a later READ_ONCE and an armed
+            // invalidation is never overwritten (invalidation-sticks).
             if (state_q == OH_SNOOP && sn_complete
                 && (sn_return_q == OH_MISS_FILL)
                 && (sn_pf_q || sn_upgr_line_q)

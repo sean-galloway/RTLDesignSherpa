@@ -101,6 +101,7 @@ from projects.components.cache_ip.amber_mesi_l1.dv.golden.amber_fsm_oracle impor
 from projects.components.cache_ip.jet_mesi_l1.dv.tbclasses.jet_repl_models import (
     REPL_LRU,
     REPL_NAMES,
+    REPL_RANDOM,
     make_repl_model,
 )
 
@@ -1023,9 +1024,17 @@ class JetCoreTB(AmberControlTB):
         line_x = self._line_of(self._compose_addr(0x70, sp))
         n = await self._send(self._compose_addr(0x70, sp), 1,
                              wdata=0x1122334455667788, label='pf:wr_miss')
-        # let the fill launch, then snoop mid-flight (beats < full)
-        for _ in range(4):
+        # let the fill's AR land, then snoop mid-flight (beats < full) --
+        # a pre-AR snoop is the Invalid row (no bypass resolution), so the
+        # pin needs the AR observed first (the fixed-wait version missed
+        # the window at the tiny geometry under RANDOM)
+        for _ in range(self.RSP_TIMEOUT_CYCLES):
+            e = self.entries.get(line_x)
+            if e is not None and e['ar']:
+                break
             await self._negedge_settled()
+        else:
+            raise RuntimeError("pf: the write-miss fill never launched")
         await self._snoop(line_x, 'SNOOP_READ_SHARED', label='pf:rs_mid')
         await self._snoop(line_x, 'SNOOP_READ_UNIQUE', label='pf:ru_mid')
         await self._await_rsp(n, 'pf:rsp')
@@ -1033,6 +1042,45 @@ class JetCoreTB(AmberControlTB):
         self._score("pf: bypass resolutions exercised",
                     self.pf_grants > pf0, True)
         self._scenario('SnoopPendingFill')
+
+    async def _s_pend_armed_downgrade_ro(self):
+        """BUG-004 (the Task-12 grid find): an in-flight WRITE-miss fill
+        takes READ_SHARED (arms pend_eff DOWNGRADE_S) then READ_ONCE.
+        The effect's next state chains against the ARMED S -- RO is an
+        S-fixed-point -- so the fill commits S with the store merged.
+        The pre-fix RTL resolved RO against the original post-fill M,
+        armed INVALIDATE_I, and silently dropped the store.  The
+        lockstep pend-effect tap pins every arm; the post-commit slot
+        state and the readback pin the outcome (a dropped store refetches
+        stale memory)."""
+        sp = 6 % self.SETS
+        addr = self._compose_addr(0x88, sp)
+        line_x = self._line_of(addr)
+        self.set_profile('slow')
+        n = await self._send(addr, 1, be=(1 << self.STRB_W) - 1,
+                             wdata=0xB004_D0A6_0000_0000 | sp,
+                             label='b4:wr_miss')
+        # wait for the fill's AR (a pre-AR snoop is the Invalid row with
+        # no effect -- the corner needs the pending-fill bypass), then:
+        # RS arms DOWNGRADE_S; RO must leave the armed downgrade alone
+        for _ in range(self.RSP_TIMEOUT_CYCLES):
+            e = self.entries.get(line_x)
+            if e is not None and e['ar']:
+                break
+            await self._negedge_settled()
+        else:
+            raise RuntimeError("b4: the write-miss fill never launched")
+        await self._snoop(line_x, 'SNOOP_READ_SHARED', label='b4:rs')
+        await self._snoop(line_x, 'SNOOP_READ_ONCE', label='b4:ro')
+        await self._await_rsp(n, 'b4:rsp')
+        self.set_profile('fast')
+        self._score("b4: fill committed the armed downgrade (S, not I)",
+                    self._slot_state_of(line_x), 'S')
+        # the store survived: the read hits S and returns the merged data
+        await self._txn(addr, 0, label='b4:readback')
+        self._score("b4: readback hits (no refetch)",
+                    self.accept_log[-1], 'hit')
+        self._scenario('PendArmedDowngradeRO')
 
     async def _s_victim_claim_stall(self):
         """The Task-6-review deferred pin: w_victim_claimed (the
@@ -1361,10 +1409,16 @@ class JetCoreTB(AmberControlTB):
                                            label='sat:hit_mid'))
                 await self._snoop(self._line_of(hit_addrs[1]),
                                   'SNOOP_READ_SHARED', label='sat:sn_mid')
-        # the RTL occupancy gauge tracks the model through the stream
-        await self._negedge_settled()
-        self._score("sat: RTL occupancy == model",
-                    int(u.u_mshr.occupancy_o), len(self.entries))
+        # the RTL occupancy gauge tracks the model through the stream (the
+        # gauge's r_valid clear and the model's retire pop straddle one
+        # posedge at a retire boundary, so allow a few cycles to converge)
+        occ_match = False
+        for _ in range(4):
+            await self._negedge_settled()
+            if int(u.u_mshr.occupancy_o) == len(self.entries):
+                occ_match = True
+                break
+        self._score("sat: RTL occupancy == model", occ_match, True)
         self._score("sat: occupancy reached the sustainable plateau",
                     self.win_max_occupancy >= min(K, 3), True)
         # the overflow miss: at the K=2 corner the file fills and the
@@ -1449,10 +1503,30 @@ class JetCoreTB(AmberControlTB):
         resource) until a commit frees a claim.  The pin: per-set live
         claims peak at min(WAYS, MSHR_COUNT) -- reached exactly at the
         min<=2 cells (the claim window is one fill+commit) and floored
-        at 3 elsewhere (deeper set pressure needs commit lag, which the
-        write merges on the first two fills provide: store-merge slots
-        yield to fill beats, and the in-order completion queue backs up
-        behind them)."""
+        at 3 elsewhere.
+
+        The v4 construction (the window is L_commit0 > 2 fast fill
+        times, because the overflow miss allocates at fill_done(2) and
+        claim 0 frees at commit-0 retire):
+          1. scrub the set (clean residents: a dirty victim's capture
+             would pace the burst with WB stalls),
+          2. GLACIAL profile; send the miss PAIR first (entry 1's launch
+             pends behind fill 0 -- the single-outstanding engine paces
+             the later allocs, so the pair must not sit behind merge
+             sends), then the merge writes onto line 0 (they all land in
+             the glacial fill window; the per-entry merge list caps at
+             MSHR_COUNT),
+          3. FAST profile: fill 0's remaining beats hurry, commit 0 runs
+             with a full merge list (merge slots yield to fill 1's
+             streaming beats), fills 1..N stream back-to-back, the
+             overflow misses alloc two fill-times later with claims 0..3
+             still live -> the stall fires.
+        At K=4/WAYS=4 the window is unreachable by construction (the
+        merge cap K bounds commit-0's lag at ~19 cycles against the
+        ~26-cycle requirement; the plateau finding already moves the
+        MSHR-full property to the unit TB + the formal K=2 corner), so
+        the stall pin there is the claim floor only -- recorded in the
+        testplan/dv-matrix."""
         so = 13 % self.SETS
         K = self.MSHR_COUNT
         target = min(self.WAYS, K)
@@ -1460,32 +1534,63 @@ class JetCoreTB(AmberControlTB):
         exp_stall = (STALL_SET_OVERSUB if K > self.WAYS
                      else STALL_MSHR_FULL)
         stall0 = self.stall_cycles.get(exp_stall, 0)
-        # Fast fills; the first two lines are write misses with write
-        # merges: a commit's store-merge slots yield to fill beats, so
-        # the heavy commits lag the engine AND back up the in-order
-        # completion queue -- the later allocs' claims pile into the set
-        # and the overflow miss observes the stall.
-        self.set_profile('fast')
-        n_merge = min(K - 1, 5)
+        stalls_snapshot = dict(self.stall_cycles)
+        # 1. scrub the set: install WAYS clean (read-fill) lines, evicting
+        #    any dirty residents left by earlier scenarios
+        for i in range(self.WAYS):
+            await self._txn(self._compose_addr(0x140 + i, so), 0,
+                            label=f'ovb:scrub{i}')
+        # 2. the pair, then the deep merge list on line 0, all inside
+        #    fill 0's glacial window
+        self.set_profile('glacial')
+        n_merge = min(K - 1, 2 * self.FILL_BEATS - 1)
         ns = []
-        for i in range(self.WAYS + 2):
+        for i in range(2):
             ns.append(await self._send(self._compose_addr(0x1C0 + i, so),
                                        1, label=f'ovb:{i}'))
-            if i < 2 and n_merge:
-                for j in range(n_merge):
-                    ns.append(await self._send(
-                        self._compose_addr(0x1C0 + i, so,
-                                           (j + 1) % self.FILL_BEATS),
-                        1, label=f'ovb:{i}g{j}'))
+        for j in range(n_merge):
+            ns.append(await self._send(
+                self._compose_addr(0x1C0, so, (j + 1) % self.FILL_BEATS),
+                1, label=f'ovb:0g{j}'))
+        # 3. the burst: fill 0 hurries to done, commit 0 lags on the full
+        #    merge list while fills 1..N stream
+        self.set_profile('fast')
+        for i in range(2, self.WAYS + 2):
+            ns.append(await self._send(self._compose_addr(0x1C0 + i, so),
+                                       1, label=f'ovb:{i}'))
         await self._await_rsp(ns[-1], 'ovb:tail')
+        delta = {STALL_NAMES.get(k, k):
+                 v - stalls_snapshot.get(k, 0)
+                 for k, v in self.stall_cycles.items()
+                 if v - stalls_snapshot.get(k, 0)}
+        self.log.info(f"ovb: win_max_set_claims={self.win_max_set_claims} "
+                      f"stall deltas={delta}")
         floor = target if target <= 2 else 3
+        # RANDOM: the LFSR victim pick does not advance during a stall, so
+        # an overflow miss whose draw lands on a claimed way stalls until
+        # THAT way's commit retires -- the burst serializes behind the
+        # commits and claims never pile past the pair (the set_oversub
+        # stall itself fires richly: a random pick on a claimed way with
+        # just 2 live claims).  The pile floor is an LRU/FIFO property.
+        if self.REPL_POLICY == REPL_RANDOM:
+            floor = min(floor, 2)
         self._score("ovb: per-set claims reached the pressure floor",
                     self.win_max_set_claims >= floor, True)
         if target <= 2:
             self._score("ovb: per-set claims peaked at the smaller "
                         "resource", self.win_max_set_claims, target)
-        self._score(f"ovb: {STALL_NAMES[exp_stall]} stall observed",
-                    self.stall_cycles.get(exp_stall, 0) > stall0, True)
+        # the stall pin where the window is constructible (the docstring:
+        # K=4/WAYS=4 is the unreachable cell)
+        stall_constructible = not (self.WAYS >= 4 and K == 4)
+        if stall_constructible:
+            self._score(f"ovb: {STALL_NAMES[exp_stall]} stall observed",
+                        self.stall_cycles.get(exp_stall, 0) > stall0, True)
+        else:
+            self.log.info("ovb: K=4/WAYS=4 -- the stall window is not "
+                          "constructible (merge-cap-bounded commit lag "
+                          "< 2 fill times); the floor pin stands, the "
+                          "stall is pinned at the K=2/WAYS=2 cells + the "
+                          "unit TB + the formal K=2 corner")
         self._scenario('SetOversubscription')
 
     async def _s_composed_corner(self):
@@ -1606,6 +1711,7 @@ class JetCoreTB(AmberControlTB):
         await self._s_be_zero_write()
         await self._s_snoop_sequence()
         await self._s_snoop_pending_fill()
+        await self._s_pend_armed_downgrade_ro()
         await self._s_victim_claim_stall()
         await self._s_killed_upgrade()
         await self._s_response_tag_order()

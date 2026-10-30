@@ -330,6 +330,17 @@ def _build_table():
     add('IM', 'SNOOP_CLEAN_SHARED', in_pending='S', exp_next='IM',
         exp_result='RESPOND', ref='M', exp_crresp=CR_M_RS, exp_pending='S',
         cite='pending downgrade sticks through the fixed-point snoop (Task 4 corner)')
+    # BUG-004 (the jet Task-12 grid find; the fix lands in common-ip
+    # l1_control): the symmetric hole -- armed DOWNGRADE then READ_ONCE.
+    # The effect chains against the armed S (RO is an S-fixed-point), so
+    # the downgrade sticks and the fill commits S with the store merged;
+    # CRRESP is still answered at the post-fill M row.  The pre-fix RTL
+    # resolved RO against the post-fill M, armed INVALIDATE_I, and
+    # silently dropped the store.
+    add('IM', 'SNOOP_READ_ONCE', in_pending='S', exp_next='IM',
+        exp_result='RESPOND', ref='M', exp_crresp=CR_M_RO, exp_pending='S',
+        cite='BUG-004: the effect chains against the armed state (RO is an '
+             'S-fixed-point); the armed downgrade sticks')
 
     # =====================================================================
     # SM -- upgrade (CleanUnique) in flight; the S line stays installed,
@@ -526,6 +537,18 @@ def test_oracle_pending_composition():
     assert res.pending == 'I'
     res = step('IM', 'FILL_DONE', pending=res.pending)
     assert (res.next_state, res.result) == ('I', 'COMMIT')
+
+
+def test_oracle_pending_chains_armed_downgrade():
+    """BUG-004: RS arms the downgrade; a later READ_ONCE recomputes
+    against the armed S (a fixed point), so the fill commits S with the
+    store merged -- never I."""
+    res = step('IM', 'SNOOP_READ_SHARED')
+    assert res.pending == 'S'
+    res = step('IM', 'SNOOP_READ_ONCE', pending=res.pending)
+    assert res.pending == 'S'
+    res = step('IM', 'FILL_DONE', pending=res.pending)
+    assert (res.next_state, res.result) == ('S', 'COMMIT')
 
 
 # ---------------------------------------------------------------------------

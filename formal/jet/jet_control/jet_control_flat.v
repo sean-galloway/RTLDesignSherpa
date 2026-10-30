@@ -941,19 +941,19 @@ module jet_control (
 	output wire ctrl_error_o;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:428:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:431:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:430:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:433:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:432:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:435:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:434:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:437:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:436:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:439:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be >= 2");
 		if ((2 < 2) || (2 > 16))
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:438:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 2..16 (J1)");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:441:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 2..16 (J1)");
 		if ((2 < 1) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:440:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:443:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 1..4 (J5)");
 	end
 	localparam [2:0] STALL_NONE = 3'd0;
 	localparam [2:0] STALL_MSHR_FULL = 3'd1;
@@ -1209,6 +1209,8 @@ module jet_control (
 	assign w_src_array = ((~w_src_wb & ~w_src_mshr) & w_sn_thit) & ~w_sn_tclaimed;
 	assign w_sn_src = (w_src_wb ? SRC_WB : (w_src_mshr ? SRC_MSHR : (w_src_array ? SRC_ARRAY : SRC_NONE)));
 	assign w_sn_ref = (w_src_wb ? 3'b011 : (w_src_mshr ? (mshr_sn_install_i ? 3'b011 : 3'b001) : (w_src_array ? w_sn_tstate : 3'b000)));
+	wire [2:0] w_sn_eff_ref;
+	assign w_sn_eff_ref = (w_src_mshr && (r_sn_pend[mshr_sn_match_idx_i] == 2'b10) ? 3'b000 : (w_src_mshr && (r_sn_pend[mshr_sn_match_idx_i] == 2'b01) ? 3'b001 : w_sn_ref));
 	function automatic [2:0] l1_pkg_amber_snoop_next_state;
 		input reg [2:0] state;
 		input reg [2:0] snoop;
@@ -1237,7 +1239,7 @@ module jet_control (
 			l1_pkg_amber_snoop_next_state = nxt;
 		end
 	endfunction
-	assign w_sn_nxt = l1_pkg_amber_snoop_next_state(w_sn_ref, sn_type_i);
+	assign w_sn_nxt = l1_pkg_amber_snoop_next_state(w_sn_eff_ref, sn_type_i);
 	assign w_sn_deliver = (w_src_wb | w_src_array) | (w_src_mshr & (&mshr_sn_beats_rcvd_i));
 	function automatic [4:0] l1_pkg_amber_snoop_crresp;
 		input reg [2:0] state;

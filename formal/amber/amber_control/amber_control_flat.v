@@ -597,7 +597,9 @@ module l1_control (
 		end
 	endfunction
 	assign sn_crresp_grant = l1_pkg_amber_snoop_crresp(sn_ref_grant, ctrl_snoop_type);
+	wire [2:0] sn_eff_ref;
 	wire [2:0] w_sn_nxt;
+	assign sn_eff_ref = ((sn_pf_q || sn_upgr_line_q) && pend_vld_q ? pend_state_q : sn_ref_q);
 	function automatic [2:0] l1_pkg_amber_snoop_next_state;
 		input reg [2:0] state;
 		input reg [2:0] snoop;
@@ -626,7 +628,7 @@ module l1_control (
 			l1_pkg_amber_snoop_next_state = nxt;
 		end
 	endfunction
-	assign w_sn_nxt = l1_pkg_amber_snoop_next_state(sn_ref_q, sn_type_q);
+	assign w_sn_nxt = l1_pkg_amber_snoop_next_state(sn_eff_ref, sn_type_q);
 	wire sn_wr_tag;
 	assign sn_wr_tag = ((((sn_hit_any_q && !sn_pf_q) && !sn_stale_q) && !sn_victim_q) && !sn_upgr_line_q) && (w_sn_nxt != sn_hit_state_q);
 	wire sn_beat_gated;
