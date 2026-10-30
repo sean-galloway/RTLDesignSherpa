@@ -612,3 +612,115 @@ def test_granite_core_merge_fill_lag(request, merge_en):
         waves=bool(int(os.environ.get("WAVES", "0"))),
         plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
         keep_files=True, timescale="1ns/1ps")
+
+
+async def _dfi_cmd_monitor(dut, counts):
+    """Count the DRAM commands on the DFI pins, per phase: ACT, PRE, columns,
+    and columns with auto-precharge (address bit 10). Decoded on dfi_clk."""
+    row_w = 14                                     # _core_params ROW_WIDTH
+    while True:
+        await RisingEdge(dut.dfi_clk)
+        cs = int(dut.dfi_cs_n_o.value); ras = int(dut.dfi_ras_n_o.value)
+        cas = int(dut.dfi_cas_n_o.value); we = int(dut.dfi_we_n_o.value)
+        addr = int(dut.dfi_address_o.value)
+        for p in range(DFI_RATE):
+            if (cs >> p) & 1:
+                continue
+            code = ((ras >> p) & 1, (cas >> p) & 1, (we >> p) & 1)
+            if code == (0, 1, 1):
+                counts["act"] += 1
+            elif code == (0, 1, 0):
+                counts["pre"] += 1
+            elif code in ((1, 0, 0), (1, 0, 1)):
+                counts["col"] += 1
+                if (addr >> (p * row_w + 10)) & 1:
+                    counts["ap"] += 1
+
+
+@cocotb.test(timeout_time=20000, timeout_unit="us")
+async def cocotb_test_granite_core_page_mode(dut):
+    """The four page modes told apart on one stimulus (2026-10-30, mode 4):
+    two writes to one row of one bank, different columns, with the W data on
+    the slow_producer profile so the second write's fill lands long after
+    the first write has fired. At the first write's fire the second is
+    behind it in the bank (same row), so a close-on-drain column carries no
+    AP; the bank then sits idle with the row open for far longer than
+    tr_init (2) until the second fill lands.
+
+      mode 0 build default   : drain AP only      -> ACT 1, PRE 0, AP 1 (the 2nd write)
+      mode 1 static_open     : neither             -> ACT 1, PRE 0, AP 0
+      mode 3 fixed_open      : timeout only        -> ACT 2, PRE 1, AP 0 (the row was
+                                                      closed in the idle; the 2nd re-activates)
+      mode 4 drain_timeout   : both                -> ACT 2, PRE 1, AP 1
+    Every count is exact, so an inert mode fails rather than passes."""
+    mode = int(os.environ.get("PAGE_MODE", "0"))
+    want = {0: (1, 0, 1), 1: (1, 0, 0), 3: (2, 1, 0), 4: (2, 1, 1)}[mode]
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
+    _idle(dut)
+    dut.page_mode_i.value = mode
+    dut.page_tr_init_i.value = 2
+    dut.aresetn.value = 0
+    dut.dfi_rstn.value = 0
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    dut.dfi_rstn.value = 1
+    for _ in range(6):
+        await RisingEdge(dut.aclk)
+    bfm = _init_masters(dut)
+    bfm.set_profile("backtoback", channels=["aw", "b"])
+    bfm.set_profile("slow_producer", channels=["w"])    # W beats 8..20 cycles apart
+    captured = []
+    cocotb.start_soon(_dfi_model(dut, captured))
+    for _ in range(400):
+        await RisingEdge(dut.aclk)
+        if int(dut.init_done_o.value):
+            break
+    assert int(dut.init_done_o.value) == 1, "init never completed"
+    for _ in range(20):                           # let the init's own commands drain
+        await RisingEdge(dut.dfi_clk)
+    counts = {"act": 0, "pre": 0, "col": 0, "ap": 0}
+    cocotb.start_soon(_dfi_cmd_monitor(dut, counts))
+    rng = random.Random(int(os.environ.get("SEED", "1")))
+    burst_bytes = BL_WORDS * (DW // 8)
+    reqs = [(0x4000, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]),
+            (0x4000 + burst_bytes, [rng.randrange(1 << DW) for _ in range(BL_WORDS)])]
+    await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: k & 0xF), _PHASE_TIMEOUT_US, "us")
+    for _ in range(2000):
+        await RisingEdge(dut.dfi_clk)
+        if len(captured) >= 2 * BL_WORDS:
+            break
+    for _ in range(60):                           # the timeout PRE, if any, lands here
+        await RisingEdge(dut.dfi_clk)
+    dut._log.info("page mode %d: ACT=%d PRE=%d COL=%d AP=%d", mode,
+                  counts["act"], counts["pre"], counts["col"], counts["ap"])
+    assert counts["col"] == 2, f"expected 2 column commands, saw {counts['col']}"
+    got = (counts["act"], counts["pre"], counts["ap"])
+    assert got == want, f"page mode {mode}: (ACT, PRE, AP) = {got}, expected {want}"
+
+
+@pytest.mark.parametrize("page_mode", [0, 1, 3, 4])
+def test_granite_core_page_mode(request, page_mode):
+    """Page modes 0 / 1 / 3 / 4 told apart on the DFI command stream (FUNC level)."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "granite_core"
+    test_name = f"cocotb_test_granite_core_page_mode_{page_mode}"
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    params = dict(_core_params())
+    params["DFI_RD_FIFO_DEPTH"] = "0"
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+                 "COCOTB_LOG_LEVEL": "INFO", "PAGE_MODE": str(page_mode),
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env("func")}
+    extra_env.update(params)
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module, testcase="cocotb_test_granite_core_page_mode",
+        sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
+        compile_args=["+define+USE_ASYNC_RESET", "--assert"],
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")

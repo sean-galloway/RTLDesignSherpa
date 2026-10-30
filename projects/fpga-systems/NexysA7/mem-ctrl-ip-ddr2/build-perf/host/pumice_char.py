@@ -716,6 +716,22 @@ CONFIGS: Dict[str, ControllerConfig] = {
         "fixed_open_tr1", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=3, page_tr_init=1,
         order_mode=0, rd_in_order=True),
+    # drain_timeout (mode 4, 2026-10-30): the build default's close-on-drain
+    # auto-precharge (the LiteDRAM lookahead close, active in open_page) PLUS
+    # the fixed_open idle timeout. open_page has only the first, fixed_open_trN
+    # only the second; this is the one combination that was never measured.
+    "drain_timeout_tr1": ControllerConfig(
+        "drain_timeout_tr1", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=1,
+        order_mode=0, rd_in_order=True),
+    "drain_timeout_tr2": ControllerConfig(
+        "drain_timeout_tr2", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=2,
+        order_mode=0, rd_in_order=True),
+    "drain_timeout_tr4": ControllerConfig(
+        "drain_timeout_tr4", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=4,
+        order_mode=0, rd_in_order=True),
     # IS MODE 5's SIM/BOARD DIVERGENCE A REFRESH ARTEFACT? (Sean, 2026-09-26.)
     # Sim converts ~60%% of cold activations, the board ~3%%, on identical
     # stimulus. The refresh PRESSURE differs by 117x between them:

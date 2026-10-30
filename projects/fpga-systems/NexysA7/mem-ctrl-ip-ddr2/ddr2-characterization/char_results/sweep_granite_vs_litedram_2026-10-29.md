@@ -65,6 +65,31 @@ family; `multigen` = one writer and two readers.
 harness clock; peak is 600 MB/s at 75 MHz (DDR2-300 x16) and 800 at 100
 (DDR2-400). "merges 512/1024 (ratio 0.5)" means every pair merged.
 
+## The graphs (2026-10-30)
+
+Rendered by `build-perf/bin/plot_sweep.py` from the CSVs beside this file,
+in the STREAM characterization style: a line family where the knee has to
+be legible, grouped bars for the side by side, an annotated heatmap for the
+envelope. Each series' peak is the dotted line in its colour.
+
+![half_pair bandwidth against injector threads](plots/threads_knee_pair.png)
+
+![half_oct bandwidth against injector threads](plots/threads_knee_oct.png)
+
+![half_pair, percent of each series' peak against injector threads (pumice 50, granite 75 and 100, LiteDRAM 75 and 100 on one axis)](plots/threads_knee_pair_pct.png)
+
+![half_pair bandwidth against a fixed idle gap](plots/gap_knee.png)
+
+![half_pair at a fixed gap, percent of peak](plots/gap_knee_pct.png)
+
+![every pattern at bl8, side by side](plots/patterns_bars.png)
+
+![the envelope: every scenario as a percent of each series' peak](plots/envelope_heatmap.png)
+
+![col_major bandwidth against burst length](plots/burst_len_col_major.png)
+
+![col_major_interleaved bandwidth against burst length](plots/burst_len_col_major_interleaved.png)
+
 ## every  (54 granite cells, 18 LiteDRAM cells)
 
 | scenario | granite open_page | granite close_page | granite bank_interleave | LiteDRAM | granite best / LiteDRAM best |
@@ -353,3 +378,48 @@ granite ahead on 3 of 4 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
 granite ahead on 3 of 4 scenarios (best-config vs LiteDRAM, max of wr/rd)
 
+
+## pumice, the third controller (build-perf bitstream 2026-10-27, read and write combiners, 50 MHz sys / DDR2-200, peak 400 MB/s)
+
+pumice's board build runs at 50 MHz (its 75 MHz build does not close), so
+the MB/s are not comparable across the row; the percent-of-peak column is.
+`char_pumice_sweep_<profile>_2026-10-30.csv`, same host, same profiles, 0
+mismatched on all 132 cells. Open-page preset on pumice and granite.
+
+| scenario | pumice 50 MB/s (% of 400) | granite 75 MB/s (% of 600) | LiteDRAM 75 MB/s (% of 600) |
+|---|---|---|---|
+| every/incremental_bl8 | 381/382 (96%) | 576/578 (96%) | 554/564 (94%) |
+| every/row_major_bl8 | 384/384 (96%) | 578/581 (97%) | 569/580 (97%) |
+| every/col_major_bl8 | 181/181 (45%) | 292/333 (56%) | 304/386 (64%) |
+| every/col_major_interleaved_bl8 | 280/308 (77%) | 512/514 (86%) | 277/280 (47%) |
+| windows/mixed_bl8 | 131/108 (33%) | 147/147 (25%) | 119/119 (20%) |
+| windows/row_thrash_bl8 | 280/308 (77%) | 512/514 (86%) | 271/278 (46%) |
+| windows/random_bl8 | 267/287 (72%) | 468/481 (80%) | 286/298 (50%) |
+| half_threads/half_pair_thr1 | 195/147 (49%) | 294/243 (49%) | 243/286 (48%) |
+| half_threads/half_pair_thr2 | 194/195 (49%) | 291/293 (49%) | 71/72 (12%) |
+| half_threads/half_pair_thr4 | 157/194 (48%) | 268/289 (48%) | 70/71 (12%) |
+| half_threads/half_oct_thr4 | 189/189 (47%) | 215/249 (41%) | 70/71 (12%) |
+| half_gap/half_pair_gap0 | 190/142 (47%) | 286/238 (48%) | 242/280 (47%) |
+| half_gap/half_pair_gap1 | 66/98 (24%) | 99/147 (25%) | 99/148 (25%) |
+| concurrent/incremental_bl8 | 185/185 (46%) | 285/285 (47%) | 124/124 (21%) |
+| concurrent/col_major_bl8 | 74/74 (18%) | 106/106 (18%) | 124/124 (21%) |
+| multigen/incremental_bl8 | 73/146 (36%) | 128/257 (43%) | 93/186 (31%) |
+
+## page policy on granite: the lookahead close is already on, and the untried variant (2026-10-30)
+
+LiteDRAM's policy (open page, auto-precharge when the bank's lookahead
+holds another row) is granite's `CLOSE_ON_DRAIN`, active in every board
+preset (policy mode 0); `defaults` and `open_page` measured bit-identical.
+Mode 4 `drain_timeout` (that plus the idle-timeout PRE) measured
+bit-identical to open page on 96 cells. `fixed_open` (timeout PRE only)
+trades 7 to 57 percent on the row-miss cells against 10 percent on the
+bank-hop cells; the reason is the auto-precharge timing in the bank
+timers, see TASK-003. `char_granite_pagemode4_75_<profile>_2026-10-30.csv`,
+`char_granite_pagepol75_*_2026-10-29.csv`.
+
+| cell, MB/s wr/rd | open_page = drain_timeout | fixed_open tr2 | LiteDRAM 75 |
+|---|---|---|---|
+| col_major_bl8 | 292/333 | 311/360 | 304/386 |
+| col_major_interleaved_bl8 | 512/514 | 459/459 | 277/280 |
+| half_oct, 4 threads | 215/249 | 283/283 | 70/71 |
+| concurrent 1w+1r col_major | 106/106 | 166/166 | 124/124 |

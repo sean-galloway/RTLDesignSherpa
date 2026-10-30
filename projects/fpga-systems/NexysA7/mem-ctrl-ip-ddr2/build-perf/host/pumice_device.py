@@ -384,7 +384,7 @@ class Pumice(Device):
 
     def set_page_mode(self, mode: int, tr_init: Optional[int] = None) -> None:
         """PAGE_POLICY_CFG.policy_mode (0=legacy, 1=static_open, 2=static_close,
-        3=fixed_open; 4/5 RETIRED 2026-09-27, 6/7 RETIRED 2026-09-26 --
+        3=fixed_open, 4=drain_timeout (close-on-drain AP + idle timeout, 2026-10-30); 5 RETIRED 2026-09-27, 6/7 RETIRED 2026-09-26 --
         a write of 4..7 falls through to the build default)
         and, optionally, PAGE_TIMEOUT_CFG.tr_init for the timeout policies.
         (Modes 4..7 are retired and fall through to the build default.) Formerly

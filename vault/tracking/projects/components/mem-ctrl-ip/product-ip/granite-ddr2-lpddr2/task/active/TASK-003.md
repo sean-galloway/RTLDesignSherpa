@@ -988,3 +988,41 @@ LiteDRAM (360 vs 386), which is the pick's per-hop pipeline latency on a
 dependent PRE -> ACT -> RD chain (TASK-044's "gap 9 vs the floor of 6"),
 not the policy. A combined form (drain AP plus idle timeout in one mode)
 does not exist today; it is the one untried page-policy variant.
+
+### 2026-10-30, the untried page variant tried: drain AP + idle timeout (mode 4)
+
+Owner: "the one untried variant: try this." `mc_page_policy` mode 4
+`drain_timeout` keeps `ap_mode_en` low (so the pick's CLOSE_ON_DRAIN
+auto-precharge stays on) and runs the fixed_open idle timeout as well;
+host presets `drain_timeout_tr{1,2,4}`; directed test
+`test_granite_core_page_mode[0,1,3,4]` tells the four modes apart by
+exact (ACT, PRE, AP) counts on one fill-lag stimulus. Bitstream WNS
++0.212, 37,315 LUT. Board, granite 75 MHz, MB/s wr/rd:
+
+| cell | open_page (drain AP) | drain_timeout tr1 / tr2 / tr4 | fixed_open tr2 | LiteDRAM |
+|---|---|---|---|---|
+| col_major_bl8 | 292/333 | 292/333 (all three) | 311/360 | 304/386 |
+| col_major_interleaved_bl8 | 512/514 | 512/514 | 459/459 | 277/280 |
+| row_thrash / random | 512/514, 468/481 | same | 462/462, 446/460 | 271/278, 286/298 |
+| half_oct_thr4 | 215/249 | 214/249 | 283/283 | 70/71 |
+| half_pair_thr4 | 268/289 | 268/290 | 289/291 | 70/71 |
+| concurrent col_major_bl8 | 106/106 | 106/106 | 166/166 | 124/124 |
+| incremental / row_major | 576/578, 578/581 | same | 574/575, 578/580 | 554/564, 569/580 |
+
+Mode 4 is bit-identical to open page on all 96 cells, for a mechanical
+reason: with the drain AP on, the only row ever left open is one with a
+same-row follower already behind it, and that follower carries the AP
+when it fires; an idle timeout has nothing left to close. The variant is
+measured, kept (cheap, tested) and answered.
+
+What the same run shows instead: fixed_open (timeout PRE, drain AP off)
+beats the drain AP on every cell where a bank's next access is a
+different row -- col_major +7 percent, concurrent col_major +57 percent
+(106 to 166), half_oct 4 threads +14 / +32 percent -- and loses 10
+percent on the bank-hop and thrash walks. A background PRE two cycles
+after the last column lets the next ACT come sooner than the same close
+folded into the column as auto-precharge, which means the bank timers'
+AP accounting (tWR + tRP after a write with AP, tRTP + tRP after a read
+with AP) is conservative against the explicit PRE path by about two
+cycles. That is a scheduler-timing lead, not a page-policy one, and the
+next item on the col_major gap to LiteDRAM.

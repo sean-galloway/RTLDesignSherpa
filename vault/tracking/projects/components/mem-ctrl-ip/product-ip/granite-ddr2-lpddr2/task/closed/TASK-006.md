@@ -193,7 +193,11 @@ board table above: granite_core, granite_top_geared, the board target
 wrappers and the test runners' env defaults all say 1, a no-knob board
 build and a no-override proxy run were taken against it, and the merge
 tests keep the OFF state covered (`test_granite_core_merge[0]`,
-`_fill_lag[0]`).
+`_fill_lag[0]`). The default is a 75 MHz default: at 100 MHz (DDR2-400)
+the merge build misses by 2.544 ns on the pick-to-store fire path (78
+percent route) where the merge-off build closes at +0.011; the 100 MHz
+board builds set `GRANITE_STORE_MERGE_EN=0` until that path is registered
+(TASK-003 log, 2026-10-29 evening).
 
 **CLOSED 2026-10-29.** Outside this task: the proxy's DRAM model still
 anchors tWR at the controller's commit (pumice ISSUE-023); the held-WRITE

@@ -14,7 +14,11 @@
 //        1 static_open   ap=0 everywhere
 //        2 static_close  ap=1 everywhere
 //        3 fixed_open    ap=0; rows close by IDLE TIMEOUT instead
-//        4,5            RETIRED 2026-09-27 (were adapt_time / adapt_access).
+//        4 drain_timeout ap_mode_en=0 (the pick's CLOSE_ON_DRAIN auto-
+//                        precharge stays on) AND the idle timeout runs:
+//                        both close mechanisms (2026-10-30)
+//        5              RETIRED 2026-09-27 (was adapt_access); 4 was
+//                        adapt_time until then.
 //        6,7            RETIRED 2026-09-26 (were rbl_static / rbl_dyn) --
 //                        measured inert or harmful on silicon, see TASK-011.
 //                        A write to 4..7 falls through to the build default.
@@ -159,6 +163,24 @@ module mc_page_policy
     localparam logic [2:0] MODE_STATIC_OPEN  = 3'd1;
     localparam logic [2:0] MODE_STATIC_CLOSE = 3'd2;
     localparam logic [2:0] MODE_FIXED_OPEN   = 3'd3;
+    // 4 drain_timeout (2026-10-30, owner: "the one untried variant: try
+    // this"): BOTH close mechanisms at once. ap_mode_en_o stays 0, so the
+    // pick keeps its legacy auto-precharge rule -- CLOSE_ON_DRAIN, a column
+    // carries AP when no same-row entry sits behind it in its bank, the
+    // LiteDRAM lookahead close -- and the idle timeout below also runs, so a
+    // row left open by a column that HAD a same-row follower (which then
+    // did not come in time) is closed in the background after tr_init idle
+    // cycles instead of waiting for the next conflict. fixed_open (3) turns
+    // the drain AP off; static_open (1) has neither. Reuses the number
+    // adapt_time held until 2026-09-27. MEASURED on the board the same
+    // day (granite 75 MHz, every / windows / half_threads / concurrent,
+    // tr_init 1, 2 and 4): bit-identical to mode 0 on every cell. With the
+    // drain AP on, the only row ever left open is one with a same-row
+    // follower behind it, and that follower closes it when it fires; the
+    // timeout never finds an idle open row that matters. Kept because it
+    // is cheap, tested (test_granite_core_page_mode) and answers the
+    // question; TASK-003 log 2026-10-30 has the table.
+    localparam logic [2:0] MODE_DRAIN_TIMEOUT = 3'd4;
     // 4 (adapt_time) and 5 (adapt_access) RETIRED 2026-09-27, by Sean:
     // "remove the adaptive modes as showing no benefit".
     //
@@ -197,7 +219,8 @@ module mc_page_policy
     assign w_mode_on    = (policy_mode_i == MODE_STATIC_OPEN)
                        || (policy_mode_i == MODE_STATIC_CLOSE)
                        || (policy_mode_i == MODE_FIXED_OPEN);
-    assign w_timeout_on = (policy_mode_i == MODE_FIXED_OPEN);
+    assign w_timeout_on = (policy_mode_i == MODE_FIXED_OPEN)
+                       || (policy_mode_i == MODE_DRAIN_TIMEOUT);
 
     // ---- auto-precharge decision -------------------------------------------
     // ONE producer now: static_close. The predictor path (mode 5) and its
