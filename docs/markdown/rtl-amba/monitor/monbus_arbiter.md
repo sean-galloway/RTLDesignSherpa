@@ -121,7 +121,7 @@ Each client's monitor bus enters at the top and, when INPUT_SKID_ENABLE=1, lands
 
 ### Arbiter Request and Grant ACK Logic
 
-The module maps monitor bus protocol onto arbiter protocol.
+The module maps the monitor bus protocol onto the arbiter protocol.
 
 **Request Mapping**: each client's valid becomes an arbiter request —
 `request[i] = int_monbus_valid_in[i]`, i.e. the signal *after* the optional
@@ -135,7 +135,7 @@ grant_ack[i] = grant[i] && int_monbus_valid_in[i] && int_monbus_ready;
 ```
 
 The `int_monbus_ready` term is load-bearing and must not be dropped. Without it
-(`grant[i] && int_monbus_valid_in[i]` alone) the ack fires on every cycle the
+(`grant[i] && int_monbus_valid_in[i]` alone), the ack fires on every cycle the
 sink is back-pressuring, so the grant rotates continuously while **zero**
 transfers take place — breaking the grant-hold contract. That was a real defect;
 `val/amba/test_monbus_arbiter_grant_hold.py` is the regression that pins it.

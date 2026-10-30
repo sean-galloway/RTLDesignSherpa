@@ -194,7 +194,7 @@ Muxed by `cfg_data_mode`:
 
 ### Compare at the Handshake
 
-The hash is rotates and XORs, so the expected value is available in the cycle the beat arrives and the compare happens on the R handshake: a mismatch sets `o_data_error` and increments `o_beats_mismatched` in the next cycle, and `rresp` is checked at the same beat into `o_rresp_error`. (An earlier text chained two 32-bit multiplies through a four-stage pipeline with `rdata` dragged alongside; that pipeline, its DSPs and its drain condition are gone.)
+The hash is a chain of rotations and XORs, so the expected value is available in the cycle the beat arrives and the compare happens on the R handshake: a mismatch sets `o_data_error` and increments `o_beats_mismatched` in the next cycle, and `rresp` is checked at the same beat into `o_rresp_error`. (An earlier text chained two 32-bit multiplies through a four-stage pipeline with `rdata` dragged alongside; that pipeline, its DSPs, and its drain condition are gone.)
 
 Two registers keep the cone short at 100 MHz. The beat's byte address is not recomputed from the beat counter every beat: the first beat of a burst sits at the R address generator's base, and `r_beat_addr` holds each later beat's address, advanced by one beat on every handshake (the adder feeds the register, not the hash; without it the beat counter -> adder -> hash -> 64-bit compare path was 18 levels and the largest harness class on the Nexys A7 granite build, 2026-10-28). The per-beat XOR vector is registered before the bit-flip popcount (`r_beat_xor`, TASK-043), so `o_err_bits` lands two cycles after the beat, long before `cfg_done` can be sampled over a bus.
 

@@ -33,14 +33,14 @@
 
 The AXIL5 Slave Write provides a buffered AXI5-Lite write interface for slave devices.
 
-AXI5-Lite is AXI4-Lite plus the transaction ID and a few optional signal groups. It changes no channel's handshake, ordering or response semantics, so this module is structurally `axil4_slave_wr` with the ID and those groups threaded through the packed SKID payload.
+AXI5-Lite is AXI4-Lite plus the transaction ID and a few optional signal groups. It changes no channel's handshake, ordering, or response semantics, so this module is structurally `axil4_slave_wr` with the ID and those groups threaded through the packed SKID payload.
 
 - AXI5-Lite write path (AW, W and B channels)
 - Single-beat transactions: AXI-Lite has no burst support
 - Configurable skid buffers on every channel for timing closure
 - Elaboration fails on an illegal `AXIL_DATA_WIDTH` or `ID_WIDTH`
 - Transaction ID (`AWID`/`BID`, `ARID`/`RID`; `ID_WIDTH`) plus three optional signal groups (USER, TRACE, POISON), each independently enabled
-- With all groups disabled, the AXI4-Lite module of the same name plus the ID (mandatory on a Subordinate)
+- With all groups disabled, it is the AXI4-Lite module of the same name plus the ID (mandatory on a Subordinate)
 
 ---
 

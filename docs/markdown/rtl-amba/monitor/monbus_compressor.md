@@ -441,7 +441,7 @@ drives the slot the cycle after that.
 
 Each output stat is a 32-bit registered counter with no saturation guard, so
 they **wrap** at 2³². A capture long enough to overflow one (2³² records of a
-single format) silently rolls that counter back through 0 -- read them as
+single format) silently rolls that counter back through 0 — read them as
 free-running counters, not as protected totals.
 
 | Counter | Increments when |

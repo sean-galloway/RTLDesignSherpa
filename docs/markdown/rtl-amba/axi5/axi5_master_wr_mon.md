@@ -352,7 +352,7 @@ Every cycle inside the window is classified by the **W** data channel's valid/re
 | `perf_starv_cycles` | 32 | `!wvalid && wready`  | starvation (sink ready, no data) |
 | `perf_idle_cycles`  | 32 | `!wvalid && !wready` | idle |
 
-The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); utilization = `perf_prod_cycles / window_cycles` is off by one count -- negligible for long windows, use `window_cycles - 1` for exactness.
+The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); utilization = `perf_prod_cycles / window_cycles` is off by one count -- negligible for long windows; use `window_cycles - 1` for exactness.
 
 #### Throughput counters
 

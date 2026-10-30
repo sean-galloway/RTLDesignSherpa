@@ -94,7 +94,7 @@ counted.
 
 ![axis_monitor_lite block diagram](../../assets/rtl-amba/graphviz/axis_monitor_lite.png)
 
-The monitor only observes the stream tap; nothing goes back onto the stream. The packet and stall state tracks whether a packet is open, its beat count, the previous TID and TDEST, and how long a stall or an in-packet gap has lasted (in microseconds from the tick). Event detect turns that into the AXIS event classes. The event pick takes up to two per cycle by priority, and the output queue holds them for the bus, counting and later reporting anything it had to drop.
+The monitor only observes the stream tap; nothing goes back onto the stream. The packet and stall state tracks whether a packet is open, its beat count, the previous TID and TDEST, and how long a stall or an in-packet gap has lasted (in microseconds from the tick). Event detect turns that into the AXIS event classes. The event pick takes up to two per cycle by priority, and the output queue holds them for the bus, counting and later reporting anything it has to drop.
 
 ### Events
 

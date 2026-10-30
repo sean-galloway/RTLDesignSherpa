@@ -123,7 +123,7 @@ module gaxi_age_fifo_sync #(
 2. **Wait.** Each `age_dec` edge subtracts one from every entry that was valid before it and whose `age_cnt` is above zero. Zero holds. The edge that takes an `age_cnt` from 1 to 0 also sets that entry's `age_thresh` (`age_thresh_d = age_cnt == 1 && age_dec`), so flag and counter agree on every cycle: for every valid entry `age_thresh == (age_cnt == 0)`.
 3. **Head.** `rd_data_age` is the head's `age_cnt` and `rd_age_thresh` is the head's `age_thresh` gated by `rd_valid`.
 4. **Peek.** Position k+1 is the slot at the read address plus k+1, modulo DEPTH. The occupied slots are contiguous from the read address, so that slot's valid bit is exactly "entry k+1 exists"; its data and thresh flag are read off the same arrays as the head's.
-4. **Read.** The slot's valid bit clears; its age and flag are left in place and overwritten by the next write to that slot.
+5. **Read.** The slot's valid bit clears; its age and flag are left in place and overwritten by the next write to that slot.
 
 A write and a read in one cycle always touch different slots (the same slot would need full and empty at once), so neither disturbs the other's age.
 

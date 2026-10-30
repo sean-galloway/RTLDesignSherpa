@@ -179,7 +179,7 @@ module axi4ace_snoop_slave #(
 
 ![axi4ace_snoop_slave block diagram](../../assets/rtl-amba/graphviz/axi4ace_snoop_slave.png)
 
-The snoop-channel responder, on the cache side and mirroring `axi4ace_snoop_master`. Snoop requests (AC) arrive from the interconnect and drop down the left lane through a skid buffer to the cache controller. The controller's response (CR) and data (CD) climb their own lanes on the right back to the interconnect. It is pure transport: no snoop decode and no ordering logic.
+The snoop-channel responder is on the cache side and mirrors `axi4ace_snoop_master`. Snoop requests (AC) arrive from the interconnect and drop down the left lane through a skid buffer to the cache controller. The controller's response (CR) and data (CD) climb their own lanes on the right back to the interconnect. It is pure transport: no snoop decode and no ordering logic.
 
 ### Triple Buffer Design
 

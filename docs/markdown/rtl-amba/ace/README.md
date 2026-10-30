@@ -44,7 +44,7 @@ These modules are **channel movers with skid buffers**, not protocol controllers
 
 ### Key Features
 
-- **AXI4 + ACE payloads:** Full AXI4 address/data channels plus `AxSNOOP`, `AxDOMAIN`, `AxBAR` and the 4-bit ACE `RRESP` (IHI 0022H §D2.1). The optional `AWUNIQUE` (WriteEvict only) is not carried
+- **AXI4 + ACE payloads:** Full AXI4 address/data channels plus `AxSNOOP`, `AxDOMAIN`, `AxBAR` and the 4-bit ACE `RRESP` (IHI 0022H §D2.1). The optional `AWUNIQUE` (WriteEvict only) is not carried.
 - **Acknowledges:** Master read/write movers generate `RACK`/`WACK` one cycle after the transaction completes (no ordering semantics in the current subset); the slave movers take the manager's `RACK`/`WACK` and forward it to the backend
 - **Snoop transport:** AC in, CR/CD out (cache side) or AC out, CR/CD in (CCU side)
 - **Lite monitoring:** Front-side wrappers use `axi_monitor_lite`; snoop-side wrappers use `axi4ace_snoop_monitor_lite`

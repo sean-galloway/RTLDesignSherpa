@@ -195,7 +195,7 @@ Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, 
 The wake-up path is **not** zero-latency. Nothing is lost during those cycles: `fub_axis5_tready` is masked with `!cg_gating`, so it reads 0 while the clock is stopped.
 The register behind it holds its last value when the clock stops -- it does
 NOT fall on its own -- so without that mask a producer would see a
-still-asserted READY and lose a beat (TASK-076, fixed 2026-09-02) and the producer simply holds TVALID until the clock resumes. Both registers and the idle counter run on the ungated `aclk`, so the wake-up path stays live even while the core clock is stopped.
+still-asserted READY and lose a beat (TASK-076, fixed 2026-09-02). The producer simply holds TVALID until the clock resumes. Both registers and the idle counter run on the ungated `aclk`, so the wake-up path stays live even while the core clock is stopped.
 
 ### Reset Behavior
 

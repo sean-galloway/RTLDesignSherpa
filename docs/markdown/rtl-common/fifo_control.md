@@ -25,7 +25,7 @@
 
 ## Overview
 
-This is the shared brain that generates full/empty status flags for both FIFO variants (sync and async, the latter with either pointer encoding). All the tricky pointer arithmetic and mode-aware timing lives here.
+This is the shared brain that generates full/empty status flags for both FIFO variants (sync and async, the latter supporting either pointer encoding). All the tricky pointer arithmetic and mode-aware timing lives here.
 
 ## Parameters
 

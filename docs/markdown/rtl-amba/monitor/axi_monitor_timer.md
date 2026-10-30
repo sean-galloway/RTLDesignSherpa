@@ -356,7 +356,7 @@ latency = 0x0000_0005 - 0xFFFF_FFFF = 0x0000_0006 (6 cycles)
 - In practice, transaction latencies << 2^31 cycles
 
 **Mitigation:**
-If longer-term timestamps needed, extend timestamp to 64 bits (requires parameter addition).
+If longer-term timestamps are needed, extend the timestamp to 64 bits (requires parameter addition).
 
 ### Frequency Selection Is Not a Granularity Trade-off
 

@@ -123,7 +123,7 @@ Grant, rotate, repeat. A one-cycle grant goes out every cycle a winner exists, a
 
 Here the grant holds until the granted client asserts its own `grant_ack` bit, and the matrix doesn't move until that ACK arrives — priority state stays frozen mid-transaction. The part worth your attention: the post-ACK update and the next-winner calculation happen combinationally in the ACK cycle itself, and the new grant registers on the same edge. Feed it a steady stream of ACKs and grants come out back-to-back, no idle cycles.
 
-One guard, and it's deliberate: only the granted client's ack bit can retire the grant. ACKs from other clients are ignored (foreign-ack immunity). That hazard is real — an errant ack retiring a grant it didn't owns you a debug session — so the immunity is cheap insurance.
+One guard, and it's deliberate: only the granted client's ack bit can retire the grant. ACKs from other clients are ignored (foreign-ack immunity). That hazard is real — an errant ack retiring a grant it didn't own costs you a debug session — so the immunity is cheap insurance.
 
 ### Block Arbitration
 

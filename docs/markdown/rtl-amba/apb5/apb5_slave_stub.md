@@ -182,8 +182,8 @@ identical to [apb5_slave](apb5_slave.md#parity-implementation).
 A standalone completer, like `apb4_slave_stub`, with the user fields and the
 APB5 check bits added. A two-state FSM (IDLE > XFER_DATA) pushes the command into
 the command skid and, on a response, drives PREADY, PRDATA, PSLVERR and the user
-fields combinationally the same clock. With `ENABLE_PARITY = 1` the input *CHK are
-checked and the output *CHK generated.
+fields combinationally the same clock. With `ENABLE_PARITY = 1`, the input *CHK signals are
+checked and the output *CHK signals generated.
 
 ### Packet Formats
 

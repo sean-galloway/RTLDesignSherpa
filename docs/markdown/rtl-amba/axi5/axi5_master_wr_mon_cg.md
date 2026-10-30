@@ -55,7 +55,7 @@ Take the monitored write master and add power management. This module combines `
 
 ![axi5_master_wr_mon_cg block diagram](../../assets/rtl-amba/graphviz/axi5_master_wr_mon_cg.png)
 
-The base `axi5_master_wr_mon` is one box (see its own diagram). The clock is the heavy main column: `aclk` enters `amba_clock_gate_ctrl`, which counts down idle cycles and drives `gated_aclk` into the child. AXI traffic passes straight through; while the clock is gated the wrapper forces the incoming readies to 0 so no handshake is lost. Activity is `fub_axi` valids, the child's busy, and `fub_axi_awakeup` when `ENABLE_WAKEUP=1`, on the upstream side, plus the `m_axi` valids. The monitored child's `monbus_valid` and active-transaction count also count as activity, so the clock never stops under a pending packet.
+The base `axi5_master_wr_mon` is one box (see its own diagram). The clock is the heavy main column: `aclk` enters `amba_clock_gate_ctrl`, which counts down idle cycles and drives `gated_aclk` into the child. AXI traffic passes straight through; while the clock is gated, the wrapper forces the incoming readies to 0 so no handshake is lost. Activity is `fub_axi` valids, the child's busy, and `fub_axi_awakeup` when `ENABLE_WAKEUP=1` on the upstream side, plus the `m_axi` valids. The monitored child's `monbus_valid` and active-transaction count also count as activity, so the clock never stops under a pending packet.
 
 ---
 

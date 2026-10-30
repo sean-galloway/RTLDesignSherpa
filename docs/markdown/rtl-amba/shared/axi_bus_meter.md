@@ -146,7 +146,7 @@ The four 32-bit aggregate counters always increment based on the raw bus state (
 
 The per-channel arrays are 16 bits wide and `NUM_CHANNELS` deep. Only the bin selected by `i_channel_id` is incremented, and only when `i_channel_valid` is high. The caller asserts `i_channel_valid` whenever some channel is on the hook for the current cycle (for example mid-burst); for cycles where the engine has no work on any channel, `i_channel_valid` is left low and only the aggregate idle/starvation counts are attributed.
 
-Because 16 bits wraps after 65 536 cycles (~655 µs at 100 MHz), each per-channel counter has a companion sticky overflow bit. When a counter is at `16'hFFFF` and would increment again, its overflow bit latches high. The four bits per channel are packed `{prod, bp, starv, idle}` into `o_ch_overflow`. Software checks this mask after stopping the meter; any set bit means the burst outran 16-bit per-channel resolution and the per-channel numbers for that channel should be discarded (the aggregate 32-bit figures remain valid).
+Because a 16-bit counter wraps after 65 536 cycles (~655 µs at 100 MHz), each per-channel counter has a companion sticky overflow bit. When a counter is at `16'hFFFF` and would increment again, its overflow bit latches high. The four bits per channel are packed `{prod, bp, starv, idle}` into `o_ch_overflow`. Software checks this mask after stopping the meter; any set bit means the burst outran 16-bit per-channel resolution and the per-channel numbers for that channel should be discarded (the aggregate 32-bit figures remain valid).
 
 ### Recommended Wiring
 
@@ -169,7 +169,7 @@ driven from those blocks are registered and appear one clock after the inputs
 that produced them.
 
 Per-path cycle counts are not enumerated here; read the block that drives the
-signal you care about. No synthesis frequency or area figures are quoted --
+signal you care about. No synthesis frequency or area figures are quoted —
 none have been measured against a target device.
 
 Timing closure is therefore a question of the surrounding logic's slack, not of

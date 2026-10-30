@@ -80,7 +80,7 @@ determines the counter width and the maximum loadable value: counter width = `$c
 ![counter_load_clear block diagram](../assets/rtl-common/graphviz/counter_load_clear.png)
 
 `load` captures `loadval` into the match register. The count logic clears
-to 0 on `clear` (which wins), or on `increment` either adds one or wraps to 0
+to 0 on `clear` (which wins), or on `increment` it either adds one or wraps to 0
 when the count equals the match value. The count register feeds back up the
 right edge into that logic. A compare raises `done` while the count equals
 the match value; `count` and `done` both leave in the output bar.

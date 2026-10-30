@@ -355,7 +355,7 @@ The cfg_arb_max_thresh parameter requires careful configuration:
 
 **Valid Range**: Each client weight must be 1 to (MAX_LEVELS-1)
 **Zero Weights**: Zero-weight clients are effectively disabled
-**Dynamic Updates**: Weights can be changed runtime, but may cause temporary fairness violations during transition
+**Dynamic Updates**: Weights can be changed at runtime, but may cause temporary fairness violations during transition
 
 **Example Calculation** (4 clients, MAX_LEVELS=16):
 ```systemverilog

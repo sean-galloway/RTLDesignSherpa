@@ -51,7 +51,7 @@ The AXI5 Slave Read Monitor module combines the `axi5_slave_rd` interface with i
 
 ![axi5_slave_rd_mon block diagram](../../assets/rtl-amba/graphviz/axi5_slave_rd_mon.png)
 
-The base `axi5_slave_rd` is one box (see its own diagram). Traffic runs down the left through the AR stall gate, which ANDs `s_axi_arvalid` and its ready with the `block_ready` the monitor raises while its transaction table has room. The bus taps watch the `fub_axi` (backend) side below the base, unlike the AXI4 slave monitors, which tap `s_axi` and feed `axi_monitor_filtered`, which is built only when `USE_MONITOR=1`; its monitor-bus packets are the heavy edge out. With `cfg_monitor_enable` low the monitor is inert and never stalls the bus.
+The base `axi5_slave_rd` is one box (see its own diagram). Traffic runs down the left through the AR stall gate, which ANDs `s_axi_arvalid` and its ready with the `block_ready` the monitor raises while its transaction table has room. The bus taps watch the `fub_axi` (backend) side below the base, unlike the AXI4 slave monitors, which tap `s_axi` and feed `axi_monitor_filtered`, which is built only when `USE_MONITOR=1`; its monitor-bus packets are the heavy edge out. With `cfg_monitor_enable` low, the monitor is inert and never stalls the bus.
 
 ---
 

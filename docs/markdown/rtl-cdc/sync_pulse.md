@@ -32,7 +32,7 @@ The `sync_pulse` module provides metastability-safe pulse synchronization across
 clock domains. It converts a single-cycle pulse in the source clock domain into
 a single-cycle pulse in the destination clock domain, handling arbitrary clock
 frequency ratios. The trick is the toggle register: rather than trying to
-synchronize a one-cycle pulse the destination clock might never see, you toggle
+synchronize a one-cycle pulse that the destination clock might never see, you toggle
 a level and synchronize *that*. Multi-stage synchronization plus edge detection
 reconstructs the pulse on the other side — and as long as minimum spacing
 requirements are met, no pulse is ever lost.

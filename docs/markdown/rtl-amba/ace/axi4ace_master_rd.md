@@ -256,7 +256,7 @@ assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
 
 ## ACE Notes
 
-- `ARSNOOP[3:0]`, `ARDOMAIN[1:0]` and `ARBAR[1:0]` are straight payload pass-throughs; the module does not decode them or check that the combination is one Table D3-7 permits
+- `ARSNOOP[3:0]`, `ARDOMAIN[1:0]` and `ARBAR[1:0]` are straight payload pass-throughs; the module does not decode them or check that the combination is one that Table D3-7 permits
 - `RRESP[3:2]` (IsShared, PassDirty) rides the R skid with `RRESP[1:0]`; the module does not interpret it. A consumer that ignores it must make sure its manager never sends a response it cannot honour (see Table D3-15)
 - `RACK` is generated locally; do not drive `m_axi_rack` from outside
 - IDs (`ARID`/`RID`) are carried end-to-end; the module performs no ID matching or reordering

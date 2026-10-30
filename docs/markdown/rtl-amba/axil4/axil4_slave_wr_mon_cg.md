@@ -122,7 +122,7 @@ There is no runtime ID filter on AXI4-Lite: the protocol has no IDs to match.
 
 Base-module ports are forwarded unchanged EXCEPT `debug_block_ready`, which
 this wrapper does not bring out (use the base module when you need that tap).
-That includes the `cam_clear` control input (Input, 1) - synchronous clear of
+This includes the `cam_clear` control input (Input, 1) — synchronous clear of
 the monitor transaction CAM, driven from the harness clear control bit, e.g.
 CTRL[4]. The wrapper adds four ports:
 

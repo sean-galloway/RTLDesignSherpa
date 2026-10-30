@@ -215,7 +215,7 @@ gray2bin #(.WIDTH(8)) position_decoder (
 **Width scaling.** `binary[i]` is the XOR of Gray bits `i..WIDTH-1`, so the
 unshared cost is `WIDTH*(WIDTH-1)/2` XOR gates -- quadratic in WIDTH, as the
 module header notes ("WIDTH * (WIDTH/2 average)"). Synthesis shares the common
-prefixes, so realised area lands between linear and quadratic; do not budget it
+prefixes, so realized area lands between linear and quadratic; do not budget it
 as linear for wide converters. Delay grows with log(WIDTH), and the module
 works well up to 64+ bits.
 

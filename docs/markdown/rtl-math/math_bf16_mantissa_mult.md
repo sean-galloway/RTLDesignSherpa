@@ -77,9 +77,9 @@ module math_bf16_mantissa_mult(
 ![math_bf16_mantissa_mult block diagram](../assets/rtl-math/graphviz/math_bf16_mantissa_mult.png)
 
 The two 7-bit mantissas get their hidden bit and go through the 8x8 Dadda
-multiplier. Bit 15 of the 16-bit product says whether the product is in
+multiplier. Bit 15 of the 16-bit product indicates whether the product is in
 [2, 4); that bit selects which 7-bit window becomes the mantissa and which
-bits are guard, round and sticky. The raw product and `needs_norm` also
+bits are guard, round, and sticky. The raw product and `needs_norm` also
 leave as outputs for the caller.
 
 ### BF16 Structure
@@ -271,7 +271,7 @@ This wrapper is separate from the raw multiplier because:
 
 ### Round-to-Nearest-Even
 
-This module emits `ow_guard_bit`, `ow_round_bit` and `ow_sticky_bit` (the true
+This module emits `ow_guard_bit`, `ow_round_bit`, and `ow_sticky_bit` (the true
 sticky, unfolded since math ISSUE-001 (was MATH-001)). The consumer (`math_bf16_multiplier`) rounds
 up on `guard_bit & (round_bit | sticky_bit | lsb)` = `G & (R | S | LSB)` --
 textbook RNE; see the rounding note in

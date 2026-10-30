@@ -58,8 +58,8 @@ What it does:
 Two earlier versions of this page were wrong in opposite directions, so both
 are worth naming. One described a `cg_cycles_saved` output, a
 `cfg_cg_idle_threshold` input and `ENABLE_CLOCK_GATING` / `CG_IDLE_CYCLES`
-parameters; none of those exist anywhere in `rtl/amba`. The other -- the
-correction to the first -- concluded that the wrapper therefore gates
+parameters; none of those exist anywhere in `rtl/amba`. The other — the
+correction to the first — concluded that the wrapper therefore gates
 nothing and "will not reduce dynamic power". That was the more damaging
 error: it is false, and it steers an integrator away from the right part.
 The real controls are `cfg_cg_enable` and `cfg_cg_idle_count` (width
@@ -122,7 +122,7 @@ There is no runtime ID filter on AXI4-Lite: the protocol has no IDs to match.
 
 Base-module ports are forwarded unchanged EXCEPT `debug_block_ready`, which
 this wrapper does not bring out (use the base module when you need that tap).
-That includes the `cam_clear` control input (Input, 1) - synchronous clear of
+This includes the `cam_clear` control input (Input, 1) — synchronous clear of
 the monitor transaction CAM, driven from the harness clear control bit, e.g.
 CTRL[4]. The wrapper adds four ports:
 

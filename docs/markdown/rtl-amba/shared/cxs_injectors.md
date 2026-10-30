@@ -38,7 +38,7 @@ cxs_master_injector     = axis4_master_injector -> axis_to_cxs -> cxs_master    
 cxs_slave_pattern_check = s_cxs_* -> cxs_slave   -> cxs_to_axis -> axis4_slave_pattern_check
 ```
 
-Every `cfg_*` and status port is the wrapped AXIS block's, unchanged, so the expected and actual CRCs stay bit-identical to the AXIS pair, `axi4_slave_rd_injector` and `axi4_slave_wr_crc_check`. A harness that already drives the AXIS pair swaps them module for module.
+Every `cfg_*` and status port is the wrapped AXIS block's, unchanged, so the expected and actual CRCs stay bit-identical to the AXIS pair, `axi4_slave_rd_injector` and `axi4_slave_wr_crc_check`. A harness that already drives the AXIS pair can swap them module for module.
 
 ## The Link
 
@@ -46,7 +46,7 @@ The link profile is the RAPIDS CXS plane's (see [AXIS to CXS Adapters](../../../
 
 `cfg_interleave` round-robins channels beat by beat, so packets of different channels are open at the same time on the one link. That is legal CXS because packets are framed per stream (IHI 0079D 2.5.2). Both blocks key on the channel bits of `CXSSRCID` (`STREAM_SRCID_BITS`, default `$clog2(NUM_CHANNELS)`), and both ends must use the same value.
 
-On the checker, `ready_en` still gates the stream: held low, the receive FIFO fills and the link stops granting credits, which is what backpressure is on CXS.
+On the checker, `ready_en` still gates the stream: when held low, the receive FIFO fills and the link stops granting credits, which is what backpressure is on CXS.
 
 ## Parameters
 
