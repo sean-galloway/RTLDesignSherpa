@@ -6,7 +6,7 @@
 //
 // Module: l1_core
 // Purpose:
-//   First end-to-end cache top for the amber MESI L1 (MAS ch01 hierarchy):
+//   First end-to-end cache top for the cache-ip shared MESI L1 (MAS ch01 hierarchy):
 //   the shipping structural integrator for the nine landed FUBs --
 //   l1_cpu_frontend, l1_control (with the l1_pending_fill_bypass /
 //   l1_victim leaves), l1_tag_array, l1_data_array, l1_repl,

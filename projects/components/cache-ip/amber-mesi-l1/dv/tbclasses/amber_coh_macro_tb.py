@@ -6,7 +6,7 @@ named macro regression cell. The DUT is the wrapper amber_coh_macro_test
 landed tag/data/repl arrays + REAL l1_snoop_resp on the house
 axi4ace_snoop_slave transport; fill/drain timing stubs per D-12) -- the
 amber_snoop_resp_th wiring carried verbatim, so this class extends
-AmberSnoopRespTB rather than rebuilding the suite:
+L1SnoopRespTB rather than rebuilding the suite:
 
   gate  -- table30_directed (one transaction per reachable HAS Table 3.0
            cell) + EWriteHitPromotes, the Task-7 found-and-fixed pin
@@ -55,11 +55,11 @@ Created: 2026-10-08
 import random
 
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_snoop_resp_tb import (
-    AmberSnoopRespTB,
+    L1SnoopRespTB,
 )
 
 
-class AmberCohMacroTB(AmberSnoopRespTB):
+class AmberCohMacroTB(L1SnoopRespTB):
     """Coherence/snoop loop macro: the promoted Task 7 closed loop.
 
     The superclass owns every scenario (this is the promotion, not a

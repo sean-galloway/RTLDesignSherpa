@@ -4,7 +4,7 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/seangalloway/RTLDesignSherpa
 #
-# Module: AmberFrontendTB
+# Module: L1CpuFrontendTB
 # Purpose: Testbench for the l1_cpu_frontend GAXI slave (Task 8, MAS
 # ch02_blocks/09 + ch03_interfaces/01)
 
@@ -87,7 +87,7 @@ FILL_DONE_DELAY = 6          # cycles between last beat and fill_done
 DRAIN_LATENCY = None         # set per-geometry: FILL_BEATS + 2
 
 
-class AmberFrontendTB(TBBase):
+class L1CpuFrontendTB(TBBase):
     """Scores l1_cpu_frontend's GAXI contract through the real closure."""
 
     FULL_TXN = {'gate': 0, 'func': 0, 'full': 2500}
@@ -122,7 +122,7 @@ class AmberFrontendTB(TBBase):
 
         # observation log: (cyc, kind, payload); cyc ticks at negedge
         self.events = []
-        # incremental accept tracking (see AmberCoreTB._txn_begin -- avoids
+        # incremental accept tracking (see L1CoreTB._txn_begin -- avoids
         # per-poll O(len(events)) scans)
         self.n_accept = 0
         self.last_accept = None
@@ -144,7 +144,7 @@ class AmberFrontendTB(TBBase):
         self.dropped = 0
         self.scenarios = {}
 
-        self.log.info(f"AmberFrontendTB b{self.DATA_WIDTH} "
+        self.log.info(f"L1CpuFrontendTB b{self.DATA_WIDTH} "
                       f"line={self.LINE_BYTES} level={self.TEST_LEVEL} "
                       f"seed={self.SEED}")
 

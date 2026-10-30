@@ -121,7 +121,7 @@ scenarios:
     status: covered
     description: >
       Seeded random CPU traffic against the observation-driven 1-cache
-      oracle (AmberCoreTB machinery) with mid-miss + idle snoops, responder
+      oracle (L1CoreTB machinery) with mid-miss + idle snoops, responder
       profile switches, and the manager model closing the ACE pins; MonBus
       tally cross-check; final pin accounting (one AR per fill launch with
       the matching ARSNOOP, one WriteBack AW per drain, one CleanUnique

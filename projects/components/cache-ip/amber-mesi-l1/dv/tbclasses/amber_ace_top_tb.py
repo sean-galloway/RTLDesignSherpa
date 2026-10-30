@@ -8,7 +8,7 @@ master pins (AR+ARSNOOP/R, AW+AWSNOOP/W/B, auto-pulsed RACK/WACK) are
 closed by hand-rolled GAXI responders over the shared MemoryModel; the ACE
 snoop responder port is driven by the house snoop master; the CPU side by
 the house GAXI BFM pair. What this suite pins ON TOP of the l1_core
-integration contract (the model machinery is inherited from AmberCoreTB):
+integration contract (the model machinery is inherited from L1CoreTB):
 
   * Table 2.8.1 row-by-row on the master pins: a read miss drives AR with
     ARSNOOP=ReadNotSharedDirty; a write miss drives AR with
@@ -65,7 +65,7 @@ from CocoTBFramework.components.ace.ace_transaction import (
 )
 
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_core_tb import (
-    AmberCoreTB,
+    L1CoreTB,
     _parse_packet,
     ST_ERROR,
     EV_DROPPED,
@@ -115,7 +115,7 @@ AWONLY_ID = 0x01
 _SNOOP_CODES = [int(t) for t in SnoopType]
 
 
-class AmberAceTopTB(AmberCoreTB):
+class AmberAceTopTB(L1CoreTB):
     """The amber_ace_top rig: one ACE cache against the onyx-D2 manager
     model, scoring the inherited integration contract plus the Table 2.8.1
     master-pin behavior."""

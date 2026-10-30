@@ -6,7 +6,7 @@
 //
 // Module: l1_monlite
 // Purpose:
-//   Drop-and-count MonBus observer for the amber MESI L1 (DECISION D8,
+//   Drop-and-count MonBus observer for the cache-ip shared MESI L1 (DECISION D8,
 //   MAS ch04): taps the l1_core control-plane signals and emits one
 //   128-bit house-format MonBus packet per Table 4.1.1 event class. The
 //   observer drives nothing in the observed path -- a packet the monbus

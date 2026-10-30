@@ -23,7 +23,7 @@ from cocotb.triggers import Timer
 from TBClasses.shared.tbbase import TBBase
 
 
-class AmberSnoopKmapTB(TBBase):
+class L1SnoopKmapTB(TBBase):
     """Scores l1_snoop_kmap against the HAS Table 3.0 truth table."""
 
     # cache_state_t encodings (l1_pkg): 3-bit, MESI now + MOESI headroom
@@ -51,7 +51,7 @@ class AmberSnoopKmapTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.checks = 0
         self.mismatches = 0
-        self.log.info("AmberSnoopKmapTB: HAS Table 3.0 decode")
+        self.log.info("L1SnoopKmapTB: HAS Table 3.0 decode")
 
     # -- the three mandatory methods; the DUT is purely combinational --------
     async def setup_clocks_and_reset(self):

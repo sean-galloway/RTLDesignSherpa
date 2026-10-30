@@ -6,7 +6,7 @@
 //
 // Module: l1_pkg
 // Purpose:
-//   Shared package for the amber MESI L1 cache: geometry parameter defaults
+//   Shared package for the cache-ip shared MESI L1 cache: geometry parameter defaults
 //   (HAS Table 5.0), derived quantities, MESI state encodings, snoop type
 //   encodings, replacement / write policy enums, the control-plane enums
 //   (FSM states, MonBus event codes, ACE request classes, miss classes),

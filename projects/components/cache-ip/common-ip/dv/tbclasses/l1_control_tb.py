@@ -4,7 +4,7 @@ l1_control testbench
 Blocking-pipeline control FUB bring-up (Task 3: CPU path), extended with
 snoop-during-fill service (Task 4): the pending-fill bypass (MAS ch02/02)
 and CTRL_SNOOP port-B service, scored lockstep against the Task 2
-gem5-derived oracle (dv/golden/amber_fsm_oracle.py). The harness
+gem5-derived oracle (dv/golden/l1_fsm_oracle.py). The harness
 (dv/tb/l1_control_th.sv) wires the DUT to the landed tag/data/repl arrays;
 this TB models the partner handshakes (frontend/fill/drain/victim/snoop)
 timing-only per D-12 -- never protocol. The snoop driver models the
@@ -91,7 +91,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     SNOOP_CODES,
     step as oracle_step,
 )
@@ -158,7 +158,7 @@ class LruModel:
                 self.rank[s][w] += 1
 
 
-class AmberControlTB(TBBase):
+class L1ControlTB(TBBase):
     """Scores l1_control's observable behavior against the oracle."""
 
     FULL_TXN = {'gate': 0, 'func': 0, 'full': 10_000}
@@ -236,7 +236,7 @@ class AmberControlTB(TBBase):
         # accounting never mistakes them for fill beats
         self._suppress_fill_wr = False
 
-        self.log.info(f"AmberControlTB sets={self.SETS} ways={self.WAYS} "
+        self.log.info(f"L1ControlTB sets={self.SETS} ways={self.WAYS} "
                       f"level={self.TEST_LEVEL} seed={self.SEED}")
 
     # ------------------------------------------------------------------

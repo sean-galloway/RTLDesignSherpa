@@ -25,7 +25,7 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.cache_ip.common_ip.dv.tbclasses.l1_data_array_tb import AmberDataArrayTB
+from projects.components.cache_ip.common_ip.dv.tbclasses.l1_data_array_tb import L1DataArrayTB
 
 FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 
@@ -38,7 +38,7 @@ GEOMS = [
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
 async def cocotb_test_l1_data_array(dut):
-    tb = AmberDataArrayTB(dut)
+    tb = L1DataArrayTB(dut)
     await tb.setup_clocks_and_reset()
     ok = await tb.run()
     report = tb.get_test_report()

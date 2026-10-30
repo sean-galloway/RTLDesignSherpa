@@ -6,7 +6,7 @@
 //
 // Module: l1_fill
 // Purpose:
-//   AXI4 read-master sequencing engine for the amber MESI L1 (MAS
+//   AXI4 read-master sequencing engine for the cache-ip shared MESI L1 (MAS
 //   ch02_blocks/06 + ch03_interfaces/02): on fill_start from l1_control
 //   it issues one whole-line INCR read burst to the downstream memory and
 //   forwards the received beats, in order, on the fill_beat_* control-side

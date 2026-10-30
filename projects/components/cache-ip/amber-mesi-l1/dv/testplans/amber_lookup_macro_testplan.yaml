@@ -19,7 +19,7 @@ test_files:
 # + the landed block contracts MAS ch02_blocks/01,03,04. The wrapper is
 # pure wiring: the data-array write mux (control CPU merge wins over fill
 # beats) and the tag-array port-B mux are the landed harness idioms. The
-# scoreboard is the Task 2 gem5-derived oracle lockstep (AmberControlTB
+# scoreboard is the Task 2 gem5-derived oracle lockstep (L1ControlTB
 # machinery) against the REAL arrays and repl engine.
 
 parameters:

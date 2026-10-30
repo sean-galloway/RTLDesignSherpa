@@ -139,7 +139,7 @@ scenarios:
       the fill commits I (invalidation-sticks, gem5 IS_I .sm:1390,
       mapping-notes divergences 3/8); the replayed write re-fetches
       (READ_UNIQUE) and ends M with the store merged. The oracle corner
-      itself was closed in amber_fsm_oracle.py (_im_step keeps a pending
+      itself was closed in l1_fsm_oracle.py (_im_step keeps a pending
       effect through a fixed-point snoop instead of the previous
       deterministic-but-UNCITED clear) and pinned with four new table rows
       in test_l1_oracle.py.

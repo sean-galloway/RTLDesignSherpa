@@ -41,7 +41,7 @@ mon_time is a core input; this TB sources it with the same free-running
 counter the Task 9 TB uses (rig-level sourcing is Task 11).
 
 Inherits the GAXI stimulus path, memory responders, MonBus plumbing and
-scoring idioms from AmberCoreTB; the oracle/coherence model machinery and
+scoring idioms from L1CoreTB; the oracle/coherence model machinery and
 directed scenarios are unused here (parity cells run no snoops -- the
 cache_sim golden has no coherence).
 
@@ -57,7 +57,7 @@ import cocotb
 from cocotb.triggers import FallingEdge, Timer
 
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_core_tb import (
-    AmberCoreTB,
+    L1CoreTB,
     ST_MISS_VICTIM,
     ST_ERROR,
 )
@@ -147,7 +147,7 @@ class ModelJsCache:
         return False, set_idx, way
 
 
-class AmberParityTB(AmberCoreTB):
+class AmberParityTB(L1CoreTB):
     """Trace-replay parity TB; see module docstring."""
 
     SEND_CHUNK = 8192

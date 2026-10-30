@@ -26,7 +26,7 @@
 **Modules:** `l1_tag_array.sv`, `l1_data_array.sv`
 **Location:** `projects/components/cache-ip/common-ip/rtl/fub/`
 **Status:** RTL landed 2026-10-06; this chapter is the micro-architecture
-contract the RTL implements. DV: `dv/tests/test_amber_tag_array.py + test_amber_data_array.py`,
+contract the RTL implements. DV: `cache-ip/common-ip/dv/tests/test_l1_tag_array.py + test_l1_data_array.py`,
 green at gate/func/full across the default and tiny-formal geometries.
 
 ---

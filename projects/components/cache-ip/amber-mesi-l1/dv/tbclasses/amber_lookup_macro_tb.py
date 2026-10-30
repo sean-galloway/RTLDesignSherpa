@@ -4,7 +4,7 @@ amber_lookup_macro testbench -- macro suite 1: the lookup dataplane group
 Task 9.5 macro composition: the DUT is the wrapper amber_lookup_macro_test
 (control + landed tag/data/repl arrays, fill/drain/victim/snoop partners
 stubbed at the boundary per D-12). The class reuses the landed control TB
-machinery (AmberControlTB: partner stubs, every-cycle monitors, golden
+machinery (L1ControlTB: partner stubs, every-cycle monitors, golden
 models, the oracle lockstep scorer) and runs the lookup-focused scenario
 list: init-walk interaction with the real arrays, hit/miss decode +
 multi-way compare, write-hit promotion (S/M via the datapath; the E->M
@@ -26,11 +26,11 @@ Created: 2026-10-08
 import random
 
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_control_tb import (
-    AmberControlTB,
+    L1ControlTB,
 )
 
 
-class AmberLookupMacroTB(AmberControlTB):
+class AmberLookupMacroTB(L1ControlTB):
     """Lookup dataplane macro: control + real arrays + repl in the loop."""
 
     # randomized soak transaction count per level

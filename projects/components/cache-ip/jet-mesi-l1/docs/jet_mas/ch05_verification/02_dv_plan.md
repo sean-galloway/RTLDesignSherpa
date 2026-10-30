@@ -31,7 +31,7 @@ amber's (Pattern-B cocotb GATE/FUNC/FULL grids, per amber D9):
 1. **Unit TBs:** `jet_mshr` (alloc/match/merge/retire + oversubscription),
    `jet_wb_buffer` (capture/drain/snarf/BRESP ordering), `jet_rsp_seq`
    (release order under random completion).
-2. **`jet_control` core TB** — the big one. Reuses the `AmberControlTB`
+2. **`jet_control` core TB** — the big one. Reuses the `L1ControlTB`
    machinery (monitor taps, LRU model, gem5-derived `oracle_step`, snoop
    driver) with one structural change: the per-transaction slice checks
    (amber assumed a blocking pipeline — one transaction's events fall in

@@ -24,7 +24,7 @@
 # gem5 FSM Cross-Check
 
 **Status:** planned contract. The coherence semantics are per-line and
-timing-free, so the gem5-derived `amber_fsm_oracle` carries over unchanged:
+timing-free, so the gem5-derived `l1_fsm_oracle` carries over unchanged:
 every stable and transient transition is still pinned against the
 `MESI_Two_Level-L1cache.sm` derivation, and jet adds NO line states.
 

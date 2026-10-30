@@ -1,5 +1,5 @@
 """
-amber_fsm_oracle test runner
+l1_fsm_oracle test runner
 
 Two halves, one file:
 
@@ -10,7 +10,7 @@ Two halves, one file:
    gem5-ruby-protocols/MESI_Two_Level-L1cache.sm`` (line numbers as of the
    2026-10 checkout; the mapping/collapse rationale per group lives in
    ``dv/golden/gem5_mapping_notes.md``). Reserved/illegal encodings and
-   unreachable cells must raise ``AmberOracleError``.
+   unreachable cells must raise ``L1OracleError``.
 
 2. cocotb, pkg-pin: drives the landed ``l1_snoop_kmap`` leaf (the module
    wrapper over the ``l1_pkg`` Table 3.0 decode functions, compiled via
@@ -42,13 +42,13 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
-    AmberOracleError,
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
+    L1OracleError,
     STATES,
     EVENTS,
     step,
 )
-from projects.components.cache_ip.common_ip.dv.tbclasses.l1_oracle_tb import AmberOracleTB
+from projects.components.cache_ip.common_ip.dv.tbclasses.l1_oracle_tb import L1OracleTB
 
 FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 
@@ -502,28 +502,28 @@ def test_oracle_table_inventory():
                          ids=[f'{s}+{e}' for s, e in UNREACHABLE_CELLS])
 def test_oracle_unreachable_cells_raise(state, event):
     """Cells with no legal transition must raise, never guess."""
-    with pytest.raises(AmberOracleError):
+    with pytest.raises(L1OracleError):
         step(state, event)
 
 
 @pytest.mark.parametrize('state', RESERVED_STATE_NAMES)
 def test_oracle_reserved_state_encodings_raise(state):
     """Reserved line-state encodings (incl. MOESI O) land in ERROR."""
-    with pytest.raises(AmberOracleError):
+    with pytest.raises(L1OracleError):
         step(state, 'SNOOP_READ_SHARED')
-    with pytest.raises(AmberOracleError):
+    with pytest.raises(L1OracleError):
         step(state, 'CPU_RD')
 
 
 def test_oracle_reserved_snoop_encodings_raise():
     """Snoop codes 6/7 are not IHI0022 encodings; the oracle refuses them."""
     for bad in ('SNOOP_RESERVED_6', 'SNOOP_RESERVED_7', 6, 7):
-        with pytest.raises(AmberOracleError):
+        with pytest.raises(L1OracleError):
             step('I', bad)
 
 
 def test_oracle_unknown_event_raises():
-    with pytest.raises(AmberOracleError):
+    with pytest.raises(L1OracleError):
         step('I', 'BOGUS_EVENT')
 
 
@@ -556,7 +556,7 @@ def test_oracle_pending_chains_armed_downgrade():
 # ---------------------------------------------------------------------------
 @cocotb.test(timeout_time=600, timeout_unit="ms")
 async def cocotb_test_l1_oracle_pkg_pin(dut):
-    tb = AmberOracleTB(dut)
+    tb = L1OracleTB(dut)
     await tb.setup_clocks_and_reset()
     ok = await tb.run(TABLE)
     report = tb.get_test_report()

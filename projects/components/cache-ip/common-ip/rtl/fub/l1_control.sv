@@ -6,7 +6,7 @@
 //
 // Module: l1_control
 // Purpose:
-//   Blocking-pipeline control FSM for the amber MESI L1 (MAS ch02_blocks/01):
+//   Blocking-pipeline control FSM for the cache-ip shared MESI L1 (MAS ch02_blocks/01):
 //   the cache's only state machine. Owns the tag-array port-A schedule, the
 //   snoop port-B service (CTRL_SNOOP), the victim-way selection handshake,
 //   the pending-fill bypass register (leaf: l1_pending_fill_bypass), and

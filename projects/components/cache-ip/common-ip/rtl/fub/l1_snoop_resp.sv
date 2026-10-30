@@ -6,7 +6,7 @@
 //
 // Module: l1_snoop_resp
 // Purpose:
-//   ACE-shaped snoop responder for the amber MESI L1. Wraps the house
+//   ACE-shaped snoop responder for the cache-ip shared MESI L1. Wraps the house
 //   axi4ace_snoop_slave transport, translates the 4-bit IHI0022 ACSNOOP
 //   to amber's internal 3-bit snoop encoding, and sequences CR / CD per
 //   the MAS SR FSM. Inside l1_core the snoop is bus-agnostic; only

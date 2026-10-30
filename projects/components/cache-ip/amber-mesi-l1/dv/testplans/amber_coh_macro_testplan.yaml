@@ -27,7 +27,7 @@ test_files:
 # tag/data arrays (M/S seeded by CPU transactions, E through the TB
 # tag-array backdoor); the evolving line-state model is the scoreboard.
 # Compliance: ACEComplianceChecker per transaction. The Task 7 scenario
-# family is reused unchanged (AmberSnoopRespTB superclass); this macro
+# family is reused unchanged (L1SnoopRespTB superclass); this macro
 # adds the tiny (16/2) geometry to the grid.
 
 parameters:

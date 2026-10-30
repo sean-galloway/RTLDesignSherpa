@@ -6,7 +6,7 @@
 //
 // Module: l1_cpu_frontend
 // Purpose:
-//   CPU-facing GAXI slave for the amber MESI L1 (MAS ch02_blocks/09 +
+//   CPU-facing GAXI slave for the cache-ip shared MESI L1 (MAS ch02_blocks/09 +
 //   ch03_interfaces/01): accepts the packed {addr, we, be, wdata} request
 //   on the cpu_req_wr_* write stream, presents it to l1_control as a
 //   single-cycle req_valid pulse with the fields held until the response,

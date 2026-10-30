@@ -6,7 +6,7 @@
 //
 // Module: l1_pending_fill_bypass
 // Purpose:
-//   Pending-fill / load-miss bypass register for the amber MESI L1 (MAS
+//   Pending-fill / load-miss bypass register for the cache-ip shared MESI L1 (MAS
 //   ch02_blocks/02): while a fill is outstanding, a snoop for the same
 //   line is answered with the post-fill state and the beats already
 //   received, before the tag/data arrays are updated. Built as a leaf

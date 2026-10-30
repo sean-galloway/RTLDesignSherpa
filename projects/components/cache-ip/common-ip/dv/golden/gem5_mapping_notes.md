@@ -1,12 +1,15 @@
-# gem5 → amber FSM mapping notes
+# gem5 → l1_control FSM mapping notes
+
+(Designed and proven in amber; the FSM, this oracle, and these notes moved
+to cache-ip/common-ip on 2026-10-30 when the shared DV came home.)
 
 **Source:** `projects/components/cache-ip/References/gem5-ruby-protocols/MESI_Two_Level-L1cache.sm`
 (gem5 Ruby `MESI_Two_Level` L1 cache controller, SLICC; line numbers below are
 the 2026-10 in-repo checkout).
 
-**Derived artifact:** `dv/golden/amber_fsm_oracle.py`, pinned against
-`rtl/includes/amber_pkg.sv` (HAS Table 3.0 decode) by
-`dv/tests/test_amber_oracle.py` (row-by-row table + pkg-pin simulation).
+**Derived artifact:** `dv/golden/l1_fsm_oracle.py`, pinned against
+`cache-ip/common-ip/rtl/includes/l1_pkg.sv` (HAS Table 3.0 decode) by
+`cache-ip/common-ip/dv/tests/test_l1_oracle.py` (row-by-row table + pkg-pin simulation).
 
 These notes record the mapping as **derivation, not extraction**: gem5 is a
 two-level *directory* protocol controller; amber is a *broadcast snoopy* L1
@@ -209,13 +212,13 @@ All citations are `transition(...)` blocks in `MESI_Two_Level-L1cache.sm`.
 
 ## 6. What the pkg-pin simulation proves
 
-`dv/tests/test_amber_oracle.py::test_amber_oracle_pkg_pin` drives the landed
+`cache-ip/common-ip/dv/tests/test_l1_oracle.py::test_amber_oracle_pkg_pin` drives the landed
 `amber_snoop_kmap` (the module wrapper over `amber_pkg.amber_snoop_crresp` /
 `amber_snoop_next_state`, compiled via `amber_snoop_kmap.f` → `amber_pkg.f`)
 with every snoop row of the oracle's table — stable rows at their own state,
 transient rows at their §4 reference state — and compares the SystemVerilog
 outputs against `oracle.step()`. FULL additionally sweeps all reserved
 encodings: the pkg decode must return the contracted safe default (no
-transfer, → I) while the oracle must refuse them (`AmberOracleError`),
+transfer, → I) while the oracle must refuse them (`L1OracleError`),
 which is exactly how the split responsibility (crash-proof decode vs
 error-trapping FSM) is specified to stay in sync.

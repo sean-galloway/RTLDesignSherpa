@@ -128,7 +128,7 @@ class TreePlruModel:
             node = 2 * node + 1 + bit
 
 
-class AmberReplTB(TBBase):
+class L1ReplTB(TBBase):
     """Drives l1_repl and scores the victim way against a policy model."""
 
     OP_COUNTS = {'gate': 200, 'func': 4000, 'full': 40000}
@@ -153,7 +153,7 @@ class AmberReplTB(TBBase):
                       else model_cls(self.SETS, self.WAYS))
         self.checks = 0
         self.mismatches = 0
-        self.log.info(f"AmberReplTB sets={self.SETS} ways={self.WAYS} "
+        self.log.info(f"L1ReplTB sets={self.SETS} ways={self.WAYS} "
                       f"policy={self.POLICY} level={self.TEST_LEVEL} seed={self.SEED}")
 
     # -- the three mandatory methods -----------------------------------------

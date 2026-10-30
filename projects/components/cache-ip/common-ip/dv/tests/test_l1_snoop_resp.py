@@ -33,7 +33,7 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.cache_ip.common_ip.dv.tbclasses.l1_snoop_resp_tb import AmberSnoopRespTB
+from projects.components.cache_ip.common_ip.dv.tbclasses.l1_snoop_resp_tb import L1SnoopRespTB
 
 FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
 # test-side harness wrapper (pure wiring; lives with the test, not in an RTL
@@ -52,7 +52,7 @@ TEST_PREFIX = 'l1_snoop_resp'
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
 async def cocotb_test_l1_snoop_resp(dut):
-    tb = AmberSnoopRespTB(dut)
+    tb = L1SnoopRespTB(dut)
     await tb.setup_clocks_and_reset()
     ok = await tb.run()
     report = tb.get_test_report()

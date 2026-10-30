@@ -12,7 +12,7 @@ tags / slot_state / lru, inherited from the control TB) is the scoreboard:
 every snoop response is decoded at the model's reference state and every CPU
 transaction is scored against the oracle lockstep.
 
-Reuse: this class extends AmberControlTB (dv/tbclasses/l1_control_tb.py)
+Reuse: this class extends L1ControlTB (dv/tbclasses/l1_control_tb.py)
 for the partner stubs, the every-cycle monitors, the tap-event stream and the
 golden models -- the control suite keeps testing the raw-pin directed paths
 via test_l1_control.py; this TB drives every snoop through the ACE
@@ -73,12 +73,12 @@ from CocoTBFramework.components.ace.ace_compliance_checker import ACEComplianceC
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     SNOOPS as ORACLE_SNOOPS,
     step as oracle_step,
 )
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_control_tb import (
-    AmberControlTB,
+    L1ControlTB,
     STATE_CODE,
     ACE_READ_NOT_SHARED_DIRTY,
     ACE_READ_UNIQUE,
@@ -102,7 +102,7 @@ FRAMEWORK_SNOOPS = {
 }
 
 
-class AmberSnoopRespTB(AmberControlTB):
+class L1SnoopRespTB(L1ControlTB):
     """Closed-loop snoop-responder TB: real control + arrays + repl in the
     ACE response path, with random CPU traffic on the second port."""
 
@@ -119,7 +119,7 @@ class AmberSnoopRespTB(AmberControlTB):
     def __init__(self, dut, **kwargs):
         # the snoop-responder geometry grid varies the bus/line width; the
         # control/array geometry stays at the pkg default (the control suite
-        # owns the SETS/WAYS axis). NOTE: AmberControlTB.__init__ hardcodes
+        # owns the SETS/WAYS axis). NOTE: L1ControlTB.__init__ hardcodes
         # LINE_BYTES/STRB_W/FILL_BEATS at the pkg default (its grid varies
         # SETS/WAYS only) -- read the environment into locals FIRST and
         # restore the responder geometry AFTER super().__init__ runs.
@@ -177,7 +177,7 @@ class AmberSnoopRespTB(AmberControlTB):
         self._cd_rand_level = FlexRandomizer(chan_cfg['slave'])
         self._cd_rand_fast = FlexRandomizer(
             GAXI_RANDOMIZER_CONFIGS['fast']['slave'])
-        self.log.info(f"AmberSnoopRespTB level={self.TEST_LEVEL} profile={self.profile} "
+        self.log.info(f"L1SnoopRespTB level={self.TEST_LEVEL} profile={self.profile} "
                       f"data_width={self.DATA_WIDTH} line_bytes={self.LINE_BYTES} "
                       f"fill_beats={self.FILL_BEATS} sets={self.SETS} ways={self.WAYS} "
                       f"seed={self.SEED}")

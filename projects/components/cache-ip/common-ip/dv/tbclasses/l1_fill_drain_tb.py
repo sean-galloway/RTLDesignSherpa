@@ -62,7 +62,7 @@ AXBURST_INCR = 0b01
 BRESP_OKAY = 0b00
 
 
-class AmberFillDrainTB(TBBase):
+class L1FillDrainTB(TBBase):
     """Scores l1_fill / l1_drain against the MAS ch03/02 contract."""
 
     FULL_TXN = {'gate': 0, 'func': 0, 'full': 100}
@@ -156,7 +156,7 @@ class AmberFillDrainTB(TBBase):
         self.scenarios = {}
         self._dbg_prev_st = -1
 
-        self.log.info(f"AmberFillDrainTB sets={self.SETS} ways={self.WAYS} "
+        self.log.info(f"L1FillDrainTB sets={self.SETS} ways={self.WAYS} "
                       f"level={self.TEST_LEVEL} seed={self.SEED}")
 
     # ------------------------------------------------------------------

@@ -6,7 +6,7 @@
 //
 // Module: l1_victim
 // Purpose:
-//   Depth-1 victim buffer for the amber MESI L1 (MAS ch02_blocks/05): holds
+//   Depth-1 victim buffer for the cache-ip shared MESI L1 (MAS ch02_blocks/05): holds
 //   one dirty cache line while its write-back (drain) is outstanding. The
 //   depth-1 size matches the single-outstanding-miss model -- there can be
 //   only one dirty victim at a time because the pipeline blocks on the miss

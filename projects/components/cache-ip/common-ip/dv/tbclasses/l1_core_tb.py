@@ -25,7 +25,7 @@ proven by the FUB suites):
   * end-to-end data integrity: read data vs the MemoryModel through the
     real fill path, write merges, dirty write-backs landing in the
     MemoryModel through the real drain path.
-  * oracle lockstep (Task 2 gem5-derived amber_fsm_oracle): the model is
+  * oracle lockstep (Task 2 gem5-derived l1_fsm_oracle): the model is
     OBSERVATION-DRIVEN -- coherence effects land at the same observable
     state entries the DUT applies them at (victim select at MISS_VICTIM,
     the fill commit at FILL_WRITE, the write merge at the replayed
@@ -90,7 +90,7 @@ from CocoTBFramework.components.axi4.axi4_factories import (
 from CocoTBFramework.components.ace.ace_factories import create_axi4ace_snoop_master
 from CocoTBFramework.components.ace.ace_transaction import SnoopType
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     SNOOP_CODES,
     step as oracle_step,
 )
@@ -203,7 +203,7 @@ def _parse_packet(pkt):
     }
 
 
-class AmberCoreTB(TBBase):
+class L1CoreTB(TBBase):
     """Scores the l1_core integration against the oracle + content models."""
 
     FULL_TXN = {'gate': 0, 'func': 400, 'full': 5000}
@@ -323,7 +323,7 @@ class AmberCoreTB(TBBase):
         self.MAX_TAG = (self.SPAN >> self.SET_BITS) - 1
         self._tag_next = 0
 
-        self.log.info(f"AmberCoreTB sets={self.SETS} ways={self.WAYS} "
+        self.log.info(f"L1CoreTB sets={self.SETS} ways={self.WAYS} "
                       f"line={self.LINE_BYTES} bus={self.BUS_WIDTH} "
                       f"repl={self.REPL_POLICY} level={self.TEST_LEVEL} "
                       f"seed={self.SEED}")

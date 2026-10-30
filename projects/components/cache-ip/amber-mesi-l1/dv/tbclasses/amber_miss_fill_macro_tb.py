@@ -8,7 +8,7 @@ on its house axi4_master_rd transport, memory side closed by the house
 AXI4 slave responder on the wrapper's m_axi AR/R pins. Drain/victim stay
 timing stubs (D-12); snoops enter on the control-facing pins.
 
-The class reuses the landed control TB machinery (AmberControlTB: golden
+The class reuses the landed control TB machinery (L1ControlTB: golden
 models, every-cycle monitors, the oracle lockstep scorer, the mid-fill
 snoop scenario suite) and makes the golden memory write-through into the
 responder MemoryModel, so the REAL fill reads exactly the bytes the model
@@ -48,11 +48,11 @@ from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_rd,
 )
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     step as oracle_step,
 )
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_control_tb import (
-    AmberControlTB,
+    L1ControlTB,
     ACE_CLEAN_UNIQUE,
     ACE_READ_UNIQUE,
     STATE_CODE,
@@ -79,7 +79,7 @@ class _WriteThroughMem(dict):
         self._mm.write(self._base_of(line), bytearray(data))
 
 
-class AmberMissFillMacroTB(AmberControlTB):
+class AmberMissFillMacroTB(L1ControlTB):
     """Miss/fill macro: real fill engine + transport in the loop."""
 
     FULL_TXN = {'gate': 0, 'func': 2500, 'full': 10_000}

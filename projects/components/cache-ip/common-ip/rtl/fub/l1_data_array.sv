@@ -6,7 +6,7 @@
 //
 // Module: l1_data_array
 // Purpose:
-//   Per-way cache-line data store for the amber MESI L1. One line is
+//   Per-way cache-line data store for the cache-ip shared MESI L1. One line is
 //   LINE_BYTES bytes split into FILL_BEATS beats of BUS_WIDTH bits; the
 //   beat address is {set, beat}. Byte-write enables support CPU write
 //   merge on a hit; fills write whole beats. No reset port.

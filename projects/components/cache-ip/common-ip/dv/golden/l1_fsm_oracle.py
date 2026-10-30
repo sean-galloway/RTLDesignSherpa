@@ -1,9 +1,10 @@
 """
-amber_fsm_oracle -- gem5-derived golden FSM for the amber MESI L1 line state
+l1_fsm_oracle -- gem5-derived golden FSM for the shared MESI L1 line state
 
 Pure Python, no I/O, deterministic. Single source of truth for the *coherence
 behavior* of one cache line; the cycle-level blocking pipeline lives in
-`amber_control` (MAS ch02), which this model scores.
+`l1_control` (the common-ip blocking control FSM; designed and
+proven in amber -- amber MAS ch02), which this model scores.
 
 Derivation: every transition group is hand-cited against the gem5 Ruby
 ``MESI_Two_Level-L1cache.sm`` transition table (see
@@ -38,7 +39,7 @@ Created: 2026-10-07
 from collections import namedtuple
 
 __all__ = [
-    'AmberOracleError',
+    'L1OracleError',
     'STATES',
     'EVENTS',
     'SNOOPS',
@@ -50,7 +51,7 @@ __all__ = [
 ]
 
 
-class AmberOracleError(Exception):
+class L1OracleError(Exception):
     """Reserved encoding, unknown argument, or unreachable FSM cell.
 
     The oracle never guesses: anything outside the derived transition
@@ -116,7 +117,7 @@ StepResult = namedtuple('StepResult',
 # next state and CRRESP in IHI0022 wire order. This is the amber MESI
 # interpretation pinned bit-for-bit against amber_pkg.amber_snoop_crresp /
 # amber_snoop_next_state by the pkg-pin simulation. Reserved inputs raise
-# AmberOracleError here; the pkg's combinational decode contracts those to
+# L1OracleError here; the pkg's combinational decode contracts those to
 # the safe default instead (a snoop responder must never crash) -- both
 # halves of that contract are asserted in test_l1_oracle.py.
 # ---------------------------------------------------------------------------
@@ -151,22 +152,22 @@ _DECODE = {
 
 def _decode_next(ref, snoop):
     if ref not in _DECODE:
-        raise AmberOracleError(f"reserved line state {ref!r} has no snoop decode")
+        raise L1OracleError(f"reserved line state {ref!r} has no snoop decode")
     if snoop not in SNOOPS:
-        raise AmberOracleError(f"reserved/illegal snoop encoding {snoop!r}")
+        raise L1OracleError(f"reserved/illegal snoop encoding {snoop!r}")
     return _DECODE[ref][snoop][0]
 
 
 def _decode_crresp(ref, snoop):
     if ref not in _DECODE:
-        raise AmberOracleError(f"reserved line state {ref!r} has no snoop decode")
+        raise L1OracleError(f"reserved line state {ref!r} has no snoop decode")
     if snoop not in SNOOPS:
-        raise AmberOracleError(f"reserved/illegal snoop encoding {snoop!r}")
+        raise L1OracleError(f"reserved/illegal snoop encoding {snoop!r}")
     return _DECODE[ref][snoop][1]
 
 
 def _unreachable(state, event):
-    raise AmberOracleError(f"unreachable cell: no {event} can arrive in {state}")
+    raise L1OracleError(f"unreachable cell: no {event} can arrive in {state}")
 
 
 def _stable_step(state, event):
@@ -189,7 +190,7 @@ def _is_step(state, event, fill, pending):
     if event in ('CPU_RD', 'CPU_WR'):
         return StepResult(state, 'STALL', None, None, pending)
     if fill not in ('S', 'E'):
-        raise AmberOracleError(f"{state} requires fill='S'|'E' (pending-fill "
+        raise L1OracleError(f"{state} requires fill='S'|'E' (pending-fill "
                                f"install state), got {fill!r}")
     if event == 'FILL_DONE':
         # The fill commits its data and installs the pending post-commit
@@ -218,7 +219,7 @@ def _is_i_step(state, event, fill, pending):
     if event in ('CPU_RD', 'CPU_WR'):
         return StepResult(state, 'STALL', None, None, pending)
     if fill not in ('S', 'E'):
-        raise AmberOracleError(f"{state} requires fill='S'|'E', got {fill!r}")
+        raise L1OracleError(f"{state} requires fill='S'|'E', got {fill!r}")
     if event == 'FILL_DONE':
         # gem5 .sm:1390: data commits, the line installs Invalid.
         return StepResult('I', 'COMMIT', None, None, None)
@@ -336,16 +337,16 @@ def step(state, event, fill=None, pending=None):
             pending: effect to feed into the next step(), else None
 
     Raises:
-        AmberOracleError: reserved/illegal encodings and unreachable cells
+        L1OracleError: reserved/illegal encodings and unreachable cells
             land in ERROR (amber_control's sticky CTRL_ERROR contract),
             never in a guessed transition.
     """
     if state not in STATES:
-        raise AmberOracleError(f"unknown/reserved state {state!r}")
+        raise L1OracleError(f"unknown/reserved state {state!r}")
     if event not in EVENTS:
-        raise AmberOracleError(f"unknown/reserved event {snoop_repr(event)}")
+        raise L1OracleError(f"unknown/reserved event {snoop_repr(event)}")
     if pending not in (None, 'S', 'I'):
-        raise AmberOracleError(f"bad pending effect {pending!r}")
+        raise L1OracleError(f"bad pending effect {pending!r}")
 
     if state in STABLE_STATES:
         if event in ('FILL_DONE', 'DRAIN_DONE'):
@@ -354,17 +355,17 @@ def step(state, event, fill=None, pending=None):
 
     if state == 'IM':
         if fill not in (None, 'M'):
-            raise AmberOracleError(f"IM installs M; fill={fill!r} is meaningless")
+            raise L1OracleError(f"IM installs M; fill={fill!r} is meaningless")
         return _im_step(state, event, pending)
 
     if state == 'SM':
         if fill is not None:
-            raise AmberOracleError("SM is an upgrade (no fill data); fill not applicable")
+            raise L1OracleError("SM is an upgrade (no fill data); fill not applicable")
         return _sm_step(state, event, pending)
 
     if state in ('M_I', 'SINK_WB_ACK'):
         if fill is not None:
-            raise AmberOracleError(f"{state} has no fill; fill not applicable")
+            raise L1OracleError(f"{state} has no fill; fill not applicable")
         return _TRANSIENT_STEP[state](state, event, pending)
 
     # IS / IS_I

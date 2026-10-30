@@ -6,7 +6,7 @@
 //
 // Module: l1_tag_array
 // Purpose:
-//   Per-way tag+state store for the amber MESI L1. Two combinational
+//   Per-way tag+state store for the cache-ip shared MESI L1. Two combinational
 //   lookup ports (CPU/fill on A, snoop on B) and one synchronous write
 //   port with one-hot way select. No reset port: line validity after
 //   reset is l1_control's init walk (STATE_I to every way).

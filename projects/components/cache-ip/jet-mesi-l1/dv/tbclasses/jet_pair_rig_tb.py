@@ -81,7 +81,7 @@ from CocoTBFramework.components.ace.ace_transaction import (
     SnoopType,
 )
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     SNOOP_CODES,
     step as oracle_step,
 )

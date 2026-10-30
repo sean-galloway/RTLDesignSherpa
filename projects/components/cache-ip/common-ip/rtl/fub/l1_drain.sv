@@ -6,7 +6,7 @@
 //
 // Module: l1_drain
 // Purpose:
-//   AXI4 write-master sequencing engine for the amber MESI L1 (MAS
+//   AXI4 write-master sequencing engine for the cache-ip shared MESI L1 (MAS
 //   ch02_blocks/06 + ch03_interfaces/02): on drain_start from l1_control
 //   it takes the staged dirty victim {addr, data} and issues one whole-line
 //   INCR write-back burst to the downstream memory, retiring with

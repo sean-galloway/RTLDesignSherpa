@@ -12,7 +12,7 @@ scores coherence against a 2-cache Python lockstep model.
 Model design (extends the Task 2 gem5 oracle + the Task 9 per-cache
 machinery with the fabric rules):
   * Per cache (CacheSide, a DUT-free golden model ported from the Task 9
-    AmberCoreTB machinery): tags/slot_state/cache_content/repl/transient
+    L1CoreTB machinery): tags/slot_state/cache_content/repl/transient
     overlay, observation-driven at the same state entries the RTL applies
     effects at (MISS_VICTIM select, MISS_FILL launch, FILL_WRITE commit,
     HIT_WR merge), snoop effects at the observed ctrl_snoop grant. A killed
@@ -73,7 +73,7 @@ from CocoTBFramework.components.ace.ace_transaction import (
     SnoopType,
 )
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     SNOOP_CODES,
     step as oracle_step,
 )
@@ -146,7 +146,7 @@ FRAMEWORK_SNOOPS = {
 class CacheSide:
     """Golden model of ONE amber cache in the pair (no DUT references).
 
-    Ported from the Task 9 AmberCoreTB per-cache machinery: the model is
+    Ported from the Task 9 L1CoreTB per-cache machinery: the model is
     observation-driven -- coherence effects land at the same observable
     state entries the DUT applies them at, so a peer transaction granted
     at any cycle is scored against exactly the resolution the RTL used.

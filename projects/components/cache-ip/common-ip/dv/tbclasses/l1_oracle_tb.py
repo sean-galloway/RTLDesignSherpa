@@ -1,5 +1,5 @@
 """
-amber_fsm_oracle pkg-pin testbench
+l1_fsm_oracle pkg-pin testbench
 
 Drives the landed l1_snoop_kmap leaf (the module-boundary wrapper over the
 l1_pkg Table 3.0 decode functions) with every {state, snoop} cell the
@@ -22,13 +22,13 @@ from cocotb.triggers import Timer
 
 from TBClasses.shared.tbbase import TBBase
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
-    AmberOracleError,
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
+    L1OracleError,
     step,
 )
 
 
-class AmberOracleTB(TBBase):
+class L1OracleTB(TBBase):
     """Scores l1_snoop_kmap against the gem5-derived FSM oracle."""
 
     # cache_state_t encodings (l1_pkg): 3-bit, MESI now + MOESI headroom
@@ -71,7 +71,7 @@ class AmberOracleTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.checks = 0
         self.mismatches = 0
-        self.log.info("AmberOracleTB: oracle<->pkg pin via l1_snoop_kmap")
+        self.log.info("L1OracleTB: oracle<->pkg pin via l1_snoop_kmap")
 
     # -- the three mandatory methods; the DUT is purely combinational --------
     async def setup_clocks_and_reset(self):
@@ -165,14 +165,14 @@ class AmberOracleTB(TBBase):
                 step('O', 'SNOOP_READ_SHARED')
                 self.mismatches += 1
                 self.log.error("oracle accepted reserved state 'O'")
-            except AmberOracleError:
+            except L1OracleError:
                 pass
             self.checks += 1
             try:
                 step('I', 'SNOOP_RESERVED_6')
                 self.mismatches += 1
                 self.log.error("oracle accepted reserved snoop encoding")
-            except AmberOracleError:
+            except L1OracleError:
                 pass
 
         return self.mismatches == 0

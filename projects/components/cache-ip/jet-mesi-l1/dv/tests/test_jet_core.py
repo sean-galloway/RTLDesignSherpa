@@ -7,7 +7,7 @@ house axi4_master_*_monlite transports and MonBus arbiter) driven at its
 external boundary -- CPU GAXI, monlite-wrapped AXI4 memory masters closed
 by the house responders on a shared MemoryModel, the ACE snoop port by
 the house snoop master.  The event-stream scoreboard (JetCoreTB, built
-on the inherited AmberControlTB machinery) keeps per-line coherence
+on the inherited L1ControlTB machinery) keeps per-line coherence
 lockstep against the gem5-derived oracle, windowed timing properties
 (fill launch within W of alloc; response release in issue order), the
 sticky CTRL_ERROR contract, and the Task-8 killed-upgrade demote corner.

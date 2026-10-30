@@ -14,7 +14,7 @@ with the house snoop master.
 Scoreboard shape (the Task-8 inheritance claim, re-based): jet is
 lockup-free, so amber's per-transaction slice checks do not apply;
 instead this TB keeps an EVENT-STREAM scoreboard, built on the
-AmberControlTB machinery it inherits (geometry helpers, LruModel, the
+L1ControlTB machinery it inherits (geometry helpers, LruModel, the
 gem5-derived oracle, the snoop tables, the BUG-001/002 pre-install-valid
 eviction guard):
 
@@ -91,10 +91,10 @@ from CocoTBFramework.components.ace.ace_factories import (
 from CocoTBFramework.components.ace.ace_transaction import SnoopType
 
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_control_tb import (
-    AmberControlTB,
+    L1ControlTB,
     STATE_CODE,
 )
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     SNOOP_CODES,
     step as oracle_step,
 )
@@ -142,7 +142,7 @@ SNOOP_FRAMEWORK = {
 NAME_BY_CODE = {code: name for name, code in SNOOP_CODES.items()}
 
 
-class JetCoreTB(AmberControlTB):
+class JetCoreTB(L1ControlTB):
     """Event-stream oracle-lockstep scoreboard for jet_top."""
 
     FULL_TXN = {'gate': 0, 'func': 300, 'full': 10_000}
@@ -154,7 +154,7 @@ class JetCoreTB(AmberControlTB):
 
     def __init__(self, dut, **kwargs):
         super().__init__(dut, **kwargs)
-        # AmberControlTB pins the bus geometry (64-bit data / STRB_W=8);
+        # L1ControlTB pins the bus geometry (64-bit data / STRB_W=8);
         # keep the width name the top-level params use
         self.BUS_WIDTH = self.STRB_W * 8
 

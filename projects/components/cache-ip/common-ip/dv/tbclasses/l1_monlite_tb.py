@@ -4,7 +4,7 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/seang-galloway/RTLDesignSherpa
 #
-# Module: AmberMonliteTB
+# Module: L1MonliteTB
 # Purpose: Testbench for the l1_monlite drop-and-count MonBus observer
 # (Task 8, MAS ch04)
 
@@ -47,7 +47,7 @@ Golden models carried here (independent copies, kmap-TB rule):
   per-line MESI state        self.line_state
   (set, way) -> line tag     self.tags / self.slot_state
   true-LRU victim prediction LruModel (ported from the control TB)
-  snoop CRRESP/next-state    dv/golden/amber_fsm_oracle decode helpers
+  snoop CRRESP/next-state    dv/golden/l1_fsm_oracle decode helpers
                                (the project's pinned golden)
 
 Levels (TEST_LEVEL) x MON_CFG ({tap, notap} via the wrapper's mon_mode):
@@ -68,14 +68,14 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     SNOOP_CODES,
     _decode_crresp,
     _decode_next,
 )
 
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_cpu_frontend_tb import (
-    AmberFrontendTB,
+    L1CpuFrontendTB,
     ST_IDLE, ST_INIT, ST_LOOKUP, ST_HIT_RD, ST_HIT_WR, ST_MISS_VICTIM,
     ST_MISS_DRAIN, ST_MISS_FILL, ST_FILL_WRITE, ST_REPLAY, ST_SNOOP,
     ST_ERROR,
@@ -155,7 +155,7 @@ def _parse_packet(pkt):
     }
 
 
-class AmberMonliteTB(AmberFrontendTB):
+class L1MonliteTB(L1CpuFrontendTB):
     """Extends the frontend suite with the observer contract."""
 
     def __init__(self, dut, **kwargs):
@@ -179,7 +179,7 @@ class AmberMonliteTB(AmberFrontendTB):
         # monbus ready drive: 'free' (1), 'stall' (0), 'random' (p=0.65)
         self.mon_mode = 'free'
 
-        self.log.info(f"AmberMonliteTB cfg={self.MON_CFG}")
+        self.log.info(f"L1MonliteTB cfg={self.MON_CFG}")
 
     # ------------------------------------------------------------------
     # setup overrides

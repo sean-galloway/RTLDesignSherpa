@@ -9,7 +9,7 @@ responder on the wrapper's m_axi AW/W/B pins. Fill stays a timing stub
 (D-12, the control suite's fill model); snoops enter on the
 control-facing pins.
 
-The class reuses the landed control TB machinery (AmberControlTB: golden
+The class reuses the landed control TB machinery (L1ControlTB: golden
 models, monitors, oracle lockstep scorer, the victim-buffer EVERY-CYCLE
 invariants, the victim snoop suite) with the golden memory made
 write-through into the responder MemoryModel. The drain partner stub is
@@ -52,11 +52,11 @@ from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_wr,
 )
 
-from projects.components.cache_ip.common_ip.dv.golden.amber_fsm_oracle import (
+from projects.components.cache_ip.common_ip.dv.golden.l1_fsm_oracle import (
     step as oracle_step,
 )
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_control_tb import (
-    AmberControlTB,
+    L1ControlTB,
     ST_MISS_DRAIN,
 )
 
@@ -82,7 +82,7 @@ class _WriteThroughMem(dict):
         self._mm.write(self._base_of(line), bytearray(data))
 
 
-class AmberEvictionMacroTB(AmberControlTB):
+class AmberEvictionMacroTB(L1ControlTB):
     """Eviction/writeback macro: real drain engine + transport in the loop."""
 
     SOAK_TXN = {'gate': 0, 'func': 2500, 'full': 10_000}

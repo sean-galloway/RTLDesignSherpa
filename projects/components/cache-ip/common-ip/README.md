@@ -44,9 +44,9 @@ keep their codename prefix.
 unit TBs (moved from amber, where they were written), the test harnesses,
 the testplans, the shared golden model ([`dv/golden/`](dv/golden/): the
 gem5-derived FSM oracle and the cache_sim harness), and the trace corpus
-([`dv/traces/`](dv/traces/)). Test names and harnesses carry the `l1_*`
-prefix of the modules they pin; the TB class names keep their amber
-heritage for now (a class rename is its own cleanup). Run from
+([`dv/traces/`](dv/traces/)). Test names, harnesses, TB classes
+(`L1ControlTB` et al.), and the golden model (`l1_fsm_oracle.py`) carry
+the `l1_*` prefix of the modules they pin (renamed 2026-10-30). Run from
 `dv/tests/`: `SEED=1 REG_LEVEL=GATE python3 -m pytest test_l1_<unit>.py`.
 
 ## What deliberately does not live here (yet)

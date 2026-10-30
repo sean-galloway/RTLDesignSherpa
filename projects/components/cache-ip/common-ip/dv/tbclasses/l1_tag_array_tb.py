@@ -23,7 +23,7 @@ from cocotb.triggers import RisingEdge, Timer
 from TBClasses.shared.tbbase import TBBase
 
 
-class AmberTagArrayTB(TBBase):
+class L1TagArrayTB(TBBase):
     """Drives l1_tag_array and scores both lookup ports against a model."""
 
     OP_COUNTS = {'gate': 16, 'func': 2048, 'full': 4096}
@@ -48,7 +48,7 @@ class AmberTagArrayTB(TBBase):
         self.checks = 0
         self.mismatches = 0
         self.model = {}
-        self.log.info(f"AmberTagArrayTB sets={self.SETS} ways={self.WAYS} "
+        self.log.info(f"L1TagArrayTB sets={self.SETS} ways={self.WAYS} "
                       f"addr_width={self.ADDR_WIDTH} line_bytes={self.LINE_BYTES} "
                       f"tag_width={self.TAG_WIDTH} level={self.TEST_LEVEL} "
                       f"seed={self.SEED}")

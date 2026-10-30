@@ -6,7 +6,7 @@
 //
 // Module: l1_repl
 // Purpose:
-//   Replacement-policy engine for the amber MESI L1. Selects the victim
+//   Replacement-policy engine for the cache-ip shared MESI L1. Selects the victim
 //   way on a miss and maintains per-set policy state across hits and
 //   installs. Policies: true LRU (default), FIFO, RANDOM (LFSR),
 //   tree-PLRU (timing fallback). Exactly one policy elaborates per build.
