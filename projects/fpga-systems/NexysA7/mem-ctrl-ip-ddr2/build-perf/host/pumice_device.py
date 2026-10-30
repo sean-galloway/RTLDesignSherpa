@@ -222,6 +222,11 @@ class Pumice(Device):
         d = self.regs.registers[reg]["default"]
         return int(d, 16) if isinstance(d, str) else int(d)
 
+    def field_default(self, reg: str, field: str) -> int:
+        """A field's RDL reset value, from the generated regmap."""
+        d = self.regs.registers[reg][field]["default"]
+        return int(d, 16) if isinstance(d, str) else int(d)
+
     def _wr(self, reg: str, **fields: int) -> int:
         if not hasattr(self, "_shadow"):
             self._shadow = {}

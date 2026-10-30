@@ -325,6 +325,12 @@ class ControllerConfig:
     age_thresh:    Optional[int] = None     # SCHED_POLICY.age_thresh (MC cycles/16)
     page_mode:     Optional[int] = None     # PAGE_POLICY_CFG.policy_mode (0=legacy)
     page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
+    # page_reset: program the THREE paging fields (page_policy_or,
+    # policy_mode, tr_init) to the controller's own RDL reset values, read
+    # from its generated regmap -- the power-on state. The resets differ by
+    # controller (granite 3/2, pumice 3/0), so a hand-typed copy here cannot
+    # be right for both; the regmap is.
+    page_reset:    bool = False
     # adapt_time (mode 4) needs ALL of these, and until 2026-09-26 none had a
     # host accessor. TR is clamped to [tr_min, tr_max] on every adjustment, so
     # tr_max=0 pins it to 0 and `tr==0 disables that bank's timeout entirely`;
@@ -473,7 +479,18 @@ class ControllerConfig:
         # is worthless, so nothing is left to inherit.
         if self.scheme is not None:
             drv.set_addr_map_scheme(self.scheme)
-        drv.set_page_policy(self.page_policy if self.page_policy is not None else 0)
+        if self.page_reset:
+            dev = drv.pumice
+            pol = dev.field_default("REFRESH_TUNING", "page_policy_or")
+            tr = dev.field_default("PAGE_TIMEOUT_CFG", "tr_init")
+            mode = dev.field_default("PAGE_POLICY_CFG", "policy_mode")
+            print(f"[config {self.name}] paging at the RDL resets: page_policy_or={pol} "
+                  f"policy_mode={mode} tr_init={tr}", file=sys.stderr, flush=True)
+        else:
+            pol = self.page_policy if self.page_policy is not None else 0
+            tr = self.page_tr_init if self.page_tr_init is not None else 0
+            mode = self.page_mode if self.page_mode is not None else 0
+        drv.set_page_policy(pol)
         if self.t_refi is not None:
             drv.set_refresh_interval(self.t_refi)
         # REF_CTRL is pumice's (refresh mode / postpone / pull-in credits);
@@ -502,9 +519,8 @@ class ControllerConfig:
         # tr_init is now the register's ONLY live field: tr_min/tr_max/tr_step
         # were the adapt_time clamps and became reserved 2026-09-27 with mode 4.
         # PAGE_ADAPT_CFG is deleted, so there is no set_page_adapt_cfg either.
-        drv.set_page_timeout_cfg(
-            tr_init=self.page_tr_init if self.page_tr_init is not None else 0)
-        drv.set_page_mode(self.page_mode if self.page_mode is not None else 0)
+        drv.set_page_timeout_cfg(tr_init=tr)
+        drv.set_page_mode(mode)
         # Write batching (TASK-007). Programmed on EVERY config for the same
         # reason the other mode axes are: leaving it to inherit whatever the
         # previous config set makes the matrix order-dependent.
@@ -559,34 +575,16 @@ class ControllerConfig:
 # THE SHIPPING DEFAULT IS `defaults` BELOW: 555-572 MB/s measured on the board,
 # 92-95% of the 600 MB/s ceiling at 75 MHz.
 CONFIGS: Dict[str, ControllerConfig] = {
-    # THE POWER-ON STATE. Every lever left None, so apply() writes the reset
-    # value (0) to each mode axis -- what the board comes up in, and what a
-    # system integrator gets before touching a CSR. Reset selects "build
-    # default" on both policy knobs and pumice_top pins that to OPEN page
-    # (`localparam PAGE_POLICY_BUILD_DEFAULT = PAGE_POLICY_OPEN`), so this
-    # should track `open_page` closely.
-    #
-    # NOT redundant with open_page: open_page PROGRAMS the policy (1 = OPEN),
-    # this one programs 0 and lets the RTL choose. If a future RDL reset value
-    # or a change to PAGE_POLICY_BUILD_DEFAULT ever diverges from OPEN, these
-    # two rows separate and the matrix shows it. Without this row, nothing in
-    # the suite measures what the hardware does untouched.
-    # POWER-ON STATE. This must MIRROR THE RDL RESETS, because apply() writes
-    # every mode field on every config (an unset field would otherwise inherit
-    # the previous config's, which is how the matrix became order-dependent
-    # once before). So a bare ControllerConfig() does NOT measure the reset
-    # state -- it programs page_mode=0, overriding it. When a reset value in
-    # pumice_csr.rdl changes, THIS LINE CHANGES WITH IT or `defaults` quietly
-    # stops meaning "defaults".
-    #
-    # 2026-09-26: the reset change to mode 3 (fixed_open) / tr_init 2 was made
-    # and REVERTED the same day, blocked on BUG-003 -- a short timeout
-    # precharges under an in-flight read and the read-return ring loses a
-    # ticket at rd_gap >= 8 (caught by the component gate on gen_replica,
-    # proven by controlled A/B). So the reset is still 0/0 and this config
-    # mirrors that. When BUG-003 closes and the reset moves, change this line
-    # in the same pass -- `defaults` means nothing if it drifts from the RDL.
-    "defaults": ControllerConfig("defaults"),
+    # THE POWER-ON STATE: every other lever left None (written 0 = build
+    # default) and the paging fields at the controller's RDL resets, read from
+    # its regmap (page_reset). Granite resets to fixed_open (policy_mode 3,
+    # tr_init 2); pumice to policy_mode 3 with tr_init 0, which disables the
+    # timeout. Until 2026-10-30 this row wrote 0/0, so on both controllers it
+    # measured open page with the drain AP -- not what the board comes up in.
+    # Pumice BUG-003, the reason the reset was once reverted, closed
+    # 2026-09-27; granite was re-checked 2026-10-30 at read gaps 0/8/15 and
+    # TR 1/2 with zero bank-state violations at the DRAM model.
+    "defaults": ControllerConfig("defaults", page_reset=True),
     "close_page": ControllerConfig(
         "close_page", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
         order_mode=0, rd_in_order=True),
@@ -2379,9 +2377,9 @@ RUN_PROFILES: Dict[str, dict] = {
     # sweep) on one thread -- the deterministic ordering -- under the baseline
     # and the open-page config. `half_burst8` is the same four with all eight
     # threads (the port mux then interleaves the threads' halves).
-    "half_burst": dict(configs=["close_page", "open_page"], level="basic",
+    "half_burst": dict(configs=["defaults", "close_page", "open_page"], level="basic",
                        families=hbf.FAMILIES),
-    "half_burst8": dict(configs=["close_page", "open_page"], level="basic",
+    "half_burst8": dict(configs=["defaults", "close_page", "open_page"], level="basic",
                         families=hbf.FAMILIES, sc_over=dict(threads=8)),
     # The thread sweep (owner 2026-10-27): the pair walk (l0 h0 l1 h1 ...) and
     # the oct walk on 1..8 threads at once, each thread in its own region of
@@ -2390,7 +2388,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # the same profile, to show a controller without a combiner never merges
     # (there pair and oct cost the same). Pumice's pair-vs-oct gap IS the
     # aggregation; the merge counters say so directly where the build has them.
-    "half_threads": dict(configs=["close_page", "open_page"], level="basic",
+    "half_threads": dict(configs=["defaults", "close_page", "open_page"], level="basic",
                          families=(hbf.FAM_HALF_PAIR, hbf.FAM_HALF_OCT),
                          sc_sweep=dict(threads=tuple(range(1, 9)))),
     # The gap sweep (owner 2026-10-29): the pair walk (l0 h0 l1 h1 ...), 512
@@ -2402,7 +2400,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # gap: where a combiner's merge window closes shows as the gap at which
     # the write merges stop. txn_count is pinned (sc_over wins over
     # --txn-scale) so the walk is 512 pairs on sim and board alike.
-    "half_gap": dict(configs=["close_page", "open_page"], level="basic",
+    "half_gap": dict(configs=["defaults", "close_page", "open_page"], level="basic",
                      families=(hbf.FAM_HALF_PAIR,),
                      sc_over=dict(txn_count=1024),
                      sc_sweep=dict(gap=tuple(range(0, 8)))),
@@ -2645,13 +2643,13 @@ RUN_PROFILES: Dict[str, dict] = {
     # A per-bank contrivance is deliberately absent: r_mc is one GLOBAL
     # counter driving every r_tr[b] identically, so per-bank TR cannot
     # diverge and no across-banks stimulus can show it. See adapt_time_tuned.
-    "concurrent": dict(configs=["open_page"], level="basic", families=None,
+    "concurrent": dict(configs=["defaults", "open_page"], level="basic", families=None,
                        concurrent=(1, 1)),
     # Multi-master: two readers against one writer, all on disjoint regions.
     # Loads the generator array and both crossbars. NOTE two WRITERS is not
     # safe on pumice yet -- pumice BUG-012 (was PUMICE-027), B returns out of AW order while the
     # write bridge routes by position -- so writers stay at one.
-    "multigen": dict(configs=["open_page"], level="basic", families=None,
+    "multigen": dict(configs=["defaults", "open_page"], level="basic", families=None,
                      concurrent=(1, 2)),
     # Everything: every preset x the full grid.
     "full": dict(configs="all", level="full", families=None),
@@ -2664,7 +2662,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # families (mixed / row_thrash / random) are perf-proxy only (see the
     # module docstring): the board host has no program builder for them, so
     # they are compared in sim through test_{granite,litedram}_char_perf.
-    "every": dict(configs=["open_page", "close_page", "bank_interleave"], level="full",
+    "every": dict(configs=["defaults", "open_page", "close_page", "bank_interleave"], level="full",
                   families=None),
     # The window families on the board (2026-10-29): mixed (bank-paired
     # writers and readers one row group apart, one GO), row_thrash (one
@@ -2672,7 +2670,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # two-row region per injector), four injectors as the proxies run them,
     # bl8, under open and close page. Same stimulus as the proxies'
     # TEST_FAMILIES=mixed,row_thrash,random (perf_mixed_family builds both).
-    "windows": dict(configs=["open_page", "close_page"], level="basic",
+    "windows": dict(configs=["defaults", "open_page", "close_page"], level="basic",
                     families=WINDOW_FAMILIES, sc_over=dict(threads=4)),
 }
 

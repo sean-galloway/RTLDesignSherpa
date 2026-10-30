@@ -452,6 +452,17 @@ async def cocotb_test_granite_perf(dut):
         # (open_page = SCHEME_ROW_MAJOR, one bank per walk); without it the
         # proxy runs the build default and never sees a same-bank column
         # stream (granite TASK-006, 2026-10-29).
+        # TEST_PAGE_MODE / TEST_TR_INIT: unset = the RDL power-on state
+        # (policy_mode 3 fixed_open, tr_init 2), which is what the board runs
+        # untouched. Set them to measure another paging mode.
+        tr_init = os.environ.get("TEST_TR_INIT", "")
+        if tr_init:
+            drv.set_page_timeout_cfg(tr_init=int(tr_init, 0))
+            out["tr_init"] = int(tr_init, 0)
+        page_mode = os.environ.get("TEST_PAGE_MODE", "")
+        if page_mode:
+            drv.set_page_mode(int(page_mode, 0))
+            out["page_mode"] = int(page_mode, 0)
         scheme = os.environ.get("TEST_ADDR_SCHEME", "")
         if scheme:
             drv.set_addr_map_scheme(int(scheme, 0))
@@ -495,6 +506,25 @@ async def cocotb_test_granite_perf(dut):
             assert held["wr_held_cnt"] == 0, \
                 f"{held['wr_held_cnt']} cycles with a WRITE held at the DFI head for its data (max run {held.get('wr_held_max')}): a write was committed before its data was complete"
         return out
+
+    # PERF_DRAM_TRACE=<path>: every command the DRAM model accepts, as
+    # (model cycle, kind, bank) -- ACT / RD / WR / PRE / PREA / AP. Read off
+    # the model's own hooks, so it is the command stream the DRAM saw.
+    dram_trace_path = os.environ.get("PERF_DRAM_TRACE", "")
+    dram_trace = []
+    if dram_trace_path:
+        dm = _dfi.dram
+        def _hook(name, kind):
+            orig = getattr(dm, name)
+            def wrapped(bank_idx, *a, **k):
+                pre_all = kind == "PRE" and k.get("all_banks", a[0] if a else False)
+                dram_trace.append((dm.cycle, "PREA" if pre_all else kind, bank_idx))
+                return orig(bank_idx, *a, **k)
+            setattr(dm, name, wrapped)
+        for name, kind in (("on_activate", "ACT"), ("on_read", "RD"),
+                           ("on_write", "WR"), ("on_precharge", "PRE"),
+                           ("on_auto_precharge", "AP")):
+            _hook(name, kind)
 
     cmd_log = []
     tracing = os.environ.get("PERF_CMD_TRACE", "0") == "1"
@@ -545,6 +575,28 @@ async def cocotb_test_granite_perf(dut):
         assert f["rd_ok"], f"{fk}: read engine did not complete"
         assert f["mismatched"] == 0, f"{fk}: {f['mismatched']} beats mismatched"
         assert f["rd_cycles"] > 0 and f["wr_cycles"] > 0, f"{fk}: no cycles counted"
+
+    # Only the bank-STATE violations are checked: they carry no unit. The
+    # model's timing checks (tRCD / tRP / tRFC ...) compare its own tick count
+    # against the part's CK counts and read thousands of phantoms here.
+    # Bank-state legality at the DRAM model. The model runs with every
+    # violation demoted to SOFT (counted, not raised), so nothing failed on it
+    # before; a column op to a closed bank or an ACT on an open one is a
+    # controller bug whatever the data integrity says (pumice BUG-003 was
+    # exactly that: one RD to a precharged bank under a short page timeout).
+    if dram_trace_path:
+        with open(dram_trace_path, "w") as fh:
+            json.dump(dram_trace, fh)
+    viol = _dfi.dram.policy.soft_violation_counts   # a property
+    dut._log.info("DRAM model violations: %s", viol or "none")
+    if dump_path:
+        with open(dump_path + ".viol.json", "w") as fh:
+            json.dump(viol, fh, indent=2)
+    state_viol = {k: v for k, v in viol.items()
+                  if k in ("no_act_before_rd", "no_act_before_wr",
+                           "act_on_active_bank", "ref_with_open_row",
+                           "ap_on_idle_bank")}
+    assert not state_viol, f"bank-state violations at the DRAM: {state_viol}"
 
 
 # =============================================================================

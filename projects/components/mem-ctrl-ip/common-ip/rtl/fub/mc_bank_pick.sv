@@ -413,6 +413,19 @@ module mc_bank_pick
                         if (bank_pre_ready_la_i[RK0][pb]
                             && (!w_hit[p ^ 1] || w_cand[p].age_exceed)) begin
                             req = 1'b1; cls = CL_PRE;
+                        end else if (bank_act_ready_la_i[RK0][pb]
+                                     && !w_rfc_busy && !maint_busy_i) begin
+                            // an AUTO-PRECHARGING row: it still reads open
+                            // and takes no PRE, but the timer's LA_AP term
+                            // already says its self-close + tRP lands within
+                            // the pipe depth (act_la is otherwise false on an
+                            // open row). Request the ACT now; the fire stage
+                            // re-checks the live row image and safe_act.
+                            // Waiting for the row image to clear cost one
+                            // cycle per AP row switch against an explicit
+                            // PRE (granite TASK-003, 2026-10-30: col -> ACT
+                            // 5 vs 4 after a read, 7 vs 6 after a write).
+                            req = 1'b1; cls = CL_ACT;
                         end
                     end else begin
                         // closed bank: activate. The tRFC / maintenance
