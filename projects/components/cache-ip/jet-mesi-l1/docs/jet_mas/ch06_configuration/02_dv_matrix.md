@@ -23,8 +23,14 @@
 
 # DV Matrix Dimensions
 
-**Status:** executed (Task 12, 2026-10-29). The DV grid multiplies
-amber's matrix by the two jet knobs:
+**Status:** BLOCKED on a real RTL bug found by the grid (Task 12,
+2026-10-29): the pend_eff repeat-snoop resolution in `jet_control`
+(inherited from amber's `l1_control`) resolves a repeat snoop against the
+original post-fill state instead of chaining the armed pending effect —
+armed DOWNGRADE_S + READ_ONCE on an in-flight write-miss fill invalidates
+the line at commit and silently drops the store.  See the Task-12 report
+(.superpowers/sdd/2026-10-28-jet-mshr-implementation/task-12-report.md).
+The grid multiplies amber's matrix by the two jet knobs:
 
 | Axis | Values |
 |---|---|
@@ -38,7 +44,7 @@ amber's matrix by the two jet knobs:
 FULL at the sweep corners is the sign-off grid; the interior is sampled
 (seeds pinned per node by the repo-root conftest, as everywhere else).
 
-**Executed cells (all green, 0 mismatches):**
+**Grid cells (the sign-off run is pending the RTL ruling above):**
 
 - `test_jet_core` FULL: 32 cells -- every corner (MSHR {2,16} x VICTIM
   {1,4}) x {LRU,FIFO,RANDOM} x both geometries (24) + interior samples
@@ -57,7 +63,8 @@ FULL at the sweep corners is the sign-off grid; the interior is sampled
   hits/misses/compulsory/capacity/conflict parity against
   `bin/apps/cache_sim/js/model.js` (RANDOM via the recorded LFSR
   extension), at the J1 default knobs (the sweep cells pin the victim
-  way at every alloc against the same policy models).
+  way at every alloc against the same policy models).  The gate tier
+  (seq_1k x 3 policies x both geometries) is green.
 
 ## What FULL contains (beyond amber's soak)
 

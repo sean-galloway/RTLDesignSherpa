@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/amber-mesi-l1 — bugs
 
-**Next ID: BUG-004** — never recycle a number, even when its item closed.
+**Next ID: BUG-005** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **BUG-004** — pend_eff repeat-snoop resolution drops a store (armed DOWNGRADE_S then READ_ONCE on an in-flight write-miss fill commits I; amber l1_control + jet_control share the defect; found by the jet FULL grid 2026-10-29).
 
 ## Active
 
