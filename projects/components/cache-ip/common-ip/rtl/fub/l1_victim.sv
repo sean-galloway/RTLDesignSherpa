@@ -77,10 +77,11 @@
 //
 //------------------------------------------------------------------------------
 // Test:
-//   Location: projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_control.py
-//   Plan: dv/testplans/amber_victim_testplan.yaml
-//   Run: pytest projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_control.py -v
-//   (integration scenarios; Task 13 proves the leaf standalone)
+//   Location: projects/components/cache-ip/common-ip/dv/tests/test_l1_victim.py
+//   Plan: dv/testplans/l1_victim_testplan.yaml
+//   Run: pytest projects/components/cache-ip/common-ip/dv/tests/test_l1_victim.py -v
+//   (standalone leaf; test_l1_control.py covers the integration scenarios,
+//   Task 13 proves the leaf formally)
 //
 //==============================================================================
 

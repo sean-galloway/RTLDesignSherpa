@@ -62,8 +62,8 @@ and is its own task; treat the prefix as history, not ownership.
 | `l1_repl` | victim selection, per-set policy state | LRU/FIFO/RANDOM match cache_sim exactly (parity grid); PLRU self-checked | `test_l1_repl.py` |
 | `l1_fill` | AXI4 read-master fill sequencing (single ID, `fub_axi_*` upstream of `axi4_master_rd`) | fill data returns in AR issue order; `fill_done` one cycle after RLAST; PassDirty latched from RRESP | `test_l1_fill_drain.py` |
 | `l1_drain` | AXI4 write-master drain sequencing (upstream of `axi4_master_wr`) | consumes the victim-shaped head (`drain_start`/`victim_addr`/`victim_data`/`drain_done`); samples start only when idle | `test_l1_fill_drain.py` |
-| `l1_victim` | depth-1 dirty-victim register | never loaded while valid (the load guard is the safety net) | covered via `test_l1_control.py` (`l1_victim_testplan.yaml`) |
-| `l1_pending_fill_bypass` | pending-fill register: answers snoops at the post-fill state | never answers at the Invalid row; CD only for landed beats (PF_GUARD) | `l1_pending_fill_bypass_testplan.yaml` |
+| `l1_victim` | depth-1 dirty-victim register | never loaded while valid (the load guard is the safety net) | `test_l1_victim.py` + `test_l1_control.py` (integration) |
+| `l1_pending_fill_bypass` | pending-fill register: answers snoops at the post-fill state | never answers at the Invalid row; CD only for landed beats (PF_GUARD) | `test_l1_pending_fill_bypass.py` + `test_l1_control.py` (integration) |
 | `l1_snoop_kmap` | combinational {state, snoop} → {CRRESP, next} decode leaf | implements the package functions' table literally | `test_l1_snoop_kmap.py` |
 | `l1_snoop_resp` | ACE AC/CD/CR snoop responder (wraps the house snoop slave) | CR only after CDLAST; one closed response at a time; address held from the accept cycle | `test_l1_snoop_resp.py` |
 | `l1_cpu_frontend` | GAXI slave: request latch + response staging FIFO | pulse-style `req_valid` (consumers that hold-until-accept need the D-6 skid); response staging room is the backpressure point | `test_l1_cpu_frontend.py` |

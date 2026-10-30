@@ -9,6 +9,7 @@ module: l1_victim
 rtl_files:
   - projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv
 test_files:
+  - projects/components/cache-ip/common-ip/dv/tests/test_l1_victim.py
   - projects/components/cache-ip/common-ip/dv/tests/test_l1_control.py
 
 # Contract: MAS ch02_blocks/05. Fields victim_addr (full line address, for
@@ -104,13 +105,12 @@ scenarios:
 
 gaps:
   - >
-    Standalone leaf-level stimulus (port-level load/clear sweeps, reset
-    values, the load-while-busy ignore path driven deliberately) is
-    deferred to Task 13, which proves the leaf standalone per the DECISION
-    D-2 pattern; the register is fully exercised in integration by the
-    l1_control suite above. The load-while-busy ignore path is not
-    stimulus-reachable in integration (the invariant proves the request
-    never arises), so it lands in the Task 13 proof contract.
+    Standalone leaf-level stimulus now exists in simulation:
+    test_l1_victim.py drives port-level load/clear sweeps, checks reset
+    values, and drives the load-while-busy ignore path deliberately (it
+    is not stimulus-reachable in integration -- the l1_control invariant
+    proves the request never arises). Task 13 still owns the standalone
+    formal proof per the DECISION D-2 pattern.
   - >
     MAS ch02 erratum (Task 14 owns the doc edit): ch02_blocks/05's
     handshake table shows victim_load as a single-cycle full-line stage;

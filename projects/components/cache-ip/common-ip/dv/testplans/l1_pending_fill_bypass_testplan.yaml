@@ -9,6 +9,7 @@ module: l1_pending_fill_bypass
 rtl_files:
   - projects/components/cache-ip/common-ip/rtl/fub/l1_pending_fill_bypass.sv
 test_files:
+  - projects/components/cache-ip/common-ip/dv/tests/test_l1_pending_fill_bypass.py
   - projects/components/cache-ip/common-ip/dv/tests/test_l1_control.py
 
 # Contract: MAS ch02_blocks/02. Fields pf_addr / pf_state /
@@ -87,12 +88,14 @@ scenarios:
 
 gaps:
   - >
-    Standalone leaf-level stimulus (port-level pf_load/pf_beat_set sweeps,
-    reset values, X-propagation on reserved inputs) is deferred to Task
-    13, which proves the leaf standalone per DECISION D-2; the register is
-    fully exercised in integration by the l1_control suite above.
+    Standalone leaf-level stimulus now exists in simulation:
+    test_l1_pending_fill_bypass.py drives port-level pf_load/pf_beat_set
+    sweeps, checks reset values, exercises the E-state load path
+    (integration only loads S/M), and drives the strobe priority corners
+    (load > clear > beat). Task 13 still owns the standalone formal
+    proof per DECISION D-2.
   - >
     pf_state only ever loads S or M in this integration (READ_SHARED /
     READ_UNIQUE fills; the exclusive fill qualifier arrives with the Task
     5 fill FUB). The E load path is the same two-bit mux and is covered
-    by the Task 13 standalone proof contract.
+    standalone by test_l1_pending_fill_bypass.py ("load E").
