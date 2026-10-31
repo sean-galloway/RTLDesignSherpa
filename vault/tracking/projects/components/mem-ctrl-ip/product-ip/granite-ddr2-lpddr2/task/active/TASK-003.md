@@ -1236,3 +1236,81 @@ percent; nothing moved down by more than 1 percent. Against LiteDRAM on the
 60 shared cells: **42 win, 18 tie, 0 lose.** What LiteDRAM still does better
 is a single thread's reads (half_pair 1 thread 344 against 383; read
 latency 48 cycles against 25), a latency item, not a row-cycle one.
+
+### 2026-10-31, read latency: where the cycles go, and two of them taken out
+
+Owner: explore single-thread read latency "for a few more synthesis
+rounds" -- the planes are deliberate (easy to drop blocks in and out) and
+imperfect for latency by design. Also asked: the pumice -1.1 percent on
+incremental writes after the tRTP change.
+
+**The pumice write shift is refresh phase, not tRTP.** The two proxy runs
+start their write window 961 cycles apart (the host's UART programming
+differs), so the ~2150-cycle window held 4 refreshes at tRTP 1 and 3 at
+tRTP 2 (25 cycles each at tREFI 585): 111 against 86 extra cycles, the
+whole 1.1 percent. The same mechanism moves a few board write cells by
+about 1 percent in either direction between sweeps.
+
+**The latency, by stage.** A probe in the granite proxy (`PERF_LAT_PROBE`,
+one read in flight via `TEST_MAX_OUT=1`) timestamps every boundary. An
+unloaded page-hit read, 26 cycles AR -> R at 75 MHz on the proxy PHY:
+
+| stage | cycles |
+|---|---|
+| AR intake (AR_STAGE_REG) -> store push | 2 |
+| store admission hold -> bank FIFO -> head record -> pick decode | 4 |
+| decode -> pick -> fire | 1 |
+| scheduler output delay line (CMD_DELAY_EFF = 5 + 2 x BURST_WORDS = 7) | 7 |
+| DFI plane -> RD on the pins | 2 |
+| PHY (proxy t_rddata_en 4 + model 2) | 6 |
+| return ring (BRAM write, ready, read, skid) + R collapse | 4 |
+
+The delay line is a uniform write-data lead (the write CAM drains a WR's
+data ~5 + BURST_WORDS cycles after commit), applied to every command so
+the pick's fire-time spacing holds; reads pay it without needing it. The
+store's 4 are the admission hold bought at 100 MHz (TASK-003 census) and
+the plane contract's registered records: left alone.
+
+**Board cause.** half_pair at 1 thread reads 0.86 transactions per cycle
+with 32 in flight: Little's law, a ~37-cycle loaded latency on the board
+PHY. Under ~32 cycles the thread runs at the command rate.
+
+**Round 1, fast read release** (`mc_scheduler_plane` FAST_RD_RELEASE,
+granite `GRANITE_FAST_RD_RELEASE`): a command skips the delay while
+`r_fast` is set. Set only after the line has been empty for CMD_DELAY +
+S_MAX cycles (S_MAX the largest programmed spacing, two registered stages
+from the CSRs), so everything sent has reached the DFI and every
+constraint it started has expired in DRAM time; cleared by a WR push, and
+that WR takes the full delay -- raising the delay only widens gaps, and
+from that WR on the stream is the uniform stream. Proxy: 26 -> 20 cycles;
+writes bit-identical on every family, concurrent and mixed identical (they
+stay in the delayed mode). Pumice proxy with the option forced on (its DRAM
+model is MC-anchored, ISSUE-023): zero JEDEC violations, streams and
+4-thread mixed. First 100 MHz build missed on the one-cycle 16-input S_MAX
+tree (t_rddata_en CSR -> r_smax, -0.295, 17 levels); pipelined.
+
+**Round 2, return-ring head bypass** (`mc_rd_return_ring` RET_BYPASS,
+granite `GRANITE_RD_RET_BYPASS`): a return beat that is exactly the next
+fetch (ticket = fetch slot, beat = fetch beat, not a shadow) goes straight
+into the output skid when no BRAM beat enters it and it has room; the BRAM
+write still happens, so a missed bypass is fetched as before. Ring test
+gains the axis (16 cells, both states); a mutant that inverts the bypassed
+data fails exactly the 8 bypass cells. Proxy: 20 -> 18 cycles.
+
+Board 100 MHz, both rounds (`ddr2_char_granite_100mhz_lat_2026-10-31.bit`,
+AltSpreadLogic_high, WNS +0.011 / WHS +0.008; the misses on the first
+directive were the pick's known cone and the harness W skid, none on the
+new logic). Every profile, 180 cells, 0 mismatched. Single-thread reads
+344 -> 389 (half_pair; LiteDRAM 383) and 345 -> 387 (half_oct; 383);
+half_pair gap 0 reads 338 -> 374 (370). Read latency histogram bin 48 -> 25
+(LiteDRAM 24.6) at one thread and 96 -> 51 on col_major (51.4). Nothing
+else moved by more than 1 percent. Against LiteDRAM: 42 win, 18 tie, 0
+lose; no cell where LiteDRAM reads faster by more than 2 percent.
+
+Gate: lint clean; common-ip 49 passed (41 + the 8 bypass ring cells) / 3
+xfailed, granite top 18 / 1 xfailed, pumice top 218.
+
+Left, by stage: the store's 4 and the AR stage's 2 are timing boundaries
+bought at 100 MHz; the PHY's share is shared with LiteDRAM. The board
+latency histogram resolves only octaves; an exact mean needs a sum
+accumulator in `axi_perf_latency_hist` (shared AMBA RTL, owner's call).

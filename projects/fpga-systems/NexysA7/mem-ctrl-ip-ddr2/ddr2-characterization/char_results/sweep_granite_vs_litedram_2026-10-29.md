@@ -61,9 +61,44 @@ MB/s write / read, peak 800:
 The 1-writer / 2-reader row is 1:2 by construction. The col_major read
 column is the tRTP change: an auto-precharge read paid 4 MC cycles to the
 next ACT where JEDEC needs 5 CK (3 MC), so every read row was one cycle
-long. Where LiteDRAM still leads is a single thread's reads (half_pair 1
-thread: 344 against 383, read latency 48 cycles against 25); granite leads
-on that thread's writes, 393 against 324.
+long. The table is the tRTP sweep (`rtp100`); the read latency round
+below moves only the single-thread reads.
+
+### Read latency (same day): fast read release and the return-ring bypass
+
+A single thread's reads were the last cells behind LiteDRAM (half_pair 1
+thread: 344 against 383): 32 reads in flight over a ~37-cycle loaded
+latency caps one thread at 0.86 reads per cycle. Split on the char proxy
+by stage, an unloaded page-hit read was 26 cycles from AR to R, and 7 of
+them were the scheduler's uniform write-data lead (every command waits
+CMD_DELAY so a WR's data reaches the DFI first). Two changes, both
+granite-only parameters:
+
+* **Fast read release** (`mc_scheduler_plane` FAST_RD_RELEASE): commands
+  skip the delay while no write is in the line. Entered only after the
+  line has idled CMD_DELAY plus the largest programmed spacing, left by a
+  WR, which takes the full delay, so mixed traffic is exactly the uniform
+  stream. 26 -> 20 cycles.
+* **Return-ring head bypass** (`mc_rd_return_ring` RET_BYPASS): the next beat
+  in AR order goes from the DFI return straight into the ring's output skid
+  instead of BRAM write -> ready -> read. 20 -> 18 cycles.
+
+Board 100 MHz (bitstream `ddr2_char_granite_100mhz_lat_2026-10-31.bit`, WNS
++0.011 / WHS +0.008), every profile, `char_granite_lat100_<profile>_2026-10-31.csv`:
+180 cells, 0 failed, 0 mismatched; LiteDRAM 42 win / 18 tie / 0 lose.
+
+| cell, power-on | read MB/s before -> after | LiteDRAM | read latency bin before -> after | LiteDRAM |
+|---|---|---|---|---|
+| half_pair, 1 thread | 344 -> **389** | 383 | 48 -> 25 | 24.6 |
+| half_oct, 1 thread | 345 -> **387** | 383 | 48 -> 25 | 24.6 |
+| half_pair, gap 0 | 338 -> **374** | 370 | | |
+| col_major 8-beat | 520 -> 520 | 518 | 96 -> 51 | 51.4 |
+| incremental 8-beat | 772 -> 772 | 756 | 50 -> 50 | 48 |
+
+(The latency columns are the harness's log2-histogram bin means, so they
+move by octaves.) Nothing else moved by more than 1 percent; three write
+cells moved about 1 percent in both directions, one refresh more or less in
+the measurement window.
 
 ## Pattern legend (what each name means)
 
@@ -117,7 +152,7 @@ Rendered by `build-perf/bin/plot_sweep.py` from the CSVs beside this file,
 in the STREAM characterization style: a line family where the knee has to
 be legible, grouped bars for the side by side, an annotated heatmap for the
 envelope. Each series' peak is the dotted line in its colour.
-Since 2026-10-31 `granite100` is the update at the top (power-on hybrid, tRTP 1); the other series are unchanged.
+Since 2026-10-31 `granite100` is the update at the top (power-on hybrid, tRTP 1, fast read release and the ring bypass: `lat100`); the other series are unchanged.
 
 ![half_pair bandwidth against injector threads](plots/threads_knee_pair.png)
 

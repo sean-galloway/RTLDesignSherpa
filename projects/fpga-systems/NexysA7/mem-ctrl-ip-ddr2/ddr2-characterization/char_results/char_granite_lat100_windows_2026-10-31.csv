@@ -1,0 +1,10 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+defaults,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,100.0,3998751,0.0800,204.86,4046386,0.0800,202.45,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 404.9 MB/s over 4046386 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+defaults,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,100.0,1197250,0.0799,684.23,1190113,0.0799,688.34,50.00,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+defaults,random_bl8,random,8,32000,0,0,1,0,8192000,100.0,1303690,0.0800,628.37,1245223,0.0799,657.87,50.19,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"
+fixed_open_tr2,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,100.0,4325558,0.0801,189.39,4351004,0.0801,188.28,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 376.6 MB/s over 4351004 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+fixed_open_tr2,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,100.0,1321189,0.0800,620.05,1324127,0.0799,618.67,50.23,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+fixed_open_tr2,random_bl8,random,8,32000,0,0,1,0,8192000,100.0,1368344,0.0800,598.68,1316810,0.0796,622.11,50.28,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"
+open_page,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,100.0,5552873,0.0711,147.53,5552845,0.0711,147.53,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 295.1 MB/s over 5552873 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+open_page,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,100.0,1190125,0.0799,688.33,1190114,0.0800,688.34,50.28,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+open_page,random_bl8,random,8,32000,0,0,1,0,8192000,100.0,1290057,0.0799,635.01,1238260,0.0799,661.57,50.17,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"
