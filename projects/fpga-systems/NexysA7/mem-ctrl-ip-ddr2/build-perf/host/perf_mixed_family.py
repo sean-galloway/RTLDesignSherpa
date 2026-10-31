@@ -202,7 +202,7 @@ def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
 # pumice's 553 / 571 through the same harness) while every single-direction
 # stream ran at 96 percent of peak, so this is the proxy for that cell.
 # Writer = generator 0, reader = generator 1 (needs TEST_NUM_GEN >= 2).
-CONC_FAMILIES = ("conc_rows", "conc_banks")
+CONC_FAMILIES = ("conc_rows", "conc_banks", "conc_colmajor")
 
 
 def conc_programs(fam, geom, dc, *, blen, txn, gap, seed=PERF_SEED):
@@ -216,6 +216,14 @@ def conc_programs(fam, geom, dc, *, blen, txn, gap, seed=PERF_SEED):
     elif fam == "conc_banks":
         wr_start, rd_start = 0, geom.bank_stride        # next bank, same row
         wrap = geom.page_bytes - 1                      # ... each walk inside its page
+    elif fam == "conc_colmajor":
+        # the board's `concurrent` profile on col_major (measure_concurrent,
+        # regions placement): a col_major walk spans the device, so writer
+        # and reader split it in halves -- the same banks, rows apart -- and
+        # each walks one bank's rows (stride = same-bank row stride)
+        half = geom.device_bytes // 2
+        wr_start, rd_start = 0, half
+        stride, wrap = geom.row_stride_same_bank, half - 1
     else:
         raise ValueError(fam)
     common = dict(burst_len=blen, txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,

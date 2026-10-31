@@ -36,6 +36,20 @@ package granite_pkg;
     parameter int GRANITE_WR_DATA_BUF_WORDS = 16;
 
     // ------------------------------------------------------------------
+    // Direction batch cap: column fires in one direction before the pick
+    // must hand the bus to the other while it is waiting (mc_bank_pick
+    // dir_batch_max_i; read back as SCHED_WR_WM.wr_batch_max). 255, the
+    // field maximum, measured 2026-10-30 on the char proxy (hybrid page mode,
+    // MB/s total, wr/rd balanced within 6%): cap 64 / 128 / 255 ->
+    // conc_banks 485 / 526 / 549, conc_rows 491 / 525 / 549, concurrent
+    // col_major 310 / 321 / 326, mixed 295 flat. Uncapped (0, how it was
+    // wired until then) reached 571 / 564 only because a direction that
+    // never ran dry was never made to yield: concurrent col_major split
+    // 166 / 345 and the cap-on runs went 2048 reads, then 2048 writes.
+    // ------------------------------------------------------------------
+    parameter int GRANITE_DIR_BATCH_MAX = 255;
+
+    // ------------------------------------------------------------------
     // RAS plane: ABSENT in this SKU (true bypass, reserved CSR decode
     // only). Expressed as omission - no transform pair is instantiated -
     // not as a parameter.

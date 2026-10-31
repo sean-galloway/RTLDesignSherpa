@@ -23,7 +23,7 @@
 //     and REFab dispatch (PHY_TIMING.refresh_burst) remain live.
 //
 // Granite parameters surfaced as read-only CSR fields:
-//   - SCHED_WR_WM.wr_batch_max is read-only at GRANITE_WR_DATA_BUF_WORDS (=16).
+//   - SCHED_WR_WM.wr_batch_max is read-only at GRANITE_DIR_BATCH_MAX (=255).
 //   - DFI_PHASE.gear_ratio is read-only at log2(GRANITE_DFI_MHZ/GRANITE_ACLK_MHZ)
 //     (=2 for the placeholder 300/75 MHz plan).
 //   Other GRANITE_* package parameters (SEAM_N, ENTRY_STORE_DEPTH, ACLK_MHZ)
@@ -666,11 +666,14 @@ addrmap granite_csr {
 
         field {
             sw = r; hw = na;
-            desc = "Maximum consecutive write columns in one batch drain before
-                    the arbiter yields a slot to reads. Read-only in granite at
-                    GRANITE_WR_DATA_BUF_WORDS (=16); the product write-data
-                    staging size is the single source of truth.";
-        } wr_batch_max[23:16] = 8'h10;
+            desc = "Direction batch cap: consecutive column fires in one
+                    direction (read or write) before the scheduler hands the
+                    bus to the other direction while it is waiting. Read-only
+                    in granite at GRANITE_DIR_BATCH_MAX (=255, the field
+                    maximum; measured best of 64/128/255 on concurrent
+                    read+write, 2026-10-30). Until then the controller was
+                    built with no cap at all while this field read 16.";
+        } wr_batch_max[23:16] = 8'hFF;
 
         field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:24] = 8'h0;
 

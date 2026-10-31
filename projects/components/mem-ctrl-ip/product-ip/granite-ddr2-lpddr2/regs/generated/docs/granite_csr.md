@@ -730,7 +730,7 @@ write run. Still a runtime CSR: this is only the reset value.</p>
 |-----|------------|------|-----|----|
 | 7:0 | wr_high_wm |  rw  | 0x2 |  — |
 | 15:8|  wr_low_wm |  rw  | 0x1 |  — |
-|23:16|wr_batch_max|   r  | 0x10|  — |
+|23:16|wr_batch_max|   r  | 0xFF|  — |
 |31:24|    RSVD    |   r  | 0x0 |  — |
 
 #### wr_high_wm field
@@ -743,10 +743,13 @@ write run. Still a runtime CSR: this is only the reset value.</p>
 
 #### wr_batch_max field
 
-<p>Maximum consecutive write columns in one batch drain before
-the arbiter yields a slot to reads. Read-only in granite at
-GRANITE_WR_DATA_BUF_WORDS (=16); the product write-data
-staging size is the single source of truth.</p>
+<p>Direction batch cap: consecutive column fires in one
+direction (read or write) before the scheduler hands the
+bus to the other direction while it is waiting. Read-only
+in granite at GRANITE_DIR_BATCH_MAX (=255, the field
+maximum; measured best of 64/128/255 on concurrent
+read+write, 2026-10-30). Until then the controller was
+built with no cap at all while this field read 16.</p>
 
 #### RSVD field
 

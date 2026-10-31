@@ -120,6 +120,37 @@ async def _cmd_probe(dut, log):
             pass
 
 
+async def _pick_probe(dut, path, n_cycles=160):
+    """PERF_PICK_PROBE=<path>: the pick's direction state for n_cycles from the
+    first cycle a direction batch reaches its cap (r_dir_batch >= the cap)
+    while the other direction has a request -- where the cap should turn the
+    bus round."""
+    try:
+        bp = dut.u_dut.u_dut.u_ctrl.u_core.u_sched_plane.g_bank_pick.u_bank_pick
+    except AttributeError:
+        return
+    names = ["r_dir", "r_dir_batch", "w_dir_batch_done", "w_rd_col_any", "w_wr_col_any",
+             "w_rd_col_pend", "w_wr_col_pend", "w_oth_req_any", "w_xdir_ok", "r_last_was_row",
+             "r_req", "w_req_ok", "w_req_col", "w_sel", "w_pick_vld", "r_hint_vld", "r_hint_pair",
+             "w_hint_ok", "w_wr_sink_ok", "w_fire", "w_dmd_ok", "w_col_fire_now"]
+    rows, started = [], False
+    while len(rows) < n_cycles:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        v = {}
+        for nm in names:
+            try:
+                v[nm] = int(getattr(bp, nm).value)
+            except Exception:  # noqa: BLE001
+                v[nm] = None
+        if not started:
+            started = bool(v["w_dir_batch_done"]) and bool(v["w_oth_req_any"])
+        if started:
+            rows.append(v)
+    with open(path, "w") as fh:
+        json.dump(rows, fh)
+
+
 async def _gate_trace(dut, path, max_fires=40):
     """PERF_GATE_TRACE=1: bounded ReadOnly window starting at the first RD
     fire, logging every scheduler gate each cycle until max_fires RD fires.
@@ -537,6 +568,8 @@ async def cocotb_test_granite_perf(dut):
         cocotb.start_soon(_mism_probe(dut, mism_log))
     if gate_path:
         cocotb.start_soon(_gate_trace(dut, gate_path))
+    if os.environ.get("PERF_PICK_PROBE"):
+        cocotb.start_soon(_pick_probe(dut, os.environ["PERF_PICK_PROBE"]))
 
     r = await bridge(prog)()
     if mism_log:
@@ -622,6 +655,10 @@ def test_granite_char_perf(request):
         # trace knobs must ride extra_env to reliably reach the sim process
         "PERF_CMD_TRACE": os.environ.get("PERF_CMD_TRACE", "0"),
         "PERF_GATE_TRACE": os.environ.get("PERF_GATE_TRACE", ""),
+        "PERF_PICK_PROBE": os.environ.get("PERF_PICK_PROBE", ""),
+        "PERF_DRAM_TRACE": os.environ.get("PERF_DRAM_TRACE", ""),
+        "TEST_PAGE_MODE": os.environ.get("TEST_PAGE_MODE", ""),
+        "TEST_TR_INIT": os.environ.get("TEST_TR_INIT", ""),
         "MISM_PROBE": os.environ.get("MISM_PROBE", "0"),
         "MISM_DUMP": os.environ.get("MISM_DUMP", ""),
         "DFI_CMD_TRACE": os.environ.get("DFI_CMD_TRACE", "0"),

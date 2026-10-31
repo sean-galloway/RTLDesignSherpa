@@ -455,7 +455,10 @@ module granite_top_geared
         .sched_col_sel_i    (hwif_out.SCHED_POLICY.col_sel.value),
         .sched_access_pref_i(hwif_out.SCHED_POLICY.access_pref.value),
         .sched_wr_high_wm_i (hwif_out.SCHED_WR_WM.wr_high_wm.value),
-        .sched_wr_batch_max_i(8'd0),   // no field in Granite CSR
+        // the direction batch cap the register reports (SCHED_WR_WM.
+        // wr_batch_max); it was tied to 0 (= no cap) here, so a direction
+        // with work never yielded (granite TASK-003, 2026-10-30)
+        .sched_wr_batch_max_i(8'(GRANITE_DIR_BATCH_MAX)),
         .sched_wr_low_wm_i  (hwif_out.SCHED_WR_WM.wr_low_wm.value),
         .sched_prio_sub_i   (hwif_out.SCHED_POLICY.prio_sub.value),
         .sched_qos_en_i     (hwif_out.SCHED_POLICY.qos_en.value),

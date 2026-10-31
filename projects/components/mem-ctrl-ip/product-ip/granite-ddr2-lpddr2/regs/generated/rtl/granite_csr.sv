@@ -2395,7 +2395,7 @@ module granite_csr (
     assign readback_array[17][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
     assign readback_array[18][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;
     assign readback_array[18][15:8] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_low_wm.value : '0;
-    assign readback_array[18][23:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 8'h10 : '0;
+    assign readback_array[18][23:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 8'hff : '0;
     assign readback_array[18][31:24] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 8'h0 : '0;
     assign readback_array[19][2:0] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_mode.value : '0;
     assign readback_array[19][3:3] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 1'h0 : '0;
