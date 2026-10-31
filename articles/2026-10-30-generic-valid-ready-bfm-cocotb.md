@@ -5,13 +5,13 @@ summary: A field-driven Cocotb BFM can adapt one packet description to flat, pac
 tags: cocotb, verification, rtl, python, hardware
 ---
 
-I wanted to test each module at the functional unit block, or FUB, level while the design was still fresh in my mind. Write the FUB, wrap a small testbench around it, and find the interface and control bugs right there. I didn't want to wait until the whole component came together, possibly months later, and then hunt for a bug across several integrated blocks.
+When I started coding RTL on GitHub, I needed to use CocoTB, as it is open source, and I wanted to test each module at the functional unit block, or FUB, level while the design was still fresh in my mind. Write the FUB, wrap a small testbench around it, and find the interface and control bugs right there. I didn't want to wait until the whole component came together, possibly months later, and then hunt for a bug across several integrated blocks.
 
 ![Generic valid-ready BFM collateral turning three payload shapes into a readable packet](assets/generic_valid_ready_bfm_hero.png)
 
 I also didn't want to keep rewriting the same testbench collateral. Many FUB interfaces are just valid, ready, and a payload, but the payload takes different forms. Sometimes it is one data signal. Sometimes it is a packed struct or a flat vector containing several fields. Sometimes every packet field has its own signal. Hand-connecting each bus functional model, or BFM, was error-prone. The wiring also became one more thing to maintain as the RTL changed.
 
-I initially asked LLMs for help with the implementation. That didn't go well. Nearly all of the original code is hand-crafted. The useful abstractions came from working through real testbench problems: field layout, signal discovery, handshake ownership, and readable diagnostics. The result is a generic valid/ready BFM whose interface can be described by a class or a dictionary.
+I initially asked LLMs for help with the implementation. That didn't go well. When I was coding, the context for the FieldConfig, Packet, and Signal Resolver classes alone was too large, even when I tried to pass in the API's through Markdown files. Nearly all of the original code is hand-crafted. The useful abstractions came from working through real testbench problems: field layout, signal discovery, handshake ownership, and readable diagnostics. The result is a generic valid/ready BFM whose interface can be described by a class or a dictionary.
 
 ## One handshake, several payload shapes
 
