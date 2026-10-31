@@ -5,7 +5,7 @@ summary: Replacing DMA scheduler FSMs with a barrel RV32I can eliminate DSPs and
 tags: dma, riscv, fpga, computer-architecture, rtl
 ---
 
-I had read about barrel processors and thought they might be useful for a future project. I turned notes from Hennessy and Patterson, and Harris and Harris, into requirements. Kimi helped with coding and validation. A very lean, N-Barrel RV32i, referred to as Gatling, was ready sooner than the intended project needed. So, I tried to use it in another way.
+I had read about barrel processors and thought they might be useful for a future project. I turned notes from Hennessy and Patterson, and Harris and Harris, into requirements. Kimi helped with coding and validation. A very lean, N-Barrel RV32i, called Gatling, was ready sooner than the project needed. So, I tried to use it in another way.
 
 ![Gatling barrel processor cover artwork](assets/dma_fsm_barrel_hero.png)
 
