@@ -1,5 +1,92 @@
 # granite vs LiteDRAM, the full sweep (owner's request, 2026-10-29)
 
+## Working summary (as of 2026-10-31)
+
+One board (Nexys A7-100T, MT47H64M16HR x16), one harness, one host program
+for all three controllers. Everything below the summary is the running log
+it was distilled from, newest update first, with the setup and every table.
+
+**Where things stand.** At 100 MHz (DDR2-400, peak 800 MB/s each
+direction) granite at power-on beats or ties LiteDRAM on all 60 shared
+cells: **42 win, 18 tie, 0 lose** (write and read averaged, a tie is within
+2 percent). The 18 ties are row_major, col_major and half_pair with an
+idle gap: one bank or one stream at a time, where the DRAM's own timing or
+the gap sets the ceiling for both. Incremental is a narrow win (2-3
+percent). The large wins are the patterns that need more than one bank
+busy at a time. LiteDRAM is about 3.5x smaller and has the
+lower unloaded read latency (18 cycles against 27).
+
+| cell (write / read MB/s) | granite 100 | LiteDRAM 100 | granite 75 | LiteDRAM 75 | pumice 50 |
+|---|---|---|---|---|---|
+| peak | 800 | 800 | 600 | 600 | 400 |
+| incremental, 16-beat | 772 / 773 | 746 / 756 | 576 / 578 | 554 / 564 | 381 / 382 |
+| row_major, 8-beat | 775 / 778 | 766 / 776 | 578 / 581 | 569 / 580 | 384 / 384 |
+| col_major, 8-beat | 416 / 520 | 409 / 518 | 292 / 333 | 304 / 386 | 181 / 181 |
+| col_major_interleaved, 16-beat | 721 / 729 | 500 / 507 | 541 / 545 | 377 / 380 | 325 / 342 |
+| half_pair, 1 thread | 393 / 389 | 324 / 383 | 294 / 243 | 243 / 286 | 195 / 147 |
+| half_pair, 8 threads | 385 / 389 | 94 / 95 | 268 / 290 | 70 / 71 | 157 / 194 |
+| random window, 4 threads | 628 / 658 | 383 / 397 | 468 / 481 | 286 / 298 | 267 / 287 |
+| mixed window, 4 threads | 205 / 202 | 159 / 159 | 147 / 147 | 119 / 119 | 131 / 108 |
+| concurrent 1 writer + 1 reader, incremental | 368 / 368 | 167 / 167 | 285 / 285 | 124 / 124 | 185 / 185 |
+
+Sources: granite 100 = `hx100` 2026-10-31, power-on (`defaults`); LiteDRAM
+100 = `hx100` 2026-10-31; granite 75 = `sweep75` 2026-10-29 `open_page`
+(the design as of that day: before the hybrid, fast read release and the
+drain-arm fix); LiteDRAM 75 = `sweep75` 2026-10-29; pumice 50 = `sweep`
+2026-10-30 `open_page` (build-perf bitstream 2026-10-27; its 75 MHz build
+does not close). At 75 MHz the 2026-10-29 granite scored 35 win / 19 tie / 6
+lose, the six losses all `col_major`. That design has not been re-swept at 75.
+
+**Read latency**, exact (AR to the first R beat, 100 MHz, so 1 cycle = 10 ns):
+
+| cell | granite mean / min / max | LiteDRAM mean / min / max |
+|---|---|---|
+| half_pair, 1 thread (unloaded) | 29.7 / 27 / 51 | 18.7 / 18 / 48 |
+| half_pair, 8 threads | 44.9 / 29 / 68 | 26.8 / 21 / 62 |
+| incremental, 8-beat | 46.0 / 27 / 74 | 33.9 / 32 / 62 |
+| col_major_interleaved, 8-beat | 51.0 / 27 / 77 | 64.5 / 22 / 87 |
+| random window, 4 threads | 52.1 / 27 / 86 | 61.4 / 22 / 91 |
+
+granite's floor is 9 cycles above LiteDRAM's. Its mean is higher on the
+sequential patterns too (46.0 against 33.9 on incremental, at the same
+bandwidth). At 8 threads it is higher while it moves 4x the data. It is lower
+where the pattern needs bank parallelism. The mixed window has no latency figure, because that measurement never
+reads the histogram.
+
+![read latency per pattern, exact mean with min..max](plots/latency_patterns.png)
+
+![half_pair read latency against injector threads](plots/latency_threads.png)
+
+**Area** (Vivado `report_utilization -hierarchical` on each routed
+checkpoint, xc7a100t; the controller only, without the shared DDR2 PHY, the
+characterization engines, the UART bridge or the debug RAMs):
+
+| | granite | pumice | LiteDRAM |
+|---|---|---|---|
+| instance | `granite_top_geared` | `pumice_top_geared` | `litedram_core` minus `VexRiscv` and `a7ddrphy` cells |
+| LUT (of which LUTRAM) | 7,890 (416) | 11,897 (432) | about 2,260 (235) |
+| FF | 4,987 | 6,509 | about 1,580 |
+| RAMB36 | 2 | 2 | 0-3 (see note) |
+| DSP | 0 | 0 | 0 |
+| checkpoint | 100 MHz `hx` build, 2026-10-31 | build-perf, 2026-10-27 | 100 MHz build, 2026-10-31 |
+| read MB/s per 1,000 LUT, random window | 83 | 24 (at 50 MHz) | 176 |
+| read MB/s per 1,000 LUT, incremental 16-beat | 98 | 32 (at 50 MHz) | 335 |
+
+- **What each count includes:**
+  - granite's count includes its CSR block (362 LUT, 501 FF). The rest is `granite_core`: the per-bank queue store 2,994 LUT, the AXI plane 2,166, the scheduler 1,983, the DFI plane 284 and the init plane 113.
+  - LiteDRAM's core is one flat module, so its controller figure is the core total minus the CPU subtree (Vivado hierarchy) and minus the cells named `a7ddrphy` (208 LUT, 496 FF). What remains still holds the SoC glue (Wishbone, CSR bus, UART), so it is an upper bound.
+  - Of the core's block RAMs, 9 are the CPU's, 8 the BIOS ROM and 2 its SRAM. That leaves 3 RAMB36 at most for the controller and the glue.
+- **pumice:** the checkpoint predates fast read release (the RTL default since 2026-10-31).
+
+**Open items** (TASK-003 log): granite's 9-cycle unloaded latency gap,
+which the sim does not show (18 cycles there); a pumice rebuild and sweep to
+confirm fast read release and give pumice exact latency; latency for the
+mixed window.
+
+---
+
+# Appendix: the running log
+
 Same board (Nexys A7-100T, MT47H64M16HR x16), same harness, same host
 program, same transaction scale (`--txn-scale 4000`, clamped to the engine's
 65,535 per scenario), the same day. granite is the STORE_MERGE_EN default
@@ -156,7 +243,8 @@ controllers rebuilt at 100 MHz (granite `ddr2_char_granite_100mhz_hx_2026-10-31.
 WNS +0.001 / WHS +0.020; LiteDRAM `litedram_char_100mhz_2026-10-31.bit`,
 WNS +0.182), every profile, `char_<ctrl>_hx100_<profile>_2026-10-31.csv`:
 granite 180 cells and LiteDRAM 60, 0 failed, 0 mismatched. Granite power-on
-against LiteDRAM: 91 win, 29 tie, 0 lose.
+against LiteDRAM: 42 win, 18 tie, 0 lose on the rule above (91 / 29 / 0 when
+write and read are counted separately with a 1 percent tie; corrected 2026-10-31).
 
 | read cell | granite MB/s | LiteDRAM | granite latency mean / min / max | LiteDRAM | bin means (g / L) |
 |---|---|---|---|---|---|
@@ -209,6 +297,10 @@ Since 2026-10-31 `granite100` is the update at the top (power-on hybrid, tRTP 1,
 ![every pattern at bl8, side by side](plots/patterns_bars.png)
 
 ![the envelope: every scenario as a percent of each series' peak](plots/envelope_heatmap.png)
+
+![read latency per pattern, exact mean with min..max (series with exact statistics only)](plots/latency_patterns.png)
+
+![half_pair read latency against injector threads](plots/latency_threads.png)
 
 ![col_major bandwidth against burst length](plots/burst_len_col_major.png)
 

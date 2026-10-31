@@ -20,6 +20,12 @@ Figures (all MB/s, each series' peak drawn as a dotted line):
   burst_len_<family>.png             every: bandwidth vs burst length 4/8/16
   patterns_bars.png                  every pattern at bl8, grouped by series
   envelope_heatmap.png               every scenario x series, percent of peak
+
+Latency figures (read, exact mean with the min..max range, in ns so series
+at different clocks share an axis; only series whose CSV carries rd_lat_mean,
+i.e. bitstreams since 2026-10-31):
+  latency_patterns.png               every pattern at bl8, grouped by series
+  latency_threads.png                half_pair: latency vs threads 1..8
 """
 import argparse, csv, os, sys
 import numpy as np
@@ -70,6 +76,17 @@ class Series:
             if r["scenario"] == scenario:
                 return f(r["wr_bw_mb_s"]), f(r["rd_bw_mb_s"])
         return None, None
+
+    def lat(self, profile, scenario):
+        """Exact read latency (mean, min, max) in ns, or None on an old bitstream."""
+        for r in self.rows(profile):
+            if r["scenario"] == scenario:
+                m = f(r.get("rd_lat_mean"))
+                if m is None or not self.clk:
+                    return None
+                ns = 1000.0 / self.clk
+                return m * ns, f(r["rd_lat_min"]) * ns, f(r["rd_lat_max"]) * ns
+        return None
 
 
 def save(fig, outdir, name):
@@ -184,6 +201,60 @@ def envelope(series, outdir):
     return save(fig, outdir, "envelope_heatmap.png")
 
 
+def latency_patterns(series, outdir):
+    pats = [p for p in PATTERNS if p[1] != "mixed_bl8"]   # the mixed window never reads the histogram
+    have = [s for s in series if any(s.lat(p, sc) for p, sc, _ in pats)]
+    if not have:
+        return None
+    # concurrent cells queue behind a writer and run to microseconds; their own
+    # panel keeps the single-stream cells readable
+    groups = [[p for p in pats if p[0] != "concurrent"], [p for p in pats if p[0] == "concurrent"]]
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), gridspec_kw={"width_ratios": [len(g) for g in groups]})
+    n = len(have); width = 0.8 / n
+    for ax, grp in zip(axes, groups):
+        xs = np.arange(len(grp))
+        for k, s in enumerate(have):
+            v = [s.lat(p, sc) for p, sc, _ in grp]
+            mean = np.array([x[0] if x else np.nan for x in v])
+            lo = np.array([x[0] - x[1] if x else 0 for x in v])
+            hi = np.array([x[2] - x[0] if x else 0 for x in v])
+            off = (k - (n - 1) / 2) * width
+            ax.bar(xs + off, np.nan_to_num(mean), width, color=COLORS[series.index(s)],
+                   label=f"{s.label} ({s.clk:.0f} MHz)")
+            ax.errorbar(xs + off, mean, yerr=[lo, hi], fmt="none", ecolor="black", elinewidth=0.8, capsize=2)
+            for x, m in zip(xs + off, mean):
+                if not np.isnan(m):
+                    ax.text(x, m * 0.5, f"{m:.0f}", ha="center", va="center", color="white", fontsize=7, rotation=90)
+        ax.set_xticks(xs); ax.set_xticklabels([lab for _, _, lab in grp], fontsize=8)
+        ax.grid(True, axis="y", alpha=0.3)
+    axes[0].set_ylabel("read latency, ns (AR to first R beat)")
+    axes[0].set_title("single stream, bl8: bar = exact mean, whisker = min..max")
+    axes[1].set_title("concurrent (own scale)")
+    axes[0].legend(fontsize=8)
+    return save(fig, outdir, "latency_patterns.png")
+
+
+def latency_threads(series, outdir):
+    xs = list(range(1, 9))
+    fig, ax = plt.subplots(figsize=(7.5, 4.4))
+    drew = False
+    for k, s in enumerate(series):
+        v = [s.lat("half_threads", f"half_pair_thr{x}") for x in xs]
+        if not any(v):
+            continue
+        drew = True
+        mean = [x[0] if x else np.nan for x in v]
+        ax.plot(xs, mean, "-o", color=COLORS[k], label=f"{s.label} mean")
+        ax.fill_between(xs, [x[1] if x else np.nan for x in v], [x[2] if x else np.nan for x in v],
+                        color=COLORS[k], alpha=0.15, label=f"{s.label} min..max")
+    if not drew:
+        plt.close(fig); return None
+    ax.set_xticks(xs); ax.set_xlabel("injector threads"); ax.set_ylabel("read latency, ns")
+    ax.set_title("half_pair: read latency vs threads (exact)")
+    ax.set_ylim(bottom=0); ax.grid(True, alpha=0.3); ax.legend(fontsize=7, ncol=2)
+    return save(fig, outdir, "latency_threads.png")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("series", nargs="+", help="label=ctrl:tag:date[:config]")
@@ -208,6 +279,8 @@ def main():
         made.append(burst_len(series, fam, a.out))
     made.append(bars(series, a.out))
     made.append(envelope(series, a.out))
+    made.append(latency_patterns(series, a.out))
+    made.append(latency_threads(series, a.out))
     print("\n".join(f"![{m}](plots/{m})" for m in made if m))
 
 
