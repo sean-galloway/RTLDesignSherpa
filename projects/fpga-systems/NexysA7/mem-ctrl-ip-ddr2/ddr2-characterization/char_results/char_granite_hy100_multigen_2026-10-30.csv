@@ -1,0 +1,13 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+hybrid_tr2,incremental_bl8,incremental,8,32000,0,0,1,0,4096000,100.0,1126896,0.0178,181.74,1126896,0.0355,363.48,118.09,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x200000"
+hybrid_tr2,row_major_bl8,row_major,8,32000,0,0,1,0,4096000,100.0,795899,0.0178,257.32,795899,0.0355,514.64,50.08,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x800"
+hybrid_tr2,col_major_bl8,col_major,8,32000,0,0,1,0,4096000,100.0,1871073,0.0178,109.46,1871073,0.0355,218.91,146.90,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000"
+hybrid_tr2,col_major_interleaved_bl8,col_major_interleaved,8,32000,0,0,1,0,4096000,100.0,1594450,0.0178,128.45,1594450,0.0355,256.89,103.10,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000"
+defaults,incremental_bl8,incremental,8,32000,0,0,1,0,4096000,100.0,1125373,0.0178,181.98,1125373,0.0355,363.97,114.85,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x200000"
+defaults,row_major_bl8,row_major,8,32000,0,0,1,0,4096000,100.0,795916,0.0178,257.31,795916,0.0355,514.63,50.08,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x800"
+defaults,col_major_bl8,col_major,8,32000,0,0,1,0,4096000,100.0,1745728,0.0160,117.31,1745728,0.0320,234.63,173.75,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000"
+defaults,col_major_interleaved_bl8,col_major_interleaved,8,32000,0,0,1,0,4096000,100.0,1682834,0.0160,121.70,1682834,0.0320,243.40,107.20,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000"
+open_page,incremental_bl8,incremental,8,32000,0,0,1,0,4096000,100.0,1126939,0.0178,181.73,1126939,0.0355,363.46,117.77,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x200000"
+open_page,row_major_bl8,row_major,8,32000,0,0,1,0,4096000,100.0,888056,0.0178,230.62,888056,0.0355,461.23,63.39,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x800"
+open_page,col_major_bl8,col_major,8,32000,0,0,1,0,4096000,100.0,1871061,0.0178,109.46,1871061,0.0355,218.91,146.90,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000"
+open_page,col_major_interleaved_bl8,col_major_interleaved,8,32000,0,0,1,0,4096000,100.0,1594173,0.0178,128.47,1594173,0.0355,256.94,101.76,64000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000"
