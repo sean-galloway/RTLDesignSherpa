@@ -1,0 +1,10 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+hybrid_tr2,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,100.0,3998742,0.0800,204.86,4046372,0.0800,202.45,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 404.9 MB/s over 4046372 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+hybrid_tr2,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,100.0,1197250,0.0800,684.23,1190144,0.0799,688.32,49.94,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+hybrid_tr2,random_bl8,random,8,32000,0,0,1,0,8192000,100.0,1303490,0.0800,628.47,1262829,0.0799,648.70,52.32,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"
+defaults,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,100.0,4286246,0.0800,191.12,4165736,0.0800,196.65,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 382.2 MB/s over 4286246 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+defaults,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,100.0,1321169,0.0800,620.06,1321735,0.0800,619.79,50.31,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+defaults,random_bl8,random,8,32000,0,0,1,0,8192000,100.0,1368391,0.0800,598.66,1325593,0.0799,617.99,52.66,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"
+open_page,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,100.0,3998752,0.0800,204.86,4046381,0.0800,202.45,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 404.9 MB/s over 4046381 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+open_page,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,100.0,1190121,0.0799,688.33,1190124,0.0803,688.33,50.00,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+open_page,random_bl8,random,8,32000,0,0,1,0,8192000,100.0,1290160,0.0800,634.96,1255531,0.0799,652.47,52.44,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"
