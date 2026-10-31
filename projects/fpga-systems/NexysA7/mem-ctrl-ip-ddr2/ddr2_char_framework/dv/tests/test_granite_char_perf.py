@@ -151,6 +151,82 @@ async def _pick_probe(dut, path, n_cycles=160):
         json.dump(rows, fh)
 
 
+async def _lat_probe(dut, path, max_cycles=400000):
+    """PERF_LAT_PROBE=<path>: the cycle of every handshake at each read-path
+    boundary, so one read's latency splits into stages (granite TASK-003,
+    2026-10-31). Boundaries, in order: the geared top's AR, the core's AR,
+    the AXI plane's push into the store, the scheduler's read issue to the
+    return tracker, the DFI read enable out, the DFI read valid in, the
+    return into the AXI plane, the core's R, the geared top's R. Written as
+    {name: [cycles]} for the host to pair up."""
+    try:
+        top = dut.u_dut.u_dut.u_ctrl
+        core = top.u_core
+    except AttributeError:
+        return
+    hs = {
+        "top_ar": (top.s_axi_arvalid, top.s_axi_arready),
+        "core_ar": (core.s_axi_arvalid, core.s_axi_arready),
+        "ar_push": (core.ar_push_valid, core.ar_push_ready),
+        "rd_iss": (core.rd_iss_valid, core.rd_iss_ready),
+        "cmd": (core.w_cmd_v, core.w_cmd_rdy),
+        "ret": (core.w_ret_v, core.w_ret_rdy),
+        "core_r": (core.s_axi_rvalid, core.s_axi_rready),
+        "top_r": (top.s_axi_rvalid, top.s_axi_rready),
+    }
+    lvl = {"dfi_rden": core.dfi_rddata_en_o, "dfi_rdv": core.dfi_rddata_valid_i}
+    try:                                    # inside the scheduler: any-bit levels, logged per cycle
+        sp = core.u_sched_plane
+        bp = sp.g_bank_pick.u_bank_pick
+        inner = {"pick_req": bp.r_req, "pick_vld": bp.r_pick_vld, "pick_fire": bp.w_fire,
+                 "sched_push": sp.a_cmd_valid}
+    except AttributeError:
+        inner = {}
+    log = {k: [] for k in list(hs) + list(lvl) + ["dfi_rd_pin"]}
+    nph = len(core.dfi_cas_n_o.value)
+    last = {k: 0 for k in lvl}
+    for cyc in range(max_cycles):
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        for k, (v, r) in hs.items():
+            try:
+                if int(v.value) and int(r.value):
+                    log[k].append(cyc)
+            except ValueError:
+                pass
+        for k, sig in lvl.items():
+            try:
+                x = 1 if int(sig.value) else 0
+            except ValueError:
+                x = 0
+            if x and not last[k]:
+                log[k].append(cyc)          # rising edge: one per read burst
+            last[k] = x
+        try:                                # RD on the pins: CS low, RAS high, CAS low, WE high
+            cs, ras = int(core.dfi_cs_n_o.value), int(core.dfi_ras_n_o.value)
+            cas, we = int(core.dfi_cas_n_o.value), int(core.dfi_we_n_o.value)
+            for p in range(nph):
+                if (cs >> p) & 1:
+                    continue
+                k = {(1, 0, 1): "dfi_rd_pin", (0, 1, 1): "dfi_act_pin",
+                     (0, 1, 0): "dfi_pre_pin"}.get(((ras >> p) & 1, (cas >> p) & 1, (we >> p) & 1))
+                if k:
+                    log.setdefault(k, []).append(cyc)
+        except ValueError:
+            pass
+        for k, sig in inner.items():
+            try:
+                if int(sig.value):
+                    log.setdefault(k, []).append(cyc)
+            except ValueError:
+                pass
+        if cyc % 5000 == 0:
+            with open(path, "w") as fh:
+                json.dump(log, fh)
+    with open(path, "w") as fh:
+        json.dump(log, fh)
+
+
 async def _gate_trace(dut, path, max_fires=40):
     """PERF_GATE_TRACE=1: bounded ReadOnly window starting at the first RD
     fire, logging every scheduler gate each cycle until max_fires RD fires.
@@ -413,6 +489,8 @@ async def cocotb_test_granite_perf(dut):
             return dict(start_addr=g * geom.bank_stride, burst_len=blen,
                         txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,
                         id_mode=dc.ID_MODE_FIXED, axi_size=_AXI_SIZE,
+                        # TEST_MAX_OUT=1: one burst in flight, the unloaded latency
+                        max_outstanding=int(os.environ.get("TEST_MAX_OUT", "0"), 0),
                         data_mode=True, gen=g, **pmf.seed_fields(g))
 
         mask = (1 << n_gen) - 1
@@ -570,6 +648,8 @@ async def cocotb_test_granite_perf(dut):
         cocotb.start_soon(_gate_trace(dut, gate_path))
     if os.environ.get("PERF_PICK_PROBE"):
         cocotb.start_soon(_pick_probe(dut, os.environ["PERF_PICK_PROBE"]))
+    if os.environ.get("PERF_LAT_PROBE"):
+        cocotb.start_soon(_lat_probe(dut, os.environ["PERF_LAT_PROBE"]))
 
     r = await bridge(prog)()
     if mism_log:
@@ -656,6 +736,8 @@ def test_granite_char_perf(request):
         "PERF_CMD_TRACE": os.environ.get("PERF_CMD_TRACE", "0"),
         "PERF_GATE_TRACE": os.environ.get("PERF_GATE_TRACE", ""),
         "PERF_PICK_PROBE": os.environ.get("PERF_PICK_PROBE", ""),
+        "PERF_LAT_PROBE": os.environ.get("PERF_LAT_PROBE", ""),
+        "TEST_MAX_OUT": os.environ.get("TEST_MAX_OUT", "0"),
         "PERF_DRAM_TRACE": os.environ.get("PERF_DRAM_TRACE", ""),
         "TEST_PAGE_MODE": os.environ.get("TEST_PAGE_MODE", ""),
         "TEST_TR_INIT": os.environ.get("TEST_TR_INIT", ""),

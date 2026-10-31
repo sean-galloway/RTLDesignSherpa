@@ -53,6 +53,13 @@ module mc_rd_return_ring #(
     // still unissued when the merge is decided, so its DFI return is many
     // cycles away, and the source slot is live (not pinnable) until it drains.
     parameter bit MERGE_MARK_REG = 1'b0,
+    // 1 = RET_BYPASS: a returning beat that is exactly the next beat the
+    // fetch would read (its ticket is the fetch slot, its beat the fetch beat,
+    // the slot not a shadow) goes straight into the skid when no BRAM beat is
+    // entering it and it has room, drain-valid the next cycle instead of three
+    // later (granite TASK-003, 2026-10-31). The BRAM write still happens, so
+    // a missed bypass falls back to the fetch unchanged.
+    parameter bit RET_BYPASS     = 1'b0,
     parameter int AXI_DATA_WIDTH  = 64,
     parameter int AXI_BEATS_PER_BURST = 4,  // beats per DRAM burst
 
@@ -214,6 +221,13 @@ module mc_rd_return_ring #(
     assign w_room       = (r_credits != 2'd0) || w_dr_fire;
     assign w_fetch      = w_room && w_fptr_ready;
 
+    // RET_BYPASS: the return beat IS the next fetch (exclusive with w_fetch:
+    // a fetch needs the slot complete, a bypassed beat's slot is not yet).
+    logic w_byp;
+    assign w_byp = RET_BYPASS && w_ret_fire && (r_focc != '0) && (w_iq_rd_ticket == r_fptr)
+                && (r_ret_beat == r_fbeat) && !r_shadow[r_fptr] && !r_ready[r_fptr]
+                && !r_if_valid && w_room;
+
     // a shadow fetches its SOURCE's beats; any other slot fetches its own
     logic [TW-1:0] w_fsrc;
     assign w_fsrc = r_src[r_fptr];
@@ -282,7 +296,7 @@ module mc_rd_return_ring #(
 
             // fetch stage 1: issue the BRAM read of the fetch slot's next beat
             r_if_valid <= w_fetch;
-            if (w_fetch) begin
+            if (w_fetch || w_byp) begin
                 r_if_blast <= (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1));
                 r_if_resp  <= r_resp[w_fsrc];
                 if (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1)) begin
@@ -294,18 +308,24 @@ module mc_rd_return_ring #(
                 end
             end
             r_focc <= r_focc + (w_alloc ? OCW'(1) : OCW'(0))
-                             - ((w_fetch && (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1))) ? OCW'(1) : OCW'(0));
+                             - (((w_fetch || w_byp) && (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1))) ? OCW'(1) : OCW'(0));
 
             // fetch stage 2: the captured beat enters the skid tail
+            // (RET_BYPASS: or the bypassed return beat, never in the same cycle)
             if (r_if_valid) begin
                 r_sk_data [r_sk_wr] <= r_rd_q;
                 r_sk_blast[r_sk_wr] <= r_if_blast;
                 r_sk_resp [r_sk_wr] <= r_if_resp;
                 r_sk_wr             <= r_sk_wr + 1'b1;
+            end else if (w_byp) begin
+                r_sk_data [r_sk_wr] <= dfi_ret_data_i;
+                r_sk_blast[r_sk_wr] <= (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1));
+                r_sk_resp [r_sk_wr] <= dfi_ret_resp_i;
+                r_sk_wr             <= r_sk_wr + 1'b1;
             end
             if (w_dr_fire) r_sk_rd <= r_sk_rd + 1'b1;
-            r_sk_cnt  <= r_sk_cnt  + (r_if_valid ? 2'd1 : 2'd0) - (w_dr_fire ? 2'd1 : 2'd0);
-            r_credits <= r_credits - (w_fetch    ? 2'd1 : 2'd0) + (w_dr_fire ? 2'd1 : 2'd0);
+            r_sk_cnt  <= r_sk_cnt  + ((r_if_valid || w_byp) ? 2'd1 : 2'd0) - (w_dr_fire ? 2'd1 : 2'd0);
+            r_credits <= r_credits - ((w_fetch || w_byp) ? 2'd1 : 2'd0) + (w_dr_fire ? 2'd1 : 2'd0);
 
             // free the head when its last beat is consumed
             if (w_free) r_head <= r_head + 1'b1;

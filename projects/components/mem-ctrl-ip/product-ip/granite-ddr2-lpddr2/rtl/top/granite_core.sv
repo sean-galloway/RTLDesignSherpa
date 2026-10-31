@@ -404,6 +404,7 @@ module granite_core
         // register first when combining is on (100 MHz closure, TASK-003)
         .RD_AR_STAGE_REG  (HAS_SNARF || STORE_MERGE_EN),
         .RD_MERGE_MARK_REG(STORE_MERGE_EN),
+        .RD_RET_BYPASS    (GRANITE_RD_RET_BYPASS),
         .RD_FIFO_DEPTH    (INTAKE_FIFO_DEPTH),
         .WDATA_FIFO_DEPTH (INTAKE_FIFO_DEPTH),
         .SKID_DEPTH_R     (AXI_SKID_DEPTH),
@@ -826,6 +827,7 @@ module granite_core
         .NUM_ENTRIES   (NUM_ENTRIES),
         .AGE_WIDTH     (AGE_WIDTH),
         .CMD_DELAY     (CMD_DELAY_EFF),
+        .FAST_RD_RELEASE(GRANITE_FAST_RD_RELEASE),
         .HAS_ZQ        (1'b0),
         // Init is owned by u_init_plane; the scheduler plane takes its
         // external-init mode (the same mode scoria's wrapper uses).

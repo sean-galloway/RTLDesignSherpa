@@ -45,6 +45,7 @@ All parameters are declared at `macro/mc_scheduler_plane.sv:27-68`.
 | `AGE_WIDTH` | 16 | Age-counter width. |
 | `CMD_FIFO_DEPTH` | 16 | Scheduler-to-DFI command FIFO depth. |
 | `CMD_DELAY` | 6 | Fixed token delay between FIFO push and `cmd_valid_o`. |
+| `FAST_RD_RELEASE` | 0 | 1 = a command skips `CMD_DELAY` while no write is in the line: entered after the line has been empty for `CMD_DELAY` + the largest programmed spacing, left by a WR push (that WR takes the full delay). Granite sets 1. |
 | `HAS_ZQ` | 1'b0 | Include ZQ calibration branch and tZQCS block. |
 | `MAINT_EXTRA_WIDTH` | 1 | Width of `cmd_extra_o` / `maint_extra_i` (pumice=MRR, andesite=MPC[5:0]). |
 | `HAS_INIT_SEQUENCER` | 1'b1 | Build the `mc_xddr2_init_sequencer` child; 0 takes the init stream from the `init_*_i` ports. |

@@ -44,6 +44,10 @@ module mc_scheduler_plane
     parameter int AGE_WIDTH   = 16,
     parameter int CMD_FIFO_DEPTH = 16,
     parameter int CMD_DELAY      = 6,
+    // FAST_RD_RELEASE: let commands bypass the CMD_DELAY write-data lead while
+    // no write is in the line (granite TASK-003, 2026-10-31). Off = the uniform
+    // delay, bit-identical. See the fixed-delay release block below.
+    parameter bit FAST_RD_RELEASE = 1'b0,
     parameter bit HAS_ZQ      = 1'b0,
     parameter int MAINT_EXTRA_WIDTH = 1,
     parameter bit CLOSE_ON_DRAIN = 1'b1,
@@ -1015,19 +1019,84 @@ module mc_scheduler_plane
     );
 
     // ---- fixed-delay release (CMD_DELAY) ------------------------------------
+    // Every command leaves CMD_DELAY cycles after the pick fires it, so a WR's
+    // data (drained from the write CAM ~5 + BURST_WORDS cycles after commit)
+    // reaches the DFI ahead of its command. A uniform shift keeps the pick's
+    // fire-time JEDEC spacing exactly. Reads pay the lead without needing it.
+    //
+    // FAST_RD_RELEASE: a command may skip the delay (release on push) while
+    // r_fast is set. r_fast is SET only after the line has been empty (no push,
+    // FIFO empty, no token in the shift) for CMD_DELAY + S_MAX cycles, S_MAX the
+    // largest programmed spacing: every command already sent has reached the
+    // DFI and every constraint it started has expired in DRAM time, so a
+    // zero-delay command cannot land inside one. It is CLEARED by a WR push,
+    // and that WR takes the full delay: raising the delay only widens gaps,
+    // and from that WR on the stream is the uniform-delay stream, so nothing
+    // after it is later than without this option. Tokens never overtake: in
+    // fast mode the shift register is empty and every token matures on push.
     localparam int TOKW = $clog2(CMD_FIFO_DEPTH + 1);
-    logic            w_cmd_push, w_tok_mature;
+    logic            w_cmd_push, w_tok_mature, w_fast_now, w_tok_in;
     logic [TOKW-1:0] r_tok_cnt;
     assign w_cmd_push = a_cmd_valid && a_cmd_ready;
     generate if (CMD_DELAY > 0) begin : g_cmd_delay
         logic [CMD_DELAY-1:0] r_tok_shift;
+        assign w_tok_in = w_cmd_push && !w_fast_now;
         `ALWAYS_FF_RST(aclk, aresetn,
             if (`RST_ASSERTED(aresetn)) r_tok_shift <= '0;
-            else if (CMD_DELAY > 1)     r_tok_shift <= {r_tok_shift[CMD_DELAY-2:0], w_cmd_push};
-            else                        r_tok_shift <= CMD_DELAY'(w_cmd_push);
+            else if (CMD_DELAY > 1)     r_tok_shift <= {r_tok_shift[CMD_DELAY-2:0], w_tok_in};
+            else                        r_tok_shift <= CMD_DELAY'(w_tok_in);
         )
-        assign w_tok_mature = r_tok_shift[CMD_DELAY-1];
+        assign w_tok_mature = r_tok_shift[CMD_DELAY-1] || (w_cmd_push && w_fast_now);
+
+        if (FAST_RD_RELEASE) begin : g_fast
+            // S_MAX + CMD_DELAY from the (static, host-written) timing CSRs,
+            // in two registered stages (groups of four, then the four group
+            // maxima): the one-cycle 16-input tree was a 17-level CSR path at
+            // 100 MHz. The values do not change during traffic, so the lag is
+            // invisible; r_smax resets to all-ones (never fast) until settled.
+            logic [15:0] w_tv [16];
+            logic [15:0] r_gmax [4];
+            logic [16:0] r_smax, r_idle;
+            logic        r_fast, w_line_empty;
+            assign w_tv = '{t_rfc_i, 16'(t_rcd_i), 16'(t_rp_i), 16'(t_ras_i),
+                            16'(t_rc_i), 16'(t_wr_i), 16'(t_rtp_i), 16'(t_faw_i),
+                            16'(t_rrd_i), 16'(t_wtr_i), 16'(t_rtw_i), 16'(t_ccd_i),
+                            16'(t_ccd_l_i), 16'(t_ccd_s_i), 16'(t_rrd_l_i), 16'(t_rrd_s_i)};
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    for (int g = 0; g < 4; g++) r_gmax[g] <= '1;
+                end else begin
+                    for (int g = 0; g < 4; g++) begin
+                        logic [15:0] m;
+                        m = w_tv[4*g];
+                        for (int k = 1; k < 4; k++) if (w_tv[4*g+k] > m) m = w_tv[4*g+k];
+                        r_gmax[g] <= m;
+                    end
+                end
+            )
+            logic [15:0] w_gm;
+            always_comb begin
+                w_gm = r_gmax[0];
+                for (int g = 1; g < 4; g++) if (r_gmax[g] > w_gm) w_gm = r_gmax[g];
+            end
+            assign w_line_empty = !w_cmd_push && !w_cmd_rd_valid && (r_tok_shift == '0);
+            assign w_fast_now   = r_fast && !(w_cmd_push && is_write_op(a_cmd_op));
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_smax <= '1; r_idle <= '0; r_fast <= 1'b0;
+                end else begin
+                    r_smax <= 17'(w_gm) + 17'(CMD_DELAY);
+                    r_idle <= w_line_empty ? ((r_idle == '1) ? r_idle : r_idle + 17'd1) : '0;
+                    if (w_cmd_push && is_write_op(a_cmd_op)) r_fast <= 1'b0;
+                    else if (init_done && (r_idle >= r_smax)) r_fast <= 1'b1;
+                end
+            )
+        end else begin : g_no_fast
+            assign w_fast_now = 1'b0;
+        end
     end else begin : g_cmd_nodelay
+        assign w_fast_now   = 1'b0;
+        assign w_tok_in     = 1'b0;
         assign w_tok_mature = w_cmd_push;
     end endgenerate
 

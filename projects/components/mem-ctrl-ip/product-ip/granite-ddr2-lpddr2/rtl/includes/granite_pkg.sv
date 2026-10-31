@@ -50,6 +50,20 @@ package granite_pkg;
     parameter int GRANITE_DIR_BATCH_MAX = 255;
 
     // ------------------------------------------------------------------
+    // Fast read release (mc_scheduler_plane FAST_RD_RELEASE): a command
+    // skips the CMD_DELAY write-data lead while no write is in the line,
+    // entered after the line has idled CMD_DELAY + the largest programmed
+    // spacing. On the char proxy the unloaded page-hit read was 26 cycles
+    // AR->R of which 7 were that lead (2026-10-31, granite TASK-003).
+    // ------------------------------------------------------------------
+    parameter bit GRANITE_FAST_RD_RELEASE = 1'b1;
+
+    // Read-return head bypass (mc_rd_return_ring RET_BYPASS): the next beat
+    // in AR order goes from the DFI return straight into the ring's output
+    // skid, skipping the BRAM write -> ready -> read round trip (3 -> 1).
+    parameter bit GRANITE_RD_RET_BYPASS = 1'b1;
+
+    // ------------------------------------------------------------------
     // RAS plane: ABSENT in this SKU (true bypass, reserved CSR decode
     // only). Expressed as omission - no transform pair is instantiated -
     // not as a parameter.
