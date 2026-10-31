@@ -2,7 +2,7 @@
 
 # math — tasks
 
-**Next ID: TASK-013** — never recycle a number, even when its item closed.
+**Next ID: TASK-014** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 6 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -27,6 +27,9 @@ by construction rather than by discipline.
 - **TASK-012** — math: mine the Vedic-ALU paper collection for usable
   arithmetic nuggets (~/Downloads/Vedic-ALU; Urdhva-Tiryagbhyam vs
   Wallace/Dadda, duplex squaring, Nikhilam vs Booth)
+- **TASK-013** — math: Vedic (Urdhva-Tiryagbhyam) multiplier family —
+  implement 8×8 then 32×32, characterize vs dadda/wallace on G2 (Vivado)
+  and/or ASAP7 (asic-trials), verdict back into the reading list
 
 (none)
 
