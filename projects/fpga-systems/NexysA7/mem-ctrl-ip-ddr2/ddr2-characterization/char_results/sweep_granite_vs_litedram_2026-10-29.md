@@ -19,6 +19,52 @@ a property of that map, not a measurement failure. `half_burst8` runs on the
 build's four injectors (threads clamped 8 -> 4, as the records say).
 
 
+## Update 2026-10-31: granite at 100 MHz, current design, power-on settings
+
+Supersedes the 100 MHz granite numbers further down (2026-10-29, merge off)
+and the page-policy section at the end. What changed since: the merge
+default closes at 100 MHz; an auto-precharging bank requests its ACT on the
+timer's lookahead; page mode 4 is the hybrid and is the power-on mode;
+read/write direction fairness (batch cap 255); and the host derives tRTP
+from the RD's DFI phase, 1 MC cycle instead of 2 (granite TASK-003 log,
+2026-10-30 / 31). Bitstream `ddr2_char_granite_100mhz_fair_2026-10-31.bit`
+(5cba2827b, WNS +0.006 ns), the tRTP change host-side only. CSVs:
+`char_granite_rtp100_<profile>_2026-10-31.csv`, configs `defaults` (power-on:
+the hybrid, tr_init 2), `fixed_open_tr2` and `open_page`. 180 cells, 0
+failed, 0 mismatched.
+
+Against LiteDRAM 100 MHz on the 60 shared cells (average of write and read,
+within 2 percent = tie): **42 win, 18 tie, 0 lose** at power-on (was 42 / 15
+/ 3). The power-on hybrid is within 1 percent of the best granite mode on
+59 of 60; the exception is col_major_interleaved at 16-beat bursts, 704
+against open page's 731.
+
+MB/s write / read, peak 800:
+
+| pattern | granite 2026-10-29 (open page) | granite power-on (hybrid) | granite fixed_open | granite open page | LiteDRAM |
+|---|---|---|---|---|---|
+| col_major, 4-beat | 259/311 | 283/**389** | 283/389 | 283/389 | 279/388 |
+| col_major, 8-beat | 390/445 | 416/**520** | 416/520 | 416/520 | 409/518 |
+| col_major, 16-beat | 518/565 | 541/**623** | 541/623 | 541/623 | 534/621 |
+| col_major_interleaved | 688/688 | 684/688 | 618/615 | 688/688 | 368/372 |
+| incremental | 772/774 | 771/772 | 769/769 | 772/775 | 746/756 |
+| row_major | 775/777 | 775/778 | 775/778 | 775/778 | 766/776 |
+| row_thrash, 4 threads | 688/688 | 684/688 | 620/619 | 688/688 | 364/368 |
+| random, 4 threads | 627/644 | 628/658 | 599/622 | 635/662 | 383/397 |
+| mixed, 4 threads | 198/199 | 205/202 | 189/188 | 148/148 | 159/159 |
+| half_pair, 1 thread | 387/320 | 393/344 | 393/344 | 393/315 | 324/383 |
+| half_oct, 4 threads | 286/334 | 380/381 | 381/381 | 287/335 | 94/95 |
+| concurrent 1w+1r col_major | 144/144 | **226/226** | 226/226 | 226/226 | 167/167 |
+| concurrent 1w+1r incremental | 380/380 | 368/368 | 368/368 | 369/369 | 167/167 |
+| 1 writer + 2 readers, col_major | 107/213 | 158/316 | 158/316 | 158/316 | 126/252 |
+
+The 1-writer / 2-reader row is 1:2 by construction. The col_major read
+column is the tRTP change: an auto-precharge read paid 4 MC cycles to the
+next ACT where JEDEC needs 5 CK (3 MC), so every read row was one cycle
+long. Where LiteDRAM still leads is a single thread's reads (half_pair 1
+thread: 344 against 383, read latency 48 cycles against 25); granite leads
+on that thread's writes, 393 against 324.
+
 ## Pattern legend (what each name means)
 
 **Families** are what one injector walks. The DRAM is x16, a burst is BL8 =
@@ -71,6 +117,7 @@ Rendered by `build-perf/bin/plot_sweep.py` from the CSVs beside this file,
 in the STREAM characterization style: a line family where the knee has to
 be legible, grouped bars for the side by side, an annotated heatmap for the
 envelope. Each series' peak is the dotted line in its colour.
+Since 2026-10-31 `granite100` is the update at the top (power-on hybrid, tRTP 1); the other series are unchanged.
 
 ![half_pair bandwidth against injector threads](plots/threads_knee_pair.png)
 
@@ -244,6 +291,8 @@ JEDEC windows, not board numbers.
 
 ## 100 MHz: granite (DDR2-400, STORE_MERGE_EN=0) vs LiteDRAM (DDR2-400), peak 800 MB/s
 
+*Superseded for granite by the 2026-10-31 update at the top; kept as the record of the merge-off point.*
+
 The merge default misses timing at 100 MHz by 2.5 ns (TASK-003 log), so
 the 100 MHz granite point is the merge-off build (+0.011 ns). LiteDRAM is
 regenerated at `sys_clk_freq` 100e6 with today's harness (`regen.sh` with
@@ -406,6 +455,8 @@ mismatched on all 132 cells. Open-page preset on pumice and granite.
 | multigen/incremental_bl8 | 73/146 (36%) | 128/257 (43%) | 93/186 (31%) |
 
 ## page policy on granite: the lookahead close is already on, and the untried variant (2026-10-30)
+
+*Superseded: mode 4 was rebuilt as the hybrid on 2026-10-30 and is the power-on mode since 2026-10-31; see the update at the top and the granite TASK-003 log. The bank-timer AP accounting this section points at was one cycle in the pick's decode (fixed) plus one in the host's tRTP (fixed).*
 
 LiteDRAM's policy (open page, auto-precharge when the bank's lookahead
 holds another row) is granite's `CLOSE_ON_DRAIN`, active in every board

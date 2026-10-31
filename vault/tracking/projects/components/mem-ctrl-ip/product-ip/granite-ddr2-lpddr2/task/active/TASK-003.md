@@ -1090,3 +1090,149 @@ merge-off RTL; the combiner's worst is the held AW's address match into the
 bank-queue count, -0.24, registers only. Next: placer directives on this
 RTL; then, if needed, a registered AW match (a second AW stage with
 forwarding from the AW allocated in the previous cycle).
+
+### 2026-10-30 / 31, merge default closed at 100 MHz; the timing-CSR exception accepted
+
+The merge default reached 100 MHz in two more steps after the table above:
+the FIFO store registers the held AW's address / id / drain-id compares
+(531273ad1, no added latency, merge rate unchanged), and the static JEDEC
+timing CSRs are false-pathed like `bank_lsb` (d30055b2b; `TIMINGS_RTP_RTW.tRTP`
+into the bank timers was 9 of the last 24 failing paths). Board sweeps at
+531273ad1: 100 MHz WNS 0.000 (ExtraNetDelay_high), 75 MHz +0.652, every
+profile 0 failed and 0 mismatched (6bebf1784). **The owner accepted the
+exception on 2026-10-31**; the XDC records the contract it relies on (a
+`TIMINGS_*` write lands only with the controller idle).
+
+Closure method for every 100 MHz bitstream since: the placer-directive loop
+(ExtraNetDelay_high, AltSpreadLogic_high, ExtraPostPlacementOpt); if none
+closes, a post-route pass on the closest checkpoint (phys_opt
+AggressiveFanoutOpt / AlternateFlowWithRetiming / AggressiveExplore, then
+route NoTimingRelaxation). Every miss it was used on was the pick's own tail
+(`r_hold` / `r_stale_pick` -> `r_pick_cls`) at -0.02 to -0.03 ns.
+
+### 2026-10-30, the power-on state measured, BUG-003 re-checked, the AP accounting
+
+1. **The board never measured power-on.** The host's `defaults` preset wrote
+   policy_mode 0 / tr_init 0 (open page with the drain AP), while the RDL
+   resets to 3 / 2. `defaults` now programs the paging fields from the
+   controller's own regmap (`Pumice.field_default`), and is in every sweep
+   profile.
+2. **Pumice BUG-003 does not reproduce on granite.** The char proxy now
+   checks bank-state legality at the DRAM model (column to a closed bank, ACT
+   on an open one, REF with a row open, AP on an idle bank; the model's
+   timing counters are in the wrong clock and are not used). Power-on paging,
+   read gaps 0 / 8 / 15, TR 1 and 2, four threads: zero violations.
+3. **The AP accounting gap was one cycle, not two, and it was not in the
+   bank timers.** The pick's stage-1 decode saw an auto-precharging bank as
+   an open row, so a different-row candidate requested PRE (never granted
+   while AP is pending) until the row image cleared. It now requests the ACT
+   on the timer's existing `LA_AP` lookahead (b87374275). Last column to next
+   ACT: 5 / 7 -> 4 / 6 cycles after a read / write, equal to the explicit-PRE
+   path; proxy col_major 288/323 -> 306/350 MB/s. Board 100 MHz: 229 cells,
+   0 mismatched (21b063453).
+
+### 2026-10-30, mode 4 rebuilt as the hybrid
+
+Owner: "a hybrid page mode to limit the bad from not closing pages, but keep
+most of the good from the current page mode." The first mode 4 (above) was
+identical to open page because the drain AP closes every row whose queue
+runs dry. That close lumps two cases: a different row already queued behind
+the column (closing is free; open page's bank-hop win) and a queue that just
+ran dry (closing costs a re-ACT when a late same-row request arrives;
+fixed_open's multi-thread win). Mode 4 now auto-precharges on the first, and
+on the second only where the page policy's per-bank close history
+(`drain_close_ok`) allows; the idle timeout closes the rest (5334846f1).
+A queue-only version (no history) measured equal to fixed_open everywhere.
+
+Board 100 MHz (90f0d5e67): within 1 percent of the best granite mode on 56
+of 60 LiteDRAM-comparable cells (power-on fixed_open 51, open page 44). The
+one real loss was concurrent read+write col_major, 145 MB/s against 223.
+
+### 2026-10-30 / 31, read/write fairness: three defects
+
+Owner: "How is 166/356 ok? It shouldn't be asymmetric." Concurrent
+read+write on one bank was asymmetric under fixed_open and slow under the
+drain AP and the hybrid (109/110 on the proxy). Three defects, found with
+the DRAM command trace and a pick-state probe on the proxy (e23ff748a):
+
+1. `granite_top_geared` tied `sched_wr_batch_max_i` to 0 (no cap) while the
+   RDL field read 16, so a direction with work never yielded. It is now
+   `GRANITE_DIR_BATCH_MAX` (granite_pkg), and the RDL reset reads the same.
+2. The cap flip never held: the column picked the cycle before the flip
+   fired the cycle after and the direction register took it as a turn back.
+   `r_cap_flip` ignores that one fire.
+3. Row commands had no direction preference: after an AP close both
+   directions' heads want the bank's ACT, the rotor alternated, and the bus
+   turned around on every row. Row commands now prefer the current direction
+   until the cap, then the other; the short-hop hint yields at the cap.
+
+Cap swept 64 / 128 / 255 on the proxy; 255 kept (the field maximum). Proxy
+75 MHz: concurrent col_major 109/110 -> 163/174; conc_banks 571 -> 549 and
+conc_rows 564 -> 549 total (those totals came from never yielding: the
+writer had a column ready in 151 of 153 read cycles). At 100 MHz the
+row-preference test and the batch-done compare sat in the pick's
+stale -> select loop (-0.58 ns); both now read registers (5cba2827b,
+cycle-exact).
+
+Board 100 MHz (c8196ad44, WNS +0.006 / WHS +0.022), 180 cells, 0 mismatched,
+MB/s average of write and read, peak 800:
+
+| pattern | hybrid before | hybrid after (wr / rd) | LiteDRAM |
+|---|---|---|---|
+| concurrent col_major | 145 | **219** (219 / 219) | 167 |
+| concurrent col_major_interleaved | 267 | 269 (269 / 269) | 164 |
+| concurrent incremental | 380 | 367 (367 / 367) | 167 |
+| concurrent row_major | 386 | 370 (370 / 370) | 192 |
+| 1 writer + 2 readers, col_major | 164 | **226** (150 / 301) | 189 |
+| 1 writer + 2 readers, col_major_interleaved | 193 | 178 (119 / 238) | 165 |
+| half_oct, 4 threads | 380 | 380 | 95 |
+
+The 1 writer + 2 reader rows are 1:2 by construction. Hybrid within 1
+percent of the best granite mode on 59 of 60 (the miss: col_major_interleaved
+at 16-beat bursts, 704 against open page's 730); against LiteDRAM 42 win,
+15 tie, 3 lose.
+
+### 2026-10-31, the hybrid is the power-on page mode
+
+`PAGE_POLICY_CFG.policy_mode` resets to 4 (was 3), `tr_init` stays 2: the
+board numbers above are exactly that configuration (`hybrid_tr2`). Pumice
+keeps 3. A `defaults` column in a granite CSV before 2026-10-31 is
+fixed_open; from 2026-10-31 on it is the hybrid. The bitstreams built before
+this commit still reset to 3 until rebuilt; the host's `defaults` preset
+writes the regmap's reset, so it programs 4 on them too.
+
+### 2026-10-31, the last LiteDRAM lead: tRTP was derived one cycle long
+
+The three cells LiteDRAM still led were one-bank column walks, all on the
+read side (100 MHz, 8-beat: 480 against 518; 4-beat 347 / 388; writes
+already ahead). The proxy's DRAM trace of col_major reads: 8 data cycles
+per row, then 4 cycles from the auto-precharge read to the next ACT and 2
+to the first read, 13 cycles per row (358 MB/s at 75 MHz, as on the board).
+
+JEDEC for that close is RD + (BL/2 + max(tRTP, 2) - 2) + tRP = 2 + 3 = 5 CK,
+3 MC cycles at 1:2, at 75 and at 100 MHz. The bank timer adds the tRTP and
+tRP fields exactly; the extra cycle was in the host derivation, which
+converted tRTP from 7.5 ns with the DFI phase margin (2 MC cycles) although
+the read-to-precharge distance is a 2 CK quantity between commands whose
+phases are known: the formatter puts a RD on `rd_phase` (0 on this board)
+and PRE / ACT on phase 0. `ddr2_timings_mc_cycles` now derives tRTP as
+`ceil((AL + BL/2 + max(tRTP_ck, 2) - 2 + rd_phase) / ck_per_mc)`, 1 at
+rd_phase 0 and 2 at rd_phase 1, and `set_jedec_timings` reads the phase the
+controller is programmed with (unknown -> the worst phase). An explicit PRE
+lands exactly on the JEDEC edge, an AP read's ACT one CK inside it.
+
+Proxy 75 MHz: col_major reads 357.7 -> 383.3 (RD(AP) -> ACT 3 cycles on
+253 of 257 rows), everything else unchanged, 0 mismatched, zero bank-state
+violations. The pumice proxy, whose DRAM model is anchored in MC cycles
+(ISSUE-023), reports zero JEDEC violations at tRTP 1 and at 2 (col_major
+reads 353 -> 355; incremental writes 570 -> 563, a 1 percent shift in a
+read-only change that is not yet explained).
+
+Board 100 MHz, same bitstream (host-side change), power-on hybrid /
+fixed_open / open page, every profile (`char_granite_rtp100_*_2026-10-31`):
+180 cells, 0 failed, 0 mismatched. col_major reads 480 -> 520 (LiteDRAM
+518), 4-beat 347 -> 389 (388), 16-beat 593 -> 623 (621); multigen +5 to +10
+percent; nothing moved down by more than 1 percent. Against LiteDRAM on the
+60 shared cells: **42 win, 18 tie, 0 lose.** What LiteDRAM still does better
+is a single thread's reads (half_pair 1 thread 344 against 383; read
+latency 48 cycles against 25), a latency item, not a row-cycle one.
