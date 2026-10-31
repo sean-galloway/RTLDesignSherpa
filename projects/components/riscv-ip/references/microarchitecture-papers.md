@@ -54,6 +54,25 @@ nearly all have free author or institutional mirrors worth finding.
    write-through escape hatch in the spec exists because this paper
    quantifies when each policy wins.
 
+21. **D. Ning, R. W. M. Kong and S. P. Feng, "A New DCache Prefetch
+    Algorithm Based on Branch Prediction Information for AI Industrial
+    Engineering," Academia Engineering 3, 2026. DOI
+    10.20935/AcadEng8332.**
+    *Guides:* the *candidate* loop-aware D$ prefetcher — the reusable
+    idea is cheap loop detection from branch history (repetition
+    counters on BHT entries, a threshold that declares a loop) gating a
+    stride prefetcher to cut pollution, which leans on the BTB peregrine
+    already builds. Read critically: gem5-only, ~2.4% miss-rate claim,
+    young venue; the classic prefetch canon (Jouppi stream buffers,
+    Markov, GHB) remains the stronger prior art if this direction is
+    scoped. jet PRD §4 keeps prefetching a future IP; this paper is
+    bookmarked for that scoping. Local copy:
+    [`papers/21_ning_dcache_prefetch_branch_prediction_2026.pdf`](papers/21_ning_dcache_prefetch_branch_prediction_2026.pdf).
+
+*(Entries 21–24 were added 2026-10-31; numbering continues by addition
+order rather than ladder position — 21 sits with peregrine's caches,
+22–24 have their own arithmetic section below.)*
+
 ## Out-of-order — gyrfalcon
 
 8. **R. Tomasulo, "An Efficient Algorithm for Exploiting Multiple
@@ -155,6 +174,38 @@ nearly all have free author or institutional mirrors worth finding.
     round-robin issue that skips a stalled thread. That skip is the
     textbook norm and the one thing gatling's rotation deliberately
     does not do (PRD 3.3; MAS chapter 4).
+
+## Arithmetic — the M unit and garuda's FPU
+
+22. **N. G. Deshpande and R. Mahajan, "Ancient Indian Vedic Mathematics
+    based 32-Bit Multiplier Design for High Speed and Low Power
+    Processors," Int. J. Computer Applications 95(24), June 2014.**
+    *Guides:* the Urdhva-Tiryagbhyam ("vertically and crosswise")
+    multiplier claim — parallel column partial-product generation as a
+    candidate multiplier family for peregrine's M unit and garuda's FPU
+    mantissa path. Scoped as a **measured experiment, not an adoption**:
+    UT produces the same partial-product count as an array multiplier,
+    and its published wins are typically against weak baselines, so the
+    honest repo move is a `math_mul_vedic_ut` variant in `rtl/math`
+    synthesized through our own flow beside the existing array/Dadda/
+    Wallace families. Local copy:
+    [`papers/22_deshpande_mahajan_vedic_multiplier_2014.pdf`](papers/22_deshpande_mahajan_vedic_multiplier_2014.pdf).
+
+23. **P. Saha, A. Banerjee, A. Dandapat and P. Bhattacharyya, "Vedic
+    Mathematics Based 32-Bit Multiplier Design for High Speed Low Power
+    Processors," Int. J. Smart Sensing and Intelligent Systems 4(2),
+    June 2011.**
+    *Guides:* the same UT claim at 32 bits with an ASIC-standard-cell
+    comparison — the stronger of the bundle's 32-bit write-ups, useful
+    as the cross-check when the experiment in entry 22 runs. Local copy:
+    [`papers/23_saha_vedic_32bit_multiplier_2011.pdf`](papers/23_saha_vedic_32bit_multiplier_2011.pdf).
+
+24. **S. Bhat Kaje and J. Nayak, "Design and FPGA Implementation of an
+    Efficient 8×8 Multiplier Using the Principle of Vedic Mathematics."**
+    *Guides:* the FPGA-specific data point — 8×8 UT on real Xilinx
+    silicon, the right starting size for a `math_mul_vedic_ut` bring-up
+    before any 32-bit comparison. Local copy:
+    [`papers/24_kaje_nayak_vedic_8x8_fpga.pdf`](papers/24_kaje_nayak_vedic_8x8_fpga.pdf).
 
 ## Textbooks
 
