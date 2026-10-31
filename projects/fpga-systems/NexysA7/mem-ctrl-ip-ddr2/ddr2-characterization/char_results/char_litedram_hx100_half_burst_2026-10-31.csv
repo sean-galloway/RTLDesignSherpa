@@ -1,0 +1,5 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes,rd_lat_mean,rd_lat_min,rd_lat_max
+litedram,half_pair,half_pair,1,32000,0,1,1,0,128000,100.0,39460,0.0013,324.38,33424,0.0009,382.96,24.59,32000,0,1,no merge / column-op telemetry on this build,18.70,18,48
+litedram,half_oct,half_oct,1,32000,0,1,1,0,128000,100.0,39460,0.0013,324.38,33425,0.0009,382.95,24.60,32000,0,1,no merge / column-op telemetry on this build,18.71,18,44
+litedram,half_pair_sweep,half_pair_sweep,1,32000,0,1,1,0,128000,100.0,176005,0.0013,72.73,144022,0.0009,88.88,95.96,32000,0,1,no merge / column-op telemetry on this build,71.98,21,72
+litedram,half_oct_sweep,half_oct_sweep,1,32000,0,1,1,0,128000,100.0,176005,0.0013,72.73,144022,0.0009,88.88,95.96,32000,0,1,no merge / column-op telemetry on this build,71.98,21,72

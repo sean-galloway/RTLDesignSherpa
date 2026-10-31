@@ -146,13 +146,55 @@ family; `multigen` = one writer and two readers.
 harness clock; peak is 600 MB/s at 75 MHz (DDR2-300 x16) and 800 at 100
 (DDR2-400). "merges 512/1024 (ratio 0.5)" means every pair merged.
 
+### Exact latency, and the hybrid at 16-beat bursts (same day)
+
+The latency columns above are log2-bin means and move by octaves. The
+harness histogram now also keeps the exact latency sum, min and max per
+metric (`axi_perf_latency_hist` EXACT_STATS; CSV columns `rd_lat_mean`,
+`rd_lat_min`, `rd_lat_max`, AR to first R in controller cycles). Both
+controllers rebuilt at 100 MHz (granite `ddr2_char_granite_100mhz_hx_2026-10-31.bit`,
+WNS +0.001 / WHS +0.020; LiteDRAM `litedram_char_100mhz_2026-10-31.bit`,
+WNS +0.182), every profile, `char_<ctrl>_hx100_<profile>_2026-10-31.csv`:
+granite 180 cells and LiteDRAM 60, 0 failed, 0 mismatched. Granite power-on
+against LiteDRAM: 91 win, 29 tie, 0 lose.
+
+| read cell | granite MB/s | LiteDRAM | granite latency mean / min / max | LiteDRAM | bin means (g / L) |
+|---|---|---|---|---|---|
+| half_pair, 1 thread | 389 | 383 | 29.7 / 27 / 51 | 18.7 / 18 / 48 | 25.0 / 24.6 |
+| half_pair, 4 threads | 389 | 95 | 44.9 / 29 / 68 | 26.8 / 21 / 62 | 49.3 / 24.8 |
+| incremental 8-beat | 773 | 756 | 46.0 / 27 / 74 | 33.9 / 32 / 62 | 49.8 / 48.0 |
+| row_major 8-beat | 778 | 776 | 42.7 / 27 / 63 | 33.0 / 20 / 55 | 48.0 / 48.0 |
+| col_major 8-beat | 520 | 518 | 59.2 / 27 / 81 | 53.5 / 20 / 75 | 51.0 / 51.2 |
+| col_major_interleaved 8-beat | 688 | 372 | 51.0 / 27 / 77 | 64.5 / 22 / 87 | 50.0 / 88.6 |
+| random window, 4 threads | 658 | 397 | 52.1 / 27 / 86 | 61.4 / 22 / 91 | 50.2 / 65.7 |
+
+What the bins hid: at one thread granite's reads are 11 cycles slower on
+average and 9 at the floor (27 against 18), not at parity as the 25 / 24.6
+bin means said. The single-thread bandwidth cell no longer measures it:
+32 reads in flight over a 29.7-cycle mean is 1.08 reads per cycle, past
+what the pattern can use, so both controllers sit on the pattern's own
+ceiling there. Where the pattern needs bank parallelism (the interleaved column
+walk, the random window) granite's reads are the faster ones as well.
+
+**The hybrid at 16-beat bursts.** The power-on hybrid was 701 / 707 on
+col_major_interleaved at AxLEN 16 against open page's 729 / 732, the one
+cell more than 1 percent behind. The close-on-drain predictor armed on a
+short row or after a demand precharge; a 16-column row is not short, and
+an auto-precharge close was counted like a timeout close, so every AP
+disarmed the bank and the explicit PRE after it re-armed it -- AP and PRE
+alternated per bank. A bank's own AP followed by a different row now keeps
+it armed. Board: **721 / 729** (open page 729 / 732). The same fix lifts
+open page's mixed window 147.5 -> 204.9 (open page writes policy_mode 0,
+which uses the same arm); nothing else moved by more than 2 percent
+(half_pair gap 0 reads +1.6, refresh phase).
+
 ## The graphs (2026-10-30)
 
 Rendered by `build-perf/bin/plot_sweep.py` from the CSVs beside this file,
 in the STREAM characterization style: a line family where the knee has to
 be legible, grouped bars for the side by side, an annotated heatmap for the
 envelope. Each series' peak is the dotted line in its colour.
-Since 2026-10-31 `granite100` is the update at the top (power-on hybrid, tRTP 1, fast read release and the ring bypass: `lat100`); the other series are unchanged.
+Since 2026-10-31 `granite100` is the update at the top (power-on hybrid, tRTP 1, fast read release, the ring bypass and the drain-arm fix: `hx100`) and `litedram100` the same-day LiteDRAM rerun with the exact latency statistics (`hx100`); the other series are unchanged.
 
 ![half_pair bandwidth against injector threads](plots/threads_knee_pair.png)
 

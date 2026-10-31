@@ -1365,3 +1365,25 @@ tree 347.6 / 348.2, at 2x length 356.1 / 356.4. Zero DRAM-model violations.
 Gate: common-ip 49 / 3 xfailed, granite top 18 / 1 xfailed, pumice top
 218, histogram unit 8, pumice char families 2. Board confirmation needs the
 granite 100 MHz and LiteDRAM rebuilds (histogram + drain arm).
+
+Board, same day (bfc3cbf7a): granite `ddr2_char_granite_100mhz_hx_2026-10-31.bit`
+(ExtraNetDelay_high, WNS +0.001 / WHS +0.020) and LiteDRAM
+`litedram_char_100mhz_2026-10-31.bit` (WNS +0.182), every profile,
+`char_<ctrl>_hx100_<profile>_2026-10-31.csv`. Granite 180 cells and
+LiteDRAM 60, 0 failed, 0 mismatched; granite power-on vs LiteDRAM 91 win /
+29 tie / 0 lose; the hybrid is within 1 percent of the best granite mode on
+all 60 shared cells (was 59). col_major_interleaved AxLEN 16 power-on
+701 / 707 -> 721 / 729 (open page 729 / 732). Open page's mixed window
+147.5 -> 204.9: policy_mode 0 uses the same arm and was paying the same
+alternation. Nothing else moved more than 2 percent.
+
+The exact statistics correct an earlier reading. At one thread granite's
+read latency is 29.7 mean / 27 min / 51 max against LiteDRAM's 18.7 / 18 /
+48 -- not the parity the 25.0 / 24.6 bin means showed; the floor is 9
+cycles higher. Loaded patterns that need bank parallelism go the other way
+(col_major_interleaved 8-beat 51.0 vs 64.5, random window 52.1 vs 61.4).
+The single-thread bandwidth cell is no longer latency-bound (32 in flight /
+29.7 = 1.08 reads per cycle). The mixed window rows carry no latency: that
+measurement path never reads the histogram (rd_hist_total 0, before and
+after). Sweep report section "Exact latency, and the hybrid at 16-beat
+bursts".
