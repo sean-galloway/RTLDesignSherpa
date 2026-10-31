@@ -138,6 +138,7 @@ ROOT_VARS = {
     "GATLING_ROOT": "projects/components/riscv-ip/gatling-rv32i",
     "RV32I_COMMON_ROOT": "projects/components/riscv-ip/common-rv32i",
     "KESTREL_ROOT": "projects/components/riscv-ip/kestrel-rv32i",
+    "MERLIN_ROOT": "projects/components/riscv-ip/merlin-rv32i",
     "MISC_ROOT": "projects/components/utility-ip/misc",
     "RAPIDS_ROOT": "projects/components/dma-ip/rapids",
     "RETRO_ROOT": "projects/components/legacy-ip/retro_legacy_blocks",

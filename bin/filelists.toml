@@ -310,6 +310,18 @@ filelist_dirs = [
 ]
 
 [[area]]
+name = "riscv-ip/merlin-rv32i"
+kind = "component"
+# 5-stage pipelined RV32I core (falcon-suite rung 2).  Its decode / imm_gen /
+# ALU and the ISA package live in riscv-ip/common-rv32i; this area owns the
+# pipeline registers, hazard/forward logic, and core top.
+rtl_roots = ["projects/components/riscv-ip/merlin-rv32i/rtl"]
+filelist_dirs = [
+    "projects/components/riscv-ip/merlin-rv32i/rtl/filelists",
+    "projects/components/riscv-ip/merlin-rv32i/dv/filelists",
+]
+
+[[area]]
 name = "riscv-ip/gatling-rv32i"
 kind = "component"
 # Four-context barrel RV32I (tetrad compute engine). Registered 2026-10-21
