@@ -328,7 +328,7 @@ class ControllerConfig:
     # page_reset: program the THREE paging fields (page_policy_or,
     # policy_mode, tr_init) to the controller's own RDL reset values, read
     # from its generated regmap -- the power-on state. The resets differ by
-    # controller (granite 3/2, pumice 3/0), so a hand-typed copy here cannot
+    # controller (granite 4/2 since 2026-10-31, pumice 3/0), so a hand-typed copy here cannot
     # be right for both; the regmap is.
     page_reset:    bool = False
     # adapt_time (mode 4) needs ALL of these, and until 2026-09-26 none had a
@@ -577,8 +577,10 @@ class ControllerConfig:
 CONFIGS: Dict[str, ControllerConfig] = {
     # THE POWER-ON STATE: every other lever left None (written 0 = build
     # default) and the paging fields at the controller's RDL resets, read from
-    # its regmap (page_reset). Granite resets to fixed_open (policy_mode 3,
-    # tr_init 2); pumice to policy_mode 3 with tr_init 0, which disables the
+    # its regmap (page_reset). Granite resets to the hybrid (policy_mode 4,
+    # tr_init 2; fixed_open, mode 3, until 2026-10-31, so a "defaults" column
+    # in an earlier granite CSV is fixed_open and one from 2026-10-31 on is
+    # the hybrid); pumice to policy_mode 3 with tr_init 0, which disables the
     # timeout. Until 2026-10-30 this row wrote 0/0, so on both controllers it
     # measured open page with the drain AP -- not what the board comes up in.
     # Pumice BUG-003, the reason the reset was once reverted, closed

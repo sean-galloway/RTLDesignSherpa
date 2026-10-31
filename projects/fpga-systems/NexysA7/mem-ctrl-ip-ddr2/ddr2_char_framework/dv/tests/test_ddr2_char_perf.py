@@ -98,7 +98,9 @@ _FILELIST = ("projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/"
              "ddr2_char_framework/dv/filelists/ddr2_char_uart_tb_top.f")
 
 # Silicon perf gates (shared with the granite proxy; col_major's 369 is the
-# JEDEC floor at the board-derived timings, tRTP 2 / tRP 2 / tRCD 2).
+# JEDEC floor at the board-derived timings as they were, tRTP 2 / tRP 2 / tRCD 2;
+# since 2026-10-31 the derivation gives tRTP 1 at rd_phase 0, so the floor is
+# one cycle per read row higher and these gates are a cycle loose).
 GATES = {"row_major": 570, "col_ilv": 354, "col_major": 369}
 
 _FAMILIES = {

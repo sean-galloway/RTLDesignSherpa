@@ -1962,7 +1962,7 @@ module granite_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PAGE_POLICY_CFG.policy_mode.value <= 3'h3;
+            field_storage.PAGE_POLICY_CFG.policy_mode.value <= 3'h4;
         end else begin
             if(field_combo.PAGE_POLICY_CFG.policy_mode.load_next) begin
                 field_storage.PAGE_POLICY_CFG.policy_mode.value <= field_combo.PAGE_POLICY_CFG.policy_mode.next;

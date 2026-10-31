@@ -268,6 +268,9 @@ set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *field_storage_reg
 ## page-policy timer and the pick need not meet a per-cycle deadline. Added
 ## 2026-10-30 for the 100 MHz merge-default build (granite TASK-003), where
 ## TIMINGS_RTP_RTW.tRTP -> the bank timers was 9 of the last 24 failing paths.
+## Accepted by the owner 2026-10-31. The contract it relies on: a TIMINGS_*
+## write lands only with the controller idle (no queued or in-flight DRAM
+## command); a host that retunes timings mid-traffic is outside it.
 set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *field_storage_reg*TIMINGS_*}]
 
 ##==============================================================================

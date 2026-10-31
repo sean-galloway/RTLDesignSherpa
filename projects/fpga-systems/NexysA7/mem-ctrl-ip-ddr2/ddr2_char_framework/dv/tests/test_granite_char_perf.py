@@ -484,7 +484,7 @@ async def cocotb_test_granite_perf(dut):
         # proxy runs the build default and never sees a same-bank column
         # stream (granite TASK-006, 2026-10-29).
         # TEST_PAGE_MODE / TEST_TR_INIT: unset = the RDL power-on state
-        # (policy_mode 3 fixed_open, tr_init 2), which is what the board runs
+        # (policy_mode 4 hybrid since 2026-10-31, tr_init 2), which is what the board runs
         # untouched. Set them to measure another paging mode.
         tr_init = os.environ.get("TEST_TR_INIT", "")
         if tr_init:

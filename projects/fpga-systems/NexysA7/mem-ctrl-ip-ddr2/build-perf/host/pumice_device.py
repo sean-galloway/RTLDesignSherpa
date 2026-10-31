@@ -57,7 +57,8 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
                            dfi_rate: int = 2, rddata_delay: int = 7,
                            t_phy_wrlat: int = 1,
                            phy_rd_dq_busy: int = 14,
-                           rtw_guard: int = 6) -> Dict[str, int]:
+                           rtw_guard: int = 6,
+                           rd_phase: Optional[int] = None) -> Dict[str, int]:
     """JEDEC DDR2 timings in MC cycles for a controller at ``mc_clk_hz`` driving
     the DRAM at ``ck_per_mc`` CK per MC cycle (DFI_RATE=2 -> 2). Every ns value
     rounds UP; every CK minimum rounds up too and the larger of the two wins.
@@ -65,6 +66,8 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     counters measure (reload on the column FIRE, ok at zero):
       tWTR: WR cmd -> RD cmd = WL + BL/2 + tWTR        (WL = CL-1 for DDR2)
       tWR : WR cmd -> PRE    = WL + BL/2 + tWR         (bank_timer port contract)
+      tRTP: RD cmd -> PRE    = AL + BL/2 + max(tRTP, 2) - 2 in CK, counted
+            from the RD's DFI phase (rd_phase) to phase 0, where PRE goes
       tRTW: RD cmd -> WR cmd = max(CL + BL/2 + 2 - WL, t_rddata_en + BL/DFI_RATE)
             -- the JEDEC term alone ignores the PHY read pipeline (see below)
     A HIGHER mc_clk_hz yields more cycles, so a 100 MHz derivation is always safe
@@ -155,6 +158,22 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     #     tRTW=20 -> 0/6      22 -> 0/6      24 -> 0/6      28 -> 0/6
     # Anything that claims to close this must REPEAT each point; a single pass
     # over the matrix cannot distinguish 0% from 20%.
+    # READ -> PRECHARGE (tRTP field = RD cmd -> earliest PRE, the bank timer's
+    # port contract). JESD79-2: AL + BL/2 + max(tRTP, 2) - 2 CK, i.e. 2 CK for
+    # BL4 at any clock this board runs. The command formatter puts a RD on
+    # rd_phase and a PRE (and ACT) on phase 0, so the CK distance between them
+    # is ck_per_mc * n - rd_phase, which is exact: no phase margin is owed. The
+    # old ns_or_ck("tRTP") added the margin anyway (7.5 ns + 6.67 -> 2 MC at
+    # 75 MHz, where 2 CK is 1 MC), and since an auto-precharge read closes on
+    # this same counter, every read row paid one cycle more than the device
+    # needs: RD(AP) -> ACT 4 MC against JEDEC's 5 CK (3 MC). Measured on the
+    # granite proxy, col_major reads 8 data cycles per 13 (granite TASK-003,
+    # 2026-10-31). rd_phase None (unknown) assumes the worst phase.
+    tck_ns = period_ns / ck_per_mc
+    rtp_ck = max(ceil(part["tRTP"] / tck_ns), DDR2_CK_MIN["tRTP"])
+    rd_to_pre_ck = half_bl + rtp_ck - 2
+    p = (ck_per_mc - 1) if rd_phase is None else int(rd_phase)
+    rtp_mc = max(1, ceil((rd_to_pre_ck + p) / ck_per_mc))
     rd_window_mc = (int(phy_rd_dq_busy) + 1 - int(t_phy_wrlat)
                     + int(rtw_guard))
     return dict(
@@ -166,7 +185,7 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
         # contract by WL+BL/2. LiteDRAM adds the same two terms
         # (bankmachine.py: precharge_time = write_latency + tWR + tCCD).
         tWR=ck(wl + half_bl + twr_ck),
-        tRTP=ns_or_ck("tRTP"), tRRD=ns_or_ck("tRRD"), tFAW=ns(part["tFAW"]),
+        tRTP=rtp_mc, tRRD=ns_or_ck("tRRD"), tFAW=ns(part["tFAW"]),
         tRFC=ns(part["tRFC"]), tREFI=int(part["tREFI"] / period_ns),   # floor: never late
         tCCD=ck(DDR2_CK_MIN["tCCD"]),
         tWTR=ck(wl + half_bl + twtr_ck),

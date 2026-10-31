@@ -761,11 +761,11 @@ built with no cap at all while this field read 16.</p>
 - Base Offset: 0x70
 - Size: 0x4
 
-<p>Axis 2 mode select + adapt_access counter shape. 0 = build default. Resets to 3 (fixed_open) -- see policy_mode.</p>
+<p>Axis 2 mode select + adapt_access counter shape. 0 = build default. Resets to 4 (hybrid) -- see policy_mode.</p>
 
 | Bits| Identifier|Access|Reset|Name|
 |-----|-----------|------|-----|----|
-| 2:0 |policy_mode|  rw  | 0x3 |  — |
+| 2:0 |policy_mode|  rw  | 0x4 |  — |
 |  3  |   RSVD_3  |   r  | 0x0 |  — |
 | 5:4 |  RSVD_5_4 |   r  | 0x0 |  — |
 | 9:6 |  RSVD_9_6 |   r  | 0x0 |  — |
@@ -774,7 +774,7 @@ built with no cap at all while this field read 16.</p>
 
 #### policy_mode field
 
-<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=hybrid (2026-10-30: auto-precharge when a different row is already queued behind the column in its bank; on a drained queue only where the bank's close history allows it (rows short-lived and followed by a different row, no re-open of a closed row since); the fixed_open idle timeout closes everything else. Measured on the proxy at the better of open page and fixed_open per pattern: bank-interleaved column walk 504 MB/s (open page 508, fixed_open 456), half_oct on 4 threads 278 (open page 236, fixed_open 278). Granite only). 5 RETIRED 2026-09-27 (was adapt_access; 4 was adapt_time) and 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn) -- a write of 5..7 falls through to the build default. RESET IS 3 (fixed_open), with PAGE_TIMEOUT_CFG.tr_init 2. Mode 3 (fixed_open) is the RECOMMENDED default and is measured strictly dominant over open page on the board across every scenario -- +41.2% col_major_interleaved, +8.6..11.6% col_major, and EXACTLY flat on incremental/row_major, with no scenario regressing. The win is the background precharge gated on bank idle (timeout_pre_req_o), not a predictor. The retired adapt_time mode was measured to BE fixed_open(tr_min): moving only tr_min moved the result onto the matching fixed point every time, because its mistake counter is dominated by the held-too-long case so TR decayed to the floor and stayed. Mode 5 drove auto-precharge, which costs 4.9x the activations of a background precharge and double the read latency, and AP commits at the column op before it is known whether more same-row requests are coming -- it fights the FR-FCFS reordering that justifies this design. See TASK-013 and TASK-014.</p>
+<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=hybrid. RESET IS 4 (hybrid), with PAGE_TIMEOUT_CFG.tr_init 2 (changed from 3 on 2026-10-31, granite TASK-003). Hybrid: auto-precharge on the column when a different row is already queued behind it in its bank; on a drained queue only where the bank's close history allows it (rows short-lived and followed by a different row, no re-open of a closed row since); the fixed_open idle timeout closes everything else. MEASURED ON THE BOARD 2026-10-31 at 100 MHz (DDR2-400, peak 800 MB/s), 60 cells shared with LiteDRAM, all integrity-clean: the hybrid is within 1 percent of the best granite mode on 59 of 60 (fixed_open 50, open page 46) and against LiteDRAM wins 42, ties 15, loses 3. It keeps open page's bank-interleaved column walk (686 MB/s; fixed_open 616) and fixed_open's multi-thread half_oct (380 at 4 threads; open page 310). The one cell more than 1 percent behind is col_major_interleaved at 16-beat bursts (704, open page 730). Mode 3 (fixed_open, background precharge on bank idle, no auto-precharge) was the reset until 2026-10-31 and stays the pumice default. 5 RETIRED 2026-09-27 (was adapt_access) and 6/7 RETIRED 2026-09-26 (were rbl_static/rbl_dyn) -- a write of 5..7 falls through to the build default. See granite TASK-003 and pumice TASK-013/014.</p>
 
 #### RSVD_3 field
 
@@ -813,7 +813,7 @@ built with no cap at all while this field read 16.</p>
 
 #### tr_init field
 
-<p>TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open (policy_mode=3) uses this alone. RESET IS 2, the measured optimum, changed from 0 on 2026-09-27 together with policy_mode. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so a reset of 0 silently disabled mode 3 and is why these two resets must move together. MEASURED ON THE BOARD 2026-09-27 at 75 MHz BL4 x16 against a 600 MB/s peak, 24 cells over four scenario families, all integrity-clean: TR=1 and TR=2 identical, and TR=2 gives +9.1% col_major (195.2 -&gt; 212.9 MB/s) and +35.1% col_major_interleaved (262.1 -&gt; 354.1), exactly flat on incremental (561.1) and row_major (572.0), with no scenario regressing. The cliff is between 2 and 3 on col_major, which is why 2 and not 4. This change was made and REVERTED on 2026-09-26 because BUG-003 let a short timeout push a rejected pick to the DRAM; BUG-003 was fixed 2026-09-27 and the board run above is post-fix with mismatched=0 on every cell.</p>
+<p>TR init: idle MC cycles a row is held open before the background precharge fires. fixed_open (policy_mode=3) uses this alone; the hybrid (policy_mode=4, the reset) uses it for the rows it does not auto-precharge. RESET IS 2, the measured optimum, changed from 0 on 2026-09-27 together with policy_mode. tr_init=0 DISABLES the timeout entirely (see f_tr/r_idle in pumice_page_policy.sv) -- it is not a build-default sentinel on this field, so a reset of 0 silently disabled mode 3 and is why these two resets must move together. MEASURED ON THE BOARD 2026-09-27 at 75 MHz BL4 x16 against a 600 MB/s peak, 24 cells over four scenario families, all integrity-clean: TR=1 and TR=2 identical, and TR=2 gives +9.1% col_major (195.2 -&gt; 212.9 MB/s) and +35.1% col_major_interleaved (262.1 -&gt; 354.1), exactly flat on incremental (561.1) and row_major (572.0), with no scenario regressing. The cliff is between 2 and 3 on col_major, which is why 2 and not 4. This change was made and REVERTED on 2026-09-26 because BUG-003 let a short timeout push a rejected pick to the DRAM; BUG-003 was fixed 2026-09-27 and the board run above is post-fix with mismatched=0 on every cell.</p>
 
 #### RSVD_15_8 field
 

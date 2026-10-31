@@ -519,6 +519,14 @@ class DDR2CharDriver:
                       f"ck_per_mc stays at the 1:2 default")
         if "cl" not in align:
             align["cl"] = (int(self.BOARD_MR0) >> 4) & 0x7
+        # tRTP is counted from the RD's DFI phase, so derive it from the phase
+        # the controller is actually programmed with (every caller sets the DFI
+        # phase first). Unreadable -> None, which assumes the worst phase.
+        if "rd_phase" not in align:
+            try:
+                align["rd_phase"] = int(self.get_dfi_phase()[0])
+            except Exception as exc:
+                print(f"[timings] DFI_PHASE unreadable ({exc!r}); tRTP assumes the worst rd_phase")
         timings = dict(ddr2_timings_mc_cycles(mc_clk_hz, **align))
         # JEDEC_OVERRIDE="tCCD=2,tWTR=5": pin individual derived fields (MC
         # cycles) for a board experiment, e.g. to force a write cadence.
