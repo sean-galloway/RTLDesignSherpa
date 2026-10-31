@@ -1,0 +1,72 @@
+// render: no-key
+// Conceptual figure (own vocabulary per block-diagrams.md "no-key" ruling):
+// the falcon ladder's five rungs and the cache-ip pairing each rung grows
+// into. Sources: docs/superpowers/specs/2026-10-06-riscv-falcon-suite-design.md,
+// cache-ip PRDs (amber / jet / onyx / basalt).
+
+digraph falcon_cache_ladder {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.55", ranksep="0.55", splines=ortho,
+           label=<<B>The falcon ladder and its cache-ip pairings (planned rungs 3-5)</B>>,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // Column headers
+    hdr_core  [shape=plaintext, label=<<B>core (riscv-ip)</B>>];
+    hdr_cache [shape=plaintext, label=<<B>D$ pairing (cache-ip)</B>>];
+
+    // Rungs — cores
+    r1 [label="Rung 1 - kestrel\nRV32I: single-cycle / multicycle foundation",
+        fillcolor="#D6E4F0", group=L];
+    r2 [label="Rung 2 - merlin\nRV32I pipelined: hazards, forwarding",
+        fillcolor="#D6E4F0", group=L];
+    r3 [label="Rung 3 - peregrine\nRV32IM: BTB + 2-bit predictor, traps,\nmulticycle M unit",
+        fillcolor="#D6E4F0", group=L];
+    r4 [label="Rung 4 - gyrfalcon\nRV32IM(A): OoO - rename, ROB,\nstore buffer, A_EXT flavor adds LR/SC + AMOs",
+        fillcolor="#D6E4F0", group=L];
+    r5 [label="Rung 5 - garuda\nRV32IMAF: gyrfalcon + FP rename + FPU",
+        fillcolor="#D6E4F0", group=L];
+
+    // Cache pairings
+    c1 [label="no cache\nblock-RAM memory system",
+        style="filled,dashed", fillcolor="#F2F2F2", group=R];
+    c2 [label="no cache\nblock-RAM memory system",
+        style="filled,dashed", fillcolor="#F2F2F2", group=R];
+    c3 [label="amber - blocking MESI L1\nreplaces the in-core blocking slot",
+        fillcolor="#E2EFDA", group=R];
+    c4 [label="jet - non-blocking MESI L1\nMSHRs, hit-under-miss;\nA flavor: AMO ALU (J8),\nLR/SC snoop sideband (J9)",
+        fillcolor="#E2EFDA", group=R];
+    c5 [label="jet, unchanged\nF adds no cache-visible ops\n(FLW/FSW are 32-bit)",
+        fillcolor="#E2EFDA", group=R];
+
+    // Ladder progression with per-rung deltas
+    r1 -> r2 [xlabel="+ pipelining"];
+    r2 -> r3 [xlabel="+ speculation, traps,\nmemory hierarchy"];
+    r3 -> r4 [xlabel="+ out-of-order\n(+A: atomics)"];
+    r4 -> r5 [xlabel="+ floating point"];
+
+    // Pairings (same-rank sideband)
+    r1 -> c1 [style=dashed, color="#777777"];
+    r2 -> c2 [style=dashed, color="#777777"];
+    r3 -> c3 [style=dashed, color="#777777", xlabel="D$ slot"];
+    r4 -> c4 [style=dashed, color="#777777", xlabel="D$ slot"];
+    r5 -> c5 [style=dashed, color="#777777"];
+
+    // Cache-ip progression down the right column
+    c3 -> c4 [xlabel="+ lockup-freedom\n(J1-J7)"];
+    c4 -> c5 [style=invis];
+
+    { rank=same; hdr_core; hdr_cache; }
+    { rank=same; r1; c1; }
+    { rank=same; r2; c2; }
+    { rank=same; r3; c3; }
+    { rank=same; r4; c4; }
+    { rank=same; r5; c5; }
+
+    // Order the header row over its columns
+    hdr_core -> r1 [style=invis];
+    hdr_cache -> c1 [style=invis];
+    hdr_core -> hdr_cache [style=invis];
+}

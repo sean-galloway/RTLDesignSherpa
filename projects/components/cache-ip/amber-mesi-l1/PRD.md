@@ -23,10 +23,17 @@
 
 # amber — Product Requirements (DRAFT)
 
-**Version:** 0.7 (2026-10-15)
+**Version:** 0.8 (2026-10-30)
 **Status:** all eleven decision rows record a name and a date.
 A decision becomes DECIDED when it records
 a name and a date, the way the reed-solomon PRD does it.
+v0.8 (Sean, 2026-10-30): target-client ruling — amber is the
+[peregrine](../../riscv-ip/peregrine-rv32im/) (RV32IM, in-order) D$ slot,
+per the
+[falcon-suite spec](../../../../docs/superpowers/specs/2026-10-06-riscv-falcon-suite-design.md);
+RV32A atomics are jet's rows (J8–J10), not amber's. D2 gains the
+aligned-access contract note. Pairing figure:
+[falcon_cache_ladder](../../riscv-ip/docs/assets/graphviz/falcon_cache_ladder.png).
 v0.2: D8 decided — `*_monlite` observation wrappers (never `_mon` on the
 measured paths).
 v0.3: D4 decided — snoop transport is ACE-shaped (AC/CD/CR) per the
@@ -75,6 +82,15 @@ characterised for FPGA cost like every other component in this repo. It is
 the first cache-ip IP and the deliberate baseline for
 [jet](../jet-mesi-l1/PRD.md), the lockup-free follow-on.
 
+Target client (v0.8, Sean): **peregrine (RV32IM)** — amber fills the
+blocking-L1 slot peregrine's spec reserves for the cache-ip line. An
+in-order single-issue core cannot have more than one memory access in
+flight, so amber's blocking behaviour costs that client nothing; jet's
+lockup-freedom is invisible to it. Beyond peregrine, amber keeps its
+family jobs: the measured-delta baseline against jet, the coherence
+bring-up vehicle (pair rig), and a gyrfalcon-baseline stepping stone
+during that core's bring-up.
+
 ## 2. Background
 
 A blocking cache freezes on a miss: the pending request (and everything
@@ -102,7 +118,7 @@ from `rtl/amba/`.
 | # | Decision | Candidates | What it drives |
 |---|---|---|---|
 | D1 | Cache geometry | **DECIDED 2026-10-06 (Sean): 32 KiB / 64 B lines / 4 ways (128 sets) as the default center, fully elaboration-parameterised (4–32 KiB, 32–64 B, 2–8 ways), plus a reserved tiny config — 16 sets / 2 ways / 64 B — for SymbiYosys tractability.** Board BRAM does not bind (~9 of 135 36Kb RAMs on Nexys A7 at the default), so geometry serves the DV matrix and the proofs, not the board | tag/data array dimensions, the whole DV matrix |
-| D2 | CPU-side interface | **DECIDED 2026-10-06 (Sean): GAXI slave.** Chosen over the plain valid/ready native port and the AXI4 slave: house BFM/monitor coverage and skid/FIFO plumbing already exist, and STREAM can attach as first real consumer without an adapter. Must express single-beat reads, write-allocate fills, and (if write-through is chosen) store-without-allocate | front-end FSM, adapter surface, first consumer |
+| D2 | CPU-side interface | **DECIDED 2026-10-06 (Sean): GAXI slave.** Chosen over the plain valid/ready native port and the AXI4 slave: house BFM/monitor coverage and skid/FIFO plumbing already exist, and STREAM can attach as first real consumer without an adapter. Must express single-beat reads, write-allocate fills, and (if write-through is chosen) store-without-allocate. v0.8 contract note: RV32 clients trap misaligned accesses in the core, so the request channel carries naturally aligned accesses only | front-end FSM, adapter surface, first consumer |
 | D3 | Memory-side interface | **DECIDED 2026-10-07 (Sean): AXI4 read/write masters on the house `axi4_master_rd`/`axi4_master_wr` wrappers (stream/rapids pattern), `*_monlite` observation per D8.** Chosen over GAXI (D2 already spent that on the CPU side) and over the simple SRAM bring-up port (a rewrite-in-waiting); matches D8's monitored-paths requirement and the pair-rig shared-memory hook | fill/drain engines, burst behavior on misses |
 | D4 | Snoop transport | **DECIDED 2026-10-05 (Sean): ACE-shaped transport — amber implements the AC/CD/CR snoop channels exactly as [onyx D7](../onyx-ace-ccu/PRD.md) defines them (family decision: cache-ip is ACE-shaped), staying bus-agnostic internally behind a thin adapter.** Chosen over a custom dedicated snoop bus and over snooping on the AXI4 fabric directly; the ACE-lite-shaped candidate was set aside because a snoop responder must drive CR responses and CD data — ACE-Lite carries no snoop channels at all. The snoop-filter (directory-lite) sub-question stays deferred, reopened as [onyx D3](../onyx-ace-ccu/PRD.md). | the coherence bus, formal surface, gate count |
 | D5 | Write policy | **DECIDED 2026-10-06 (Sean): write-back + write-allocate.** Write-through/no-allocate deletes the coherence traffic the research exists to measure — dirty snoop transfers (PassDirty), WriteBack drains, onyx's memory-read elision — and leaves MESI's M state with no job; it stays available as a bring-up mode only | M-state logic, memory traffic, formal targets |
@@ -130,8 +146,9 @@ from `rtl/amba/`.
 
 Non-blocking / lockup-free miss handling (jet), directory-based coherence,
 L2/L3 or multi-level inclusion policies, ECC on cache arrays, virtual memory
-and TLB interaction, multi-port CPU issue. Each is a future IP or a future
-decision, not an amber requirement.
+and TLB interaction, multi-port CPU issue, RV32A atomics (LR/SC and AMO —
+jet's J8–J10 rows; amber's RV32IM client traps misaligned and issues none).
+Each is a future IP or a future decision, not an amber requirement.
 
 ## 6. Where the block sits
 

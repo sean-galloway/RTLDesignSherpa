@@ -23,7 +23,7 @@
 
 # onyx — Product Requirements (DRAFT)
 
-**Version:** 0.5 (draft, 2026-10-11)
+**Version:** 0.6 (draft, 2026-10-30)
 **Status:** decisions pending — this page records the questions and the
 candidates, not answers. A decision becomes DECIDED when it records a name
 and a date, the way the reed-solomon PRD does it. Until then every row
@@ -45,6 +45,12 @@ v0.5: Ruling 2026-10-11 (Sean) — N1 decided (RACK/WACK omitted from the
 onyx↔cache contract) and invariant 6 decided (CD-before-CR is the binding
 family convention). See also the updated
 [AMBA ACE Interface Definition](../References/AMBA_ACE_Interface_Definition.md).
+v0.6 (Sean, 2026-10-30): client-context note — with jet's J8–J10 ruled
+(AMO cache-side ALU; LR/SC snoop-touch sideband), the gyrfalcon-A coherent
+rig is now concrete on both sides of the snoop interface: N2's PoS monitor
+is onyx's half, jet's J9 sideband is the L1's half. Rig figure:
+[gyrfalcon_coherent_rig](../../riscv-ip/docs/assets/graphviz/gyrfalcon_coherent_rig.png).
+N2 itself stays OPEN until that rig is designed.
 
 ## 1. Purpose
 

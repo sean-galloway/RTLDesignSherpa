@@ -21,14 +21,21 @@
 
 <!-- End Header -->
 
-# basalt — Pencil PRD (v0.1 DRAFT)
+# basalt — Pencil PRD (v0.2 DRAFT)
 
-**Version:** 0.1 (pencil, 2026-10-11)
+**Version:** 0.2 (pencil, 2026-10-30)
 **Status:** direction penciled at owner request — every row below is OPEN
 until it records a name and a date. **No RTL is gated until onyx v1
 exists**; this document exists so the unit breakdown and the open questions
 stop living only in conversation. When scoped for real work, this PRD is
 rewritten properly (v1.0 draft) and the README gains its full text.
+v0.2 (Sean, 2026-10-30): client-context note — basalt's terminating rig is
+the gyrfalcon-A / garuda multicore system (jet ×N → onyx → basalt →
+mem-ctrl); see
+[gyrfalcon_coherent_rig](../../riscv-ip/docs/assets/graphviz/gyrfalcon_coherent_rig.png).
+Sitting below the coherency point, basalt sees plain AXI4 only: no ISA
+detail and no RV32A traffic reaches it (AMOs complete in the L1 per jet J8),
+so basalt stays ISA-neutral by construction and no decision row changes.
 
 ## 1. Purpose
 

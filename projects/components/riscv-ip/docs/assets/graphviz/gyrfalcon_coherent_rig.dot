@@ -1,0 +1,79 @@
+// render: no-key
+// Conceptual figure (own vocabulary per block-diagrams.md "no-key" ruling):
+// the gyrfalcon-A coherent rig, top of the falcon ladder, and where each
+// RV32A concern lands. Below the coherency point everything is plain AXI4:
+// basalt and the mem-ctrl line see no coherence traffic and no ISA detail.
+// Readability convention: the AC snoop probe is drawn on the LEFT cache
+// (every attached cache receives it) and the fill-data return on the RIGHT
+// (whichever cache asked) so each layer pair carries one edge per direction.
+
+digraph gyrfalcon_coherent_rig {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.55", ranksep="0.60", splines=ortho,
+           label=<<B>gyrfalcon-A coherent rig - where each RV32A concern lands (planned)</B>>,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    cpu0 [label="gyrfalcon-A core 0\nLR/SC reservation register (in core)\naq/rl ordering at execute / commit (J10)",
+          fillcolor="#D6E4F0", group=L];
+    cpu1 [label="gyrfalcon-A core 1\nLR/SC reservation register (in core)\naq/rl ordering at execute / commit (J10)",
+          fillcolor="#D6E4F0", group=R];
+
+    jet0 [label="jet MESI L1\nAMO RMW in the CPU plane,\nline held in M (J8);\nsnoop-touch notice clears the\ncore's LR reservation (J9)",
+          fillcolor="#D6E4F0", group=L];
+    jet1 [label="jet MESI L1\nAMO RMW in the CPU plane,\nline held in M (J8);\nsnoop-touch notice clears the\ncore's LR reservation (J9)",
+          fillcolor="#D6E4F0", group=R];
+
+    onyx [label="onyx ACE coherency point", shape=invtrapezium,
+          fillcolor="#FFF2CC", width=3.2, height=0.55, group=C];
+
+    copoint [shape=plaintext, group=R,
+             label=<<I>coherency point - below here: plain AXI4,<BR/>nothing snoops, no ISA detail</I>>];
+
+    basalt [label="basalt - shared banked L2\nV/D + transients, MSHRs, victim drain\n(ISA-neutral by construction)",
+            fillcolor="#D6E4F0", group=C];
+
+    memc [label="mem-ctrl line\npumice / scoria / andesite",
+          fillcolor="#D6E4F0", group=C];
+
+    dram [label="DRAM", shape=box, style="rounded,filled",
+          fillcolor="#E2EFDA", penwidth=2.2, width=4.2, group=C];
+
+    // CPU <-> L1: requests down, results back up
+    cpu0 -> jet0 [xlabel="LD / ST / AMO"];
+    jet0 -> cpu0 [dir=back, color="#1A7A1A", constraint=false,
+                  xlabel="load / AMO result"];
+    cpu1 -> jet1 [xlabel="LD / ST / AMO"];
+    jet1 -> cpu1 [dir=back, color="#1A7A1A", constraint=false,
+                  xlabel="load / AMO result"];
+
+    // L1 -> coherency point: ACE traffic down; AC probe drawn on the left,
+    // fill-data return drawn on the right (see header comment)
+    jet0 -> onyx [xlabel="ACE: misses,\nwritebacks"];
+    onyx -> jet0 [style=dashed, color="#777777", constraint=false,
+                  xlabel="AC snoop probe\n(to every cache)"];
+    jet1 -> onyx [xlabel="ACE: misses,\nwritebacks"];
+    onyx -> jet1 [dir=back, color="#1A7A1A", constraint=false,
+                  xlabel="fill data\n(to the requester)"];
+
+    // Below the coherency point: plain AXI4, then DRAM bursts
+    onyx -> basalt [penwidth=1.8, headlabel="AXI4 fill / writeback  ",
+                    labeldistance=2.2, labelangle=0, decorate=false];
+    basalt -> onyx [dir=back, color="#1A7A1A", constraint=false,
+                    xlabel="fill data"];
+    basalt -> memc [minlen=2, taillabel="  DRAM burst\n  fill / writeback",
+                    labeldistance=2.2, labelangle=0];
+    memc -> basalt [dir=back, color="#1A7A1A", constraint=false,
+                    xlabel="fill data"];
+    memc -> dram [xlabel="DDR commands\n+ write data"];
+    dram -> memc [dir=back, color="#1A7A1A", constraint=false,
+                  xlabel="read data"];
+
+    // Pin the coherency-point note beside basalt, at the boundary layer
+    onyx -> copoint [style=invis];
+
+    { rank=same; cpu0; cpu1; }
+    { rank=same; jet0; jet1; }
+}

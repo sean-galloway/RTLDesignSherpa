@@ -144,6 +144,23 @@ differ from ACE — the seam is the contract, not the pinout).
   snoop stimulus retargets to the fabric seam bundle (or the snoop portion
   moves to a plane-level test — decided in the plan).
 
+## Forward reservations (RV32A, jet J8–J10 ruled 2026-10-30)
+
+Zero functional change still holds — no op field or sideband is built in
+this task. But the seams this task freezes are where jet's RV32A rows land
+later, so the restructure must not paint them into a corner:
+
+- **J8 (AMO cache-side ALU):** the CPU-plane request payload will gain an
+  op field (LD / ST / nine word AMOs). The seam contract doc
+  (`l1_fabric_contract.md` and the CPU-plane port list in the plan) records
+  the field as reserved; the packed `cpu_req_wr_data` layout keeps MSB room
+  for it.
+- **J9 (LR/SC sideband):** the CPU plane will export a one-line
+  "snoop service touched line X" notice toward the core. The seam doc
+  records the notice as reserved; nothing is wired in this task.
+- **J10 (aq/rl):** ruled no-cache-hardware; noted here only so the seam
+  review doesn't reopen it.
+
 ## Done when (per the task files)
 
 - amber and jet RTL compile as `<cpu plane>` + `<coh core>` + fabric plane,

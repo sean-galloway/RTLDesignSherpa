@@ -29,6 +29,7 @@ than restating them. Start here when a question spans the ladder.
 | Note | Status |
 |---|---|
 | Design spec — scope, ISA, verification, packaging | [Approved draft, awaiting review](../../../../docs/superpowers/specs/2026-10-06-riscv-falcon-suite-design.md) |
+| Falcon × cache-ip pairing figures (ladder; gyrfalcon-A coherent rig) | [assets/graphviz/](assets/graphviz/) |
 | ISA quick reference (formats, opcode map, trap causes) | Not written |
 | Verification infrastructure (spike lockstep, riscv-tests, riscv-formal flow) | Not written |
 | Naming rationale (why falcons, why the compound directory form) | See suite [README](../README.md#the-ladder) |
