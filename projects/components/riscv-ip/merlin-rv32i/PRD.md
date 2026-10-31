@@ -1,7 +1,7 @@
 # MERLIN PRD — 5-Stage Pipelined RV32I
 
-**Version:** 0.1 (2026-10-30 — initial scaffold from the approved
-falcon-suite design spec, rung 2)
+**Version:** 0.2 (2026-10-31 — M5–M7 ruled (Sean); all seven decision
+rows now DECIDED)
 **Date:** 2026-10-30
 **Design source:** [riscv-falcon-suite design spec](../../../../docs/superpowers/specs/2026-10-06-riscv-falcon-suite-design.md),
 rung 2. Where this PRD narrows a choice the spec left open, the row says
@@ -123,9 +123,9 @@ riscv-formal checks binds at this interface (see §5).
 | M2 | Branch resolution | **DECIDED (spec):** EX, predict-not-taken, flush on taken (2 bubbles) | control hazard logic, IPC lesson |
 | M3 | Forwarding | **DECIDED (spec):** EX/MEM→EX and MEM/WB→EX, EX/MEM priority, both operands | forwarding unit |
 | M4 | Load-use | **DECIDED (spec):** 1-cycle interlock stall | hazard unit |
-| M5 | Memory contract | **PROPOSED (default chosen, needs owner):** Harvard core ports, unified TB wrapper, registered-read BRAM, `mem_wait` seam carried for peregrine | tb_top, peregrine transition |
-| M6 | Halt/CSR contract | **PROPOSED (default: carry kestrel unchanged):** halt+causes, CSR stub, no Zicntr | decode, rv32ui compat |
-| M7 | Regfile write/read split | **PROPOSED (default: WB leading-edge write, ID combinational read)** — the alternative (ID reads via WB forward) costs a mux and hides the classic lesson | regfile, timing |
+| M5 | Memory contract | **DECIDED 2026-10-31 (Sean):** Harvard core ports, unified TB wrapper, registered-read BRAM, `mem_wait` seam carried for peregrine | tb_top, peregrine transition |
+| M6 | Halt/CSR contract | **DECIDED 2026-10-31 (Sean):** carry kestrel unchanged — halt+causes, CSR stub, no Zicntr | decode, rv32ui compat |
+| M7 | Regfile write/read split | **DECIDED 2026-10-31 (Sean):** WB leading-edge write, ID combinational read — the classic split, documented with its timing diagram in the HAS | regfile, timing |
 
 ## 7. Deliverables & sequencing
 
@@ -143,6 +143,10 @@ riscv-formal checks binds at this interface (see §5).
 
 ## 8. History
 
+- 2026-10-31: PRD 0.2. M5–M7 ruled (Sean): Harvard ports + unified TB
+  memory + `mem_wait` seam; kestrel halt/CSR contract carried; WB
+  leading-edge / ID combinational regfile split. All rows DECIDED;
+  implementation files as vault TASK-001.
 - 2026-10-30: PRD 0.1 scaffold. Scope and M1–M4 from the approved
   falcon-suite design spec (rung 2); M5–M7 proposed with defaults
   awaiting owner ruling.
