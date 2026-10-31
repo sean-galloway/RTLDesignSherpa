@@ -629,6 +629,9 @@ async def _dfi_cmd_monitor(dut, counts):
             code = ((ras >> p) & 1, (cas >> p) & 1, (we >> p) & 1)
             if code == (0, 1, 1):
                 counts["act"] += 1
+                bank = (int(dut.dfi_bank_o.value) >> (p * 3)) & 0x7
+                counts.setdefault("act_at", []).append(
+                    (bank, (addr >> (p * row_w)) & ((1 << row_w) - 1)))
             elif code == (0, 1, 0):
                 counts["pre"] += 1
             elif code in ((1, 0, 0), (1, 0, 1)):
@@ -639,8 +642,9 @@ async def _dfi_cmd_monitor(dut, counts):
 
 @cocotb.test(timeout_time=20000, timeout_unit="us")
 async def cocotb_test_granite_core_page_mode(dut):
-    """The four page modes told apart on one stimulus (2026-10-30, mode 4):
-    two writes to one row of one bank, different columns, with the W data on
+    """The four page modes told apart on two stimuli (2026-10-30).
+
+    STIM=samerow: two writes to one row of one bank, different columns, with the W data on
     the slow_producer profile so the second write's fill lands long after
     the first write has fired. At the first write's fire the second is
     behind it in the bank (same row), so a close-on-drain column carries no
@@ -651,10 +655,32 @@ async def cocotb_test_granite_core_page_mode(dut):
       mode 1 static_open     : neither             -> ACT 1, PRE 0, AP 0
       mode 3 fixed_open      : timeout only        -> ACT 2, PRE 1, AP 0 (the row was
                                                       closed in the idle; the 2nd re-activates)
-      mode 4 drain_timeout   : both                -> ACT 2, PRE 1, AP 1
+      mode 4 hybrid          : as fixed_open here  -> ACT 2, PRE 1, AP 0 (the 2nd
+                                                      write's queue is EMPTY behind it:
+                                                      no AP, and the reopen marks the
+                                                      row keep-open, so no timeout PRE)
+
+    STIM=conflict: two writes to two rows of one bank, W back to back, so the
+    second is queued behind the first (a different row) when the first fires:
+      mode 0 drain AP        : AP on both          -> ACT 2, PRE 0, AP 2
+      mode 1 static_open     : demand PRE only     -> ACT 2, PRE 1, AP 0
+      mode 3 fixed_open      : demand PRE, then the idle timeout closes
+                               the 2nd row         -> ACT 2, PRE 2, AP 0
+      mode 4 hybrid          : AP on the 1st (known conflict); the 2nd
+                               (queue empty) does NOT: its ACT arms the
+                               bank's drained-close history, but granite's
+                               page policy sees the issued stream one cycle
+                               late (PRED_CMD_REG), so the arm lands at ACT+3
+                               and the column fired at ACT+2 (tRCD 2). The
+                               idle timeout closes that row instead. Only a
+                               bank's FIRST switch pays this; the arm then
+                               persists (measured 2026-10-30)
+                                                   -> ACT 2, PRE 1, AP 1
     Every count is exact, so an inert mode fails rather than passes."""
     mode = int(os.environ.get("PAGE_MODE", "0"))
-    want = {0: (1, 0, 1), 1: (1, 0, 0), 3: (2, 1, 0), 4: (2, 1, 1)}[mode]
+    stim = os.environ.get("STIM", "samerow")
+    want = {"samerow": {0: (1, 0, 1), 1: (1, 0, 0), 3: (2, 1, 0), 4: (2, 1, 0)},
+            "conflict": {0: (2, 0, 2), 1: (2, 1, 0), 3: (2, 2, 0), 4: (2, 1, 1)}}[stim][mode]
     cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units='ns').start())
     cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
     _idle(dut)
@@ -670,7 +696,8 @@ async def cocotb_test_granite_core_page_mode(dut):
         await RisingEdge(dut.aclk)
     bfm = _init_masters(dut)
     bfm.set_profile("backtoback", channels=["aw", "b"])
-    bfm.set_profile("slow_producer", channels=["w"])    # W beats 8..20 cycles apart
+    bfm.set_profile("slow_producer" if stim == "samerow" else "backtoback",
+                    channels=["w"])                     # samerow: W beats 8..20 cycles apart
     captured = []
     cocotb.start_soon(_dfi_model(dut, captured))
     for _ in range(400):
@@ -684,8 +711,12 @@ async def cocotb_test_granite_core_page_mode(dut):
     cocotb.start_soon(_dfi_cmd_monitor(dut, counts))
     rng = random.Random(int(os.environ.get("SEED", "1")))
     burst_bytes = BL_WORDS * (DW // 8)
+    # bank_lsb 10 counts 8-byte DRAM words (row major): bank = addr[15:13],
+    # row = addr >> 16, so +0x10000 is the same bank one row up (+0x2000 is
+    # the NEXT BANK -- measured). The ACT check below proves the geometry.
+    second = 0x4000 + (burst_bytes if stim == "samerow" else 0x10000)
     reqs = [(0x4000, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]),
-            (0x4000 + burst_bytes, [rng.randrange(1 << DW) for _ in range(BL_WORDS)])]
+            (second, [rng.randrange(1 << DW) for _ in range(BL_WORDS)])]
     await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: k & 0xF), _PHASE_TIMEOUT_US, "us")
     for _ in range(2000):
         await RisingEdge(dut.dfi_clk)
@@ -693,19 +724,25 @@ async def cocotb_test_granite_core_page_mode(dut):
             break
     for _ in range(60):                           # the timeout PRE, if any, lands here
         await RisingEdge(dut.dfi_clk)
-    dut._log.info("page mode %d: ACT=%d PRE=%d COL=%d AP=%d", mode,
-                  counts["act"], counts["pre"], counts["col"], counts["ap"])
+    dut._log.info("page mode %d %s: ACT=%d PRE=%d COL=%d AP=%d  ACT (bank,row)=%s", mode,
+                  stim, counts["act"], counts["pre"], counts["col"], counts["ap"],
+                  counts.get("act_at"))
+    acts = counts.get("act_at", [])
+    if stim == "conflict":
+        assert len({b for b, _ in acts}) == 1 and len({r for _, r in acts}) == 2, \
+            f"conflict stimulus must open two rows of one bank, saw {acts}"
     assert counts["col"] == 2, f"expected 2 column commands, saw {counts['col']}"
     got = (counts["act"], counts["pre"], counts["ap"])
     assert got == want, f"page mode {mode}: (ACT, PRE, AP) = {got}, expected {want}"
 
 
+@pytest.mark.parametrize("stim", ["samerow", "conflict"])
 @pytest.mark.parametrize("page_mode", [0, 1, 3, 4])
-def test_granite_core_page_mode(request, page_mode):
+def test_granite_core_page_mode(request, page_mode, stim):
     """Page modes 0 / 1 / 3 / 4 told apart on the DFI command stream (FUNC level)."""
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "granite_core"
-    test_name = f"cocotb_test_granite_core_page_mode_{page_mode}"
+    test_name = f"cocotb_test_granite_core_page_mode_{page_mode}_{stim}"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -713,7 +750,7 @@ def test_granite_core_page_mode(request, page_mode):
     params = dict(_core_params())
     params["DFI_RD_FIFO_DEPTH"] = "0"
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
-                 "COCOTB_LOG_LEVEL": "INFO", "PAGE_MODE": str(page_mode),
+                 "COCOTB_LOG_LEVEL": "INFO", "PAGE_MODE": str(page_mode), "STIM": stim,
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
                  **level_env("func")}
     extra_env.update(params)

@@ -714,22 +714,9 @@ CONFIGS: Dict[str, ControllerConfig] = {
         "fixed_open_tr1", scheme=dc.SCHEME_ROW_MAJOR,
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=3, page_tr_init=1,
         order_mode=0, rd_in_order=True),
-    # drain_timeout (mode 4, 2026-10-30): the build default's close-on-drain
-    # auto-precharge (the LiteDRAM lookahead close, active in open_page) PLUS
-    # the fixed_open idle timeout. open_page has only the first, fixed_open_trN
-    # only the second; this is the one combination that was never measured.
-    "drain_timeout_tr1": ControllerConfig(
-        "drain_timeout_tr1", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=1,
-        order_mode=0, rd_in_order=True),
-    "drain_timeout_tr2": ControllerConfig(
-        "drain_timeout_tr2", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=2,
-        order_mode=0, rd_in_order=True),
-    "drain_timeout_tr4": ControllerConfig(
-        "drain_timeout_tr4", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=4,
-        order_mode=0, rd_in_order=True),
+    # drain_timeout_trN (mode 4 as first built, 2026-10-30: drain AP plus
+    # the idle timeout) measured bit-identical to open_page and was REMOVED
+    # the same day when mode 4 became the hybrid -- see hybrid_trN below.
     # IS MODE 5's SIM/BOARD DIVERGENCE A REFRESH ARTEFACT? (Sean, 2026-09-26.)
     # Sim converts ~60%% of cold activations, the board ~3%%, on identical
     # stimulus. The refresh PRESSURE differs by 117x between them:
@@ -771,6 +758,16 @@ CONFIGS: Dict[str, ControllerConfig] = {
         page_policy=dc.PAGE_POLICY_OPEN, page_mode=3, page_tr_init=tr,
         order_mode=0, rd_in_order=True)
        for tr in (1, 2, 3, 4, 8, 16, 32, 64)},
+    # Page mode 4, the HYBRID (2026-10-30): auto-precharge on a known
+    # conflict, a drained-queue close only where the bank's history allows
+    # it, the idle timeout for the rest. Proxy 75 MHz: col_ilv 504 (drain AP
+    # 508, fixed_open 456), half_oct 4 threads 278 (drain AP 236, fixed_open
+    # 278) -- each family at the better of the two.
+    **{f"hybrid_tr{tr}": ControllerConfig(
+        f"hybrid_tr{tr}", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=tr,
+        order_mode=0, rd_in_order=True)
+       for tr in (1, 2, 4)},
     # ---- axis: refresh ----------------------------------------------------
     "fast_refresh": ControllerConfig(
         "fast_refresh", scheme=dc.SCHEME_ROW_MAJOR,

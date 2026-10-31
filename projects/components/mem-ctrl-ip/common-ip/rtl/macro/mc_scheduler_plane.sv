@@ -319,6 +319,7 @@ module mc_scheduler_plane
 
     logic                       w_pp_ap_en;
     logic [NUM_BANKS-1:0]       w_pp_ap_close;
+    logic                       w_pp_ap_conflict;
     logic [NUM_BANKS-1:0]       w_pp_drain_ok;   // page policy -> FRFCFS close-on-drain permission (TASK-044)
     logic                       w_pp_to_req;
     logic [BKW-1:0]             w_pp_to_bank;
@@ -563,6 +564,7 @@ module mc_scheduler_plane
                 .bank_open_row_i   (w_bank_open_row[0]),
                 .ap_mode_en_o      (w_pp_ap_en),
                 .ap_close_o        (w_pp_ap_close),
+                .ap_conflict_only_o(w_pp_ap_conflict),
                 .timeout_pre_req_o (w_pp_to_req),
                 .timeout_pre_bank_o(w_pp_to_bank),
                 .drain_close_ok_o  (w_pp_drain_ok),
@@ -580,6 +582,7 @@ module mc_scheduler_plane
         end else begin : g_no_page_policy
             assign w_pp_ap_en     = ap_mode_en_i;
             assign w_pp_ap_close  = ap_close_i;
+            assign w_pp_ap_conflict = 1'b0;
             assign w_pp_to_req    = timeout_pre_req_i;
             assign w_pp_to_bank   = timeout_pre_bank_i;
             assign w_pp_drain_ok  = {NUM_BANKS{1'b1}};   // external policy: close-on-drain ungated, as before
@@ -745,6 +748,8 @@ module mc_scheduler_plane
             .page_policy_i      (page_policy_i),
             .ap_mode_en_i       (w_pp_ap_en),
             .ap_close_i         (w_pp_ap_close),
+            .ap_conflict_only_i (w_pp_ap_conflict),
+            .drain_close_ok_i   (w_pp_drain_ok),
             .timeout_pre_req_i  (w_pp_to_req),
             .timeout_pre_bank_i (w_pp_to_bank),
             .wr_head_i          (wr_head_i),

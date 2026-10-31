@@ -121,6 +121,13 @@ module mc_bank_pick
     //      override and the background idle-timeout close request ----------
     input  logic                      ap_mode_en_i,
     input  logic [NUM_BANKS-1:0]      ap_close_i,
+    // hybrid (page mode 4): the close-on-drain auto-precharge applies on a
+    // KNOWN conflict (a different row queued behind the column) always, and
+    // on an empty queue only where the page policy's per-bank history allows
+    // it (drain_close_ok_i: the bank's rows have been short and followed by a
+    // different row, and no close there has re-opened the same row since)
+    input  logic                      ap_conflict_only_i,
+    input  logic [NUM_BANKS-1:0]      drain_close_ok_i,
     input  logic                      timeout_pre_req_i,
     input  logic [BKW-1:0]            timeout_pre_bank_i,
 
@@ -710,7 +717,9 @@ module mc_bank_pick
         w_other_req     = |(w_req_ok & ~(NPAIR'(1) << w_win_pair));
         w_win_ap_policy = ap_mode_en_i ? ap_close_i[BKW'(w_win_pair >> 1)]
                         : ((page_policy_i == PAGE_POLICY_CLOSE)
-                           || (CLOSE_ON_DRAIN && !w_win_bsr));
+                           || (CLOSE_ON_DRAIN && !w_win_bsr
+                               && !(ap_conflict_only_i && w_win_bempty
+                                    && !drain_close_ok_i[BKW'(w_win_pair >> 1)])));
         // Only when the current winner CAN be accepted now as far as the
         // registered facts go (sink room): a column blocked by a full return
         // ring or drain queue must not be followed by a speculated PRE, which
@@ -995,7 +1004,9 @@ module mc_bank_pick
     logic w_sel_ap;
     assign w_sel_ap = ap_mode_en_i ? ap_close_i[w_sel_bank]
                     : ((page_policy_i == PAGE_POLICY_CLOSE)
-                       || (CLOSE_ON_DRAIN && !w_sel_cand.behind_same_row));
+                       || (CLOSE_ON_DRAIN && !w_sel_cand.behind_same_row
+                           && !(ap_conflict_only_i && w_sel_cand.behind_empty
+                                && !drain_close_ok_i[w_sel_bank])));
 
     always_comb begin
         cmd_op_o    = OP_NOP;

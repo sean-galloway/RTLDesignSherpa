@@ -420,6 +420,8 @@ module mc_store_arbiter_macro_tb_top
             .page_policy_i      (PAGE_POLICY_OPEN),
             .ap_mode_en_i       (1'b0),
             .ap_close_i         ('0),
+            .ap_conflict_only_i (1'b0),
+            .drain_close_ok_i   ('1),
             .timeout_pre_req_i  (1'b0),
             .timeout_pre_bank_i ('0),
             .wr_head_i          (w_wr_head),

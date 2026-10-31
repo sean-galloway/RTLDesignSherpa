@@ -14,9 +14,12 @@
 //        1 static_open   ap=0 everywhere
 //        2 static_close  ap=1 everywhere
 //        3 fixed_open    ap=0; rows close by IDLE TIMEOUT instead
-//        4 drain_timeout ap_mode_en=0 (the pick's CLOSE_ON_DRAIN auto-
-//                        precharge stays on) AND the idle timeout runs:
-//                        both close mechanisms (2026-10-30)
+//        4 hybrid        auto-precharge on a known conflict (a different-
+//                        row entry already queued behind the column in its
+//                        bank) always; on a drained queue only where the
+//                        bank's history allows it (drain_close_ok_o);
+//                        otherwise the idle timeout closes the row
+//                        (ap_conflict_only_o; 2026-10-30)
 //        5              RETIRED 2026-09-27 (was adapt_access); 4 was
 //                        adapt_time until then.
 //        6,7            RETIRED 2026-09-26 (were rbl_static / rbl_dyn) --
@@ -102,6 +105,10 @@ module mc_page_policy
     // ---- decisions to the arbiter ------------------------------------------
     output logic                       ap_mode_en_o,      // 1 = ap_close_o overrides legacy w_ap
     output logic [NUM_BANKS-1:0]       ap_close_o,        // per-bank: close after this column op
+    // mode 4 (hybrid): the pick's close-on-drain auto-precharge applies only
+    // when a different-row entry is queued behind the column (not on an
+    // empty queue, which the idle timeout closes instead)
+    output logic                       ap_conflict_only_o,
     output logic                       timeout_pre_req_o, // background close request
     output logic [BKW-1:0]             timeout_pre_bank_o,
     // per bank: the scheduler MAY close the row on its last visible column
@@ -180,6 +187,25 @@ module mc_page_policy
     // timeout never finds an idle open row that matters. Kept because it
     // is cheap, tested (test_granite_core_page_mode) and answers the
     // question; TASK-003 log 2026-10-30 has the table.
+    //
+    // REDEFINED the same evening as the HYBRID (owner: "limit the bad from
+    // not closing pages, but keep most of the good"). The drain AP lumps two
+    // cases together: a column whose bank has a DIFFERENT row queued behind
+    // it (a known conflict -- closing now is free and is the open-page win
+    // on bank-hop / interleave walks), and a column whose queue simply ran
+    // dry (closing then re-activates the same row if a late same-row access
+    // arrives -- the fixed_open win on multi-thread and concurrent walks).
+    // Mode 4 keeps the AP for the first case always (ap_conflict_only_o, the
+    // pick reads its candidate's behind_empty). The second case cannot be
+    // told apart at the column: whether the bank's NEXT access is the same
+    // row (a late follower -- close loses) or another row (a bank-hop walk
+    // -- close wins) is not queued yet. MEASURED on the proxy with the
+    // queue-only rule: mode 4 == fixed_open on every family, losing the
+    // interleave walk (col_ilv 455 vs drain AP 508). So the drained-queue
+    // close is gated by this bank's HISTORY, drain_close_ok_o below (armed
+    // when rows here are short-lived and followed by a different row,
+    // vetoed by r_keep_open once a close re-opened the same row) -- the
+    // evidence the FR-FCFS arbiter's close-on-drain already uses.
     localparam logic [2:0] MODE_DRAIN_TIMEOUT = 3'd4;
     // 4 (adapt_time) and 5 (adapt_access) RETIRED 2026-09-27, by Sean:
     // "remove the adaptive modes as showing no benefit".
@@ -228,6 +254,7 @@ module mc_page_policy
     assign ap_mode_en_o = w_mode_on;
     assign ap_close_o   = (policy_mode_i == MODE_STATIC_CLOSE) ? {NUM_BANKS{1'b1}}
                                                                : '0;
+    assign ap_conflict_only_o = (policy_mode_i == MODE_DRAIN_TIMEOUT);
 
 
 
