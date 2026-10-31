@@ -8,6 +8,7 @@ root:
     <site>/articles/<slug>/index.html   one page per article
     <site>/articles/feed.xml            RSS 2.0 feed (Medium/DEV.to import)
     <site>/articles/assets/*            figures, copied verbatim
+    <site>/articles/medium/*            Medium-specific import pages, copied verbatim
 
 Usage:
     python3 articles/build_articles.py <site_root>     # build
@@ -255,6 +256,9 @@ def main():
     assets_src = ARTICLES_DIR / 'assets'
     if assets_src.is_dir():
         shutil.copytree(assets_src, out_dir / 'assets', dirs_exist_ok=True)
+    medium_src = ARTICLES_DIR / 'medium'
+    if medium_src.is_dir():
+        shutil.copytree(medium_src, out_dir / 'medium', dirs_exist_ok=True)
 
     build_index(out_dir, articles)
     build_articles(out_dir, articles)

@@ -283,6 +283,8 @@ vivado*
 # bin/apps/* are hand-written static web apps: their .html IS the
 # product, not generated PeakRDL collateral.
 !bin/apps/*/*.html
+# Medium-specific article import pages are publishing collateral, not PeakRDL output.
+!articles/medium/*/index.html
 
 # ---------------------------------------------------------------------------
 # Per-flow Vivado / FPGA build artifacts
