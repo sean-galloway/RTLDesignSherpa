@@ -55,6 +55,12 @@ module char_engine_block
     // this block is deliberately DUT-agnostic.
     parameter int BURST_LEN_MULTIPLE = 1,
 
+    // ---- Latency histograms ----
+    // 1 = the histograms also keep the exact latency sum, min and max per
+    // metric (axi_perf_latency_hist EXACT_STATS), read through i_hist_stat.
+    // The log2 bins alone give the mean only to an octave.
+    parameter bit HIST_EXACT_STATS = 1'b1,
+
     // ---- APB (chargen config window) ----
     parameter int APB_ADDR_WIDTH   = 12,
     parameter int APB_DATA_WIDTH   = 32,
@@ -151,6 +157,10 @@ module char_engine_block
     output logic [31:0] perf_rd_idle,
     input  logic        i_hist_metric,
     input  logic [3:0]  i_hist_bin,
+    // What perf_*_hist_count returns: 0 = the i_hist_bin count, 1 = latency
+    // sum [31:0], 2 = sum [63:32], 3 = min, 4 = max (exact; 0 when the build
+    // has HIST_EXACT_STATS=0). The total is on perf_*_hist_total either way.
+    input  logic [2:0]  i_hist_stat,
     output logic [31:0] perf_wr_hist_count,
     output logic [31:0] perf_wr_hist_total,
     output logic [31:0] perf_rd_hist_count,
@@ -671,12 +681,35 @@ module char_engine_block
     // same cells on granite and pumice). Sized to the product so no admitted
     // command can find the FIFO full.
     localparam int HIST_DEPTH = NUM_GEN * GEN_MAX_OUTSTANDING;
+
+    logic [31:0] w_wr_hist_bin_count, w_rd_hist_bin_count;
+    logic [63:0] w_wr_lat_sum, w_rd_lat_sum;
+    logic [31:0] w_wr_lat_min, w_rd_lat_min, w_wr_lat_max, w_rd_lat_max;
+
+    // i_hist_stat picks what the count register returns (see the port).
+    function automatic logic [31:0] hist_stat_sel(
+        input logic [2:0] sel, input logic [31:0] bin_count,
+        input logic [63:0] lat_sum, input logic [31:0] lat_min,
+        input logic [31:0] lat_max);
+        case (sel)
+            3'd1:    hist_stat_sel = lat_sum[31:0];
+            3'd2:    hist_stat_sel = lat_sum[63:32];
+            3'd3:    hist_stat_sel = lat_min;
+            3'd4:    hist_stat_sel = lat_max;
+            default: hist_stat_sel = bin_count;
+        endcase
+    endfunction
+    assign perf_wr_hist_count = hist_stat_sel(i_hist_stat, w_wr_hist_bin_count,
+                                              w_wr_lat_sum, w_wr_lat_min, w_wr_lat_max);
+    assign perf_rd_hist_count = hist_stat_sel(i_hist_stat, w_rd_hist_bin_count,
+                                              w_rd_lat_sum, w_rd_lat_min, w_rd_lat_max);
     axi_perf_latency_hist #(
         .ID_WIDTH        (PIW),   // pumice side, {master index, id}
         .NUM_CHANNELS    (1),
         .MAX_OUTSTANDING (HIST_DEPTH),
         .NUM_BINS        (16),
-        .IS_READ         (1'b0)
+        .IS_READ         (1'b0),
+        .EXACT_STATS     (HIST_EXACT_STATS)
     ) u_hist_wr (
         .aclk       (mc_clk),
         .aresetn    (mc_rst_n),
@@ -697,8 +730,11 @@ module char_engine_block
         .resp_id    (wr_bid),
         .i_hist_metric (1'b0),   // WR ignores metric bit
         .i_hist_bin    (i_hist_bin),
-        .o_hist_count  (perf_wr_hist_count),
-        .o_hist_total  (perf_wr_hist_total)
+        .o_hist_count  (w_wr_hist_bin_count),
+        .o_hist_total  (perf_wr_hist_total),
+        .o_lat_sum     (w_wr_lat_sum),
+        .o_lat_min     (w_wr_lat_min),
+        .o_lat_max     (w_wr_lat_max)
     );
 
     // Latency hist: RD side tracks AR -> firstR / RLAST (metric selects).
@@ -708,7 +744,8 @@ module char_engine_block
         .NUM_CHANNELS    (1),
         .MAX_OUTSTANDING (HIST_DEPTH),
         .NUM_BINS        (16),
-        .IS_READ         (1'b1)
+        .IS_READ         (1'b1),
+        .EXACT_STATS     (HIST_EXACT_STATS)
     ) u_hist_rd (
         .aclk       (mc_clk),
         .aresetn    (mc_rst_n),
@@ -729,8 +766,11 @@ module char_engine_block
         .resp_id    ('0),
         .i_hist_metric (i_hist_metric),
         .i_hist_bin    (i_hist_bin),
-        .o_hist_count  (perf_rd_hist_count),
-        .o_hist_total  (perf_rd_hist_total)
+        .o_hist_count  (w_rd_hist_bin_count),
+        .o_hist_total  (perf_rd_hist_total),
+        .o_lat_sum     (w_rd_lat_sum),
+        .o_lat_min     (w_rd_lat_min),
+        .o_lat_max     (w_rd_lat_max)
     );
 
     // Per-channel arrays are unused when NUM_CHANNELS=1 -- silence lint.

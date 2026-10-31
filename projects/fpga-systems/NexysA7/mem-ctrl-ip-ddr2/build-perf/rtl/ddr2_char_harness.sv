@@ -461,6 +461,7 @@ module ddr2_char_harness
     logic [31:0]  w_obs_wr_prod, w_obs_wr_bp, w_obs_wr_starv, w_obs_wr_idle;
     logic         w_obs_hist_metric, w_obs_hist_bus_sel;
     logic [3:0]   w_obs_hist_bin;
+    logic [2:0]   w_obs_hist_stat;
     logic [31:0]  w_obs_rd_hist_count, w_obs_rd_hist_total;
     logic [31:0]  w_obs_wr_hist_count, w_obs_wr_hist_total;
 
@@ -566,6 +567,7 @@ module ddr2_char_harness
         .i_obs_wr_idle        (w_obs_wr_idle),
         .o_obs_hist_metric    (w_obs_hist_metric),
         .o_obs_hist_bin       (w_obs_hist_bin),
+        .o_obs_hist_stat      (w_obs_hist_stat),
         .o_obs_hist_bus_sel   (w_obs_hist_bus_sel),
         .i_obs_rd_hist_count  (w_obs_rd_hist_count),
         .i_obs_rd_hist_total  (w_obs_rd_hist_total),
@@ -845,6 +847,7 @@ module ddr2_char_harness
         .perf_rd_idle     (w_obs_rd_idle),
         .i_hist_metric        (w_obs_hist_metric),
         .i_hist_bin           (w_obs_hist_bin),
+        .i_hist_stat          (w_obs_hist_stat),
         .perf_wr_hist_count   (w_obs_wr_hist_count),
         .perf_wr_hist_total   (w_obs_wr_hist_total),
         .perf_rd_hist_count   (w_obs_rd_hist_count),

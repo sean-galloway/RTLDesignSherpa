@@ -1177,6 +1177,9 @@ class CharRecord:
     # `ok` (pumice ISSUE-025: `ok` follows wr/rd done and `mismatched`); it is
     # kept as a note and as its own CSV column so a nonzero gap is still seen.
     rd_hist_gap: int = 0
+    # Exact AR->firstR latency (sum/min/max) when the build keeps it; None on
+    # a bitstream without the histogram's EXACT_STATS.
+    rd_lat: Optional[dc.LatStats] = None
     # Generators actually programmed. 1/1 on the single-engine path;
     # measure_concurrent fills in the real counts so a caller can scale a
     # per-generator invariant -- the latency histogram holds ONE entry per
@@ -1284,7 +1287,8 @@ class CharRecord:
 
     @property
     def rd_avg_latency_cyc(self) -> float:
-        """Mean AR->firstR latency (cycles) from the log2 histogram. Bin b
+        """Mean AR->firstR latency (cycles) ESTIMATED from the log2 histogram
+        (kept for comparison with older sweeps; rd_lat.mean is exact). Bin b
         counts [2^b, 2^(b+1)); use the geometric-ish midpoint 1.5*2^b (bin 0
         counts latencies <=1 -> weight 1)."""
         if self.rd_hist_total <= 0:
@@ -1458,6 +1462,7 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
     rd_stats = _delta_page_stats(_ps_rd0, _try_page_stats(drv))
     rd_stalls = _delta_stalls(_st_rd0, _try_stalls(drv))
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    rd_lat = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     drv.freeze_trace(False)                 # leave running for the next scenario
 
     mism = drv.beats_mismatched()
@@ -1480,7 +1485,7 @@ def measure(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=wr_cycles, wr_meter=wr_meter,
         rd_cycles=rd_cycles, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
+        rd_hist=tuple(rd_hist), rd_lat=rd_lat, rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=bytes_moved, clk_mhz=clk_mhz,
         wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
         notes=tuple(notes))
@@ -1583,6 +1588,7 @@ def measure_window(drv: DDR2CharDriver, sc: Scenario, *,
     rd_stats = _delta_page_stats(_ps_rd0, _try_page_stats(drv))
     rd_stalls = _delta_stalls(_st_rd0, _try_stalls(drv))
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    rd_lat = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     drv.freeze_trace(False)
 
     mism = drv.beats_mismatched()
@@ -1599,7 +1605,7 @@ def measure_window(drv: DDR2CharDriver, sc: Scenario, *,
     return CharRecord(scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
                       wr_cycles=wr_cycles, wr_meter=wr_meter,
                       rd_cycles=rd_cycles, rd_meter=rd_meter,
-                      rd_hist=tuple(rd_hist), rd_hist_total=rd_total,
+                      rd_hist=tuple(rd_hist), rd_lat=rd_lat, rd_hist_total=rd_total,
                       rd_hist_gap=txn * n_gen - rd_total,
                       bytes_moved=bytes_moved, clk_mhz=clk_mhz,
                       wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
@@ -1690,6 +1696,7 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
     rd_stats = _delta_page_stats(_ps_rd0, _try_page_stats(drv))
     rd_stalls = _delta_stalls(_st_rd0, _try_stalls(drv))
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    rd_lat = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     drv.freeze_trace(False)
 
     mism = drv.beats_mismatched()
@@ -1723,7 +1730,7 @@ def measure_half_burst(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=wr_cycles, wr_meter=wr_meter,
         rd_cycles=rd_cycles, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
+        rd_hist=tuple(rd_hist), rd_lat=rd_lat, rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=bytes_moved, clk_mhz=clk_mhz,
         n_rd_gen=threads, n_wr_gen=threads,
         wr_stats=wr_stats, rd_stats=rd_stats, rd_stalls=rd_stalls,
@@ -2127,6 +2134,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
     # confirmation, and it would be the same measurement twice.
     rd_stats = _delta_page_stats(_ps_cc0, _try_page_stats(drv))
     rd_hist, rd_total = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    rd_lat = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     drv.freeze_trace(False)
 
     mism = drv.beats_mismatched()
@@ -2167,7 +2175,7 @@ def measure_concurrent(drv: DDR2CharDriver, sc: Scenario, *,
         scenario=sc, config=cfg.name, ok=ok, mismatched=mism,
         wr_cycles=window, wr_meter=wr_meter,
         rd_cycles=window, rd_meter=rd_meter,
-        rd_hist=tuple(rd_hist), rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
+        rd_hist=tuple(rd_hist), rd_lat=rd_lat, rd_hist_total=rd_total, rd_hist_gap=rd_hist_gap,
         bytes_moved=per_gen_bytes * max(n_rd, 1),
         wr_bytes=per_gen_bytes * max(n_wr, 1), clk_mhz=clk_mhz,
         wr_window_cyc=wr_window, rd_window_cyc=rd_window,
@@ -2969,6 +2977,7 @@ def format_table(recs: List[CharRecord]) -> str:
     # hit%/ACT/PRE/REF come from the CONTROLLER counters (PageStats), not the
     # bus meters, and are the columns that say WHY a config won. '-' means the
     # telemetry was not readable or counted nothing -- never silently 0.
+    # rd_lat is the exact mean when the build keeps it, else the log2 estimate.
     hdr = (f"{'config':<16} {'scenario':<24} {'ok':>3} {'blen':>4} {'gap':>3} "
            f"{'id':>4} {'wr_MB/s':>9} {'rd_MB/s':>9} {'peak':>7} {'rd%pk':>6} "
            f"{'wr_util':>7} {'rd_util':>7} {'rd_lat':>7} {'hit%':>6} {'ACT/txn':>8} "
@@ -2988,7 +2997,7 @@ def format_table(recs: List[CharRecord]) -> str:
               f"{r.wr_bw_mb_s:>9.1f} {r.rd_bw_mb_s:>9.1f} "
               f"{r.peak_mb_s:>7.0f} {r.rd_frac_peak:>6.1%} "
               f"{r.wr_meter.util:>7.1%} {r.rd_meter.util:>7.1%} "
-              f"{r.rd_avg_latency_cyc:>7.1f} "
+              f"{(r.rd_lat.mean if r.rd_lat else r.rd_avg_latency_cyc):>7.1f} "
               f"{pct(st.row_hit_rate if st else None)} "
               f"{(f'{r.rd_acts_per_txn:>8.2f}' if r.rd_acts_per_txn is not None else f'{chr(45):>8}')} "
               f"{num(st.acts if st else 0, 7)} {num(st.pres if st else 0, 7)} "
@@ -3018,7 +3027,8 @@ def write_csv(recs: List[CharRecord], path: str) -> None:
             "id_mode", "ok", "mismatched", "bytes_moved", "clk_mhz",
             "wr_cycles", "wr_util", "wr_bw_mb_s",
             "rd_cycles", "rd_util", "rd_bw_mb_s", "rd_avg_latency_cyc",
-            "rd_hist_total", "rd_hist_gap", "threads", "notes"]
+            "rd_hist_total", "rd_hist_gap", "threads", "notes",
+            "rd_lat_mean", "rd_lat_min", "rd_lat_max"]
     with open(path, "w", newline="") as fh:
         w = _csv.writer(fh)
         w.writerow(cols)
@@ -3030,4 +3040,6 @@ def write_csv(recs: List[CharRecord], path: str) -> None:
                         r.wr_cycles, f"{r.wr_meter.util:.4f}", f"{r.wr_bw_mb_s:.2f}",
                         r.rd_cycles, f"{r.rd_meter.util:.4f}", f"{r.rd_bw_mb_s:.2f}",
                         f"{r.rd_avg_latency_cyc:.2f}", r.rd_hist_total,
-                        r.rd_hist_gap, r.n_rd_gen, "; ".join(r.notes)])
+                        r.rd_hist_gap, r.n_rd_gen, "; ".join(r.notes),
+                        *((f"{r.rd_lat.mean:.2f}", r.rd_lat.min, r.rd_lat.max)
+                          if r.rd_lat is not None else ("", "", ""))])

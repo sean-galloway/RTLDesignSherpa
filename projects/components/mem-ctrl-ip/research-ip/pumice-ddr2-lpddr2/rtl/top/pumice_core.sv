@@ -63,6 +63,7 @@ module pumice_core
     parameter bit WR_MERGE_EN = 1'b1, // write combining in the wr CAM: two partial writes to one DRAM burst commit once (pumice TASK-060)
     parameter bit RD_MERGE_EN = 1'b1, // read combining in the rd CAM: two reads of one unissued DRAM burst issue once, the ring returns it twice (pumice TASK-060)
     parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
+    parameter bit FAST_RD_RELEASE = 1'b1, // mc_scheduler_plane: commands skip the CMD_DELAY write-data lead while no write is in the line
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
                                          // Off since BUG-027 (the "youngest schedulable"
                                          // predicate chopped page-hit write streams); back
@@ -711,6 +712,7 @@ module pumice_core
         .HAS_INIT_SEQUENCER(1'b0),
         .HAS_MODE_REGISTER (1'b0),
         .CLOSE_ON_DRAIN    (CLOSE_ON_DRAIN),
+        .FAST_RD_RELEASE   (FAST_RD_RELEASE),
         .SCHED_CORE        (SCHED_CORE)
     ) u_sched_plane (
         .aclk               (aclk),

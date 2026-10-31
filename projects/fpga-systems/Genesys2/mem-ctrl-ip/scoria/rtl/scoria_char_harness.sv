@@ -264,6 +264,7 @@ module scoria_char_harness
     mem_variant_e w_mem_variant;
     logic        w_obs_hist_metric, w_obs_hist_bus_sel;
     logic [3:0]  w_obs_hist_bin;
+    logic [2:0]  w_obs_hist_stat;
     logic [31:0] w_perf_wr_prod, w_perf_wr_bp, w_perf_wr_starv, w_perf_wr_idle;
     logic [31:0] w_perf_rd_prod, w_perf_rd_bp, w_perf_rd_starv, w_perf_rd_idle;
     logic [31:0] w_wr_hist_count, w_wr_hist_total;
@@ -346,6 +347,7 @@ module scoria_char_harness
         .i_obs_wr_starv (w_perf_wr_starv), .i_obs_wr_idle  (w_perf_wr_idle),
         .o_obs_hist_metric  (w_obs_hist_metric),
         .o_obs_hist_bin     (w_obs_hist_bin),
+        .o_obs_hist_stat    (w_obs_hist_stat),
         .o_obs_hist_bus_sel (w_obs_hist_bus_sel),
         .i_obs_rd_hist_count (w_rd_hist_count),
         .i_obs_rd_hist_total (w_rd_hist_total),
@@ -490,6 +492,7 @@ module scoria_char_harness
         .perf_rd_starv(w_perf_rd_starv), .perf_rd_idle (w_perf_rd_idle),
         .i_hist_metric       (w_obs_hist_metric),
         .i_hist_bin          (w_obs_hist_bin),
+        .i_hist_stat         (w_obs_hist_stat),
         .perf_wr_hist_count  (w_wr_hist_count),
         .perf_wr_hist_total  (w_wr_hist_total),
         .perf_rd_hist_count  (w_rd_hist_count),

@@ -402,6 +402,25 @@ async def cocotb_test_char_families(dut):
     configs = sorted({r.config for r in recs})
     dut._log.info("\n%s", pc.format_table(recs))
 
+    # Exact latency statistics (histogram EXACT_STATS) against the bins they
+    # sit beside: same sample count, min in the lowest populated bin, max in
+    # the highest, mean between them. A stat that drifted from the samples the
+    # bins counted fails here; the bins alone could never show it.
+    for r in recs:
+        if r.rd_hist_total <= 0:
+            continue
+        lat = r.rd_lat
+        assert lat is not None, f"{r.config}/{r.scenario.name}: no exact latency stats"
+        assert lat.total == r.rd_hist_total, \
+            f"{r.config}/{r.scenario.name}: stats total {lat.total} != {r.rd_hist_total}"
+        used = [b for b, c in enumerate(r.rd_hist) if c]
+        bin_of = lambda v: min(max(v.bit_length() - 1, 0), 15)
+        assert bin_of(lat.min) == used[0] and bin_of(lat.max) == used[-1], \
+            (f"{r.config}/{r.scenario.name}: min {lat.min} / max {lat.max} not in "
+             f"bins {used[0]}..{used[-1]} ({list(r.rd_hist)})")
+        assert lat.min <= lat.mean <= lat.max, \
+            f"{r.config}/{r.scenario.name}: mean {lat.mean} outside [{lat.min}, {lat.max}]"
+
     # Optional raw-data dump (CHAR_DUMP=<path>) for eyeballing that the perf
     # counters are gathered properly: raw bus-meter buckets + the 16-bin
     # latency histogram per item. cocotb swallows the sim stdout, so this
@@ -421,7 +440,10 @@ async def cocotb_test_char_families(dut):
                          f"[prod={r.rd_meter.prod} bp={r.rd_meter.bp} "
                          f"starv={r.rd_meter.starv} idle={r.rd_meter.idle}] "
                          f"util={r.rd_meter.util:.3f} bw={r.rd_bw_mb_s:.1f} "
-                         f"lat={r.rd_avg_latency_cyc:.1f}\n")
+                         f"lat={r.rd_avg_latency_cyc:.1f}"
+                         + (f" exact mean={r.rd_lat.mean:.2f} min={r.rd_lat.min}"
+                            f" max={r.rd_lat.max}" if r.rd_lat else "")
+                         + "\n")
                 fh.write(f"  RD hist(total={r.rd_hist_total}) = "
                          f"{list(r.rd_hist)}\n")
                 # Controller-side telemetry (PageStats delta over the phase).

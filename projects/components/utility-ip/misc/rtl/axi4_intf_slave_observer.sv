@@ -1569,6 +1569,7 @@ module axi4_intf_slave_observer
                     .o_hist_count (rd_hist_count[hi]),
                     .o_hist_total (rd_hist_total[hi]),
                     .o_cmd_block  (),
+                    .o_lat_sum(), .o_lat_min(), .o_lat_max(),   // EXACT_STATS off
                     .o_sample_lost(rd_hist_lost[hi])
                 );
             end
@@ -1600,6 +1601,7 @@ module axi4_intf_slave_observer
                     .o_hist_count (wr_hist_count[hi]),
                     .o_hist_total (wr_hist_total[hi]),
                     .o_cmd_block  (),
+                    .o_lat_sum(), .o_lat_min(), .o_lat_max(),   // EXACT_STATS off
                     .o_sample_lost(wr_hist_lost[hi])
                 );
             end

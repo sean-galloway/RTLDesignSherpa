@@ -276,6 +276,7 @@ module ddr2_char_macro_tb_top
         .perf_rd_idle            (),
         .i_hist_metric           (1'b0),
         .i_hist_bin              (4'd0),
+        .i_hist_stat             (3'd0),
         .perf_wr_hist_count      (),
         .perf_wr_hist_total      (),
         .perf_rd_hist_count      (),

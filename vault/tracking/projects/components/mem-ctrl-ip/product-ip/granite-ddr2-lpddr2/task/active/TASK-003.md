@@ -1314,3 +1314,54 @@ Left, by stage: the store's 4 and the AR stage's 2 are timing boundaries
 bought at 100 MHz; the PHY's share is shared with LiteDRAM. The board
 latency histogram resolves only octaves; an exact mean needs a sum
 accumulator in `axi_perf_latency_hist` (shared AMBA RTL, owner's call).
+
+### 2026-10-31, exact latency, the hybrid at AxLEN 16, pumice fast release
+
+**Exact latency statistics** (owner OK for the shared AMBA RTL). The board
+histogram resolves only octaves, so its mean moved in octave steps.
+`axi_perf_latency_hist` gains `EXACT_STATS` (default 0; outputs read 0 and
+no flops are built): per metric a 64-bit latency sum, min and max, updated
+in the bin stage from the same sample, so they cover exactly the samples in
+the total. `char_engine_block` builds it on (`HIST_EXACT_STATS`), read
+through `OBS_HIST_SEL.stat[8:6]` (1/2 sum lo/hi, 3 min, 4 max) at the
+existing `OBS_HIST_COUNT` address; harness RDL and regmap regenerated.
+Host: `DDR2CharDriver.perf_hist_stats()` (None on a bitstream without it),
+CSV columns `rd_lat_mean/min/max`, `rd_lat_exact/min/max` in the proxy
+dicts. Every other histogram consumer (STREAM core and its generated -g
+copy, both observers) connects the outputs empty; port-consumer gate clean
+over 19 consumers. Unit test 8 cells (`EXACT_STATS` axis, latencies that
+share bins checked exactly); a min-update mutant fails exactly the 4 on
+cells. Pumice char families sim (both geometries): stats total = bin
+total, min/max in the lowest/highest populated bins. The octave estimate
+reads ~25 % high (138 vs an exact 107.4 cycles). Proxies, exact AR->firstR
+mean: granite half_pair 1 thread 26.1 (min 22), pumice 30.1.
+
+**The hybrid at col_major_interleaved AxLEN 16** (board 701 / 707 vs
+open_page 729 / 732; hybrid_tr2, i.e. open_page's legacy axes plus mode 4,
+reads 701 as well, and 128x vs 4000x scale is identical, so it is the page
+mode and not run length). The proxy at 75 MHz against mode 1 hid it; at
+100 MHz against mode 0 (what `open_page` writes: build default, drain AP)
+it reproduces: mode 0 720 / 720, hybrid 691 / 697. Command counts: mode 0
+2049 AP / 80 PRE, hybrid 905 AP / 1211 PRE, alternating AP, PRE per bank.
+Cause, `mc_page_policy`: close-on-drain arms on a short row (at most
+DRAIN_ARM_MAX_COLS = 8 columns) or after a DEMAND precharge; AxLEN 16 is 16
+columns, and an AP close counted like a timeout close, so every AP disarmed
+the bank and only the explicit PRE that followed re-armed it. Fix: a third
+arming path, the bank's own AP followed by a different row (the armed
+prediction was right). Only an armed bank auto-precharges, so streams whose
+rows are timeout-closed still never arm this way. Proxy at 100 MHz: 691 /
+697 -> 715 / 719 (1961 AP / 193 PRE); every other granite cell (streams at
+AxLEN 8 and 16, half_oct / half_pair 4 threads, mixed, conc_colmajor, col
+walks at 100 MHz) within 0.5 %, almost all cycle-identical. Pumice (mode 3
+uses the same arm): AxLEN 16 col_ilv 523 -> 535, col_major 399 -> 433 read,
+AxLEN 8 unchanged.
+
+**Fast read release on pumice**: `FAST_RD_RELEASE` on `pumice_core`
+(default 1, forwarded by `pumice_top` / `pumice_top_geared`). Proxy:
+half_pair 1-thread reads 235 -> 269 (+14 %); streams within noise. A
+col_major read -1.7 % at tREFI 585 was refresh phase: at tREFI 560 base /
+tree 347.6 / 348.2, at 2x length 356.1 / 356.4. Zero DRAM-model violations.
+
+Gate: common-ip 49 / 3 xfailed, granite top 18 / 1 xfailed, pumice top
+218, histogram unit 8, pumice char families 2. Board confirmation needs the
+granite 100 MHz and LiteDRAM rebuilds (histogram + drain arm).

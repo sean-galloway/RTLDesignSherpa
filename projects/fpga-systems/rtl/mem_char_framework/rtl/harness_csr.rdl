@@ -16,7 +16,7 @@
 // Regenerate the regmap collateral (regmap only, no RTL/docs):
 //   cd $REPO_ROOT && source env_python
 //   python3 bin/peakrdl_generate.py \
-//       projects/fpga-systems/NexysA7/shared/ddr2_char_framework/rtl/harness_csr.rdl \
+//       projects/fpga-systems/rtl/mem_char_framework/rtl/harness_csr.rdl \
 //       --regmap --docs-only --no-html --no-markdown \
 //       --regmap-output projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/harness_csr_regmap.py
 //
@@ -196,6 +196,8 @@ addrmap harness_csr {
         field { sw = rw; hw = r; } bus[0:0]    = 0;
         field { sw = rw; hw = r; } metric[1:1] = 0;
         field { sw = rw; hw = r; } bin[5:2]     = 0;
+        field { sw = rw; hw = r;
+                desc = "What OBS_HIST_COUNT returns: 0 = bin count, 1 = exact latency sum [31:0], 2 = sum [63:32], 3 = min, 4 = max (1..4 read 0 without the exact statistics)"; } stat[8:6] = 0;
     } OBS_HIST_SEL @ 0x1E0;
     word_ro_t OBS_HIST_COUNT @ 0x1E4;
     word_ro_t OBS_HIST_TOTAL @ 0x1E8;

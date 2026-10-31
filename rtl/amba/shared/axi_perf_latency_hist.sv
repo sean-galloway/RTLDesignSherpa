@@ -28,6 +28,15 @@
 // RUN rising edge) resets the histogram + FIFOs; i_freeze (~RUN) holds the
 // histogram so a closed window can be read back. The free-running timestamp
 // counter is NOT frozen so latencies straddling the close boundary stay correct.
+//
+// Exact statistics (EXACT_STATS=1): the log2 bins say which octave a latency
+// fell in and nothing finer, so a mean taken from them moves in octave steps
+// (a 25-cycle and a 40-cycle population both read as "bin 32-63"). The exact
+// per-sample latency already exists in the pipeline, so with EXACT_STATS set
+// each metric also keeps a 64-bit latency SUM (exact mean = sum / total) and
+// the MIN and MAX sample, read for the metric i_hist_metric selects. Off by
+// default: the outputs read 0 and no extra flops are built. An empty window
+// reads min = 32'hFFFF_FFFF, max = 0.
 
 `timescale 1ns / 1ps
 
@@ -40,6 +49,7 @@ module axi_perf_latency_hist #(
     parameter int NUM_BINS        = 16,     // log2 bins: bin b counts [2^b, 2^(b+1))
     parameter bit IS_READ         = 1'b1,   // 1 = read (2 metrics), 0 = write (1 metric)
     parameter int CNT_W           = 32,
+    parameter bit EXACT_STATS     = 1'b0,   // 1 = also keep sum/min/max per metric
     // Derived
     parameter int CW   = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int PW   = (MAX_OUTSTANDING > 1) ? $clog2(MAX_OUTSTANDING) : 1,
@@ -74,6 +84,11 @@ module axi_perf_latency_hist #(
     input  logic [BINW-1:0]      i_hist_bin,           // which bin to read
     output logic [CNT_W-1:0]     o_hist_count,         // selected bin count
     output logic [CNT_W-1:0]     o_hist_total,         // selected metric's total txns
+
+    // Exact statistics for the i_hist_metric metric (EXACT_STATS=1; else 0).
+    output logic [63:0]          o_lat_sum,            // sum of every sample's latency
+    output logic [31:0]          o_lat_min,            // smallest sample (all-ones if none)
+    output logic [31:0]          o_lat_max,            // largest sample (0 if none)
 
     // Backpressure request: the timestamp FIFO for the channel addressed by the
     // CURRENT cmd_id cannot take another entry. Combinational in cmd_id, so a
@@ -249,6 +264,7 @@ module axi_perf_latency_hist #(
     logic [31:0]     s1_lat;
     logic            s2_valid, s2_m0, s2_m1;
     logic [BINW-1:0] s2_bin;
+    logic [31:0]     s2_lat;    // carried for the EXACT_STATS accumulators
 
     integer ci, bi;
     `ALWAYS_FF_RST(aclk, w_aresetn,
@@ -268,6 +284,7 @@ module axi_perf_latency_hist #(
             s1_valid <= 1'b0; s1_m0 <= 1'b0; s1_m1 <= 1'b0;
             s2_valid <= 1'b0; s2_m0 <= 1'b0; s2_m1 <= 1'b0;
             s0_start_ts <= '0; s0_time <= '0; s1_lat <= '0; s2_bin <= '0;
+            s2_lat <= '0;
         end else begin
             // ---- FIFO management (single cycle, gated by freeze) ----
             // The timestamp array itself is written in its own reset-free
@@ -310,6 +327,7 @@ module axi_perf_latency_hist #(
             // ---- Stage 2: log2 bin ----
             s2_valid <= s1_valid; s2_m0 <= s1_m0; s2_m1 <= s1_m1;
             s2_bin   <= latency_bin(s1_lat);
+            s2_lat   <= s1_lat;
 
             // ---- Stage 3: increment the selected histogram bins + totals ----
             if (s2_valid && s2_m0) begin
@@ -336,5 +354,44 @@ module axi_perf_latency_hist #(
     // CSR-indexed readout (combinational mux).
     assign o_hist_count = r_hist[i_hist_metric ? 1 : 0][i_hist_bin];
     assign o_hist_total = r_total[i_hist_metric ? 1 : 0];
+
+    // -------------------------------------------------------------------------
+    // Exact statistics (EXACT_STATS=1). Updated in stage 3 alongside the bin
+    // increment, from the same s2 sample, so sum/min/max cover exactly the
+    // samples counted in r_total. Cleared with the histogram on i_clear.
+    // -------------------------------------------------------------------------
+    if (EXACT_STATS) begin : g_exact
+        logic [63:0] r_sum [2];
+        logic [31:0] r_min [2];
+        logic [31:0] r_max [2];
+        logic [1:0]  w_hit;
+        assign w_hit = {s2_valid && s2_m1, s2_valid && s2_m0};
+
+        `ALWAYS_FF_RST(aclk, w_aresetn,
+            if (`RST_ASSERTED(w_aresetn) || i_clear) begin
+                for (int m = 0; m < 2; m++) begin
+                    r_sum[m] <= '0;
+                    r_min[m] <= '1;
+                    r_max[m] <= '0;
+                end
+            end else begin
+                for (int m = 0; m < 2; m++) begin
+                    if (w_hit[m]) begin
+                        r_sum[m] <= r_sum[m] + 64'(s2_lat);
+                        if (s2_lat < r_min[m]) r_min[m] <= s2_lat;
+                        if (s2_lat > r_max[m]) r_max[m] <= s2_lat;
+                    end
+                end
+            end
+        )
+
+        assign o_lat_sum = r_sum[i_hist_metric ? 1 : 0];
+        assign o_lat_min = r_min[i_hist_metric ? 1 : 0];
+        assign o_lat_max = r_max[i_hist_metric ? 1 : 0];
+    end else begin : g_no_exact
+        assign o_lat_sum = '0;
+        assign o_lat_min = '0;
+        assign o_lat_max = '0;
+    end
 
 endmodule : axi_perf_latency_hist

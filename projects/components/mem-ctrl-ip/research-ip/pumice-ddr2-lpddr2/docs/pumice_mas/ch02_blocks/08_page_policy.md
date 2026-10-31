@@ -42,7 +42,12 @@ where `REFRESH_TUNING.page_policy_or` alone selects OPEN/CLOSE).
 **The reset is mode 3 (`fixed_open`) with `PAGE_TIMEOUT_CFG.tr_init = 0`
 (since 2026-10-23, TASK-048).** The idle timer is off; what mode 3 adds over
 open page is the predictor-armed close-on-drain (TASK-044/045): a bank whose
-rows change closes on the row's last visible column by auto-precharge. That
+rows change closes on the row's last visible column by auto-precharge. A
+bank arms when its next ACT opens a different row after a short row (at most
+`DRAIN_ARM_MAX_COLS` = 8 columns), after a demand precharge, or (since
+2026-10-31, granite TASK-003) after its own auto-precharge -- an armed
+prediction that proved right keeps the bank armed; without that path rows
+longer than 8 columns alternated AP and explicit PRE per bank. That
 does for a one-thread row walk what the timer did, and from two threads up
 the timer cost streaming writes (banks closed because their generator had
 nothing in the 16-entry window: 539 vs 555 MB/s at eight threads). The

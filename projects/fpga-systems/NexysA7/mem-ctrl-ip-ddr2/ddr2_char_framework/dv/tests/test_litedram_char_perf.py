@@ -268,6 +268,7 @@ async def cocotb_test_litedram_perf(dut):
         tr = drv.timer()
         rd_cycles = max(int(tr.r_last) - int(tr.r_first), 0)
         rd_util = drv.perf_meters()["rd"].prod / max(rd_cycles, 1)
+        rd_lx = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
 
         mism = drv.beats_mismatched()
         return {
@@ -280,6 +281,7 @@ async def cocotb_test_litedram_perf(dut):
             "wr_util": round(float(wr_util), 4), "rd_util": round(float(rd_util), 4),
             "wr_bw_mb_s": round(bytes_moved / wr_cycles * clk_mhz, 1) if wr_cycles else 0.0,
             "rd_bw_mb_s": round(bytes_moved / rd_cycles * clk_mhz, 1) if rd_cycles else 0.0,
+            **dc.lat_fields("rd", rd_lx),
             "clk_mhz": round(clk_mhz, 4),
         }
 

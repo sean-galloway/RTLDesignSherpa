@@ -1146,7 +1146,7 @@ module fb_harness #(
         .perf_wr_starv  (inj_perf_wr_starv),
         .perf_wr_idle   (inj_perf_wr_idle),
         .perf_rd_prod   (), .perf_rd_bp (), .perf_rd_starv (), .perf_rd_idle (),
-        .i_hist_metric  (1'b0), .i_hist_bin (4'd0),
+        .i_hist_metric  (1'b0), .i_hist_bin (4'd0), .i_hist_stat (3'd0),
         .perf_wr_hist_count(), .perf_wr_hist_total(),
         .perf_rd_hist_count(), .perf_rd_hist_total(),
         .m_axi_awid   (inj_wr_awid),    .m_axi_awaddr (inj_wr_awaddr),

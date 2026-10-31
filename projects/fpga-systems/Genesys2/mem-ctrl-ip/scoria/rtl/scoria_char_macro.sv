@@ -369,6 +369,7 @@ module scoria_char_macro
     // 0=AR->firstR, 1=AR->RLAST. WR side is single-metric (AW->B).
     input  logic                       i_hist_metric,
     input  logic [3:0]                 i_hist_bin,
+    input  logic [2:0]                 i_hist_stat,   // 0 = bin count, 1..4 = exact sum lo/hi, min, max
     output logic [31:0]                perf_wr_hist_count,
     output logic [31:0]                perf_wr_hist_total,
     output logic [31:0]                perf_rd_hist_count,
@@ -461,6 +462,7 @@ module scoria_char_macro
         .perf_rd_idle   (perf_rd_idle),
         .i_hist_metric  (i_hist_metric),
         .i_hist_bin     (i_hist_bin),
+        .i_hist_stat    (i_hist_stat),
         .perf_wr_hist_count(perf_wr_hist_count),
         .perf_wr_hist_total(perf_wr_hist_total),
         .perf_rd_hist_count(perf_rd_hist_count),

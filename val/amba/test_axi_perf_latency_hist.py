@@ -15,7 +15,8 @@
 #   - interleaved channels are attributed independently (per-channel FIFO),
 #   - i_freeze stops accumulation and i_clear resets it.
 #
-# Two builds: IS_READ=1 (AR->first-R + AR->RLAST) and IS_READ=0 (AW->B).
+# Two builds: IS_READ=1 (AR->first-R + AR->RLAST) and IS_READ=0 (AW->B),
+# each with EXACT_STATS off (sum/min/max must read 0) and on (exact values).
 
 import os
 import random
@@ -238,6 +239,75 @@ async def latency_hist_test(dut):
 
 
 @cocotb.test(timeout_time=200, timeout_unit='us')
+async def latency_hist_exact_stats_test(dut):
+    """EXACT_STATS: sum/min/max are exact per sample; off reads all zero.
+
+    The test drives a spread of latencies that share log2 bins (20 and 27 are
+    both bin 4, 40 and 60 both bin 5), so only an exact statistic can tell them
+    apart. The DUT's latency is the TB's idle count plus a fixed handshake
+    offset k; k is taken from the measured min, and then the max, the sum and
+    the per-metric spread must all match the plan EXACTLY -- no +-1 slack.
+    """
+    tb = AxiPerfLatencyHistTB(dut)
+    exact = int(os.environ.get('EXACT_STATS', '0'))
+    await tb.setup_clocks_and_reset()
+    await tb.open_window()
+
+    plan = [20, 27, 40, 60, 9]
+    for lat in plan:
+        await tb.cmd(0)
+        await tb.idle(lat - 1)
+        if tb.is_read:
+            await tb.rbeat(0, last=1)   # single beat: first-R == RLAST
+        else:
+            await tb.bresp(0)
+        await tb.idle(3)
+    await tb.idle(8)   # drain the update pipeline
+
+    metrics = (0, 1) if tb.is_read else (0,)
+    for m in metrics:
+        tb.dut.i_hist_metric.value = m
+        await Timer(1, 'ns')
+        total = int(tb.dut.o_hist_total.value)
+        lsum = int(tb.dut.o_lat_sum.value)
+        lmin = int(tb.dut.o_lat_min.value)
+        lmax = int(tb.dut.o_lat_max.value)
+        assert total == len(plan), f"metric {m}: total {total} != {len(plan)}"
+        if not exact:
+            assert (lsum, lmin, lmax) == (0, 0, 0), \
+                f"EXACT_STATS=0 must read 0: sum {lsum} min {lmin} max {lmax}"
+            continue
+        k = lmin - min(plan)
+        assert 0 <= k <= 2, f"metric {m}: handshake offset {k} out of range (min {lmin})"
+        assert lmax == max(plan) + k, f"metric {m}: max {lmax} != {max(plan)}+{k}"
+        assert lsum == sum(plan) + k * len(plan), \
+            f"metric {m}: sum {lsum} != {sum(plan)}+{k}*{len(plan)}"
+        tb.log.info(f"metric {m}: exact sum {lsum} min {lmin} max {lmax} "
+                    f"mean {lsum / total:.2f} (offset {k})")
+
+    if exact:
+        # i_clear resets: empty window reads min all-ones, max 0, sum 0.
+        await tb.open_window()
+        await Timer(1, 'ns')
+        assert int(tb.dut.o_lat_sum.value) == 0, "clear: sum not reset"
+        assert int(tb.dut.o_lat_max.value) == 0, "clear: max not reset"
+        assert int(tb.dut.o_lat_min.value) == 0xFFFFFFFF, "clear: min not reset"
+        # A frozen window takes no sample into the stats either.
+        tb.dut.i_freeze.value = 1
+        await tb.cmd(0)
+        await tb.idle(30)
+        if tb.is_read:
+            await tb.rbeat(0, last=1)
+        else:
+            await tb.bresp(0)
+        await tb.idle(8)
+        tb.dut.i_freeze.value = 0
+        await Timer(1, 'ns')
+        assert int(tb.dut.o_lat_sum.value) == 0, "freeze: stats took a sample"
+    tb.log.info("exact-stats test PASSED")
+
+
+@cocotb.test(timeout_time=200, timeout_unit='us')
 async def latency_hist_ch1_odd_id_test(dut):
     """NUM_CHANNELS=1 must count transactions of EVERY id, odd included.
 
@@ -298,10 +368,12 @@ async def latency_hist_ch1_odd_id_test(dut):
     tb.log.info("NUM_CHANNELS=1 odd-id decode OK")
 
 
+@pytest.mark.parametrize("exact_stats", [0, 1])
 @pytest.mark.parametrize("num_channels", [8, 1])
 @pytest.mark.parametrize("is_read", [1, 0])
-def test_axi_perf_latency_hist(request, is_read, num_channels):
-    """Pytest wrapper: IS_READ x NUM_CHANNELS (8 = normal, 1 = HISTCH1 case)."""
+def test_axi_perf_latency_hist(request, is_read, num_channels, exact_stats):
+    """Pytest wrapper: IS_READ x NUM_CHANNELS (8 = normal, 1 = HISTCH1 case)
+    x EXACT_STATS."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba_shared': 'rtl/amba/shared',
         'rtl_amba_includes': 'rtl/amba/includes',
@@ -318,7 +390,7 @@ def test_axi_perf_latency_hist(request, is_read, num_channels):
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     test_level = os.environ.get('TEST_LEVEL', 'full').lower()
     test_name_plus_params = (
-        f"test_axi_perf_latency_hist_{mode}_ch{num_channels}_{reg_level}")
+        f"test_axi_perf_latency_hist_{mode}_ch{num_channels}_x{exact_stats}_{reg_level}")
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
@@ -335,6 +407,7 @@ def test_axi_perf_latency_hist(request, is_read, num_channels):
         'NUM_CHANNELS':    str(num_channels),
         'MAX_OUTSTANDING': '8',
         'NUM_BINS':        str(NUM_BINS),
+        'EXACT_STATS':     str(exact_stats),
     }
 
     extra_env = {
@@ -350,6 +423,7 @@ def test_axi_perf_latency_hist(request, is_read, num_channels):
         # assuming, and the ch1 test knows which build it is running on.
         'MAX_OUTSTANDING': parameters['MAX_OUTSTANDING'],
         'NUM_CHANNELS':    parameters['NUM_CHANNELS'],
+        'EXACT_STATS':     parameters['EXACT_STATS'],
     }
 
     run(

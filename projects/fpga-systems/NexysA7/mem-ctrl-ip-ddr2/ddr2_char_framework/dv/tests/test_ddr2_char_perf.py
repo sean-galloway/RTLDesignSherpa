@@ -720,6 +720,7 @@ async def cocotb_test_pumice_perf(dut):
         rd_cycles = max(int(tr.r_last) - int(tr.r_first), 0)
         rd_util = drv.perf_meters()["rd"].prod / max(rd_cycles, 1)
         rd_hist, rd_tot = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+        rd_lx = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
 
         mism = drv.beats_mismatched()
         return {
@@ -734,6 +735,7 @@ async def cocotb_test_pumice_perf(dut):
             "rd_bw_mb_s": round(bytes_moved / rd_cycles * clk_mhz, 1) if rd_cycles else 0.0,
             "wr_lat_cyc": round(_hist_mean_cycles(wr_hist, wr_tot), 1),
             "rd_lat_cyc": round(_hist_mean_cycles(rd_hist, rd_tot), 1),
+            **dc.lat_fields("rd", rd_lx),
             "clk_mhz": round(clk_mhz, 4),
         }
 

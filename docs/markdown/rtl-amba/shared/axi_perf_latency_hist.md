@@ -43,6 +43,7 @@ The AXI Performance Latency Histogram captures per-transaction latency on an AXI
 - Free-running (non-frozen) timestamp so latencies straddling the window boundary stay correct
 - CSR-indexed readout of any bin count plus each metric's transaction total
 - Window control (`i_clear` / `i_freeze`) mirroring `axi_bus_meter`
+- Optional exact statistics (`EXACT_STATS=1`): per-metric 64-bit latency sum (exact mean = sum / total), min and max
 
 Average latency hides the distribution that actually matters for QoS analysis — a bus can have a fine mean while a tail of slow transactions strangles a real workload. So this block bins each transaction's measured latency into a log2 histogram, and the shape of the distribution (and its tail) becomes visible from a handful of CSR reads. It snoops the command and completion channels, timestamps each command as it is accepted, and on completion subtracts to get latency and increments the matching log2 bin. It's purely observational and adds no load to the AXI path, so you can drop it in for characterization without perturbing the design under measurement.
 
@@ -66,6 +67,7 @@ Average latency hides the distribution that actually matters for QoS analysis �
 | NUM_BINS | int | 16 | Number of log2 histogram bins; bin `b` counts `[2^b, 2^(b+1))` |
 | IS_READ | bit | 1'b1 | 1 = read build (2 metrics), 0 = write build (1 metric) |
 | CNT_W | int | 32 | Histogram bin and total counter width |
+| EXACT_STATS | bit | 1'b0 | 1 = also keep a 64-bit latency sum, min and max per metric (`o_lat_*`); 0 = those outputs read 0 and no extra flops are built |
 | CW | int | derived | `$clog2(NUM_CHANNELS)` — channel index width |
 | PW | int | derived | `$clog2(MAX_OUTSTANDING)` — FIFO pointer width |
 | PW1 | int | derived | `PW + 1` — occupancy width (extra bit for full) |
@@ -122,6 +124,9 @@ Average latency hides the distribution that actually matters for QoS analysis �
 | i_hist_bin | input | BINW | Bin index to read |
 | o_hist_count | output | CNT_W | Selected bin's count for the selected metric |
 | o_hist_total | output | CNT_W | Selected metric's total transaction count |
+| o_lat_sum | output | 64 | `EXACT_STATS`: sum of every sample's latency for the selected metric (exact mean = `o_lat_sum / o_hist_total`); 0 otherwise |
+| o_lat_min | output | 32 | `EXACT_STATS`: smallest sample for the selected metric, `32'hFFFF_FFFF` in an empty window; 0 otherwise |
+| o_lat_max | output | 32 | `EXACT_STATS`: largest sample for the selected metric, 0 in an empty window; 0 otherwise |
 | o_cmd_block | output | 1 | High while the addressed channel's timestamp FIFO is full and no completion on the same channel retires this cycle. AND this into the command-channel ready (it is combinational in cmd_id). Without it the module degrades SILENTLY: a command that handshakes at a full channel is never timestamped, is missing from o_hist_total, and its completion later pops some OTHER command's timestamp -- surviving latencies are misattributed as well as undercounted. It is a would-block signal, high whenever a channel sits at its limit, so it is not a loss count |
 | o_sample_lost | output | 1 | One-cycle pulse: a command handshook on a full channel inside the window (not `i_freeze`) and was not timestamped. The loss itself -- build a "sample lost" sticky on this, not on `o_cmd_block` |
 
@@ -178,6 +183,17 @@ The chain FIFO-read → latency subtract → log2 bin → indexed histogram incr
 - **Stage 3:** increment the selected histogram bin(s) and the per-metric total(s).
 
 The increment is delayed a few cycles, but the host reads the window long after RUN drops to 0, by which time the pipeline has drained — `i_freeze` gates stage 0 while stages 1–3 keep advancing to flush. Because a single AXI bus completes at most one transaction per cycle and metrics m0/m1 target different histograms, consecutive same-bin increments are hazard-free (the cross-cycle NBA read-after-write is correct).
+
+### Exact Statistics (`EXACT_STATS`)
+
+The bins place a sample in an octave and nothing finer: a 25-cycle and a
+40-cycle population both read as "bin 32-63", so a mean built from the bins
+moves in octave steps. The per-sample latency already exists in stage 1, so
+with `EXACT_STATS=1` it rides one more stage beside the bin and stage 3 also
+adds it to a 64-bit per-metric sum and folds it into a per-metric min and max.
+They cover exactly the samples counted in the total, clear on `i_clear`, take
+nothing while frozen, and read for the metric `i_hist_metric` selects. Off by
+default; the char harnesses (`char_engine_block`) build it on.
 
 ### Window Control
 
@@ -295,7 +311,7 @@ Because increments land four cycles after the completing beat (capture, subtract
 
 ## Testing
 
-`val/amba/test_axi_perf_latency_hist.py` exercises this module. It collects 4 parameter cases at the default `REG_LEVEL`.
+`val/amba/test_axi_perf_latency_hist.py` exercises this module. It collects 8 parameter cases at the default `REG_LEVEL` (`IS_READ` x `NUM_CHANNELS` x `EXACT_STATS`); `latency_hist_exact_stats_test` drives latencies that share bins and checks sum, min and max exactly, and that the outputs read 0 with the parameter off.
 
 ```bash
 source env_python
@@ -320,7 +336,7 @@ pytest val/amba/test_axi_perf_latency_hist.py -v
 
 ---
 
-**Last Updated:** 2026-07-15
+**Last Updated:** 2026-10-31
 
 ---
 

@@ -1881,6 +1881,7 @@ module stream_core #(
                 .aresetn      (rst_n),
                 // Backpressure request; not consumed here.
                 .o_cmd_block  (),
+                .o_lat_sum(), .o_lat_min(), .o_lat_max(),   // EXACT_STATS off
                 .o_sample_lost(),
                 .i_clear      (w_perf_clear),
                 .i_freeze     (~r_perf_win_active),
@@ -1911,6 +1912,7 @@ module stream_core #(
                 .aresetn      (rst_n),
                 // Backpressure request; not consumed here.
                 .o_cmd_block  (),
+                .o_lat_sum(), .o_lat_min(), .o_lat_max(),   // EXACT_STATS off
                 .o_sample_lost(),
                 .i_clear      (w_perf_clear),
                 .i_freeze     (~r_perf_win_active),

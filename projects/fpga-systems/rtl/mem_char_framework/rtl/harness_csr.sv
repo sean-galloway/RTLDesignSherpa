@@ -96,7 +96,15 @@
 //                              [1]    metric    (RD only: 0=AR->firstR,
 //                                                          1=AR->RLAST)
 //                              [5:2]  bin index (log2 latency bin 0..15)
-//   0x1E4  OBS_HIST_COUNT    R   count of the selected bin
+//                              [8:6]  stat: what OBS_HIST_COUNT returns
+//                                       0 = count of the selected bin
+//                                       1 = exact latency sum [31:0]
+//                                       2 = exact latency sum [63:32]
+//                                       3 = min latency, 4 = max latency
+//                                     (1..4 read 0 on a build without the
+//                                     exact statistics; the mean is
+//                                     sum / OBS_HIST_TOTAL, in cycles)
+//   0x1E4  OBS_HIST_COUNT    R   count of the selected bin, or the stat
 //   0x1E8  OBS_HIST_TOTAL    R   total transactions on the selected metric
 //
 // -- Build identity (read-only, elaboration-time constants) --------------
@@ -261,6 +269,7 @@ module harness_csr
     input  logic [31:0]     i_obs_wr_idle,
     output logic            o_obs_hist_metric,  // = OBS_HIST_SEL[1]
     output logic [3:0]      o_obs_hist_bin,     // = OBS_HIST_SEL[5:2]
+    output logic [2:0]      o_obs_hist_stat,    // = OBS_HIST_SEL[8:6]
     output logic            o_obs_hist_bus_sel, // = OBS_HIST_SEL[0] (0=rd 1=wr)
     input  logic [31:0]     i_obs_rd_hist_count,
     input  logic [31:0]     i_obs_rd_hist_total,
@@ -418,8 +427,8 @@ module harness_csr
     logic [31:0] r_ctrlr_cap;   // {24'd0, cap_synth_mask, cap_lookahead_max}
     logic [31:0] r_dfi_tuning;  // [3:0]cmd_delay [7:4]rddata_delay — DFI cmd/read alignment
 
-    // Perf hist selector: {bin[5:2], metric[1], bus[0]}.
-    logic [5:0]  r_obs_hist_sel;
+    // Perf hist selector: {stat[8:6], bin[5:2], metric[1], bus[0]}.
+    logic [8:0]  r_obs_hist_sel;
 
     // =========================================================================
     // Write channel FSM
@@ -493,7 +502,7 @@ module harness_csr
                             9'h088: r_phy_csr_we_pulse <= int_wdata[0];
 
                             // Perf hist selector (only RW perf reg)
-                            9'h1E0: r_obs_hist_sel <= int_wdata[5:0];
+                            9'h1E0: r_obs_hist_sel <= int_wdata[8:0];
 
                             default: ;  // ignore
                         endcase
@@ -636,7 +645,7 @@ module harness_csr
                             // Perf: histogram selector + selected bin
                             // (mux count/total across RD and WR sides
                             // based on selector bit 0).
-                            9'h1E0: r_rdata <= {26'd0, r_obs_hist_sel};
+                            9'h1E0: r_rdata <= {23'd0, r_obs_hist_sel};
                             9'h1E4: r_rdata <= r_obs_hist_sel[0]
                                                 ? i_obs_wr_hist_count
                                                 : i_obs_rd_hist_count;
@@ -706,6 +715,7 @@ module harness_csr
     assign o_obs_hist_bus_sel = r_obs_hist_sel[0];
     assign o_obs_hist_metric  = r_obs_hist_sel[1];
     assign o_obs_hist_bin     = r_obs_hist_sel[5:2];
+    assign o_obs_hist_stat    = r_obs_hist_sel[8:6];
 
     // Controller runtime cfg unpack
     // r_ctrlr_cfg: [0]memtype [15:8]t_phy_wrlat [23:16]t_rddata_en [24]rd_in_order

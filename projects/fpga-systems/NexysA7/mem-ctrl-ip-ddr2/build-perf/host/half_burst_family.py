@@ -203,6 +203,8 @@ def measure_dict(drv, dc, pm, pc, geom, *, fam: str, n_bursts: int, n_gen: int,
     delta = (ps1 - ps0) if (ps0 is not None and ps1 is not None) else None
 
     rd_ok, rd_cycles, rd_util, rd_hist, rd_tot = True, 0, 0.0, None, 0
+
+    rd_lx = None
     rdelta = None
     if reads:
         for p in prog:
@@ -221,6 +223,7 @@ def measure_dict(drv, dc, pm, pc, geom, *, fam: str, n_bursts: int, n_gen: int,
         rd_cycles = max(int(tr.r_last) - int(tr.r_first), 0)
         rd_util = drv.perf_meters()["rd"].prod / max(rd_cycles, 1)
         rd_hist, rd_tot = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+        rd_lx = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     mism = drv.beats_mismatched()
     k, sweep = spec(fam)
     rec = {
@@ -235,6 +238,7 @@ def measure_dict(drv, dc, pm, pc, geom, *, fam: str, n_bursts: int, n_gen: int,
         "rd_bw_mb_s": round(bytes_dir / rd_cycles * clk_mhz, 1) if rd_cycles else 0.0,
         "wr_lat_cyc": round(hist_mean(wr_hist, wr_tot), 1),
         "rd_lat_cyc": round(hist_mean(rd_hist, rd_tot), 1) if rd_hist is not None else 0.0,
+        **dc.lat_fields("rd", rd_lx),
         "clk_mhz": round(clk_mhz, 4),
     }
     rec.update(aggregation(delta.merges if delta is not None else None,

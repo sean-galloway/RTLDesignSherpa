@@ -373,6 +373,7 @@ module mc_page_policy
     logic [NUM_BANKS-1:0]                r_keep_open;   // predictor verdict
     logic [NUM_BANKS-1:0]                r_drain_arm;   // rows on this bank are changing: close on drain
     logic [NUM_BANKS-1:0]                r_last_vld;    // r_last_row holds a row this bank really opened
+    logic [NUM_BANKS-1:0]                r_ap_closed;   // this bank's last close was its own auto-precharge
     localparam int COLCW = $clog2(DRAIN_ARM_MAX_COLS + 2);
     logic [NUM_BANKS-1:0][COLCW-1:0]     r_row_cols;    // columns served by the open row (saturating)
     `ALWAYS_FF_RST(aclk, aresetn, begin
@@ -383,6 +384,7 @@ module mc_page_policy
             r_keep_open <= '0;
             r_drain_arm <= '0;
             r_row_cols  <= '0;
+            r_ap_closed <= '0;
         end else begin
             for (int b = 0; b < NUM_BANKS; b++) begin
                 // track the open row while it is open: the image drops before
@@ -404,11 +406,14 @@ module mc_page_policy
                     r_row_cols[b]  <= '0;
                 end
                 if (w_is_pre && (int'(w_pc_bank) == b)) begin
+                    r_ap_closed[b] <= 1'b0;
                     r_to_closed[b] <= w_pre_was_timeout;
                     if (!w_pre_was_timeout) r_keep_open[b] <= 1'b0;   // a real row change
                 end
-                if (w_is_apcol && (int'(w_pc_bank) == b))
+                if (w_is_apcol && (int'(w_pc_bank) == b)) begin
                     r_to_closed[b] <= 1'b1;                           // auto-precharge: a predicted close
+                    r_ap_closed[b] <= 1'b1;
+                end
                 if (w_is_act && (int'(w_pc_bank) == b) && r_to_closed[b]
                     && (w_pc_row == r_last_row[b]))
                     r_keep_open[b] <= 1'b1;                           // we closed a row we needed
@@ -427,10 +432,21 @@ module mc_page_policy
                 // short-row path the 256-column rows never armed, and the
                 // FR-FCFS core paid an explicit PRE per switch (758 per 16 384
                 // columns: 539 vs the per-bank core's 557 MB/s).
+                // Third path, 2026-10-31 (granite TASK-003): the last close
+                // was this bank's OWN auto-precharge and the ACT opens a
+                // different row -- the armed prediction was right, so it
+                // stays armed. Without it an AP close counted like a timeout
+                // close, so on rows longer than DRAIN_ARM_MAX_COLS the bank
+                // disarmed after every AP and re-armed only through the
+                // explicit PRE that followed: AP and PRE alternated per bank
+                // (col_major_interleaved at AxLEN 16, 905 AP / 1211 PRE vs
+                // 2049 / 80 for the build-default drain close; board 701 vs
+                // 729 MB/s). Only an already-armed bank auto-precharges, so a
+                // stream's timeout-closed rows still never arm this way.
                 if (w_is_act && (int'(w_pc_bank) == b)) begin
                     r_drain_arm[b] <= r_last_vld[b] && (w_pc_row != r_last_row[b])
                                       && ((r_row_cols[b] <= COLCW'(DRAIN_ARM_MAX_COLS))
-                                          || !r_to_closed[b]);
+                                          || !r_to_closed[b] || r_ap_closed[b]);
                     r_row_cols[b]  <= '0;
                 end else if (w_is_col && (int'(w_pc_bank) == b)
                              && (r_row_cols[b] != {COLCW{1'b1}}))

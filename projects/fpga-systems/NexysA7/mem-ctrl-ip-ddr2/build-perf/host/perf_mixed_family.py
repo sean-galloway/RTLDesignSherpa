@@ -171,6 +171,7 @@ def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
     rd_util = meters["rd"].prod / max(rd_cycles, 1)
     wr_hist, wr_tot = drv.perf_hist_dump(dc.HIST_BUS_WR, dc.HIST_METRIC_0)
     rd_hist, rd_tot = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    rd_lx = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     mism = drv.beats_mismatched()
     return {
         "family": "mixed", "stride": wr_prog[0]["stride_0"], "wrap": wr_prog[0]["wrap_mask_0"],
@@ -189,6 +190,7 @@ def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
         "mixed_bw_mb_s": round(2 * bytes_dir / mixed_cycles * clk_mhz, 1) if mixed_cycles else 0.0,
         "wr_lat_cyc": round(hist_mean(wr_hist, wr_tot), 1),
         "rd_lat_cyc": round(hist_mean(rd_hist, rd_tot), 1),
+        **dc.lat_fields("rd", rd_lx),
         "clk_mhz": round(clk_mhz, 4),
     }
 
@@ -272,6 +274,7 @@ def measure_conc(fam, drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
     rd_util = meters["rd"].prod / max(rd_cycles, 1)
     wr_hist, wr_tot = drv.perf_hist_dump(dc.HIST_BUS_WR, dc.HIST_METRIC_0)
     rd_hist, rd_tot = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    rd_lx = drv.perf_hist_stats(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
     mism = drv.beats_mismatched()
     return {
         "family": fam, "stride": wr_prog["stride_0"], "wrap": wr_prog["wrap_mask_0"],
@@ -288,5 +291,6 @@ def measure_conc(fam, drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
         "mixed_bw_mb_s": round(2 * bytes_dir / mixed_cycles * clk_mhz, 1) if mixed_cycles else 0.0,
         "wr_lat_cyc": round(hist_mean(wr_hist, wr_tot), 1),
         "rd_lat_cyc": round(hist_mean(rd_hist, rd_tot), 1),
+        **dc.lat_fields("rd", rd_lx),
         "clk_mhz": round(clk_mhz, 4),
     }

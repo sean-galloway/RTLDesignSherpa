@@ -163,6 +163,13 @@ HIST_BUS_RD    = 0
 HIST_BUS_WR    = 1
 HIST_METRIC_0  = 0  # AR->firstR (RD) or AW->B (WR)
 HIST_METRIC_1  = 1  # AR->RLAST (RD only; WR ignores)
+# OBS_HIST_SEL.stat: what OBS_HIST_COUNT returns. 1..4 are the exact
+# statistics (axi_perf_latency_hist EXACT_STATS); a build without them reads 0.
+HIST_STAT_COUNT   = 0
+HIST_STAT_SUM_LO  = 1
+HIST_STAT_SUM_HI  = 2
+HIST_STAT_MIN     = 3
+HIST_STAT_MAX     = 4
 
 # ---- Controller runtime perf knobs (pumice CSR override fields; 0 = build
 #      default). These select paging / scheduling / refresh behaviour live.
@@ -211,6 +218,34 @@ class TimerState:
     r_last:      int
     w_first:     int
     w_last:      int
+
+
+@dataclass(frozen=True)
+class LatStats:
+    """Exact latency statistics for one histogram metric, in cycles.
+
+    The log2 bins place a sample in an octave and no finer, so a mean built
+    from them moves in octave steps; these come from the per-sample latency
+    the histogram already computes.
+    """
+    total:  int
+    sum:    int
+    min:    int
+    max:    int
+
+    @property
+    def mean(self) -> float:
+        return (self.sum / self.total) if self.total else 0.0
+
+
+def lat_fields(prefix: str, st: Optional[LatStats]) -> Dict[str, object]:
+    """Flat result-dict entries for one LatStats: <prefix>_lat_exact (mean),
+    _lat_min, _lat_max; None each when the build has no exact statistics."""
+    if st is None:
+        return {f"{prefix}_lat_exact": None, f"{prefix}_lat_min": None,
+                f"{prefix}_lat_max": None}
+    return {f"{prefix}_lat_exact": round(st.mean, 2), f"{prefix}_lat_min": st.min,
+            f"{prefix}_lat_max": st.max}
 
 
 @dataclass
@@ -1035,9 +1070,29 @@ class DDR2CharDriver:
         return {"rd": rd, "wr": wr}
 
     # ----- Perf: latency histograms ---------------------------------------
-    def _write_hist_sel(self, bus: int, metric: int, bin_idx: int) -> None:
+    def _write_hist_sel(self, bus: int, metric: int, bin_idx: int,
+                        stat: int = HIST_STAT_COUNT) -> None:
         self.regs.write("OBS_HIST_SEL",
-                        bus=bus & 1, metric=metric & 1, bin=bin_idx & 0xF)
+                        bus=bus & 1, metric=metric & 1, bin=bin_idx & 0xF,
+                        stat=stat & 0x7)
+
+    def perf_hist_stats(self, bus: int, metric: int = HIST_METRIC_0
+                        ) -> Optional[LatStats]:
+        """Exact latency sum/min/max for one metric, or None when the loaded
+        build does not keep them (its stat reads are 0 although the metric
+        holds samples). An empty window returns total 0 and zeros."""
+        def stat(sel: int) -> int:
+            self._write_hist_sel(bus, metric, 0, sel)
+            return self.regs.read("OBS_HIST_COUNT")
+        lo, hi = stat(HIST_STAT_SUM_LO), stat(HIST_STAT_SUM_HI)
+        lmin, lmax = stat(HIST_STAT_MIN), stat(HIST_STAT_MAX)
+        total = self.regs.read("OBS_HIST_TOTAL")
+        self._write_hist_sel(bus, metric, 0)
+        if total == 0:
+            return LatStats(total=0, sum=0, min=0, max=0)
+        if lmax == 0:
+            return None
+        return LatStats(total=total, sum=(hi << 32) | lo, min=lmin, max=lmax)
 
     def perf_hist_bin(self, bus: int, metric: int, bin_idx: int
                       ) -> Tuple[int, int]:
