@@ -1,0 +1,82 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Fri Oct 30 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/riscv-ip/gatling-rv32i/dv/tests/local_sim_build/test_gatling_core/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/riscv-ip/gatling-rv32i/dv/tests/GTKW/gatling_tb_top/gatling_tb_top.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-15.655873 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gatling_tb_top.
+[treeopen] gatling_tb_top.u_core.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@28
+gatling_tb_top.clk
+gatling_tb_top.rst_n
+@200
+-harts
+@22
+gatling_tb_top.hart_run[3:0]
+gatling_tb_top.halted[3:0]
+gatling_tb_top.halt_cause[15:0]
+gatling_tb_top.u_core.pc_q[0][31:0]
+gatling_tb_top.u_core.pc_q[1][31:0]
+gatling_tb_top.u_core.pc_q[2][31:0]
+gatling_tb_top.u_core.pc_q[3][31:0]
+@22
+gatling_tb_top.u_core.sel_q[1:0]
+@200
+-fetch
+@22
+gatling_tb_top.imem_ctx[1:0]
+gatling_tb_top.imem_addr[31:0]
+@28
+gatling_tb_top.u_core.f_valid
+@200
+-decode
+@22
+gatling_tb_top.u_core.d_ctx[1:0]
+gatling_tb_top.u_core.d_pc[31:0]
+gatling_tb_top.u_core.d_insn[31:0]
+@200
+-data-memory
+@28
+gatling_tb_top.dmem_req
+@22
+gatling_tb_top.dmem_ctx[1:0]
+gatling_tb_top.dmem_addr[31:0]
+gatling_tb_top.dmem_wstrb[3:0]
+gatling_tb_top.dmem_wdata[31:0]
+@200
+-regfile-write
+@28
+gatling_tb_top.u_core.rf_wen
+@22
+gatling_tb_top.u_core.rf_waddr[4:0]
+gatling_tb_top.u_core.rf_wdata[31:0]
+@200
+-retire-rvfi
+@28
+gatling_tb_top.rvfi_valid
+gatling_tb_top.rvfi_trap
+@22
+gatling_tb_top.rvfi_ctx[1:0]
+gatling_tb_top.rvfi_order[63:0]
+gatling_tb_top.rvfi_pc_rdata[31:0]
+gatling_tb_top.rvfi_pc_wdata[31:0]
+gatling_tb_top.rvfi_insn[31:0]
+gatling_tb_top.rvfi_rs1_addr[4:0]
+gatling_tb_top.rvfi_rs1_rdata[31:0]
+gatling_tb_top.rvfi_rs2_addr[4:0]
+gatling_tb_top.rvfi_rs2_rdata[31:0]
+gatling_tb_top.rvfi_rd_addr[4:0]
+gatling_tb_top.rvfi_rd_wdata[31:0]
+gatling_tb_top.rvfi_mem_addr[31:0]
+gatling_tb_top.rvfi_mem_rmask[3:0]
+gatling_tb_top.rvfi_mem_wmask[3:0]
+gatling_tb_top.rvfi_mem_rdata[31:0]
+gatling_tb_top.rvfi_mem_wdata[31:0]

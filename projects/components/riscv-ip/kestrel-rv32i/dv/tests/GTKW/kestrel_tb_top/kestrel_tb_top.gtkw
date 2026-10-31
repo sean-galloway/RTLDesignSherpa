@@ -1,0 +1,68 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Fri Oct 30 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/riscv-ip/kestrel-rv32i/dv/tests/local_sim_build/test_kestrel_core/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/riscv-ip/kestrel-rv32i/dv/tests/GTKW/kestrel_tb_top/kestrel_tb_top.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-15.655873 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] kestrel_tb_top.
+[treeopen] kestrel_tb_top.u_kestrel_core.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@28
+kestrel_tb_top.clk
+kestrel_tb_top.rst_n
+@200
+-halt
+@28
+kestrel_tb_top.halt
+@22
+kestrel_tb_top.halt_cause[3:0]
+@200
+-fetch
+@22
+kestrel_tb_top.u_kestrel_core.pc[31:0]
+kestrel_tb_top.u_kestrel_core.imem_addr[31:0]
+kestrel_tb_top.u_kestrel_core.imem_addr_next[31:0]
+kestrel_tb_top.u_kestrel_core.insn[31:0]
+@200
+-data-memory
+@28
+kestrel_tb_top.dmem_req
+@22
+kestrel_tb_top.dmem_addr[31:0]
+kestrel_tb_top.dmem_wstrb[3:0]
+kestrel_tb_top.dmem_wdata[31:0]
+@200
+-regfile-write
+@28
+kestrel_tb_top.u_kestrel_core.rf_wen
+@22
+kestrel_tb_top.u_kestrel_core.rf_waddr[4:0]
+kestrel_tb_top.u_kestrel_core.rd_wdata[31:0]
+@200
+-retire-rvfi
+@28
+kestrel_tb_top.rvfi_valid
+kestrel_tb_top.rvfi_trap
+@22
+kestrel_tb_top.rvfi_order[63:0]
+kestrel_tb_top.rvfi_pc_rdata[31:0]
+kestrel_tb_top.rvfi_pc_wdata[31:0]
+kestrel_tb_top.rvfi_insn[31:0]
+kestrel_tb_top.rvfi_rs1_addr[4:0]
+kestrel_tb_top.rvfi_rs1_rdata[31:0]
+kestrel_tb_top.rvfi_rs2_addr[4:0]
+kestrel_tb_top.rvfi_rs2_rdata[31:0]
+kestrel_tb_top.rvfi_rd_addr[4:0]
+kestrel_tb_top.rvfi_rd_wdata[31:0]
+kestrel_tb_top.rvfi_mem_addr[31:0]
+kestrel_tb_top.rvfi_mem_rmask[3:0]
+kestrel_tb_top.rvfi_mem_wmask[3:0]
+kestrel_tb_top.rvfi_mem_rdata[31:0]
+kestrel_tb_top.rvfi_mem_wdata[31:0]
