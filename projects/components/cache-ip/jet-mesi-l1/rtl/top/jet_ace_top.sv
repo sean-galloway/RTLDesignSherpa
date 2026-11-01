@@ -15,17 +15,18 @@
 //   with ARSNOOP/AWSNOOP on the address payloads, the shareability-domain
 //   and barrier fields, the 4-bit ACE RRESP (PassDirty live: an RNSD fill
 //   with PassDirty installs M, per l1_control's #106 rule), and the
-//   auto-pulsed RACK/WACK handshakes -- plus jet_ace_issue (the Table
-//   2.8.1 mapping block) between the engines and those transports.  A
-//   house monbus_arbiter (D-7) merges the three observer streams onto the
-//   one MonBus port pair.  Mirrors amber_ace_top's structure with
-//   l1_control -> jet_control swapped.
+//   auto-pulsed RACK/WACK handshakes -- plus l1_ace_issue (the shared
+//   Table 2.8.1 mapping block, common-ip plane restructure Task 2)
+//   between the engines and those transports.  A house monbus_arbiter
+//   (D-7) merges the three observer streams onto the one MonBus port pair.
+//   Mirrors amber_ace_top's structure with l1_control -> jet_control
+//   swapped.
 //
 //   There is NO coh_req coherence sideband to the top level in this rig
-//   (the fabric is not here): the launch stream feeds jet_ace_issue's
+//   (the fabric is not here): the launch stream feeds l1_ace_issue's
 //   event inputs on-chip instead.  jet v1 never emits EVICT/MAKE_UNIQUE
 //   (clean victims drop silently; upgrades are CleanUnique), so
-//   jet_ace_issue's AW-only generator is present but unexercised.
+//   l1_ace_issue's AW-only generator is present but unexercised.
 //
 // Documentation: projects/components/cache-ip/jet-mesi-l1/docs/jet_mas/ch01_overview/02_port_list.md
 // Subsystem: jet
@@ -1207,8 +1208,8 @@ module jet_ace_top
     assign sn_want = (r_sn_pend_cnt != '0);
 
     // ------------------------------------------------------------------
-    // jet_ace_issue: the Table 2.8.1 map between the engines and the ACE
-    // transports.  The D-8 launch stream is its event input, consumed
+    // l1_ace_issue: the shared Table 2.8.1 map between the engines and the
+    // ACE transports.  The D-8 launch stream is its event input, consumed
     // on-chip (there is no fabric in this rig): every fill-launch accept
     // latches the AR snoop class (RNSD / RU / CU -- all read-channel
     // classes).  jet v1 never emits EVICT/MAKE_UNIQUE (clean victims drop
@@ -1220,7 +1221,7 @@ module jet_ace_top
     assign coh_rd_req  = w_fill_accept;
     assign coh_rd_type = eng_fill_class;
 
-    jet_ace_issue #(
+    l1_ace_issue #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .BUS_WIDTH      (BUS_WIDTH),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),

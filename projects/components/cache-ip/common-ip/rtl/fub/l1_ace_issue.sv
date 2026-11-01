@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: amber_ace_issue
+// Module: l1_ace_issue
 // Purpose:
 //   Combinational cache-event -> ACE-transaction map per MAS ch02/08
 //   Table 2.8.1 (the onyx D2 coherent subset), sitting between
@@ -12,8 +12,8 @@
 //   axi4ace_master_rd / axi4ace_master_wr transports. It lives only in the
 //   amber_ace rig (the pair-rig amber_top does not instantiate it).
 //
-// Documentation: projects/components/cache-ip/amber-mesi-l1/docs/amber_mas/ch02_blocks/08_amber_ace_issue.md
-// Subsystem: amber
+// Documentation: projects/components/cache-ip/common-ip/docs/l1_fabric_contract.md
+// Subsystem: cache-ip (common)
 //
 // Author: sean galloway
 // Created: 2026-10-09
@@ -22,7 +22,7 @@
 `include "reset_defs.svh"
 
 //==============================================================================
-// Module: amber_ace_issue
+// Module: l1_ace_issue
 //==============================================================================
 // Description:
 //   Three jobs, one per channel group it intercepts:
@@ -86,8 +86,8 @@
 //
 //------------------------------------------------------------------------------
 // Related Modules:
-//   - Instantiated by: amber_ace_top (Task 12)
-//   - Sits between: l1_fill / l1_drain (via l1_core pins) and
+//   - Instantiated by: l1_ace_plane
+//   - Sits between: l1_fill / l1_drain (via the coherence-core plane) and
 //     axi4ace_master_rd / axi4ace_master_wr
 //   - Package: l1_pkg (amber_ace_req_t)
 //
@@ -99,7 +99,7 @@
 //
 //==============================================================================
 
-module amber_ace_issue
+module l1_ace_issue
     import l1_pkg::*;
 #(
     parameter int ADDR_WIDTH     = AMBER_ADDR_WIDTH,
@@ -226,9 +226,9 @@ module amber_ace_issue
     // ------------------------------------------------------------------
     initial begin
         if ((BUS_WIDTH % 8) != 0)
-            $error("amber_ace_issue: BUS_WIDTH must be a multiple of 8");
+            $error("l1_ace_issue: BUS_WIDTH must be a multiple of 8");
         if (AWONLY_ID == '0)
-            $error("amber_ace_issue: AWONLY_ID must differ from the engine ID 0");
+            $error("l1_ace_issue: AWONLY_ID must differ from the engine ID 0");
     end
 
     /* verilator lint_off UNUSEDSIGNAL */
@@ -353,4 +353,4 @@ module amber_ace_issue
     assign eng_bresp  = fub_bresp;
     assign eng_buser  = fub_buser;
 
-endmodule : amber_ace_issue
+endmodule : l1_ace_issue

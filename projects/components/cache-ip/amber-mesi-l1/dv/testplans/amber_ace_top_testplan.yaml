@@ -1,6 +1,6 @@
-# Testplan for the amber ACE rig (Task 12): `amber_ace_issue` +
+# Testplan for the amber ACE rig (Task 12): `l1_ace_issue` +
 # `amber_ace_top` -- the onyx-rig top on ACE masters. One amber_ace_top
-# (l1_core + amber_ace_issue + the axi4ace_master_rd/wr_monlite
+# (l1_core + l1_ace_issue + the axi4ace_master_rd/wr_monlite
 # transports + the D-7 monbus_arbiter) against a Python onyx-D2 manager
 # model on the ACE master pins.
 # Run: dv/tests/test_amber_ace_top.py.
@@ -18,7 +18,7 @@
 # grant handshakes, tag-array words, monlite internals via u_core.
 #
 # DUT (row cells): dv/tb/amber_ace_issue_th.sv -- pure wiring exposing
-# amber_ace_issue's event/engine/wrapper pins for the Table 2.8.1 row
+# l1_ace_issue's event/engine/wrapper pins for the Table 2.8.1 row
 # suite.
 #
 # Table 2.8.1 contract under test (MAS ch02/08; the ace_issue block is the
@@ -46,7 +46,7 @@
 
 module: amber_ace_top
 rtl_files:
-  - projects/components/cache-ip/amber-mesi-l1/rtl/fub/amber_ace_issue.sv
+  - projects/components/cache-ip/common-ip/rtl/fub/l1_ace_issue.sv
   - projects/components/cache-ip/amber-mesi-l1/rtl/top/amber_ace_top.sv
 test_files:
   - projects/components/cache-ip/amber-mesi-l1/dv/tests/test_amber_ace_top.py
@@ -145,12 +145,13 @@ scenarios:
     level: gate
     status: covered
     description: >
-      Unit-side (amber_ace_issue_th): per Table 2.8.1 row, drive the cache
-      event and capture ARSNOOP/AWSNOOP + address + burst on the wrapper
-      pins, hold under backpressure, prove CleanUnique/MakeUnique/Evict
-      are AW-only with the engine AW untouched, prove WriteBack stamps the
-      engine AW, and prove the AW-only B responses are swallowed by the
-      AWONLY_ID BID mux while engine B responses pass through.
+      Unit-side (amber_ace_issue_th, wrapping l1_ace_issue): per Table
+      2.8.1 row, drive the cache event and capture ARSNOOP/AWSNOOP +
+      address + burst on the wrapper pins, hold under backpressure, prove
+      CleanUnique/MakeUnique/Evict are AW-only with the engine AW
+      untouched, prove WriteBack stamps the engine AW, and prove the
+      AW-only B responses are swallowed by the AWONLY_ID BID mux while
+      engine B responses pass through.
   - name: FullSoak
     level: full
     status: covered

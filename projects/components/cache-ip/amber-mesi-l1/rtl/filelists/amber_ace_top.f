@@ -19,8 +19,8 @@
 # closes it at the top until Task 3's fabric plane)
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
 
-# The Table 2.8.1 event->transaction map (own RTL; pkg-only closure)
--f $AMBER_ROOT/rtl/filelists/amber_ace_issue.f
+# The Table 2.8.1 event->transaction map (shared common-ip FUB, Task 2)
+-f $CACHE_COMMON_ROOT/rtl/filelists/fub/l1_ace_issue.f
 
 # ACE read/write master monitors (complete closures; the ACE variants of
 # the pair rig's axi4_master_rd/wr_monlite, DECISION D3/D-8 observation)

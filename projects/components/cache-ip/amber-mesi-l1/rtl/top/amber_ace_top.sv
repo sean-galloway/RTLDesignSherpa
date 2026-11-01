@@ -11,9 +11,10 @@
 //   (DECISION D3) -- axi4ace_master_rd_monlite / axi4ace_master_wr_monlite,
 //   so the m_axi_* memory side is the monlite-wrapped (measured) ACE path
 //   with ARSNOOP/AWSNOOP on the address payloads and the auto-pulsed
-//   RACK/WACK handshakes -- plus the amber_ace_issue Table 2.8.1 mapping
-//   block between the core's engines and those transports. A house
-//   monbus_arbiter (DECISION D-7) merges the three observer streams
+//   RACK/WACK handshakes -- plus the shared l1_ace_issue Table 2.8.1
+//   mapping block (common-ip plane restructure, Task 2) between the core's
+//   engines and those transports. A house monbus_arbiter (DECISION D-7)
+//   merges the three observer streams
 //   {l1_monlite, rd_monlite, wr_monlite} onto the one MonBus port pair.
 //
 // Documentation: projects/components/cache-ip/amber-mesi-l1/docs/amber_mas/ch01_overview/02_port_list.md
@@ -35,7 +36,7 @@
 //   * the memory-side transports are the axi4ace_master_rd/wr_monlite
 //     wrappers (snoop fields + auto-pulsed RACK/WACK), not the plain
 //     axi4_master_rd/wr_monlite pair;
-//   * amber_ace_issue sits between the core's fub_axi_* engine pins and
+//   * l1_ace_issue sits between the core's fub_axi_* engine pins and
 //     the transports: it stamps ARSNOOP on the fill engine's AR, stamps
 //     AWSNOOP=WriteBack on the drain engine's AW, originates the AW-only
 //     CleanUnique/MakeUnique/Evict transactions the engines never
@@ -67,7 +68,7 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //   - Instantiated by: the Task 12 ACE rig (dv/tests/test_amber_ace_top.py)
-//   - Instantiated: l1_core; amber_ace_issue;
+//   - Instantiated: l1_core; l1_ace_issue;
 //     axi4ace_master_rd/wr_monlite; monbus_arbiter
 //   - Package: l1_pkg; ocelus_common_pkg
 //
@@ -481,15 +482,15 @@ module amber_ace_top
     );
 
     // ------------------------------------------------------------------
-    // amber_ace_issue: the Table 2.8.1 map between the engines and the
-    // ACE transports. The coh_req launch stream is its event input:
+    // l1_ace_issue: the shared Table 2.8.1 map between the engines and
+    // the ACE transports. The coh_req launch stream is its event input:
     // READ_SHARED / READ_NOT_SHARED_DIRTY / READ_UNIQUE / CLEAN_UNIQUE /
     // MAKE_UNIQUE latch the AR snoop class; EVICT originates the AW-only
     // transaction; WRITE_BACK rides the drain engine's AW. Write-side
     // event wiring is class-gated so the WriteBack launch (which the
     // drain engine itself carries) never double-fires the generator.
     // ------------------------------------------------------------------
-    amber_ace_issue #(
+    l1_ace_issue #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .BUS_WIDTH      (BUS_WIDTH),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),

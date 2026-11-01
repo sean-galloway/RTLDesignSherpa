@@ -38,8 +38,8 @@
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_monlite.f
 
-# The Table 2.8.1 event->transaction map (own RTL; pkg-only closure)
--f $JET_ROOT/rtl/filelists/jet_ace_issue.f
+# The Table 2.8.1 event->transaction map (shared common-ip FUB)
+-f $CACHE_COMMON_ROOT/rtl/filelists/fub/l1_ace_issue.f
 
 # House ACE transports (D3), boundary reset sync, MonBus arbiter (D-7)
 -f $REPO_ROOT/rtl/amba/filelists/axi4ace_master_rd_monlite.f

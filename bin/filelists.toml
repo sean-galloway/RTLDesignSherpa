@@ -102,14 +102,16 @@ kind = "library"
 # L1 core that amber and jet both inherit -- l1_pkg, the l1_core leaf
 # FUBs, and l1_core itself, with their filelists. Module names keep the
 # amber_ prefix (a rename, if ever wanted, is its own task). The integration
-# tops that differ per IP (amber_top, amber_ace_top, amber_ace_issue,
-# amber_pair_fabric) stay in their owning component dirs. Same library posture
-# as the cdc area: shared deps other areas USE stay here and are reached by
-# -f include.
+# tops that differ per IP (amber_top, amber_ace_top, amber_pair_fabric) stay
+# in their owning component dirs; amber_ace_issue moved to common-ip as
+# l1_ace_issue in the cache-ip plane restructure (Task 2). Same library
+# posture as the cdc area: shared deps other areas USE stay here and are
+# reached by -f include.
 rtl_roots = ["projects/components/cache-ip/common-ip/rtl"]
 filelist_dirs = [
     "projects/components/cache-ip/common-ip/rtl/filelists",
     "projects/components/cache-ip/common-ip/rtl/filelists/plane",
+    "projects/components/cache-ip/common-ip/rtl/filelists/fub",
     "projects/components/cache-ip/common-ip/dv/filelists",
 ]
 
