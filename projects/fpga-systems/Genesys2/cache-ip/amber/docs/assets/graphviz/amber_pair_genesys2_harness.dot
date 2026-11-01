@@ -43,7 +43,7 @@ digraph amber_pair_genesys2_harness {
     csr    [label="Harness CSR\nharness status: busy/done/error + cycle counter\n(config aperture 0x0001_0000)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     mmerge [label="Observer Merge\nmonbus_arbiter\n(one observer stream)", shape=invtrapezium, width=2.6,
             style="filled,dashed", fillcolor="#BFD7EE", style="filled,dashed", fillcolor="#FFF2CC"];
-    mgrp   [label="AXIL Record Ingest\nmonbus_axil4_axil4_group\n(packets -> tally record writes)",
+    mgrp   [label="AXIL Record Ingest\nmonbus_axil4_group_1wr\n(packets -> tally record writes)",
             style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     tally  [label="MonBus Tally\nmonbus_tally_axil\nbin counts + legal-set CAM (read by host)",
             style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];

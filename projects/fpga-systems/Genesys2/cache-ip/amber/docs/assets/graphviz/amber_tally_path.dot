@@ -1,6 +1,6 @@
 // Amber pair-rig Genesys2 -- MonBus tally observation path.
 // Source: rtl/amber_pair_harness.sv (amber_top monitor outputs through
-// monbus_arbiter -> monbus_axil4_axil4_group -> monbus_tally_axil).
+// monbus_arbiter -> monbus_axil4_group_1wr -> monbus_tally_axil).
 // House style: vault/handbook/authoring/block-diagrams.md.
 // Flow geography: two cache monitor streams merge, are ingested as AXIL
 // record writes, and counted; host reads bin counts back up the right edge.
@@ -19,7 +19,7 @@ digraph amber_tally_path {
     merge [label="Observer merge\nmonbus_arbiter\n2 clients -> 1 stream",
            shape=invtrapezium, width=3.0, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
 
-    group [label="AXIL record ingest\nmonbus_axil4_axil4_group\npackets -> AXIL writes", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    group [label="AXIL record ingest\nmonbus_axil4_group_1wr\npackets -> AXIL writes", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     tally [label="MonBus tally\nmonbus_tally_axil\n33 bins (32 legal + UNEXPECTED)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
