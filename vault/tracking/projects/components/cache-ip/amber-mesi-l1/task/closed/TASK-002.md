@@ -1,7 +1,7 @@
 # TASK-002: restructure amber RTL into planes (mem-ctrl doctrine) with a swappable ACE fabric plane
 
 **Priority:** P3
-**Status:** open
+**Status:** closed 2026-11-01
 **Owner:** TBD
 
 Filed 2026-10-29 (Sean): structure the cache RTL in **planes** the way
@@ -37,3 +37,7 @@ Today's split is ad hoc: `amber_top` (plain AXI4) vs `amber_ace_top` (+`amber_ac
 
 - Coordinate with jet TASK-002 (same restructure on jet) — the plane shapes should be designed once and applied to both, ideally into `cache-ip/common-ip`.
 - Do not start while jet TASK-001 (implementation) is mid-flight on the same files.
+
+## Closed 2026-11-01
+
+Plane restructure landed for amber: `l1_cpu_plane` + `l1_coh_core` + `l1_axi4_plane` / `l1_ace_plane`, with `amber_top` / `amber_ace_top` reduced to thin plane selections.  The shared fabric contract is now `projects/components/cache-ip/common-ip/docs/l1_fabric_contract.md` and the CHI swap-ability is demonstrated by `projects/components/cache-ip/common-ip/rtl/plane/l1_chi_plane_stub.sv` (elaboration proof in the contract doc).  The final gate — full amber + jet + common-ip DV and formal regression green with zero functional change — is tracked as the restructure plan's Task 6.

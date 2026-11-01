@@ -1,7 +1,7 @@
 # TASK-002: restructure jet RTL into planes (mem-ctrl doctrine) with a swappable ACE fabric plane
 
 **Priority:** P3
-**Status:** open
+**Status:** closed 2026-11-01
 **Owner:** TBD
 
 Filed 2026-10-29 (Sean): structure the cache RTL in **planes** the way
@@ -50,3 +50,7 @@ into one named fabric plane:
   both, land what is shared in `cache-ip/common-ip`.
 - Do not start while TASK-001 (implementation) is mid-flight on the same
   files.
+
+## Closed 2026-11-01
+
+Plane restructure landed for jet: `jet_cpu_plane` + `jet_coh_core` + `l1_axi4_plane` / `l1_ace_plane`, with `jet_top` / `jet_ace_top` reduced to thin plane selections and `jet_ace_top` carrying the J7 `jet_monlite` / MSHR MonBus stream.  The shared fabric contract is now `projects/components/cache-ip/common-ip/docs/l1_fabric_contract.md` and the CHI swap-ability is demonstrated by `projects/components/cache-ip/common-ip/rtl/plane/l1_chi_plane_stub.sv` (elaboration proof in the contract doc).  The final gate — full amber + jet + common-ip DV and formal regression green with zero functional change — is tracked as the restructure plan's Task 6.

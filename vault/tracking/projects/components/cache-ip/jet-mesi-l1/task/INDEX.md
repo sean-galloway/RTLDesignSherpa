@@ -11,9 +11,9 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -23,7 +23,6 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
   jet_pkg + jet_mshr + jet_wb_buffer + jet_rsp_seq + jet_control, DV ladder,
   formal liveness at tiny geometry, FULL soak grids, Genesys2 pair-rig
   measurement sweep.
-- **TASK-002** — restructure jet RTL into planes (mem-ctrl doctrine): CPU / coherence-core / fabric planes, ACE swappable for a future CHI plane. Coordinate with amber TASK-002.
 
 ## Active
 
@@ -31,4 +30,4 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Closed
 
-(none)
+- **TASK-002** — restructure jet RTL into planes (mem-ctrl doctrine): CPU / coherence-core / fabric planes, ACE swappable for a future CHI plane. Coordinate with amber TASK-002.  Closed 2026-11-01: planes landed (with `jet_ace_top` carrying the J7 `jet_monlite` / MSHR stream), fabric contract doc + CHI stub in place; full regression is the restructure plan's Task 6.

@@ -35,6 +35,11 @@ checkout ([`../dv/`](../dv/)).
   contracts, the cross-cutting rules (reset/init walk, response staging,
   pending-fill and pending-effect semantics, victim/drain contract), and
   where the golden model, DV, and formal evidence live.
+- [**The fabric seam contract**](l1_fabric_contract.md) — the core-facing
+  boundary that every fabric plane (AXI4, ACE, future CHI) implements:
+  snoop in/out, `fub_axi` fill/drain engine, coherence launch events,
+  `sn_want_o` throttle, MonBus observation, forward reservations (J8–J10),
+  and the CHI stub elaboration proof.
 
 ## The books with the full narrative
 
