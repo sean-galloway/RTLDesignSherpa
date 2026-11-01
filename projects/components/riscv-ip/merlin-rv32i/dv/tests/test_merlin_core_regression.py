@@ -46,6 +46,8 @@ CASES = {
         ("load_use_distances.hex", 0x0000_0000),
     "cocotb_test_merlin_core_mem_wait_in_wb":
         ("mem_wait_in_wb.hex", 0x0000_0000),
+    "cocotb_test_merlin_core_csr_forward":
+        ("csr_forward.hex", 0x0000_0000),
 }
 
 
@@ -188,6 +190,34 @@ async def cocotb_test_merlin_core_mem_wait_in_wb(dut):
         f"mem_wait_in_wb: load1 retired at cycle {load1['cycle']} with "
         f"0x{load1['rd_wdata']:x}, load2 at cycle {load2['cycle']} with "
         f"0x{load2['rd_wdata']:x}")
+
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def cocotb_test_merlin_core_csr_forward(dut):
+    """CSR-stub result must forward as 0, not the ALU garbage.
+
+    CSRRW/CSRRS/CSRRC and immediate forms are stubs that write 0 to rd.
+    The ALU still computes a value from the CSR encoding; that value must
+    not reach dependent instructions through the EX/MEM forward path.
+    """
+    tb, _ = await _run_case(dut, "csr_forward.hex", 0x0000_0000)
+
+    by_pc = {b["pc"]: b for b in tb.trace}
+    csr = by_pc[0x04]   # csrrci x30, 0x81d, 31 -> x30 = 0
+    d0 = by_pc[0x08]    # sltu x6, x30, x29   -> 0 < 5 = 1
+    d1 = by_pc[0x10]    # add  x7, x30, x29   -> 0 + 5 = 5
+
+    assert csr["rd_wdata"] == 0, (
+        f"csr stub rd_wdata=0x{csr['rd_wdata']:x} expected 0")
+    assert d0["rd_wdata"] == 1, (
+        f"distance-0 dependent sltu rd_wdata=0x{d0['rd_wdata']:x} expected 1")
+    assert d1["rd_wdata"] == 5, (
+        f"distance-1 dependent add rd_wdata=0x{d1['rd_wdata']:x} expected 5")
+
+    dut._log.info(
+        f"csr_forward: csr stub retired at pc=0x{csr['pc']:x}, "
+        f"distance-0 sltu x6={d0['rd_wdata']}, "
+        f"distance-1 add x7={d1['rd_wdata']}")
 
 
 @pytest.mark.parametrize("test_level, description",

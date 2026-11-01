@@ -10,7 +10,8 @@
 //          This is kestrel's ISA pipelined: the same decode, immediate
 //          generator, ALU, register file, halt contract, and RVFI retire
 //          interface, extended with pipeline registers, operand forwarding,
-//          a load-use interlock, and control-hazard flushes.
+//          a load-use interlock, control-hazard flushes, and a CSR stub that
+//          forces alu_y to 0 so the EX/MEM forward path stays architectural.
 //
 //          Memory timing contract: both instruction and data memories are
 //          registered-read (block-RAM) slaves.  `imem_addr` is the address
@@ -376,6 +377,7 @@ module merlin_core #(
     logic [31:0] alu_a;
     logic [31:0] alu_b;
     logic [31:0] alu_y;
+    logic [31:0] alu_y_raw;
 
     // LUI must ignore its rs1 field; forcing alu_a to zero is required even
     // though forwarding would otherwise deliver a stale rs1 value.  (FWD_EXMEM
@@ -390,11 +392,17 @@ module merlin_core #(
         .op  (id_ex_q.alu_op),
         .a   (alu_a),
         .b   (alu_b),
-        .y   (alu_y),
+        .y   (alu_y_raw),
         .eq  (),
         .lt  (),
         .ltu ()
     );
+
+    // CSR-stub instructions write 0 to rd.  Force their ALU result to 0 so
+    // the EX/MEM forward path broadcasts the architectural writeback value
+    // instead of the garbage alu_y_raw that the ALU produced from the CSR
+    // encoding, preventing dependent instructions from seeing stale data.
+    assign alu_y = id_ex_q.csr_stub ? 32'd0 : alu_y_raw;
 
     // Dedicated branch comparator on the forwarded operands.
     logic        cmp_signed;
