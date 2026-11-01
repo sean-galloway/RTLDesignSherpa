@@ -404,7 +404,7 @@ class JetCoreTB(L1ControlTB):
     async def _monitor(self):
         d = self.dut
         u = d.u_top
-        uc = u.u_control
+        uc = u.u_coh.u_control
         while True:
             await FallingEdge(d.aclk)
             await Timer(100, units='ps')
@@ -463,7 +463,7 @@ class JetCoreTB(L1ControlTB):
                 self._mon_alloc(uc)
 
             # 3. snoop grant: oracle resolution in the RTL's match order
-            if int(u.u_snoop.ctrl_snoop_req.value) \
+            if int(u.u_fab.u_snoop.ctrl_snoop_req.value) \
                     and int(uc.sn_ready_o.value):
                 self._mon_snoop_grant(u, uc)
 
@@ -489,7 +489,7 @@ class JetCoreTB(L1ControlTB):
                 else:
                     e = self.entries[line]
                     e['beats'].add(num)
-                    got = int(u.u_fill.fill_beat_data.value)
+                    got = int(u.u_coh.u_fill.fill_beat_data.value)
                     self._score(f"fill beat data line={line:#x} b{num}",
                                 got, self._beat_of_line(
                                     self._mem_line(line), num))
@@ -540,7 +540,7 @@ class JetCoreTB(L1ControlTB):
                 else:
                     self.draining = self.wb_order[0]
                     self._score("drain addr is the oldest WB line",
-                                int(u.u_wb.drain_addr_o.value),
+                                int(u.u_coh.u_wb.drain_addr_o.value),
                                 self._base_of(self.draining))
             if int(uc.drain_done_i.value):
                 if self.draining is None:
@@ -929,8 +929,8 @@ class JetCoreTB(L1ControlTB):
             if int(d.init_busy.value):
                 saw_busy = True
                 self._score("init: no lookup-stage accept during the walk",
-                            int(d.u_top.u_control.lkup_valid_i.value)
-                            & int(d.u_top.u_control.lkup_ready_o.value), 0)
+                            int(d.u_top.u_coh.u_control.lkup_valid_i.value)
+                            & int(d.u_top.u_coh.u_control.lkup_ready_o.value), 0)
             else:
                 break
         self._score("init: walk observed", saw_busy, True)
@@ -1101,7 +1101,7 @@ class JetCoreTB(L1ControlTB):
                           "(hit reordering); skipped for policy "
                           f"{REPL_NAMES[self.REPL_POLICY]}")
             return
-        uc = self.dut.u_top.u_control
+        uc = self.dut.u_top.u_coh.u_control
         s = 3 % self.SETS
         tag0 = 0xA0
         # one resident line per way but one (the claim takes the last)
@@ -1256,7 +1256,7 @@ class JetCoreTB(L1ControlTB):
         d = self.dut
         await self._txn(self._compose_addr(0x60, 1), 0, label='err:pre')
         await self._await_all_responses('err:quiesce')
-        d.u_top.u_control.r_cmt_state.value = 0x9   # reserved encoding
+        d.u_top.u_coh.u_control.r_cmt_state.value = 0x9   # reserved encoding
         for _ in range(4):
             await self._negedge_settled()
         self._score("error: CTRL_ERROR sticky",
@@ -1366,7 +1366,7 @@ class JetCoreTB(L1ControlTB):
         l1_fill, unchanged from amber).
         """
         u = self.dut.u_top
-        uc = u.u_control
+        uc = u.u_coh.u_control
         K = self.MSHR_COUNT
         tag0 = 0x100
         self._reset_window_stats()
@@ -1415,7 +1415,7 @@ class JetCoreTB(L1ControlTB):
         occ_match = False
         for _ in range(4):
             await self._negedge_settled()
-            if int(u.u_mshr.occupancy_o) == len(self.entries):
+            if int(u.u_coh.u_mshr.occupancy_o) == len(self.entries):
                 occ_match = True
                 break
         self._score("sat: RTL occupancy == model", occ_match, True)

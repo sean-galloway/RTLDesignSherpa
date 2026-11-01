@@ -1,49 +1,28 @@
 # Filelist for jet_ace_top
 # Location: projects/components/cache-ip/jet-mesi-l1/rtl/filelists/jet_ace_top.f
 #
-# The jet onyx-rig top (Task 9): jet_top's composition on the house ACE
-# masters -- the jet control closure + the UNCHANGED common-ip slice +
-# jet_ace_issue (the Table 2.8.1 map) + the axi4ace_master_rd/wr_monlite
-# transports (D3 measured paths, ACE snoop fields + auto-pulsed
-# RACK/WACK) + the D-7 monbus_arbiter.  No coh_req sideband to the top
-# level (the fabric is not in this rig; the launch stream feeds
-# jet_ace_issue on-chip).  Own RTL: the top itself; foreign sources only
-# via their own filelists.
+# The jet onyx-rig top (Task 9), recomposed onto the cache-ip planes
+# (Task 4): jet_cpu_plane + jet_coh_core + l1_ace_plane (the ACE snoop
+# responder + the shared l1_ace_issue Table 2.8.1 map + the
+# axi4ace_master_rd/wr_monlite transports, D3 measured paths with ACE
+# snoop fields + auto-pulsed RACK/WACK), plus the D-7 monbus_arbiter and
+# the boundary reset_sync.  No coh_req sideband to the top level (the
+# fabric is not in this rig; the launch stream feeds l1_ace_issue
+# on-chip).  Own RTL: the top itself; foreign sources only via their own
+# filelists.
 
-# reset_defs.svh -- ALWAYS_FF_RST/RST_ASSERTED macros.
--f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
+# CPU plane (frontend + D-6 request skid + J4 response sequencer)
+-f $JET_ROOT/rtl/filelists/plane/jet_cpu_plane.f
 
-# Packages (l1_pkg first; jet_pkg closes it)
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
--f $JET_ROOT/rtl/filelists/jet_pkg.f
+# Coherence-core plane (jet control closure + arrays/repl/engines +
+# observers + the integration glue)
+-f $JET_ROOT/rtl/filelists/plane/jet_coh_core.f
 
-# jet control closure (the lookup/commit core + its three files)
--f $JET_ROOT/rtl/filelists/jet_mshr.f
--f $JET_ROOT/rtl/filelists/jet_wb_buffer.f
--f $JET_ROOT/rtl/filelists/jet_rsp_seq.f
--f $JET_ROOT/rtl/filelists/jet_control.f
+# ACE fabric plane (l1_snoop_resp, l1_ace_issue,
+# axi4ace_master_rd/wr_monlite, sn_want_o)
+-f $CACHE_COMMON_ROOT/rtl/filelists/plane/l1_ace_plane.f
 
-# Common-ip slice: arrays + replacement + GAXI frontend.  The engine
-# filelists are -f'd whole (the audit's cross-area rule); their transport
-# closures (axi4_master_rd/wr) overlap the monlite variants below, which
-# the filelist resolution dedups.
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_tag_array.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_data_array.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_repl.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_frontend.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_fill.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_drain.f
-
-# ACE snoop responder + MonBus observer (their own closures)
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_monlite.f
-
-# The Table 2.8.1 event->transaction map (shared common-ip FUB)
--f $CACHE_COMMON_ROOT/rtl/filelists/fub/l1_ace_issue.f
-
-# House ACE transports (D3), boundary reset sync, MonBus arbiter (D-7)
--f $REPO_ROOT/rtl/amba/filelists/axi4ace_master_rd_monlite.f
--f $REPO_ROOT/rtl/amba/filelists/axi4ace_master_wr_monlite.f
+# Boundary reset synchronizer + D-7 MonBus arbiter (complete closures)
 -f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
 

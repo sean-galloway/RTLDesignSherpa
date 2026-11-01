@@ -463,7 +463,7 @@ class JetPairRigTB(TBBase):
 
             for c in range(2):
                 a = self._jet(c)
-                uc = a.u_control
+                uc = a.u_coh.u_control
                 side = self.sides[c]
 
                 # 0. coh sideband (the fabric request/WB pulse)
@@ -480,7 +480,7 @@ class JetPairRigTB(TBBase):
                     self._mon_alloc(c, uc)
 
                 # 3. snoop grant: oracle resolution in the RTL's match order
-                if int(a.u_snoop.ctrl_snoop_req.value) \
+                if int(a.u_fab.u_snoop.ctrl_snoop_req.value) \
                         and int(uc.sn_ready_o.value):
                     self._mon_snoop_grant(c, a, uc)
 
@@ -771,7 +771,7 @@ class JetPairRigTB(TBBase):
             return
         e = side.entries[line]
         e['beats'].add(num)
-        got = int(a.u_fill.fill_beat_data.value)
+        got = int(a.u_coh.u_fill.fill_beat_data.value)
         if e['src'] is None:
             self._score(f"fill beat{c} line={line:#x} b{num}: no data "
                         f"source bound (fabric resolution missing)", 1, 0)
@@ -963,7 +963,7 @@ class JetPairRigTB(TBBase):
         side.draining = side.wb_order[0]
         line = side.draining
         self._score(f"drain{c} addr is the oldest WB line",
-                    int(a.u_wb.drain_addr_o.value), self._base_of(line))
+                    int(a.u_coh.u_wb.drain_addr_o.value), self._base_of(line))
         # the write-back carries the capture-time snapshot to the shared
         # memory (the model's launch-time view; the DUT's W beats land
         # before the BRESP, and no pass-through read of the line can
@@ -1265,7 +1265,7 @@ class JetPairRigTB(TBBase):
                 busy = int(self._jet(c).init_busy.value)
                 if busy:
                     saw_busy = True
-                    uc = self._jet(c).u_control
+                    uc = self._jet(c).u_coh.u_control
                     self._score(
                         f"init{c}: no lookup-stage accept during the walk",
                         int(uc.lkup_valid_i.value)
@@ -1402,7 +1402,7 @@ class JetPairRigTB(TBBase):
         # path never installs E -- the documented reachability gap)
         set_idx = self._set_of_line(line)
         way = self._hit_way(s0, set_idx, line)
-        tag_word = self.dut.u_jet0.u_tag.mem[way * self.SETS + set_idx]
+        tag_word = self.dut.u_jet0.u_coh.u_tag.mem[way * self.SETS + set_idx]
         tag_word.value = ((line >> self.SET_BITS) << 3) | 2   # 2 = E
         s0.slot_state[(set_idx, way)] = 'E'
         # cache1 misses the line: fabric READ_SHARED snoop hits E
