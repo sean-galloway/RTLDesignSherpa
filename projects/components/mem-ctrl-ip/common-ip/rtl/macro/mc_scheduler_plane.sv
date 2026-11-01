@@ -72,6 +72,8 @@ module mc_scheduler_plane
     parameter bit BANK_EVT_REG       = (SCHED_CORE == MC_SCHED_BANK_PICK),
     parameter bit HAS_STALL_STATS    = 1'b1, // 0 = the stall_*_o counters read 0 (mc_bank_pick)
     parameter int RFC_W              = 16,   // mc_bank_pick tRFC / tZQCS recovery counter width (saturating load)
+    parameter bit DIR_OWNS_ROWS      = 1'b0, // mc_bank_pick: the bus direction may close the other direction's row
+    parameter int DIR_HOLD_IDLE      = 0,    // mc_bank_pick: hold the direction on a queued head, N idle cycles (0 = off)
     parameter bit HAS_CMD_HISTORY    = 1'b0,
     // refresh feature reduction (passed to mc_xddr2_refresh_ctrl)
     parameter bit REF_HAS_POSTPONE    = 1'b1,
@@ -745,7 +747,9 @@ module mc_scheduler_plane
             .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH),
             .LA          (BANK_LA_EFF),
             .HAS_STALL_STATS(HAS_STALL_STATS),
-            .RFC_W       (RFC_W)
+            .RFC_W       (RFC_W),
+            .DIR_OWNS_ROWS(DIR_OWNS_ROWS),
+            .DIR_HOLD_IDLE(DIR_HOLD_IDLE)
         ) u_bank_pick (
             .aclk               (aclk),
             .aresetn            (aresetn),

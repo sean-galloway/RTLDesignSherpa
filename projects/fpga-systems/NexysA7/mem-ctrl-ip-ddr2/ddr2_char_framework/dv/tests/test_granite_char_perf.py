@@ -36,6 +36,7 @@ valid control). Knobs: TEST_TREFI (default 585 = board), TEST_TXN (256),
 TEST_GAP (0), TEST_BURST_LEN (8), TEST_FAMILIES, PERF_DUMP.
 """
 
+import dataclasses
 import json
 import os
 import sys
@@ -461,6 +462,37 @@ async def cocotb_test_granite_perf(dut):
                                host_diag=_host_diag, always_diag=always_diag,
                                reads=os.environ.get("TEST_HALF_ROT_READS", "1") == "1",
                                threads=os.environ.get("TEST_HALF_ROT_THREADS"))
+        if fam_key.startswith("mg_"):
+            # The board's multigen / concurrent profiles through the SAME host
+            # call (pc.measure_concurrent): one writer and TEST_MG_RD readers
+            # (2 = multigen, 1 = concurrent) on the "mg_<family>" walk, under
+            # the named host preset TEST_MG_CFG. cfg.apply runs inside and
+            # reprograms the DFI alignment and the JEDEC timings, so the
+            # preset takes THIS sim's alignment and clock (as programmed
+            # above), never the board's defaults. Added for granite
+            # TASK-003 (2026-11-01): a direction lock that held one bank's
+            # read for the whole write stream (board 367 619 cycles) showed
+            # here and in no other proxy family.
+            n_rd = int(os.environ.get("TEST_MG_RD", "2"))
+            sc = pc.Scenario(name=fam_key, family=_FAMILIES[fam_key[3:]], burst_len=blen, txn_count=txn)
+            cfg = dataclasses.replace(
+                pc.CONFIGS[os.environ.get("TEST_MG_CFG", "defaults")],
+                mc_clk_hz=int(FPGA_CLK_HZ),
+                t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")),
+                t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
+                rddata_delay=int(os.environ.get("TEST_RDDATA_DELAY", "0")),
+                cmd_delay=int(os.environ.get("TEST_CMD_DELAY", "0")))
+            rec = pc.measure_concurrent(drv, sc, cfg=cfg, geom=geom, clk_mhz=clk_mhz, n_wr=1, n_rd=n_rd, timeout_s=600)
+            per_gen = blen * (1 << _AXI_SIZE) * txn
+            lat = rec.rd_lat
+            return dict(mismatched=rec.mismatched, wr_cycles=rec.wr_cycles, rd_cycles=rec.rd_cycles,
+                        wr_ok=not any("write engines" in n for n in rec.notes),
+                        rd_ok=not any("read engines" in n for n in rec.notes),
+                        wr_util=0.0, rd_util=0.0,
+                        wr_bw_mb_s=round(per_gen / max(rec.wr_cycles, 1) * clk_mhz, 1),
+                        rd_bw_mb_s=round(n_rd * per_gen / max(rec.rd_cycles, 1) * clk_mhz, 1),
+                        rd_lat_mean=getattr(lat, "mean", None), rd_lat_max=getattr(lat, "max", None),
+                        notes=list(rec.notes))
         if fam_key in pmf.CONC_FAMILIES:
             return pmf.measure_conc(fam_key, drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn,
                                     gap=gap, clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0,
@@ -688,6 +720,12 @@ async def cocotb_test_granite_perf(dut):
         assert f["rd_ok"], f"{fk}: read engine did not complete"
         assert f["mismatched"] == 0, f"{fk}: {f['mismatched']} beats mismatched"
         assert f["rd_cycles"] > 0 and f["wr_cycles"] > 0, f"{fk}: no cycles counted"
+        # A concurrent run's worst read: the direction lock above held one
+        # for 23 069 cycles at TEST_TXN=2000 (the cap-bounded, flip-fixed
+        # scheduler: 174 col_major_interleaved, 1 476 incremental). Fails on
+        # a starved direction, not on a slow one.
+        if fk.startswith("mg_") and f.get("rd_lat_max") is not None:
+            assert f["rd_lat_max"] < 4096, f"{fk}: worst read latency {f['rd_lat_max']} cycles (starved)"
 
     # Only the bank-STATE violations are checked: they carry no unit. The
     # model's timing checks (tRCD / tRP / tRFC ...) compare its own tick count
@@ -751,6 +789,8 @@ def test_granite_char_perf(request):
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),
         "TEST_BURST_LEN": os.environ.get("TEST_BURST_LEN", "8"),
         "TEST_FAMILIES": os.environ.get("TEST_FAMILIES", "incremental,row_major,col_ilv,col_major"),
+        "TEST_MG_CFG": os.environ.get("TEST_MG_CFG", "defaults"),
+        "TEST_MG_RD": os.environ.get("TEST_MG_RD", "2"),
         "TEST_NUM_GEN": os.environ.get("TEST_NUM_GEN", "1"),
         "TEST_CMD_DELAY": os.environ.get("TEST_CMD_DELAY", "0"),
         "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),

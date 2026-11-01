@@ -108,6 +108,31 @@ module mc_bank_pick
     // the counter's range saturates to its maximum (conservative). DDR2 tRFC at
     // <= 100 MHz is 35 cycles: 8 bits is ample.
     parameter int RFC_W = 16,
+    // Direction ownership of the banks (granite TASK-003, 2026-11-01). Both
+    // directions share banks with conflicting rows in a mixed load, and the
+    // char proxy's mixed window locked into one bank per direction run: at
+    // every flip the current direction still had heads queued (8 of them),
+    // none requesting -- one bank held open by the other direction's row
+    // (the PRE courtesy below withholds the close while the other direction's
+    // head hits it), the other a few cycles short of its ACT lookahead after
+    // its own auto-precharge. The bus turned round (tRTW ~21 + tWTR 5) for a
+    // close + open of ~4, 2043 times: 140.8 MB/s against 197 in the other
+    // state, and which state the window took depended on the refresh phase.
+    //   DIR_OWNS_ROWS 1: the courtesy is lifted for the direction that holds
+    //     the bus (r_dir): its miss may close the other direction's row --
+    //     until the batch cap. From the cap on the courtesy holds again, so
+    //     the owner cannot keep closing a row the waiting direction has just
+    //     opened for the column that would flip the bus. (Handing the lift
+    //     to the waiting direction at the cap instead cost the mixed window
+    //     12-31 MB/s and changed nothing else.)
+    //   DIR_HOLD_IDLE N > 0: the direction register also holds while the
+    //     current direction has a queued head in any bank, for at most N
+    //     cycles without a command of its own, so a head waiting out tRP /
+    //     its lookahead keeps the run. 0 = off. The batch cap still bounds a run.
+    // Both on (N = 8), proxy mixed window at five refresh phases: 510-535
+    // MB/s total against 394-403, no low state.
+    parameter bit DIR_OWNS_ROWS = 1'b0,
+    parameter int DIR_HOLD_IDLE = 0,
 
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
@@ -321,6 +346,16 @@ module mc_bank_pick
     // (lifted from mc_bank_sched; see that history in MC-003)
     // ======================================================================
     logic [RFC_W-1:0] r_rfc_cnt, r_zqcs_cnt;
+    // The round-robin pick of one request set as a one-hot: the age
+    // tie-break, then the lowest bit at or above the rotor, else the lowest.
+    function automatic logic [NPAIR-1:0] rr_onehot(input logic [NPAIR-1:0] s,
+                                                   input logic [NPAIR-1:0] aged,
+                                                   input logic [NPAIR-1:0] below);
+        logic [NPAIR-1:0] a, f;
+        a = (|(s & aged)) ? (s & aged) : s;
+        f = (|(a & ~below)) ? (a & ~below) : a;
+        return f & (~f + NPAIR'(1));
+    endfunction
     function automatic logic [RFC_W-1:0] sat_rfc(input logic [15:0] t);
         if (RFC_W >= 16)      return RFC_W'(t);
         else if (|(t >> RFC_W)) return {RFC_W{1'b1}};
@@ -389,6 +424,12 @@ module mc_bank_pick
     // ======================================================================
     logic [NPAIR-1:0] r_req, r_aged;
     cls_e             r_cls [NPAIR];
+    // the direction register (loaded below with the winner); declared here
+    // because DIR_OWNS_ROWS reads it in this decode
+    logic             r_dir;            // 0 = reads, 1 = writes
+    logic [7:0]       r_dir_batch;
+    logic             r_dir_flip;       // r_dir turned last cycle (cap, drain or a fire of the other direction)
+    logic             r_batch_done;     // r_dir_batch >= the cap, as a register (the compare on its next value)
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -418,7 +459,8 @@ module mc_bank_pick
                         // direction is still streaming hits on that row
                         // (aging lifts the courtesy: no starvation)
                         if (bank_pre_ready_la_i[RK0][pb]
-                            && (!w_hit[p ^ 1] || w_cand[p].age_exceed)) begin
+                            && (!w_hit[p ^ 1] || w_cand[p].age_exceed
+                                || (DIR_OWNS_ROWS && (p[0] == r_dir) && !r_batch_done))) begin
                             req = 1'b1; cls = CL_PRE;
                         end else if (bank_act_ready_la_i[RK0][pb]
                                      && !w_rfc_busy && !maint_busy_i) begin
@@ -472,10 +514,6 @@ module mc_bank_pick
     assign w_win_pair = r_hold ? r_held_pair : r_pick_pair;
     assign w_win_cls  = r_hold ? r_held_cls  : r_pick_cls;
     logic [PAIRW-1:0] r_rotor;
-    logic             r_dir;            // 0 = reads, 1 = writes
-    logic [7:0]       r_dir_batch;
-    logic             r_cap_flip;       // r_dir was turned by the batch cap last cycle
-    logic             r_batch_done;     // r_dir_batch >= the cap, as a register (the compare on its next value)
 
     // next-op hint from the fire stage (one-cycle pulse)
     logic             r_hint_vld;
@@ -499,9 +537,16 @@ module mc_bank_pick
 
     logic [NPAIR-1:0] w_req_ok, w_req_col, w_req_col_dir, w_req_row, w_req_aged;
     logic [NPAIR-1:0] w_sel, w_sel_above, w_below_mask, w_hint_vec;
-    logic [NPAIR-1:0] w_pick_final, w_pick_onehot;
+    logic [NPAIR-1:0] w_pick_onehot;
+    // which source the class select took, resolved in parallel with the
+    // per-source one-hots (see the pick below)
+    typedef enum logic [2:0] {SRC_NONE, SRC_HINT, SRC_CDIR, SRC_COL, SRC_ROW} src_e;
+    src_e             w_sel_src;
+    logic [NPAIR-1:0] w_oh_cdir, w_oh_col, w_oh_row;
     logic             w_rd_col_any, w_wr_col_any;
     logic             w_rd_col_pend, w_wr_col_pend;   // columns coming in a direction (pre stale mask)
+    logic             w_cur_queued;                   // the current direction has a queued head (DIR_HOLD_IDLE)
+    logic [7:0]       r_dir_idle;                     // cycles since the current direction last fired
     logic             r_rd_col_more, r_wr_col_more;   // last cycle's column fire left a same-row entry behind it
     logic             w_xdir_ok;                      // the other direction's columns may be taken
     logic [NPAIR-1:0] w_req_row_pref;                 // row commands, the preferred direction first
@@ -614,7 +659,7 @@ module mc_bank_pick
     logic             w_dir_batch_done;
     assign w_dir_batch_done = r_batch_done;
     // direction next state (the register block above loads these)
-    logic       w_dir_nxt, w_cap_flip_nxt;
+    logic       w_dir_nxt, w_dir_flip_nxt;
     logic [7:0] w_dir_batch_nxt;
     always_comb begin
         for (int p = 0; p < NPAIR; p++) w_stale_if[p] = (r_cls[p] != CL_COL) || !w_cand[p].behind_same_row;
@@ -648,6 +693,11 @@ module mc_bank_pick
         // 63343: req 0010, the read pair alone), so r_req cannot say "more
         // columns coming" at the one cycle it matters. The fire stage knew:
         // the candidate's behind_same_row at the fire is a column behind it.
+        // DIR_HOLD_IDLE: a queued head of the current direction, off the
+        // registered records (no pop-shadow mux)
+        w_cur_queued = 1'b0;
+        for (int b = 0; b < NUM_BANKS; b++)
+            if (r_dir ? wr_head_i[b].vld : rd_head_i[b].vld) w_cur_queued = 1'b1;
         if (r_rd_col_more) w_rd_col_pend = 1'b1;
         if (r_wr_col_more) w_wr_col_pend = 1'b1;
         // Direction stickiness (sim trace 2026-10-26, conc_banks): the
@@ -661,7 +711,9 @@ module mc_bank_pick
         // while it has pending columns, until the batch cap (255 on granite,
         // GRANITE_DIR_BATCH_MAX, read back in a read-only CSR) lets the
         // other direction in.
-        w_xdir_ok = !(r_dir ? w_wr_col_pend : w_rd_col_pend) || w_dir_batch_done;
+        w_xdir_ok = !((r_dir ? w_wr_col_pend : w_rd_col_pend)
+                      || ((DIR_HOLD_IDLE > 0) && w_cur_queued && (r_dir_idle < 8'(DIR_HOLD_IDLE))))
+                    || w_dir_batch_done;
         // Row commands follow the direction too, until the batch cap. With
         // an auto-precharge close the bank empties by itself and BOTH
         // directions' heads ask for its ACT in the same cycle; the rotor had
@@ -709,19 +761,31 @@ module mc_bank_pick
         // With one class pending the other falls through, so a single-bank
         // stream is untouched. Within a class the hint leads, then the
         // current direction's columns, then any.
+        // The stale mask's one-hot is computed per request set, in parallel
+        // with the class select, and the select's source picks one of them:
+        // the carry chain no longer follows the select on the stale ->
+        // select -> stale loop (granite TASK-003, 2026-11-01: the chain sat
+        // at the end of the 14-level worst path, -0.06 to -0.40 ns at 100 MHz
+        // on seven builds). Cycle-exact with the serial form: each set gets
+        // the same age tie-break and rotor search the selected set gets
+        // below. A hint is a single pair, so its one-hot is itself.
+        for (int p = 0; p < NPAIR; p++) w_below_mask[p] = (PAIRW'(p) < w_rotor_eff);
+        w_oh_cdir = rr_onehot(w_req_col_dir,  w_req_aged, w_below_mask);
+        w_oh_col  = rr_onehot(w_req_col,      w_req_aged, w_below_mask);
+        w_oh_row  = rr_onehot(w_req_row_pref, w_req_aged, w_below_mask);
         if (r_last_was_row) begin
-            if (w_hint_ok && w_hint_is_col)    w_sel = w_hint_vec;
-            else if (|w_req_col_dir)           w_sel = w_req_col_dir;
-            else if (|w_req_col && w_xdir_ok)  w_sel = w_req_col;
-            else if (w_hint_ok)                w_sel = w_hint_vec;
-            else                               w_sel = w_req_row_pref;
+            if (w_hint_ok && w_hint_is_col)    begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
+            else if (|w_req_col_dir)           begin w_sel = w_req_col_dir;  w_sel_src = SRC_CDIR; end
+            else if (|w_req_col && w_xdir_ok)  begin w_sel = w_req_col;      w_sel_src = SRC_COL;  end
+            else if (w_hint_ok)                begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
+            else                               begin w_sel = w_req_row_pref; w_sel_src = SRC_ROW;  end
         end else begin
-            if (w_hint_ok && !w_hint_is_col)   w_sel = w_hint_vec;
-            else if (|w_req_row)               w_sel = w_req_row_pref;
-            else if (w_hint_ok)                w_sel = w_hint_vec;
-            else if (|w_req_col_dir)           w_sel = w_req_col_dir;
-            else if (w_xdir_ok)                w_sel = w_req_col;
-            else                               w_sel = '0;
+            if (w_hint_ok && !w_hint_is_col)   begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
+            else if (|w_req_row)               begin w_sel = w_req_row_pref; w_sel_src = SRC_ROW;  end
+            else if (w_hint_ok)                begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
+            else if (|w_req_col_dir)           begin w_sel = w_req_col_dir;  w_sel_src = SRC_CDIR; end
+            else if (w_xdir_ok)                begin w_sel = w_req_col;      w_sel_src = SRC_COL;  end
+            else                               begin w_sel = '0;             w_sel_src = SRC_NONE; end
         end
 
         // Age as the WITHIN-CLASS tie-break (granite TASK-003 item 5, owner's
@@ -738,7 +802,6 @@ module mc_bank_pick
         if (|(w_sel & w_req_aged))             w_sel = w_sel & w_req_aged;
 
         // round-robin: lowest index at or above the (effective) rotor, else lowest overall
-        for (int p = 0; p < NPAIR; p++) w_below_mask[p] = (PAIRW'(p) < w_rotor_eff);
         w_sel_above = w_sel & ~w_below_mask;
         w_pick_vld  = |w_sel;
         w_pick_pair = '0;
@@ -748,10 +811,14 @@ module mc_bank_pick
             for (int p = NPAIR-1; p >= 0; p--) if (w_sel[p])       w_pick_pair = PAIRW'(p);
         end
         w_pick_cls = (w_hint_ok && (w_sel == w_hint_vec)) ? r_hint_cls : r_cls[w_pick_pair];
-        // the same pick as a one-hot (lowest set bit of the searched vector):
-        // a carry chain in parallel with the encoder, for the stale mask
-        w_pick_final  = (|w_sel_above) ? w_sel_above : w_sel;
-        w_pick_onehot = w_pick_final & (~w_pick_final + NPAIR'(1));
+        // the same pick as a one-hot, for the stale mask (per-source, above)
+        case (w_sel_src)
+            SRC_HINT: w_pick_onehot = w_hint_vec;
+            SRC_CDIR: w_pick_onehot = w_oh_cdir;
+            SRC_COL:  w_pick_onehot = w_oh_col;
+            SRC_ROW:  w_pick_onehot = w_oh_row;
+            default:  w_pick_onehot = '0;
+        endcase
 
         // ---- short-hop speculation on the held winner (registers only) ----
         // the candidate's flags, not the head record's: in a one-column-per-
@@ -1161,12 +1228,11 @@ module mc_bank_pick
     // ---- direction register next state ----------------------------------
     // Stick until the current direction runs dry, or the batch cap is hit
     // while the other direction has columns. See the register load below for
-    // why an old-direction fire right after a cap flip does not turn back.
+    // why an old-direction fire right after a flip does not turn back.
     always_comb begin
         w_dir_nxt       = r_dir;
         w_dir_batch_nxt = r_dir_batch;
-        w_cap_flip_nxt  = 1'b0;
-        if (w_col_fire_now && (w_sel_is_wr != r_dir) && r_cap_flip) begin
+        if (w_col_fire_now && (w_sel_is_wr != r_dir) && r_dir_flip) begin
             // the leftover fires; the direction and its batch stand
         end else if (w_col_fire_now && (w_sel_is_wr != r_dir)) begin
             w_dir_nxt       = w_sel_is_wr;
@@ -1178,12 +1244,20 @@ module mc_bank_pick
         end else if (r_batch_done && (r_dir ? w_rd_col_any : w_wr_col_any)) begin
             w_dir_nxt       = ~r_dir;
             w_dir_batch_nxt = '0;
-            w_cap_flip_nxt  = 1'b1;
         end else if (w_col_fire_now && (r_dir_batch != 8'hFF)) begin
             w_dir_batch_nxt = r_dir_batch + 8'd1;
         end
+        w_dir_flip_nxt = (w_dir_nxt != r_dir);
     end
 
+    // DIR_HOLD_IDLE: cycles since the current direction last fired a command
+    // (cleared on a flip and on any demand fire of that direction)
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))                         r_dir_idle <= '0;
+        else if ((w_dir_nxt != r_dir)
+                 || (w_dmd_fire && (w_sel_is_wr == r_dir))) r_dir_idle <= '0;
+        else if (r_dir_idle != 8'hFF)                       r_dir_idle <= r_dir_idle + 8'd1;
+    )
     // ---- registered state: winner, rotor, direction, shadow, hint, history --
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -1197,7 +1271,7 @@ module mc_bank_pick
             r_rotor     <= '0;
             r_dir       <= 1'b0;
             r_dir_batch <= '0;
-            r_cap_flip  <= 1'b0;
+            r_dir_flip  <= 1'b0;
             r_batch_done <= 1'b0;
             r_shadow    <= '0;
             r_stale_pick  <= '0;
@@ -1248,17 +1322,26 @@ module mc_bank_pick
 
             // direction: stick until the current direction runs dry or the
             // batch limit is hit while the other direction has columns.
-            // A column of the OLD direction firing the cycle after a cap
-            // flip is the pick made before the flip, still in the fire stage
+            // A column of the OLD direction firing the cycle after a flip
+            // is the pick made before the flip, still in the fire stage
             // -- not a decision to turn back. Following it undid every cap
             // flip: the old direction got a fresh batch and the other
             // direction's picked column yielded, so with the cap engaged (it
             // was tied to 0 until 2026-10-30) a writer never got the bus
             // while a reader had work (granite TASK-003, concurrent banks:
             // 2048 reads, then 2048 writes).
+            // Any flip, not only the cap's (granite TASK-003, 2026-11-01):
+            // after a drain flip to reads, the writer's short-hop column
+            // picked the cycle before fired and turned the bus straight back
+            // to writes with a fresh batch; the picked read then failed tWTR
+            // behind that write and was re-picked away. Every write burst
+            // end repeated it, the batch never passed 8 and the cap never
+            // fired: one writer against two readers (multigen
+            // col_major_interleaved) starved a bank's read for the whole
+            // write stream, 367 619 cycles on the board.
             r_dir        <= w_dir_nxt;
             r_dir_batch  <= w_dir_batch_nxt;
-            r_cap_flip   <= w_cap_flip_nxt;
+            r_dir_flip   <= w_dir_flip_nxt;
             r_batch_done <= (dir_batch_max_i != 8'd0) && (w_dir_batch_nxt >= dir_batch_max_i);
 
             // pop shadow (one cycle, one-hot)

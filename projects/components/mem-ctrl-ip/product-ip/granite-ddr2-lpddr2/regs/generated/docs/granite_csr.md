@@ -706,6 +706,17 @@ request. All hw-readable so they drive the controller core.</p>
 - Base Offset: 0x6C
 - Size: 0x4
 
+<p>INERT in granite: wr_high_wm / wr_low_wm are read only by the
+FRFCFS research arbiter (mc_cmd_arbiter). granite builds the
+per-bank pick core (SCHED_CORE = BANK_PICK, required by the FIFO
+store), and mc_scheduler_plane ties both fields off for it, so
+writing them changes nothing; the pick's direction register
+(held while a direction has work pending, capped by
+wr_batch_max) does this job. Found 2026-11-01 (granite TASK-003):
+a 4/2 setting looked like a fix for the mixed window's run-length
+states in sim and on the board, and both were the run-to-run
+state change, not the register. The text below is pumice's,
+where the fields are live.</p>
 <p>Write-batching drain hysteresis. 0/0 disables it; default
 2/1 = ON.</p>
 <p>Amortises tWTR/tRTW over a drain instead of paying it per
@@ -735,11 +746,11 @@ write run. Still a runtime CSR: this is only the reset value.</p>
 
 #### wr_high_wm field
 
-<p>Start back-to-back write drain when the write buffer crosses this</p>
+<p>Start back-to-back write drain when the write buffer crosses this. INERT in granite (see the register).</p>
 
 #### wr_low_wm field
 
-<p>Stop the drain when occupancy falls to this</p>
+<p>Stop the drain when occupancy falls to this. INERT in granite (see the register).</p>
 
 #### wr_batch_max field
 

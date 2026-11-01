@@ -78,6 +78,17 @@ package granite_pkg;
     // Store AR direct placement (mc_bank_fifo_store AR_DIRECT): an AR that
     // finds the AR hold empty goes into its bank queue in the push cycle.
     parameter bit GRANITE_STORE_AR_DIRECT = 1'b1;
+    // Store registered pop (mc_bank_fifo_store POP_REG): a commit / issue pops
+    // its bank FIFO a cycle late from a register, behind a logical queue view,
+    // so the scheduler's fire cone ends at that register (timing only).
+    parameter bit GRANITE_STORE_POP_REG = 1'b0;
+    // Direction ownership of the banks (mc_bank_pick DIR_OWNS_ROWS /
+    // DIR_HOLD_IDLE): the direction holding the bus may close the other
+    // direction's row, and keeps the bus while it has a queued head for up to
+    // DIR_HOLD_IDLE idle cycles, instead of turning the bus round every row
+    // in a mixed load (granite TASK-003, 2026-11-01).
+    parameter bit GRANITE_SCHED_DIR_OWNS_ROWS = 1'b1;
+    parameter int GRANITE_SCHED_DIR_HOLD_IDLE = 8;
 
     // ------------------------------------------------------------------
     // RAS plane: ABSENT in this SKU (true bypass, reserved CSR decode

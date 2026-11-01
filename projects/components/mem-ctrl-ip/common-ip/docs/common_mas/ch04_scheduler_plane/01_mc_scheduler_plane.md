@@ -46,6 +46,8 @@ All parameters are declared at `macro/mc_scheduler_plane.sv:27-68`.
 | `CMD_FIFO_DEPTH` | 16 | Scheduler-to-DFI command FIFO depth. |
 | `CMD_DELAY` | 6 | Fixed token delay between FIFO push and `cmd_valid_o`. |
 | `FAST_RD_RELEASE` | 0 | 1 = a command skips `CMD_DELAY` while no write is in the line: entered after the line has been empty for `CMD_DELAY` + the largest programmed spacing, left by a WR push (that WR takes the full delay). Granite sets 1 (`granite_pkg`); pumice sets 1 (`pumice_core` parameter, forwarded by `pumice_top` and `pumice_top_geared`). |
+| `DIR_OWNS_ROWS` | 1'b0 | `mc_bank_pick`: the direction holding the bus (`r_dir`) may close the other direction's open row until its batch cap; 0 keeps the courtesy that withholds a PRE while the other direction's head hits the row. From the cap on the courtesy holds again, so the owner cannot close the row the waiting direction opens for the column that flips the bus. Granite sets 1 (`granite_pkg`). |
+| `DIR_HOLD_IDLE` | 0 | `mc_bank_pick`: the direction register also holds while the current direction has a queued head in any bank, for at most this many cycles without a command of its own (0 = off; the batch cap still bounds a run). Granite sets 8. With `DIR_OWNS_ROWS` it ends the one-bank-per-run lock of a mixed load (board, 100 MHz, 2026-11-01, six runs each: mixed window read 202 -> 283 or 319 MB/s at power-on, 202 -> 330 open page, 197 -> 236 fixed open). |
 | `HAS_ZQ` | 1'b0 | Include ZQ calibration branch and tZQCS block. |
 | `MAINT_EXTRA_WIDTH` | 1 | Width of `cmd_extra_o` / `maint_extra_i` (pumice=MRR, andesite=MPC[5:0]). |
 | `HAS_INIT_SEQUENCER` | 1'b1 | Build the `mc_xddr2_init_sequencer` child; 0 takes the init stream from the `init_*_i` ports. |

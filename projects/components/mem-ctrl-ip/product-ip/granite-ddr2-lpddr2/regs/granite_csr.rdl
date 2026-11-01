@@ -632,7 +632,19 @@ addrmap granite_csr {
 
     reg {
         name = "Scheduler Write Watermarks";
-        desc = "Write-batching drain hysteresis. 0/0 disables it; default
+        desc = "INERT in granite: wr_high_wm / wr_low_wm are read only by the
+                FRFCFS research arbiter (mc_cmd_arbiter). granite builds the
+                per-bank pick core (SCHED_CORE = BANK_PICK, required by the FIFO
+                store), and mc_scheduler_plane ties both fields off for it, so
+                writing them changes nothing; the pick's direction register
+                (held while a direction has work pending, capped by
+                wr_batch_max) does this job. Found 2026-11-01 (granite TASK-003):
+                a 4/2 setting looked like a fix for the mixed window's run-length
+                states in sim and on the board, and both were the run-to-run
+                state change, not the register. The text below is pumice's,
+                where the fields are live.
+
+                Write-batching drain hysteresis. 0/0 disables it; default
                 2/1 = ON.
 
                 Amortises tWTR/tRTW over a drain instead of paying it per
@@ -657,12 +669,12 @@ addrmap granite_csr {
 
         field {
             sw = rw; hw = r;
-            desc = "Start back-to-back write drain when the write buffer crosses this";
+            desc = "Start back-to-back write drain when the write buffer crosses this. INERT in granite (see the register).";
         } wr_high_wm[7:0] = 8'h2;
 
         field {
             sw = rw; hw = r;
-            desc = "Stop the drain when occupancy falls to this";
+            desc = "Stop the drain when occupancy falls to this. INERT in granite (see the register).";
         } wr_low_wm[15:8] = 8'h1;
 
         field {

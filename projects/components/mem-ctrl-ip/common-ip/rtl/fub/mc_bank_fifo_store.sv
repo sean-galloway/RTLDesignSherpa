@@ -166,6 +166,17 @@ module mc_bank_fifo_store
     // the push handshake never depends on the placement it enables (granite
     // TASK-003, 2026-10-31).
     parameter bit AR_DIRECT          = 1'b0,
+    // 1 = POP_REG: a commit / issue pops its bank FIFO one cycle LATE, from a
+    // register. Everything the store reads off a queue (head, peeks, the
+    // thresh flags, the pop's own slot match) goes through a LOGICAL view
+    // that skips the one entry still physically in the FIFO, so the records,
+    // the counts and the pops are cycle-for-cycle what the live pop gives.
+    // What moves is the timing: the scheduler's fire cone ends at the
+    // pop-pending register instead of running on through the FIFO's
+    // pointer, count and full / empty logic (granite at 100 MHz, 2026-10-31:
+    // 22 of the 29 failing endpoints of the AR_DIRECT build sat behind that
+    // pop). The FIFO is one entry deeper and reads one more peek position.
+    parameter bit POP_REG            = 1'b0,
 
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
@@ -302,23 +313,36 @@ module mc_bank_fifo_store
     // 2 * NUM_ENTRIES - 1; the FIFO saturates at 0, the writer clamps at max.
     localparam int AGEW = $clog2(2 * NUM_ENTRIES);
     localparam int QDW  = PTRW + 1;                // queue entry = {same-row-as-previous, slot}
-    localparam int QPK  = 2;                       // positions behind the head the records read
-    localparam int QDF  = (QD > QPK) ? QD : QPK + 1; // FIFO depth (PEEK must be below it)
+    localparam int QPK  = POP_REG ? 3 : 2;         // positions behind the head read (+1 for the pending pop)
+    localparam int QDP  = QD + (POP_REG ? 1 : 0);  // physical entries: the logical depth plus the pending pop
+    localparam int QDF  = (QDP > QPK) ? QDP : QPK + 1; // FIFO depth (PEEK must be below it)
 
     // ======================================================================
     // Per-(direction, bank) queues: gaxi_age_fifo_sync, declared here, built
     // after the slot logic below. Head and two peek positions per queue.
     // ======================================================================
+    // The LOGICAL view (head + two positions behind it) every reader below
+    // uses; the FIFO's own ports are the *f_* arrays (see POP_REG).
     logic [NUM_BANKS-1:0] w_wq_wr_ready, w_wq_rd_valid, w_wq_thr;
     logic [QDW-1:0]       w_wq_rd_data [NUM_BANKS];
-    logic                 w_wq_pk_vld  [NUM_BANKS][QPK];
-    logic [QDW-1:0]       w_wq_pk_data [NUM_BANKS][QPK];
-    logic                 w_wq_pk_thr  [NUM_BANKS][QPK];
+    logic                 w_wq_pk_vld  [NUM_BANKS][2];
+    logic [QDW-1:0]       w_wq_pk_data [NUM_BANKS][2];
+    logic                 w_wq_pk_thr  [NUM_BANKS][2];
     logic [NUM_BANKS-1:0] w_rq_wr_ready, w_rq_rd_valid, w_rq_thr;
     logic [QDW-1:0]       w_rq_rd_data [NUM_BANKS];
-    logic                 w_rq_pk_vld  [NUM_BANKS][QPK];
-    logic [QDW-1:0]       w_rq_pk_data [NUM_BANKS][QPK];
-    logic                 w_rq_pk_thr  [NUM_BANKS][QPK];
+    logic                 w_rq_pk_vld  [NUM_BANKS][2];
+    logic [QDW-1:0]       w_rq_pk_data [NUM_BANKS][2];
+    logic                 w_rq_pk_thr  [NUM_BANKS][2];
+    logic [NUM_BANKS-1:0] w_wqf_rd_valid, w_wqf_thr, w_rqf_rd_valid, w_rqf_thr;
+    logic [QDW-1:0]       w_wqf_rd_data [NUM_BANKS];
+    logic [QDW-1:0]       w_rqf_rd_data [NUM_BANKS];
+    logic                 w_wqf_pk_vld  [NUM_BANKS][QPK];
+    logic [QDW-1:0]       w_wqf_pk_data [NUM_BANKS][QPK];
+    logic                 w_wqf_pk_thr  [NUM_BANKS][QPK];
+    logic                 w_rqf_pk_vld  [NUM_BANKS][QPK];
+    logic [QDW-1:0]       w_rqf_pk_data [NUM_BANKS][QPK];
+    logic                 w_rqf_pk_thr  [NUM_BANKS][QPK];
+    logic [NUM_BANKS-1:0] w_wq_fpop, w_rq_fpop;   // the FIFOs' rd_ready
     logic                 w_age_dec;
     logic [AGEW-1:0]      w_new_age;
 
@@ -1079,16 +1103,16 @@ module mc_bank_fifo_store
             .wr_ready      (w_wq_wr_ready[b]),
             .wr_data       ({w_wq_sp_new, w_wr_free_slot}),
             .wr_data_age   (w_new_age),
-            .rd_ready      (w_wq_pop[b]),
+            .rd_ready      (w_wq_fpop[b]),
             .count         (),
             .youngest      (),
-            .rd_valid      (w_wq_rd_valid[b]),
-            .rd_data       (w_wq_rd_data[b]),
+            .rd_valid      (w_wqf_rd_valid[b]),
+            .rd_data       (w_wqf_rd_data[b]),
             .rd_data_age   (),
-            .rd_age_thresh (w_wq_thr[b]),
-            .pk_valid      (w_wq_pk_vld[b]),
-            .pk_data       (w_wq_pk_data[b]),
-            .pk_age_thresh (w_wq_pk_thr[b])
+            .rd_age_thresh (w_wqf_thr[b]),
+            .pk_valid      (w_wqf_pk_vld[b]),
+            .pk_data       (w_wqf_pk_data[b]),
+            .pk_age_thresh (w_wqf_pk_thr[b])
         );
         gaxi_age_fifo_sync #(
             .DATA_WIDTH (QDW),
@@ -1103,17 +1127,97 @@ module mc_bank_fifo_store
             .wr_ready      (w_rq_wr_ready[b]),
             .wr_data       ({w_rq_sp_new, w_rd_free_slot}),
             .wr_data_age   (w_new_age),
-            .rd_ready      (w_rq_pop[b]),
+            .rd_ready      (w_rq_fpop[b]),
             .count         (),
             .youngest      (),
-            .rd_valid      (w_rq_rd_valid[b]),
-            .rd_data       (w_rq_rd_data[b]),
+            .rd_valid      (w_rqf_rd_valid[b]),
+            .rd_data       (w_rqf_rd_data[b]),
             .rd_data_age   (),
-            .rd_age_thresh (w_rq_thr[b]),
-            .pk_valid      (w_rq_pk_vld[b]),
-            .pk_data       (w_rq_pk_data[b]),
-            .pk_age_thresh (w_rq_pk_thr[b])
+            .rd_age_thresh (w_rqf_thr[b]),
+            .pk_valid      (w_rqf_pk_vld[b]),
+            .pk_data       (w_rqf_pk_data[b]),
+            .pk_age_thresh (w_rqf_pk_thr[b])
         );
+    end endgenerate
+    // Logical view (POP_REG): while a pop is pending the FIFO head is that
+    // entry, already gone, so every position reads one further back. Live
+    // (POP_REG = 0) the view is the FIFO and the pop goes straight in.
+    logic [NUM_BANKS-1:0] r_wq_ppend, r_rq_ppend;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_wq_ppend <= '0;
+            r_rq_ppend <= '0;
+        end else begin
+            r_wq_ppend <= POP_REG ? w_wq_pop : '0;
+            r_rq_ppend <= POP_REG ? w_rq_pop : '0;
+        end
+    )
+    assign w_wq_fpop = POP_REG ? r_wq_ppend : w_wq_pop;
+    assign w_rq_fpop = POP_REG ? r_rq_ppend : w_rq_pop;
+    generate if (POP_REG) begin : g_pop_reg
+        always_comb begin
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                if (r_wq_ppend[b]) begin
+                    w_wq_rd_valid[b] = w_wqf_pk_vld[b][0];
+                    w_wq_rd_data[b]  = w_wqf_pk_data[b][0];
+                    w_wq_thr[b]      = w_wqf_pk_thr[b][0];
+                    for (int k = 0; k < 2; k++) begin
+                        w_wq_pk_vld[b][k]  = w_wqf_pk_vld[b][k+1];
+                        w_wq_pk_data[b][k] = w_wqf_pk_data[b][k+1];
+                        w_wq_pk_thr[b][k]  = w_wqf_pk_thr[b][k+1];
+                    end
+                end else begin
+                    w_wq_rd_valid[b] = w_wqf_rd_valid[b];
+                    w_wq_rd_data[b]  = w_wqf_rd_data[b];
+                    w_wq_thr[b]      = w_wqf_thr[b];
+                    for (int k = 0; k < 2; k++) begin
+                        w_wq_pk_vld[b][k]  = w_wqf_pk_vld[b][k];
+                        w_wq_pk_data[b][k] = w_wqf_pk_data[b][k];
+                        w_wq_pk_thr[b][k]  = w_wqf_pk_thr[b][k];
+                    end
+                end
+                if (r_rq_ppend[b]) begin
+                    w_rq_rd_valid[b] = w_rqf_pk_vld[b][0];
+                    w_rq_rd_data[b]  = w_rqf_pk_data[b][0];
+                    w_rq_thr[b]      = w_rqf_pk_thr[b][0];
+                    for (int k = 0; k < 2; k++) begin
+                        w_rq_pk_vld[b][k]  = w_rqf_pk_vld[b][k+1];
+                        w_rq_pk_data[b][k] = w_rqf_pk_data[b][k+1];
+                        w_rq_pk_thr[b][k]  = w_rqf_pk_thr[b][k+1];
+                    end
+                end else begin
+                    w_rq_rd_valid[b] = w_rqf_rd_valid[b];
+                    w_rq_rd_data[b]  = w_rqf_rd_data[b];
+                    w_rq_thr[b]      = w_rqf_thr[b];
+                    for (int k = 0; k < 2; k++) begin
+                        w_rq_pk_vld[b][k]  = w_rqf_pk_vld[b][k];
+                        w_rq_pk_data[b][k] = w_rqf_pk_data[b][k];
+                        w_rq_pk_thr[b][k]  = w_rqf_pk_thr[b][k];
+                    end
+                end
+            end
+        end
+    end else begin : g_pop_live
+        always_comb begin
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                w_wq_rd_valid[b] = w_wqf_rd_valid[b];
+                w_wq_rd_data[b]  = w_wqf_rd_data[b];
+                w_wq_thr[b]      = w_wqf_thr[b];
+                for (int k = 0; k < 2; k++) begin
+                    w_wq_pk_vld[b][k]  = w_wqf_pk_vld[b][k];
+                    w_wq_pk_data[b][k] = w_wqf_pk_data[b][k];
+                    w_wq_pk_thr[b][k]  = w_wqf_pk_thr[b][k];
+                end
+                w_rq_rd_valid[b] = w_rqf_rd_valid[b];
+                w_rq_rd_data[b]  = w_rqf_rd_data[b];
+                w_rq_thr[b]      = w_rqf_thr[b];
+                for (int k = 0; k < 2; k++) begin
+                    w_rq_pk_vld[b][k]  = w_rqf_pk_vld[b][k];
+                    w_rq_pk_data[b][k] = w_rqf_pk_data[b][k];
+                    w_rq_pk_thr[b][k]  = w_rqf_pk_thr[b][k];
+                end
+            end
+        end
     end endgenerate
     // The CSR field is the enable AND the starvation bound. A head with the
     // FIFO's thresh bit is the oldest entry in the pool; it becomes the

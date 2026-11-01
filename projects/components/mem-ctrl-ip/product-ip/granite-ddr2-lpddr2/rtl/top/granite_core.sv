@@ -538,7 +538,8 @@ module granite_core
             .RD_RET_DEPTH       (RD_RET_DEPTH),
             .WR_DATA_BUF_WORDS  (GRANITE_WR_DATA_BUF_WORDS),
             .HEAD_BYPASS        (GRANITE_STORE_HEAD_BYPASS),
-            .AR_DIRECT          (GRANITE_STORE_AR_DIRECT)
+            .AR_DIRECT          (GRANITE_STORE_AR_DIRECT),
+            .POP_REG            (GRANITE_STORE_POP_REG)
         ) u_fifo_store (
             .aclk               (aclk),
             .aresetn            (aresetn),
@@ -831,6 +832,8 @@ module granite_core
         .AGE_WIDTH     (AGE_WIDTH),
         .CMD_DELAY     (CMD_DELAY_EFF),
         .FAST_RD_RELEASE(GRANITE_FAST_RD_RELEASE),
+        .DIR_OWNS_ROWS (GRANITE_SCHED_DIR_OWNS_ROWS),
+        .DIR_HOLD_IDLE (GRANITE_SCHED_DIR_HOLD_IDLE),
         .HAS_ZQ        (1'b0),
         // Init is owned by u_init_plane; the scheduler plane takes its
         // external-init mode (the same mode scoria's wrapper uses).

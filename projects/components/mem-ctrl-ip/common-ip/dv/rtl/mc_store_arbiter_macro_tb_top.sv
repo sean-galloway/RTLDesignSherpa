@@ -51,6 +51,9 @@ module mc_store_arbiter_macro_tb_top
     parameter int RD_RET_DEPTH        = 32,
     parameter int SCHED_CORE          = MC_SCHED_BANK_PICK,
     parameter int STORE_BACKEND       = 0,
+    parameter bit STORE_POP_REG       = 1'b0,   // mc_bank_fifo_store POP_REG (STORE_BACKEND 1)
+    parameter bit PICK_DIR_OWNS_ROWS  = 1'b0,   // mc_bank_pick DIR_OWNS_ROWS
+    parameter int PICK_DIR_HOLD_IDLE  = 0,      // mc_bank_pick DIR_HOLD_IDLE
     // The pick core's close-on-drain is exact (AP on the last same-row entry);
     // off here so the stub bank model's AP close cannot manufacture bubbles in
     // the streaming cells. The FRFCFS core keeps its own default.
@@ -178,7 +181,8 @@ module mc_store_arbiter_macro_tb_top
             .ROW_WIDTH          (ROW_WIDTH),
             .COL_WIDTH          (COL_WIDTH),
             .AXI_BEATS_PER_BURST(AXI_BEATS_PER_BURST),
-            .RD_RET_DEPTH       (RD_RET_DEPTH)
+            .RD_RET_DEPTH       (RD_RET_DEPTH),
+            .POP_REG            (STORE_POP_REG)
         ) u_store (
             .aclk               (aclk),
             .aresetn            (aresetn),
@@ -413,6 +417,8 @@ module mc_store_arbiter_macro_tb_top
             .COL_WIDTH  (COL_WIDTH),
             .NUM_ENTRIES(NUM_ENTRIES),
             .CLOSE_ON_DRAIN(PICK_CLOSE_ON_DRAIN),
+            .DIR_OWNS_ROWS(PICK_DIR_OWNS_ROWS),
+            .DIR_HOLD_IDLE(PICK_DIR_HOLD_IDLE),
             .LA         (0)              // the TB's la twins ARE the live gates
         ) u_pick (
             .aclk               (aclk),

@@ -45,7 +45,13 @@ the v2 generation will never see
   queue fronts, no age matrix; a read entering an empty bank queue is that
   bank's head record a cycle sooner (`HEAD_BYPASS`), and an AR that finds
   the AR hold empty is placed in its bank queue in the push cycle
-  (`AR_DIRECT`); granite sets both since 2026-10-31. `STORE_BACKEND=0` keeps the entry store +
+  (`AR_DIRECT`); granite sets both since 2026-10-31. The store's
+  registered pop (`POP_REG`, a commit / issue pops its bank FIFO a cycle
+  late behind a logical queue view) is built and tested but off: across
+  four placements it moved the failing paths without a net timing gain.
+  The scheduler's pick owns the banks for the direction holding the bus
+  (`mc_bank_pick` `DIR_OWNS_ROWS` 1, `DIR_HOLD_IDLE` 8, since 2026-11-01).
+  `STORE_BACKEND=0` keeps the entry store +
   `mc_bank_head_records` for A/B. Storage "off" shrinks toward one, never
   to zero. `HAS_LPDDR2=0` compiles the LPDDR2 training plane out of a
   DDR2-only build; `FIXED_TIMINGS=1` replaces the TIMINGS CSRs with the

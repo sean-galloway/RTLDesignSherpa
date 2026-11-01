@@ -238,6 +238,27 @@ async def _push_wr_chunk(dut, bank, row, col, txn_id=0):
 @cocotb.test()
 async def cocotb_test_store_arbiter_contract(dut):
     await _reset(dut)
+    # Every column command the core fires, by direction. Each descriptor is
+    # one column in one bank queue (bank 0, row 0, col = its index), so the
+    # fired columns must be each index exactly once: a store that re-presents
+    # a popped entry, or skips one, shows as a repeat or a hole (the count
+    # alone cannot see it -- a repeat and a hole cancel).
+    fired = {"rd": [], "wr": []}
+    rd_cyc = []
+    async def _mon_cols():
+        cyc = 0
+        while True:
+            await RisingEdge(dut.aclk)
+            await ReadOnly()
+            cyc += 1
+            if int(dut.cmd_valid.value) and int(dut.cmd_ready.value):
+                op = int(dut.cmd_op.value)
+                if op in (OP_RD, OP_RDA):
+                    fired["rd"].append(int(dut.cmd_col.value))
+                    rd_cyc.append(cyc)
+                elif op in (OP_WR, OP_WRA):
+                    fired["wr"].append(int(dut.cmd_col.value))
+    cocotb.start_soon(_mon_cols())
 
     # ---- phase 1: writes ---------------------------------------------------
     wr_task = cocotb.start_soon(_run_writes(dut))
@@ -260,7 +281,18 @@ async def cocotb_test_store_arbiter_contract(dut):
     await wr_task
 
     # ---- phase 2: reads ----------------------------------------------------
+    # Column gate closed while the reads queue up, so bank 0's read queue
+    # holds a backlog (the pool's NUM_ENTRIES) when it opens and the reads
+    # then issue back to back (command bus ready every cycle, not the TB's
+    # 1-in-4 pace): every pop lands with entries behind it, which is where a
+    # stale queue head would name the wrong slot. Arriving one at a time,
+    # each read issues alone and the pick's own stale mask hides it.
+    dut.bank_rdwr_ready.value = 0
     rd_task = cocotb.start_soon(_run_reads(dut))
+    for _ in range(4 * NUM_ENTRIES):
+        await RisingEdge(dut.aclk)
+    _cmd_ready_every_cycle(dut)
+    dut.bank_rdwr_ready.value = 0xFF
     await with_timeout(_wait_for(dut, dut.rd_issue_count, N_RD_DESCS),
                        PHASE_TIMEOUT_NS, "ns")
     await rd_task
@@ -274,6 +306,12 @@ async def cocotb_test_store_arbiter_contract(dut):
     assert commits == N_WR_CHUNKS, f"commits {commits} != {N_WR_CHUNKS}"
     assert drains == N_WR_CHUNKS, f"drains {drains} != {N_WR_CHUNKS}"
     assert issues == N_RD_DESCS, f"rd issues {issues} != {N_RD_DESCS}"
+    await RisingEdge(dut.aclk)
+    dut._log.info("read columns fired %s at cycles %s", fired["rd"], rd_cyc)
+    assert sorted(fired["rd"]) == list(range(N_RD_DESCS)), \
+        f"read columns fired {fired['rd']} (expect each of 0..{N_RD_DESCS - 1} once)"
+    assert sorted(fired["wr"]) == list(range(N_WR_CHUNKS)), \
+        f"write columns fired {fired['wr']} (expect each of 0..{N_WR_CHUNKS - 1} once)"
 
 
 @cocotb.test()
@@ -570,10 +608,17 @@ FRFCFS_XFAIL = {
     "cocotb_test_post_pop_winner": "no speculative post-pop winner: the cycle after a pop is a bubble",
     "cocotb_test_override_preempts_speculation": "a held column fires before the init override",
 }
-CORES = {"bank_pick": "1", "frfcfs": "0"}     # mc_common_pkg MC_SCHED_*
-STORES = {"entry": "0", "fifo": "1"}          # granite_core STORE_BACKEND
+CORES = {"bank_pick": "1", "bank_pick_dh": "1", "frfcfs": "0"}     # mc_common_pkg MC_SCHED_*
+STORES = {"entry": "0", "fifo": "1", "fifo_pr": "1"}                 # granite_core STORE_BACKEND
+# the per-core / per-store parameter on top: bank_pick_dh = DIR_OWNS_ROWS +
+# DIR_HOLD_IDLE 8 (the bus direction owns the banks),
+# fifo_pr = the FIFO store's registered pop (POP_REG); each must keep every
+# contract the plain form keeps
+CORE_EXTRA = {"bank_pick_dh": {"PICK_DIR_OWNS_ROWS": "1", "PICK_DIR_HOLD_IDLE": "8"}}
+STORE_EXTRA = {"fifo_pr": {"STORE_POP_REG": "1"}}
 # the FIFO store presents head records only, so it pairs with the per-bank core
-STORES_FOR_CORE = {"bank_pick": ("entry", "fifo"), "frfcfs": ("entry",)}
+STORES_FOR_CORE = {"bank_pick": ("entry", "fifo", "fifo_pr"), "bank_pick_dh": ("fifo", "fifo_pr"),
+                   "frfcfs": ("entry",)}
 
 
 def _cells():
@@ -610,6 +655,8 @@ def test_mc_store_arbiter_contract(request, core, store, testcase):
               "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "AXI_BEATS_PER_BURST": "1", "RD_RET_DEPTH": "32",
               "SCHED_CORE": CORES[core], "STORE_BACKEND": STORES[store]}
+    params.update(CORE_EXTRA.get(core, {}))
+    params.update(STORE_EXTRA.get(store, {}))
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{tag}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml")}
