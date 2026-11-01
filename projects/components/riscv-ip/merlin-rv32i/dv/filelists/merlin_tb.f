@@ -5,3 +5,4 @@
 
 -f $MERLIN_ROOT/rtl/filelists/merlin_all.f
 $MERLIN_ROOT/dv/tb/merlin_pipe_regs_tb_top.sv
+$MERLIN_ROOT/dv/tb/merlin_hazard_tb_top.sv

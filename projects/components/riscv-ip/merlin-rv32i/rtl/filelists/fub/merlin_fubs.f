@@ -15,3 +15,6 @@ $MERLIN_ROOT/rtl/fub/merlin_if_id.sv
 $MERLIN_ROOT/rtl/fub/merlin_id_ex.sv
 $MERLIN_ROOT/rtl/fub/merlin_ex_mem.sv
 $MERLIN_ROOT/rtl/fub/merlin_mem_wb.sv
+
+# Forwarding / hazard unit
+$MERLIN_ROOT/rtl/fub/merlin_hazard.sv

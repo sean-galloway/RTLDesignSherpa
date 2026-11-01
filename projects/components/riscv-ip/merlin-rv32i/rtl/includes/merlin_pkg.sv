@@ -31,6 +31,11 @@ package merlin_pkg;
   localparam logic [1:0] WB_LINK = 2'b10;
   localparam logic [1:0] WB_LUI = 2'b11;
 
+  // Forwarding source select for register-file read ports A/B.
+  localparam logic [1:0] FWD_IDEX  = 2'b00;  // use the register file output
+  localparam logic [1:0] FWD_EXMEM = 2'b01;  // forward from EX/MEM stage
+  localparam logic [1:0] FWD_MEMWB = 2'b10;  // forward from MEM/WB stage
+
   // IF/ID boundary: the fetched instruction and its PC.
   typedef struct packed {
     logic [31:0] pc;
