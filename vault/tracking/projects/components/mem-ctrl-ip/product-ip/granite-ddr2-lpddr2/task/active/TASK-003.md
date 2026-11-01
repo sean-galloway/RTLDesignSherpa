@@ -1387,3 +1387,34 @@ The single-thread bandwidth cell is no longer latency-bound (32 in flight /
 measurement path never reads the histogram (rd_hist_total 0, before and
 after). Sweep report section "Exact latency, and the hybrid at 16-beat
 bursts".
+
+### 2026-10-31 (evening): where the 9-cycle read floor goes
+
+The 91 / 29 / 0 tally above counts write and read separately with a 1 percent
+tie; on the sweep report's rule (average of the two, 2 percent) it is
+42 / 18 / 0 (corrected in 8cbb89717).
+
+Stage split of one unloaded read, AR handshake = 0. Sim (granite proxy,
+`PERF_LAT_PROBE`, page hit): push 2, scheduler pick request 6, pick 7,
+command 8, RD at the DFI pins 10, return 16, R 18. Board (ILA on the 100 MHz
+build, scratch probe set, reads clean though the ILA build missed timing
+by 0.434 ns; page miss): push 2, scheduler issue 9, ACT 10, RD out of granite
+12, RD at the PHY 13 (harness `cmd_delay` 1), rddata_en 14 (t_rddata_en 1),
+rddata_valid 22 (PHY 8), return 23, R 25. The PHY's 8 is shared with LiteDRAM
+(board floor 18 on the same measurement), so LiteDRAM spends about 6 cycles
+outside the PHY and granite about 15: AXI plane 2, store push -> visible to
+the pick 4, pick + fire 2, DFI plane 2, harness cmd_delay 1, t_rddata_en 1,
+return -> R 2-3.
+
+Runtime knobs, board, from a fresh program each (`cmd_delay` survives
+between runs in DFI_TUNING and leveling runs before a config is applied; the
+sweep host now programs it every config, TEST_CMD_DELAY, default 1):
+- cmd_delay 0 alone: floor 26, every cell's writes land shifted.
+- t_phy_wrlat 0 + cmd_delay 0 (electrically the same write alignment): floor
+  26, 16 + 50 cells clean. tRTW derived 21 against 20 -- the derivation now
+  takes cmd_delay (default 1 keeps every existing value).
+- t_rddata_en 0 / rddata_delay 0, cmd_delay 1: floor 26, 66 cells clean.
+- both together: read leveling finds no eye -- the same cycle.
+- Either 1-cycle option costs power-on's mixed window 4.0 % write / 2.8 %
+  read (204.9 -> 196.7, the same value in both, tRTW 20 in the second), open
+  page's mixed window unchanged. Cause not found yet.

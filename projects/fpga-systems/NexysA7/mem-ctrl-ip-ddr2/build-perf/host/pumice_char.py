@@ -421,6 +421,11 @@ class ControllerConfig:
     # this alignment with tRTW=8 gaps 13/15 failed exactly as before the
     # pumice BUG-014 (was PUMICE-037) fix, while tRTW=20 is clean at BOTH alignments.
     rddata_delay:  int = int(os.environ.get("TEST_RDDATA_DELAY", "2"))
+    # Harness DFI command delay (DFI_TUNING.cmd_delay): holds EVERY command,
+    # reads included, this many cycles so write data meets the a7ddrphy's
+    # write_latency=0. Default 1 = the harness reset value, the value every
+    # sweep before 2026-10-31 ran on; programmed every config like the rest.
+    cmd_delay:     int = int(os.environ.get("TEST_CMD_DELAY", "1"))
     rd_phase:      int = 0
     wr_phase:      int = 0
     # JEDEC DDR2 timings (MC cycles) derived from the part + the MC clock.
@@ -456,6 +461,7 @@ class ControllerConfig:
         # one cycle off valid mismatches 100%.
         drv.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=self.wr_phase)
         drv.set_dfi_rddata_delay(self.rddata_delay)
+        drv.set_dfi_cmd_delay(self.cmd_delay)
         # JEDEC timings BEFORE the per-config refresh override below, so a
         # config's deliberate t_refi (the *_refresh pair) still wins.
         if self.jedec_timings:
@@ -464,7 +470,7 @@ class ControllerConfig:
             applied = drv.set_jedec_timings(
                 self.mc_clk_hz, t_rddata_en=self.t_rddata_en,
                 rddata_delay=self.rddata_delay,
-                t_phy_wrlat=self.t_phy_wrlat)
+                t_phy_wrlat=self.t_phy_wrlat, cmd_delay=self.cmd_delay)
             print(f"[config {self.name}] jedec timings @ {self.mc_clk_hz/1e6:.2f} MHz: "
                   + " ".join(f"{k}={v}" for k, v in applied.items()),
                   file=sys.stderr, flush=True)

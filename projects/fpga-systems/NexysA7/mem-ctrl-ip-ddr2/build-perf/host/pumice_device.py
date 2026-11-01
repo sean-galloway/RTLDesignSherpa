@@ -56,6 +56,7 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
                            t_rddata_en: int = 6, dram_bl: int = None,
                            dfi_rate: int = 2, rddata_delay: int = 7,
                            t_phy_wrlat: int = 1,
+                           cmd_delay: int = 1,
                            phy_rd_dq_busy: int = 14,
                            rtw_guard: int = 6,
                            rd_phase: Optional[int] = None) -> Dict[str, int]:
@@ -147,6 +148,13 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     #
     # A write drives DQ t_phy_wrlat after its command, so:
     #     tRTW >= phy_rd_dq_busy + 1 - t_phy_wrlat        (= 14 on this board)
+    # That holds at the harness's reset cmd_delay of 1, where phy_rd_dq_busy
+    # and rtw_guard were measured. The harness delays the COMMAND bus by
+    # cmd_delay and passes write data through, so at the PHY a write's data
+    # leaves t_phy_wrlat - cmd_delay after it: the term is
+    # t_phy_wrlat - (cmd_delay - 1). wrlat 0 / cmd_delay 0 is electrically the
+    # same as 1 / 1 and derives the same tRTW (granite TASK-003, 2026-10-31;
+    # without the term it derived 21 against 20).
     # rtw_guard is EMPIRICAL, covering the arbiter's registered turnaround ok.
     # It is 6, NOT 4. 4 (tRTW=18) clears gaps 13 and 15 but leaves an
     # INTERMITTENT 2-6 beat residue at gap 14 -- 5 of 6 reps, and 8 of 10 in a
@@ -174,7 +182,7 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     rd_to_pre_ck = half_bl + rtp_ck - 2
     p = (ck_per_mc - 1) if rd_phase is None else int(rd_phase)
     rtp_mc = max(1, ceil((rd_to_pre_ck + p) / ck_per_mc))
-    rd_window_mc = (int(phy_rd_dq_busy) + 1 - int(t_phy_wrlat)
+    rd_window_mc = (int(phy_rd_dq_busy) + 1 - (int(t_phy_wrlat) - (int(cmd_delay) - 1))
                     + int(rtw_guard))
     return dict(
         tRCD=ns(part["tRCD"]), tRP=ns(part["tRP"]), tRAS=ns(part["tRAS"]),
