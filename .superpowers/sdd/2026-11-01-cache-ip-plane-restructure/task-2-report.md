@@ -222,6 +222,46 @@ Result: `67 passed, 12 deselected, 55 warnings in 281.71s (0:04:41)`.
 - `python3 bin/check_task_ids.py` → `Task-tracker check passed (138 area(s))`
 - `.git/hooks/pre-commit` → passed on the staged fix files.
 
+---
+
+# Review round 1 fixes
+
+## What changed
+
+- `projects/components/cache-ip/common-ip/rtl/plane/l1_axi4_plane.sv`
+  - Fixed port-name typo `fuby_axi_awsize` → `fub_axi_awsize` at line 174. The typo left the real `fub_axi_awsize` port as an implicit undriven net.
+- `projects/components/cache-ip/common-ip/rtl/fub/l1_ace_issue.sv`
+  - Updated header comment: removed "It lives only in the amber_ace rig" and noted it is now a shared common-ip FUB used by `l1_ace_plane`.
+
+## What was NOT changed
+
+- No `default_nettype none` directives were added.
+- No other `fuby` typos were found in the new plane files (grep confirmed).
+
+## Verification
+
+- Grep for `fuby` across `projects/components/cache-ip` → no matches.
+- Verilator lint of `l1_axi4_plane`:
+
+```bash
+python3 bin/flatten_filelist.py projects/components/cache-ip/common-ip/rtl/filelists/plane/l1_axi4_plane.f \
+  --resolve-env --absolute-paths -o /tmp/l1_axi4_plane_flat.f && \
+verilator --lint-only -Wall -Wno-TIMESCALEMOD -Wno-fatal \
+  -I$REPO_ROOT/rtl/amba/includes -f /tmp/l1_axi4_plane_flat.f --top-module l1_axi4_plane
+```
+
+Result: `EXIT 0` — only baseline `UNUSEDSIGNAL` warnings in `ocelus_common_pkg.sv`.
+
+### Repo gates
+
+- `python3 bin/filelist_registry.py --check` → `PASS`
+- `python3 bin/check_task_ids.py` → `Task-tracker check passed (138 area(s))`
+- `.git/hooks/pre-commit` → passed without `--no-verify`.
+
+## Concerns
+
+None. The typo is fixed, lint is clean, and gates pass.
+
 ## Concerns
 
 None for the harness retarget. The only remaining `amber_ace_issue` / `jet_ace_issue` references are in documentation and coverage-report artifacts, which do not affect simulation or filelist gates.

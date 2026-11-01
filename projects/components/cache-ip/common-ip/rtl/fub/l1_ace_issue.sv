@@ -9,8 +9,9 @@
 //   Combinational cache-event -> ACE-transaction map per MAS ch02/08
 //   Table 2.8.1 (the onyx D2 coherent subset), sitting between
 //   l1_control / l1_fill / l1_drain and the house
-//   axi4ace_master_rd / axi4ace_master_wr transports. It lives only in the
-//   amber_ace rig (the pair-rig amber_top does not instantiate it).
+//   axi4ace_master_rd / axi4ace_master_wr transports. It is a shared
+//   cache-ip common-ip FUB used by the l1_ace_plane (and previously lived
+//   only in the amber_ace rig before the plane restructure).
 //
 // Documentation: projects/components/cache-ip/common-ip/docs/l1_fabric_contract.md
 // Subsystem: cache-ip (common)

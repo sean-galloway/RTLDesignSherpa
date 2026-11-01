@@ -171,7 +171,7 @@ module l1_axi4_plane
     input  logic [IW-1:0]               fub_axi_awid,
     input  logic [ADDR_WIDTH-1:0]       fub_axi_awaddr,
     input  logic [7:0]                  fub_axi_awlen,
-    input  logic [2:0]                  fuby_axi_awsize,
+    input  logic [2:0]                  fub_axi_awsize,
     input  logic [1:0]                  fub_axi_awburst,
     input  logic                        fub_axi_awlock,
     input  logic [3:0]                  fub_axi_awcache,
