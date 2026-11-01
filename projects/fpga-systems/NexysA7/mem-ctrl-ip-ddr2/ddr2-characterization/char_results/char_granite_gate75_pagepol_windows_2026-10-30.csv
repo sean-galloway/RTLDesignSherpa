@@ -1,0 +1,7 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes
+open_page,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,75.0,4167315,0.0948,147.43,4167254,0.0948,147.44,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 294.9 MB/s over 4167315 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+open_page,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,75.0,1200149,0.0948,511.94,1194435,0.0948,514.39,50.45,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+open_page,random_bl8,random,8,32000,0,0,1,0,8192000,75.0,1314134,0.0945,467.53,1278477,0.0948,480.57,53.03,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"
+fixed_open_tr2,mixed_bl8,mixed,8,32000,0,0,1,0,8192000,75.0,4329045,0.0948,141.93,4167262,0.0948,147.43,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 283.9 MB/s over 4329045 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]"
+fixed_open_tr2,row_thrash_bl8,row_thrash,8,32000,0,0,1,0,8192000,75.0,1329957,0.0947,461.97,1330826,0.0948,461.67,50.86,128000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst"
+fixed_open_tr2,random_bl8,random,8,32000,0,0,1,0,8192000,75.0,1376177,0.0949,446.45,1335355,0.0947,460.10,51.71,128000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector"

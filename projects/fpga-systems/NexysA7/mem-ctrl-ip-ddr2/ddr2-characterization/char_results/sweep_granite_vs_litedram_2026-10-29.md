@@ -14,7 +14,7 @@ idle gap: one bank or one stream at a time, where the DRAM's own timing or
 the gap sets the ceiling for both. Incremental is a narrow win (2-3
 percent). The large wins are the patterns that need more than one bank
 busy at a time. LiteDRAM is about 3.5x smaller and has the
-lower unloaded read latency (18 cycles against 27).
+lower unloaded read latency (18 cycles against 25).
 
 | cell (write / read MB/s) | granite 100 | LiteDRAM 100 | granite 75 | LiteDRAM 75 | pumice 50 |
 |---|---|---|---|---|---|
@@ -29,7 +29,8 @@ lower unloaded read latency (18 cycles against 27).
 | mixed window, 4 threads | 205 / 202 | 159 / 159 | 147 / 147 | 119 / 119 | 131 / 108 |
 | concurrent 1 writer + 1 reader, incremental | 368 / 368 | 167 / 167 | 285 / 285 | 124 / 124 | 185 / 185 |
 
-Sources: granite 100 = `hx100` 2026-10-31, power-on (`defaults`); LiteDRAM
+Sources: granite 100 = `hx100` 2026-10-31, power-on (`defaults`; the
+`byp100` rebuild the same evening reads the same on every cell above); LiteDRAM
 100 = `hx100` 2026-10-31; granite 75 = `sweep75` 2026-10-29 `open_page`
 (the design as of that day: before the hybrid, fast read release and the
 drain-arm fix); LiteDRAM 75 = `sweep75` 2026-10-29; pumice 50 = `sweep`
@@ -41,14 +42,20 @@ lose, the six losses all `col_major`. That design has not been re-swept at 75.
 
 | cell | granite mean / min / max | LiteDRAM mean / min / max |
 |---|---|---|
-| half_pair, 1 thread (unloaded) | 29.7 / 27 / 51 | 18.7 / 18 / 48 |
-| half_pair, 8 threads | 44.9 / 29 / 68 | 26.8 / 21 / 62 |
-| incremental, 8-beat | 46.0 / 27 / 74 | 33.9 / 32 / 62 |
-| col_major_interleaved, 8-beat | 51.0 / 27 / 77 | 64.5 / 22 / 87 |
-| random window, 4 threads | 52.1 / 27 / 86 | 61.4 / 22 / 91 |
+| half_pair, 1 thread (unloaded) | 29.7 / 25 / 51 | 18.7 / 18 / 48 |
+| half_pair, 8 threads | 41.9 / 27 / 70 | 26.8 / 21 / 62 |
+| incremental, 8-beat | 46.6 / 25 / 74 | 33.9 / 32 / 62 |
+| col_major_interleaved, 8-beat | 51.0 / 25 / 76 | 64.5 / 22 / 87 |
+| random window, 4 threads | 52.4 / 25 / 85 | 61.4 / 22 / 91 |
 
-granite's floor is 9 cycles above LiteDRAM's. Its mean is higher on the
-sequential patterns too (46.0 against 33.9 on incremental, at the same
+granite = `byp100` (store head bypass and return fall-through, 4f0603044):
+the floor came down 27 -> 25 on every pattern. The random window's sweep
+run read a minimum of 41; two reruns read 25. Only a read that finds the
+controller idle sees the floor, so the loaded means barely move (median
+-0.4 cycles over 183 cells; half_pair 8 threads 44.9 -> 41.9).
+
+granite's floor is 7 cycles above LiteDRAM's (9 before the bypasses). Its mean is higher on the
+sequential patterns too (46.6 against 33.9 on incremental, at the same
 bandwidth). At 8 threads it is higher while it moves 4x the data. It is lower
 where the pattern needs bank parallelism. The mixed window has no latency figure, because that measurement never
 reads the histogram.
@@ -78,14 +85,60 @@ characterization engines, the UART bridge or the debug RAMs):
   - Of the core's block RAMs, 9 are the CPU's, 8 the BIOS ROM and 2 its SRAM. That leaves 3 RAMB36 at most for the controller and the glue.
 - **pumice:** the checkpoint predates fast read release (the RTL default since 2026-10-31).
 
-**Open items** (TASK-003 log): granite's 9-cycle unloaded latency gap,
-which the sim does not show (18 cycles there); a pumice rebuild and sweep to
+**Open items** (TASK-003 log): granite's 7-cycle unloaded latency gap
+(where it goes: the section "Where the read floor goes" below); a pumice rebuild and sweep to
 confirm fast read release and give pumice exact latency; latency for the
 mixed window.
 
 ---
 
 # Appendix: the running log
+
+## Where the read floor goes, and two cycles off it (2026-10-31, evening)
+
+One unloaded read, AR handshake = cycle 0 (board ILA on a 100 MHz debug
+build, and the char proxy's latency probe, which agree stage for stage):
+
+| stage | cycles before | after |
+|---|---|---|
+| AXI plane: AR -> pushed into the bank queue store | 2 | 2 |
+| store: push -> visible to the scheduler's pick | 4 | 3 |
+| pick + fire, command -> RD at the DFI pins | 4 | 4 |
+| harness `cmd_delay` + `t_rddata_en` (board only) | 2 | 2 |
+| PHY: read enable -> data valid (shared with LiteDRAM) | 8 | 8 |
+| return -> R | 2 | 1 |
+
+LiteDRAM's floor through the same PHY is 18, so it spends about 6 cycles
+outside the PHY; granite spent about 15, now 13. The two cuts, both
+granite-only parameters (4f0603044): the store's `HEAD_BYPASS` (a read
+entering an empty bank queue is the head record a cycle sooner) and the
+return ring's `RET_FALLTHRU` (a returning beat that finds the output skid
+empty goes out in its own cycle).
+
+Board, `ddr2_char_granite_100mhz_byp_2026-10-31.bit` (AltSpreadLogic_high,
+WNS +0.003 / WHS +0.023), every profile, `char_granite_byp100_<profile>_2026-10-31.csv`:
+183 cells, 0 failed, 0 mismatched; floor 27 -> 25 on every pattern;
+against LiteDRAM 42 win / 18 tie / 0 lose, as before. Bandwidth within
+1.6 percent of `hx100` everywhere but three cells, each run three times on
+both bitstreams:
+
+| cell (read MB/s) | hx100: sweep, rerun, rerun | byp100: sweep, rerun, rerun |
+|---|---|---|
+| multigen power-on, col_major_interleaved | 261.9, 245.8, 245.8 | 245.8, 245.8, 261.9 |
+| multigen open page, row_major | 441.5, 441.7, 441.1 | 464.3, 464.2, 464.2 |
+| mixed window, `fixed_open_tr2` | 188.3 x3 | 196.7 x3 |
+| mixed window, power-on | 202.4 x3 | 202.4, 202.4, 196.7 |
+
+The first cell takes one of two values on either bitstream (open: what
+selects them). Row_major multigen +5.2 and the fixed-open mixed window
++4.5 are the change. Power-on's mixed window lands in a 196.7 state one
+run in three on byp100; the 1-cycle runtime knobs (read capture 0/0, or
+write latency 0 with cmd_delay 0) landed there every time (open).
+
+Runtime knobs on top, board: read capture `t_rddata_en 0 / rddata_delay 0`
+or `t_phy_wrlat 0 / cmd_delay 0` take one more cycle (26 on hx100) and are
+clean on every cell tried, but not both at once (no read eye); either puts
+power-on's mixed window in the 196.7 state, so neither is the default.
 
 Same board (Nexys A7-100T, MT47H64M16HR x16), same harness, same host
 program, same transaction scale (`--txn-scale 4000`, clamped to the engine's
@@ -282,7 +335,7 @@ Rendered by `build-perf/bin/plot_sweep.py` from the CSVs beside this file,
 in the STREAM characterization style: a line family where the knee has to
 be legible, grouped bars for the side by side, an annotated heatmap for the
 envelope. Each series' peak is the dotted line in its colour.
-Since 2026-10-31 `granite100` is the update at the top (power-on hybrid, tRTP 1, fast read release, the ring bypass and the drain-arm fix: `hx100`) and `litedram100` the same-day LiteDRAM rerun with the exact latency statistics (`hx100`); the other series are unchanged.
+Since 2026-10-31 `granite100` is the update at the top (power-on hybrid, tRTP 1, fast read release, the ring bypass and the drain-arm fix; since the evening also the store head bypass and return fall-through: `byp100`) and `litedram100` the same-day LiteDRAM rerun with the exact latency statistics (`hx100`); the other series are unchanged.
 
 ![half_pair bandwidth against injector threads](plots/threads_knee_pair.png)
 

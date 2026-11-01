@@ -1418,3 +1418,25 @@ sweep host now programs it every config, TEST_CMD_DELAY, default 1):
 - Either 1-cycle option costs power-on's mixed window 4.0 % write / 2.8 %
   read (204.9 -> 196.7, the same value in both, tRTW 20 in the second), open
   page's mixed window unchanged. Cause not found yet.
+
+### 2026-10-31 (night): two cycles off the read floor
+
+4f0603044: `mc_bank_fifo_store` HEAD_BYPASS (a read entering an empty bank
+queue is the head record from the AR hold, a cycle before the FIFO front
+shows it) and `mc_rd_return_ring` RET_FALLTHRU (a bypass beat that finds the
+output skid empty goes out on the drain port in its own cycle); granite sets
+both, every other user keeps 0. Sim: lone page-hit read 18 -> 16, bandwidth
+154.7 -> 166.7. Gate common-ip 57 / 3 xfailed (ring test + fall-through mode,
+mutant caught), granite top 18 / 1, pumice top 218.
+
+Board `ddr2_char_granite_100mhz_byp_2026-10-31.bit` (AltSpreadLogic_high,
+WNS +0.003 / WHS +0.023; ExtraNetDelay_high missed by 0.016), every
+profile, `char_granite_byp100_*`: 183 cells clean, floor 27 -> 25
+everywhere, loaded means median -0.4, LiteDRAM tally 42 / 18 / 0 unchanged.
+Three-run check on both bitstreams: multigen row_major +5.2 and the
+fixed-open mixed window +4.5 are real; multigen power-on col_major_interleaved
+is bimodal (245.8 / 261.9) on BOTH bitstreams; power-on's mixed window
+lands in a 196.7 state one run in three on byp100 (never on hx100, every
+time under the 1-cycle runtime knobs). Open: what selects those states.
+Remaining gap to LiteDRAM's floor: 7 cycles (AXI plane 2, push -> pick 3,
+DFI plane 2 are the next candidates; the planes are shared with pumice).
