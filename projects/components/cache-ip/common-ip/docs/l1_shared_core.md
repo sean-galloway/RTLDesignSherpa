@@ -69,7 +69,17 @@ and is its own task; treat the prefix as history, not ownership.
 | `l1_cpu_frontend` | GAXI slave: request latch + response staging FIFO | pulse-style `req_valid` (consumers that hold-until-accept need the D-6 skid); response staging room is the backpressure point | `test_l1_cpu_frontend.py` |
 | `l1_monlite` | drop-and-count MonBus observer (128-bit packets) | never stalls the observed path; overflow counts drops | `test_l1_monlite.py` |
 | `l1_control` | the blocking-pipeline control FSM (one transaction at a time: LOOKUP→…→REPLAY) | sticky CTRL_ERROR on illegal state; pend-effect semantics below | `test_l1_control.py` |
-| `l1_core` (`rtl/top/`) | structural composition of all the above | memory side is the raw `fub_axi_*` pins (transports are a rig-top concern) | `test_l1_core.py` |
+| `l1_core` (`rtl/top/`) | structural composition of the protocol-stable FUBs above | the ACE snoop responder (`l1_snoop_resp`) and the AXI4/ACE transports now live in the fabric planes, not inside `l1_core`; memory side is the raw `fub_axi_*` pins | `test_l1_core.py` |
+
+## Plane modules (post-restructure)
+
+| Module | Responsibility | Key invariants | Lowest-level checkout |
+|---|---|---|---|
+| `l1_cpu_plane` | CPU plane: `l1_cpu_frontend` only (amber); `jet_rsp_seq` rides here for jet | GAXI request/response staging | plane-level composition proven by top-level tests |
+| `l1_coh_core` | Coherence core plane: control, arrays, replacement, fill/drain, `l1_monlite` | protocol-agnostic MESI; presents the fabric seam | `test_l1_core.py` / `test_jet_*.py` |
+| `l1_axi4_plane` | AXI4 fabric plane: closes `l1_snoop_resp`, `axi4_master_rd/wr_monlite`, D-8 `coh_req_*` export | pair-rig fabric sideband exported to top | `test_amber_pair_rig.py` / `test_jet_pair_rig.py` |
+| `l1_ace_plane` | ACE fabric plane: closes `l1_snoop_resp`, `l1_ace_issue`, `axi4ace_master_rd/wr_monlite` | consumes `coh_req_*` on-chip; RACK/WACK auto-pulsed | `test_amber_ace_top.py` / `test_jet_ace_top.py` |
+| `l1_chi_plane_stub` | CHI fabric plane stub: seam-faithful core-facing port list + tied-off CHI channel skeleton | elaboration-only proof; no protocol logic | verilator lint/elab via `l1_chi_plane_stub.f` |
 
 ## Cross-cutting contracts
 

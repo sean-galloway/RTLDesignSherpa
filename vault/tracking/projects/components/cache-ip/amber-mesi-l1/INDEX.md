@@ -17,7 +17,7 @@ work for the siblings gets its own area under cache-ip/ when it starts.
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 0 | 0 | 2 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 2 | 0 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 3 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 

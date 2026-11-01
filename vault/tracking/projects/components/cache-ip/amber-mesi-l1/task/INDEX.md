@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/amber-mesi-l1 — tasks
 
-**Next ID: TASK-003** — never recycle a number, even when its item closed.
+**Next ID: TASK-004** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -11,7 +11,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -19,7 +19,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Open
 
-(none)
+- **TASK-003** — Genesys2 Vivado build of the post-restructure amber hierarchy: confirm `u_cpu`/`u_coh`/`u_fab` elaborates in the board build; port list unchanged, risk is low, but build must run at the next Vivado opportunity.
 
 ## Active
 

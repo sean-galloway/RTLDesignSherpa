@@ -37,10 +37,10 @@
 //   ctrl_state status observability the rig fabric's safe-peer wait
 //   consumes.
 //
-//   MonBus merge (D-7): client 0 = l1_monlite (the cache-event observer
-//   inside the coherence core), client 1 = rd_monlite (AR/R observation),
-//   client 2 = wr_monlite (AW/W/B observation). UNIT_IDs 8'h01/02/03
-//   distinguish the streams in the merged packets.
+//   MonBus merge (D-7): 2:1 top-level arbiter. Client 0 = l1_monlite (the
+//   cache-event observer inside the coherence core). Client 1 = the fabric
+//   plane's merged rd/wr transport observer stream; l1_axi4_plane internally
+//   merges the rd_monlite and wr_monlite observers before exporting them here.
 //
 //------------------------------------------------------------------------------
 // Parameters: geometry per l1_pkg (HAS Table 5.0); REPL_POLICY per

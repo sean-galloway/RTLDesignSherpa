@@ -171,6 +171,12 @@ In the ACE plane these events are consumed on-chip by `l1_ace_issue`.  In the
 AXI4 plane they are exported to the pair-rig fabric.  A CHI plane would map
 them into CHI `TXREQ`/`TXRSP`/`TXDAT` flits.
 
+> **Naming note:** The ACE plane's core-facing launch input is named
+> `coh_req_*` (legacy name; consumed on-chip by `l1_ace_issue`), **not**
+> `core_coh_req_*`.  The `core_coh_req_*` naming is what `l1_axi4_plane` and
+> `l1_chi_plane_stub` use on the internal seam before exporting the launch
+> events as `coh_req_*` to the fabric.
+
 ### 5. AC-pending throttle
 
 | Signal | Direction | Width | Meaning |
@@ -216,11 +222,12 @@ per-class ordering visible at the core boundary.
 The coherence core may produce two launch events in the same cycle — a fill
 launch and a writeback (victim-drain) launch.  The **fill launch wins the
 single-event slot**; the writeback is held and replayed on the next cycle.
-This discipline is enforced **inside the coherence core plane** (the
-`u_coh`/`jet_coh_core` launch adapter), so every fabric plane — AXI4, ACE,
-and future CHI — inherits an already-disciplined one-event-per-cycle stream.
-The fabric plane therefore consumes a single `core_coh_req_valid` event per
-cycle and never sees colliding fill + writeback launches.
+This discipline is enforced **inside the coherence core plane**.  In jet it is
+implemented by `jet_coh_core`'s launch adapter; in amber the blocking FSM
+satisfies the same one-event-per-cycle property structurally, so no separate
+adapter exists.  A CHI implementer therefore inherits an already-disciplined
+stream from either core plane and should not go looking for an adapter inside
+amber.
 
 ## Per-IP MonBus convention
 
