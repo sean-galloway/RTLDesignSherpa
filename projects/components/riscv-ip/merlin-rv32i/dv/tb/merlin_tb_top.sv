@@ -99,7 +99,9 @@ module merlin_tb_top #(
     // expects block-RAM timing (address in cycle N, data in cycle N+1).  The
     // byte-wise store is applied with blocking assignments before the load
     // word is sampled so a load in MEM sees a store that retires in the same
-    // cycle from WB.
+    // cycle from WB.  dmem_rdata_q is gated on dmem_req: when no request is
+    // accepted the read pipeline holds the last requested word, which keeps
+    // a load in WB safe during a mem_wait pulse.
     `ALWAYS_FF_RST(clk, rst_n,
         begin
             if (!`RST_ASSERTED(rst_n)) begin
@@ -115,7 +117,9 @@ module merlin_tb_top #(
             if (tb_mem_we) begin
                 mem[tb_mem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]] = tb_mem_wdata;
             end
-            dmem_rdata_q <= mem[dmem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]];
+            if (dmem_req) begin
+                dmem_rdata_q <= mem[dmem_addr[MEM_ADDR_MSB:WORD_ADDR_LSB]];
+            end
         end
     )
     assign dmem_rdata = dmem_rdata_q;

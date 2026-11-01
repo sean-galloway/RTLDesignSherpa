@@ -44,6 +44,8 @@ CASES = {
         ("load_after_alu.hex", 0x0000_0000),
     "cocotb_test_merlin_core_load_use_distances":
         ("load_use_distances.hex", 0x0000_0000),
+    "cocotb_test_merlin_core_mem_wait_in_wb":
+        ("mem_wait_in_wb.hex", 0x0000_0000),
 }
 
 
@@ -116,6 +118,63 @@ async def cocotb_test_merlin_core_load_use_distances(dut):
     dut._log.info(
         f"load_use_distances: d1 cycle={d1['cycle']}, d2 cycle={d2['cycle']}, "
         f"d3 cycle={d3['cycle']}, all consumers retired exactly once")
+
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def cocotb_test_merlin_core_mem_wait_in_wb(dut):
+    """IMPORTANT-1: mem_wait asserted while a load occupies WB.
+
+    The follower in MEM addresses a different word.  The waited load must
+    retire with its own data, not the follower's word.
+    """
+    imem_words = load_verilog_hex(PROGRAMS_DIR / "mem_wait_in_wb.hex")
+    golden = RV32IInterpreter(imem_words, reset_addr=0x0000_0000)
+    golden.run()
+
+    tb = MerlinTB(dut, reset_addr=0x0000_0000)
+
+    first_load_cycle = [None]
+    prev_load_req = [False]
+
+    def pulse_mem_wait(dut, cycle):
+        is_load = int(dut.dmem_req.value) and (int(dut.dmem_wstrb.value) == 0)
+        # Detect the rising edge of a load request so we do not mis-trigger on
+        # the tail of a preceding store cycle where dmem_wstrb has fallen.
+        if is_load and not prev_load_req[0]:
+            first_load_cycle[0] = cycle
+        prev_load_req[0] = is_load
+        if first_load_cycle[0] is not None:
+            rel = cycle - first_load_cycle[0]
+            # Assert mem_wait for the cycle the first load request is observed
+            # and the next cycle.  The first cycle lets the memory accept the
+            # load address; the second cycle holds the load in WB while the
+            # follower sits in MEM with dmem_req suppressed.
+            return rel <= 1
+        return False
+
+    await tb.run(pulse_mem_wait=pulse_mem_wait)
+
+    assert first_load_cycle[0] is not None, "no load request observed"
+    tb.check_halt(expected_cause=golden.halt_cause,
+                  expected_halt_pc=golden.halt_pc)
+    tb.check_first_pc()
+    tb.check_order_sequence()
+    tb.check_x0_rd_zero()
+    tb.check_trace(golden.trace)
+
+    by_pc = {b["pc"]: b for b in tb.trace}
+    load1 = by_pc[0x1C]   # lw x13, 0(x10)  -> 0x12345678
+    load2 = by_pc[0x20]   # lw x14, 4(x10)  -> 0xabcddef0
+
+    assert load1["rd_wdata"] == 0x12345678, (
+        f"stalled load1 rd_wdata=0x{load1['rd_wdata']:x} expected 0x12345678")
+    assert load2["rd_wdata"] == 0xabcddef0, (
+        f"follower load2 rd_wdata=0x{load2['rd_wdata']:x} expected 0xabcddef0")
+
+    dut._log.info(
+        f"mem_wait_in_wb: load1 retired at cycle {load1['cycle']} with "
+        f"0x{load1['rd_wdata']:x}, load2 at cycle {load2['cycle']} with "
+        f"0x{load2['rd_wdata']:x}")
 
 
 @pytest.mark.parametrize("test_level, description",

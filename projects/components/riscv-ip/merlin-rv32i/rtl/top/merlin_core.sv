@@ -19,10 +19,12 @@
 //          register captures the RAM output.  The data memory address is
 //          driven in the MEM stage and the load data is assembled in the WB
 //          stage from the registered dmem_rdata port -- exactly the block-RAM
-//          read latency.  `mem_wait` is a global hold: all pipeline registers
-//          stall, the data request deasserts while held and replays when
-//          released, and no instruction retires while the memories are not
-//          ready.
+//          read latency.  The memory system must hold dmem_rdata stable while
+//          dmem_req is deasserted (read-enable semantics) so a load stalled in
+//          WB by mem_wait keeps its data.  `mem_wait` is a global hold: all
+//          pipeline registers stall, the data request deasserts while held and
+//          replays when released, and no instruction retires while the memories
+//          are not ready.
 //
 //          Halt contract: decode raises ecall/ebreak/illegal; EX raises
 //          instruction-address-misaligned on a taken branch/jump to a
