@@ -221,7 +221,7 @@ class AmberParityTB(L1CoreTB):
                     # and the LFSR advances at the end of this cycle
                     self._pass_miss = True
                     self._victims_observed.append(
-                        int(d.u_repl.repl_victim_way.value))
+                        int(d.u_core.u_coh.u_repl.repl_victim_way.value))
                 prev_state = st
 
             if int(d.cpu_req_wr_valid.value) \

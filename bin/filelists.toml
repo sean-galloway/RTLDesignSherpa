@@ -107,7 +107,11 @@ kind = "library"
 # as the cdc area: shared deps other areas USE stay here and are reached by
 # -f include.
 rtl_roots = ["projects/components/cache-ip/common-ip/rtl"]
-filelist_dirs = ["projects/components/cache-ip/common-ip/rtl/filelists"]
+filelist_dirs = [
+    "projects/components/cache-ip/common-ip/rtl/filelists",
+    "projects/components/cache-ip/common-ip/rtl/filelists/plane",
+    "projects/components/cache-ip/common-ip/dv/filelists",
+]
 
 [[area]]
 name = "misc"

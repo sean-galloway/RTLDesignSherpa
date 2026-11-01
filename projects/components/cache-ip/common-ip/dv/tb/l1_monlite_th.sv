@@ -39,7 +39,7 @@
 //       wire at integration.
 //     - payload taps of control-internal registers (the latched request
 //       context, hit resolution, snoop resolution) are read hierarchically
-//       from u_core.u_control -- read-only, never driven.
+//       from u_frontend_th.u_control -- read-only, never driven.
 //
 //------------------------------------------------------------------------------
 // Parameters: closure geometry + USE_MONITOR.
@@ -168,7 +168,7 @@ module l1_monlite_th
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
         .BUS_WIDTH  (BUS_WIDTH)
-    ) u_core (
+    ) u_frontend_th (
         .clk               (clk),
         .rst_n             (rst_n),
         .cpu_req_wr_valid  (cpu_req_wr_valid),
@@ -253,10 +253,10 @@ module l1_monlite_th
 
     always_comb begin
         unique case (ctrl_state)
-            AMBER_CTRL_SNOOP:      tap_state_old = u_core.u_control.sn_hit_state_q;
-            AMBER_CTRL_HIT_WR:     tap_state_old = u_core.u_control.hit_state_q;
-            AMBER_CTRL_FILL_WRITE: tap_state_old = u_core.u_control.upgr_q
-                                                   ? u_core.u_control.hit_state_q
+            AMBER_CTRL_SNOOP:      tap_state_old = u_frontend_th.u_control.sn_hit_state_q;
+            AMBER_CTRL_HIT_WR:     tap_state_old = u_frontend_th.u_control.hit_state_q;
+            AMBER_CTRL_FILL_WRITE: tap_state_old = u_frontend_th.u_control.upgr_q
+                                                   ? u_frontend_th.u_control.hit_state_q
                                                    : AMBER_STATE_I;
             default:               tap_state_old = AMBER_STATE_I;
         endcase
@@ -273,20 +273,20 @@ module l1_monlite_th
         .clk                 (clk),
         .rst_n               (rst_n),
         .tap_ctrl_state      (ctrl_state),
-        .tap_hit_set         (u_core.u_control.req_set),
-        .tap_hit_way         (u_core.u_control.hit_way_q),
-        .tap_hit_state_before(u_core.u_control.hit_state_q),
-        .tap_req_we          (u_core.u_control.req_we_q),
-        .tap_miss_set        (u_core.u_control.req_set),
+        .tap_hit_set         (u_frontend_th.u_control.req_set),
+        .tap_hit_way         (u_frontend_th.u_control.hit_way_q),
+        .tap_hit_state_before(u_frontend_th.u_control.hit_state_q),
+        .tap_req_we          (u_frontend_th.u_control.req_we_q),
+        .tap_miss_set        (u_frontend_th.u_control.req_set),
         .tap_miss_class      (2'(AMBER_MISS_UNKNOWN)),
         .tap_snoop_fire      (snoop_req && snoop_ready),
         .tap_snoop_type      (snoop_type),
-        .tap_snoop_hit       (u_core.u_control.sn_hit_any),
+        .tap_snoop_hit       (u_frontend_th.u_control.sn_hit_any),
         .tap_snoop_resp      (ctrl_crresp),
         .tap_victim_load     (victim_load),
         .tap_victim_addr     (victim_addr),
-        .tap_victim_way      (u_core.u_control.victim_way_q),
-        .tap_victim_state    (u_core.u_control.mv_victim_state),
+        .tap_victim_way      (u_frontend_th.u_control.victim_way_q),
+        .tap_victim_state    (u_frontend_th.u_control.mv_victim_state),
         .tap_tag_wr_en       (tag_wr_en),
         .tap_tag_wr_set      (tag_wr_set),
         .tap_tag_wr_way      (tap_tag_wr_way),

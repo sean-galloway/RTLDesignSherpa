@@ -8,8 +8,12 @@
 # Shared amber package
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
 
-# The core closure (nine landed FUBs + their house deps)
+# The core closure (CPU plane + coherence core plane aggregate)
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_core.f
+
+# ACE snoop responder (moved out of l1_core in Task 1; amber_top closes
+# it at the top until Task 3's fabric plane)
+-f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
 
 # AXI4 read/write master monitors (complete closures)
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f

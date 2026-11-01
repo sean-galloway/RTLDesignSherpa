@@ -127,7 +127,8 @@ class AmberAceTopTB(L1CoreTB):
 
     @property
     def _tap(self):
-        return self.dut.u_core
+        # l1_core_tb.py now expects _tap.u_core to be the l1_core aggregate.
+        return self.dut
 
     def __init__(self, dut, **kwargs):
         super().__init__(dut, **kwargs)
@@ -440,8 +441,8 @@ class AmberAceTopTB(L1CoreTB):
                     'addr': int(self._tap.coh_req_addr.value),
                     'type': int(self._tap.coh_req_type.value)}))
 
-            if int(self._tap.u_snoop.ctrl_snoop_req.value) \
-                    and int(self._tap.u_control.ctrl_snoop_ready.value):
+            if int(self.dut.u_snoop.ctrl_snoop_req.value) \
+                    and int(self._tap.u_core.u_coh.u_control.ctrl_snoop_ready.value):
                 self._on_snoop_grant(st)
 
             if int(d.mon_valid.value) and int(d.mon_ready.value):
@@ -495,7 +496,7 @@ class AmberAceTopTB(L1CoreTB):
             self._score("nomon: no drop reports",
                         self._drop_reports, 0)
             self._score("nomon: dropped_count stays zero",
-                        int(self._tap.mon_dropped.value), 0)
+                        int(self._tap.u_core.mon_dropped.value), 0)
             return
         if self._drops_reported == 0:
             # no observer drops: the per-class stream is exact

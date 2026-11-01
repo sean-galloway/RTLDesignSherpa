@@ -12,8 +12,12 @@
 # Shared amber package
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
 
-# The core closure (nine landed FUBs + their house deps)
+# The core closure (CPU plane + coherence core plane aggregate)
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_core.f
+
+# ACE snoop responder (moved out of l1_core in Task 1; amber_ace_top
+# closes it at the top until Task 3's fabric plane)
+-f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
 
 # The Table 2.8.1 event->transaction map (own RTL; pkg-only closure)
 -f $AMBER_ROOT/rtl/filelists/amber_ace_issue.f

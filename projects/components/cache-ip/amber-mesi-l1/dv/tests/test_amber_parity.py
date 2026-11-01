@@ -65,7 +65,12 @@ from projects.components.cache_ip.common_ip.dv.golden import (
 
 
 FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
-DUT_TOP = 'l1_core'
+DV_FILELIST_DIR = 'projects/components/cache-ip/common-ip/dv/filelists'
+# Task 1 plane restructure: the ACE snoop responder moved out of l1_core
+# into the fabric plane. The l1_core_fab_tb wrapper composes the aggregate
+# core + snoop responder and exposes the same top-level ports as before,
+# so this suite's stimulus and hierarchical taps survive unchanged.
+DUT_TOP = 'l1_core_fab_tb'
 TEST_PREFIX = 'amber_parity'
 TRACES_DIR = os.path.join(repo_root,
                           'projects/components/cache-ip/common-ip/dv/traces')
@@ -113,9 +118,12 @@ def _run_cell(request, trace, repl_policy, pol_name, sets, ways, line_bytes,
               bus_width, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({})
+    # l1_core_fab_tb.f closes the aggregate core + the snoop responder
+    # (moved to the fabric plane in Task 1) + the wrapper that restores
+    # the pre-restructure top-level port list.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_,
-        filelist_path=f'{FILELIST_DIR}/l1_core.f')
+        filelist_path=f'{DV_FILELIST_DIR}/l1_core_fab_tb.f')
 
     test_name_plus_params = (
         f"test_{TEST_PREFIX}_{trace}_{pol_name}"

@@ -558,16 +558,16 @@ class L1CoreTB(TBBase):
                                     {'addr': addr, 'we': we, 'be': be,
                                      'wdata': wdata}))
 
-            if int(self._tap.coh_req_valid.value):
+            if int(self._tap.u_core.coh_req_valid.value):
                 self.coh_req_count += 1
                 self.events.append((self.cyc, 'coh_req', {
-                    'addr': int(self._tap.coh_req_addr.value),
-                    'type': int(self._tap.coh_req_type.value)}))
+                    'addr': int(self._tap.u_core.coh_req_addr.value),
+                    'type': int(self._tap.u_core.coh_req_type.value)}))
 
             # snoop grant: model-step at the grant cycle -- the DUT state
             # sampled here is exactly the resolution the RTL used
             if int(self._tap.u_snoop.ctrl_snoop_req.value) \
-                    and int(self._tap.u_control.ctrl_snoop_ready.value):
+                    and int(self._tap.u_core.u_coh.u_control.ctrl_snoop_ready.value):
                 self._on_snoop_grant(st)
 
             if int(d.mon_valid.value) and int(d.mon_ready.value):
@@ -657,10 +657,10 @@ class L1CoreTB(TBBase):
         # victim-way parity with the DUT's repl engine: a divergence here
         # poisons every eviction prediction downstream
         self._score(f"{txn['label']}: victim way parity", way,
-                    int(self._tap.u_repl.repl_victim_way.value))
+                    int(self._tap.u_core.u_coh.u_repl.repl_victim_way.value))
         vline = self.tags.get((set_idx, way))
         vstate = self.slot_state.get((set_idx, way), 'I')
-        dut_ts = int(self._tap.u_tag.mem[way * self.SETS + set_idx].value)
+        dut_ts = int(self._tap.u_core.u_coh.u_tag.mem[way * self.SETS + set_idx].value)
         dut_tag, dut_state = dut_ts >> 3, self._decode3(dut_ts & 7)
         # NB: the model's tags map (set, way) -> LINE NUMBER; the array
         # word is {tag, state} with tag = line >> SET_BITS
@@ -1167,7 +1167,7 @@ class L1CoreTB(TBBase):
         self._score("monbus tally: no drop reports pre-congestion",
                     self._drop_reports, 0)
         self._score("monbus: live dropped_count zero pre-congestion",
-                    int(self._tap.mon_dropped.value), 0)
+                    int(self._tap.u_core.mon_dropped.value), 0)
 
     async def _s_monbus_congestion(self):
         self.mon_mode = 'stall'
@@ -1185,12 +1185,12 @@ class L1CoreTB(TBBase):
         self._score("congestion: drop report re-emitted",
                     self._drop_reports > reports0, True)
         for _ in range(500):
-            if int(self._tap.mon_dropped.value) == 0 \
+            if int(self._tap.u_core.mon_dropped.value) == 0 \
                     and not int(self.dut.mon_valid.value):
                 break
             await self._negedge_settled()
         self._score("congestion: dropped_count cleared",
-                    int(self._tap.mon_dropped.value), 0)
+                    int(self._tap.u_core.mon_dropped.value), 0)
         self._scenario('MonbusCongestion')
 
     # ------------------------------------------------------------------

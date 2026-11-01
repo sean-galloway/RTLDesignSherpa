@@ -316,6 +316,22 @@ module amber_ace_top
     logic [7:0]  core_mon_dropped_unused;
 
     // ------------------------------------------------------------------
+    // Fabric (snoop) seam: l1_snoop_resp now lives outside l1_core (Task 1
+    // plane restructure). amber_ace_top closes the responder here as an
+    // intermediate step; Task 3 replaces this with the fabric plane.
+    // ------------------------------------------------------------------
+    logic                     core_snoop_req;
+    logic                     core_snoop_ready;
+    logic                     core_snoop_safe;
+    logic [2:0]               core_snoop_type;
+    logic [ADDR_WIDTH-1:0]    core_snoop_addr;
+    logic [AMBER_CRRESP_WIDTH-1:0] core_crresp;
+    logic [BUS_WIDTH-1:0]     core_cddata;
+    logic                     core_cdlast;
+    logic                     core_cdvalid;
+    logic                     core_cdready;
+
+    // ------------------------------------------------------------------
     // Boundary reset synchronization -- same contract as amber_top: the
     // port aresetn is async-assert of unknown deassert quality, and the
     // N=3 house reset_sync produces the internal reset every block below
@@ -401,18 +417,16 @@ module amber_ace_top
         .fub_axi_buser     (core_buser),
         .fub_axi_bvalid    (core_bvalid),
         .fub_axi_bready    (core_bready),
-        .m_axi_acaddr      (m_axi_acaddr),
-        .m_axi_acsnoop     (m_axi_acsnoop),
-        .m_axi_acprot      (m_axi_acprot),
-        .m_axi_acvalid     (m_axi_acvalid),
-        .m_axi_acready     (m_axi_acready),
-        .m_axi_crresp      (m_axi_crresp),
-        .m_axi_crvalid     (m_axi_crvalid),
-        .m_axi_crready     (m_axi_crready),
-        .m_axi_cddata      (m_axi_cddata),
-        .m_axi_cdlast      (m_axi_cdlast),
-        .m_axi_cdvalid     (m_axi_cdvalid),
-        .m_axi_cdready     (m_axi_cdready),
+        .ctrl_snoop_req    (core_snoop_req),
+        .ctrl_snoop_ready  (core_snoop_ready),
+        .ctrl_snoop_safe   (core_snoop_safe),
+        .ctrl_snoop_type   (core_snoop_type),
+        .ctrl_snoop_addr   (core_snoop_addr),
+        .ctrl_crresp       (core_crresp),
+        .ctrl_cddata       (core_cddata),
+        .ctrl_cdlast       (core_cdlast),
+        .ctrl_cdvalid      (core_cdvalid),
+        .ctrl_cdready      (core_cdready),
         .coh_req_valid     (coh_req_valid),
         .coh_req_addr      (coh_req_addr),
         .coh_req_type      (coh_req_type),
@@ -430,6 +444,41 @@ module amber_ace_top
     logic unused_core_mon;
     assign unused_core_mon = &{1'b0, core_mon_dropped_unused};
     /* verilator lint_on UNUSEDSIGNAL */
+
+    // ------------------------------------------------------------------
+    // ACE snoop responder (moved out of l1_core in Task 1; closed here
+    // until Task 3's fabric plane)
+    // ------------------------------------------------------------------
+    l1_snoop_resp #(
+        .ADDR_WIDTH (ADDR_WIDTH),
+        .DATA_WIDTH (BUS_WIDTH),
+        .LINE_BYTES (LINE_BYTES)
+    ) u_snoop (
+        .aclk           (aclk),
+        .aresetn        (w_aresetn),
+        .m_axi_acaddr   (m_axi_acaddr),
+        .m_axi_acsnoop  (m_axi_acsnoop),
+        .m_axi_acprot   (m_axi_acprot),
+        .m_axi_acvalid  (m_axi_acvalid),
+        .m_axi_acready  (m_axi_acready),
+        .m_axi_crresp   (m_axi_crresp),
+        .m_axi_crvalid  (m_axi_crvalid),
+        .m_axi_crready  (m_axi_crready),
+        .m_axi_cddata   (m_axi_cddata),
+        .m_axi_cdlast   (m_axi_cdlast),
+        .m_axi_cdvalid  (m_axi_cdvalid),
+        .m_axi_cdready  (m_axi_cdready),
+        .ctrl_snoop_req    (core_snoop_req),
+        .ctrl_snoop_addr   (core_snoop_addr),
+        .ctrl_snoop_type   (core_snoop_type),
+        .ctrl_snoop_ready  (core_snoop_ready),
+        .ctrl_snoop_safe   (core_snoop_safe),
+        .ctrl_crresp       (core_crresp),
+        .ctrl_cddata       (core_cddata),
+        .ctrl_cdlast       (core_cdlast),
+        .ctrl_cdvalid      (core_cdvalid),
+        .ctrl_cdready      (core_cdready)
+    );
 
     // ------------------------------------------------------------------
     // amber_ace_issue: the Table 2.8.1 map between the engines and the

@@ -38,7 +38,12 @@ sys.path.insert(0, repo_root)
 from projects.components.cache_ip.common_ip.dv.tbclasses.l1_core_tb import L1CoreTB
 
 FILELIST_DIR = 'projects/components/cache-ip/common-ip/rtl/filelists'
-DUT_TOP = 'l1_core'
+DV_FILELIST_DIR = 'projects/components/cache-ip/common-ip/dv/filelists'
+# Task 1 plane restructure: the ACE snoop responder moved out of l1_core
+# into the fabric plane. The l1_core_fab_tb wrapper composes the aggregate
+# core + snoop responder and exposes the same top-level ports as before,
+# so this suite's stimulus and hierarchical taps survive unchanged.
+DUT_TOP = 'l1_core_fab_tb'
 TEST_PREFIX = 'l1_core'
 
 # (sets, ways, line_bytes, bus_width, repl_policy): amber_repl_t encodings
@@ -63,11 +68,12 @@ async def cocotb_test_l1_core(dut):
 def _run_cell(request, sets, ways, line_bytes, bus_width, repl_policy, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
-    # l1_core.f closes the whole core: the nine landed FUBs plus their
-    # house deps (reset macros, monitor pkgs, gaxi_fifo_sync). No harness.
+    # l1_core_fab_tb.f closes the aggregate core + the snoop responder
+    # (moved to the fabric plane in Task 1) + the wrapper that restores
+    # the pre-restructure top-level port list.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path=f'{FILELIST_DIR}/l1_core.f')
+        filelist_path=f'{DV_FILELIST_DIR}/l1_core_fab_tb.f')
 
     pol = REPL_NAMES[repl_policy]
     test_name_plus_params = (
