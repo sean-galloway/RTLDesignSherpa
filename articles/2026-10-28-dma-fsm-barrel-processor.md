@@ -7,7 +7,7 @@ tags: dma, riscv, fpga, computer-architecture, rtl
 
 I had read about barrel processors and thought they might be useful for a future project. I turned notes from Hennessy and Patterson, and Harris and Harris, into requirements. Kimi helped with coding and validation. A very lean, N-Barrel RV32i, called Gatling, was ready sooner than the project needed. So, I tried to use it in another way.
 
-![Gatling barrel processor cover artwork](assets/dma_fsm_barrel_hero.png)
+![Gatling barrel processor cover artwork](assets/dma-fsm-barrel-processor/dma_fsm_barrel_hero.png)
 
 I name my projects to make them easier to talk about. I called it Gatling. Once it worked, I remembered someone’s suggestion: put a processor into a high-performance DMA.
 
@@ -32,7 +32,7 @@ Firmware takes and validates descriptors, follows chains, commands channel-state
 
 Hardware still advances addresses within a run, decrements engine counters, enforces timeouts, records sticky errors, emits monitor packets, and moves data. A channel reset forces `CH_IDLE`; a fatal fault forces `CH_ERROR` immediately. Those interlocks don’t wait for a firmware polling pass.
 
-![Descriptor policy in firmware above a shared engine-rate datapath](assets/dma_fsm_barrel_control.png)
+![Descriptor policy in firmware above a shared engine-rate datapath](assets/dma-fsm-barrel-processor/dma_fsm_barrel_control.png)
 
 So “replace the FSMs with processors” is useful shorthand, but it’s inaccurate if you take it literally. The processors replace *policy sequencers*. They don’t replace machinery that has to respond on the next clock.
 
@@ -51,7 +51,7 @@ For DMA control, I cared about four things:
 
 Both RAPIDS-G builds instantiate **one Gatling per direction**, two in total. At 16 channels, FSM LUTs grow from 69,184 to 126,820 and firmware LUTs from 77,975 to 141,067. The extra state is channel windows, base queues, and other per-channel logic, so firmware overhead stays in the 11–13% range.
 
-![Gatling channel mapping for 8 and 16 channels](assets/dma_fsm_barrel_slot_sharing.png)
+![Gatling channel mapping for 8 and 16 channels](assets/dma-fsm-barrel-processor/dma_fsm_barrel_slot_sharing.png)
 
 Why not use 16 harts? Each channel would get its own hart, but each hart would wait 16 clocks between instructions. The two-slot build wins the lone-channel short-descriptor test, **3,131 cycles to 4,731**; the 16-hart build wins with every channel busy, **4,620 to 5,383**. The 1 MB results are effectively tied. The eight-hart build keeps half the hart state and stays within 0.6% of the best EXT result. Two 8-hart Gatlings per direction could avoid slot sharing without the longer rotation, but would duplicate core resources. I haven’t built or measured that option.
 
@@ -114,7 +114,7 @@ These techniques hide control behind the in-flight descriptor and behind other c
 
 ## Where the crossover lands
 
-![Measured cycle-ratio crossover for single descriptors and chains](assets/dma_fsm_barrel_crossover.png)
+![Measured cycle-ratio crossover for single descriptors and chains](assets/dma-fsm-barrel-processor/dma_fsm_barrel_crossover.png)
 
 After all that, where does firmware catch the FSM? The chart plots **FSM cycles divided by rapids-g cycles**, so 1.00 is parity and lower values are slower. All data are scheduler simulations with 32-byte beats.
 

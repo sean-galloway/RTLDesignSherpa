@@ -7,7 +7,7 @@ tags: cocotb, verification, rtl, python, hardware
 
 When I started coding RTL on GitHub, I needed to use CocoTB, as it is open source, and I wanted to test each module at the functional unit block, or FUB, level while the design was still fresh in my mind. Write the FUB, wrap a small testbench around it, and find the interface and control bugs right there. I didn't want to wait until the whole component came together, possibly months later, and then hunt for a bug across several integrated blocks.
 
-![Generic valid-ready BFM collateral turning three payload shapes into a readable packet](assets/generic_valid_ready_bfm_hero.png)
+![Generic valid-ready BFM collateral turning three payload shapes into a readable packet](assets/generic-valid-ready-bfm-cocotb/generic_valid_ready_bfm_hero.png)
 
 I also didn't want to keep rewriting the same testbench collateral. Many FUB interfaces are just valid, ready, and a payload, but the payload takes different forms. Sometimes it is one data signal. Sometimes it is a packed struct or a flat vector containing several fields. Sometimes every packet field has its own signal. Hand-connecting each bus functional model, or BFM, was error-prone. The wiring also became one more thing to maintain as the RTL changed.
 
@@ -25,7 +25,7 @@ await cmd.send(cmd.create_packet(op=ACT, bank=2, row=0x234))
 
 Whether `op`, `bank`, and `row` travel in one packed `cmd_pkt` signal or on three separate signals depend on the RTL connection. This shouldn't change how the test describes the transaction.
 
-![One packet description mapped to plain data, a packed vector, or separate packet signals](assets/generic_valid_ready_bfm_payloads.png)
+![One packet description mapped to plain data, a packed vector, or separate packet signals](assets/generic-valid-ready-bfm-cocotb/generic_valid_ready_bfm_payloads.png)
 
 Making that work required three pieces of collateral: `FieldConfig`, `Packet`, and `SignalResolver`.
 
@@ -141,7 +141,7 @@ The master BFM drives valid and payload while honoring ready. The slave BFM driv
 
 The reuse goes beyond putting three constructors behind one function name. The same field description flows through the whole path:
 
-![FieldConfig, Packet, SignalResolver, and data strategies working together in the generic BFM](assets/generic_valid_ready_bfm_architecture.png)
+![FieldConfig, Packet, SignalResolver, and data strategies working together in the generic BFM](assets/generic-valid-ready-bfm-cocotb/generic_valid_ready_bfm_architecture.png)
 
 That's the difference between reusable BFM collateral and yet another protocol driver.
 

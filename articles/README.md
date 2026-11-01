@@ -40,17 +40,20 @@ summary: One or two sentences; becomes the RSS description and the index blurb.
 tags: monitors, soc
 ---
 
-Body markdown. Figures live in `assets/` and are referenced relative:
+Body markdown. Figures live in `assets/<slug>/` and are referenced relative:
 
-![caption](assets/my_figure.png)
+![caption](assets/foo/my_figure.png)
 ```
 
 Rules:
 
 - `title`, `date`, `summary` are required. `tags` optional. `draft: true`
   keeps a file out of the build.
-- Figures go in `assets/` and **must** be referenced as `assets/<file>` —
-  the builder rewrites those to absolute URLs so Medium's importer can fetch
+- Figures go in the article's own folder, `assets/<slug>/` (the slug rule is
+  below), and **must** be referenced as `assets/<slug>/<file>` — the build
+  rejects an image anywhere else. Keep a figure's sources (`.dot`, `.svg`,
+  data `.json`) in the same folder.
+  The builder rewrites those to absolute URLs so Medium's importer can fetch
   them from the RSS feed. Any other image path shape will not travel.
 - The URL slug is the filename stem minus the date prefix:
   `2026-10-20-foo.md` publishes at `…/articles/foo/`.
@@ -91,4 +94,4 @@ python3 articles/build_articles.py --check /tmp/site-check
 
 - `build_articles.py` — the builder/validator (run by CI on every push that
   touches `articles/`; the deploy re-runs it into the staged site).
-- `assets/` — figures referenced by the articles.
+- `assets/<slug>/` — figures for one article, plus their sources.

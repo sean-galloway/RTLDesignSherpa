@@ -7,8 +7,7 @@ root:
     <site>/articles/index.html          article index, newest first
     <site>/articles/<slug>/index.html   one page per article
     <site>/articles/feed.xml            RSS 2.0 feed (Medium/DEV.to import)
-    <site>/articles/assets/*            figures, copied verbatim
-    <site>/articles/medium/*            Medium-specific import pages, copied verbatim
+    <site>/articles/assets/<slug>/*     figures, one folder per article, copied verbatim
 
 Usage:
     python3 articles/build_articles.py <site_root>     # build
@@ -122,9 +121,13 @@ def collect_articles():
                 errors.append(f'{md.name}: bad date "{date}" (want YYYY-MM-DD)')
             pub = None
 
-        # Every referenced image must exist.
+        # Every referenced image must exist, in this article's own
+        # assets/<slug>/ folder (one folder per article keeps assets/ flat).
         for im in IMAGE_RE.finditer(body):
-            if not (ARTICLES_DIR / 'assets' / im.group(2)).is_file():
+            if not im.group(2).startswith(f'{slug}/'):
+                errors.append(f'{md.name}: image assets/{im.group(2)} must live '
+                              f'under assets/{slug}/')
+            elif not (ARTICLES_DIR / 'assets' / im.group(2)).is_file():
                 errors.append(f'{md.name}: missing image assets/{im.group(2)}')
 
         if not errors or all(md.name not in e for e in errors):
@@ -256,9 +259,6 @@ def main():
     assets_src = ARTICLES_DIR / 'assets'
     if assets_src.is_dir():
         shutil.copytree(assets_src, out_dir / 'assets', dirs_exist_ok=True)
-    medium_src = ARTICLES_DIR / 'medium'
-    if medium_src.is_dir():
-        shutil.copytree(medium_src, out_dir / 'medium', dirs_exist_ok=True)
 
     build_index(out_dir, articles)
     build_articles(out_dir, articles)
