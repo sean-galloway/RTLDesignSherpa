@@ -513,7 +513,10 @@ module jet_ace_top
         .BUS_WIDTH      (BUS_WIDTH),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
-        .USE_MONITOR    (USE_MONITOR)
+        .USE_MONITOR    (USE_MONITOR),
+        // jet's historical MonBus agent id for the transport observers
+        // (amber keeps the 16'h00A0 default)
+        .AGENT_ID       (16'h00A1)
     ) u_fab (
         .aclk              (aclk),
         .aresetn           (w_aresetn),

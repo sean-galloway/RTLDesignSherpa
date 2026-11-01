@@ -149,7 +149,7 @@ u_frontend.stage` over the cache-ip dv/ and rtl/top/ sources: zero hits.
   (decl order, call-select, discarded-verdicts ratchet, doc examples, staged
   .sv parse, port-list consumers, markdown links, emoji, filelist contract).
 - `bin/check_task_ids.py`: PASS (138 areas).
-- Commit: `900f190cd` on main (13 files: 2 new planes, 2 recomposed tops,
+- Commit: `17529ac28` on main (13 files: 2 new planes, 2 recomposed tops,
   2 new plane filelists + 3 updated filelists, `bin/filelists.toml`, both
   jet tbclasses, this report force-added past the .gitignore per the T2
   ruling).
@@ -183,3 +183,42 @@ jet_wb_buffer). This matches the pre-restructure green baseline. The run
 exercises the recomposed `jet_top` (core TB + pair rig) end-to-end through
 the retargeted taps; `jet_ace_top` is elaboration-pinned by the Verilator
 lint above (no DV consumer exists for it yet).
+
+## Fix round 1: MonBus AGENT_ID observability regression
+
+The review found that the shared fabric planes hardcoded the transport
+observers' MonBus `AGENT_ID` at `16'h00A0` (amber's value, inherited from
+Task 2's amber-derived wiring), so jet's rd/wr transport packets carried
+0x00A1 before the restructure and 0x00A0 after — an observation-stream
+change, which breaks the zero-functional-change bar. Confirmed against the
+pre-restructure sources: both old jet tops stamped `AGENT_ID 16'h00A1` on
+`u_rd_monlite` and `u_wr_monlite` (`git show dc05be2a0:.../jet_top.sv`
+lines 1354-1355/1441-1442; `jet_ace_top.sv` lines 1475-1476/1571-1572).
+
+### Fix
+
+- `common-ip/rtl/plane/l1_axi4_plane.sv` and `l1_ace_plane.sv`: new
+  `parameter logic [15:0] AGENT_ID = 16'h00A0` (the amber default keeps
+  amber byte-identical), wired to both transport instances in place of the
+  hardcoded literal.
+- `jet-mesi-l1/rtl/top/jet_top.sv` and `jet_ace_top.sv`: pass
+  `.AGENT_ID(16'h00A1)` to `u_fab`.
+- No other MonBus id moved: UNIT_IDs stay 8'h02 (rd) / 8'h03 (wr); the
+  l1_monlite / jet_monlite observers carry no AGENT_ID parameter; the J7
+  stream on `jet_ace_top` stays (accepted; to be documented in T5).
+
+### Re-verification
+
+- Verilator lint (house flow) on all four recomposed tops — `jet_top`,
+  `jet_ace_top`, `amber_top`, `amber_ace_top`: EXIT 0 each.
+- Jet DV suite (full default collection):
+  `cd projects/components/cache-ip/jet-mesi-l1/dv/tests && python -m pytest . -q`
+  — **60 passed, 0 failed in 2847s**.
+- Amber DV suite (planes changed; the amber regression owns the byte-
+  identical check):
+  `cd projects/components/cache-ip/amber-mesi-l1/dv/tests && python -m pytest . -q`
+  — **79 passed, 0 failed in 1927s** (the full default collection, which
+  includes the func-level amber parity thrash_32k/mix_100k cells — the soak
+  T3 deferred to T6 ran green here; T6 still owns the formal re-run).
+- Gates: `filelist_registry.py --check` PASS, `check_task_ids.py` PASS,
+  pre-commit hooks on the fix commit (no --no-verify).

@@ -71,6 +71,10 @@ module l1_ace_plane
     parameter int AXI_ID_WIDTH   = 8,
     parameter int AXI_USER_WIDTH = 1,
     parameter bit USE_MONITOR    = 1'b1,
+    // MonBus agent id stamped by the two transport observers: amber's
+    // 16'h00A0 by default; the jet tops pass 16'h00A1 (their historical
+    // stream id, jet_ace_top.sv pre-restructure).
+    parameter logic [15:0] AGENT_ID = 16'h00A0,
     localparam int STRB_W        = BUS_WIDTH / 8,
     localparam int IW            = AXI_ID_WIDTH,
     localparam int UW            = AXI_USER_WIDTH,
@@ -454,7 +458,7 @@ module l1_ace_plane
     axi4ace_master_rd_monlite #(
         .USE_MONITOR      (USE_MONITOR),
         .UNIT_ID          (8'h02),
-        .AGENT_ID         (16'h00A0),
+        .AGENT_ID         (AGENT_ID),
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH   (ADDR_WIDTH),
         .AXI_DATA_WIDTH   (BUS_WIDTH),
@@ -549,7 +553,7 @@ module l1_ace_plane
     axi4ace_master_wr_monlite #(
         .USE_MONITOR      (USE_MONITOR),
         .UNIT_ID          (8'h03),
-        .AGENT_ID         (16'h00A0),
+        .AGENT_ID         (AGENT_ID),
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH   (ADDR_WIDTH),
         .AXI_DATA_WIDTH   (BUS_WIDTH),
