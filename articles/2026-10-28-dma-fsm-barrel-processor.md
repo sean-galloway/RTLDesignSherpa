@@ -17,10 +17,7 @@ The idea was to replace scheduler FSMs with small processors: not a host CPU, an
 
 The surprising part wasn’t that it worked. It was how badly it lost in one test, and how close it came in another:
 
-| Scheduler-only simulation | FSM cycles | Barrel-RV32I cycles |
-|---|---:|---:|
-| 16 one-beat descriptors, one channel | 131 | 2,371 |
-| Two 1 MB descriptors on every channel | 84,277 | 84,443 |
+![Scheduler-only cycle comparison for FSM and barrel-RV32I](assets/dma-fsm-barrel-processor/dma_fsm_barrel_scheduler_comparison.png)
 
 The first is **18.1×** slower. The second is **0.2%** slower. That gap is the cost/benefit question: how much control work does each descriptor need, and what useful data movement can hide it?
 
@@ -61,13 +58,7 @@ One example shows the benefit: the firmware build supports next-address selector
 
 The out-of-context Kintex-7 comparison:
 
-| Metric | rapids-8ch | rapids-g-8ch | rapids-16ch | rapids-g-16ch |
-|---|---:|---:|---:|---:|
-| LUTs | 69,184 | 77,975 | 126,820 | 141,067 |
-| Registers | 56,105 | 58,837 | 101,808 | 104,738 |
-| BRAM tiles | 64 | 70 | 128 | 134 |
-| DSPs | 64 | 0 | 128 | 0 |
-| Worst-negative slack at 100 MHz | +0.684 ns | +0.533 ns | +0.079 ns | +0.050 ns |
+![FPGA implementation metrics for RAPIDS and RAPIDS-G at 8 and 16 channels](assets/dma-fsm-barrel-processor/dma_fsm_barrel_implementation.png)
 
 Firmware costs **12.7% more LUTs at 8 channels** and **11.2% at 16**, plus six BRAM tiles. Timing still closes, with less margin. In exchange, all 64 DSPs at 8 channels and 128 at 16 disappear: firmware repeated addition replaces the hardware index-by-stride multipliers.
 
@@ -77,16 +68,7 @@ These FPGA implementation results are not ASIC area or power measurements. Utili
 
 I ran every scheduler-limit scenario with 4 and 8 contexts on the same 8-channel build and the same committed firmware. Four contexts mean two channel slots per hart; eight mean one. The current RTL doesn’t support two contexts.
 
-| Scenario | FSM cycles | 4-context cycles | 8-context cycles |
-|---|---:|---:|---:|
-| 16 one-beat descriptors, one channel | 131 | 1,571 | 2,371 |
-| 16 one-beat descriptors, every channel | 131 | 2,699 | 2,316 |
-| 16 64-beat descriptors, every channel | 1,255 | 2,777 | 2,389 |
-| Four 64 KB descriptors, every channel | 9,248 | 9,415 | 9,412 |
-| Two 1 MB descriptors, every channel | 84,277 | 84,444 | 84,443 |
-| EXT, runs of four, 64 beats | 407 | 39,002 | 39,201 |
-| EXT, per beat, 64 beats | 1,043 | 128,922 | 130,086 |
-| EXT, runs of 256, 1 MB | 29,574 | 70,253 | 70,641 |
+![Scheduler simulation cycles by scenario and barrel context count](assets/dma-fsm-barrel-processor/dma_fsm_barrel_context_comparison.png)
 
 With one busy channel, 4 contexts are **34% faster** than 8: the active hart gets an issue slot every four cycles rather than every eight. Turn on every channel and the answer flips. Now 4 contexts are **17% slower** because each hart must walk two slots. At 64 beats, it’s 16% slower. At 1 MB, the difference is one cycle.
 
@@ -120,13 +102,7 @@ After all that, where does firmware catch the FSM? The chart plots **FSM cycles 
 
 The thresholds tell the practical story:
 
-| Shape | Busy channels | Within 5% of FSM | Within 1% of FSM |
-|---|---:|---:|---:|
-| Single descriptor, sink | 1 of 8 | 128 KB | 512 KB |
-| Single descriptor, sink | 8 of 8 | 16 KB | 64 KB |
-| Single descriptor, source | 8 of 8 | 16 KB | 128 KB |
-| 16-descriptor chain, sink | 1 of 8 | 4 KB | 16 KB |
-| 16-descriptor chain, interleaved sink | 8 of 8 | 512 B | 4 KB |
+![Descriptor sizes where barrel-RV32I comes within 5 percent and 1 percent of FSM performance](assets/dma-fsm-barrel-processor/dma_fsm_barrel_crossover_thresholds.png)
 
 These are **bytes per descriptor**, not per run. Chains overlap the next head with the active transfer, and multiple channels provide data movement behind which firmware can work. A lone descriptor has no advantage, so fixed firmware cost dominates longer.
 

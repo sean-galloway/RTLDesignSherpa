@@ -55,6 +55,8 @@ Rules:
   data `.json`) in the same folder.
   The builder rewrites those to absolute URLs so Medium's importer can fetch
   them from the RSS feed. Any other image path shape will not travel.
+- Use PNGs for tables instead of Markdown tables, with descriptive alt text.
+  Medium's importer does not reliably preserve Markdown or HTML tables.
 - The URL slug is the filename stem minus the date prefix:
   `2026-10-20-foo.md` publishes at `…/articles/foo/`.
 - House style applies: no emoji (they break the PDF pipeline discipline and
