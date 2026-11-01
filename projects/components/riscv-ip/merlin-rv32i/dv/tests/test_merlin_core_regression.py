@@ -122,10 +122,12 @@ async def cocotb_test_merlin_core_load_use_distances(dut):
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_merlin_core_mem_wait_in_wb(dut):
-    """IMPORTANT-1: mem_wait asserted while a load occupies WB.
+    """IMPORTANT-1: mem_wait parks a load in WB while its follower sits in MEM.
 
-    The follower in MEM addresses a different word.  The waited load must
-    retire with its own data, not the follower's word.
+    The first load's request is accepted and captured, then mem_wait is
+    asserted so load1 advances into WB while load2 is in MEM presenting a
+    different address.  The waited load must retire with its own data, not
+    the follower's word.
     """
     imem_words = load_verilog_hex(PROGRAMS_DIR / "mem_wait_in_wb.hex")
     golden = RV32IInterpreter(imem_words, reset_addr=0x0000_0000)
@@ -145,11 +147,11 @@ async def cocotb_test_merlin_core_mem_wait_in_wb(dut):
         prev_load_req[0] = is_load
         if first_load_cycle[0] is not None:
             rel = cycle - first_load_cycle[0]
-            # Assert mem_wait for the cycle the first load request is observed
-            # and the next cycle.  The first cycle lets the memory accept the
-            # load address; the second cycle holds the load in WB while the
-            # follower sits in MEM with dmem_req suppressed.
-            return rel <= 1
+            # Fire one cycle after the rising edge of the first load request.
+            # That gives the load one accepted request cycle (capture), then
+            # asserts mem_wait so load1 is parked in WB while load2 sits in
+            # MEM with dmem_req suppressed.
+            return rel == 1
         return False
 
     await tb.run(pulse_mem_wait=pulse_mem_wait)
@@ -170,6 +172,17 @@ async def cocotb_test_merlin_core_mem_wait_in_wb(dut):
         f"stalled load1 rd_wdata=0x{load1['rd_wdata']:x} expected 0x12345678")
     assert load2["rd_wdata"] == 0xabcddef0, (
         f"follower load2 rd_wdata=0x{load2['rd_wdata']:x} expected 0xabcddef0")
+
+    # The trace is sampled at the same falling edge that drives mem_wait, so
+    # it cannot see a clobbered commit edge.  The architectural ground truth
+    # is the register file: read x13/x14 back out of the DUT.
+    x13 = int(dut.u_merlin_core.u_regfile.regs[13].value)
+    x14 = int(dut.u_merlin_core.u_regfile.regs[14].value)
+    assert x13 == 0x12345678, (
+        f"regfile x13=0x{x13:08x}: waited load committed the wrong word "
+        f"(dmem_rdata clobbered while parked in WB)")
+    assert x14 == 0xabcddef0, (
+        f"regfile x14=0x{x14:08x}: follower load corrupted")
 
     dut._log.info(
         f"mem_wait_in_wb: load1 retired at cycle {load1['cycle']} with "
