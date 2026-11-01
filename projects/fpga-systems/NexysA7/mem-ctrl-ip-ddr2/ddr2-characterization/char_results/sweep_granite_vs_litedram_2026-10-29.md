@@ -13,7 +13,7 @@ cells: **42 win, 18 tie, 0 lose** (write and read averaged, a tie is within
 idle gap: one bank or one stream at a time, where the DRAM's own timing or
 the gap sets the ceiling for both. Incremental is a narrow win (2-3
 percent). The large wins are the patterns that need more than one bank
-busy at a time. LiteDRAM is about 3.5x smaller and has the
+busy at a time. LiteDRAM is about 3.7x smaller and has the
 lower unloaded read latency (18 cycles against 23).
 
 | cell (write / read MB/s) | granite 100 | LiteDRAM 100 | granite 75 | LiteDRAM 75 | pumice 50 |
@@ -75,16 +75,17 @@ characterization engines, the UART bridge or the debug RAMs):
 | | granite | pumice | LiteDRAM |
 |---|---|---|---|
 | instance | `granite_top_geared` | `pumice_top_geared` | `litedram_core` minus `VexRiscv` and `a7ddrphy` cells |
-| LUT (of which LUTRAM) | 7,890 (416) | 11,897 (432) | about 2,260 (235) |
-| FF | 4,987 | 6,509 | about 1,580 |
+| LUT (of which LUTRAM) | 8,284 (416) | 11,897 (432) | about 2,260 (235) |
+| FF | 5,019 | 6,509 | about 1,580 |
 | RAMB36 | 2 | 2 | 0-3 (see note) |
 | DSP | 0 | 0 | 0 |
-| checkpoint | 100 MHz `hx` build, 2026-10-31 | build-perf, 2026-10-27 | 100 MHz build, 2026-10-31 |
-| read MB/s per 1,000 LUT, random window | 83 | 24 (at 50 MHz) | 176 |
-| read MB/s per 1,000 LUT, incremental 16-beat | 98 | 32 (at 50 MHz) | 335 |
+| checkpoint | 100 MHz `own3` build, 2026-11-01 | build-perf, 2026-10-27 | 100 MHz build, 2026-10-31 |
+| read MB/s per 1,000 LUT, random window | 79 | 24 (at 50 MHz) | 176 |
+| read MB/s per 1,000 LUT, incremental 16-beat | 93 | 32 (at 50 MHz) | 335 |
 
 - **What each count includes:**
-  - granite's count includes its CSR block (362 LUT, 501 FF). The rest is `granite_core`: the per-bank queue store 2,994 LUT, the AXI plane 2,166, the scheduler 1,983, the DFI plane 284 and the init plane 113.
+  - granite's count includes its CSR block (379 LUT, 501 FF). The rest is `granite_core`: the per-bank queue store 3,163 LUT, the AXI plane 2,213, the scheduler 2,102 (of it the bank pick 878), the DFI plane 326 and the init plane 113.
+  - How it grew: `hx` (2026-10-31) 7,890 LUT / 4,987 FF; `ard2_100` 8,190 / 4,997 (the store head bypass, AR direct placement and the DFI command fall-through, +300 LUT); `own3_100` 8,284 / 5,019 (bank ownership, the idle hold and the parallel stale one-hot: the bank pick 774 -> 878 LUT, 203 -> 216 FF; +94 LUT, 1.1 percent).
   - LiteDRAM's core is one flat module, so its controller figure is the core total minus the CPU subtree (Vivado hierarchy) and minus the cells named `a7ddrphy` (208 LUT, 496 FF). What remains still holds the SoC glue (Wishbone, CSR bus, UART), so it is an upper bound.
   - Of the core's block RAMs, 9 are the CPU's, 8 the BIOS ROM and 2 its SRAM. That leaves 3 RAMB36 at most for the controller and the glue.
 - **pumice:** the checkpoint predates fast read release (the RTL default since 2026-10-31).

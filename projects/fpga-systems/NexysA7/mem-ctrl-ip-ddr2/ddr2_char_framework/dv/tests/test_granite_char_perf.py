@@ -725,7 +725,8 @@ async def cocotb_test_granite_perf(dut):
         # scheduler: 174 col_major_interleaved, 1 476 incremental). Fails on
         # a starved direction, not on a slow one.
         if fk.startswith("mg_") and f.get("rd_lat_max") is not None:
-            assert f["rd_lat_max"] < 4096, f"{fk}: worst read latency {f['rd_lat_max']} cycles (starved)"
+            bound = 1024 if fk == "mg_col_ilv" else 4096
+            assert f["rd_lat_max"] < bound, f"{fk}: worst read latency {f['rd_lat_max']} cycles (starved)"
 
     # Only the bank-STATE violations are checked: they carry no unit. The
     # model's timing checks (tRCD / tRP / tRFC ...) compare its own tick count
@@ -753,7 +754,15 @@ async def cocotb_test_granite_perf(dut):
 # =============================================================================
 # pytest wrapper
 # =============================================================================
-def test_granite_char_perf(request):
+def _run_granite_perf(request, over=None):
+    """Build and run the perf proxy. `over` pins env knobs for a wrapper
+    (the leveled multigen cells); everything else reads the caller's env."""
+    over = over or {}
+
+    def _g(key, default=None):
+        return str(over[key]) if key in over else os.environ.get(key, default)
+
+    clk_hz = int(_g("TEST_FPGA_CLK_HZ", str(FPGA_CLK_HZ)), 0)
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "granite_char_uart_tb_top"
     verilog_sources, includes = get_sources_from_filelist(
@@ -766,77 +775,79 @@ def test_granite_char_perf(request):
 
     extra_env = {
         "DUT": dut_name,
+        # the sim process derives its clock constants from this
+        "TEST_FPGA_CLK_HZ": str(clk_hz),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
-        "PERF_DUMP": os.environ.get(
+        "PERF_DUMP": _g(
             "PERF_DUMP", os.path.join(log_dir, f"perf_dump_{tag}.json")),
         # trace knobs must ride extra_env to reliably reach the sim process
-        "PERF_CMD_TRACE": os.environ.get("PERF_CMD_TRACE", "0"),
-        "PERF_GATE_TRACE": os.environ.get("PERF_GATE_TRACE", ""),
-        "PERF_PICK_PROBE": os.environ.get("PERF_PICK_PROBE", ""),
-        "PERF_LAT_PROBE": os.environ.get("PERF_LAT_PROBE", ""),
-        "TEST_MAX_OUT": os.environ.get("TEST_MAX_OUT", "0"),
-        "PERF_DRAM_TRACE": os.environ.get("PERF_DRAM_TRACE", ""),
-        "TEST_PAGE_MODE": os.environ.get("TEST_PAGE_MODE", ""),
-        "TEST_TR_INIT": os.environ.get("TEST_TR_INIT", ""),
-        "MISM_PROBE": os.environ.get("MISM_PROBE", "0"),
-        "MISM_DUMP": os.environ.get("MISM_DUMP", ""),
-        "DFI_CMD_TRACE": os.environ.get("DFI_CMD_TRACE", "0"),
-        "TEST_PAGE_POLICY": os.environ.get("TEST_PAGE_POLICY", ""),
-        "TEST_ADDR_SCHEME": os.environ.get("TEST_ADDR_SCHEME", ""),
-        "TEST_TREFI": os.environ.get("TEST_TREFI", "585"),
-        "TEST_TXN": os.environ.get("TEST_TXN", "256"),
-        "TEST_GAP": os.environ.get("TEST_GAP", "0"),
-        "TEST_BURST_LEN": os.environ.get("TEST_BURST_LEN", "8"),
-        "TEST_FAMILIES": os.environ.get("TEST_FAMILIES", "incremental,row_major,col_ilv,col_major"),
-        "TEST_MG_CFG": os.environ.get("TEST_MG_CFG", "defaults"),
-        "TEST_MG_RD": os.environ.get("TEST_MG_RD", "2"),
-        "TEST_NUM_GEN": os.environ.get("TEST_NUM_GEN", "1"),
-        "TEST_CMD_DELAY": os.environ.get("TEST_CMD_DELAY", "0"),
-        "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),
-        "TEST_T_RDDATA_EN": os.environ.get("TEST_T_RDDATA_EN", "4"),
-        "TEST_RD_PHASE": os.environ.get("TEST_RD_PHASE", "0"),
-        "TEST_WR_PHASE": os.environ.get("TEST_WR_PHASE", "0"),
+        "PERF_CMD_TRACE": _g("PERF_CMD_TRACE", "0"),
+        "PERF_GATE_TRACE": _g("PERF_GATE_TRACE", ""),
+        "PERF_PICK_PROBE": _g("PERF_PICK_PROBE", ""),
+        "PERF_LAT_PROBE": _g("PERF_LAT_PROBE", ""),
+        "TEST_MAX_OUT": _g("TEST_MAX_OUT", "0"),
+        "PERF_DRAM_TRACE": _g("PERF_DRAM_TRACE", ""),
+        "TEST_PAGE_MODE": _g("TEST_PAGE_MODE", ""),
+        "TEST_TR_INIT": _g("TEST_TR_INIT", ""),
+        "MISM_PROBE": _g("MISM_PROBE", "0"),
+        "MISM_DUMP": _g("MISM_DUMP", ""),
+        "DFI_CMD_TRACE": _g("DFI_CMD_TRACE", "0"),
+        "TEST_PAGE_POLICY": _g("TEST_PAGE_POLICY", ""),
+        "TEST_ADDR_SCHEME": _g("TEST_ADDR_SCHEME", ""),
+        "TEST_TREFI": _g("TEST_TREFI", "585"),
+        "TEST_TXN": _g("TEST_TXN", "256"),
+        "TEST_GAP": _g("TEST_GAP", "0"),
+        "TEST_BURST_LEN": _g("TEST_BURST_LEN", "8"),
+        "TEST_FAMILIES": _g("TEST_FAMILIES", "incremental,row_major,col_ilv,col_major"),
+        "TEST_MG_CFG": _g("TEST_MG_CFG", "defaults"),
+        "TEST_MG_RD": _g("TEST_MG_RD", "2"),
+        "TEST_NUM_GEN": _g("TEST_NUM_GEN", "1"),
+        "TEST_CMD_DELAY": _g("TEST_CMD_DELAY", "0"),
+        "TEST_T_PHY_WRLAT": _g("TEST_T_PHY_WRLAT", "0"),
+        "TEST_T_RDDATA_EN": _g("TEST_T_RDDATA_EN", "4"),
+        "TEST_RD_PHASE": _g("TEST_RD_PHASE", "0"),
+        "TEST_WR_PHASE": _g("TEST_WR_PHASE", "0"),
         "TEST_DFI_RATE": str(DFI_RATE),
         "TEST_DRAM_BL": str(DRAM_BL),
         "TEST_DRAM_BEAT_BYTES": str(DRAM_BEAT_BYTES),
         "TEST_DRAM_DEVICE_BYTES": str(DRAM_DEVICE_BYTES),
-        "TEST_STRICT_WRITE_TIMING": os.environ.get("TEST_STRICT_WRITE_TIMING", "0"),
-        "TEST_WRITE_LATENCY": os.environ.get("TEST_WRITE_LATENCY", "0"),
-        "TEST_STRICT_READ_TIMING": os.environ.get("TEST_STRICT_READ_TIMING", "0"),
-        "TEST_READ_LATENCY": os.environ.get("TEST_READ_LATENCY", "8"),
+        "TEST_STRICT_WRITE_TIMING": _g("TEST_STRICT_WRITE_TIMING", "0"),
+        "TEST_WRITE_LATENCY": _g("TEST_WRITE_LATENCY", "0"),
+        "TEST_STRICT_READ_TIMING": _g("TEST_STRICT_READ_TIMING", "0"),
+        "TEST_READ_LATENCY": _g("TEST_READ_LATENCY", "8"),
     }
-    params = {"FPGA_CLK_HZ": str(FPGA_CLK_HZ),
-              "UART_BAUD": str(UART_BAUD),
+    params = {"FPGA_CLK_HZ": str(clk_hz),
+              "UART_BAUD": str(clk_hz // CLKS_PER_BIT),
               "ROW_WIDTH": str(ROW_W),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT_BYTES * 8),
-              "STORE_MERGE_EN": os.environ.get("TEST_STORE_MERGE_EN", "1"),
-              "AXI_DATA_WIDTH": os.environ.get("TEST_AXI_DATA_WIDTH", "64"),
+              "STORE_MERGE_EN": _g("TEST_STORE_MERGE_EN", "1"),
+              "AXI_DATA_WIDTH": _g("TEST_AXI_DATA_WIDTH", "64"),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEVICE_BYTES * 8),
               "DFI_RATE": str(DFI_RATE),
               "DRAM_BL": str(DRAM_BL),
               # at least the macro default; TEST_NUM_GEN=8 builds eight injectors
-              "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0))),
+              "NUM_GEN": str(max(4, int(_g("TEST_NUM_GEN", "1"), 0))),
               # granite_core storage / timing knobs (report 5.10 items 1, 3, 5);
               # defaults are the board build (FIFO store, 8 slots, pool-deep bank queues)
-              "NUM_ENTRIES": os.environ.get("TEST_NUM_ENTRIES", "8"),
-              "STORE_BACKEND": os.environ.get("TEST_STORE_BACKEND", "1"),
-              "BANK_FIFO_DEPTH": os.environ.get("TEST_BANK_FIFO_DEPTH", "0"),
-              "HEAD2_EN": os.environ.get("TEST_HEAD2_EN", "1"),
-              "DFI_CDC_EN": os.environ.get("TEST_DFI_CDC_EN", "0"),
-              "HAS_SNARF": os.environ.get("TEST_HAS_SNARF", "0"),
-              "INTAKE_FIFO_DEPTH": os.environ.get("TEST_INTAKE_FIFO_DEPTH", "0"),
-              "AXI_SKID_DEPTH": os.environ.get("TEST_AXI_SKID_DEPTH", "2"),
-              "SHARED_ADDR_MAP": os.environ.get("TEST_SHARED_ADDR_MAP", "0"),
-              "HAS_PAGE_POLICY": os.environ.get("TEST_HAS_PAGE_POLICY", "1"),
-              "BANK_TW": os.environ.get("TEST_BANK_TW", "5"),
-              "BANK_CAP_MIXED": os.environ.get("TEST_BANK_CAP_MIXED", "6"),
-              "HAS_AGE": os.environ.get("TEST_HAS_AGE", "0"),
-              "PP_TIMEOUT_CLOSE": os.environ.get("TEST_PP_TIMEOUT_CLOSE", "1"),
-              "DFI_CMD_FIFO_DEPTH": os.environ.get("TEST_DFI_CMD_FIFO_DEPTH", "4"),
-              "DFI_WD_FIFO_DEPTH": os.environ.get("TEST_DFI_WD_FIFO_DEPTH", "16"),
-              "DFI_RD_FIFO_DEPTH": os.environ.get("TEST_DFI_RD_FIFO_DEPTH", "4"),
-              "FIXED_TIMINGS": os.environ.get("TEST_FIXED_TIMINGS", "0")}
+              "NUM_ENTRIES": _g("TEST_NUM_ENTRIES", "8"),
+              "STORE_BACKEND": _g("TEST_STORE_BACKEND", "1"),
+              "BANK_FIFO_DEPTH": _g("TEST_BANK_FIFO_DEPTH", "0"),
+              "HEAD2_EN": _g("TEST_HEAD2_EN", "1"),
+              "DFI_CDC_EN": _g("TEST_DFI_CDC_EN", "0"),
+              "HAS_SNARF": _g("TEST_HAS_SNARF", "0"),
+              "INTAKE_FIFO_DEPTH": _g("TEST_INTAKE_FIFO_DEPTH", "0"),
+              "AXI_SKID_DEPTH": _g("TEST_AXI_SKID_DEPTH", "2"),
+              "SHARED_ADDR_MAP": _g("TEST_SHARED_ADDR_MAP", "0"),
+              "HAS_PAGE_POLICY": _g("TEST_HAS_PAGE_POLICY", "1"),
+              "BANK_TW": _g("TEST_BANK_TW", "5"),
+              "BANK_CAP_MIXED": _g("TEST_BANK_CAP_MIXED", "6"),
+              "HAS_AGE": _g("TEST_HAS_AGE", "0"),
+              "PP_TIMEOUT_CLOSE": _g("TEST_PP_TIMEOUT_CLOSE", "1"),
+              "DFI_CMD_FIFO_DEPTH": _g("TEST_DFI_CMD_FIFO_DEPTH", "4"),
+              "DFI_WD_FIFO_DEPTH": _g("TEST_DFI_WD_FIFO_DEPTH", "16"),
+              "DFI_RD_FIFO_DEPTH": _g("TEST_DFI_RD_FIFO_DEPTH", "4"),
+              "FIXED_TIMINGS": _g("TEST_FIXED_TIMINGS", "0")}
     compile_args = [
         "+define+USE_ASYNC_RESET",
         # expose internal scheduler signals to the gate/cmd trace probes
@@ -851,6 +862,39 @@ def test_granite_char_perf(request):
         testcase="cocotb_test_granite_perf",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,
         parameters=params, compile_args=compile_args,
-        waves=bool(int(os.environ.get("WAVES", "0"))),
-        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        waves=bool(int(_g("WAVES", "0"))),
+        plus_args=(["--trace"] if int(_g("WAVES", "0")) else []),
         keep_files=True, timescale="1ns/1ps")
+
+
+def test_granite_char_perf(request):
+    _run_granite_perf(request)
+
+
+# The board's multigen / concurrent host path (mg_<family>, one writer and
+# TEST_MG_RD readers) at the board's 100 MHz, as a leveled regression: the
+# direction lock of granite TASK-003 (2026-11-01) starved one bank's read for
+# a whole write stream there and in no other proxy family. tREFI 772 is the
+# phase the lock was traced at. Each cell asserts integrity and the starvation
+# bound (cocotb side): a lock reads thousands of cycles, the fixed scheduler
+# 175 on col_major_interleaved.
+_MG_CELLS = {
+    "gate": [("fixed_open_tr2", 2, "mg_col_ilv", 512)],
+    "func": [("fixed_open_tr2", 2, "mg_col_ilv", 1024),
+             ("defaults", 2, "mg_col_ilv", 1024),
+             ("fixed_open_tr2", 1, "mg_col_ilv", 1024)],
+    "full": [("fixed_open_tr2", 2, "mg_col_ilv,mg_incremental", 2000),
+             ("defaults", 2, "mg_col_ilv,mg_incremental", 2000),
+             ("open_page", 2, "mg_col_ilv,mg_incremental", 2000),
+             ("fixed_open_tr2", 1, "mg_col_ilv,mg_incremental", 2000),
+             ("defaults", 1, "mg_col_ilv,mg_incremental", 2000)],
+}
+_MG_LEVEL = os.environ.get("TEST_LEVEL", "gate").lower()
+
+
+@pytest.mark.parametrize("cfg, n_rd, fams, txn", _MG_CELLS.get(_MG_LEVEL, _MG_CELLS["gate"]))
+def test_granite_char_perf_mg(request, cfg, n_rd, fams, txn):
+    _run_granite_perf(request, {
+        "TEST_FPGA_CLK_HZ": 100_000_000, "TEST_T_PHY_WRLAT": 1, "TEST_TREFI": 772,
+        "TEST_FAMILIES": fams, "TEST_MG_CFG": cfg, "TEST_MG_RD": n_rd, "TEST_TXN": txn,
+    })
