@@ -20,6 +20,8 @@
 module merlin_hazard_tb_top (
     input  logic [4:0] id_rs1_addr,
     input  logic [4:0] id_rs2_addr,
+    input  logic [4:0] fwd_rs1_addr,
+    input  logic [4:0] fwd_rs2_addr,
     input  logic [4:0] idex_rd_addr,
     input  logic       idex_rd_wen,
     input  logic       idex_is_load,
@@ -39,6 +41,8 @@ module merlin_hazard_tb_top (
   merlin_hazard u_hazard (
       .id_rs1_addr  (id_rs1_addr),
       .id_rs2_addr  (id_rs2_addr),
+      .fwd_rs1_addr (fwd_rs1_addr),
+      .fwd_rs2_addr (fwd_rs2_addr),
       .idex_rd_addr (idex_rd_addr),
       .idex_rd_wen  (idex_rd_wen),
       .idex_is_load (idex_is_load),

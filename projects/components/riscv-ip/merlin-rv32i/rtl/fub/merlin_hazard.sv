@@ -39,8 +39,15 @@
 `timescale 1ns / 1ps
 
 module merlin_hazard (
+    // ID-stage source addresses used for the load-use interlock.
     input  logic [4:0] id_rs1_addr,
     input  logic [4:0] id_rs2_addr,
+    // EX-stage source addresses used for forwarding-select generation.
+    // In the core these are the sources of the instruction currently in EX,
+    // while id_rs1_addr/id_rs2_addr are the sources of the instruction
+    // currently in ID, so a single unit can serve both roles.
+    input  logic [4:0] fwd_rs1_addr,
+    input  logic [4:0] fwd_rs2_addr,
     input  logic [4:0] idex_rd_addr,
     input  logic       idex_rd_wen,
     input  logic       idex_is_load,
@@ -63,18 +70,18 @@ module merlin_hazard (
   // FWD_EXMEM is the instruction currently in the EX/MEM stage; FWD_MEMWB is
   // the instruction in the MEM/WB stage.  x0 is never a valid producer.
   always_comb begin
-    if ((exmem_rd_addr != 5'd0) && exmem_rd_wen && (exmem_rd_addr == id_rs1_addr))
+    if ((exmem_rd_addr != 5'd0) && exmem_rd_wen && (exmem_rd_addr == fwd_rs1_addr))
       fwd_a = FWD_EXMEM;
-    else if ((memwb_rd_addr != 5'd0) && memwb_rd_wen && (memwb_rd_addr == id_rs1_addr))
+    else if ((memwb_rd_addr != 5'd0) && memwb_rd_wen && (memwb_rd_addr == fwd_rs1_addr))
       fwd_a = FWD_MEMWB;
     else
       fwd_a = FWD_IDEX;
   end
 
   always_comb begin
-    if ((exmem_rd_addr != 5'd0) && exmem_rd_wen && (exmem_rd_addr == id_rs2_addr))
+    if ((exmem_rd_addr != 5'd0) && exmem_rd_wen && (exmem_rd_addr == fwd_rs2_addr))
       fwd_b = FWD_EXMEM;
-    else if ((memwb_rd_addr != 5'd0) && memwb_rd_wen && (memwb_rd_addr == id_rs2_addr))
+    else if ((memwb_rd_addr != 5'd0) && memwb_rd_wen && (memwb_rd_addr == fwd_rs2_addr))
       fwd_b = FWD_MEMWB;
     else
       fwd_b = FWD_IDEX;

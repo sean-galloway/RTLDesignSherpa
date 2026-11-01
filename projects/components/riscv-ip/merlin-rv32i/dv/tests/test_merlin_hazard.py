@@ -37,10 +37,16 @@ FWD_MEMWB = 2
 
 
 def _set_inputs(dut, **kwargs):
-    """Drive named scalar inputs to the DUT; unspecified inputs default to 0."""
+    """Drive named scalar inputs to the DUT; unspecified inputs default to 0.
+
+    For unit-test convenience the forwarding source addresses default to the
+    ID-stage source addresses, so a single vector describes one consumer.
+    """
     defaults = {
         "id_rs1_addr": 0,
         "id_rs2_addr": 0,
+        "fwd_rs1_addr": kwargs.get("fwd_rs1_addr", kwargs.get("id_rs1_addr", 0)),
+        "fwd_rs2_addr": kwargs.get("fwd_rs2_addr", kwargs.get("id_rs2_addr", 0)),
         "idex_rd_addr": 0,
         "idex_rd_wen": 0,
         "idex_is_load": 0,

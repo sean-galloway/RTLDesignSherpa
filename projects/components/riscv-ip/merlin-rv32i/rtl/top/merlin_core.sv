@@ -297,16 +297,19 @@ module merlin_core #(
     // Hazard / forwarding unit and load-use interlock
     // -----------------------------------------------------------------
     logic idex_is_load;
+    logic [1:0] ex_fwd_a, ex_fwd_b;
 
     assign idex_is_load = id_ex_q.dmem_req & ~id_ex_q.dmem_we;
 
-    // The hazard unit is used for load-use stall detection and for the
-    // branch flush broadcast.  The actual operand forwarding muxes are
-    // recomputed in EX (below) against the instruction currently in EX,
-    // using the same EX/MEM-priority rule the unit encodes.
+    // The hazard unit generates the forwarding selects for the instruction
+    // currently in EX, the load-use stall for the instruction entering EX,
+    // and the branch-flush broadcast.  Its fwd_a/fwd_b are the single source
+    // of truth for the EX-stage operand muxes below.
     merlin_hazard u_hazard (
         .id_rs1_addr  (id_ex_d.rs1_addr),
         .id_rs2_addr  (id_ex_d.rs2_addr),
+        .fwd_rs1_addr (id_ex_q.rs1_addr),
+        .fwd_rs2_addr (id_ex_q.rs2_addr),
         .idex_rd_addr (id_ex_q.rd_addr),
         .idex_rd_wen  (id_ex_q.rd_wen & id_ex_q.valid),
         .idex_is_load (idex_is_load),
@@ -315,8 +318,8 @@ module merlin_core #(
         .memwb_rd_addr(mem_wb_q.rd_addr),
         .memwb_rd_wen (mem_wb_q.rd_wen & mem_wb_q.valid),
         .ex_flush     (ex_flush),
-        .fwd_a        (),
-        .fwd_b        (),
+        .fwd_a        (ex_fwd_a),
+        .fwd_b        (ex_fwd_b),
         .stall_ifid   (stall_ifid),
         .flush_ifid   (flush_ifid),
         .flush_idex   (flush_idex)
@@ -339,33 +342,10 @@ module merlin_core #(
     // -----------------------------------------------------------------
     // EX stage: ALU, branch comparator, load/store align check
     // -----------------------------------------------------------------
-    logic [1:0] ex_fwd_a, ex_fwd_b;
     logic [31:0] ex_rs1_fwd;
     logic [31:0] ex_rs2_fwd;
 
-    // Forwarding priority: EX/MEM is the newer producer.
-    always_comb begin
-        if ((ex_mem_q.rd_addr != 5'd0) && ex_mem_q.rd_wen && ex_mem_q.valid &&
-            (ex_mem_q.rd_addr == id_ex_q.rs1_addr))
-            ex_fwd_a = FWD_EXMEM;
-        else if ((mem_wb_q.rd_addr != 5'd0) && mem_wb_q.rd_wen && mem_wb_q.valid &&
-                 (mem_wb_q.rd_addr == id_ex_q.rs1_addr))
-            ex_fwd_a = FWD_MEMWB;
-        else
-            ex_fwd_a = FWD_IDEX;
-    end
-
-    always_comb begin
-        if ((ex_mem_q.rd_addr != 5'd0) && ex_mem_q.rd_wen && ex_mem_q.valid &&
-            (ex_mem_q.rd_addr == id_ex_q.rs2_addr))
-            ex_fwd_b = FWD_EXMEM;
-        else if ((mem_wb_q.rd_addr != 5'd0) && mem_wb_q.rd_wen && mem_wb_q.valid &&
-                 (mem_wb_q.rd_addr == id_ex_q.rs2_addr))
-            ex_fwd_b = FWD_MEMWB;
-        else
-            ex_fwd_b = FWD_IDEX;
-    end
-
+    // EX-stage operand forwarding muxes, driven by u_hazard's selects.
     assign ex_rs1_fwd = (ex_fwd_a == FWD_EXMEM) ? ex_mem_q.alu_y :
                         (ex_fwd_a == FWD_MEMWB) ? wb_rd_wdata     :
                                                   id_ex_q.rs1_data;
