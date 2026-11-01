@@ -1526,5 +1526,20 @@ other cell within -0.7 / +1.9 percent; LiteDRAM tally unchanged. Gates: granite
 top 16 / 1 xfail (default level 18 / 1), pumice top 197, common-ip fub 36,
 macro 36 / 3 xfail.
 
-Open: power-on's mixed window still lands in two states (283 / 319 read,
-3 runs each); the stale-pick loop is still the critical path (+0.007).
+Open: the stale-pick loop is still the critical path (+0.007; deferred by
+the owner).
+
+### 2026-11-01 (later): the two power-on mixed figures, the regression, area
+
+- Mixed window, power-on: the 283 / 319 read figures are one direction's
+  window each; over the shared window the runs are 501 and 520 MB/s (3.7
+  percent). Proxy tREFI 760-790: total 511-538, read 267-367, a continuous
+  spread. Traces at 787 / 785: both at the batch cap (63 / 59 switches), the
+  low phase 10 percent more ACTs (3,469 / 3,164) from where batch boundaries
+  land on the other direction's rows. Not a lock; no change.
+- test_granite_char_perf_mg (8b332b860): the board multigen path at 100
+  MHz as a leveled regression (gate 1 cell, func 3, full 5), col_major
+  interleaved bound 1,024 cycles. The flip rule reverted to cap flips only
+  fails the gate cell at 5,936; the fixed RTL passes.
+- Area, routed `own3`: granite_top_geared 8,284 LUT / 5,019 FF (ard2 8,190 /
+  4,997); the bank pick 774 -> 878 LUT.

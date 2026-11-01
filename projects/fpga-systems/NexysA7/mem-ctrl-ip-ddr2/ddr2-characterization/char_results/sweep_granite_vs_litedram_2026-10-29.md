@@ -32,8 +32,11 @@ lower unloaded read latency (18 cycles against 23).
 Sources: granite 100 = `own3_100` 2026-11-01, power-on (`defaults`;
 every cell but the mixed window reads the same on the `hx100`, `byp100` and
 `ard2_100` builds of 2026-10-31, where the mixed window was 205 / 202). The
-mixed window settles in one of two states per run, 251 / 283 or 260 / 319
-(three runs each in six); see "Direction ownership" below. LiteDRAM
+mixed window reads 251 / 283 or 260 / 319 from run to run (three runs each
+in six). Each direction's figure is over its own window; over the shared
+window the two are 501 and 520 MB/s, 3.7 percent apart, and the refresh
+phase moves the split (see "The power-on mixed window's two figures"
+below). LiteDRAM
 100 = `hx100` 2026-10-31; granite 75 = `sweep75` 2026-10-29 `open_page`
 (the design as of that day: before the hybrid, fast read release and the
 drain-arm fix); LiteDRAM 75 = `sweep75` 2026-10-29; pumice 50 = `sweep`
@@ -98,6 +101,31 @@ mixed window.
 ---
 
 # Appendix: the running log
+
+## The power-on mixed window's two figures (2026-11-01)
+
+On `own3_100` power-on's mixed window reads 251 / 283 in three of six runs
+and 260 / 319 in the other three. The read figure overstates the gap: each
+direction's MB/s is over its own window, and in the high runs the reads
+finish about 330,000 cycles before the writes (2,566,508 against 2,895,553
+read cycles), which shortens the read window. Over the shared window the
+runs move 501.2 / 501.4 against 519.9 / 520.3 MB/s, 3.7 percent apart.
+
+The proxy at tREFI 760-790 (step 1, the final RTL, 256 transactions per
+generator) shows the same thing as a continuous spread, not two states:
+total 511-538 MB/s (within 2.5 percent of the middle), read 267-367. DRAM
+command traces at the two extremes:
+
+| proxy, tREFI | window, cycles | ACT | PRE | direction switches | run length |
+|---|---|---|---|---|---|
+| 787 (read 267) | 25,596 | 3,469 | 1,454 | 63 | 256 / 240 |
+| 785 (read 367) | 24,336 | 3,164 | 1,120 | 59 | 255-398 / 8-267 |
+
+Both run at the batch cap; nothing is locked. The low phase pays 10 percent
+more ACTs: where a batch boundary lands decides how often a direction
+starts on rows the other direction has just opened. No change made; a
+cheaper batch boundary is the only lever left and worth at most the 2-4
+percent the spread shows.
 
 ## Direction ownership, and a direction lock it exposed (2026-11-01)
 
