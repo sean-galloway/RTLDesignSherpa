@@ -11,11 +11,11 @@ When I started coding RTL on GitHub, I needed to use CocoTB, as it is open sourc
 
 I also didn't want to keep rewriting the same testbench collateral. Many FUB interfaces are just valid, ready, and a payload, but the payload takes different forms. Sometimes it is one data signal. Sometimes it is a packed struct or a flat vector containing several fields. Sometimes every packet field has its own signal. Hand-connecting each bus functional model, or BFM, was error-prone. The wiring also became one more thing to maintain as the RTL changed.
 
-I initially asked LLMs for help with the implementation. That didn't go well. When I was coding, the context for the FieldConfig, Packet, and Signal Resolver classes alone was too large, even when I tried to pass in the API's through Markdown files. Nearly all of the original code is hand-crafted. The useful abstractions came from working through real testbench problems: field layout, signal discovery, handshake ownership, and readable diagnostics. The result is a generic valid/ready BFM whose interface can be described by a class or a dictionary.
+I initially asked LLMs for help implementing it. That didn't go well. When I was coding, the context for the FieldConfig, Packet, and Signal Resolver classes alone was too large, even when I tried to pass in the API's through Markdown files. Nearly all of the original code is hand-crafted. The useful abstractions came from working through real testbench problems: field layout, signal discovery, handshake ownership, and readable diagnostics. The result is a generic valid/ready BFM whose interface can be described by a class or a dictionary.
 
 ## One handshake, several payload shapes
 
-A valid/ready transfer has a simple rule: a transaction moves when both sides are ready for it. The BFM should own that rule and the payload. A BFM that drives valid while the test still pokes data signals only solves half the problem.
+A valid/ready transfer follows a simple rule: a transaction moves when both sides are ready. The BFM should own that rule and the payload. A BFM that drives valid while the test still pokes data signals only solves half the problem.
 
 The payload representation should not dictate the test API. I wanted to write this:
 
@@ -23,7 +23,7 @@ The payload representation should not dictate the test API. I wanted to write th
 await cmd.send(cmd.create_packet(op=ACT, bank=2, row=0x234))
 ```
 
-Whether `op`, `bank`, and `row` travel in one packed `cmd_pkt` signal or on three separate signals is a property of the RTL connection. It should not change how the test describes the transaction.
+Whether `op`, `bank`, and `row` travel in one packed `cmd_pkt` signal or on three separate signals depend on the RTL connection. This shouldn't change how the test describes the transaction.
 
 ![One packet description mapped to plain data, a packed vector, or separate packet signals](assets/generic_valid_ready_bfm_payloads.png)
 
@@ -65,15 +65,15 @@ That's much easier to debug than one long hexadecimal word and a round of mental
 
 The field description can also represent implied low-order address bits. If only `addr[31:5]` is stored, expanding the field appends five zero bits on the right; for example, `0x80` becomes the full byte address `0x00001000`. Packed and multi-signal inputs produce the same kind of packet, so the diagnostic doesn't depend on how the RTL exposed the payload.
 
-That also improves scoreboards and failure messages. A mismatch can name the field that differs instead of reporting only that two large integers were unequal.
+That also improves scoreboards and failure messages. A mismatch can name the differing field instead of reporting only that two large integers were unequal.
 
-There's a conceptual echo of Knuth's literate programming here: the human explanation and the executable behavior come from the same field description. The BFM isn't itself a literate program, but its diagnostics follow the same human-first priority.
+There's a conceptual echo of Knuth's literate programming here: the human explanation and the executable behavior come from the same field description. The BFM isn't a literate program itself, but its diagnostics follow the same human-first priority.
 
 ## FieldConfig links the BFM to the RTL
 
 `FieldConfig` is the link between the RTL and the BFMs. It describes the packet fields that the BFM presents to the test, while `SignalResolver` matches that description to the actual top-level DUT signals. I did not want to manually bind every signal, especially while port names and interface shapes were still changing.
 
-`SignalResolver` follows a set of common naming heuristics. It uses the protocol side, prefixes, bus name, packet prefix, and payload mode to match the packet to the RTL ports. For a conventional `cmd_` interface, it can discover names such as `cmd_valid`, `cmd_ready`, and `cmd_pkt`. In multi-signal mode, it looks for individual field names such as `cmd_op`, `cmd_bank`, and `cmd_row`. If the heuristics cannot resolve a required signal, the resolver throws an error rather than leaving the BFM silently disconnected.
+`SignalResolver` follows common naming heuristics. It uses the protocol side, prefixes, bus name, packet prefix, and payload mode to match the packets to RTL ports. For a conventional `cmd_` interface, it can discover names such as `cmd_valid`, `cmd_ready`, and `cmd_pkt`. In multi-signal mode, it looks for individual field names such as `cmd_op`, `cmd_bank`, and `cmd_row`. If the heuristics cannot resolve a required signal, the resolver throws an error rather than leaving the BFM silently disconnected.
 
 When the RTL does not follow the common conventions, a `signal_map` provides an override mechanism:
 
@@ -108,7 +108,7 @@ cmd = create_gaxi_master(
 await cmd.send(cmd.create_packet(op=0x1, bank=2, row=0x234))
 ```
 
-With `multi_sig=False`, the data strategy packs the fields and drives one combined payload signal. With `multi_sig=True`, the resolver looks for separate field signals and the driver writes each field directly:
+With `multi_sig=False`, the data strategy packs the fields and drives one combined payload signal. With `multi_sig=True`, the resolver looks for separate field signals, and the driver writes each field directly:
 
 ```python
 cmd = create_gaxi_master(
@@ -151,11 +151,11 @@ I didn't set out to implement patterns from a catalog, but several familiar soft
 
 I expected to write less testbench code. I didn't expect the immediate FUB tests to speed up design cleanup as much as they did.
 
-A small FUB test can exercise a boundary as soon as it is written. It can apply backpressure, inspect the accepted transaction, and compare named fields without the rest of the component obscuring the result. You still remember why the logic looks the way it does, and the failing interface is usually small enough to reason about directly.
+A small FUB test can exercise a boundary as soon as one writes it. It can apply backpressure, inspect the accepted transaction, and compare named fields without the rest of the component obscuring the result. You still remember why the logic looks the way it does, and the failing interface is usually small enough to reason about directly.
 
 These tests found real control mistakes early: readiness logic sampling current state instead of next state, a grant based on a registered decision rather than an accepted handshake, and bookkeeping that disagreed with state at a FUB boundary. Fixing those problems at the FUB level was much cheaper than discovering them after integration, when several modules could plausibly be at fault.
 
-There's another, less obvious benefit. Because the BFM owns both handshake and payload, the testbench stops encoding accidental assumptions through hand-poked signals. The test states what transaction should happen. The collateral handles how it crosses the interface.
+Another, less obvious benefit exists. Because the BFM owns both handshake and payload, the testbench stops encoding accidental assumptions through hand-poked signals. The test states what transaction should happen. The collateral handles how it crosses the interface.
 
 Generic doesn't mean universal. A valid-only strobe with no ready isn't a valid/ready interface, so it needs a different driver. Nonstandard port names need discovery patterns or a `signal_map`. A packed struct still needs a field layout that matches the RTL. The abstraction removes repetitive work; it doesn't remove the need to define the contract correctly.
 
@@ -165,8 +165,8 @@ The payoff is that you no longer need a new collection of handshake drivers, pac
 
 1. Donald E. Knuth, "Literate Programming," *The Computer Journal* 27(2), 1984, pp. 97–111. [DOI](https://doi.org/10.1093/comjnl/27.2.97); [archived PDF](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/articles/references/LiterateProgramming__Knuth1984.pdf). Human-first explanation and the conceptual analogy for readable packet diagnostics, not a claim that the BFM uses literate programming.
 2. Steve McConnell, *Code Complete*, 2nd ed., Microsoft Press, 2004, [Chapter 18, "Table-Driven Methods"](https://www.oreilly.com/library/view/code-complete-2nd/0735619670/ch18.html). The general technique behind letting `FieldConfig` descriptions drive behavior instead of writing per-interface logic.
-3. Erich Gamma, Richard Helm, Ralph Johnson, and John Vlissides, *Design Patterns: Elements of Reusable Object-Oriented Software*, Addison-Wesley, 1995. [Publisher](https://www.informit.com/store/design-patterns-elements-of-reusable-object-oriented-9780201633610); [Adapter excerpt](https://www.informit.com/articles/article.aspx?p=1398600). Adapter for reconciling the packet API with different RTL interfaces, and Strategy for interchangeable packed and multi-signal payload paths.
-4. Gregor Hohpe and Bobby Woolf, *Enterprise Integration Patterns*, Addison-Wesley, 2003, ["Canonical Data Model"](https://www.enterpriseintegrationpatterns.com/patterns/messaging/CanonicalDataModel.html). The precedent for `Packet` as a common transaction representation independent of each RTL payload format.
+3. Erich Gamma, Richard Helm, Ralph Johnson, and John Vlissides, *Design Patterns: Elements of Reusable Object-Oriented Software*, Addison-Wesley, 1995. [Publisher](https://www.informit.com/store/design-patterns-elements-of-reusable-object-oriented-9780201633610); [Adapter excerpt](https://www.informit.com/articles/article.aspx?p=1398600). Adapter reconciles the packet API with different RTL interfaces, and Strategy provides interchangeable packed and multi-signal payload paths.
+4. Gregor Hohpe and Bobby Woolf, *Enterprise Integration Patterns*, Addison-Wesley, 2003, ["Canonical Data Model"](https://www.enterpriseintegrationpatterns.com/patterns/messaging/CanonicalDataModel.html). This sets the precedent for `Packet` as a common transaction representation independent of each RTL payload format.
 5. David Heinemeier Hansson, ["The Ruby on Rails Doctrine: Convention over Configuration"](https://rubyonrails.org/doctrine). A clear statement of the principle behind common naming heuristics by default and explicit `signal_map` overrides for exceptions.
 6. RTL Design Sherpa, [FUB valid/ready BFM wrappers](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/bin/TBClasses/fub_bfm.py). Producer and consumer helpers, explicit signal mapping, timing profiles, and the valid-only boundary.
 7. RTL Design Sherpa DV, [FieldConfig and FieldDefinition](https://github.com/sean-galloway/RTLDesignSherpa-DV/blob/main/src/CocoTBFramework/components/shared/field_config.py). Field schemas, widths, ordering, formats, encodings, and dictionary conversion.

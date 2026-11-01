@@ -47,7 +47,7 @@ For DMA control, I cared about four things:
 - **Policy and descriptor checks become programmable.** I can add descriptor quality checks on the fly in a writable build, then commit the firmware to ROM.
 - **Work can be moved ahead.** Pre-validation and pre-arming let hardware start a chained descriptor as soon as its predecessor completes.
 - **New debug and error messages are free.** I can send new messages by changing firmware, not by changing an FSM state or message path. Existing monitor machinery carries them. Verification still costs effort, but there’s no new message RTL.
-- **One datapath serves many channels.** At 4 and 8 channels, the default is one hart per channel. At 16 channels, eight harts each serve two slots.
+- **One datapath serves many channels.** At 4 and 8 channels, the default is one hart per channel. At 16 channels, eight harts serve two slots each.
 
 Both RAPIDS-G builds instantiate **one Gatling per direction**, two in total. At 16 channels, FSM LUTs grow from 69,184 to 126,820 and firmware LUTs from 77,975 to 141,067. The extra state is channel windows, base queues, and other per-channel logic, so firmware overhead stays in the 11–13% range.
 
@@ -90,7 +90,7 @@ I ran every scheduler-limit scenario with 4 and 8 contexts on the same 8-channel
 
 With one busy channel, 4 contexts are **34% faster** than 8: the active hart gets an issue slot every four cycles rather than every eight. Turn on every channel and the answer flips. Now 4 contexts are **17% slower** because each hart must walk two slots. At 64 beats, it’s 16% slower. At 1 MB, the difference is one cycle.
 
-The EXT rows expose a different wall. A base costs firmware about **15–35 instructions**, each taking N cycles for that context, while the hardware generator produces one in a cycle. In the per-beat EXT scheduler test, 8 contexts take **125×** the FSM’s cycles. A bigger transfer won’t fix an operation that has to be produced at engine rate. That needs hardware assistance, not just more contexts.
+The EXT rows expose a different wall. A base costs firmware about **15–35 instructions**, each taking N cycles in that context, while the hardware generator produces one per cycle. In the per-beat EXT scheduler test, 8 contexts take **125×** the FSM’s cycles. A bigger transfer won’t fix an operation that has to be produced at engine rate. That needs hardware assistance, not just more contexts.
 
 ## Firmware tricks that hide the latency
 
@@ -100,7 +100,7 @@ The first working image wasn’t fast. We gained performance by changing *where*
 
 **Put the chained-head fast path in the poll.** The one-slot loop tests `HEAD_SUM` first. The value 13 means an open, valid, chained head that isn’t last, so firmware writes `STAGE | STAGE_ARM | STAGE_ARM_NEXT` immediately. Four instructions cover the read and command. This tight loop reduced the same chained-descriptor cost from about 288 clocks to about 90.
 
-**Close the read race.** A head can arrive between the `HEAD_SUM` and `SUMMARY` reads. Re-reading `HEAD_SUM` after `SUMMARY` shows attention ensures it’s judged inline rather than falling into the slower service path. This is a correctness fix that also prevents an avoidable latency cliff. Don’t optimize the check away.
+**Close the read race.** A head can arrive between the `HEAD_SUM` and `SUMMARY` reads. Re-reading `HEAD_SUM` after `SUMMARY` shows attention ensures it’s judged inline rather than falling into the slower service path. This correctness fix also prevents an avoidable latency cliff. Don’t optimize the check away.
 
 **Make idle cheap.** A seven-instruction one-slot idle pass recovered a 1–2% dip on short eight-channel, single-descriptor points. With two slots per hart, reading `SUMMARY` first makes the idle pass two instructions.
 
@@ -128,7 +128,7 @@ The thresholds tell the practical story:
 | 16-descriptor chain, sink | 1 of 8 | 4 KB | 16 KB |
 | 16-descriptor chain, interleaved sink | 8 of 8 | 512 B | 4 KB |
 
-These are **bytes per descriptor**, not per run. Chains overlap the next head with the active transfer, and multiple channels provide data movement behind which firmware can work. A lone descriptor has neither advantage, so fixed firmware cost dominates longer.
+These are **bytes per descriptor**, not per run. Chains overlap the next head with the active transfer, and multiple channels provide data movement behind which firmware can work. A lone descriptor has no advantage, so fixed firmware cost dominates longer.
 
 That’s why “near parity on 1 MB” and “18× slower on one beat” aren’t contradictory. They’re opposite ends of the same amortization curve.
 
@@ -136,7 +136,7 @@ That’s why “near parity on 1 MB” and “18× slower on one beat” aren’
 
 Moving policy into firmware doesn’t eliminate verification; it changes what you have to verify. The firmware image is part of the hardware deliverable.
 
-Rapids-g runs side-by-side equivalence tests against the FSM scheduler, comparing commands, monitor packets, and state transitions. It reuses the existing RAPIDS test suites, adds mutation tests for both firmware and RTL, and checks board runs against simulation cycle by cycle. The comparison also exposed and fixed two bugs in the original FSM implementation. I’ll happily take that result, but it’s evidence that a second implementation was useful, not proof that firmware is inherently easier to verify.
+Rapids-g runs side-by-side equivalence tests against the FSM scheduler, comparing commands, monitor packets, and state transitions. It reuses the existing RAPIDS test suites, adds mutation tests for both firmware and RTL, and checks board runs against simulation cycle by cycle. The comparison also exposed and fixed two bugs in the original FSM implementation. I’ll happily take that result, but it shows a second implementation was useful, not that firmware is inherently easier to verify.
 
 A barrel is phase-sensitive: when a faster scenario changes the starting phase of the next one, an A/B comparison can move without a code change. Isolated runs from the same cycle settle that question.
 
@@ -146,7 +146,7 @@ I’d choose barrel-RV32I sequencing when descriptors or chains are large enough
 
 I’d keep an FSM, or add targeted hardware assist, when tiny descriptors dominate, lone-channel launch latency is a hard requirement, or an address pattern needs new bases at engine rate. The firmware toolchain and verification burden are real design costs, not secondary details.
 
-The useful question isn’t “is a processor better than an FSM?” It’s **how much control work does each descriptor need, how quickly must that work finish, and what can hide it?** Sometimes the measured answer is firmware. Sometimes it’s an FSM. Often, it’s a deliberate split between the two.
+The useful question isn’t “is a processor better than an FSM?” It’s **how much control work each descriptor needs, how quickly that work must finish, and what can hide it?** Sometimes the measured answer is firmware. Sometimes it’s an FSM. Often, it’s a deliberate split between the two.
 
 ## References
 
@@ -156,6 +156,6 @@ The useful question isn’t “is a processor better than an FSM?” It’s **ho
 4. B. J. Smith, “A Pipelined, Shared Resource MIMD Computer,” *Proceedings of the International Conference on Parallel Processing*, 1978, pp. 6–8. The Denelcor HEP and fine-grained interleaving.
 5. H. F. Jordan, “Performance Measurements on HEP - A Pipelined MIMD Computer,” *Proceedings of the 10th International Symposium on Computer Architecture*, 1983, pp. 207–212. The single-thread latency versus aggregate-throughput trade.
 6. G. Alverson, R. Alverson, D. Callahan, B. Koblenz, A. Porterfield, and B. Smith, “Exploiting Heterogeneous Parallelism on a Multithreaded Multiprocessor,” *Proceedings of Supercomputing ’92*, 1992, pp. 188–197. The Tera MTA and high-context-count latency hiding.
-7. P. Kongetira, K. Aingaran, and K. Olukotun, “Niagara: A 32-Way Multithreaded Sparc Processor,” *IEEE Micro*, 25(2), March–April 2005, pp. 21–29. A modern fine-grained implementation with stalled-thread skipping.
+7. P. Kongetira, K. Aingaran, and K. Olukotun, “Niagara: A 32-Way Multithreaded SPARC Processor,” *IEEE Micro*, 25(2), March–April 2005, pp. 21–29. A modern fine-grained implementation with stalled-thread skipping.
 8. RTL Design Sherpa, [RAPIDS-G architecture](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/dma-ip/rapids/docs/rapids_mas/ch05_rapids_g/01_overview.md), [sequencer and firmware](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/dma-ip/rapids/docs/rapids_mas/ch05_rapids_g/03_sequencer_and_firmware.md), and [verification and measurements](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/dma-ip/rapids/docs/rapids_mas/ch05_rapids_g/05_verification_and_measurements.md). The implementation and all RAPIDS measurements used in this article.
 9. RTL Design Sherpa, [Gatling barrel model](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/riscv-ip/gatling-rv32i/docs/barrel_model/barrel_model.md), and [curated microarchitecture references](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/projects/components/riscv-ip/references/microarchitecture-papers.md). Gatling’s design trade-offs and the historical sources above.
