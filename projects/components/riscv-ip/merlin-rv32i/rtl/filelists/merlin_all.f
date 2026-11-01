@@ -13,3 +13,4 @@
 -f $RV32I_COMMON_ROOT/rtl/filelists/rv32i_common_all.f
 -f $MERLIN_ROOT/rtl/filelists/merlin_pkg.f
 -f $MERLIN_ROOT/rtl/filelists/fub/merlin_fubs.f
+-f $MERLIN_ROOT/rtl/filelists/top/merlin_core.f

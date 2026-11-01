@@ -60,6 +60,7 @@ STAGE_FIELDS = {
         "halt_cause": 4,
         "csr_stub": 1,
         "valid": 1,
+        "insn": 32,
     },
     "ex_mem": {
         "pc": 32,
@@ -76,6 +77,10 @@ STAGE_FIELDS = {
         "halt_cause": 4,
         "csr_stub": 1,
         "valid": 1,
+        "insn": 32,
+        "imm": 32,
+        "rs1_rdata": 32,
+        "rs2_rdata": 32,
     },
     "mem_wb": {
         "pc": 32,
@@ -88,6 +93,10 @@ STAGE_FIELDS = {
         "csr_stub": 1,
         "halt_cause": 4,
         "valid": 1,
+        "insn": 32,
+        "imm": 32,
+        "rs1_rdata": 32,
+        "rs2_rdata": 32,
     },
 }
 

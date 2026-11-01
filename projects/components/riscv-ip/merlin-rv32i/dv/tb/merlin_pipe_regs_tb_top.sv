@@ -69,6 +69,7 @@ module merlin_pipe_regs_tb_top (
     input logic [ 3:0] id_ex_halt_cause_i,
     input logic        id_ex_csr_stub_i,
     input logic        id_ex_valid_i,
+    input logic [31:0] id_ex_insn_i,
 
     // ID/EX outputs
     output logic [31:0] id_ex_pc_o,
@@ -92,6 +93,7 @@ module merlin_pipe_regs_tb_top (
     output logic [ 3:0] id_ex_halt_cause_o,
     output logic        id_ex_csr_stub_o,
     output logic        id_ex_valid_o,
+    output logic [31:0] id_ex_insn_o,
 
     // EX/MEM inputs
     input logic [31:0] ex_mem_pc_i,
@@ -108,6 +110,10 @@ module merlin_pipe_regs_tb_top (
     input logic [ 3:0] ex_mem_halt_cause_i,
     input logic        ex_mem_csr_stub_i,
     input logic        ex_mem_valid_i,
+    input logic [31:0] ex_mem_insn_i,
+    input logic [31:0] ex_mem_imm_i,
+    input logic [31:0] ex_mem_rs1_rdata_i,
+    input logic [31:0] ex_mem_rs2_rdata_i,
 
     // EX/MEM outputs
     output logic [31:0] ex_mem_pc_o,
@@ -124,6 +130,10 @@ module merlin_pipe_regs_tb_top (
     output logic [ 3:0] ex_mem_halt_cause_o,
     output logic        ex_mem_csr_stub_o,
     output logic        ex_mem_valid_o,
+    output logic [31:0] ex_mem_insn_o,
+    output logic [31:0] ex_mem_imm_o,
+    output logic [31:0] ex_mem_rs1_rdata_o,
+    output logic [31:0] ex_mem_rs2_rdata_o,
 
     // MEM/WB inputs
     input logic [31:0] mem_wb_pc_i,
@@ -136,6 +146,10 @@ module merlin_pipe_regs_tb_top (
     input logic        mem_wb_csr_stub_i,
     input logic [ 3:0] mem_wb_halt_cause_i,
     input logic        mem_wb_valid_i,
+    input logic [31:0] mem_wb_insn_i,
+    input logic [31:0] mem_wb_imm_i,
+    input logic [31:0] mem_wb_rs1_rdata_i,
+    input logic [31:0] mem_wb_rs2_rdata_i,
 
     // MEM/WB outputs
     output logic [31:0] mem_wb_pc_o,
@@ -147,7 +161,11 @@ module merlin_pipe_regs_tb_top (
     output logic [ 1:0] mem_wb_wb_sel_o,
     output logic        mem_wb_csr_stub_o,
     output logic [ 3:0] mem_wb_halt_cause_o,
-    output logic        mem_wb_valid_o
+    output logic        mem_wb_valid_o,
+    output logic [31:0] mem_wb_insn_o,
+    output logic [31:0] mem_wb_imm_o,
+    output logic [31:0] mem_wb_rs1_rdata_o,
+    output logic [31:0] mem_wb_rs2_rdata_o
 );
 
   import merlin_pkg::*;
@@ -196,6 +214,7 @@ module merlin_pipe_regs_tb_top (
   assign id_ex_d.halt_cause    = id_ex_halt_cause_i;
   assign id_ex_d.csr_stub      = id_ex_csr_stub_i;
   assign id_ex_d.valid         = id_ex_valid_i;
+  assign id_ex_d.insn          = id_ex_insn_i;
 
   // ID/EX output disassembly
   assign id_ex_pc_o            = id_ex_q.pc;
@@ -219,6 +238,7 @@ module merlin_pipe_regs_tb_top (
   assign id_ex_halt_cause_o    = id_ex_q.halt_cause;
   assign id_ex_csr_stub_o      = id_ex_q.csr_stub;
   assign id_ex_valid_o         = id_ex_q.valid;
+  assign id_ex_insn_o          = id_ex_q.insn;
 
   // EX/MEM input assembly
   assign ex_mem_d.pc           = ex_mem_pc_i;
@@ -235,6 +255,10 @@ module merlin_pipe_regs_tb_top (
   assign ex_mem_d.halt_cause   = ex_mem_halt_cause_i;
   assign ex_mem_d.csr_stub     = ex_mem_csr_stub_i;
   assign ex_mem_d.valid        = ex_mem_valid_i;
+  assign ex_mem_d.insn         = ex_mem_insn_i;
+  assign ex_mem_d.imm          = ex_mem_imm_i;
+  assign ex_mem_d.rs1_rdata    = ex_mem_rs1_rdata_i;
+  assign ex_mem_d.rs2_rdata    = ex_mem_rs2_rdata_i;
 
   // EX/MEM output disassembly
   assign ex_mem_pc_o           = ex_mem_q.pc;
@@ -251,6 +275,10 @@ module merlin_pipe_regs_tb_top (
   assign ex_mem_halt_cause_o   = ex_mem_q.halt_cause;
   assign ex_mem_csr_stub_o     = ex_mem_q.csr_stub;
   assign ex_mem_valid_o        = ex_mem_q.valid;
+  assign ex_mem_insn_o         = ex_mem_q.insn;
+  assign ex_mem_imm_o          = ex_mem_q.imm;
+  assign ex_mem_rs1_rdata_o    = ex_mem_q.rs1_rdata;
+  assign ex_mem_rs2_rdata_o    = ex_mem_q.rs2_rdata;
 
   // MEM/WB input assembly
   assign mem_wb_d.pc           = mem_wb_pc_i;
@@ -263,6 +291,10 @@ module merlin_pipe_regs_tb_top (
   assign mem_wb_d.csr_stub     = mem_wb_csr_stub_i;
   assign mem_wb_d.halt_cause   = mem_wb_halt_cause_i;
   assign mem_wb_d.valid        = mem_wb_valid_i;
+  assign mem_wb_d.insn         = mem_wb_insn_i;
+  assign mem_wb_d.imm          = mem_wb_imm_i;
+  assign mem_wb_d.rs1_rdata    = mem_wb_rs1_rdata_i;
+  assign mem_wb_d.rs2_rdata    = mem_wb_rs2_rdata_i;
 
   // MEM/WB output disassembly
   assign mem_wb_pc_o           = mem_wb_q.pc;
@@ -275,6 +307,10 @@ module merlin_pipe_regs_tb_top (
   assign mem_wb_csr_stub_o     = mem_wb_q.csr_stub;
   assign mem_wb_halt_cause_o   = mem_wb_q.halt_cause;
   assign mem_wb_valid_o        = mem_wb_q.valid;
+  assign mem_wb_insn_o         = mem_wb_q.insn;
+  assign mem_wb_imm_o          = mem_wb_q.imm;
+  assign mem_wb_rs1_rdata_o    = mem_wb_q.rs1_rdata;
+  assign mem_wb_rs2_rdata_o    = mem_wb_q.rs2_rdata;
 
   merlin_if_id u_if_id (
       .clk  (clk),

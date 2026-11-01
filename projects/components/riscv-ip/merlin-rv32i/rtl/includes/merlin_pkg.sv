@@ -66,6 +66,7 @@ package merlin_pkg;
     logic [3:0]  halt_cause;
     logic        csr_stub;
     logic        valid;
+    logic [31:0] insn;          // instruction word for RVFI retire
   } id_ex_t;
 
   // EX/MEM boundary: ALU result, branch target, and data-memory control.
@@ -84,6 +85,10 @@ package merlin_pkg;
     logic [3:0]  halt_cause;
     logic        csr_stub;
     logic        valid;
+    logic [31:0] insn;          // instruction word for RVFI retire
+    logic [31:0] imm;           // immediate for LUI writeback
+    logic [31:0] rs1_rdata;     // RVFI rs1 read value
+    logic [31:0] rs2_rdata;     // RVFI rs2 read value
   } ex_mem_t;
 
   // MEM/WB boundary: final writeback value selected from ALU, load, or link.
@@ -98,6 +103,10 @@ package merlin_pkg;
     logic        csr_stub;
     logic [3:0]  halt_cause;
     logic        valid;
+    logic [31:0] insn;          // instruction word for RVFI retire
+    logic [31:0] imm;           // immediate for LUI writeback
+    logic [31:0] rs1_rdata;     // RVFI rs1 read value
+    logic [31:0] rs2_rdata;     // RVFI rs2 read value
   } mem_wb_t;
 
 endpackage : merlin_pkg
