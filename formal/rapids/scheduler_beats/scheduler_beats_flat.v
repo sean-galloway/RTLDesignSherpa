@@ -21,6 +21,7 @@ module dma_address_gen (
 	parameter signed [31:0] INDEX_WIDTH = 16;
 	parameter signed [31:0] STRIDE_WIDTH = 24;
 	parameter signed [31:0] TAG_WIDTH = 8;
+	parameter [0:0] INPUT_REG = 1'b0;
 	input wire i_clk;
 	input wire i_rst_n;
 	input wire [ADDR_WIDTH - 1:0] i_cfg_base_addr;
@@ -38,10 +39,53 @@ module dma_address_gen (
 	output wire [ADDR_WIDTH - 1:0] o_result_addr;
 	output wire [TAG_WIDTH - 1:0] o_result_tag;
 	localparam signed [31:0] PRODUCT_WIDTH = INDEX_WIDTH + STRIDE_WIDTH;
+	wire w_s1_ready;
+	wire w_s2_ready;
+	wire w_s0_valid;
+	wire [INDEX_WIDTH - 1:0] w_s0_index_0;
+	wire [INDEX_WIDTH - 1:0] w_s0_index_1;
+	wire [TAG_WIDTH - 1:0] w_s0_tag;
+	generate
+		if (INPUT_REG) begin : g_input_reg
+			reg r_s0_valid;
+			reg [INDEX_WIDTH - 1:0] r_s0_index_0;
+			reg [INDEX_WIDTH - 1:0] r_s0_index_1;
+			reg [TAG_WIDTH - 1:0] r_s0_tag;
+			wire w_s0_ready;
+			assign w_s0_ready = !r_s0_valid || w_s1_ready;
+			assign o_req_ready = w_s0_ready;
+			always @(posedge i_clk or negedge i_rst_n)
+				if (!i_rst_n) begin
+					r_s0_valid <= 1'b0;
+					r_s0_index_0 <= 1'sb0;
+					r_s0_index_1 <= 1'sb0;
+					r_s0_tag <= 1'sb0;
+				end
+				else if (i_req_valid && w_s0_ready) begin
+					r_s0_valid <= 1'b1;
+					r_s0_index_0 <= i_req_index_0;
+					r_s0_index_1 <= i_req_index_1;
+					r_s0_tag <= i_req_tag;
+				end
+				else if (w_s1_ready)
+					r_s0_valid <= 1'b0;
+			assign w_s0_valid = r_s0_valid;
+			assign w_s0_index_0 = r_s0_index_0;
+			assign w_s0_index_1 = r_s0_index_1;
+			assign w_s0_tag = r_s0_tag;
+		end
+		else begin : g_input_live
+			assign o_req_ready = w_s1_ready;
+			assign w_s0_valid = i_req_valid;
+			assign w_s0_index_0 = i_req_index_0;
+			assign w_s0_index_1 = i_req_index_1;
+			assign w_s0_tag = i_req_tag;
+		end
+	endgenerate
 	wire signed [PRODUCT_WIDTH:0] w_s1_raw_offset_0;
 	wire signed [PRODUCT_WIDTH:0] w_s1_raw_offset_1;
-	assign w_s1_raw_offset_0 = $signed({1'b0, i_req_index_0}) * i_cfg_stride_0;
-	assign w_s1_raw_offset_1 = $signed({1'b0, i_req_index_1}) * i_cfg_stride_1;
+	assign w_s1_raw_offset_0 = $signed({1'b0, w_s0_index_0}) * i_cfg_stride_0;
+	assign w_s1_raw_offset_1 = $signed({1'b0, w_s0_index_1}) * i_cfg_stride_1;
 	reg [ADDR_WIDTH - 1:0] w_s1_offset_0;
 	reg [ADDR_WIDTH - 1:0] w_s1_offset_1;
 	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
@@ -69,10 +113,7 @@ module dma_address_gen (
 	reg [ADDR_WIDTH - 1:0] r_s1_offset_1;
 	reg [ADDR_WIDTH - 1:0] r_s1_base_addr;
 	reg [TAG_WIDTH - 1:0] r_s1_tag;
-	wire w_s1_ready;
-	wire w_s2_ready;
 	assign w_s1_ready = !r_s1_valid || w_s2_ready;
-	assign o_req_ready = w_s1_ready;
 	always @(posedge i_clk or negedge i_rst_n)
 		if (!i_rst_n) begin
 			r_s1_valid <= 1'b0;
@@ -81,12 +122,12 @@ module dma_address_gen (
 			r_s1_base_addr <= 1'sb0;
 			r_s1_tag <= 1'sb0;
 		end
-		else if (i_req_valid && w_s1_ready) begin
+		else if (w_s0_valid && w_s1_ready) begin
 			r_s1_valid <= 1'b1;
 			r_s1_offset_0 <= w_s1_offset_0;
 			r_s1_offset_1 <= w_s1_offset_1;
 			r_s1_base_addr <= i_cfg_base_addr;
-			r_s1_tag <= i_req_tag;
+			r_s1_tag <= w_s0_tag;
 		end
 		else if (w_s2_ready)
 			r_s1_valid <= 1'b0;
@@ -112,6 +153,210 @@ module dma_address_gen (
 	assign o_result_valid = r_s2_valid;
 	assign o_result_addr = r_s2_addr;
 	assign o_result_tag = r_s2_tag;
+	initial _sv2v_0 = 0;
+endmodule
+module gaxi_drop_fifo_sync (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	rd_ready,
+	count,
+	rd_valid,
+	rd_data,
+	drop_valid,
+	drop_ready,
+	drop_count,
+	drop_all
+);
+	reg _sv2v_0;
+	parameter signed [31:0] MEM_STYLE = 32'sd0;
+	parameter signed [31:0] REGISTERED = 0;
+	parameter signed [31:0] DATA_WIDTH = 4;
+	parameter signed [31:0] DEPTH = 4;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] D = DEPTH;
+	parameter signed [31:0] AW = $clog2(DEPTH);
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output wire wr_ready;
+	input wire [DW - 1:0] wr_data;
+	input wire rd_ready;
+	output wire [AW:0] count;
+	output wire rd_valid;
+	output reg [DW - 1:0] rd_data;
+	input wire drop_valid;
+	output wire drop_ready;
+	input wire [AW:0] drop_count;
+	input wire drop_all;
+	reg [1:0] r_drop_state;
+	reg [1:0] w_drop_state_next;
+	wire [AW - 1:0] r_wr_addr;
+	wire [AW - 1:0] r_rd_addr;
+	wire [AW:0] r_wr_ptr_bin;
+	wire [AW:0] r_rd_ptr_bin;
+	wire [AW:0] w_wr_ptr_bin_next;
+	wire [AW:0] w_rd_ptr_bin_next;
+	wire r_wr_full;
+	wire r_wr_almost_full;
+	wire r_rd_empty;
+	wire r_rd_almost_empty;
+	wire w_drop_active;
+	wire w_use_drop_ptr;
+	reg [DW - 1:0] w_rd_data;
+	always @(posedge axi_aclk or negedge axi_aresetn)
+		if (!axi_aresetn)
+			r_drop_state <= 2'b00;
+		else
+			r_drop_state <= w_drop_state_next;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_drop_state_next = r_drop_state;
+		case (r_drop_state)
+			2'b00:
+				if (drop_valid)
+					w_drop_state_next = 2'b01;
+			2'b01: w_drop_state_next = 2'b10;
+			2'b10: w_drop_state_next = 2'b11;
+			2'b11:
+				if (!drop_valid)
+					w_drop_state_next = 2'b00;
+			default: w_drop_state_next = 2'b00;
+		endcase
+	end
+	assign w_drop_active = (r_drop_state == 2'b01) || (r_drop_state == 2'b10);
+	assign w_use_drop_ptr = r_drop_state == 2'b01;
+	assign drop_ready = r_drop_state == 2'b11;
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	always @(posedge axi_aclk)
+		if ((((axi_aresetn && (r_drop_state == 2'b00)) && drop_valid) && !drop_all) && (sv2v_cast_32(drop_count) > sv2v_cast_32(count)))
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_drop_fifo_sync.sv:270:13 - gaxi_drop_fifo_sync.<unnamed_block>.<unnamed_block>\n msg: ", $time, "gaxi_drop_fifo_sync: drop_count=%0d exceeds occupancy count=%0d -- read pointer will overrun and count will wrap", drop_count, count);
+	wire w_write;
+	wire w_wr_load;
+	assign w_write = wr_valid && wr_ready;
+	assign w_wr_load = w_use_drop_ptr && drop_all;
+	localparam signed [31:0] sv2v_uu_write_pointer_inst_WIDTH = AW + 1;
+	localparam [sv2v_uu_write_pointer_inst_WIDTH - 1:0] sv2v_uu_write_pointer_inst_ext_add_value_0 = 1'sb0;
+	counter_bin_load #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) write_pointer_inst(
+		.clk(axi_aclk),
+		.rst_n(axi_aresetn),
+		.enable(w_write && !r_wr_full),
+		.add_enable(1'b0),
+		.add_value(sv2v_uu_write_pointer_inst_ext_add_value_0),
+		.load(w_wr_load),
+		.load_value(r_wr_ptr_bin),
+		.counter_bin_curr(r_wr_ptr_bin),
+		.counter_bin_next(w_wr_ptr_bin_next)
+	);
+	wire w_read;
+	wire w_rd_add_enable;
+	wire w_rd_load;
+	assign w_read = rd_valid && rd_ready;
+	assign w_rd_add_enable = w_use_drop_ptr && !drop_all;
+	assign w_rd_load = w_use_drop_ptr && drop_all;
+	counter_bin_load #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) read_pointer_inst(
+		.clk(axi_aclk),
+		.rst_n(axi_aresetn),
+		.enable(w_read && !r_rd_empty),
+		.add_enable(w_rd_add_enable),
+		.add_value(drop_count),
+		.load(w_rd_load),
+		.load_value(r_wr_ptr_bin),
+		.counter_bin_curr(r_rd_ptr_bin),
+		.counter_bin_next(w_rd_ptr_bin_next)
+	);
+	wire [AW:0] w_rd_ptr_selected;
+	assign w_rd_ptr_selected = w_rd_ptr_bin_next;
+	fifo_control #(
+		.DEPTH(D),
+		.ADDR_WIDTH(AW),
+		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
+		.REGISTERED(REGISTERED)
+	) fifo_control_inst(
+		.wr_clk(axi_aclk),
+		.wr_rst_n(axi_aresetn),
+		.rd_clk(axi_aclk),
+		.rd_rst_n(axi_aresetn),
+		.wr_ptr_bin(w_wr_ptr_bin_next),
+		.wdom_rd_ptr_bin(w_rd_ptr_selected),
+		.rd_ptr_bin(w_rd_ptr_selected),
+		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
+		.count(count),
+		.wr_full(r_wr_full),
+		.wr_almost_full(r_wr_almost_full),
+		.rd_empty(r_rd_empty),
+		.rd_almost_empty(r_rd_almost_empty)
+	);
+	assign wr_ready = !r_wr_full && !w_drop_active;
+	assign rd_valid = !r_rd_empty && !w_drop_active;
+	assign r_wr_addr = r_wr_ptr_bin[AW - 1:0];
+	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
+	generate
+		if (MEM_STYLE == 32'sd1) begin : gen_srl
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				w_rd_data = mem[r_rd_addr];
+			end
+		end
+		else if (MEM_STYLE == 32'sd2) begin : gen_bram
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_rd_data <= 1'sb0;
+				else
+					r_rd_data <= mem[r_rd_addr];
+			wire [DW:1] sv2v_tmp_7B1E8;
+			assign sv2v_tmp_7B1E8 = r_rd_data;
+			always @(*) w_rd_data = sv2v_tmp_7B1E8;
+		end
+		else begin : gen_auto
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				w_rd_data = mem[r_rd_addr];
+			end
+		end
+		if (REGISTERED != 0) begin : gen_flop_mode
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					rd_data <= 'b0;
+				else
+					rd_data <= w_rd_data;
+		end
+		else begin : gen_mux_mode
+			wire [DW:1] sv2v_tmp_2F913;
+			assign sv2v_tmp_2F913 = w_rd_data;
+			always @(*) rd_data = sv2v_tmp_2F913;
+		end
+	endgenerate
 	initial _sv2v_0 = 0;
 endmodule
 module counter_bin (
@@ -146,6 +391,73 @@ module counter_bin (
 		end
 		else
 			counter_bin_next = counter_bin_curr;
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_bin_curr <= 'b0;
+		else
+			counter_bin_curr <= counter_bin_next;
+	initial _sv2v_0 = 0;
+endmodule
+module counter_bin_load (
+	clk,
+	rst_n,
+	enable,
+	add_enable,
+	add_value,
+	load,
+	load_value,
+	counter_bin_curr,
+	counter_bin_next
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 5;
+	parameter signed [31:0] MAX = 10;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	input wire add_enable;
+	input wire [WIDTH - 1:0] add_value;
+	input wire load;
+	input wire [WIDTH - 1:0] load_value;
+	output reg [WIDTH - 1:0] counter_bin_curr;
+	output reg [WIDTH - 1:0] counter_bin_next;
+	localparam signed [31:0] WRAP_BOUNDARY = 2 * MAX;
+	wire [WIDTH - 2:0] w_max_val;
+	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
+		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
+		sv2v_cast_00F62_signed = inp;
+	endfunction
+	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
+	reg [WIDTH:0] w_sum_ext;
+	function automatic signed [((WIDTH + 0) >= 0 ? WIDTH + 1 : 1 - (WIDTH + 0)) - 1:0] sv2v_cast_5A5B2_signed;
+		input reg signed [((WIDTH + 0) >= 0 ? WIDTH + 1 : 1 - (WIDTH + 0)) - 1:0] inp;
+		sv2v_cast_5A5B2_signed = inp;
+	endfunction
+	function automatic signed [WIDTH - 1:0] sv2v_cast_6B8D6_signed;
+		input reg signed [WIDTH - 1:0] inp;
+		sv2v_cast_6B8D6_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		counter_bin_next = counter_bin_curr;
+		w_sum_ext = 1'sb0;
+		if (load)
+			counter_bin_next = load_value;
+		else if (add_enable) begin
+			w_sum_ext = {1'b0, counter_bin_curr} + {1'b0, add_value};
+			if (w_sum_ext >= sv2v_cast_5A5B2_signed(WRAP_BOUNDARY))
+				counter_bin_next = w_sum_ext[WIDTH - 1:0] - sv2v_cast_6B8D6_signed(WRAP_BOUNDARY);
+			else
+				counter_bin_next = w_sum_ext[WIDTH - 1:0];
+		end
+		else if (enable) begin
+			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
+				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
+			else
+				counter_bin_next = counter_bin_curr + 1;
+		end
 	end
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n)
@@ -255,156 +567,11 @@ module fifo_control (
 			r_count <= w_count;
 		end
 endmodule
-module gaxi_fifo_sync (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_ready,
-	wr_data,
-	rd_ready,
-	count,
-	rd_valid,
-	rd_data
-);
-	parameter signed [31:0] MEM_STYLE = 32'sd0;
-	parameter signed [31:0] REGISTERED = 0;
-	parameter signed [31:0] DATA_WIDTH = 4;
-	parameter signed [31:0] DEPTH = 4;
-	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
-	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] D = DEPTH;
-	parameter signed [31:0] AW = $clog2(DEPTH);
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	output wire wr_ready;
-	input wire [DW - 1:0] wr_data;
-	input wire rd_ready;
-	output wire [AW:0] count;
-	output wire rd_valid;
-	output wire [DW - 1:0] rd_data;
-	wire [AW - 1:0] r_wr_addr;
-	wire [AW - 1:0] r_rd_addr;
-	wire [AW:0] r_wr_ptr_bin;
-	wire [AW:0] r_rd_ptr_bin;
-	wire [AW:0] w_wr_ptr_bin_next;
-	wire [AW:0] w_rd_ptr_bin_next;
-	wire r_wr_full;
-	wire r_wr_almost_full;
-	wire r_rd_empty;
-	wire r_rd_almost_empty;
-	wire w_write;
-	wire w_read;
-	assign w_write = wr_valid && wr_ready;
-	assign w_read = rd_valid && rd_ready;
-	counter_bin #(
-		.WIDTH(AW + 1),
-		.MAX(D)
-	) write_pointer_inst(
-		.clk(axi_aclk),
-		.rst_n(axi_aresetn),
-		.enable(w_write && !r_wr_full),
-		.counter_bin_curr(r_wr_ptr_bin),
-		.counter_bin_next(w_wr_ptr_bin_next)
-	);
-	counter_bin #(
-		.WIDTH(AW + 1),
-		.MAX(D)
-	) read_pointer_inst(
-		.clk(axi_aclk),
-		.rst_n(axi_aresetn),
-		.enable(w_read && !r_rd_empty),
-		.counter_bin_curr(r_rd_ptr_bin),
-		.counter_bin_next(w_rd_ptr_bin_next)
-	);
-	fifo_control #(
-		.DEPTH(D),
-		.ADDR_WIDTH(AW),
-		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
-		.REGISTERED(REGISTERED)
-	) fifo_control_inst(
-		.wr_clk(axi_aclk),
-		.wr_rst_n(axi_aresetn),
-		.rd_clk(axi_aclk),
-		.rd_rst_n(axi_aresetn),
-		.wr_ptr_bin(w_wr_ptr_bin_next),
-		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
-		.rd_ptr_bin(w_rd_ptr_bin_next),
-		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
-		.count(count),
-		.wr_full(r_wr_full),
-		.wr_almost_full(r_wr_almost_full),
-		.rd_empty(r_rd_empty),
-		.rd_almost_empty(r_rd_almost_empty)
-	);
-	assign wr_ready = !r_wr_full;
-	assign rd_valid = !r_rd_empty;
-	assign r_wr_addr = r_wr_ptr_bin[AW - 1:0];
-	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
-	generate
-		if (MEM_STYLE == 32'sd1) begin : gen_srl
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			if (REGISTERED != 0) begin : g_flop
-				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_rd_data <= 1'sb0;
-					else
-						r_rd_data <= mem[r_rd_addr];
-				assign rd_data = r_rd_data;
-			end
-			else begin : g_mux
-				assign rd_data = mem[r_rd_addr];
-			end
-		end
-		else if (MEM_STYLE == 32'sd2) begin : gen_bram
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			reg [DATA_WIDTH - 1:0] r_rd_data;
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_rd_data <= 1'sb0;
-				else
-					r_rd_data <= mem[r_rd_addr];
-			assign rd_data = r_rd_data;
-		end
-		else begin : gen_auto
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			if (REGISTERED != 0) begin : g_flop
-				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_rd_data <= 1'sb0;
-					else
-						r_rd_data <= mem[r_rd_addr];
-				assign rd_data = r_rd_data;
-			end
-			else begin : g_mux
-				assign rd_data = mem[r_rd_addr];
-			end
-		end
-	endgenerate
-	always @(posedge axi_aclk) begin
-		if (w_write && r_wr_full)
-			;
-		if (w_read && r_rd_empty)
-			;
-	end
-endmodule
 module stream_run_addr_gen (
 	clk,
 	rst_n,
 	start,
+	flush,
 	cfg_per_beat,
 	cfg_base_addr,
 	cfg_stride_0,
@@ -425,6 +592,7 @@ module stream_run_addr_gen (
 	input wire clk;
 	input wire rst_n;
 	input wire start;
+	input wire flush;
 	input wire cfg_per_beat;
 	input wire [ADDR_WIDTH - 1:0] cfg_base_addr;
 	input wire signed [STRIDE_WIDTH - 1:0] cfg_stride_0;
@@ -466,12 +634,18 @@ module stream_run_addr_gen (
 	assign w_step = (r_per_beat ? sv2v_cast_DF906_signed(1) : sv2v_cast_DF906(r_inner_count));
 	wire w_more;
 	assign w_more = r_gen_active && (r_gen_beats < r_total_beats);
+	reg r_discard;
+	reg [2:0] r_inflight;
+	wire w_discard_now;
+	wire w_req_fire;
+	wire w_res_fire;
+	assign w_discard_now = flush || r_discard;
 	wire w_req_valid;
 	wire w_req_ready;
 	wire w_res_valid;
 	wire w_res_ready;
 	wire [ADDR_WIDTH - 1:0] w_res_addr;
-	assign w_req_valid = w_more;
+	assign w_req_valid = w_more && !w_discard_now;
 	dma_address_gen #(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.INDEX_WIDTH(INDEX_WIDTH),
@@ -510,6 +684,8 @@ module stream_run_addr_gen (
 			r_gen_beats <= 1'sb0;
 			r_gen_active <= 1'b0;
 		end
+		else if (flush)
+			r_gen_active <= 1'b0;
 		else if (start) begin
 			r_per_beat <= cfg_per_beat;
 			r_base_addr <= cfg_base_addr;
@@ -550,21 +726,58 @@ module stream_run_addr_gen (
 			else
 				r_i1 <= r_i1 + sv2v_cast_5F989_signed(1);
 		end
+	assign w_req_fire = w_req_valid && w_req_ready;
+	assign w_res_fire = w_res_valid && w_res_ready;
+	function automatic [2:0] sv2v_cast_3;
+		input reg [2:0] inp;
+		sv2v_cast_3 = inp;
+	endfunction
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_inflight <= 3'd0;
+			r_discard <= 1'b0;
+		end
+		else begin
+			r_inflight <= (r_inflight + sv2v_cast_3(w_req_fire)) - sv2v_cast_3(w_res_fire);
+			if (flush)
+				r_discard <= 1'b1;
+			else if ((r_inflight - sv2v_cast_3(w_res_fire)) == 3'd0)
+				r_discard <= 1'b0;
+		end
 	wire w_fifo_wr_ready;
-	assign w_res_ready = w_fifo_wr_ready;
-	gaxi_fifo_sync #(
+	reg r_flush_d;
+	reg r_drop_req;
+	wire w_drop_ready;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_flush_d <= 1'b0;
+			r_drop_req <= 1'b0;
+		end
+		else begin
+			r_flush_d <= flush;
+			r_drop_req <= (flush && !r_flush_d) || (r_drop_req && !w_drop_ready);
+		end
+	assign w_res_ready = (w_discard_now ? 1'b1 : w_fifo_wr_ready);
+	localparam signed [31:0] sv2v_uu_i_addr_fifo_DEPTH = FIFO_DEPTH;
+	localparam signed [31:0] sv2v_uu_i_addr_fifo_AW = $clog2(sv2v_uu_i_addr_fifo_DEPTH);
+	localparam [sv2v_uu_i_addr_fifo_AW:0] sv2v_uu_i_addr_fifo_ext_drop_count_0 = 1'sb0;
+	gaxi_drop_fifo_sync #(
 		.DATA_WIDTH(ADDR_WIDTH),
 		.DEPTH(FIFO_DEPTH)
 	) i_addr_fifo(
 		.axi_aclk(clk),
 		.axi_aresetn(rst_n),
-		.wr_valid(w_res_valid),
+		.wr_valid(w_res_valid && !w_discard_now),
 		.wr_ready(w_fifo_wr_ready),
 		.wr_data(w_res_addr),
 		.rd_valid(o_base_valid),
 		.rd_ready(i_base_ready),
 		.rd_data(o_base_addr),
-		.count()
+		.count(),
+		.drop_valid(r_drop_req),
+		.drop_ready(w_drop_ready),
+		.drop_count(sv2v_uu_i_addr_fifo_ext_drop_count_0),
+		.drop_all(1'b1)
 	);
 endmodule
 module scheduler_beats (
@@ -875,6 +1088,7 @@ module scheduler_beats (
 				.clk(clk),
 				.rst_n(rst_n),
 				.start(w_addrgen_start),
+				.flush(r_channel_reset_active),
 				.cfg_per_beat(r_rd_per_beat),
 				.cfg_base_addr(r_descriptor[ADDR_WIDTH - 1:0]),
 				.cfg_stride_0($signed(r_descriptor_ext[31-:32])),
@@ -897,6 +1111,7 @@ module scheduler_beats (
 				.clk(clk),
 				.rst_n(rst_n),
 				.start(w_addrgen_start),
+				.flush(r_channel_reset_active),
 				.cfg_per_beat(r_wr_per_beat),
 				.cfg_base_addr(r_descriptor[63 + ADDR_WIDTH:64]),
 				.cfg_stride_0($signed(r_descriptor_ext[127-:32])),

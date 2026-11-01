@@ -2429,13 +2429,13 @@ module axi4_to_apb4_convert (
 				end
 			end
 			if ((r_apb_state == 3'b001) && (w_apb_next_state == 3'b010)) begin
-				r_apb_paddr <= sv2v_cast_A2C65(r_s_axi_araddr & ~{{AW - APBAW {1'b0}}, w_alignment_mask});
+				r_apb_paddr <= sv2v_cast_A2C65(r_s_axi_araddr);
 				r_burst_count <= r_s_axi_arlen;
 				r_axi_rd_data_pointer <= 'b0;
 				r_axi_data_shift <= 'b0;
 			end
 			else if ((r_apb_state == 3'b001) && (w_apb_next_state == 3'b100)) begin
-				r_apb_paddr <= sv2v_cast_A2C65(r_s_axi_awaddr & ~{{AW - APBAW {1'b0}}, w_alignment_mask});
+				r_apb_paddr <= sv2v_cast_A2C65(r_s_axi_awaddr);
 				r_burst_count <= r_s_axi_awlen;
 				r_axi_wr_data_pointer <= 'b0;
 			end
