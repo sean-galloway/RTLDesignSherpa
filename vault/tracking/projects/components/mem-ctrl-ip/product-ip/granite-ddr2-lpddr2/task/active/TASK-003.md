@@ -1468,5 +1468,9 @@ write/read run length in sim (tREFI 772: runs of 8, 2043 switches, 3128
 ACTs, 140.8 MB/s; 774: runs of 16, 1037, 2111, 197). Write watermark 4/2
 (also 8/4, 4/0) removes the bad state at every phase tried, never worse.
 Board, `byp100`, four alternating runs: 2/1 hit the bad mixed state 1 / 4 and
-the bad multigen state 3 / 4; 4/2 hit neither, 0 / 8. Full every-profile
-sweep at 4/2 on `ard2_100` queued to decide the default.
+the bad multigen state 3 / 4; 4/2 hit neither, 0 / 8. BUT the full sweep at
+4/2 on `ard2_100` (`char_granite_ard2wm42_100_*`, 180 clean) put open page's
+mixed window at 147.5 (2/1: 204.9), and four more alternating windows runs
+show both watermarks reaching all three states (202.5 / 196.7 / 147.5; 2/1
+open page 147.6 on run 4). 4/2 is not the fix; the watermark stays 2/1. Open:
+make the write/read run length independent of the refresh phase (scheduler).

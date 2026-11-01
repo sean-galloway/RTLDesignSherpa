@@ -146,15 +146,15 @@ scheduler alternates write and read runs once both queues are busy.
   - normal: runs of 16, 1,037 switches, 2,111 ACTs, 197 MB/s.
 
   The refresh phase alone picks the run length, and the state then persists for the whole window: twice the direction switches and half again the ACTs. Nothing else differs between the two runs.
-- **The fix in sim.** A write watermark of 4/2 (8/4 and 4/0 behave the same) removes the bad state at every phase tried. It is never worse than 2/1, and at tREFI 780 it is better (204.7 against 196.8).
-- **Board**, `byp100` bitstream, four alternating runs each:
+- **A write watermark of 4/2 is not the fix.** In sim it removed the bad state at every refresh phase tried (8/4 and 4/0 the same), and on the `byp100` board four alternating power-on runs looked the same way: 2/1 fell to the low state 4 times in 8 cells, 4/2 never. The full sweep at 4/2 on `ard2_100` (`char_granite_ard2wm42_100_*`, 180 cells clean, every other cell within 2 percent, LiteDRAM 42 / 18 / 0) found a third state instead: open page's mixed window at 147.5 MB/s. Four more alternating runs of the windows profile, all three configs:
 
-| cell (read MB/s) | watermark 2/1 (power-on) | watermark 4/2 |
+| mixed window, read MB/s, runs 1-4 | watermark 2/1 | watermark 4/2 |
 |---|---|---|
-| mixed window | 202.5, 202.5, 196.7, 202.5 | 202.5 x4 |
-| multigen col_major_interleaved | 245.8, 245.8, 245.8, 261.9 | 261.9 x4 |
+| power-on | 202.5, 202.5, 202.5, 196.7 | 202.5, 202.5, 196.7, 196.7 |
+| `fixed_open_tr2` | 196.7 x4 | 196.7 x4 |
+| open page | 202.5, 202.5, 202.5, **147.6** | 202.5, **147.6**, 202.5, **147.5** |
 
-  A single A/B pass of windows, concurrent, half_gap and multigen at 4/2 moved nothing else by more than 0.9 percent.
+  Both watermarks reach all three states (202.5, 196.7 and 147.5), so the eight clean 4/2 runs were luck and the watermark stays 2/1. What the window settles into depends on something set at the start of each run, and the refresh phase is the one the sim trace pins down. A fix has to make the run length independent of where the refresh lands, which is a scheduler change (open).
 
 ## Where the read floor goes, and two cycles off it (2026-10-31, evening)
 
