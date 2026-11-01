@@ -50,3 +50,17 @@ Result: **PASS** (only expected `UNUSEDPARAM` warnings from unused `l1_pkg` loca
 - The commit closes the vault tasks honestly: the final full amber + jet + common-ip DV and formal regression gate is explicitly noted as the restructure plan's **Task 6**, not claimed as done here.
 - No functional RTL was changed; the CHI stub is tie-offs only and is not instantiated by any top.
 - The pre-existing untracked/deleted files in the worktree (granite FPGA reports, deleted merlin reports) were left unstaged and are not part of this commit.
+
+## Post-T5 review cleanup (commit `c7e3ec99e`)
+
+- `l1_fabric_contract.md`: added ACE plane `coh_req_*` naming note; clarified
+  that jet's launch discipline lives in `jet_coh_core`'s adapter while amber
+  satisfies it structurally via the blocking FSM.
+- `amber_top.sv`: corrected header to describe the 2:1 top-level MonBus merge
+  with the fabric plane's internal rd/wr observer merge.
+- `l1_shared_core.md`: fixed `l1_core` description (snoop responder and
+  transports now live in fabric planes); added plane-module table.
+- Deleted unsanctioned `amber-mesi-l1/docs/task-reports/2026-11-01-task-3-plane-restructure-amber-tops.md`
+  and filed the open Genesys2 Vivado build item as `amber-mesi-l1 TASK-003`.
+
+All gates passed again on this cleanup batch.
