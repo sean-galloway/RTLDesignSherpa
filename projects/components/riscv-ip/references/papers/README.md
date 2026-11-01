@@ -15,6 +15,7 @@ personal use.
 | `22_deshpande_mahajan_vedic_multiplier_2014.pdf` | 22 — Vedic (UT) multiplier claim | Author-downloaded open copy (IJCA 95(24), 2014), Academia.edu bundle via the owner's Downloads, 2026-10-31 |
 | `23_saha_vedic_32bit_multiplier_2011.pdf` | 23 — UT 32-bit cross-check | Author-downloaded open copy (IJSSIS 4(2), 2011), same bundle |
 | `24_kaje_nayak_vedic_8x8_fpga.pdf` | 24 — UT 8×8 FPGA data point | Author-downloaded open copy, same bundle |
+| `25_chaya_sudha_vedic_ut_ppa_2021.pdf` | 25 — UT + parallel-prefix-adder variant | Author-downloaded open copy (IRJET 8(7), 2021), via the owner's Downloads, 2026-11-01 |
 
 The Academia.edu Vedic bundle held ~30 further "similar papers" (mostly
 short Vedic-multiplier conference write-ups) plus four off-topic papers

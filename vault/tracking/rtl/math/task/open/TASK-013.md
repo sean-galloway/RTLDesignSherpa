@@ -6,10 +6,13 @@
 
 Filed 2026-10-31 (owner direction in session): the Vedic-multiplier claim
 gets settled on *our* flows, not on the literature's baselines. Feeds from
-TASK-012 (mining the Vedic-ALU collection); the three imported papers are
-entries 22–24 in
+TASK-012 (mining the Vedic-ALU collection); the imported papers are
+entries 22–25 in
 `projects/components/riscv-ip/references/microarchitecture-papers.md`
-(Deshpande & Mahajan 2014; Saha et al. 2011; Kaje & Nayak 8×8 FPGA).
+(Deshpande & Mahajan 2014; Saha et al. 2011; Kaje & Nayak 8×8 FPGA;
+Chaya & Sudha 2021 — the UT + parallel-prefix-adder variant, which makes
+the experiment three-armed: plain UT, UT+PPA, and the repo's
+Dadda/Wallace prefix-compressor trees).
 
 ## Scope
 

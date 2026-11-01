@@ -207,6 +207,17 @@ order rather than ladder position — 21 sits with peregrine's caches,
     before any 32-bit comparison. Local copy:
     [`papers/24_kaje_nayak_vedic_8x8_fpga.pdf`](papers/24_kaje_nayak_vedic_8x8_fpga.pdf).
 
+25. **Chaya V and H. Sudha, "Design and Implementation of an Efficient
+    Modified Vedic Multiplier Incorporating Fast Adder and Its
+    Applications," IRJET 8(7), July 2021.**
+    *Guides:* the honest version of the UT claim — this paper replaces
+    the UT summation network with a parallel-prefix adder, which concedes
+    that the prefix tree, not the sutra, is where the speed lives. That
+    makes it the natural third arm of the math TASK-013 experiment:
+    UT partial products + PPA summation vs. the repo's Dadda/Wallace
+    trees (which are prefix-compressor families already). Local copy:
+    [`papers/25_chaya_sudha_vedic_ut_ppa_2021.pdf`](papers/25_chaya_sudha_vedic_ut_ppa_2021.pdf).
+
 ## Textbooks
 
 The owner's textbook library (machine-local, one Markdown file per
