@@ -1474,3 +1474,57 @@ mixed window at 147.5 (2/1: 204.9), and four more alternating windows runs
 show both watermarks reaching all three states (202.5 / 196.7 / 147.5; 2/1
 open page 147.6 on run 4). 4/2 is not the fix; the watermark stays 2/1. Open:
 make the write/read run length independent of the refresh phase (scheduler).
+
+### 2026-11-01: bank ownership, the direction lock, and the stale-pick cut (items 1-3 of the night's list; item 4, the last five floor cycles, dropped by the owner)
+
+Item 2 (did the 2026-10-31 cuts make the 147.5 open-page state?): no. It
+appears on `hx100` (2 / 6 runs), `byp100` (3 / 6) and `ard2_100` (2 / 6),
+and the proxy shows it on HEAD at tREFI 772 (150.0).
+
+Item 1, what holds the mixed window's low state. `SCHED_WR_WM` is inert under
+the bank-pick core (`mc_scheduler_plane` ties the watermark ports off), so
+the 4/2 runs were run-to-run state; the RDL now says so. A first hypothesis
+(`DIR_HOLD_ROWS`) was a no-op at all 11 refresh phases and was removed. A
+probe at every flip in the bad state: the current direction still had 8
+queued heads and none requesting, one bank held by the other direction's
+row under the PRE courtesy, the other short of its ACT lookahead. Fix
+(695b42e0d, `mc_bank_pick`, granite on): `DIR_OWNS_ROWS` (the bus direction
+may close the other direction's row until the batch cap) and
+`DIR_HOLD_IDLE` 8 (hold while a queued head exists, 8 idle cycles at most).
+Proxy mixed window 510-535 MB/s at five phases against 394-403.
+
+The first board build (`own100`, closed at +0.001) held one bank's read for
+a whole write stream: multigen `col_major_interleaved` max 367,621 cycles.
+Adding `!r_batch_done` to the ownership term (a guessed livelock) changed
+nothing on the board; a new proxy family running the board's host path
+(`mg_<family>`, `pc.measure_concurrent`) reproduced it (23,069), and a
+cycle trace found it. The writer's short-hop column, picked before a drain
+flip to reads, fired in the flip cycle and turned the bus back with a fresh
+batch; the read lost to tWTR; the batch never passed 8, so the cap never
+fired. Rule: a column of the old direction the cycle after ANY flip is a
+leftover (`r_cap_flip` -> `r_dir_flip`). Proxy 23,069 -> 175; knobs off, the
+proxy mixed window at tREFI 772 leaves its low state too (281.5 -> 395.2).
+Handing ownership to the waiting direction at the cap instead was tried and
+dropped (no effect on the lock, mixed window -12 to -31 MB/s).
+
+Item 3, the stale-pick path. A registered store pop (`POP_REG`) is
+cycle-exact but moved the failing paths without a net gain (four
+placements); kept as a tested parameter, off. The ownership logic missed
+100 MHz on seven placements (best -0.062 after phys_opt), always on the
+stale-pick loop. Instead of a pipeline stage, the stale mask's one-hot is
+computed per request set in parallel with the class select (cycle-exact:
+an instrumented compare over 95,000 picks found none differ). Closed with
+Explore, WNS +0.007 / WHS +0.016, `ddr2_char_granite_100mhz_own3_2026-11-01.bit`.
+
+Board, every profile, `char_granite_own3_100_*`: 180 cells clean; worst
+read latency over all cells 1,742 (`ard2_100`: 1,744). Mixed window read,
+six runs each: power-on 202 -> 283 or 319, open page 202 -> 330,
+`fixed_open_tr2` 197 -> 236. Concurrent `col_major_interleaved` +7 to +16
+percent with lower latency (max 197 -> 161). Multigen `col_major_interleaved`
+-2.5 to +10 percent (the first build's +57 percent was the lock). Every
+other cell within -0.7 / +1.9 percent; LiteDRAM tally unchanged. Gates: granite
+top 16 / 1 xfail (default level 18 / 1), pumice top 197, common-ip fub 36,
+macro 36 / 3 xfail.
+
+Open: power-on's mixed window still lands in two states (283 / 319 read,
+3 runs each); the stale-pick loop is still the critical path (+0.007).

@@ -1,6 +1,6 @@
 # granite vs LiteDRAM, the full sweep (owner's request, 2026-10-29)
 
-## Working summary (as of 2026-10-31)
+## Working summary (as of 2026-11-01)
 
 One board (Nexys A7-100T, MT47H64M16HR x16), one harness, one host program
 for all three controllers. Everything below the summary is the running log
@@ -26,11 +26,14 @@ lower unloaded read latency (18 cycles against 23).
 | half_pair, 1 thread | 393 / 389 | 324 / 383 | 294 / 243 | 243 / 286 | 195 / 147 |
 | half_pair, 8 threads | 385 / 389 | 94 / 95 | 268 / 290 | 70 / 71 | 157 / 194 |
 | random window, 4 threads | 628 / 658 | 383 / 397 | 468 / 481 | 286 / 298 | 267 / 287 |
-| mixed window, 4 threads | 205 / 202 | 159 / 159 | 147 / 147 | 119 / 119 | 131 / 108 |
+| mixed window, 4 threads | 251 / 283 | 159 / 159 | 147 / 147 | 119 / 119 | 131 / 108 |
 | concurrent 1 writer + 1 reader, incremental | 368 / 368 | 167 / 167 | 285 / 285 | 124 / 124 | 185 / 185 |
 
-Sources: granite 100 = `hx100` 2026-10-31, power-on (`defaults`; the
-`byp100` and `ard2_100` rebuilds the same evening read the same on every cell above); LiteDRAM
+Sources: granite 100 = `own3_100` 2026-11-01, power-on (`defaults`;
+every cell but the mixed window reads the same on the `hx100`, `byp100` and
+`ard2_100` builds of 2026-10-31, where the mixed window was 205 / 202). The
+mixed window settles in one of two states per run, 251 / 283 or 260 / 319
+(three runs each in six); see "Direction ownership" below. LiteDRAM
 100 = `hx100` 2026-10-31; granite 75 = `sweep75` 2026-10-29 `open_page`
 (the design as of that day: before the hybrid, fast read release and the
 drain-arm fix); LiteDRAM 75 = `sweep75` 2026-10-29; pumice 50 = `sweep`
@@ -48,9 +51,9 @@ lose, the six losses all `col_major`. That design has not been re-swept at 75.
 | col_major_interleaved, 8-beat | 50.2 / 23 / 77 | 64.5 / 22 / 87 |
 | random window, 4 threads | 51.4 / 23 / 84 | 61.4 / 22 / 91 |
 
-granite = `ard2_100` (41bb5e07e: on top of the store head bypass and the
-return fall-through, the store's AR direct placement and the DFI command
-fall-through): the floor came down 27 -> 25 -> 23 over the two rebuilds.
+granite = `own3_100` (695b42e0d; every row reads the same on `ard2_100`,
+41bb5e07e: on top of the store head bypass and the return fall-through, the
+store's AR direct placement and the DFI command fall-through): the floor came down 27 -> 25 -> 23 over the two rebuilds.
 Only a read that finds the controller idle sees the floor, so the loaded
 means move about a cycle (median -1.0 over 180 cells against `byp100`;
 half_pair 8 threads 44.9 -> 41.9 -> 40.7).
@@ -94,6 +97,53 @@ mixed window.
 ---
 
 # Appendix: the running log
+
+## Direction ownership, and a direction lock it exposed (2026-11-01)
+
+The mixed window's low states were not the refresh phase alone (below). A
+probe at every direction flip in the proxy's bad state (tREFI 772) showed
+the current direction still holding 8 queued heads, none requesting: one
+bank held open by the other direction's row (the PRE courtesy withholds the
+close while the other direction's head hits it), the other a few cycles
+short of its ACT lookahead after its own auto-precharge. The bus turned
+round (about 26 cycles) instead of closing and opening a row (about 4), one
+bank per run, runs of 8, 2,043 switches. The write watermark never entered
+into it: under the bank-pick core `SCHED_WR_WM` is tied off (now documented
+as inert in the RDL).
+
+Three changes to `mc_bank_pick`, granite on (695b42e0d):
+
+- `DIR_OWNS_ROWS`: the direction holding the bus may close the other direction's row, until its batch cap.
+- `DIR_HOLD_IDLE` 8: the direction also holds while it has a queued head, for at most 8 idle cycles.
+- Any direction flip, not only the batch cap's, makes the next cycle's column of the old direction a leftover that does not turn the bus back. The first board build with the first two (`own100`, CSVs kept as the record) held one bank's read for the whole write stream: multigen `col_major_interleaved` max read latency 367,621 cycles under `fixed_open_tr2` (9,386 open page, 7,087 power-on). A new proxy family, `mg_<family>`, runs the board's multigen and concurrent host path and reproduced it (23,069). The cycle trace: the writer's short-hop column, picked the cycle before a drain flip to reads, fired in the flip cycle and turned the bus back with a fresh batch, and the picked read then lost to tWTR. The batch never passed 8, so the 255 cap never fired. With the leftover rule the same proxy cell reads 175. In the proxy the rule also helps with both knobs off: the proxy mixed window at tREFI 772 leaves its low state (281.5 -> 395.2).
+
+Timing: the first two missed 100 MHz on seven placements (best -0.062 ns
+after a post-route pass), always on the stale-pick loop. Instead of a
+pipeline stage, the stale mask's one-hot is now computed per request set in
+parallel with the class select and muxed by its source. It is cycle-exact (an
+instrumented compare over 95,000 picks found none differ) and costs no pick
+cycle. `ddr2_char_granite_100mhz_own3_2026-11-01.bit`, Explore, WNS +0.007 /
+WHS +0.016.
+
+Board, every profile, `char_granite_own3_100_<profile>_2026-11-01.csv`: 180
+cells, 0 failed, 0 mismatched. Against `ard2_100`:
+
+| cell (write / read MB/s, max read latency) | `ard2_100` | `own3_100` |
+|---|---|---|
+| mixed window, power-on (six runs) | 205 / 202 | 251 / 283 or 260 / 319 |
+| mixed window, open page (six runs) | 205 / 202 | 262 / 330 |
+| mixed window, `fixed_open_tr2` (six runs) | 191 / 197 | 250 / 236 |
+| concurrent 1+1 `col_major_interleaved`, power-on | 274 / 274, 197 | 317 / 317, 161 |
+| concurrent 1+1 `col_major_interleaved`, open page | 275 / 275, 196 | 318 / 318, 161 |
+| multigen 1+2 `col_major_interleaved`, power-on | 123 / 246, 138 | 123 / 246, 152 |
+| multigen 1+2 `col_major_interleaved`, `fixed_open_tr2` | 115 / 229, 231 | 126 / 253, 187 |
+| multigen 1+2 `col_major_interleaved`, open page | 130 / 259, 225 | 126 / 253, 163 |
+| worst read latency, all 180 cells | 1,744 | 1,742 |
+
+- Bandwidth across all 180 cells: mean +0.8 percent, median 0. The worst cell is -2.5 percent: multigen open page `col_major_interleaved`, the last row above.
+- Mean latency: median 0, mean -1.0. The `half_burst` sweep cells move by whole steps of about 9 cycles (94.5 / 103.5 / 112.5 / 121.5), as they did between earlier builds; that is a phase state, not this change.
+- LiteDRAM tally: unchanged from `ard2_100`.
+- The large multigen gain on the first build (246 -> 386 MB/s) was the lock itself: the writer ran alone and then the readers ran alone, with no turnarounds. Without the lock that cell reads -2.5 to +10 percent against `ard2_100`, depending on the config.
 
 ## Two more cycles: AR direct placement and the DFI command fall-through (2026-10-31, night)
 
@@ -155,6 +205,12 @@ scheduler alternates write and read runs once both queues are busy.
 | open page | 202.5, 202.5, 202.5, **147.6** | 202.5, **147.6**, 202.5, **147.5** |
 
   Both watermarks reach all three states (202.5, 196.7 and 147.5), so the eight clean 4/2 runs were luck and the watermark stays 2/1. What the window settles into depends on something set at the start of each run, and the refresh phase is the one the sim trace pins down. A fix has to make the run length independent of where the refresh lands, which is a scheduler change (open).
+
+  **Correction (2026-11-01).** The refresh phase is what tips the window into
+  a state; it is not what holds it there, and the watermark could not have
+  moved it. Under the bank-pick core the watermark ports are tied off, so the
+  4/2 runs differed from 2/1 only in run-to-run state. The bank-ownership
+  lock in "Direction ownership" above is what holds the state.
 
 ## Where the read floor goes, and two cycles off it (2026-10-31, evening)
 
