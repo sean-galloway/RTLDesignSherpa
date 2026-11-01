@@ -116,6 +116,8 @@ These PHY-integration knobs are not datapath constants; pumice is the measured c
 | `RD_FIFO_DEPTH` | 32 | CDC read-return FIFO depth |
 | `N_FLOP_CROSS` | 2 | Async-FIFO pointer synchronizer stages |
 | `USE_JOHNSON` | 0 | Pointer encoding: 0=Gray, 1=Johnson |
+| `DFI_CDC_EN` | 1 | 0 = `ctl_clk` and `dfi_clk` are one net: the CDC FIFOs are synchronous `gaxi_fifo_sync` at the same depths |
+| `CMD_FALLTHRU` | 0 | Same-clock form only: a command that finds the cmd FIFO empty is offered to the command path in its own cycle, and taken there is never written (scheduler -> DFI pins 2 -> 1). Order holds; a WR whose data is not staged is refused by the command gate and queues. Granite sets 1 |
 | `DFI_DATA_WIDTH` | derived | `DRAM_BEAT_WIDTH * DFI_RATE` |
 | `DFI_STRB_WIDTH` | derived | `DFI_DATA_WIDTH / 8` |
 | `DFI_EN_WIDTH` | derived | `DFI_RATE` |

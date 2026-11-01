@@ -158,6 +158,14 @@ module mc_bank_fifo_store
     // 2026-10-31). The FIFO entry is valid from that same edge, before the
     // pick can fire the record, so a pop always finds it.
     parameter bit HEAD_BYPASS        = 1'b0,
+    // 1 = AR_DIRECT: an AR accepted while the AR hold is EMPTY, that is not a
+    // merge and can be placed this cycle (free slot, bank queue room, cap),
+    // goes into its bank queue from the push inputs in the push cycle instead
+    // of through the hold a cycle later. The hold still takes any AR that
+    // cannot be placed at once, and push-ready keeps its hold-only form, so
+    // the push handshake never depends on the placement it enables (granite
+    // TASK-003, 2026-10-31).
+    parameter bit AR_DIRECT          = 1'b0,
 
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
@@ -847,10 +855,22 @@ module mc_bank_fifo_store
     logic [ROW_WIDTH-1:0] r_arh_row;
     logic [COL_WIDTH-1:0] r_arh_col;
     logic [RTW-1:0]       r_arh_ticket;
-    logic w_ar_take, w_ar_fire, w_rd_issue_fire;
-    assign w_ar_fire       = r_arh_vld && w_rd_have_free && (r_rq_cnt[r_arh_bank] != QCW'(QD))
-                           && w_rq_wr_ready[r_arh_bank] && w_rd_cap_ok;
-    assign rd_cam_ins_ready_o = !r_arh_vld || w_ar_fire;
+    logic w_ar_take, w_ar_fire, w_ar_fire_hold, w_ar_direct, w_rd_issue_fire, w_ars_ok;
+    // the AR being placed: the hold when it is full, else (AR_DIRECT) the push
+    logic [BKW-1:0]       w_ars_bank;
+    logic [ROW_WIDTH-1:0] w_ars_row;
+    logic [COL_WIDTH-1:0] w_ars_col;
+    logic [RTW-1:0]       w_ars_ticket;
+    assign w_ars_bank   = r_arh_vld ? r_arh_bank   : ar_push_bank_i;
+    assign w_ars_row    = r_arh_vld ? r_arh_row    : ar_push_row_i;
+    assign w_ars_col    = r_arh_vld ? r_arh_col    : ar_push_col_i;
+    assign w_ars_ticket = r_arh_vld ? r_arh_ticket : rt_alloc_ticket_i;
+    assign w_ars_ok       = w_rd_have_free && (r_rq_cnt[w_ars_bank] != QCW'(QD))
+                          && w_rq_wr_ready[w_ars_bank] && w_rd_cap_ok;
+    assign w_ar_fire_hold = r_arh_vld && w_ars_ok;
+    assign w_ar_direct    = AR_DIRECT && !r_arh_vld && w_ar_take && !ar_merge_o && w_ars_ok;
+    assign w_ar_fire      = w_ar_fire_hold || w_ar_direct;
+    assign rd_cam_ins_ready_o = !r_arh_vld || w_ar_fire_hold;
     assign ar_push_ready_o    = rd_cam_ins_ready_o && rt_alloc_ready_i;
     assign w_ar_take       = ar_push_valid_i && ar_push_ready_o;
     // ---- read merge (MERGE_EN): the AR being pushed matches a live, unissued
@@ -903,13 +923,13 @@ module mc_bank_fifo_store
             r_arh_row    <= '0;
             r_arh_col    <= '0;
             r_arh_ticket <= '0;
-        end else if (w_ar_take && !ar_merge_o) begin
+        end else if (w_ar_take && !ar_merge_o && !w_ar_direct) begin
             r_arh_vld    <= 1'b1;
             r_arh_bank   <= ar_push_bank_i;
             r_arh_row    <= ar_push_row_i;
             r_arh_col    <= ar_push_col_i;
             r_arh_ticket <= rt_alloc_ticket_i;
-        end else if (w_ar_fire) begin
+        end else if (w_ar_fire_hold) begin
             r_arh_vld    <= 1'b0;
         end
     end)
@@ -920,10 +940,10 @@ module mc_bank_fifo_store
         for (int b = 0; b < NUM_BANKS; b++) begin
             w_rq_pop [b] = w_rd_issue_fire && w_rq_rd_valid[b]
                          && (w_rq_rd_data[b][PTRW-1:0] == rd_issue_slot_i);
-            w_rq_push[b] = w_ar_fire && (r_arh_bank == BKW'(b));
+            w_rq_push[b] = w_ar_fire && (w_ars_bank == BKW'(b));
         end
     end
-    assign w_rq_sp_new = (r_rq_cnt[r_arh_bank] != '0) && (r_arh_row == r_rq_tail_row[r_arh_bank]);
+    assign w_rq_sp_new = (r_rq_cnt[w_ars_bank] != '0) && (w_ars_row == r_rq_tail_row[w_ars_bank]);
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
@@ -937,15 +957,15 @@ module mc_bank_fifo_store
         end else begin
             if (w_ar_fire) begin
                 r_rd_valid [w_rd_free_slot] <= 1'b1;
-                r_rd_bank  [w_rd_free_slot] <= r_arh_bank;
-                r_rd_row   [w_rd_free_slot] <= r_arh_row;
-                r_rd_col   [w_rd_free_slot] <= r_arh_col;
-                r_rd_ticket[w_rd_free_slot] <= r_arh_ticket;
+                r_rd_bank  [w_rd_free_slot] <= w_ars_bank;
+                r_rd_row   [w_rd_free_slot] <= w_ars_row;
+                r_rd_col   [w_rd_free_slot] <= w_ars_col;
+                r_rd_ticket[w_rd_free_slot] <= w_ars_ticket;
             end
             if (w_rd_issue_fire) r_rd_valid[rd_issue_slot_i] <= 1'b0;
             for (int b = 0; b < NUM_BANKS; b++) begin
                 r_rq_cnt[b] <= QCW'(int'(r_rq_cnt[b]) - (w_rq_pop[b] ? 1 : 0) + (w_rq_push[b] ? 1 : 0));
-                if (w_rq_push[b]) r_rq_tail_row[b] <= r_arh_row;
+                if (w_rq_push[b]) r_rq_tail_row[b] <= w_ars_row;
             end
         end
     end)
@@ -960,7 +980,7 @@ module mc_bank_fifo_store
         end
     end
     assign w_wr_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_rd || (int'(r_wq_cnt[r_awh_bank]) < BANK_CAP_MIXED);
-    assign w_rd_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_wr || (int'(r_rq_cnt[r_arh_bank]) < BANK_CAP_MIXED);
+    assign w_rd_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_wr || (int'(r_rq_cnt[w_ars_bank]) < BANK_CAP_MIXED);
 
     // ======================================================================
     // Pool age (gaxi_age_fifo_sync's writer rule across all 2 x NUM_BANKS
@@ -1236,12 +1256,12 @@ module mc_bank_fifo_store
             h2.hit             = has1 && sp1;  // == head.behind_same_row's bit (header)
             if (!HEAD2_EN) h2 = '0;
             // HEAD_BYPASS: the AR going into this empty queue now is the head
-            if (HEAD_BYPASS && w_ar_fire && (r_arh_bank == BKW'(b)) && !has0) begin
+            if (HEAD_BYPASS && w_ar_fire && (w_ars_bank == BKW'(b)) && !has0) begin
                 h = '0;
                 h.vld          = 1'b1;
                 h.slot         = MC_HEAD_SLOT_W'(w_rd_free_slot);
                 h.behind_empty = 1'b1;
-                h.hit          = bank_row_active_i[b] && (r_arh_row == orow);
+                h.hit          = bank_row_active_i[b] && (w_ars_row == orow);
             end
             w_rd_head [b] = h;
             w_rd_head2[b] = h2;

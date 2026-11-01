@@ -71,6 +71,13 @@ package granite_pkg;
     // floor split (2026-10-31, granite TASK-003): push -> pick 4, return -> R 2.
     parameter bit GRANITE_RD_RET_FALLTHRU = 1'b1;
     parameter bit GRANITE_STORE_HEAD_BYPASS = 1'b1;
+    // DFI command fall-through (mc_dfi_cdc CMD_FALLTHRU, same-clock form): a
+    // command that finds the DFI plane's cmd FIFO empty goes to the command
+    // path in its own cycle (scheduler -> DFI pins 2 -> 1).
+    parameter bit GRANITE_DFI_CMD_FALLTHRU = 1'b1;
+    // Store AR direct placement (mc_bank_fifo_store AR_DIRECT): an AR that
+    // finds the AR hold empty goes into its bank queue in the push cycle.
+    parameter bit GRANITE_STORE_AR_DIRECT = 1'b1;
 
     // ------------------------------------------------------------------
     // RAS plane: ABSENT in this SKU (true bypass, reserved CSR decode

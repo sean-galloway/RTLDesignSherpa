@@ -54,7 +54,14 @@ module mc_dfi_cdc #(
     //     (data never behind its WR at the PHY) holds as before. Only legal
     //     when the two clock inputs are one net: the dfi-side flops below
     //     are clocked by dfi_clk and read ctl-domain signals directly.
-    parameter bit DFI_CDC_EN   = 1'b1
+    parameter bit DFI_CDC_EN   = 1'b1,
+    // 1 (same-clock form only) = CMD_FALLTHRU: a command that finds the cmd
+    // FIFO EMPTY is also offered to the command path in its own cycle; taken
+    // there it is never written, otherwise it is written as before. One cycle
+    // less from the scheduler to the DFI pins (granite TASK-003, 2026-10-31).
+    // Order holds (only into an empty FIFO); a WR whose data is not staged is
+    // refused by the command path's gate and simply queues.
+    parameter bit CMD_FALLTHRU = 1'b0
 ) (
     //=========================================================================
     // Controller domain (aclk)
@@ -272,20 +279,28 @@ module mc_dfi_cdc #(
     // =====================================================================
 
     // ---- cmd : ctl -> phy ---------------------------------------------------
+    logic              w_cq_valid, w_cq_rd_ready, w_cft, w_cft_take;
+    logic [CMD_DW-1:0] w_cq_data;
     gaxi_fifo_sync #(
         .DATA_WIDTH (CMD_DW),
         .DEPTH      (CMD_DEPTH)
     ) u_cmd_fifo (
         .axi_aclk    (ctl_clk),
         .axi_aresetn (ctl_rstn),
-        .wr_valid    (cmd_valid_i),
+        .wr_valid    (cmd_valid_i && !w_cft_take),
         .wr_ready    (cmd_ready_o),
         .wr_data     (cmd_data_i),
-        .rd_ready    (pcmd_ready_i),
+        .rd_ready    (w_cq_rd_ready),
         .count       (),
-        .rd_valid    (pcmd_valid_o),
-        .rd_data     (pcmd_data_o)
+        .rd_valid    (w_cq_valid),
+        .rd_data     (w_cq_data)
     );
+    // CMD_FALLTHRU: the FIFO is empty, so the offered command is its would-be head
+    assign w_cft         = CMD_FALLTHRU && !w_cq_valid && cmd_valid_i;
+    assign w_cft_take    = w_cft && pcmd_ready_i;
+    assign pcmd_valid_o  = w_cq_valid || w_cft;
+    assign pcmd_data_o   = w_cq_valid ? w_cq_data : cmd_data_i;
+    assign w_cq_rd_ready = pcmd_ready_i && w_cq_valid;
 
     // ---- wrdata + staged token : ctl -> phy (same coupling as g_async) ------
     logic w_wd_data_ready, w_wtok_ready, w_wtok_push;

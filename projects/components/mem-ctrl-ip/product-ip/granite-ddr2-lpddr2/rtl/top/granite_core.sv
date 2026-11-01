@@ -537,7 +537,8 @@ module granite_core
             .AXI_BEATS_PER_BURST(BURST_WORDS),
             .RD_RET_DEPTH       (RD_RET_DEPTH),
             .WR_DATA_BUF_WORDS  (GRANITE_WR_DATA_BUF_WORDS),
-            .HEAD_BYPASS        (GRANITE_STORE_HEAD_BYPASS)
+            .HEAD_BYPASS        (GRANITE_STORE_HEAD_BYPASS),
+            .AR_DIRECT          (GRANITE_STORE_AR_DIRECT)
         ) u_fifo_store (
             .aclk               (aclk),
             .aresetn            (aresetn),
@@ -1060,6 +1061,7 @@ module granite_core
         .WD_FIFO_DEPTH   (DFI_WD_FIFO_DEPTH),
         .CMD_FIFO_DEPTH  (DFI_CMD_FIFO_DEPTH),
         .DFI_CDC_EN      (DFI_CDC_EN),
+        .CMD_FALLTHRU    (GRANITE_DFI_CMD_FALLTHRU),
         .CMD_HISTORY_EN  (0),
         .HIST_T_RFC      (0),
         .HIST_T_RTW      (0),
