@@ -111,6 +111,7 @@ module peakrdl_to_cmdrsp (
 	reg _sv2v_0;
 	parameter signed [31:0] ADDR_WIDTH = 12;
 	parameter signed [31:0] DATA_WIDTH = 32;
+	parameter [0:0] INPUT_REG = 1'b0;
 	input wire aclk;
 	input wire aresetn;
 	input wire cmd_valid;
@@ -175,6 +176,8 @@ module peakrdl_to_cmdrsp (
 			cmd_state <= 2'b00;
 		else
 			cmd_state <= cmd_state_next;
+	wire w_reg_cmd_clear;
+	assign w_reg_cmd_clear = (r_cmd_pwrite ? !regblk_req_stall_wr : !regblk_req_stall_rd);
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -182,7 +185,9 @@ module peakrdl_to_cmdrsp (
 		case (cmd_state)
 			2'b00:
 				if (cmd_valid) begin
-					if (cmd_pwrite && !regblk_req_stall_wr)
+					if (INPUT_REG)
+						cmd_state_next = 2'b10;
+					else if (cmd_pwrite && !regblk_req_stall_wr)
 						cmd_state_next = 2'b01;
 					else if (!cmd_pwrite && !regblk_req_stall_rd)
 						cmd_state_next = 2'b01;
@@ -193,10 +198,8 @@ module peakrdl_to_cmdrsp (
 				if (regblk_wr_ack || regblk_rd_ack)
 					cmd_state_next = 2'b00;
 			2'b10:
-				if (r_cmd_pwrite && !regblk_req_stall_wr)
-					cmd_state_next = 2'b01;
-				else if (!r_cmd_pwrite && !regblk_req_stall_rd)
-					cmd_state_next = 2'b01;
+				if (w_reg_cmd_clear)
+					cmd_state_next = (INPUT_REG && (regblk_wr_ack || regblk_rd_ack) ? 2'b00 : 2'b01);
 			default: cmd_state_next = 2'b00;
 		endcase
 	end
@@ -214,11 +217,13 @@ module peakrdl_to_cmdrsp (
 			r_cmd_pwdata <= cmd_pwdata;
 			r_cmd_wr_biten <= strb_to_biten(cmd_pstrb);
 		end
-	assign regblk_req = (cmd_state == 2'b01) || ((cmd_state == 2'b00) && cmd_valid);
-	assign regblk_req_is_wr = (cmd_state == 2'b00 ? cmd_pwrite : r_cmd_pwrite);
-	assign regblk_addr = (cmd_state == 2'b00 ? cmd_paddr : r_cmd_paddr);
-	assign regblk_wr_data = (cmd_state == 2'b00 ? cmd_pwdata : r_cmd_pwdata);
-	assign regblk_wr_biten = (cmd_state == 2'b00 ? strb_to_biten(cmd_pstrb) : r_cmd_wr_biten);
+	assign regblk_req = (cmd_state == 2'b01) || (INPUT_REG ? (cmd_state == 2'b10) && w_reg_cmd_clear : (cmd_state == 2'b00) && cmd_valid);
+	wire w_bypass;
+	assign w_bypass = !INPUT_REG && (cmd_state == 2'b00);
+	assign regblk_req_is_wr = (w_bypass ? cmd_pwrite : r_cmd_pwrite);
+	assign regblk_addr = (w_bypass ? cmd_paddr : r_cmd_paddr);
+	assign regblk_wr_data = (w_bypass ? cmd_pwdata : r_cmd_pwdata);
+	assign regblk_wr_biten = (w_bypass ? strb_to_biten(cmd_pstrb) : r_cmd_wr_biten);
 	always @(posedge aclk or negedge w_aresetn)
 		if (!w_aresetn)
 			rsp_state <= 1'b0;

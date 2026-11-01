@@ -1,4 +1,7 @@
 {
   "projects/components/riscv-ip/kestrel-rv32i/docs/kestrel_mas/kestrel_mas_index.md": 1,
+  "projects/components/riscv-ip/merlin-rv32i/docs/merlin_mas/merlin_mas_index.md": 1,
+  "vendor/pulp-axi/README.md": 66,
+  "vendor/pulp-common_cells/README.md": 89,
   "vault/tracking/projects/components/mem-ctrl-ip/memory-controllers/task/INDEX.md": 1
 }
