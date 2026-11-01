@@ -1,0 +1,19 @@
+# hazard_branch_after_alu: taken/not-taken branches whose operands come from immediately-preceding ALU results.
+@00000000
+00a00093
+00a00113
+00208463
+bad00193
+01400213
+01e00293
+00521463
+bad00313
+02800393
+02900413
+00838463
+00100493
+03200513
+03200593
+00b51463
+00100613
+00000073

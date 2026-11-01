@@ -1,0 +1,8 @@
+# hazard_store_data_forward: ALU result forwarded into a store's rs2 data, verified by a later load.
+@00000000
+10000093
+12345137
+67810113
+0020a023
+0000a183
+00000073

@@ -1,0 +1,11 @@
+# hazard_flush_during_loaduse: a taken branch shortly after a load-use stall flushes the stalled consumer's successor.
+@00000000
+10000093
+00100113
+0020a023
+0000a183
+00018213
+00000463
+bad00293
+bcd00313
+00000073

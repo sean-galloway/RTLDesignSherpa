@@ -1,0 +1,8 @@
+# hazard_branch_flush_backtoback: two taken branches back-to-back, each flushing its fall-through slot.
+@00000000
+00000463
+bad00093
+00000463
+bad00113
+00100193
+00000073

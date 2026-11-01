@@ -1,0 +1,15 @@
+# hazard_jalr_forward: jalr target address forwarded from a preceding ALU op and from a load result.
+@00000000
+01000093
+00008167
+bad00193
+bad00213
+02c00293
+10000313
+00532023
+00032383
+00038467
+bad00493
+bad00513
+00200593
+00000073

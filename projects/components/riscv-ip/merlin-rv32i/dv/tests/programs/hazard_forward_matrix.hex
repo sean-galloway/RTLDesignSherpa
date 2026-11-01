@@ -1,0 +1,9 @@
+# hazard_forward_matrix: exercise EX/MEM and MEM/WB forwarding into both ALU operands.
+@00000000
+00a00093
+01400113
+002081b3
+00118233
+003102b3
+00520333
+00000073
