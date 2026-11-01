@@ -78,6 +78,16 @@ package granite_pkg;
     // Store AR direct placement (mc_bank_fifo_store AR_DIRECT): an AR that
     // finds the AR hold empty goes into its bank queue in the push cycle.
     parameter bit GRANITE_STORE_AR_DIRECT = 1'b1;
+    // Read intake AR decode stage (mc_rd_intake AR_STAGE_REG): the ADDR_MAP
+    // decode lands in a register before the store's read-merge search and
+    // the ring's shadow alloc see it; one cycle of AR latency. Tied to
+    // STORE_MERGE_EN until 2026-11-01; independent now, so a merge-off build
+    // changes only the merge (granite TASK-003).
+    parameter bit GRANITE_RD_AR_STAGE_REG = 1'b1;
+    // Return-ring shadow marking from a register (mc_rd_return_ring
+    // MERGE_MARK_REG). Inert with STORE_MERGE_EN = 0: no read is a shadow.
+    // Also tied to STORE_MERGE_EN until 2026-11-01.
+    parameter bit GRANITE_RD_MERGE_MARK_REG = 1'b1;
     // Store registered pop (mc_bank_fifo_store POP_REG): a commit / issue pops
     // its bank FIFO a cycle late from a register, behind a logical queue view,
     // so the scheduler's fire cone ends at that register (timing only).

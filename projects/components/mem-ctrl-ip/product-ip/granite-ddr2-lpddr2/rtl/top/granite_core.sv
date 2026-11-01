@@ -400,10 +400,9 @@ module granite_core
         .N_SCHED_LU       (N_LU),
         .AGE_WIDTH        (AGE_WIDTH),
         .HAS_SNARF        (HAS_SNARF),
-        // the read combiner matches the AR in its push cycle: decode it into a
-        // register first when combining is on (100 MHz closure, TASK-003)
-        .RD_AR_STAGE_REG  (HAS_SNARF || STORE_MERGE_EN),
-        .RD_MERGE_MARK_REG(STORE_MERGE_EN),
+        // own knobs, not derived from STORE_MERGE_EN (granite_pkg)
+        .RD_AR_STAGE_REG  (GRANITE_RD_AR_STAGE_REG),
+        .RD_MERGE_MARK_REG(GRANITE_RD_MERGE_MARK_REG),
         .RD_RET_BYPASS    (GRANITE_RD_RET_BYPASS),
         .RD_RET_FALLTHRU  (GRANITE_RD_RET_FALLTHRU),
         .RD_FIFO_DEPTH    (INTAKE_FIFO_DEPTH),

@@ -79,7 +79,8 @@ The ring is sized by `RD_RET_DEPTH` (default 32). This decoupling fixed a bandwi
 | `N_SCHED_LU` | 4 | Scheduler lookup port count |
 | `AGE_WIDTH` | 16 | Age field width |
 | `RD_RET_DEPTH` | 32 | In-flight read count (ring depth) |
-| `RD_MERGE_MARK_REG` | 0 | Ring `MERGE_MARK_REG`: a shadow's marking lands the cycle after its allocation (granite's merge build) |
+| `RD_AR_STAGE_REG` | `HAS_SNARF` | Intake `AR_STAGE_REG`: the AR decode lands in a register before the store and ring see it, one cycle of AR latency (granite sets 1, `GRANITE_RD_AR_STAGE_REG`) |
+| `RD_MERGE_MARK_REG` | 0 | Ring `MERGE_MARK_REG`: a shadow's marking lands the cycle after its allocation; inert without read merging (granite sets 1, `GRANITE_RD_MERGE_MARK_REG`) |
 | `RD_RET_BYPASS` | 0 | Ring `RET_BYPASS`: the next beat in ring order goes from the DFI return straight into the output skid (granite sets 1) |
 | `RD_RET_FALLTHRU` | 0 | Ring `RET_FALLTHRU`: a bypass beat that finds the skid empty is offered on the drain port in the return cycle (granite sets 1) |
 | `IW`, `AW`, `DW`, `UW`, `SW`, `BKW`, `PTRW`, `RKW`, `DRAM_BURST_BYTES` | derived | Shorthand widths; `DRAM_BURST_BYTES = AXI_BEATS_PER_BURST * (DRAM_BEAT_WIDTH / 8)` |
