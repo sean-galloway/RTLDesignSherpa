@@ -42,7 +42,9 @@ the v2 generation will never see
 - **Storage plane, lite configuration** — N=8 slots per direction on the
   per-bank FIFO store (`mc_bank_fifo_store`, `STORE_BACKEND=1`, the default
   since 2026-10-23): bank queues pool-deep, head records read off the
-  queue fronts, no age matrix. `STORE_BACKEND=0` keeps the entry store +
+  queue fronts, no age matrix; a read entering an empty bank queue is that
+  bank's head record a cycle sooner (`HEAD_BYPASS`, granite sets 1 since
+  2026-10-31). `STORE_BACKEND=0` keeps the entry store +
   `mc_bank_head_records` for A/B. Storage "off" shrinks toward one, never
   to zero. `HAS_LPDDR2=0` compiles the LPDDR2 training plane out of a
   DDR2-only build; `FIXED_TIMINGS=1` replaces the TIMINGS CSRs with the

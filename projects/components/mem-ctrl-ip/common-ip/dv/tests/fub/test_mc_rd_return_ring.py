@@ -386,7 +386,7 @@ async def cocotb_test_ring_random(dut):
     assert merges > 0, "the walk produced no shadows; the combiner path was not exercised"
 
 
-@pytest.mark.parametrize("byp", [0, 1])
+@pytest.mark.parametrize("byp", [0, 1, 2])
 @pytest.mark.parametrize("mark", [0, 1])
 @pytest.mark.parametrize("bpb", [1, 4])
 @pytest.mark.parametrize("cell", ["pin", "random"])
@@ -394,7 +394,9 @@ def test_mc_rd_return_ring(request, bpb, cell, mark, byp):
     """MERGE_MARK_REG both states: 1 = a shadow's marking lands the cycle after
     its allocation (granite's merge build, 100 MHz closure, 2026-10-30).
     RET_BYPASS both states: 1 = the next beat in ring order goes from the
-    return straight into the output skid (granite TASK-003, 2026-10-31)."""
+    return straight into the output skid (granite TASK-003, 2026-10-31).
+    byp 2 = RET_BYPASS + RET_FALLTHRU: a bypass beat that finds the skid
+    empty is offered on the drain port in its own cycle (same day)."""
     from cocotb_test.simulator import run
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "mc_rd_return_ring"
@@ -405,7 +407,8 @@ def test_mc_rd_return_ring(request, bpb, cell, mark, byp):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"DEPTH": str(DEPTH), "AXI_DATA_WIDTH": str(DW), "AXI_BEATS_PER_BURST": str(bpb),
-              "MERGE_MARK_REG": str(mark), "RET_BYPASS": str(byp)}
+              "MERGE_MARK_REG": str(mark), "RET_BYPASS": str(int(byp >= 1)),
+              "RET_FALLTHRU": str(int(byp == 2))}
     extra_env = {"DUT": dut_name,
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),

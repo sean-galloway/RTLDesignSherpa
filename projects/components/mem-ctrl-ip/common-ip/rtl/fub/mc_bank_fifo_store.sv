@@ -151,6 +151,13 @@ module mc_bank_fifo_store
     parameter int AXI_BEATS_PER_BURST = 4,
     parameter int RD_RET_DEPTH       = 32,
     parameter int WR_DATA_BUF_WORDS  = 16,  // port compatibility with mc_xddr2_entry_store (unused there too)
+    // 1 = a read entering an EMPTY bank queue is that bank's head record in
+    // the cycle it is written (from the AR hold), registered at the same edge
+    // the FIFO takes it, instead of one cycle later off the FIFO front. One
+    // cycle less from AR to the pick for an unloaded bank (granite TASK-003,
+    // 2026-10-31). The FIFO entry is valid from that same edge, before the
+    // pick can fire the record, so a pop always finds it.
+    parameter bit HEAD_BYPASS        = 1'b0,
 
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
@@ -1228,6 +1235,14 @@ module mc_bank_fifo_store
             h2.age_exceed      = w_rq_aged[b] && w_rq_pk_thr[b][0];
             h2.hit             = has1 && sp1;  // == head.behind_same_row's bit (header)
             if (!HEAD2_EN) h2 = '0;
+            // HEAD_BYPASS: the AR going into this empty queue now is the head
+            if (HEAD_BYPASS && w_ar_fire && (r_arh_bank == BKW'(b)) && !has0) begin
+                h = '0;
+                h.vld          = 1'b1;
+                h.slot         = MC_HEAD_SLOT_W'(w_rd_free_slot);
+                h.behind_empty = 1'b1;
+                h.hit          = bank_row_active_i[b] && (r_arh_row == orow);
+            end
             w_rd_head [b] = h;
             w_rd_head2[b] = h2;
         end

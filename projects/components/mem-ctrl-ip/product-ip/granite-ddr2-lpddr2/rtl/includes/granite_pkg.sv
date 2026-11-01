@@ -63,6 +63,15 @@ package granite_pkg;
     // skid, skipping the BRAM write -> ready -> read round trip (3 -> 1).
     parameter bit GRANITE_RD_RET_BYPASS = 1'b1;
 
+    // Read-return fall-through (mc_rd_return_ring RET_FALLTHRU): a bypass
+    // beat that finds the ring's output skid empty is presented on the drain
+    // port in its own cycle (DFI return -> R one cycle sooner). And the store
+    // head bypass (mc_bank_fifo_store HEAD_BYPASS): a read entering an empty
+    // bank queue is that bank's head record a cycle sooner. The board read
+    // floor split (2026-10-31, granite TASK-003): push -> pick 4, return -> R 2.
+    parameter bit GRANITE_RD_RET_FALLTHRU = 1'b1;
+    parameter bit GRANITE_STORE_HEAD_BYPASS = 1'b1;
+
     // ------------------------------------------------------------------
     // RAS plane: ABSENT in this SKU (true bypass, reserved CSR decode
     // only). Expressed as omission - no transform pair is instantiated -

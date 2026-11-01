@@ -60,6 +60,13 @@ module mc_rd_return_ring #(
     // later (granite TASK-003, 2026-10-31). The BRAM write still happens, so
     // a missed bypass falls back to the fetch unchanged.
     parameter bit RET_BYPASS     = 1'b0,
+    // 1 = RET_FALLTHRU (needs RET_BYPASS): a bypass beat that finds the skid
+    // EMPTY is also presented on the drain port in its own cycle; taken
+    // there, it never enters the skid, else it is written as a plain bypass.
+    // One cycle less from DFI return to R (granite TASK-003, 2026-10-31).
+    // Its room term is the credits alone, so the drain handshake never feeds
+    // back into the condition that drives it.
+    parameter bit RET_FALLTHRU   = 1'b0,
     parameter int AXI_DATA_WIDTH  = 64,
     parameter int AXI_BEATS_PER_BURST = 4,  // beats per DRAM burst
 
@@ -211,11 +218,13 @@ module mc_rd_return_ring #(
     assign w_hd_resp  = r_sk_resp [r_sk_rd];
 
     logic w_dr_fire, w_room, w_fetch, w_fptr_ready;
-    assign drain_valid_o = w_hd_vld;
-    assign drain_data_o  = w_hd_data;
-    assign drain_resp_o  = w_hd_resp;
-    assign drain_last_o  = w_hd_blast;
+    logic w_byp_core, w_ft, w_ft_take;
+    assign drain_valid_o = w_hd_vld || w_ft;
+    assign drain_data_o  = w_ft ? dfi_ret_data_i : w_hd_data;
+    assign drain_resp_o  = w_ft ? dfi_ret_resp_i : w_hd_resp;
+    assign drain_last_o  = w_ft ? (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1)) : w_hd_blast;
     assign w_dr_fire     = drain_valid_o && drain_ready_i;
+    assign w_ft_take     = w_ft && drain_ready_i;
 
     assign w_fptr_ready = (r_focc != '0) && r_ready[r_fptr];
     assign w_room       = (r_credits != 2'd0) || w_dr_fire;
@@ -224,9 +233,11 @@ module mc_rd_return_ring #(
     // RET_BYPASS: the return beat IS the next fetch (exclusive with w_fetch:
     // a fetch needs the slot complete, a bypassed beat's slot is not yet).
     logic w_byp;
-    assign w_byp = RET_BYPASS && w_ret_fire && (r_focc != '0) && (w_iq_rd_ticket == r_fptr)
-                && (r_ret_beat == r_fbeat) && !r_shadow[r_fptr] && !r_ready[r_fptr]
-                && !r_if_valid && w_room;
+    assign w_byp_core = RET_BYPASS && w_ret_fire && (r_focc != '0) && (w_iq_rd_ticket == r_fptr)
+                     && (r_ret_beat == r_fbeat) && !r_shadow[r_fptr] && !r_ready[r_fptr]
+                     && !r_if_valid;
+    assign w_ft  = RET_FALLTHRU && w_byp_core && (r_sk_cnt == 2'd0) && (r_credits != 2'd0);
+    assign w_byp = w_byp_core && w_room;
 
     // a shadow fetches its SOURCE's beats; any other slot fetches its own
     logic [TW-1:0] w_fsrc;
@@ -237,7 +248,7 @@ module mc_rd_return_ring #(
 
     // the head is FREED when its last beat is consumed by the drain
     logic w_free;
-    assign w_free = w_dr_fire && w_hd_blast;
+    assign w_free = w_dr_fire && drain_last_o;
 
     assign occ_o  = r_occ;
     assign busy_o = !w_empty || w_iq_rd_valid || w_hd_vld || r_if_valid;
@@ -317,14 +328,15 @@ module mc_rd_return_ring #(
                 r_sk_blast[r_sk_wr] <= r_if_blast;
                 r_sk_resp [r_sk_wr] <= r_if_resp;
                 r_sk_wr             <= r_sk_wr + 1'b1;
-            end else if (w_byp) begin
+            end else if (w_byp && !w_ft_take) begin
                 r_sk_data [r_sk_wr] <= dfi_ret_data_i;
                 r_sk_blast[r_sk_wr] <= (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1));
                 r_sk_resp [r_sk_wr] <= dfi_ret_resp_i;
                 r_sk_wr             <= r_sk_wr + 1'b1;
             end
-            if (w_dr_fire) r_sk_rd <= r_sk_rd + 1'b1;
-            r_sk_cnt  <= r_sk_cnt  + ((r_if_valid || w_byp) ? 2'd1 : 2'd0) - (w_dr_fire ? 2'd1 : 2'd0);
+            if (w_dr_fire && !w_ft_take) r_sk_rd <= r_sk_rd + 1'b1;
+            r_sk_cnt  <= r_sk_cnt  + ((r_if_valid || (w_byp && !w_ft_take)) ? 2'd1 : 2'd0)
+                                   - ((w_dr_fire && !w_ft_take) ? 2'd1 : 2'd0);
             r_credits <= r_credits - ((w_fetch || w_byp) ? 2'd1 : 2'd0) + (w_dr_fire ? 2'd1 : 2'd0);
 
             // free the head when its last beat is consumed

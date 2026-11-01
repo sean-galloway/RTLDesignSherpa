@@ -54,6 +54,7 @@ Both splitters emit an aggregation sideband: `m_ax_agg` is high when the host co
 3. **Drain order equals ring/AR order.** The ring drains from its head once the head slot's data is complete; because allocation order is AR order, per-ID AXI reads return in request order structurally (`fub/mc_rd_return_ring.sv:74-80`, `fub/mc_rd_return_ring.sv:135-143`).
 4. **A slot is freed only when its last beat is consumed** by the drain (`fub/mc_rd_return_ring.sv:185-186`).
 5. **`RET_BYPASS` keeps the order.** A return beat is written into the output skid directly only when it is the beat the fetch pointer would read next (its ticket is the fetch slot, its beat the fetch beat, the slot not a shadow), no BRAM beat enters the skid that cycle, and the skid has room. It advances the fetch pointer exactly as a fetch does, and the BRAM write still happens, so a beat that misses the bypass is fetched as before. Drain-valid lands one cycle after the return instead of three.
+6. **`RET_FALLTHRU` keeps it too.** With `RET_BYPASS`, a bypass beat that finds the output skid empty is also offered on the drain port in its own cycle; if the drain takes it, it never enters the skid, otherwise it is written as a plain bypass beat. Its room term is the skid credits alone, so the drain handshake never feeds the condition that drives it. Drain-valid lands in the return cycle.
 
 The ring is sized by `RD_RET_DEPTH` (default 32). This decoupling fixed a bandwidth ceiling: with the CAM holding reads for the full DRAM round trip, eight entries over a ~27-cycle round trip bounded board reads to about 180 MB/s; the ring fix took board reads to ~572 MB/s (`research-ip/pumice-ddr2-lpddr2/docs/pumice_mas/ch02_blocks/22_rd_return_ring.md:32-42`, inherited from the pumice measured history).
 
@@ -80,6 +81,7 @@ The ring is sized by `RD_RET_DEPTH` (default 32). This decoupling fixed a bandwi
 | `RD_RET_DEPTH` | 32 | In-flight read count (ring depth) |
 | `RD_MERGE_MARK_REG` | 0 | Ring `MERGE_MARK_REG`: a shadow's marking lands the cycle after its allocation (granite's merge build) |
 | `RD_RET_BYPASS` | 0 | Ring `RET_BYPASS`: the next beat in ring order goes from the DFI return straight into the output skid (granite sets 1) |
+| `RD_RET_FALLTHRU` | 0 | Ring `RET_FALLTHRU`: a bypass beat that finds the skid empty is offered on the drain port in the return cycle (granite sets 1) |
 | `IW`, `AW`, `DW`, `UW`, `SW`, `BKW`, `PTRW`, `RKW`, `DRAM_BURST_BYTES` | derived | Shorthand widths; `DRAM_BURST_BYTES = AXI_BEATS_PER_BURST * (DRAM_BEAT_WIDTH / 8)` |
 
 ## Ports

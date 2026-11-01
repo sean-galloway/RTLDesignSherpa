@@ -405,6 +405,7 @@ module granite_core
         .RD_AR_STAGE_REG  (HAS_SNARF || STORE_MERGE_EN),
         .RD_MERGE_MARK_REG(STORE_MERGE_EN),
         .RD_RET_BYPASS    (GRANITE_RD_RET_BYPASS),
+        .RD_RET_FALLTHRU  (GRANITE_RD_RET_FALLTHRU),
         .RD_FIFO_DEPTH    (INTAKE_FIFO_DEPTH),
         .WDATA_FIFO_DEPTH (INTAKE_FIFO_DEPTH),
         .SKID_DEPTH_R     (AXI_SKID_DEPTH),
@@ -535,7 +536,8 @@ module granite_core
             .COL_WIDTH          (COL_WIDTH),
             .AXI_BEATS_PER_BURST(BURST_WORDS),
             .RD_RET_DEPTH       (RD_RET_DEPTH),
-            .WR_DATA_BUF_WORDS  (GRANITE_WR_DATA_BUF_WORDS)
+            .WR_DATA_BUF_WORDS  (GRANITE_WR_DATA_BUF_WORDS),
+            .HEAD_BYPASS        (GRANITE_STORE_HEAD_BYPASS)
         ) u_fifo_store (
             .aclk               (aclk),
             .aresetn            (aresetn),
