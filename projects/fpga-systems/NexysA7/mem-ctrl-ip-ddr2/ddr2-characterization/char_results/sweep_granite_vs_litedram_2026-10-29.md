@@ -102,6 +102,40 @@ mixed window.
 
 # Appendix: the running log
 
+## What the store combiner costs and buys (2026-11-01)
+
+`STORE_MERGE_EN` (the TASK-006 combiner, default on) is about a fifth of
+the controller. Synth-only A/B on the own3 project: merge off takes the
+controller 8,150 -> 6,501 LUT; the return-read bypasses and store latency
+knobs together are only ~160 LUT. Until today the parameter also switched
+the read intake's AR decode register and the ring's registered shadow
+marking; those are their own knobs now (`GRANITE_RD_AR_STAGE_REG`,
+`GRANITE_RD_MERGE_MARK_REG`, both 1), so a merge-off build changes only the
+merge.
+
+Board build `mo2` (own3 RTL, merge off and nothing else): 100 MHz closes at
+WNS +0.003 / WHS +0.015 after a post-route pass (AltSpreadLogic_medium,
+-0.165 before it). Routed, `granite_top_geared`:
+
+| build | LUT | LUTRAM | FF | RAMB36 | return ring LUT | store wrapper LUT / FF |
+|---|---|---|---|---|---|---|
+| own3, merge on | 8,284 | 416 | 5,019 | 2 | 1,513 | 1,197 / 1,672 |
+| mo2, merge off | 6,581 | 410 | 4,454 | 2 | 575 | 653 / 1,226 |
+
+That is 2.9x LiteDRAM's controller instead of 3.7x.
+
+Every profile, `char_granite_mo2_100_*` against `char_granite_own3_100_*`:
+180 cells, 0 mismatched; 171 within 2 percent. The power-on mode barely
+uses the combiner: half_pair at four threads 385 / 389 -> 380 / 380 MB/s,
+one thread 393 / 392 -> 387 / 387, mean read latency lower without it
+(40.7 -> 36.0 at four threads). Open page is where it pays: the eight cells
+that drop 2 percent or more are all `open_page` half-width, half_pair at
+four threads 385 / 389 -> 286 / 333 (-20 percent), three threads -7,
+the sweep -10. The one cell up (+8.4, the power-on mixed window) is the
+two-figure phase split below, not the merge: six mixed runs show the same
+two figures as own3 (260 / 319 twice, 251 / 283 four times). Read floor
+21 both; worst read latency 1,767 (own3 1,742).
+
 ## The power-on mixed window's two figures (2026-11-01)
 
 On `own3_100` power-on's mixed window reads 251 / 283 in three of six runs

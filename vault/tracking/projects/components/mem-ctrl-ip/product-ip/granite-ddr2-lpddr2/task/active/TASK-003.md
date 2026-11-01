@@ -1543,3 +1543,21 @@ the owner).
   fails the gate cell at 5,936; the fixed RTL passes.
 - Area, routed `own3`: granite_top_geared 8,284 LUT / 5,019 FF (ard2 8,190 /
   4,997); the bank pick 774 -> 878 LUT.
+
+### 2026-11-01 (evening): the combiner's area, split knobs, merge-off board build
+
+- Area trace: the ring (506 -> 1,513 LUT) and store wrapper (372 -> 1,197)
+  growth since the 2026-10-29 build is `STORE_MERGE_EN`: synth-only A/B,
+  merge off 8,150 -> 6,501 LUT, the latency bypasses ~160 LUT together.
+- `STORE_MERGE_EN` also silently set the read intake AR stage and the ring's
+  MERGE_MARK_REG. Split into `GRANITE_RD_AR_STAGE_REG` and
+  `GRANITE_RD_MERGE_MARK_REG` (granite_pkg, both 1 = the old merge-on
+  build); granite top func 18 / 1 xfail, merge[0] / fill_lag[0] now run
+  merge off with the stage on.
+- Board `mo2` (merge off only): closes 100 MHz at +0.003 after the post-route
+  pass; 6,581 LUT / 4,454 FF routed (own3 8,284 / 5,019). 180 cells clean,
+  171 within 2 percent; losses only in open-page half-width (-20 percent at
+  four threads); power-on half_pair -1 to -2 percent with lower latency.
+  Report section "What the store combiner costs and buys". The product
+  default is unchanged (merge on).
+
