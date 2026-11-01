@@ -2,35 +2,26 @@
 # Location: projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_top.f
 #
 # Top-level L1 cache with AXI4 downstream and ACE snoop ports. Composes the
-# core slice plus the AMBA transport closures it sits on. Own RTL: the top
+# three cache-ip planes (CPU plane, coherence-core plane, AXI4 fabric plane)
+# plus the D-7 monbus_arbiter and boundary reset_sync. Own RTL: the top
 # itself; foreign sources only via their own filelists.
 
-# Shared amber package
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
+# CPU plane (l1_cpu_frontend)
+-f $CACHE_COMMON_ROOT/rtl/filelists/plane/l1_cpu_plane.f
 
-# The core closure (CPU plane + coherence core plane aggregate)
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_core.f
+# Coherence-core plane (l1_control, arrays, repl, fill/drain, monlite)
+-f $CACHE_COMMON_ROOT/rtl/filelists/plane/l1_coh_core.f
 
-# ACE snoop responder (moved out of l1_core in Task 1; amber_top closes
-# it at the top until Task 3's fabric plane)
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
-
-# AXI4 read/write master monitors (complete closures)
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
--f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_monlite.f
-
-# ACE snoop slave transport (complete closure)
--f $REPO_ROOT/rtl/amba/filelists/axi4ace_snoop_slave.f
-
-# Pair-rig bench memory slave (AXI4 SDP RAM, complete closure)
--f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
+# AXI4 fabric plane (l1_snoop_resp, axi4_master_rd/wr_monlite, D-8 sideband)
+-f $CACHE_COMMON_ROOT/rtl/filelists/plane/l1_axi4_plane.f
 
 # Boundary reset synchronizer (amber_top input aresetn is async-assert,
 # synchronized internally; complete closure)
 -f $REPO_ROOT/rtl/cdc/filelists/reset_sync.f
 
-# Monbus arbiter closure
--f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
+# Pair-rig bench memory slave (AXI4 SDP RAM, complete closure); carried here
+# because amber_pair_rig_tb merges amber_top.f + amber_pair_fabric.f.
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 
 # The pair-rig top itself
 $AMBER_ROOT/rtl/top/amber_top.sv

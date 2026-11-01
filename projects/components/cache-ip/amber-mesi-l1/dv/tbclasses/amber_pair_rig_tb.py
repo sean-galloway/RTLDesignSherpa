@@ -499,9 +499,9 @@ class AmberPairRigTB(TBBase):
                                      int(a.coh_req_type.value))
 
                 # snoop grant inside the cache (peer's effect books here)
-                core = a.u_core
-                if int(a.u_snoop.ctrl_snoop_req.value) \
-                        and int(core.u_coh.u_control.ctrl_snoop_ready.value):
+                core = a.u_coh
+                if int(a.u_fab.u_snoop.ctrl_snoop_req.value) \
+                        and int(core.u_control.ctrl_snoop_ready.value):
                     self._on_snoop_grant(c)
 
                 self._on_ace_channels(c)
@@ -788,10 +788,10 @@ class AmberPairRigTB(TBBase):
         set_idx = txn['set_idx']
         way = cm.repl.victim(set_idx)
         self._score(f"{txn['label']}: victim way parity", way,
-                    int(a.u_core.u_coh.u_repl.repl_victim_way.value))
+                    int(a.u_coh.u_repl.repl_victim_way.value))
         vline = cm.tags.get((set_idx, way))
         vstate = cm.slot_state.get((set_idx, way), 'I')
-        dut_ts = int(a.u_core.u_coh.u_tag.mem[way * self.SETS + set_idx].value)
+        dut_ts = int(a.u_coh.u_tag.mem[way * self.SETS + set_idx].value)
         dut_tag, dut_state = dut_ts >> 3, self._decode3(dut_ts & 7)
         exp_tag = (vline >> self.SET_BITS) if vline is not None else 0
         self._score(f"{txn['label']}: victim slot parity",
@@ -881,9 +881,9 @@ class AmberPairRigTB(TBBase):
         transaction's actual resolution (the in-flight transaction always
         targets this cache -- the fabric is serial)."""
         a = self._amber(c)
-        core = a.u_core
+        core = a.u_coh
         cm = self.caches[c]
-        line = self._line_of(int(a.u_snoop.ctrl_snoop_addr.value))
+        line = self._line_of(int(a.u_fab.u_snoop.ctrl_snoop_addr.value))
         fab_snoop = int(a.m_axi_acsnoop.value)
         name = SNOOP_NAME_BY_FAB.get(fab_snoop)
         if name is None:
@@ -898,7 +898,7 @@ class AmberPairRigTB(TBBase):
         # transient obs and kill state alone. 'SM' (upgrade) answers from
         # the installed S line either way and stays on the old path.
         pf_pre_ar = (st in ('IS', 'IM', 'IS_I')
-                     and int(core.u_coh.u_fill.fill_inflight.value) == 0)
+                     and int(core.u_fill.fill_inflight.value) == 0)
         if pf_pre_ar:
             res = oracle_step('I', name)
         else:
@@ -1245,7 +1245,7 @@ class AmberPairRigTB(TBBase):
         # never installs E -- the documented Table 3.0 reachability gap)
         way = cm0.hit_way(cm0.set_of(line), line)
         set_idx = cm0.set_of(line)
-        tag_word = self.dut.u_amber0.u_core.u_coh.u_tag.mem[way * self.SETS
+        tag_word = self.dut.u_amber0.u_coh.u_tag.mem[way * self.SETS
                                                               + set_idx]
         tag_word.value = ((line >> self.SET_BITS) << 3) | 2   # 2 = E
         cm0.slot_state[(set_idx, way)] = 'E'

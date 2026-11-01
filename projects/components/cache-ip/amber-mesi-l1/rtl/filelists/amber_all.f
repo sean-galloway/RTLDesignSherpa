@@ -12,21 +12,16 @@
 # Shared package
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
 
-# Leaf FUBs (first RTL slice, 2026-10-06)
+# Standalone test/utility block
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_kmap_test.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_tag_array.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_data_array.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_repl.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
 
-# Control-plane and datapath blocks (stubs filled by later tasks)
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_control.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_pending_fill_bypass.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_fill.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_drain.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_frontend.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_core.f
+# Plane restructure filelists (Task 1-3)
+-f $CACHE_COMMON_ROOT/rtl/filelists/plane/l1_cpu_plane.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/plane/l1_coh_core.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/plane/l1_axi4_plane.f
+-f $CACHE_COMMON_ROOT/rtl/filelists/plane/l1_ace_plane.f
+
+# amber area tops
 -f $AMBER_ROOT/rtl/filelists/amber_top.f
 -f $AMBER_ROOT/rtl/filelists/amber_pair_fabric.f
--f $CACHE_COMMON_ROOT/rtl/filelists/fub/l1_ace_issue.f
 -f $AMBER_ROOT/rtl/filelists/amber_ace_top.f

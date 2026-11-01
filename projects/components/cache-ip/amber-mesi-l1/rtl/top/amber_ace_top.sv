@@ -6,22 +6,21 @@
 //
 // Module: amber_ace_top
 // Purpose:
-//   The onyx-rig cache top (MAS ch01 hierarchy, Task 12): l1_core wrapped
-//   with the house ACE transports it deliberately does not contain
-//   (DECISION D3) -- axi4ace_master_rd_monlite / axi4ace_master_wr_monlite,
-//   so the m_axi_* memory side is the monlite-wrapped (measured) ACE path
-//   with ARSNOOP/AWSNOOP on the address payloads and the auto-pulsed
-//   RACK/WACK handshakes -- plus the shared l1_ace_issue Table 2.8.1
-//   mapping block (common-ip plane restructure, Task 2) between the core's
-//   engines and those transports. A house monbus_arbiter (DECISION D-7)
-//   merges the three observer streams
-//   {l1_monlite, rd_monlite, wr_monlite} onto the one MonBus port pair.
+//   The onyx-rig cache top (MAS ch01 hierarchy, Task 12): l1_cpu_plane +
+//   l1_coh_core + l1_ace_plane, plus the D-7 monbus_arbiter and boundary
+//   reset_sync. The ACE fabric plane closes the ACE snoop responder, the
+//   shared l1_ace_issue event-to-transaction map, and the house
+//   axi4ace_master_rd/wr_monlite transports (D3 measured paths, ACE snoop
+//   fields + auto-pulsed RACK/WACK). The D-8 coherence launch stream is
+//   consumed on-chip by l1_ace_issue; no coh_req sideband reaches the top
+//   level.
 //
 // Documentation: projects/components/cache-ip/amber-mesi-l1/docs/amber_mas/ch01_overview/02_port_list.md
 // Subsystem: amber
 //
 // Author: sean galloway
 // Created: 2026-10-09
+// Updated: 2026-11-01
 
 `timescale 1ns / 1ps
 
@@ -36,20 +35,19 @@
 //   * the memory-side transports are the axi4ace_master_rd/wr_monlite
 //     wrappers (snoop fields + auto-pulsed RACK/WACK), not the plain
 //     axi4_master_rd/wr_monlite pair;
-//   * l1_ace_issue sits between the core's fub_axi_* engine pins and
-//     the transports: it stamps ARSNOOP on the fill engine's AR, stamps
-//     AWSNOOP=WriteBack on the drain engine's AW, originates the AW-only
-//     CleanUnique/MakeUnique/Evict transactions the engines never
-//     generate, and swallows the AW-only B responses off the drain
-//     engine's B channel (the AWONLY_ID BID mux);
+//   * l1_ace_issue sits inside the fabric plane between the core's fub_axi_*
+//     engine pins and the transports: it stamps ARSNOOP on the fill engine's
+//     AR, stamps AWSNOOP=WriteBack on the drain engine's AW, originates the
+//     AW-only CleanUnique/MakeUnique/Evict transactions the engines never
+//     generate, and swallows the AW-only B responses off the drain engine's
+//     B channel (the AWONLY_ID BID mux);
 //   * there is NO coh_req coherence sideband to the top level (the fabric
 //     is not in this rig): the core's coh_req pulses feed ace_issue's
 //     event inputs instead -- the same launch stream, consumed on-chip.
 //
 //   MonBus merge (D-7): client 0 = l1_monlite (the cache-event observer
-//   inside the core), client 1 = rd_monlite (AR/R observation), client 2 =
-//   wr_monlite (AW/W/B observation). UNIT_IDs 8'h01/02/03 distinguish the
-//   streams in the merged packets.
+//   inside the coherence core), client 1 = the fabric plane's merged
+//   rd/wr_monlite observer. UNIT_IDs 8'h01/02/03 distinguish the streams.
 //
 //------------------------------------------------------------------------------
 // Parameters: geometry per l1_pkg (HAS Table 5.0); REPL_POLICY per
@@ -68,8 +66,9 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //   - Instantiated by: the Task 12 ACE rig (dv/tests/test_amber_ace_top.py)
-//   - Instantiated: l1_core; l1_ace_issue;
-//     axi4ace_master_rd/wr_monlite; monbus_arbiter
+//   - Instantiated: l1_cpu_plane, l1_coh_core, l1_ace_plane;
+//     axi4ace_master_rd/wr_monlite + l1_ace_issue (inside the fabric plane);
+//     monbus_arbiter
 //   - Package: l1_pkg; ocelus_common_pkg
 //
 //------------------------------------------------------------------------------
@@ -96,8 +95,7 @@ module amber_ace_top
     localparam int IW           = AXI_ID_WIDTH,
     localparam int UW           = AXI_USER_WIDTH,
     localparam int CPU_REQ_W    = ADDR_WIDTH + 1 + STRB_W + BUS_WIDTH,
-    localparam int CPU_RSP_W    = BUS_WIDTH,
-    localparam int FILL_BEATS   = LINE_BYTES / STRB_W
+    localparam int CPU_RSP_W    = BUS_WIDTH
 )(
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -222,117 +220,6 @@ module amber_ace_top
     end
 
     // ------------------------------------------------------------------
-    // The core: everything cache-side. The fub_axi_* pins are the raw
-    // engine-side pins; ace_issue sits between them and the ACE
-    // transports (AR/AW/B); R and W bypass it (no snoop field, no
-    // muxing). The coh_req launch stream feeds ace_issue's events --
-    // the fabric is not in this rig, so the sideband stops at chip
-    // level, not at a top-level port.
-    // ------------------------------------------------------------------
-    logic [IW-1:0]        fub_arid, fub_rid;
-    logic [ADDR_WIDTH-1:0] fub_araddr;
-    logic [7:0]           fub_arlen;
-    logic [2:0]           fub_arsize;
-    logic [1:0]           fub_arburst;
-    logic                 fub_arlock;
-    logic [3:0]           fub_arcache;
-    logic [2:0]           fub_arprot;
-    logic [3:0]           fub_arqos;
-    logic [3:0]           fub_arregion;
-    logic [UW-1:0]        fub_aruser;
-    logic                 fub_arvalid, fub_arready;
-    logic [BUS_WIDTH-1:0] fub_rdata;
-    logic [3:0]           fub_rresp;    // ACE RRESP from the transport; the core takes [1:0]
-    logic                 fub_rlast;
-    logic [UW-1:0]        fub_ruser;
-    logic                 fub_rvalid, fub_rready;
-
-    logic [IW-1:0]        fub_awid;
-    logic [ADDR_WIDTH-1:0] fub_awaddr;
-    logic [7:0]           fub_awlen;
-    logic [2:0]           fub_awsize;
-    logic [1:0]           fub_awburst;
-    logic                 fub_awlock;
-    logic [3:0]           fub_awcache;
-    logic [2:0]           fub_awprot;
-    logic [3:0]           fub_awqos;
-    logic [3:0]           fub_awregion;
-    logic [UW-1:0]        fub_awuser;
-    logic                 fub_awvalid, fub_awready;
-    logic [BUS_WIDTH-1:0] fub_wdata;
-    logic [STRB_W-1:0]    fub_wstrb;
-    logic                 fub_wlast;
-    logic [UW-1:0]        fub_wuser;
-    logic                 fub_wvalid, fub_wready;
-
-    // B channel: wrapper-side net (the ace transports drive it, ace_issue
-    // consumes it) and core-side net (ace_issue drives it, the core's
-    // drain engine consumes it) -- ace_issue's BID mux bridges them
-    logic [IW-1:0]        fub_bid;
-    logic [1:0]           fub_bresp;
-    logic [UW-1:0]        fub_buser;
-    logic                 fub_bvalid, fub_bready;
-    logic [IW-1:0]        core_bid;
-    logic [1:0]           core_bresp;
-    logic [UW-1:0]        core_buser;
-    logic                 core_bvalid, core_bready;
-
-    // the launch stream (D-8 sideband), consumed on-chip by ace_issue
-    logic                 coh_req_valid;
-    logic [ADDR_WIDTH-1:0] coh_req_addr;
-    logic [2:0]           coh_req_type;
-
-    // ace_issue wrapper-side AR/AW pins
-    logic [IW-1:0]        iss_arid;
-    logic [ADDR_WIDTH-1:0] iss_araddr;
-    logic [7:0]           iss_arlen;
-    logic [2:0]           iss_arsize;
-    logic [1:0]           iss_arburst;
-    logic                 iss_arlock;
-    logic [3:0]           iss_arcache;
-    logic [2:0]           iss_arprot;
-    logic [3:0]           iss_arqos;
-    logic [3:0]           iss_arregion;
-    logic [UW-1:0]        iss_aruser;
-    logic [3:0]           iss_arsnoop;
-    logic                 iss_arvalid, iss_arready;
-    logic [IW-1:0]        iss_awid;
-    logic [ADDR_WIDTH-1:0] iss_awaddr;
-    logic [7:0]           iss_awlen;
-    logic [2:0]           iss_awsize;
-    logic [1:0]           iss_awburst;
-    logic                 iss_awlock;
-    logic [3:0]           iss_awcache;
-    logic [2:0]           iss_awprot;
-    logic [3:0]           iss_awqos;
-    logic [3:0]           iss_awregion;
-    logic [UW-1:0]        iss_awuser;
-    logic [2:0]           iss_awsnoop;
-    logic                 iss_awvalid, iss_awready;
-
-    logic        core_mon_valid;
-    logic        core_mon_ready;
-    logic [127:0] core_mon_packet;
-    logic [63:0] core_mon_timestamp;
-    logic [7:0]  core_mon_dropped_unused;
-
-    // ------------------------------------------------------------------
-    // Fabric (snoop) seam: l1_snoop_resp now lives outside l1_core (Task 1
-    // plane restructure). amber_ace_top closes the responder here as an
-    // intermediate step; Task 3 replaces this with the fabric plane.
-    // ------------------------------------------------------------------
-    logic                     core_snoop_req;
-    logic                     core_snoop_ready;
-    logic                     core_snoop_safe;
-    logic [2:0]               core_snoop_type;
-    logic [ADDR_WIDTH-1:0]    core_snoop_addr;
-    logic [AMBER_CRRESP_WIDTH-1:0] core_crresp;
-    logic [BUS_WIDTH-1:0]     core_cddata;
-    logic                     core_cdlast;
-    logic                     core_cdvalid;
-    logic                     core_cdready;
-
-    // ------------------------------------------------------------------
     // Boundary reset synchronization -- same contract as amber_top: the
     // port aresetn is async-assert of unknown deassert quality, and the
     // N=3 house reset_sync produces the internal reset every block below
@@ -351,7 +238,132 @@ module amber_ace_top
         .sync_rst_n (w_aresetn)
     );
 
-    l1_core #(
+    // ------------------------------------------------------------------
+    // CPU seam between the CPU plane and the coherence core plane
+    // ------------------------------------------------------------------
+    logic                     fe_req_valid;
+    logic [ADDR_WIDTH-1:0]    fe_req_addr;
+    logic                     fe_req_we;
+    logic [STRB_W-1:0]        fe_req_be;
+    logic [BUS_WIDTH-1:0]     fe_req_wdata;
+    logic                     ctrl_req_ready;
+    logic                     ctrl_rsp_valid;
+    logic [BUS_WIDTH-1:0]     ctrl_rsp_data;
+
+    // ------------------------------------------------------------------
+    // Fabric (snoop) seam between the coherence core plane and the ACE
+    // fabric plane. Direction is from the fabric plane toward the core;
+    // the coherence core plane drives the request to control and samples
+    // the handshakes back.
+    // ------------------------------------------------------------------
+    logic                     core_snoop_req;
+    logic                     core_snoop_ready;
+    logic                     core_snoop_safe;
+    logic [2:0]               core_snoop_type;
+    logic [ADDR_WIDTH-1:0]    core_snoop_addr;
+    logic [AMBER_CRRESP_WIDTH-1:0] core_crresp;
+    logic [BUS_WIDTH-1:0]     core_cddata;
+    logic                     core_cdlast;
+    logic                     core_cdvalid;
+    logic                     core_cdready;
+
+    // ------------------------------------------------------------------
+    // Engine (fub_axi) seam between the coherence core plane and the ACE
+    // fabric plane. The plane closes l1_ace_issue and the ACE transports.
+    // ------------------------------------------------------------------
+    logic [IW-1:0]        fub_arid, fub_rid;
+    logic [ADDR_WIDTH-1:0] fub_araddr;
+    logic [7:0]           fub_arlen;
+    logic [2:0]           fub_arsize;
+    logic [1:0]           fub_arburst;
+    logic                 fub_arlock;
+    logic [3:0]           fub_arcache;
+    logic [2:0]           fub_arprot;
+    logic [3:0]           fub_arqos;
+    logic [3:0]           fub_arregion;
+    logic [UW-1:0]        fub_aruser;
+    logic                 fub_arvalid, fub_arready;
+    logic [BUS_WIDTH-1:0] fub_rdata;
+    logic [3:0]           fub_rresp;
+    logic                 fub_rlast;
+    logic [UW-1:0]        fub_ruser;
+    logic                 fub_rvalid, fub_rready;
+
+    logic [IW-1:0]        fub_awid, fub_bid;
+    logic [ADDR_WIDTH-1:0] fub_awaddr;
+    logic [7:0]           fub_awlen;
+    logic [2:0]           fub_awsize;
+    logic [1:0]           fub_awburst;
+    logic                 fub_awlock;
+    logic [3:0]           fub_awcache;
+    logic [2:0]           fub_awprot;
+    logic [3:0]           fub_awqos;
+    logic [3:0]           fub_awregion;
+    logic [UW-1:0]        fub_awuser;
+    logic                 fub_awvalid, fub_awready;
+    logic [BUS_WIDTH-1:0] fub_wdata;
+    logic [STRB_W-1:0]    fub_wstrb;
+    logic                 fub_wlast;
+    logic [UW-1:0]        fub_wuser;
+    logic                 fub_wvalid, fub_wready;
+    logic [1:0]           fub_bresp;
+    logic [UW-1:0]        fub_buser;
+    logic                 fub_bvalid, fub_bready;
+
+    // ------------------------------------------------------------------
+    // D-8 coherence launch stream, consumed on-chip by the ACE fabric
+    // plane's l1_ace_issue.
+    // ------------------------------------------------------------------
+    logic                 coh_req_valid;
+    logic [ADDR_WIDTH-1:0] coh_req_addr;
+    logic [2:0]           coh_req_type;
+
+    // ------------------------------------------------------------------
+    // MonBus streams: core observer + fabric-plane merged observer.
+    // ------------------------------------------------------------------
+    logic        core_mon_valid;
+    logic        core_mon_ready;
+    logic [127:0] core_mon_packet;
+    logic [63:0] core_mon_timestamp;
+    logic [7:0]  core_mon_dropped_unused;
+
+    logic        fab_mon_valid;
+    logic        fab_mon_ready;
+    logic [127:0] fab_mon_packet;
+    logic [63:0] fab_mon_timestamp;
+
+    // ------------------------------------------------------------------
+    // CPU plane
+    // ------------------------------------------------------------------
+    l1_cpu_plane #(
+        .ADDR_WIDTH (ADDR_WIDTH),
+        .SETS       (SETS),
+        .WAYS       (WAYS),
+        .LINE_BYTES (LINE_BYTES),
+        .BUS_WIDTH  (BUS_WIDTH)
+    ) u_cpu (
+        .clk               (aclk),
+        .rst_n             (w_aresetn),
+        .cpu_req_wr_valid  (cpu_req_wr_valid),
+        .cpu_req_wr_ready  (cpu_req_wr_ready),
+        .cpu_req_wr_data   (cpu_req_wr_data),
+        .cpu_rsp_rd_valid  (cpu_rsp_rd_valid),
+        .cpu_rsp_rd_ready  (cpu_rsp_rd_ready),
+        .cpu_rsp_rd_data   (cpu_rsp_rd_data),
+        .fe_req_valid      (fe_req_valid),
+        .fe_req_addr       (fe_req_addr),
+        .fe_req_we         (fe_req_we),
+        .fe_req_be         (fe_req_be),
+        .fe_req_wdata      (fe_req_wdata),
+        .ctrl_req_ready    (ctrl_req_ready),
+        .ctrl_rsp_valid    (ctrl_rsp_valid),
+        .ctrl_rsp_data     (ctrl_rsp_data)
+    );
+
+    // ------------------------------------------------------------------
+    // Coherence core plane
+    // ------------------------------------------------------------------
+    l1_coh_core #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .SETS           (SETS),
         .WAYS           (WAYS),
@@ -365,15 +377,27 @@ module amber_ace_top
         // blocks fill ARs on snoop responses, and its directed snoop
         // scenarios encode the classic bypass answer. Enable the guard
         // when a real ACE fabric integration appears (BUG-002).
-    ) u_core (
+    ) u_coh (
         .clk               (aclk),
         .rst_n             (w_aresetn),
-        .cpu_req_wr_valid  (cpu_req_wr_valid),
-        .cpu_req_wr_ready  (cpu_req_wr_ready),
-        .cpu_req_wr_data   (cpu_req_wr_data),
-        .cpu_rsp_rd_valid  (cpu_rsp_rd_valid),
-        .cpu_rsp_rd_ready  (cpu_rsp_rd_ready),
-        .cpu_rsp_rd_data   (cpu_rsp_rd_data),
+        .fe_req_valid      (fe_req_valid),
+        .fe_req_addr       (fe_req_addr),
+        .fe_req_we         (fe_req_we),
+        .fe_req_be         (fe_req_be),
+        .fe_req_wdata      (fe_req_wdata),
+        .ctrl_req_ready    (ctrl_req_ready),
+        .ctrl_rsp_valid    (ctrl_rsp_valid),
+        .ctrl_rsp_data     (ctrl_rsp_data),
+        .ctrl_snoop_req    (core_snoop_req),
+        .ctrl_snoop_ready  (core_snoop_ready),
+        .ctrl_snoop_safe   (core_snoop_safe),
+        .ctrl_snoop_type   (core_snoop_type),
+        .ctrl_snoop_addr   (core_snoop_addr),
+        .ctrl_crresp       (core_crresp),
+        .ctrl_cddata       (core_cddata),
+        .ctrl_cdlast       (core_cdlast),
+        .ctrl_cdvalid      (core_cdvalid),
+        .ctrl_cdready      (core_cdready),
         .fub_axi_arid      (fub_arid),
         .fub_axi_araddr    (fub_araddr),
         .fub_axi_arlen     (fub_arlen),
@@ -413,21 +437,11 @@ module amber_ace_top
         .fub_axi_wuser     (fub_wuser),
         .fub_axi_wvalid    (fub_wvalid),
         .fub_axi_wready    (fub_wready),
-        .fub_axi_bid       (core_bid),
-        .fub_axi_bresp     (core_bresp),
-        .fub_axi_buser     (core_buser),
-        .fub_axi_bvalid    (core_bvalid),
-        .fub_axi_bready    (core_bready),
-        .ctrl_snoop_req    (core_snoop_req),
-        .ctrl_snoop_ready  (core_snoop_ready),
-        .ctrl_snoop_safe   (core_snoop_safe),
-        .ctrl_snoop_type   (core_snoop_type),
-        .ctrl_snoop_addr   (core_snoop_addr),
-        .ctrl_crresp       (core_crresp),
-        .ctrl_cddata       (core_cddata),
-        .ctrl_cdlast       (core_cdlast),
-        .ctrl_cdvalid      (core_cdvalid),
-        .ctrl_cdready      (core_cdready),
+        .fub_axi_bid       (fub_bid),
+        .fub_axi_bresp     (fub_bresp),
+        .fub_axi_buser     (fub_buser),
+        .fub_axi_bvalid    (fub_bvalid),
+        .fub_axi_bready    (fub_bready),
         .coh_req_valid     (coh_req_valid),
         .coh_req_addr      (coh_req_addr),
         .coh_req_type      (coh_req_type),
@@ -447,382 +461,178 @@ module amber_ace_top
     /* verilator lint_on UNUSEDSIGNAL */
 
     // ------------------------------------------------------------------
-    // ACE snoop responder (moved out of l1_core in Task 1; closed here
-    // until Task 3's fabric plane)
+    // ACE fabric plane: closes l1_snoop_resp, l1_ace_issue, and the ACE
+    // rd/wr monlite transports; consumes the D-8 launch stream on-chip.
     // ------------------------------------------------------------------
-    l1_snoop_resp #(
-        .ADDR_WIDTH (ADDR_WIDTH),
-        .DATA_WIDTH (BUS_WIDTH),
-        .LINE_BYTES (LINE_BYTES)
-    ) u_snoop (
-        .aclk           (aclk),
-        .aresetn        (w_aresetn),
-        .m_axi_acaddr   (m_axi_acaddr),
-        .m_axi_acsnoop  (m_axi_acsnoop),
-        .m_axi_acprot   (m_axi_acprot),
-        .m_axi_acvalid  (m_axi_acvalid),
-        .m_axi_acready  (m_axi_acready),
-        .m_axi_crresp   (m_axi_crresp),
-        .m_axi_crvalid  (m_axi_crvalid),
-        .m_axi_crready  (m_axi_crready),
-        .m_axi_cddata   (m_axi_cddata),
-        .m_axi_cdlast   (m_axi_cdlast),
-        .m_axi_cdvalid  (m_axi_cdvalid),
-        .m_axi_cdready  (m_axi_cdready),
+    logic fab_sn_want_unused;
+
+    l1_ace_plane #(
+        .ADDR_WIDTH     (ADDR_WIDTH),
+        .SETS           (SETS),
+        .WAYS           (WAYS),
+        .LINE_BYTES     (LINE_BYTES),
+        .BUS_WIDTH      (BUS_WIDTH),
+        .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+        .AXI_USER_WIDTH (AXI_USER_WIDTH),
+        .USE_MONITOR    (USE_MONITOR)
+    ) u_fab (
+        .aclk              (aclk),
+        .aresetn           (w_aresetn),
+        .m_axi_arid        (m_axi_arid),
+        .m_axi_araddr      (m_axi_araddr),
+        .m_axi_arlen       (m_axi_arlen),
+        .m_axi_arsize      (m_axi_arsize),
+        .m_axi_arburst     (m_axi_arburst),
+        .m_axi_arlock      (m_axi_arlock),
+        .m_axi_arcache     (m_axi_arcache),
+        .m_axi_arprot      (m_axi_arprot),
+        .m_axi_arqos       (m_axi_arqos),
+        .m_axi_arregion    (m_axi_arregion),
+        .m_axi_aruser      (m_axi_aruser),
+        .m_axi_arsnoop     (m_axi_arsnoop),
+        .m_axi_ardomain    (m_axi_ardomain),
+        .m_axi_arbar       (m_axi_arbar),
+        .m_axi_arvalid     (m_axi_arvalid),
+        .m_axi_arready     (m_axi_arready),
+        .m_axi_rid         (m_axi_rid),
+        .m_axi_rdata       (m_axi_rdata),
+        .m_axi_rresp       (m_axi_rresp),
+        .m_axi_rlast       (m_axi_rlast),
+        .m_axi_ruser       (m_axi_ruser),
+        .m_axi_rvalid      (m_axi_rvalid),
+        .m_axi_rready      (m_axi_rready),
+        .m_axi_rack        (m_axi_rack),
+        .m_axi_awid        (m_axi_awid),
+        .m_axi_awaddr      (m_axi_awaddr),
+        .m_axi_awlen       (m_axi_awlen),
+        .m_axi_awsize      (m_axi_awsize),
+        .m_axi_awburst     (m_axi_awburst),
+        .m_axi_awlock      (m_axi_awlock),
+        .m_axi_awcache     (m_axi_awcache),
+        .m_axi_awprot      (m_axi_awprot),
+        .m_axi_awqos       (m_axi_awqos),
+        .m_axi_awregion    (m_axi_awregion),
+        .m_axi_awuser      (m_axi_awuser),
+        .m_axi_awsnoop     (m_axi_awsnoop),
+        .m_axi_awdomain    (m_axi_awdomain),
+        .m_axi_awbar       (m_axi_awbar),
+        .m_axi_awvalid     (m_axi_awvalid),
+        .m_axi_awready     (m_axi_awready),
+        .m_axi_wdata       (m_axi_wdata),
+        .m_axi_wstrb       (m_axi_wstrb),
+        .m_axi_wlast       (m_axi_wlast),
+        .m_axi_wuser       (m_axi_wuser),
+        .m_axi_wvalid      (m_axi_wvalid),
+        .m_axi_wready      (m_axi_wready),
+        .m_axi_bid         (m_axi_bid),
+        .m_axi_bresp       (m_axi_bresp),
+        .m_axi_buser       (m_axi_buser),
+        .m_axi_bvalid      (m_axi_bvalid),
+        .m_axi_bready      (m_axi_bready),
+        .m_axi_wack        (m_axi_wack),
+        .m_axi_acaddr      (m_axi_acaddr),
+        .m_axi_acsnoop     (m_axi_acsnoop),
+        .m_axi_acprot      (m_axi_acprot),
+        .m_axi_acvalid     (m_axi_acvalid),
+        .m_axi_acready     (m_axi_acready),
+        .m_axi_crresp      (m_axi_crresp),
+        .m_axi_crvalid     (m_axi_crvalid),
+        .m_axi_crready     (m_axi_crready),
+        .m_axi_cddata      (m_axi_cddata),
+        .m_axi_cdlast      (m_axi_cdlast),
+        .m_axi_cdvalid     (m_axi_cdvalid),
+        .m_axi_cdready     (m_axi_cdready),
+        .fub_axi_arid      (fub_arid),
+        .fub_axi_araddr    (fub_araddr),
+        .fub_axi_arlen     (fub_arlen),
+        .fub_axi_arsize    (fub_arsize),
+        .fub_axi_arburst   (fub_arburst),
+        .fub_axi_arlock    (fub_arlock),
+        .fub_axi_arcache   (fub_arcache),
+        .fub_axi_arprot    (fub_arprot),
+        .fub_axi_arqos     (fub_arqos),
+        .fub_axi_arregion  (fub_arregion),
+        .fub_axi_aruser    (fub_aruser),
+        .fub_axi_arvalid   (fub_arvalid),
+        .fub_axi_arready   (fub_arready),
+        .fub_axi_rid       (fub_rid),
+        .fub_axi_rdata     (fub_rdata),
+        .fub_axi_rresp     (fub_rresp),
+        .fub_axi_rlast     (fub_rlast),
+        .fub_axi_ruser     (fub_ruser),
+        .fub_axi_rvalid    (fub_rvalid),
+        .fub_axi_rready    (fub_rready),
+        .fub_axi_awid      (fub_awid),
+        .fub_axi_awaddr    (fub_awaddr),
+        .fub_axi_awlen     (fub_awlen),
+        .fub_axi_awsize    (fub_awsize),
+        .fub_axi_awburst   (fub_awburst),
+        .fub_axi_awlock    (fub_awlock),
+        .fub_axi_awcache   (fub_awcache),
+        .fub_axi_awprot    (fub_awprot),
+        .fub_axi_awqos     (fub_awqos),
+        .fub_axi_awregion  (fub_awregion),
+        .fub_axi_awuser    (fub_awuser),
+        .fub_axi_awvalid   (fub_awvalid),
+        .fub_axi_awready   (fub_awready),
+        .fub_axi_wdata     (fub_wdata),
+        .fub_axi_wstrb     (fub_wstrb),
+        .fub_axi_wlast     (fub_wlast),
+        .fub_axi_wuser     (fub_wuser),
+        .fub_axi_wvalid    (fub_wvalid),
+        .fub_axi_wready    (fub_wready),
+        .fub_axi_bid       (fub_bid),
+        .fub_axi_bresp     (fub_bresp),
+        .fub_axi_buser     (fub_buser),
+        .fub_axi_bvalid    (fub_bvalid),
+        .fub_axi_bready    (fub_bready),
         .ctrl_snoop_req    (core_snoop_req),
-        .ctrl_snoop_addr   (core_snoop_addr),
-        .ctrl_snoop_type   (core_snoop_type),
         .ctrl_snoop_ready  (core_snoop_ready),
         .ctrl_snoop_safe   (core_snoop_safe),
+        .ctrl_snoop_type   (core_snoop_type),
+        .ctrl_snoop_addr   (core_snoop_addr),
         .ctrl_crresp       (core_crresp),
         .ctrl_cddata       (core_cddata),
         .ctrl_cdlast       (core_cdlast),
         .ctrl_cdvalid      (core_cdvalid),
-        .ctrl_cdready      (core_cdready)
+        .ctrl_cdready      (core_cdready),
+        .coh_req_valid     (coh_req_valid),
+        .coh_req_addr      (coh_req_addr),
+        .coh_req_type      (coh_req_type),
+        .sn_want_o         (fab_sn_want_unused),
+        .i_mon_time        (i_mon_time),
+        .mon_valid         (fab_mon_valid),
+        .mon_ready         (fab_mon_ready),
+        .mon_packet        (fab_mon_packet),
+        .mon_timestamp     (fab_mon_timestamp)
     );
-
-    // ------------------------------------------------------------------
-    // l1_ace_issue: the shared Table 2.8.1 map between the engines and
-    // the ACE transports. The coh_req launch stream is its event input:
-    // READ_SHARED / READ_NOT_SHARED_DIRTY / READ_UNIQUE / CLEAN_UNIQUE /
-    // MAKE_UNIQUE latch the AR snoop class; EVICT originates the AW-only
-    // transaction; WRITE_BACK rides the drain engine's AW. Write-side
-    // event wiring is class-gated so the WriteBack launch (which the
-    // drain engine itself carries) never double-fires the generator.
-    // ------------------------------------------------------------------
-    l1_ace_issue #(
-        .ADDR_WIDTH     (ADDR_WIDTH),
-        .BUS_WIDTH      (BUS_WIDTH),
-        .AXI_ID_WIDTH   (AXI_ID_WIDTH),
-        .AXI_USER_WIDTH (AXI_USER_WIDTH)
-    ) u_ace_issue (
-        .aclk          (aclk),
-        .aresetn       (w_aresetn),
-        .ace_rd_req    (coh_req_valid
-                        && (coh_req_type == 3'(AMBER_ACE_READ_NOT_SHARED_DIRTY)
-                            || coh_req_type == 3'(AMBER_ACE_READ_UNIQUE)
-                            || coh_req_type == 3'(AMBER_ACE_CLEAN_UNIQUE)
-                            || coh_req_type == 3'(AMBER_ACE_MAKE_UNIQUE))),
-        .ace_rd_type   (coh_req_type),
-        .ace_rd_addr   (coh_req_addr),
-        .ace_rd_len    (8'(FILL_BEATS - 1)),
-        .ace_wr_req    (coh_req_valid
-                        && (coh_req_type == 3'(AMBER_ACE_EVICT))),
-        .ace_wr_type   (coh_req_type),
-        .ace_wr_addr   (coh_req_addr),
-        .ace_wr_len    (8'(FILL_BEATS - 1)),
-        .eng_arid      (fub_arid),
-        .eng_araddr    (fub_araddr),
-        .eng_arlen     (fub_arlen),
-        .eng_arsize    (fub_arsize),
-        .eng_arburst   (fub_arburst),
-        .eng_arlock    (fub_arlock),
-        .eng_arcache   (fub_arcache),
-        .eng_arprot    (fub_arprot),
-        .eng_arqos     (fub_arqos),
-        .eng_arregion  (fub_arregion),
-        .eng_aruser    (fub_aruser),
-        .eng_arvalid   (fub_arvalid),
-        .eng_arready   (fub_arready),
-        .eng_awid      (fub_awid),
-        .eng_awaddr    (fub_awaddr),
-        .eng_awlen     (fub_awlen),
-        .eng_awsize    (fub_awsize),
-        .eng_awburst   (fub_awburst),
-        .eng_awlock    (fub_awlock),
-        .eng_awcache   (fub_awcache),
-        .eng_awprot    (fub_awprot),
-        .eng_awqos     (fub_awqos),
-        .eng_awregion  (fub_awregion),
-        .eng_awuser    (fub_awuser),
-        .eng_awvalid   (fub_awvalid),
-        .eng_awready   (fub_awready),
-        .eng_bid       (core_bid),
-        .eng_bresp     (core_bresp),
-        .eng_buser     (core_buser),
-        .eng_bvalid    (core_bvalid),
-        .eng_bready    (core_bready),
-        .fub_arid      (iss_arid),
-        .fub_araddr    (iss_araddr),
-        .fub_arlen     (iss_arlen),
-        .fub_arsize    (iss_arsize),
-        .fub_arburst   (iss_arburst),
-        .fub_arlock    (iss_arlock),
-        .fub_arcache   (iss_arcache),
-        .fub_arprot    (iss_arprot),
-        .fub_arqos     (iss_arqos),
-        .fub_arregion  (iss_arregion),
-        .fub_aruser    (iss_aruser),
-        .fub_arsnoop   (iss_arsnoop),
-        .fub_arvalid   (iss_arvalid),
-        .fub_arready   (iss_arready),
-        .fub_awid      (iss_awid),
-        .fub_awaddr    (iss_awaddr),
-        .fub_awlen     (iss_awlen),
-        .fub_awsize    (iss_awsize),
-        .fub_awburst   (iss_awburst),
-        .fub_awlock    (iss_awlock),
-        .fub_awcache   (iss_awcache),
-        .fub_awprot    (iss_awprot),
-        .fub_awqos     (iss_awqos),
-        .fub_awregion  (iss_awregion),
-        .fub_awuser    (iss_awuser),
-        .fub_awsnoop   (iss_awsnoop),
-        .fub_awvalid   (iss_awvalid),
-        .fub_awready   (iss_awready),
-        .fub_bid       (fub_bid),
-        .fub_bresp     (fub_bresp),
-        .fub_buser     (fub_buser),
-        .fub_bvalid    (fub_bvalid),
-        .fub_bready    (fub_bready)
-    );
-
-    // ------------------------------------------------------------------
-    // ACE shareability domain and barrier fields (IHI 0022H D2.1.1-2,
-    // D3.1.1-2). Every transaction amber issues is coherent (Table 4.2:
-    // ReadShared / ReadUnique / CleanUnique / MakeUnique / WriteBack /
-    // Evict), and the onyx rig has a single shareability domain, so both
-    // address channels carry Outer Shareable -- a domain Tables D3-7 / D3-8
-    // permit for every one of those types (Inner Shareable is deprecated
-    // from ACE5 on). amber issues no barrier transactions (onyx D8), so
-    // AxBAR is 0b00, normal access respecting barriers.
-    //
-    // RRESP[3:2] (IsShared, PassDirty) is carried to fub_rresp and observed
-    // by the read transport's monitor. The core now consumes RRESP[2]
-    // (PassDirty) for read-miss fills: a read-miss with PassDirty installs
-    // as M, otherwise it installs as S for ReadNotSharedDirty or E for
-    // ReadUnique (l1_control). IsShared is still observational only.
-    // ------------------------------------------------------------------
-    localparam logic [1:0] ACE_DOMAIN = 2'b10;   // Outer Shareable
-    localparam logic [1:0] ACE_BAR    = 2'b00;   // normal access, respecting barriers
 
     /* verilator lint_off UNUSEDSIGNAL */
-    logic unused_rresp_coherence;
-    assign unused_rresp_coherence = &{1'b0, fub_rresp[3:2]};
+    logic unused_fab_sn_want;
+    assign unused_fab_sn_want = fab_sn_want_unused;
     /* verilator lint_on UNUSEDSIGNAL */
 
     // ------------------------------------------------------------------
-    // Read transport: ace_issue AR -> m_axi AR, observed
+    // D-7 MonBus arbiter: {l1_monlite, fabric-plane observer} -> the one
+    // MonBus port pair. The fabric plane internally merges the rd/wr
+    // transport observers before exporting them here.
     // ------------------------------------------------------------------
-    logic        rd_mon_valid;
-    logic        rd_mon_ready;
-    logic [127:0] rd_mon_packet;
-    logic [63:0] rd_mon_timestamp;
-
-    axi4ace_master_rd_monlite #(
-        .USE_MONITOR      (USE_MONITOR),
-        .UNIT_ID          (8'h02),
-        .AGENT_ID         (16'h00A0),
-        .AXI_ID_WIDTH     (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH   (ADDR_WIDTH),
-        .AXI_DATA_WIDTH   (BUS_WIDTH),
-        .AXI_USER_WIDTH   (AXI_USER_WIDTH)
-    ) u_rd_monlite (
-        .aclk                    (aclk),
-        .aresetn                 (w_aresetn),
-        .fub_axi_arid            (iss_arid),
-        .fub_axi_araddr          (iss_araddr),
-        .fub_axi_arlen           (iss_arlen),
-        .fub_axi_arsize          (iss_arsize),
-        .fub_axi_arburst         (iss_arburst),
-        .fub_axi_arlock          (iss_arlock),
-        .fub_axi_arcache         (iss_arcache),
-        .fub_axi_arprot          (iss_arprot),
-        .fub_axi_arqos           (iss_arqos),
-        .fub_axi_arregion        (iss_arregion),
-        .fub_axi_aruser          (iss_aruser),
-        .fub_axi_arsnoop         (iss_arsnoop),
-        .fub_axi_ardomain        (ACE_DOMAIN),
-        .fub_axi_arbar           (ACE_BAR),
-        .fub_axi_arvalid         (iss_arvalid),
-        .fub_axi_arready         (iss_arready),
-        .fub_axi_rid             (fub_rid),
-        .fub_axi_rdata           (fub_rdata),
-        .fub_axi_rresp           (fub_rresp),
-        .fub_axi_rlast           (fub_rlast),
-        .fub_axi_ruser           (fub_ruser),
-        .fub_axi_rvalid          (fub_rvalid),
-        .fub_axi_rready          (fub_rready),
-        .m_axi_arid              (m_axi_arid),
-        .m_axi_araddr            (m_axi_araddr),
-        .m_axi_arlen             (m_axi_arlen),
-        .m_axi_arsize            (m_axi_arsize),
-        .m_axi_arburst           (m_axi_arburst),
-        .m_axi_arlock            (m_axi_arlock),
-        .m_axi_arcache           (m_axi_arcache),
-        .m_axi_arprot            (m_axi_arprot),
-        .m_axi_arqos             (m_axi_arqos),
-        .m_axi_arregion          (m_axi_arregion),
-        .m_axi_aruser            (m_axi_aruser),
-        .m_axi_arsnoop           (m_axi_arsnoop),
-        .m_axi_ardomain          (m_axi_ardomain),
-        .m_axi_arbar             (m_axi_arbar),
-        .m_axi_arvalid           (m_axi_arvalid),
-        .m_axi_arready           (m_axi_arready),
-        .m_axi_rid               (m_axi_rid),
-        .m_axi_rdata             (m_axi_rdata),
-        .m_axi_rresp             (m_axi_rresp),
-        .m_axi_rlast             (m_axi_rlast),
-        .m_axi_ruser             (m_axi_ruser),
-        .m_axi_rvalid            (m_axi_rvalid),
-        .m_axi_rready            (m_axi_rready),
-        .m_axi_rack              (m_axi_rack),
-        .busy                    (),
-        .cam_clear               (1'b0),
-        .cfg_monitor_enable      (1'b1),
-        .cfg_error_enable        (1'b0),
-        .cfg_timeout_enable      (1'b0),
-        .cfg_compl_enable        (1'b0),
-        .cfg_threshold_enable    (1'b0),
-        .cfg_timeout_cycles      (16'h0000),
-        .cfg_freq_sel            (4'h0),
-        .cfg_axi_pkt_mask        (16'h0000),
-        .cfg_latency_threshold   (32'h0000_0000),
-        .cfg_addr_check_enable   (1'b0),
-        .cfg_addr_match_enable   (1'b0),
-        .cfg_addr_range_enable   ('0),
-        .cfg_addr_range_low      ('0),
-        .cfg_addr_range_high     ('0),
-        .i_mon_time              (i_mon_time),
-        .monbus_valid            (rd_mon_valid),
-        .monbus_ready            (rd_mon_ready),
-        .monbus_packet           (rd_mon_packet),
-        .monbus_timestamp        (rd_mon_timestamp),
-        .active_transactions     (),
-        .error_count             (),
-        .transaction_count       (),
-        .dropped_count           (),
-        .refused_count           ()
-    );
-
-    // ------------------------------------------------------------------
-    // Write transport: ace_issue AW -> m_axi AW (W and B bypass ace_issue
-    // on the data path; B's valid/ready routing already passes through
-    // it), observed
-    // ------------------------------------------------------------------
-    logic        wr_mon_valid;
-    logic        wr_mon_ready;
-    logic [127:0] wr_mon_packet;
-    logic [63:0] wr_mon_timestamp;
-
-    axi4ace_master_wr_monlite #(
-        .USE_MONITOR      (USE_MONITOR),
-        .UNIT_ID          (8'h03),
-        .AGENT_ID         (16'h00A0),
-        .AXI_ID_WIDTH     (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH   (ADDR_WIDTH),
-        .AXI_DATA_WIDTH   (BUS_WIDTH),
-        .AXI_USER_WIDTH   (AXI_USER_WIDTH)
-    ) u_wr_monlite (
-        .aclk                    (aclk),
-        .aresetn                 (w_aresetn),
-        .fub_axi_awid            (iss_awid),
-        .fub_axi_awaddr          (iss_awaddr),
-        .fub_axi_awlen           (iss_awlen),
-        .fub_axi_awsize          (iss_awsize),
-        .fub_axi_awburst         (iss_awburst),
-        .fub_axi_awlock          (iss_awlock),
-        .fub_axi_awcache         (iss_awcache),
-        .fub_axi_awprot          (iss_awprot),
-        .fub_axi_awqos           (iss_awqos),
-        .fub_axi_awregion        (iss_awregion),
-        .fub_axi_awuser          (iss_awuser),
-        .fub_axi_awsnoop         (iss_awsnoop),
-        .fub_axi_awdomain        (ACE_DOMAIN),
-        .fub_axi_awbar           (ACE_BAR),
-        .fub_axi_awvalid         (iss_awvalid),
-        .fub_axi_awready         (iss_awready),
-        .fub_axi_wdata           (fub_wdata),
-        .fub_axi_wstrb           (fub_wstrb),
-        .fub_axi_wlast           (fub_wlast),
-        .fub_axi_wuser           (fub_wuser),
-        .fub_axi_wvalid          (fub_wvalid),
-        .fub_axi_wready          (fub_wready),
-        .fub_axi_bid             (fub_bid),
-        .fub_axi_bresp           (fub_bresp),
-        .fub_axi_buser           (fub_buser),
-        .fub_axi_bvalid          (fub_bvalid),
-        .fub_axi_bready          (fub_bready),
-        .m_axi_awid              (m_axi_awid),
-        .m_axi_awaddr            (m_axi_awaddr),
-        .m_axi_awlen             (m_axi_awlen),
-        .m_axi_awsize            (m_axi_awsize),
-        .m_axi_awburst           (m_axi_awburst),
-        .m_axi_awlock            (m_axi_awlock),
-        .m_axi_awcache           (m_axi_awcache),
-        .m_axi_awprot            (m_axi_awprot),
-        .m_axi_awqos             (m_axi_awqos),
-        .m_axi_awregion          (m_axi_awregion),
-        .m_axi_awuser            (m_axi_awuser),
-        .m_axi_awsnoop           (m_axi_awsnoop),
-        .m_axi_awdomain          (m_axi_awdomain),
-        .m_axi_awbar             (m_axi_awbar),
-        .m_axi_awvalid           (m_axi_awvalid),
-        .m_axi_awready           (m_axi_awready),
-        .m_axi_wdata             (m_axi_wdata),
-        .m_axi_wstrb             (m_axi_wstrb),
-        .m_axi_wlast             (m_axi_wlast),
-        .m_axi_wuser             (m_axi_wuser),
-        .m_axi_wvalid            (m_axi_wvalid),
-        .m_axi_wready            (m_axi_wready),
-        .m_axi_bid               (m_axi_bid),
-        .m_axi_bresp             (m_axi_bresp),
-        .m_axi_buser             (m_axi_buser),
-        .m_axi_bvalid            (m_axi_bvalid),
-        .m_axi_bready            (m_axi_bready),
-        .m_axi_wack              (m_axi_wack),
-        .busy                    (),
-        .cam_clear               (1'b0),
-        .cfg_monitor_enable      (1'b1),
-        .cfg_error_enable        (1'b0),
-        .cfg_timeout_enable      (1'b0),
-        .cfg_compl_enable        (1'b0),
-        .cfg_threshold_enable    (1'b0),
-        .cfg_timeout_cycles      (16'h0000),
-        .cfg_freq_sel            (4'h0),
-        .cfg_axi_pkt_mask        (16'h0000),
-        .cfg_latency_threshold   (32'h0000_0000),
-        .cfg_addr_check_enable   (1'b0),
-        .cfg_addr_match_enable   (1'b0),
-        .cfg_addr_range_enable   ('0),
-        .cfg_addr_range_low      ('0),
-        .cfg_addr_range_high     ('0),
-        .i_mon_time              (i_mon_time),
-        .monbus_valid            (wr_mon_valid),
-        .monbus_ready            (wr_mon_ready),
-        .monbus_packet           (wr_mon_packet),
-        .monbus_timestamp        (wr_mon_timestamp),
-        .active_transactions     (),
-        .error_count             (),
-        .transaction_count       (),
-        .dropped_count           (),
-        .refused_count           ()
-    );
-
-    // ------------------------------------------------------------------
-    // D-7 MonBus arbiter: {l1_monlite, rd_monlite, wr_monlite} -> the
-    // one MonBus port pair
-    // ------------------------------------------------------------------
-    logic                    arb_vld [3];
-    logic                    arb_rdy [3];
-    ocelus_common_pkg::monitor_packet_t   arb_pkt [3];
-    ocelus_common_pkg::monbus_timestamp_t arb_ts  [3];
+    logic                    arb_vld [2];
+    logic                    arb_rdy [2];
+    ocelus_common_pkg::monitor_packet_t   arb_pkt [2];
+    ocelus_common_pkg::monbus_timestamp_t arb_ts  [2];
 
     assign arb_vld[0] = core_mon_valid;
-    assign arb_vld[1] = rd_mon_valid;
-    assign arb_vld[2] = wr_mon_valid;
+    assign arb_vld[1] = fab_mon_valid;
     assign core_mon_ready = arb_rdy[0];
-    assign rd_mon_ready   = arb_rdy[1];
-    assign wr_mon_ready   = arb_rdy[2];
+    assign fab_mon_ready  = arb_rdy[1];
     assign arb_pkt[0] = core_mon_packet;
-    assign arb_pkt[1] = rd_mon_packet;
-    assign arb_pkt[2] = wr_mon_packet;
+    assign arb_pkt[1] = fab_mon_packet;
     assign arb_ts[0]  = core_mon_timestamp;
-    assign arb_ts[1]  = rd_mon_timestamp;
-    assign arb_ts[2]  = wr_mon_timestamp;
+    assign arb_ts[1]  = fab_mon_timestamp;
 
     monbus_arbiter #(
-        .CLIENTS            (3),
+        .CLIENTS            (2),
         .INPUT_SKID_ENABLE  (1),
         .OUTPUT_SKID_ENABLE (1),
         .INPUT_SKID_DEPTH   (2),

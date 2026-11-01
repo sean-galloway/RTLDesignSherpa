@@ -218,12 +218,25 @@ class L1CoreTB(TBBase):
 
     @property
     def _tap(self):
-        """Hierarchical-tap root for core-internal signals (u_control,
-        u_snoop, u_repl, u_tag, coh_req_*, mon_dropped). This TB drives
+        """Hierarchical-tap root for core-internal signals. This TB drives
         the core directly so the taps ARE its top ports; rig tops own a
-        u_core instance and override this to dut.u_core (the sanctioned
-        read-only reference pattern)."""
+        u_core instance and override this to dut.u_core, or (after the
+        plane restructure) override _core_tap/_snoop_tap directly."""
         return self.dut
+
+    @property
+    def _core_tap(self):
+        """Root of the coherence core taps (u_control, u_repl, u_tag,
+        coh_req_*, mon_dropped). Default matches l1_core_fab_tb's
+        dut.u_core.u_coh path; plane-restructured rig tops override to the
+        l1_coh_core instance directly."""
+        return self._tap.u_core.u_coh
+
+    @property
+    def _snoop_tap(self):
+        """Root of the ACE snoop responder taps. Default matches
+        l1_core_fab_tb's u_snoop; plane-restructured rig tops override."""
+        return self._tap.u_snoop
 
     # responder timing profiles (house FlexRandomizer shapes; same set as
     # the l1_fill/l1_drain unit suite)
@@ -558,16 +571,16 @@ class L1CoreTB(TBBase):
                                     {'addr': addr, 'we': we, 'be': be,
                                      'wdata': wdata}))
 
-            if int(self._tap.u_core.coh_req_valid.value):
+            if int(self._core_tap.coh_req_valid.value):
                 self.coh_req_count += 1
                 self.events.append((self.cyc, 'coh_req', {
-                    'addr': int(self._tap.u_core.coh_req_addr.value),
-                    'type': int(self._tap.u_core.coh_req_type.value)}))
+                    'addr': int(self._core_tap.coh_req_addr.value),
+                    'type': int(self._core_tap.coh_req_type.value)}))
 
             # snoop grant: model-step at the grant cycle -- the DUT state
             # sampled here is exactly the resolution the RTL used
-            if int(self._tap.u_snoop.ctrl_snoop_req.value) \
-                    and int(self._tap.u_core.u_coh.u_control.ctrl_snoop_ready.value):
+            if int(self._snoop_tap.ctrl_snoop_req.value) \
+                    and int(self._core_tap.u_control.ctrl_snoop_ready.value):
                 self._on_snoop_grant(st)
 
             if int(d.mon_valid.value) and int(d.mon_ready.value):
@@ -657,10 +670,10 @@ class L1CoreTB(TBBase):
         # victim-way parity with the DUT's repl engine: a divergence here
         # poisons every eviction prediction downstream
         self._score(f"{txn['label']}: victim way parity", way,
-                    int(self._tap.u_core.u_coh.u_repl.repl_victim_way.value))
+                    int(self._core_tap.u_repl.repl_victim_way.value))
         vline = self.tags.get((set_idx, way))
         vstate = self.slot_state.get((set_idx, way), 'I')
-        dut_ts = int(self._tap.u_core.u_coh.u_tag.mem[way * self.SETS + set_idx].value)
+        dut_ts = int(self._core_tap.u_tag.mem[way * self.SETS + set_idx].value)
         dut_tag, dut_state = dut_ts >> 3, self._decode3(dut_ts & 7)
         # NB: the model's tags map (set, way) -> LINE NUMBER; the array
         # word is {tag, state} with tag = line >> SET_BITS
@@ -756,8 +769,8 @@ class L1CoreTB(TBBase):
     # ------------------------------------------------------------------
     def _on_snoop_grant(self, dut_state):
         d = self.dut
-        line = self._line_of(int(self._tap.u_snoop.ctrl_snoop_addr.value))
-        name = NAME_BY_CODE[int(self._tap.u_snoop.ctrl_snoop_type.value)]
+        line = self._line_of(int(self._snoop_tap.ctrl_snoop_addr.value))
+        name = NAME_BY_CODE[int(self._snoop_tap.ctrl_snoop_type.value)]
         st = self._cur_state(line)
         fill = 'S' if st in ('IS', 'IS_I') else None
         pend = self.pend_eff if self.pend_line == line else None
@@ -1167,7 +1180,7 @@ class L1CoreTB(TBBase):
         self._score("monbus tally: no drop reports pre-congestion",
                     self._drop_reports, 0)
         self._score("monbus: live dropped_count zero pre-congestion",
-                    int(self._tap.u_core.mon_dropped.value), 0)
+                    int(self._core_tap.mon_dropped.value), 0)
 
     async def _s_monbus_congestion(self):
         self.mon_mode = 'stall'
@@ -1185,12 +1198,12 @@ class L1CoreTB(TBBase):
         self._score("congestion: drop report re-emitted",
                     self._drop_reports > reports0, True)
         for _ in range(500):
-            if int(self._tap.u_core.mon_dropped.value) == 0 \
+            if int(self._core_tap.mon_dropped.value) == 0 \
                     and not int(self.dut.mon_valid.value):
                 break
             await self._negedge_settled()
         self._score("congestion: dropped_count cleared",
-                    int(self._tap.u_core.mon_dropped.value), 0)
+                    int(self._core_tap.mon_dropped.value), 0)
         self._scenario('MonbusCongestion')
 
     # ------------------------------------------------------------------
