@@ -41,8 +41,10 @@ SKIP = ("venv", "__pycache__", "local_sim_build", ".git", "obj_dir",
         # them double-counts every finding and attributes it to a path nobody
         # can fix from here: the one scenario-level discard this tool reported
         # on 2026-09-14 was a stale copy of a file the main tree had already
-        # fixed. Never report on a tree you are not in.
-        ".claude", "worktrees")
+        # fixed. Never report on a tree you are not in. (The dir is
+        # `.worktrees/` with a leading dot; the bare "worktrees" entry predates
+        # the rename and stopped matching -- keep both.)
+        ".claude", "worktrees", ".worktrees")
 
 
 def _returns_false(fn):
