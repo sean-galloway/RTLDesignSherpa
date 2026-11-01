@@ -139,10 +139,10 @@ module merlin_pipe_regs_tb_top (
     input logic [31:0] mem_wb_pc_i,
     input logic [31:0] mem_wb_next_pc_i,
     input logic [31:0] mem_wb_alu_y_i,
-    input logic [31:0] mem_wb_load_data_i,
     input logic [ 4:0] mem_wb_rd_addr_i,
     input logic        mem_wb_rd_wen_i,
     input logic [ 1:0] mem_wb_wb_sel_i,
+    input logic [ 2:0] mem_wb_funct3_i,
     input logic        mem_wb_csr_stub_i,
     input logic [ 3:0] mem_wb_halt_cause_i,
     input logic        mem_wb_valid_i,
@@ -155,10 +155,10 @@ module merlin_pipe_regs_tb_top (
     output logic [31:0] mem_wb_pc_o,
     output logic [31:0] mem_wb_next_pc_o,
     output logic [31:0] mem_wb_alu_y_o,
-    output logic [31:0] mem_wb_load_data_o,
     output logic [ 4:0] mem_wb_rd_addr_o,
     output logic        mem_wb_rd_wen_o,
     output logic [ 1:0] mem_wb_wb_sel_o,
+    output logic [ 2:0] mem_wb_funct3_o,
     output logic        mem_wb_csr_stub_o,
     output logic [ 3:0] mem_wb_halt_cause_o,
     output logic        mem_wb_valid_o,
@@ -284,10 +284,10 @@ module merlin_pipe_regs_tb_top (
   assign mem_wb_d.pc           = mem_wb_pc_i;
   assign mem_wb_d.next_pc      = mem_wb_next_pc_i;
   assign mem_wb_d.alu_y        = mem_wb_alu_y_i;
-  assign mem_wb_d.load_data    = mem_wb_load_data_i;
   assign mem_wb_d.rd_addr      = mem_wb_rd_addr_i;
   assign mem_wb_d.rd_wen       = mem_wb_rd_wen_i;
   assign mem_wb_d.wb_sel       = mem_wb_wb_sel_i;
+  assign mem_wb_d.funct3       = mem_wb_funct3_i;
   assign mem_wb_d.csr_stub     = mem_wb_csr_stub_i;
   assign mem_wb_d.halt_cause   = mem_wb_halt_cause_i;
   assign mem_wb_d.valid        = mem_wb_valid_i;
@@ -300,10 +300,10 @@ module merlin_pipe_regs_tb_top (
   assign mem_wb_pc_o           = mem_wb_q.pc;
   assign mem_wb_next_pc_o      = mem_wb_q.next_pc;
   assign mem_wb_alu_y_o        = mem_wb_q.alu_y;
-  assign mem_wb_load_data_o    = mem_wb_q.load_data;
   assign mem_wb_rd_addr_o      = mem_wb_q.rd_addr;
   assign mem_wb_rd_wen_o       = mem_wb_q.rd_wen;
   assign mem_wb_wb_sel_o       = mem_wb_q.wb_sel;
+  assign mem_wb_funct3_o       = mem_wb_q.funct3;
   assign mem_wb_csr_stub_o     = mem_wb_q.csr_stub;
   assign mem_wb_halt_cause_o   = mem_wb_q.halt_cause;
   assign mem_wb_valid_o        = mem_wb_q.valid;

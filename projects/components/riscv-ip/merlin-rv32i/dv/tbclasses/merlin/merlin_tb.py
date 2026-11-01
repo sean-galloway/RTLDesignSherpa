@@ -168,7 +168,7 @@ class MerlinTB:
                 self.halt_cause = int(dut.halt_cause.value)
                 self.halt_pc = int(dut.rvfi_pc_rdata.value)
                 if int(dut.rvfi_valid.value):
-                    self.trace.append(self._sample_beat())
+                    self.trace.append(self._sample_beat(cycle))
                 break
 
             dut._log.info(
@@ -177,7 +177,7 @@ class MerlinTB:
                 f"imem_addr=0x{int(dut.imem_addr.value):x}")
             if int(dut.rvfi_valid.value) == 0:
                 continue
-            beat = self._sample_beat()
+            beat = self._sample_beat(cycle)
             dut._log.info(
                 f"RVFI beat {len(self.trace)}: pc=0x{beat['pc']:x} "
                 f"insn=0x{beat['insn']:08x} rd={beat['rd_addr']} "
@@ -198,7 +198,7 @@ class MerlinTB:
             assert int(dut.imem_addr.value) == post_halt_imem_addr, \
                 "imem_addr moved during halt (fetch must be frozen)"  
 
-    def _sample_beat(self):
+    def _sample_beat(self, cycle=None):
         d = self.dut
         return {
             "order": int(d.rvfi_order.value),
@@ -217,6 +217,7 @@ class MerlinTB:
             "mem_wmask": int(d.rvfi_mem_wmask.value),
             "mem_rdata": int(d.rvfi_mem_rdata.value),
             "mem_wdata": int(d.rvfi_mem_wdata.value),
+            "cycle": cycle,
         }
 
     # ------------------------------------------------------------------

@@ -13,16 +13,16 @@
 //          a load-use interlock, and control-hazard flushes.
 //
 //          Memory timing contract: both instruction and data memories are
-//          registered-read (block-RAM) slaves.  `imem_addr_next` is the
-//          address presented after this clock edge; a registered-read
-//          instruction memory returns the word at that address one cycle
-//          later, so the IF/ID register captures the RAM output.  The data
-//          memory address is driven in the MEM stage and the load data is
-//          sampled at the MEM/WB boundary, i.e. the cycle after the address
-//          was presented -- exactly the block-RAM read latency.  `mem_wait`
-//          is a global hold: all pipeline registers stall, the data request
-//          deasserts while held and replays when released, and no instruction
-//          retires while the memories are not ready.
+//          registered-read (block-RAM) slaves.  `imem_addr` is the address
+//          driven in the current cycle; a registered-read instruction memory
+//          returns the word at that address one cycle later, so the IF/ID
+//          register captures the RAM output.  The data memory address is
+//          driven in the MEM stage and the load data is assembled in the WB
+//          stage from the registered dmem_rdata port -- exactly the block-RAM
+//          read latency.  `mem_wait` is a global hold: all pipeline registers
+//          stall, the data request deasserts while held and replays when
+//          released, and no instruction retires while the memories are not
+//          ready.
 //
 //          Halt contract: decode raises ecall/ebreak/illegal; EX raises
 //          instruction-address-misaligned on a taken branch/jump to a
@@ -328,7 +328,9 @@ module merlin_core #(
     logic halt_now;
 
     assign if_id_flush_eff  = ((flush_ifid | halt_now) & ~mem_wait);
-    assign id_ex_flush_eff  = ((flush_idex | halt_now) & ~mem_wait);
+    // stall_ifid must also flush ID/EX so the consumer is not latched twice
+    // and retried after the load-use bubble; the flush injects valid=0.
+    assign id_ex_flush_eff  = ((flush_idex | stall_ifid | halt_now) & ~mem_wait);
     assign ex_mem_flush_eff = halt_now & ~mem_wait;
 
     // -----------------------------------------------------------------
@@ -373,6 +375,10 @@ module merlin_core #(
     logic [31:0] alu_b;
     logic [31:0] alu_y;
 
+    // LUI must ignore its rs1 field; forcing alu_a to zero is required even
+    // though forwarding would otherwise deliver a stale rs1 value.  (FWD_EXMEM
+    // forwards alu_y, so a LUI with a non-zero rs1 encoding would otherwise
+    // pick up the previous EX/MEM alu_y and corrupt the immediate.)
     assign alu_a = id_ex_q.alu_src_a_pc  ? id_ex_q.pc       :
                    (id_ex_q.insn[6:0] == OPCODE_LUI) ? 32'd0 :
                    ex_rs1_fwd;
@@ -484,22 +490,19 @@ module merlin_core #(
     );
 
     // -----------------------------------------------------------------
-    // MEM stage: data memory request, store rotation, load assembly
+    // MEM stage: data memory request and store rotation
     // -----------------------------------------------------------------
     logic [1:0]  mem_ls_offset;
     logic [3:0]  mem_ls_size_mask;
-    logic [31:0] mem_ls_data_mask;
-    logic [31:0] mem_ls_rdata_shifted;
-    logic [31:0] mem_ls_load_data;
     logic        mem_ls_ok;
 
     assign mem_ls_offset = ex_mem_q.alu_y[1:0];
 
     always_comb begin
         unique case (ex_mem_q.funct3[1:0])
-            2'b00:   begin mem_ls_size_mask = STRB_BYTE; mem_ls_data_mask = 32'h0000_00FF; end
-            2'b01:   begin mem_ls_size_mask = STRB_HALF; mem_ls_data_mask = 32'h0000_FFFF; end
-            default: begin mem_ls_size_mask = STRB_WORD; mem_ls_data_mask = 32'hFFFF_FFFF; end
+            2'b00:   mem_ls_size_mask = STRB_BYTE;
+            2'b01:   mem_ls_size_mask = STRB_HALF;
+            default: mem_ls_size_mask = STRB_WORD;
         endcase
     end
 
@@ -510,28 +513,18 @@ module merlin_core #(
     assign dmem_wstrb       = (ex_mem_q.dmem_we & mem_ls_ok) ? (mem_ls_size_mask << mem_ls_offset)
                                                              : 4'b0000;
 
-    assign mem_ls_rdata_shifted = dmem_rdata >> {mem_ls_offset, 3'b000};
-
-    always_comb begin
-        unique case (ex_mem_q.funct3)
-            3'b000:  mem_ls_load_data = {{24{mem_ls_rdata_shifted[7]}},  mem_ls_rdata_shifted[7:0]};   // LB
-            3'b100:  mem_ls_load_data = {24'b0,                      mem_ls_rdata_shifted[7:0]};   // LBU
-            3'b001:  mem_ls_load_data = {{16{mem_ls_rdata_shifted[15]}}, mem_ls_rdata_shifted[15:0]};  // LH
-            3'b101:  mem_ls_load_data = {16'b0,                      mem_ls_rdata_shifted[15:0]};  // LHU
-            default: mem_ls_load_data = dmem_rdata;                                            // LW
-        endcase
-    end
-
-    // MEM/WB input assembly
+    // MEM/WB input assembly.  Load data is NOT assembled here: dmem_rdata in
+    // the MEM cycle is the previous access's data.  The registered memory
+    // returns this load's word during the WB cycle, where it is assembled.
     mem_wb_t mem_wb_d;
 
     assign mem_wb_d.pc        = ex_mem_q.pc;
     assign mem_wb_d.next_pc   = ex_mem_q.next_pc;
     assign mem_wb_d.alu_y     = ex_mem_q.alu_y;
-    assign mem_wb_d.load_data = mem_ls_load_data;
     assign mem_wb_d.rd_addr   = ex_mem_q.rd_addr;
     assign mem_wb_d.rd_wen    = ex_mem_q.rd_wen;
     assign mem_wb_d.wb_sel    = ex_mem_q.wb_sel;
+    assign mem_wb_d.funct3    = ex_mem_q.funct3;
     assign mem_wb_d.csr_stub  = ex_mem_q.csr_stub;
     assign mem_wb_d.halt_cause= ex_mem_q.halt_cause;
     assign mem_wb_d.valid     = ex_mem_q.valid;
@@ -552,15 +545,35 @@ module merlin_core #(
     );
 
     // -----------------------------------------------------------------
-    // WB stage: writeback mux, halt holding register, RVFI retire
+    // WB stage: load assembly, writeback mux, halt holding register, RVFI retire
     // -----------------------------------------------------------------
     logic        halt_q;
     logic [3:0]  halt_cause_q;
     logic [63:0] retire_count;
 
+    // Assemble the load data in WB from the registered memory read port.  At
+    // this point dmem_rdata holds the word for the address presented when this
+    // instruction was in MEM.
+    logic [1:0]  wb_ls_offset;
+    logic [31:0] wb_ls_rdata_shifted;
+    logic [31:0] wb_load_data;
+
+    assign wb_ls_offset       = mem_wb_q.alu_y[1:0];
+    assign wb_ls_rdata_shifted = dmem_rdata >> {wb_ls_offset, 3'b000};
+
+    always_comb begin
+        unique case (mem_wb_q.funct3)
+            3'b000:  wb_load_data = {{24{wb_ls_rdata_shifted[7]}},  wb_ls_rdata_shifted[7:0]};   // LB
+            3'b100:  wb_load_data = {24'b0,                      wb_ls_rdata_shifted[7:0]};   // LBU
+            3'b001:  wb_load_data = {{16{wb_ls_rdata_shifted[15]}}, wb_ls_rdata_shifted[15:0]};  // LH
+            3'b101:  wb_load_data = {16'b0,                      wb_ls_rdata_shifted[15:0]};  // LHU
+            default: wb_load_data = dmem_rdata;                                            // LW
+        endcase
+    end
+
     assign wb_rd_wdata = (mem_wb_q.csr_stub || (mem_wb_q.rd_addr == 5'd0)) ? 32'd0 :
                          (mem_wb_q.wb_sel == WB_LUI)  ? mem_wb_q.imm       :
-                         (mem_wb_q.wb_sel == WB_LOAD) ? mem_wb_q.load_data :
+                         (mem_wb_q.wb_sel == WB_LOAD) ? wb_load_data       :
                          (mem_wb_q.wb_sel == WB_LINK) ? (mem_wb_q.pc + PC_INCR) :
                                                         mem_wb_q.alu_y;
 

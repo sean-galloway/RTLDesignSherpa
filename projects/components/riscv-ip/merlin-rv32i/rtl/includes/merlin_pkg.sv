@@ -92,14 +92,17 @@ package merlin_pkg;
   } ex_mem_t;
 
   // MEM/WB boundary: final writeback value selected from ALU, load, or link.
+  // Load data is assembled in WB from the registered dmem_rdata port so that
+  // the core honors the registered-read memory contract (address in MEM,
+  // data returned in WB).
   typedef struct packed {
     logic [31:0] pc;
     logic [31:0] next_pc;
     logic [31:0] alu_y;
-    logic [31:0] load_data;
     logic [4:0]  rd_addr;
     logic        rd_wen;
     logic [1:0]  wb_sel;
+    logic [2:0]  funct3;        // load size/sign; kept for WB assembly
     logic        csr_stub;
     logic [3:0]  halt_cause;
     logic        valid;

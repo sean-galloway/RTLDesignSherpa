@@ -7,8 +7,9 @@
 // Module: merlin_tb_top
 // Purpose: merlin_core wrapped with a behavioral 64 KiB unified (von
 //          Neumann) word memory.  Programs load at time 0 via +imem=<hex>
-//          plusargs into $readmemh word arrays; instruction and data reads
-//          are combinational.
+//          plusargs into $readmemh word arrays; instruction reads are
+//          combinational, data reads are registered to match the core's
+//          block-RAM timing contract.
 //
 //          Data-memory writes honor dmem_wstrb per byte.  The merlin L/S
 //          datapath rotates the strobe and data by the byte offset, so this
