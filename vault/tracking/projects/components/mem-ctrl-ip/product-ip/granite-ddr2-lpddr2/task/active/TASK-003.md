@@ -1440,3 +1440,33 @@ lands in a 196.7 state one run in three on byp100 (never on hx100, every
 time under the 1-cycle runtime knobs). Open: what selects those states.
 Remaining gap to LiteDRAM's floor: 7 cycles (AXI plane 2, push -> pick 3,
 DFI plane 2 are the next candidates; the planes are shared with pumice).
+
+### 2026-10-31 (late night): two more cycles, and what selects the bimodal cells
+
+41bb5e07e: `mc_bank_fifo_store` AR_DIRECT (an AR finding the hold empty is
+placed directly; push-ready from the hold fire only) and `mc_dfi_cdc`
+CMD_FALLTHRU (same-clock form: an empty command FIFO is skipped), plumbed
+through `mc_dfi_2p1_plane`; granite sets both, every other user keeps 0.
+Sim: AR -> R 16 -> 14, lone-read bandwidth 166.7 -> 179.5; proxy families
+clean; gates common-ip 57 / 3 xfailed, granite 18 / 1, pumice 218.
+
+Timing: five placement directives missed (-0.144 .. -0.393 ns), every time on
+the pre-existing marginal paths (`mc_bank_pick` stale pick, pick -> store
+pop), not the new logic. AltSpreadLogic_medium + post-route phys_opt
+(AggressiveFanoutOpt, AlternateFlowWithRetiming) closed: WNS +0.006 / WHS
++0.008, `ddr2_char_granite_100mhz_ard2_2026-10-31.bit`. The next gate on
+those paths wants a pipeline stage in the stale pick.
+
+Board, every profile, `char_granite_ard2_100_*`: 180 cells clean, floor
+25 -> 23 (160 cells exactly -2), means median -1.0, bandwidth +0.03 / +0.17
+percent mean (worst cell -1.3), open-page half_pair reads +6 percent,
+LiteDRAM tally 42 / 18 / 0. Remaining floor gap to LiteDRAM: 5 cycles.
+
+The bimodal cells (mixed window 202.4 / 196.7, multigen power-on
+col_major_interleaved 261.9 / 245.8): the refresh phase selects the
+write/read run length in sim (tREFI 772: runs of 8, 2043 switches, 3128
+ACTs, 140.8 MB/s; 774: runs of 16, 1037, 2111, 197). Write watermark 4/2
+(also 8/4, 4/0) removes the bad state at every phase tried, never worse.
+Board, `byp100`, four alternating runs: 2/1 hit the bad mixed state 1 / 4 and
+the bad multigen state 3 / 4; 4/2 hit neither, 0 / 8. Full every-profile
+sweep at 4/2 on `ard2_100` queued to decide the default.
