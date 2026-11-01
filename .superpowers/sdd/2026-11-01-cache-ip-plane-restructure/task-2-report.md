@@ -163,3 +163,65 @@ Result: `EXIT 0` — baseline `UNUSEDSIGNAL` warnings plus one pre-existing `SYN
 - Commit: `8649cf112` on main
 - Summary: `cache-ip: Task 2 fabric planes — l1_axi4_plane, l1_ace_plane, l1_ace_issue`
 - Task 2 is complete. Lint, registry, task-ID, and pre-commit gates pass.
+
+---
+
+# Follow-up fix: retarget amber ace_issue unit harness to shared `l1_ace_issue`
+
+## What changed
+
+- `projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_ace_issue_th.sv`
+  - Module name `amber_ace_issue_th` kept unchanged (per house convention: harness stays in amber's area).
+  - Instantiation retargeted from `amber_ace_issue` → `l1_ace_issue`.
+  - Header comments updated to note the wrapped module is the shared common-ip FUB.
+- `projects/components/cache-ip/amber-mesi-l1/rtl/filelists/amber_ace_issue.f`
+  - Recreated as a thin amber-area wrapper that includes `$CACHE_COMMON_ROOT/rtl/filelists/fub/l1_ace_issue.f`.
+  - The existing unit test (`_merge_sources('amber_ace_issue')`) now resolves to the shared FUB.
+
+## What was NOT changed
+
+- The harness file/class name (`amber_ace_issue_th`) and the Python TB class (`AmberAceIssueTB`) keep their amber-area names.
+- Documentation files under `amber-mesi-l1/docs/` and `jet-mesi-l1/docs/` still carry the old module names; they do not affect simulation or gates and are left for the next doc refresh.
+- No jet-side unit harness exists for `jet_ace_issue`; only the top-level `jet_ace_top` referenced it, and that was already retargeted in Task 2.
+
+## Verification
+
+### Focused ace_issue unit suite
+
+```bash
+cd projects/components/cache-ip/amber-mesi-l1/dv/tests
+source /mnt/data/github/RTLDesignSherpa/env_python
+python -m pytest test_amber_ace_top.py -k "ace_issue_rows" -q
+```
+
+Result: `2 passed, 6 deselected, 2 warnings in 15.11s` — the `l1_ace_issue` row suite is green.
+
+### Focused amber_ace_top rig suite
+
+```bash
+python -m pytest test_amber_ace_top.py -q
+```
+
+Result: `8 passed, 8 warnings in 15.25s` — both the ace_issue rows and the rig top cells pass.
+
+### Full amber-mesi-l1 smoke
+
+The literal `pytest . -q` invocation was started with a 1-hour timeout but was stopped at ~75% completion after exceeding 20 minutes of wall time; all tests completed up to that point passed, with no failures observed. The slow tail is dominated by `test_amber_parity_thrash_*` / `test_amber_parity_mix_*` cells (32k–100k accesses on tiny caches), which do not exercise the ace_issue harness change.
+
+A representative smoke excluding those heavy parity cells was run to completion:
+
+```bash
+python -m pytest . -q -k "not thrash and not mix"
+```
+
+Result: `67 passed, 12 deselected, 55 warnings in 281.71s (0:04:41)`.
+
+### Repo gates (run while suite was in progress)
+
+- `python3 bin/filelist_registry.py --check` → `PASS`
+- `python3 bin/check_task_ids.py` → `Task-tracker check passed (138 area(s))`
+- `.git/hooks/pre-commit` → passed on the staged fix files.
+
+## Concerns
+
+None for the harness retarget. The only remaining `amber_ace_issue` / `jet_ace_issue` references are in documentation and coverage-report artifacts, which do not affect simulation or filelist gates.

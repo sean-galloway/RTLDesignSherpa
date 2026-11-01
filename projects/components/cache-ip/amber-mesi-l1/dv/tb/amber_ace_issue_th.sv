@@ -6,11 +6,13 @@
 //
 // Module: amber_ace_issue_th
 // Purpose:
-//   Unit-side wrapper for the amber_ace_issue Table 2.8.1 row suite: the
+//   Unit-side wrapper for the l1_ace_issue Table 2.8.1 row suite: the
 //   block's engine-side and wrapper-side pins become top-level ports so
 //   the cocotb TB can drive cache events and the engine handshakes
 //   directly and capture the snoop fields the block stamps (or, for
 //   CleanUnique/MakeUnique/Evict, originates). Pure wiring -- no logic.
+//   The wrapped module is the shared cache-ip FUB l1_ace_issue; this
+//   harness keeps the amber-area name so existing DV paths are stable.
 //
 // Documentation: projects/components/cache-ip/amber-mesi-l1/docs/amber_mas/ch02_blocks/08_amber_ace_issue.md
 // Subsystem: amber
@@ -123,7 +125,7 @@ module amber_ace_issue_th
     output logic                        fub_bready
 );
 
-    amber_ace_issue #(
+    l1_ace_issue #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .BUS_WIDTH      (BUS_WIDTH),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
