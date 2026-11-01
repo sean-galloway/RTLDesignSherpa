@@ -1,13 +1,22 @@
 # TASK-001: implement merlin per PRD v0.2 (5-stage pipelined RV32I)
 
 **Priority:** P2
-**Status:** open
-**Owner:** TBD
+**Status:** closed
+**Owner:** seang
 
 Filed 2026-10-31 on the owner's M5–M7 rulings. All seven PRD decision rows
 are DECIDED (`projects/components/riscv-ip/merlin-rv32i/PRD.md` v0.2); the
 falcon-suite design spec (rung 2) is the design source. Implementation
-starts with the writing-plans skill over the PRD.
+completed 2026-11-01.
+
+## Closure
+
+- Core RTL, DV, riscv-formal, GTKW save file, and doc skeletons committed.
+- DV: 36/36 tests green (rv32ui 42/42, spike lockstep, fuzz).
+- riscv-formal: 42/42 retire checks green.
+- GTKW verified against a real `WAVES=1` FST dump (83 signals cross-checked).
+- Vault gates clean (link ratchet, task IDs, filelist registry).
+- Full HAS/MAS book prose is a follow-on task; this task delivered skeletons only.
 
 ## Scope (PRD §7 sequencing)
 

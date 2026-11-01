@@ -12,17 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-001** — implement merlin per PRD v0.2 (5-stage pipelined RV32I:
-  pipeline registers, hazard/forwarding unit, EX branch resolve + flush;
-  rv32ui + directed hazard suite + spike lockstep + riscv-formal retire)
+(none)
 
 ## Active
 
@@ -30,4 +28,8 @@ by construction rather than by discipline.
 
 ## Closed
 
-(none)
+- **TASK-001** — implement merlin per PRD v0.2 (5-stage pipelined RV32I:
+  pipeline registers, hazard/forwarding unit, EX branch resolve + flush;
+  rv32ui + directed hazard suite + spike lockstep + riscv-formal retire).
+  Outcome: core/DV/formal green, GTKW verified, HAS/MAS skeletons committed.
+  Commit range: Task 1 through Task 7.

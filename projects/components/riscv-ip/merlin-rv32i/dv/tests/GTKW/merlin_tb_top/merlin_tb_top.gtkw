@@ -1,0 +1,139 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Nov  1 00:00:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/riscv-ip/merlin-rv32i/dv/tests/local_sim_build/test_merlin_core/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/riscv-ip/merlin-rv32i/dv/tests/GTKW/merlin_tb_top/merlin_tb_top.gtkw"
+[timestart] 0
+[size] 1920 1080
+[pos] -1 -1
+*-15.655873 0 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] merlin_tb_top.
+[treeopen] merlin_tb_top.u_merlin_core.
+[sst_width] 357
+[signals_width] 333
+[sst_expanded] 1
+[sst_vpaned_height] 508
+@28
+merlin_tb_top.clk
+merlin_tb_top.rst_n
+@200
+-halt
+@28
+merlin_tb_top.halt
+merlin_tb_top.u_merlin_core.halt_q
+merlin_tb_top.u_merlin_core.halt_now
+@22
+merlin_tb_top.halt_cause[3:0]
+merlin_tb_top.u_merlin_core.halt_cause_q[3:0]
+@200
+-fetch
+@22
+merlin_tb_top.u_merlin_core.pc[31:0]
+merlin_tb_top.u_merlin_core.imem_addr[31:0]
+merlin_tb_top.u_merlin_core.imem_addr_next[31:0]
+merlin_tb_top.u_merlin_core.imem_rdata[31:0]
+@200
+-pipeline-regs
+@28
+merlin_tb_top.u_merlin_core.u_if_id.q_o.valid
+@22
+merlin_tb_top.u_merlin_core.u_if_id.q_o.pc[31:0]
+merlin_tb_top.u_merlin_core.u_if_id.q_o.insn[31:0]
+@28
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.valid
+@22
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.pc[31:0]
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.insn[31:0]
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.rs1_addr[4:0]
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.rs2_addr[4:0]
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.rd_addr[4:0]
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.rs1_data[31:0]
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.rs2_data[31:0]
+merlin_tb_top.u_merlin_core.u_id_ex.q_o.imm[31:0]
+@28
+merlin_tb_top.u_merlin_core.u_ex_mem.q_o.valid
+@22
+merlin_tb_top.u_merlin_core.u_ex_mem.q_o.pc[31:0]
+merlin_tb_top.u_merlin_core.u_ex_mem.q_o.insn[31:0]
+merlin_tb_top.u_merlin_core.u_ex_mem.q_o.alu_y[31:0]
+merlin_tb_top.u_merlin_core.u_ex_mem.q_o.rd_addr[4:0]
+merlin_tb_top.u_merlin_core.u_ex_mem.q_o.store_data[31:0]
+@28
+merlin_tb_top.u_merlin_core.u_mem_wb.q_o.valid
+@22
+merlin_tb_top.u_merlin_core.u_mem_wb.q_o.pc[31:0]
+merlin_tb_top.u_merlin_core.u_mem_wb.q_o.insn[31:0]
+merlin_tb_top.u_merlin_core.u_mem_wb.q_o.alu_y[31:0]
+merlin_tb_top.u_merlin_core.u_mem_wb.q_o.rd_addr[4:0]
+merlin_tb_top.u_merlin_core.u_mem_wb.q_o.next_pc[31:0]
+@200
+-hazard
+@28
+merlin_tb_top.u_merlin_core.stall_ifid
+merlin_tb_top.u_merlin_core.flush_ifid
+merlin_tb_top.u_merlin_core.flush_idex
+merlin_tb_top.u_merlin_core.if_id_flush_eff
+merlin_tb_top.u_merlin_core.id_ex_flush_eff
+merlin_tb_top.u_merlin_core.ex_mem_flush_eff
+@22
+merlin_tb_top.u_merlin_core.ex_fwd_a[1:0]
+merlin_tb_top.u_merlin_core.ex_fwd_b[1:0]
+merlin_tb_top.u_merlin_core.u_hazard.fwd_a[1:0]
+merlin_tb_top.u_merlin_core.u_hazard.fwd_b[1:0]
+@22
+merlin_tb_top.u_merlin_core.ex_rs1_fwd[31:0]
+merlin_tb_top.u_merlin_core.ex_rs2_fwd[31:0]
+@28
+merlin_tb_top.u_merlin_core.idex_is_load
+@200
+-ex-branch
+@28
+merlin_tb_top.u_merlin_core.ex_taken
+merlin_tb_top.u_merlin_core.ex_flush
+merlin_tb_top.u_merlin_core.branch_taken
+@22
+merlin_tb_top.u_merlin_core.ex_target[31:0]
+merlin_tb_top.u_merlin_core.ex_next_pc[31:0]
+merlin_tb_top.u_merlin_core.tgt_lo_pc[1:0]
+merlin_tb_top.u_merlin_core.misalign_target
+@200
+-data-memory
+@28
+merlin_tb_top.dmem_req
+@22
+merlin_tb_top.dmem_addr[31:0]
+merlin_tb_top.dmem_wstrb[3:0]
+merlin_tb_top.dmem_wdata[31:0]
+merlin_tb_top.u_merlin_core.dmem_rdata[31:0]
+merlin_tb_top.u_merlin_core.mem_ls_offset[1:0]
+@200
+-regfile-write
+@28
+merlin_tb_top.u_merlin_core.wb_rd_wen_eff
+@22
+merlin_tb_top.u_merlin_core.wb_rd_addr[4:0]
+merlin_tb_top.u_merlin_core.wb_rd_wdata[31:0]
+merlin_tb_top.u_merlin_core.u_regfile.rd_wen
+merlin_tb_top.u_merlin_core.u_regfile.rd_data[31:0]
+@200
+-retire-rvfi
+@28
+merlin_tb_top.rvfi_valid
+merlin_tb_top.rvfi_trap
+@22
+merlin_tb_top.rvfi_order[63:0]
+merlin_tb_top.rvfi_pc_rdata[31:0]
+merlin_tb_top.rvfi_pc_wdata[31:0]
+merlin_tb_top.rvfi_insn[31:0]
+merlin_tb_top.rvfi_rs1_addr[4:0]
+merlin_tb_top.rvfi_rs1_rdata[31:0]
+merlin_tb_top.rvfi_rs2_addr[4:0]
+merlin_tb_top.rvfi_rs2_rdata[31:0]
+merlin_tb_top.rvfi_rd_addr[4:0]
+merlin_tb_top.rvfi_rd_wdata[31:0]
+merlin_tb_top.rvfi_mem_addr[31:0]
+merlin_tb_top.rvfi_mem_rmask[3:0]
+merlin_tb_top.rvfi_mem_wmask[3:0]
+merlin_tb_top.rvfi_mem_rdata[31:0]
+merlin_tb_top.rvfi_mem_wdata[31:0]
