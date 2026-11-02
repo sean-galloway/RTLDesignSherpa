@@ -514,7 +514,11 @@ module mc_store_arbiter_macro_tb_top
             .stall_actlimit_o   (),
             .stall_banktimer_o  (),
             .stall_noreq_o      (),
-            .stall_zq_o         ()
+            .stall_zq_o         (),
+            .dbg_dir_flip_o      (),
+            .dbg_dir_o           (),
+            .dbg_dir_cause_o     (),
+            .dbg_dir_batch_o     ()
         );
         assign core_pick_valid = u_pick.w_win_vld;
         assign cmd_slot = wr_commit_valid ? wr_commit_slot

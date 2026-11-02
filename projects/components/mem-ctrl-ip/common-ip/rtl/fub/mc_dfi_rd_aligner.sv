@@ -85,7 +85,11 @@ module mc_dfi_rd_aligner #(
 
     // read-return busy indicator to scheduler (true while any read burst is
     // still returning; used to keep REF out of the open return window)
-    output logic                        rd_ret_busy_o
+    output logic                        rd_ret_busy_o,
+    // contract break (mc_monlite MC_EV_RD_BEAT_LOST, dfi_clk): a beat on
+    // rd_valid_o its consumer did not take -- the beat is gone. The same
+    // check the simulation assertion below makes, as a synthesizable pulse.
+    output logic                        err_beat_lost_o
 );
 
     localparam logic [1:0] RESP_OKAY = 2'b00;
@@ -312,5 +316,7 @@ module mc_dfi_rd_aligner #(
                           $time, r_rcnt, r_outstanding);
         end
 `endif
+
+    assign err_beat_lost_o = rd_valid_o && !rd_ready_i;
 
 endmodule : mc_dfi_rd_aligner

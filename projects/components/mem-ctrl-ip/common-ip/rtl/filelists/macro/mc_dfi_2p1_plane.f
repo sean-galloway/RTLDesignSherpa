@@ -8,5 +8,7 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_dfi_cmd_path.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_dfi_wr_serializer.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_dfi_rd_aligner.f
+# the aligner's loss pulse crosses to ctl_clk when DFI_CDC_EN
+-f $REPO_ROOT/rtl/cdc/filelists/sync_pulse.f
 # this macro
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_dfi_2p1_plane.sv

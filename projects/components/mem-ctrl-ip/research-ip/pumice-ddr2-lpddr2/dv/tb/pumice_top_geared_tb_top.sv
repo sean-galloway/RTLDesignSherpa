@@ -23,6 +23,8 @@ module pumice_top_geared_tb_top
     parameter int DRAM_BL             = 8,
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
+    parameter bit HAS_MON        = 1'b0,  // Ocelus plane (test_pumice_ocelus sets 1)
+    parameter int MON_ACLK_MHZ   = 100,
 
     parameter int DW   = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int HSW  = HOST_AXI_DATA_WIDTH / 8,
@@ -69,7 +71,20 @@ module pumice_top_geared_tb_top
     output logic [IW-1:0]  s_axi_rid,    output logic [HOST_AXI_DATA_WIDTH-1:0] s_axi_rdata,
     output logic [1:0]     s_axi_rresp,  output logic          s_axi_rlast,
     output logic           s_axi_ruser,  output logic          s_axi_rvalid,
-    input  logic           s_axi_rready
+    input  logic           s_axi_rready,
+    // Ocelus packet writer (idle at HAS_MON = 0; the other tests leave it untouched)
+    output logic           mon_irq_o,
+    output logic           m_axil_mon_awvalid,
+    input  logic           m_axil_mon_awready,
+    output logic [31:0]    m_axil_mon_awaddr,
+    output logic [2:0]     m_axil_mon_awprot,
+    output logic           m_axil_mon_wvalid,
+    input  logic           m_axil_mon_wready,
+    output logic [63:0]    m_axil_mon_wdata,
+    output logic [7:0]     m_axil_mon_wstrb,
+    input  logic           m_axil_mon_bvalid,
+    output logic           m_axil_mon_bready,
+    input  logic [1:0]     m_axil_mon_bresp
 );
     logic [DFI_ADDR_BUS_W-1:0]  phy_dfi_address;
     logic [DFI_BANK_BUS_W-1:0]  phy_dfi_bank;
@@ -101,7 +116,8 @@ module pumice_top_geared_tb_top
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
         .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .DRAM_BL(DRAM_BL),
-        .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS)
+        .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS),
+        .HAS_MON(HAS_MON), .MON_ACLK_MHZ(MON_ACLK_MHZ)
     ) u_top (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .s_cpuif_req(s_cpuif_req), .s_cpuif_req_is_wr(s_cpuif_req_is_wr),
@@ -112,6 +128,18 @@ module pumice_top_geared_tb_top
         .s_cpuif_rd_data(s_cpuif_rd_data),
         .s_cpuif_wr_ack(s_cpuif_wr_ack), .s_cpuif_wr_err(s_cpuif_wr_err),
         .init_done_o(init_done_o),
+        .mon_irq_o          (mon_irq_o),
+        .m_axil_mon_awvalid (m_axil_mon_awvalid),
+        .m_axil_mon_awready (m_axil_mon_awready),
+        .m_axil_mon_awaddr  (m_axil_mon_awaddr),
+        .m_axil_mon_awprot  (m_axil_mon_awprot),
+        .m_axil_mon_wvalid  (m_axil_mon_wvalid),
+        .m_axil_mon_wready  (m_axil_mon_wready),
+        .m_axil_mon_wdata   (m_axil_mon_wdata),
+        .m_axil_mon_wstrb   (m_axil_mon_wstrb),
+        .m_axil_mon_bvalid  (m_axil_mon_bvalid),
+        .m_axil_mon_bready  (m_axil_mon_bready),
+        .m_axil_mon_bresp   (m_axil_mon_bresp),
         .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr), .s_axi_awlen(s_axi_awlen),
         .s_axi_awsize(s_axi_awsize), .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),
         .s_axi_awcache(s_axi_awcache), .s_axi_awprot(s_axi_awprot), .s_axi_awqos(s_axi_awqos),

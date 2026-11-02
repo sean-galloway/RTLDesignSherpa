@@ -262,6 +262,53 @@ package pumice_csr_pkg;
     } pumice_csr__STORE_STATS_RD_MERGE__in_t;
 
     typedef struct {
+        logic [15:0] next;
+    } pumice_csr__MON_ERR_STATUS__REC_COUNT__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } pumice_csr__MON_ERR_STATUS__DROPPED__in_t;
+
+    typedef struct {
+        pumice_csr__MON_ERR_STATUS__REC_COUNT__in_t REC_COUNT;
+        pumice_csr__MON_ERR_STATUS__DROPPED__in_t DROPPED;
+    } pumice_csr__MON_ERR_STATUS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } pumice_csr__MON_RD_STATS__ERRORS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } pumice_csr__MON_RD_STATS__COMPLETIONS__in_t;
+
+    typedef struct {
+        pumice_csr__MON_RD_STATS__ERRORS__in_t ERRORS;
+        pumice_csr__MON_RD_STATS__COMPLETIONS__in_t COMPLETIONS;
+    } pumice_csr__MON_RD_STATS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } pumice_csr__MON_WR_STATS__ERRORS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } pumice_csr__MON_WR_STATS__COMPLETIONS__in_t;
+
+    typedef struct {
+        pumice_csr__MON_WR_STATS__ERRORS__in_t ERRORS;
+        pumice_csr__MON_WR_STATS__COMPLETIONS__in_t COMPLETIONS;
+    } pumice_csr__MON_WR_STATS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } pumice_csr__MON_CORE_STATS__ERRORS__in_t;
+
+    typedef struct {
+        pumice_csr__MON_CORE_STATS__ERRORS__in_t ERRORS;
+    } pumice_csr__MON_CORE_STATS__in_t;
+
+    typedef struct {
         pumice_csr__STATUS__in_t STATUS;
         pumice_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
         pumice_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
@@ -286,6 +333,10 @@ package pumice_csr_pkg;
         pumice_csr__REF_STATS_REF_BUSY__in_t REF_STATS_REF_BUSY;
         pumice_csr__STORE_STATS_MERGE__in_t STORE_STATS_MERGE;
         pumice_csr__STORE_STATS_RD_MERGE__in_t STORE_STATS_RD_MERGE;
+        pumice_csr__MON_ERR_STATUS__in_t MON_ERR_STATUS;
+        pumice_csr__MON_RD_STATS__in_t MON_RD_STATS;
+        pumice_csr__MON_WR_STATS__in_t MON_WR_STATS;
+        pumice_csr__MON_CORE_STATS__in_t MON_CORE_STATS;
     } pumice_csr__in_t;
 
     typedef struct {
@@ -780,6 +831,133 @@ package pumice_csr_pkg;
     } pumice_csr__LP_MR3_OP__out_t;
 
     typedef struct {
+        logic value;
+    } pumice_csr__MON_CTRL__RD_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__MON_CTRL__WR_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__MON_CTRL__CORE_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__MON_CTRL__ERROR_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__MON_CTRL__COMPL_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__MON_CTRL__TIMEOUT_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__MON_CTRL__THRESH_EN__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__MON_CTRL__FREQ_SEL__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__MON_CTRL__TIMEOUT_US__out_t;
+
+    typedef struct {
+        pumice_csr__MON_CTRL__RD_EN__out_t RD_EN;
+        pumice_csr__MON_CTRL__WR_EN__out_t WR_EN;
+        pumice_csr__MON_CTRL__CORE_EN__out_t CORE_EN;
+        pumice_csr__MON_CTRL__ERROR_EN__out_t ERROR_EN;
+        pumice_csr__MON_CTRL__COMPL_EN__out_t COMPL_EN;
+        pumice_csr__MON_CTRL__TIMEOUT_EN__out_t TIMEOUT_EN;
+        pumice_csr__MON_CTRL__THRESH_EN__out_t THRESH_EN;
+        pumice_csr__MON_CTRL__FREQ_SEL__out_t FREQ_SEL;
+        pumice_csr__MON_CTRL__TIMEOUT_US__out_t TIMEOUT_US;
+    } pumice_csr__MON_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } pumice_csr__MON_LATENCY_THRESH__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__MON_LATENCY_THRESH__VAL__out_t VAL;
+    } pumice_csr__MON_LATENCY_THRESH__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__MON_ROUTE__PKT_MASK__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__MON_ROUTE__ERR_SELECT__out_t;
+
+    typedef struct {
+        pumice_csr__MON_ROUTE__PKT_MASK__out_t PKT_MASK;
+        pumice_csr__MON_ROUTE__ERR_SELECT__out_t ERR_SELECT;
+    } pumice_csr__MON_ROUTE__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__MON_CORE_EV__EV_EN__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__MON_CORE_EV__ACTIVE_THRESH__out_t;
+
+    typedef struct {
+        pumice_csr__MON_CORE_EV__EV_EN__out_t EV_EN;
+        pumice_csr__MON_CORE_EV__ACTIVE_THRESH__out_t ACTIVE_THRESH;
+    } pumice_csr__MON_CORE_EV__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } pumice_csr__MON_BASE_ADDR__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__MON_BASE_ADDR__VAL__out_t VAL;
+    } pumice_csr__MON_BASE_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } pumice_csr__MON_LIMIT_ADDR__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__MON_LIMIT_ADDR__VAL__out_t VAL;
+    } pumice_csr__MON_LIMIT_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } pumice_csr__MON_ERR_BASE_ADDR__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__MON_ERR_BASE_ADDR__VAL__out_t VAL;
+    } pumice_csr__MON_ERR_BASE_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } pumice_csr__MON_ERR_LIMIT_ADDR__VAL__out_t;
+
+    typedef struct {
+        pumice_csr__MON_ERR_LIMIT_ADDR__VAL__out_t VAL;
+    } pumice_csr__MON_ERR_LIMIT_ADDR__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__MON_WATERMARK__FLUSH__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__MON_WATERMARK__ERR_FLUSH__out_t;
+
+    typedef struct {
+        pumice_csr__MON_WATERMARK__FLUSH__out_t FLUSH;
+        pumice_csr__MON_WATERMARK__ERR_FLUSH__out_t ERR_FLUSH;
+    } pumice_csr__MON_WATERMARK__out_t;
+
+    typedef struct {
         pumice_csr__CTRL__out_t CTRL;
         pumice_csr__TIMINGS_RC_RCD_RP_RAS__out_t TIMINGS_RC_RCD_RP_RAS;
         pumice_csr__TIMINGS_RFC_REFI__out_t TIMINGS_RFC_REFI;
@@ -812,5 +990,14 @@ package pumice_csr_pkg;
         pumice_csr__LP_MR1_OP__out_t LP_MR1_OP;
         pumice_csr__LP_MR2_OP__out_t LP_MR2_OP;
         pumice_csr__LP_MR3_OP__out_t LP_MR3_OP;
+        pumice_csr__MON_CTRL__out_t MON_CTRL;
+        pumice_csr__MON_LATENCY_THRESH__out_t MON_LATENCY_THRESH;
+        pumice_csr__MON_ROUTE__out_t MON_ROUTE;
+        pumice_csr__MON_CORE_EV__out_t MON_CORE_EV;
+        pumice_csr__MON_BASE_ADDR__out_t MON_BASE_ADDR;
+        pumice_csr__MON_LIMIT_ADDR__out_t MON_LIMIT_ADDR;
+        pumice_csr__MON_ERR_BASE_ADDR__out_t MON_ERR_BASE_ADDR;
+        pumice_csr__MON_ERR_LIMIT_ADDR__out_t MON_ERR_LIMIT_ADDR;
+        pumice_csr__MON_WATERMARK__out_t MON_WATERMARK;
     } pumice_csr__out_t;
 endpackage

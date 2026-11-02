@@ -114,12 +114,63 @@ package granite_csr_pkg;
     } granite_csr__STORE_STATS_RD_MERGE__in_t;
 
     typedef struct {
+        logic [15:0] next;
+    } granite_csr__MON_ERR_STATUS__REC_COUNT__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } granite_csr__MON_ERR_STATUS__DROPPED__in_t;
+
+    typedef struct {
+        granite_csr__MON_ERR_STATUS__REC_COUNT__in_t REC_COUNT;
+        granite_csr__MON_ERR_STATUS__DROPPED__in_t DROPPED;
+    } granite_csr__MON_ERR_STATUS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } granite_csr__MON_RD_STATS__ERRORS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } granite_csr__MON_RD_STATS__COMPLETIONS__in_t;
+
+    typedef struct {
+        granite_csr__MON_RD_STATS__ERRORS__in_t ERRORS;
+        granite_csr__MON_RD_STATS__COMPLETIONS__in_t COMPLETIONS;
+    } granite_csr__MON_RD_STATS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } granite_csr__MON_WR_STATS__ERRORS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } granite_csr__MON_WR_STATS__COMPLETIONS__in_t;
+
+    typedef struct {
+        granite_csr__MON_WR_STATS__ERRORS__in_t ERRORS;
+        granite_csr__MON_WR_STATS__COMPLETIONS__in_t COMPLETIONS;
+    } granite_csr__MON_WR_STATS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } granite_csr__MON_CORE_STATS__ERRORS__in_t;
+
+    typedef struct {
+        granite_csr__MON_CORE_STATS__ERRORS__in_t ERRORS;
+    } granite_csr__MON_CORE_STATS__in_t;
+
+    typedef struct {
         granite_csr__STATUS__in_t STATUS;
         granite_csr__CAL_MRR32_DATA__in_t CAL_MRR32_DATA[4];
         granite_csr__CAL_MRR40_DATA__in_t CAL_MRR40_DATA[4];
         granite_csr__CAL_STATUS__in_t CAL_STATUS;
         granite_csr__STORE_STATS_MERGE__in_t STORE_STATS_MERGE;
         granite_csr__STORE_STATS_RD_MERGE__in_t STORE_STATS_RD_MERGE;
+        granite_csr__MON_ERR_STATUS__in_t MON_ERR_STATUS;
+        granite_csr__MON_RD_STATS__in_t MON_RD_STATS;
+        granite_csr__MON_WR_STATS__in_t MON_WR_STATS;
+        granite_csr__MON_CORE_STATS__in_t MON_CORE_STATS;
     } granite_csr__in_t;
 
     typedef struct {
@@ -544,6 +595,133 @@ package granite_csr_pkg;
     } granite_csr__LP_MR3_OP__out_t;
 
     typedef struct {
+        logic value;
+    } granite_csr__MON_CTRL__RD_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } granite_csr__MON_CTRL__WR_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } granite_csr__MON_CTRL__CORE_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } granite_csr__MON_CTRL__ERROR_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } granite_csr__MON_CTRL__COMPL_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } granite_csr__MON_CTRL__TIMEOUT_EN__out_t;
+
+    typedef struct {
+        logic value;
+    } granite_csr__MON_CTRL__THRESH_EN__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } granite_csr__MON_CTRL__FREQ_SEL__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } granite_csr__MON_CTRL__TIMEOUT_US__out_t;
+
+    typedef struct {
+        granite_csr__MON_CTRL__RD_EN__out_t RD_EN;
+        granite_csr__MON_CTRL__WR_EN__out_t WR_EN;
+        granite_csr__MON_CTRL__CORE_EN__out_t CORE_EN;
+        granite_csr__MON_CTRL__ERROR_EN__out_t ERROR_EN;
+        granite_csr__MON_CTRL__COMPL_EN__out_t COMPL_EN;
+        granite_csr__MON_CTRL__TIMEOUT_EN__out_t TIMEOUT_EN;
+        granite_csr__MON_CTRL__THRESH_EN__out_t THRESH_EN;
+        granite_csr__MON_CTRL__FREQ_SEL__out_t FREQ_SEL;
+        granite_csr__MON_CTRL__TIMEOUT_US__out_t TIMEOUT_US;
+    } granite_csr__MON_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } granite_csr__MON_LATENCY_THRESH__VAL__out_t;
+
+    typedef struct {
+        granite_csr__MON_LATENCY_THRESH__VAL__out_t VAL;
+    } granite_csr__MON_LATENCY_THRESH__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } granite_csr__MON_ROUTE__PKT_MASK__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } granite_csr__MON_ROUTE__ERR_SELECT__out_t;
+
+    typedef struct {
+        granite_csr__MON_ROUTE__PKT_MASK__out_t PKT_MASK;
+        granite_csr__MON_ROUTE__ERR_SELECT__out_t ERR_SELECT;
+    } granite_csr__MON_ROUTE__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } granite_csr__MON_CORE_EV__EV_EN__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } granite_csr__MON_CORE_EV__ACTIVE_THRESH__out_t;
+
+    typedef struct {
+        granite_csr__MON_CORE_EV__EV_EN__out_t EV_EN;
+        granite_csr__MON_CORE_EV__ACTIVE_THRESH__out_t ACTIVE_THRESH;
+    } granite_csr__MON_CORE_EV__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } granite_csr__MON_BASE_ADDR__VAL__out_t;
+
+    typedef struct {
+        granite_csr__MON_BASE_ADDR__VAL__out_t VAL;
+    } granite_csr__MON_BASE_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } granite_csr__MON_LIMIT_ADDR__VAL__out_t;
+
+    typedef struct {
+        granite_csr__MON_LIMIT_ADDR__VAL__out_t VAL;
+    } granite_csr__MON_LIMIT_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } granite_csr__MON_ERR_BASE_ADDR__VAL__out_t;
+
+    typedef struct {
+        granite_csr__MON_ERR_BASE_ADDR__VAL__out_t VAL;
+    } granite_csr__MON_ERR_BASE_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } granite_csr__MON_ERR_LIMIT_ADDR__VAL__out_t;
+
+    typedef struct {
+        granite_csr__MON_ERR_LIMIT_ADDR__VAL__out_t VAL;
+    } granite_csr__MON_ERR_LIMIT_ADDR__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } granite_csr__MON_WATERMARK__FLUSH__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } granite_csr__MON_WATERMARK__ERR_FLUSH__out_t;
+
+    typedef struct {
+        granite_csr__MON_WATERMARK__FLUSH__out_t FLUSH;
+        granite_csr__MON_WATERMARK__ERR_FLUSH__out_t ERR_FLUSH;
+    } granite_csr__MON_WATERMARK__out_t;
+
+    typedef struct {
         granite_csr__CTRL__out_t CTRL;
         granite_csr__TIMINGS_RC_RCD_RP_RAS__out_t TIMINGS_RC_RCD_RP_RAS;
         granite_csr__TIMINGS_RFC_REFI__out_t TIMINGS_RFC_REFI;
@@ -571,5 +749,14 @@ package granite_csr_pkg;
         granite_csr__LP_MR1_OP__out_t LP_MR1_OP;
         granite_csr__LP_MR2_OP__out_t LP_MR2_OP;
         granite_csr__LP_MR3_OP__out_t LP_MR3_OP;
+        granite_csr__MON_CTRL__out_t MON_CTRL;
+        granite_csr__MON_LATENCY_THRESH__out_t MON_LATENCY_THRESH;
+        granite_csr__MON_ROUTE__out_t MON_ROUTE;
+        granite_csr__MON_CORE_EV__out_t MON_CORE_EV;
+        granite_csr__MON_BASE_ADDR__out_t MON_BASE_ADDR;
+        granite_csr__MON_LIMIT_ADDR__out_t MON_LIMIT_ADDR;
+        granite_csr__MON_ERR_BASE_ADDR__out_t MON_ERR_BASE_ADDR;
+        granite_csr__MON_ERR_LIMIT_ADDR__out_t MON_ERR_LIMIT_ADDR;
+        granite_csr__MON_WATERMARK__out_t MON_WATERMARK;
     } granite_csr__out_t;
 endpackage

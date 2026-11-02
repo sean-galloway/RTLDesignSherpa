@@ -10,6 +10,7 @@
 #   mc_scheduler_plane   - pick machinery + common v2 children (external-init mode)
 #   mc_training_plane    - shell composing the LPDDR2 clients
 #   mc_dfi_2p1_plane     - command / write / read pipelines + CDC
+#   mc_ocelus_plane      - Ocelus port monitors + internal events (HAS_MON)
 #   (mc_storage_plane    - ABSENT)
 #   (mc_ras_plane        - ABSENT)
 
@@ -22,5 +23,6 @@
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_scheduler_plane.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_training_plane.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_dfi_2p1_plane.f
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/macro/mc_ocelus_plane.f
 # product top
 $REPO_ROOT/projects/components/mem-ctrl-ip/product-ip/granite-ddr2-lpddr2/rtl/top/granite_core.sv

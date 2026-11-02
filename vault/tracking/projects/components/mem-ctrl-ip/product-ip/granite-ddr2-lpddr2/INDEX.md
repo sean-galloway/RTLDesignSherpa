@@ -5,7 +5,7 @@ summary: Task rollup for the granite-ddr2-lpddr2 product (projects/components/me
 
 # granite-ddr2-lpddr2 — task rollup
 
-**Next ID: TASK-008** — never recycle a number, even when its task closed.
+**Next ID: TASK-009** — never recycle a number, even when its task closed.
 
 **Every item is its own file**, `<ID>.md`, filed under the directory for its
 state (`open/`, `active/`, `closed/`, `dropped/`, `deferred/`). Moving an
@@ -16,11 +16,11 @@ construction.
 
 | Lane | For | Next ID |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `TASK-008` |
+| [task/](task/INDEX.md) | planned work we decided to do | `TASK-009` |
 
 ## Open shortlist
 
-One active item, one open (TASK-007, narrow beats on the 1:4 host), two deferred (2026-10-29). TASK-001 (first build),
+One active item, one open (TASK-007, narrow beats on the 1:4 host), two deferred (2026-10-29). TASK-008 (Ocelus observability, `HAS_MON`) closed 2026-11-01. TASK-001 (first build),
 TASK-002 (age-FIFO store) and TASK-006 (store combining) are closed; the
 board runs every profile clean at 75 MHz and at the DDR2-400 100 MHz point,
 with and without the combiner.

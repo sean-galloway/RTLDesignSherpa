@@ -113,7 +113,8 @@ module formal_rd_return_ring #(
         .drain_valid_o(drain_valid_o), .drain_ready_i(drain_ready_i),
         .drain_data_o(drain_data_o), .drain_resp_o(drain_resp_o),
         .drain_last_o(drain_last_o),
-        .occ_o(occ_o), .busy_o(busy_o)
+        .occ_o(occ_o), .busy_o(busy_o),
+        .err_orphan_o        ()
     );
 
     wire w_alloc  = alloc_valid_i   && alloc_ready_o;

@@ -115,7 +115,11 @@ module mc_rd_return_ring #(
     output logic                drain_last_o,
 
     output logic [OCW-1:0]      occ_o,             // allocated tickets (observability)
-    output logic                busy_o
+    output logic                busy_o,
+    // contract break (mc_monlite MC_EV_RET_ORPHAN): a DFI return beat with no
+    // issued ticket, or an issue into an empty ring -- the two checks the
+    // simulation assertions below also make, as a synthesizable pulse
+    output logic                err_orphan_o
 );
 
     // ---- ring state --------------------------------------------------------
@@ -356,6 +360,8 @@ module mc_rd_return_ring #(
         if (w_ret_fire) r_mem[w_ret_idx] <= dfi_ret_data_i;
         if (w_fetch)    r_rd_q           <= r_mem[w_dr_idx];
     end
+
+    assign err_orphan_o = (dfi_ret_valid_i && !w_iq_rd_valid) || (issue_valid_i && w_empty);
 
 `ifndef SYNTHESIS
     // A return beat with no ticket at the issue_q head means a read reached

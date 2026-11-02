@@ -191,7 +191,11 @@ module mc_axi4_plane #(
     input  logic [1:0]          rd_dfi_ret_resp_i,
     input  logic                rd_dfi_ret_last_i,
 
-    output logic                busy_o
+    output logic                busy_o,
+
+    // Debug taps for mc_monlite (unconnected = pruned)
+    output logic                dbg_aw_ragged_o,   // an AW was not a whole DRAM burst (answered SLVERR)
+    output logic                dbg_ret_orphan_o   // return-ring contract break (mc_rd_return_ring err_orphan_o)
 );
 
     import mc_common_pkg::*;
@@ -408,6 +412,10 @@ module mc_axi4_plane #(
     logic [COL_WIDTH-1:0] w_map_col;
 
     // ---- WR intake ----
+    // a ragged AW reports when it leaves the intake (its SLVERR B is queued then)
+    logic w_aw_push_err;
+    assign dbg_aw_ragged_o = aw_push_valid_o && aw_push_ready_i && w_aw_push_err;
+
     mc_wr_intake #(
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
@@ -465,7 +473,7 @@ module mc_axi4_plane #(
         .aw_push_col_o  (aw_push_col_o),
         .aw_push_id_o   (aw_push_id_o),
         .aw_push_qos_o  (aw_push_qos_o),
-        .aw_push_err_o  (),
+        .aw_push_err_o  (w_aw_push_err),
         .aw_push_agg_o  (aw_push_agg_o),
         .aw_push_last_o (aw_push_last_o),
         .wdata_valid_o  (wd_valid_o),
@@ -647,7 +655,8 @@ module mc_axi4_plane #(
         .drain_resp_o    (drain_resp),
         .drain_last_o    (drain_last),
         .occ_o           (),
-        .busy_o          (w_rdr_busy)
+        .busy_o          (w_rdr_busy),
+        .err_orphan_o    (dbg_ret_orphan_o)
     );
 
     assign busy_o = w_wri_busy || w_rdi_busy || w_rdr_busy;

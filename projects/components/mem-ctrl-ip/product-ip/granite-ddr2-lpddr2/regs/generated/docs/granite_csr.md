@@ -53,6 +53,19 @@ Don't override. Generated from: $root
 | 0x188|       LP_MR3_OP       |           LPDDR2 MR3 OP Data          |
 | 0x18C|   STORE_STATS_MERGE   |       Store Stats: Write Merges       |
 | 0x190|  STORE_STATS_RD_MERGE |        Store Stats: Read Merges       |
+| 0x200|        MON_CTRL       |            Ocelus: Control            |
+| 0x204|   MON_LATENCY_THRESH  |       Ocelus: Latency Threshold       |
+| 0x208|       MON_ROUTE       |         Ocelus: Packet Routing        |
+| 0x20C|      MON_CORE_EV      |        Ocelus: Internal Events        |
+| 0x210|     MON_BASE_ADDR     |       Ocelus: Trace Window Base       |
+| 0x214|     MON_LIMIT_ADDR    |       Ocelus: Trace Window Limit      |
+| 0x218|   MON_ERR_BASE_ADDR   |       Ocelus: Error Window Base       |
+| 0x21C|   MON_ERR_LIMIT_ADDR  |       Ocelus: Error Window Limit      |
+| 0x220|     MON_WATERMARK     |        Ocelus: Flush Watermarks       |
+| 0x224|     MON_ERR_STATUS    |         Ocelus: Error Records         |
+| 0x228|      MON_RD_STATS     |       Ocelus: Read Monitor Stats      |
+| 0x22C|      MON_WR_STATS     |      Ocelus: Write Monitor Stats      |
+| 0x230|     MON_CORE_STATS    |      Ocelus: Internal Event Stats     |
 | 0xFF0|           ID          |               Module ID               |
 | 0xFF4|         BUILD         |               Build Hash              |
 
@@ -1328,6 +1341,272 @@ a run. 0 when STORE_MERGE_EN = 0.</p>
 #### VAL field
 
 <p>read merges performed</p>
+
+### MON_CTRL register
+
+- Absolute Address: 0x200
+- Base Offset: 0x200
+- Size: 0x4
+
+<p>Source enables, the port monitors' packet classes, and their no-progress timeout.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+|  0  |   RD_EN  |  rw  | 0x0 |  — |
+|  1  |   WR_EN  |  rw  | 0x0 |  — |
+|  2  |  CORE_EN |  rw  | 0x0 |  — |
+|  3  | ERROR_EN |  rw  | 0x1 |  — |
+|  4  | COMPL_EN |  rw  | 0x0 |  — |
+|  5  |TIMEOUT_EN|  rw  | 0x1 |  — |
+|  6  | THRESH_EN|  rw  | 0x0 |  — |
+| 11:8| FREQ_SEL |  rw  | 0x0 |  — |
+|31:16|TIMEOUT_US|  rw  |0x3E8|  — |
+
+#### RD_EN field
+
+<p>read-port monitor enable (0 also clears its table)</p>
+
+#### WR_EN field
+
+<p>write-port monitor enable (0 also clears its table)</p>
+
+#### CORE_EN field
+
+<p>internal-event monitor (mc_monlite) enable</p>
+
+#### ERROR_EN field
+
+<p>port monitors: error packets (response errors, orphan beats, burst length)</p>
+
+#### COMPL_EN field
+
+<p>port monitors: completion packets with latency (one per transaction: trace volume)</p>
+
+#### TIMEOUT_EN field
+
+<p>port monitors: timeout packets (TIMEOUT_US with no progress)</p>
+
+#### THRESH_EN field
+
+<p>port monitors: threshold packets (ACTIVE_THRESH / LATENCY_THRESH)</p>
+
+#### FREQ_SEL field
+
+<p>counter_freq_invariant table index for the microsecond tick</p>
+
+#### TIMEOUT_US field
+
+<p>no-progress timeout in microseconds; 0 = never</p>
+
+### MON_LATENCY_THRESH register
+
+- Absolute Address: 0x204
+- Base Offset: 0x204
+- Size: 0x4
+
+<p>Port monitors: a completion slower than this many cycles raises a Threshold packet (THRESH_EN).</p>
+
+|Bits|Identifier|Access| Reset|Name|
+|----|----------|------|------|----|
+|31:0|    VAL   |  rw  |0x1000|  — |
+
+#### VAL field
+
+<p>cycles</p>
+
+### MON_ROUTE register
+
+- Absolute Address: 0x208
+- Base Offset: 0x208
+- Size: 0x4
+
+<p>Bit [packet type] (ocelus_common_pkg PktType*): PKT_MASK drops that type at the port
+monitors; ERR_SELECT sends that type to the error window, for both the port monitors
+and mc_monlite. Default: Error (0) and Timeout (3) to the error window.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0| PKT_MASK |  rw  | 0x0 |  — |
+|31:16|ERR_SELECT|  rw  | 0x9 |  — |
+
+#### PKT_MASK field
+
+<p>port monitors: 1 drops the packet type</p>
+
+#### ERR_SELECT field
+
+<p>1 routes the packet type to the error window</p>
+
+### MON_CORE_EV register
+
+- Absolute Address: 0x20C
+- Base Offset: 0x20C
+- Size: 0x4
+
+<p>mc_monlite event enables, bit [mc_event_e] (0x00-0x06 errors, 0x08-0x0F debug); the
+port monitors' outstanding-transaction threshold. Default: every error event, no
+debug events.</p>
+
+| Bits|  Identifier |Access|Reset|Name|
+|-----|-------------|------|-----|----|
+| 15:0|    EV_EN    |  rw  | 0x7F|  — |
+|31:16|ACTIVE_THRESH|  rw  | 0x8 |  — |
+
+#### EV_EN field
+
+<p>event enables, bit = event code</p>
+
+#### ACTIVE_THRESH field
+
+<p>port monitors: outstanding transactions above this -&gt; Threshold</p>
+
+### MON_BASE_ADDR register
+
+- Absolute Address: 0x210
+- Base Offset: 0x210
+- Size: 0x4
+
+<p>First byte of the trace window (non-error packets).</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |  rw  | 0x0 |  — |
+
+### MON_LIMIT_ADDR register
+
+- Absolute Address: 0x214
+- Base Offset: 0x214
+- Size: 0x4
+
+<p>Last byte of the trace window; the writer wraps to BASE.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |  rw  | 0x0 |  — |
+
+### MON_ERR_BASE_ADDR register
+
+- Absolute Address: 0x218
+- Base Offset: 0x218
+- Size: 0x4
+
+<p>First byte of the error window (3-beat records).</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |  rw  | 0x0 |  — |
+
+### MON_ERR_LIMIT_ADDR register
+
+- Absolute Address: 0x21C
+- Base Offset: 0x21C
+- Size: 0x4
+
+<p>Last byte of the error window.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |  rw  | 0x0 |  — |
+
+### MON_WATERMARK register
+
+- Absolute Address: 0x220
+- Base Offset: 0x220
+- Size: 0x4
+
+<p>Beats buffered before the group writes them out (it also flushes on a timeout).</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|   FLUSH  |  rw  | 0x8 |  — |
+|31:16| ERR_FLUSH|  rw  | 0x3 |  — |
+
+#### FLUSH field
+
+<p>trace window, beats</p>
+
+#### ERR_FLUSH field
+
+<p>error window, beats (3 = every record)</p>
+
+### MON_ERR_STATUS register
+
+- Absolute Address: 0x224
+- Base Offset: 0x224
+- Size: 0x4
+
+<p>Whole error records landed in the error window, and events the three sources lost
+to a busy monitor bus. Both wrap / saturate; read as a delta.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0| REC_COUNT|   r  |  —  |  — |
+|31:16|  DROPPED |   r  |  —  |  — |
+
+#### REC_COUNT field
+
+<p>error records landed (wraps)</p>
+
+#### DROPPED field
+
+<p>events lost at the sources (saturating sum)</p>
+
+### MON_RD_STATS register
+
+- Absolute Address: 0x228
+- Base Offset: 0x228
+- Size: 0x4
+
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+| 15:0|   ERRORS  |   r  |  —  |  — |
+|31:16|COMPLETIONS|   r  |  —  |  — |
+
+#### ERRORS field
+
+<p>error + timeout packets emitted</p>
+
+#### COMPLETIONS field
+
+<p>completion packets emitted</p>
+
+### MON_WR_STATS register
+
+- Absolute Address: 0x22C
+- Base Offset: 0x22C
+- Size: 0x4
+
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+| 15:0|   ERRORS  |   r  |  —  |  — |
+|31:16|COMPLETIONS|   r  |  —  |  — |
+
+#### ERRORS field
+
+<p>error + timeout packets emitted</p>
+
+#### COMPLETIONS field
+
+<p>completion packets emitted</p>
+
+### MON_CORE_STATS register
+
+- Absolute Address: 0x230
+- Base Offset: 0x230
+- Size: 0x4
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|  ERRORS  |   r  |  —  |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### ERRORS field
+
+<p>mc_monlite error packets emitted</p>
+
+#### RSVD field
+
+<p>reserved</p>
 
 ### ID register
 

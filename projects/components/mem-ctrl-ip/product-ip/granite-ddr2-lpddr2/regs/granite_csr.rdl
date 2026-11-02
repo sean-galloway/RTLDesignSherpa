@@ -860,6 +860,91 @@ addrmap granite_csr {
     } STORE_STATS_RD_MERGE @ 0x190;
 
     //=========================================================================
+    // Ocelus observability (mc_ocelus_plane, HAS_MON). The same block at the
+    // same addresses on granite and pumice. Lite monitors on the AXI port and
+    // mc_monlite on internal events write 128-bit packets to memory over the
+    // m_axil_mon master: packet types picked by ERR_SELECT go to the error
+    // window as 3-beat records (mon_irq pulses per record), the rest to the
+    // trace window. Everything resets OFF -- the windows reset to 0, so
+    // program both before enabling a source. Inert (reads 0) at HAS_MON = 0.
+    //=========================================================================
+    reg {
+        name = "Ocelus: Control";
+        desc = "Source enables, the port monitors' packet classes, and their no-progress timeout.";
+        field { sw = rw; hw = r; desc = "read-port monitor enable (0 also clears its table)"; } RD_EN[0:0] = 1'b0;
+        field { sw = rw; hw = r; desc = "write-port monitor enable (0 also clears its table)"; } WR_EN[1:1] = 1'b0;
+        field { sw = rw; hw = r; desc = "internal-event monitor (mc_monlite) enable"; } CORE_EN[2:2] = 1'b0;
+        field { sw = rw; hw = r; desc = "port monitors: error packets (response errors, orphan beats, burst length)"; } ERROR_EN[3:3] = 1'b1;
+        field { sw = rw; hw = r; desc = "port monitors: completion packets with latency (one per transaction: trace volume)"; } COMPL_EN[4:4] = 1'b0;
+        field { sw = rw; hw = r; desc = "port monitors: timeout packets (TIMEOUT_US with no progress)"; } TIMEOUT_EN[5:5] = 1'b1;
+        field { sw = rw; hw = r; desc = "port monitors: threshold packets (ACTIVE_THRESH / LATENCY_THRESH)"; } THRESH_EN[6:6] = 1'b0;
+        field { sw = rw; hw = r; desc = "counter_freq_invariant table index for the microsecond tick"; } FREQ_SEL[11:8] = 4'h0;
+        field { sw = rw; hw = r; desc = "no-progress timeout in microseconds; 0 = never"; } TIMEOUT_US[31:16] = 16'd1000;
+    } MON_CTRL @ 0x200;
+
+    reg {
+        name = "Ocelus: Latency Threshold";
+        desc = "Port monitors: a completion slower than this many cycles raises a Threshold packet (THRESH_EN).";
+        field { sw = rw; hw = r; desc = "cycles"; } VAL[31:0] = 32'd4096;
+    } MON_LATENCY_THRESH @ 0x204;
+
+    reg {
+        name = "Ocelus: Packet Routing";
+        desc = "Bit [packet type] (ocelus_common_pkg PktType*): PKT_MASK drops that type at the port
+                monitors; ERR_SELECT sends that type to the error window, for both the port monitors
+                and mc_monlite. Default: Error (0) and Timeout (3) to the error window.";
+        field { sw = rw; hw = r; desc = "port monitors: 1 drops the packet type"; } PKT_MASK[15:0] = 16'h0000;
+        field { sw = rw; hw = r; desc = "1 routes the packet type to the error window"; } ERR_SELECT[31:16] = 16'h0009;
+    } MON_ROUTE @ 0x208;
+
+    reg {
+        name = "Ocelus: Internal Events";
+        desc = "mc_monlite event enables, bit [mc_event_e] (0x00-0x06 errors, 0x08-0x0F debug); the
+                port monitors' outstanding-transaction threshold. Default: every error event, no
+                debug events.";
+        field { sw = rw; hw = r; desc = "event enables, bit = event code"; } EV_EN[15:0] = 16'h007F;
+        field { sw = rw; hw = r; desc = "port monitors: outstanding transactions above this -> Threshold"; } ACTIVE_THRESH[31:16] = 16'd8;
+    } MON_CORE_EV @ 0x20C;
+
+    reg { name = "Ocelus: Trace Window Base";  desc = "First byte of the trace window (non-error packets)."; field { sw = rw; hw = r; } VAL[31:0] = 32'h0; } MON_BASE_ADDR @ 0x210;
+    reg { name = "Ocelus: Trace Window Limit"; desc = "Last byte of the trace window; the writer wraps to BASE."; field { sw = rw; hw = r; } VAL[31:0] = 32'h0; } MON_LIMIT_ADDR @ 0x214;
+    reg { name = "Ocelus: Error Window Base";  desc = "First byte of the error window (3-beat records)."; field { sw = rw; hw = r; } VAL[31:0] = 32'h0; } MON_ERR_BASE_ADDR @ 0x218;
+    reg { name = "Ocelus: Error Window Limit"; desc = "Last byte of the error window."; field { sw = rw; hw = r; } VAL[31:0] = 32'h0; } MON_ERR_LIMIT_ADDR @ 0x21C;
+
+    reg {
+        name = "Ocelus: Flush Watermarks";
+        desc = "Beats buffered before the group writes them out (it also flushes on a timeout).";
+        field { sw = rw; hw = r; desc = "trace window, beats"; } FLUSH[15:0] = 16'd8;
+        field { sw = rw; hw = r; desc = "error window, beats (3 = every record)"; } ERR_FLUSH[31:16] = 16'd3;
+    } MON_WATERMARK @ 0x220;
+
+    reg {
+        name = "Ocelus: Error Records";
+        desc = "Whole error records landed in the error window, and events the three sources lost
+                to a busy monitor bus. Both wrap / saturate; read as a delta.";
+        field { sw = r; hw = w; desc = "error records landed (wraps)"; } REC_COUNT[15:0];
+        field { sw = r; hw = w; desc = "events lost at the sources (saturating sum)"; } DROPPED[31:16];
+    } MON_ERR_STATUS @ 0x224;
+
+    reg {
+        name = "Ocelus: Read Monitor Stats";
+        field { sw = r; hw = w; desc = "error + timeout packets emitted"; } ERRORS[15:0];
+        field { sw = r; hw = w; desc = "completion packets emitted"; } COMPLETIONS[31:16];
+    } MON_RD_STATS @ 0x228;
+
+    reg {
+        name = "Ocelus: Write Monitor Stats";
+        field { sw = r; hw = w; desc = "error + timeout packets emitted"; } ERRORS[15:0];
+        field { sw = r; hw = w; desc = "completion packets emitted"; } COMPLETIONS[31:16];
+    } MON_WR_STATS @ 0x22C;
+
+    reg {
+        name = "Ocelus: Internal Event Stats";
+        field { sw = r; hw = w; desc = "mc_monlite error packets emitted"; } ERRORS[15:0];
+        field { sw = r; hw = na; desc = "reserved"; } RSVD[31:16] = 16'h0;
+    } MON_CORE_STATS @ 0x230;
+
+    //=========================================================================
     // Module Identification (0xFF0 – 0xFFC)
     //=========================================================================
 

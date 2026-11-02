@@ -59,6 +59,12 @@ the v2 generation will never see
   Phase 3 report, section 5.10.
 - **RAS plane absent** — true bypass: no transform pair instantiated, no
   scrub; only the reserved CSR decode.
+- **Ocelus observability optional** — `HAS_MON` (default 0) builds
+  `mc_ocelus_plane`: lite monitors on the AXI port, `mc_monlite` on the
+  controller's internal errors and debug state, one AXI-Lite master
+  (`m_axil_mon_*`, `mon_irq_o`) writing packets to an error window and a
+  trace window. Programmed through the `MON_*` CSRs at `0x200`, the same
+  block as pumice's; every source resets off. Common MAS chapter 11.
 - **Write-data buffer at SKU minimum** — sized by the product burst
   profile, not the research characterization sweep.
 - **Never omitted** — entry store, write-data staging, aclk↔dfi_clk CDC,

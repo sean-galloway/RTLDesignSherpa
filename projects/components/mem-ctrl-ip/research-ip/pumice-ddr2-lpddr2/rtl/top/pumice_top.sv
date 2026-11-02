@@ -42,6 +42,13 @@ module pumice_top
     parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
     parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output
 
+    // Ocelus observability (mc_ocelus_plane in the core; MON_* CSRs at 0x200)
+    parameter bit          HAS_MON        = 1'b0,
+    parameter int          MON_ACLK_MHZ   = 100,
+    parameter logic [7:0]  MON_UNIT_ID    = 8'h20,
+    parameter logic [15:0] MON_AGENT_RD   = 16'h0010,
+    parameter logic [15:0] MON_AGENT_WR   = 16'h0011,
+    parameter logic [15:0] MON_AGENT_CORE = 16'h0012,
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,
     parameter int IW  = AXI_ID_WIDTH,
@@ -75,6 +82,19 @@ module pumice_top
 
     output logic                    init_done_o,
 
+    // ---- Ocelus packet writer (HAS_MON; idle when 0) ----
+    output logic           mon_irq_o,          // one pulse per error record landed
+    output logic           m_axil_mon_awvalid,
+    input  logic           m_axil_mon_awready,
+    output logic [31:0]    m_axil_mon_awaddr,
+    output logic [2:0]     m_axil_mon_awprot,
+    output logic           m_axil_mon_wvalid,
+    input  logic           m_axil_mon_wready,
+    output logic [63:0]    m_axil_mon_wdata,
+    output logic [7:0]     m_axil_mon_wstrb,
+    input  logic           m_axil_mon_bvalid,
+    output logic           m_axil_mon_bready,
+    input  logic [1:0]     m_axil_mon_bresp,
     // ---- host AXI4 ----
     input  logic [IW-1:0]  s_axi_awid,   input logic [AW-1:0] s_axi_awaddr,
     input  logic [7:0]     s_axi_awlen,  input logic [2:0]    s_axi_awsize,
@@ -129,6 +149,32 @@ module pumice_top
     logic [31:0] w_stat_ref_busy;   // TASK-012: REFs with work pending
     logic [31:0] w_stat_merge;      // TASK-060: write merges in the wr CAM
     logic [31:0] w_stat_rd_merge;   // TASK-060: read merges in the rd CAM
+
+    // ---- Ocelus: MON_* CSRs -> the core's config struct, status back ----
+    mc_common_pkg::mc_mon_cfg_t  w_mon_cfg;
+    mc_common_pkg::mc_mon_stat_t w_mon_stat;
+    always_comb begin
+        w_mon_cfg.rd_enable           = hwif_out.MON_CTRL.RD_EN.value;
+        w_mon_cfg.wr_enable           = hwif_out.MON_CTRL.WR_EN.value;
+        w_mon_cfg.core_enable         = hwif_out.MON_CTRL.CORE_EN.value;
+        w_mon_cfg.error_enable        = hwif_out.MON_CTRL.ERROR_EN.value;
+        w_mon_cfg.compl_enable        = hwif_out.MON_CTRL.COMPL_EN.value;
+        w_mon_cfg.timeout_enable      = hwif_out.MON_CTRL.TIMEOUT_EN.value;
+        w_mon_cfg.threshold_enable    = hwif_out.MON_CTRL.THRESH_EN.value;
+        w_mon_cfg.timeout_us          = hwif_out.MON_CTRL.TIMEOUT_US.value;
+        w_mon_cfg.freq_sel            = hwif_out.MON_CTRL.FREQ_SEL.value;
+        w_mon_cfg.active_threshold    = hwif_out.MON_CORE_EV.ACTIVE_THRESH.value;
+        w_mon_cfg.latency_threshold   = hwif_out.MON_LATENCY_THRESH.VAL.value;
+        w_mon_cfg.axi_pkt_mask        = hwif_out.MON_ROUTE.PKT_MASK.value;
+        w_mon_cfg.core_ev_en          = hwif_out.MON_CORE_EV.EV_EN.value;
+        w_mon_cfg.err_select          = hwif_out.MON_ROUTE.ERR_SELECT.value;
+        w_mon_cfg.base_addr           = hwif_out.MON_BASE_ADDR.VAL.value;
+        w_mon_cfg.limit_addr          = hwif_out.MON_LIMIT_ADDR.VAL.value;
+        w_mon_cfg.flush_watermark     = hwif_out.MON_WATERMARK.FLUSH.value;
+        w_mon_cfg.err_base_addr       = hwif_out.MON_ERR_BASE_ADDR.VAL.value;
+        w_mon_cfg.err_limit_addr      = hwif_out.MON_ERR_LIMIT_ADDR.VAL.value;
+        w_mon_cfg.err_flush_watermark = hwif_out.MON_WATERMARK.ERR_FLUSH.value;
+    end
     // training plane status
     logic [DFI_DATA_WIDTH-1:0] w_mrr32_data, w_mrr40_data;
     logic                      w_cal_busy, w_cal_done, w_cal_err;
@@ -146,6 +192,13 @@ module pumice_top
         hwif_in.PAGE_STATS_HIT.VAL.next    = w_stat_page_hit;
         hwif_in.STORE_STATS_MERGE.VAL.next = w_stat_merge;
         hwif_in.STORE_STATS_RD_MERGE.VAL.next = w_stat_rd_merge;
+        hwif_in.MON_ERR_STATUS.REC_COUNT.next  = w_mon_stat.err_rec_count;
+        hwif_in.MON_ERR_STATUS.DROPPED.next    = w_mon_stat.dropped_count;
+        hwif_in.MON_RD_STATS.ERRORS.next       = w_mon_stat.rd_error_count;
+        hwif_in.MON_RD_STATS.COMPLETIONS.next  = w_mon_stat.rd_compl_count;
+        hwif_in.MON_WR_STATS.ERRORS.next       = w_mon_stat.wr_error_count;
+        hwif_in.MON_WR_STATS.COMPLETIONS.next  = w_mon_stat.wr_compl_count;
+        hwif_in.MON_CORE_STATS.ERRORS.next     = w_mon_stat.core_error_count;
         // Per-bank row hits. These were in the register map, in the MAS and
         // in the generated docs with NOTHING driving them -- pumice_top had
         // zero hwif_in.OBS_* assignments, so all 35 OBS_* registers read 0
@@ -287,6 +340,12 @@ module pumice_top
         .FAST_RD_RELEASE  (FAST_RD_RELEASE),
         .HAS_LPDDR2       (HAS_LPDDR2),
         .DFI_CDC_EN       (DFI_CDC_EN),
+        .HAS_MON           (HAS_MON),
+        .MON_ACLK_MHZ      (MON_ACLK_MHZ),
+        .MON_UNIT_ID       (MON_UNIT_ID),
+        .MON_AGENT_RD      (MON_AGENT_RD),
+        .MON_AGENT_WR      (MON_AGENT_WR),
+        .MON_AGENT_CORE    (MON_AGENT_CORE),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE)
@@ -392,6 +451,20 @@ module pumice_top
         .zq_busy_o          (w_zq_busy),
         .zq_overdue_o       (w_zq_overdue),
         .zqcs_total_o       (w_zqcs_total),
+        .mon_cfg_i          (w_mon_cfg),
+        .mon_stat_o         (w_mon_stat),
+        .mon_irq_o          (mon_irq_o),
+        .m_axil_mon_awvalid (m_axil_mon_awvalid),
+        .m_axil_mon_awready (m_axil_mon_awready),
+        .m_axil_mon_awaddr  (m_axil_mon_awaddr),
+        .m_axil_mon_awprot  (m_axil_mon_awprot),
+        .m_axil_mon_wvalid  (m_axil_mon_wvalid),
+        .m_axil_mon_wready  (m_axil_mon_wready),
+        .m_axil_mon_wdata   (m_axil_mon_wdata),
+        .m_axil_mon_wstrb   (m_axil_mon_wstrb),
+        .m_axil_mon_bvalid  (m_axil_mon_bvalid),
+        .m_axil_mon_bready  (m_axil_mon_bready),
+        .m_axil_mon_bresp   (m_axil_mon_bresp),
         .s_axi_awid         (s_axi_awid),
         .s_axi_awaddr       (s_axi_awaddr),
         .s_axi_awlen        (s_axi_awlen),

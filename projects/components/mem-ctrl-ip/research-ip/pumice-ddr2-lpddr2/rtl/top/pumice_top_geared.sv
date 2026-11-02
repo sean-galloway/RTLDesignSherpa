@@ -71,6 +71,13 @@ module pumice_top_geared
     parameter bit FAST_RD_RELEASE = 1'b1, // reads skip the CMD_DELAY write-data lead while no write is in the line (pumice_core)
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
+    // Ocelus observability (passed to pumice_top; MON_* CSRs at 0x200)
+    parameter bit          HAS_MON        = 1'b0,
+    parameter int          MON_ACLK_MHZ   = 100,
+    parameter logic [7:0]  MON_UNIT_ID    = 8'h20,
+    parameter logic [15:0] MON_AGENT_RD   = 16'h0010,
+    parameter logic [15:0] MON_AGENT_WR   = 16'h0011,
+    parameter logic [15:0] MON_AGENT_CORE = 16'h0012,
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,
@@ -126,6 +133,19 @@ module pumice_top_geared
 
     output logic                    init_done_o,
 
+    // ---- Ocelus packet writer (HAS_MON; idle when 0) ----
+    output logic           mon_irq_o,
+    output logic           m_axil_mon_awvalid,
+    input  logic           m_axil_mon_awready,
+    output logic [31:0]    m_axil_mon_awaddr,
+    output logic [2:0]     m_axil_mon_awprot,
+    output logic           m_axil_mon_wvalid,
+    input  logic           m_axil_mon_wready,
+    output logic [63:0]    m_axil_mon_wdata,
+    output logic [7:0]     m_axil_mon_wstrb,
+    input  logic           m_axil_mon_bvalid,
+    output logic           m_axil_mon_bready,
+    input  logic [1:0]     m_axil_mon_bresp,
     // ---- host AXI4 (HOST_AXI_DATA_WIDTH) ----
     input  logic [IW-1:0]  s_axi_awid,   input logic [AW-1:0] s_axi_awaddr,
     input  logic [7:0]     s_axi_awlen,  input logic [2:0]    s_axi_awsize,
@@ -353,6 +373,12 @@ module pumice_top_geared
         .FAST_RD_RELEASE  (FAST_RD_RELEASE),
         .HAS_LPDDR2       (HAS_LPDDR2),
         .DFI_CDC_EN       (DFI_CDC_EN),
+        .HAS_MON          (HAS_MON),
+        .MON_ACLK_MHZ     (MON_ACLK_MHZ),
+        .MON_UNIT_ID      (MON_UNIT_ID),
+        .MON_AGENT_RD     (MON_AGENT_RD),
+        .MON_AGENT_WR     (MON_AGENT_WR),
+        .MON_AGENT_CORE   (MON_AGENT_CORE),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),
@@ -389,6 +415,18 @@ module pumice_top_geared
         .s_cpuif_wr_err      (s_cpuif_wr_err),
         .init_done_o         (init_done_o),
         // AXI (DW) from the converter/direct path
+        .mon_irq_o          (mon_irq_o),
+        .m_axil_mon_awvalid (m_axil_mon_awvalid),
+        .m_axil_mon_awready (m_axil_mon_awready),
+        .m_axil_mon_awaddr  (m_axil_mon_awaddr),
+        .m_axil_mon_awprot  (m_axil_mon_awprot),
+        .m_axil_mon_wvalid  (m_axil_mon_wvalid),
+        .m_axil_mon_wready  (m_axil_mon_wready),
+        .m_axil_mon_wdata   (m_axil_mon_wdata),
+        .m_axil_mon_wstrb   (m_axil_mon_wstrb),
+        .m_axil_mon_bvalid  (m_axil_mon_bvalid),
+        .m_axil_mon_bready  (m_axil_mon_bready),
+        .m_axil_mon_bresp   (m_axil_mon_bresp),
         .s_axi_awid    (c_awid),
         .s_axi_awaddr  (c_awaddr),
         .s_axi_awlen   (c_awlen),

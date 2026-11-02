@@ -32,6 +32,15 @@ module pumice_core
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int AXI_ID_WIDTH   = 8,
+    // Ocelus observability (mc_ocelus_plane): lite monitors on the AXI port,
+    // mc_monlite on internal events, one AXI-Lite master writing packets to
+    // memory (m_axil_mon_*). 0 = not built: the m_axil port idles, status 0.
+    parameter bit HAS_MON           = 1'b0,
+    parameter int MON_ACLK_MHZ      = 100,      // the monitors' microsecond timeout tick
+    parameter logic [7:0]  MON_UNIT_ID   = 8'h20,
+    parameter logic [15:0] MON_AGENT_RD  = 16'h0010,
+    parameter logic [15:0] MON_AGENT_WR  = 16'h0011,
+    parameter logic [15:0] MON_AGENT_CORE = 16'h0012,
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int NUM_RANKS      = 1,
     parameter int NUM_BANKS      = 8,
@@ -235,6 +244,21 @@ module pumice_core
     output logic                       zq_overdue_o,
     output logic [15:0]                zqcs_total_o,
 
+    // ---- Ocelus observability (HAS_MON) ----
+    input  mc_mon_cfg_t    mon_cfg_i,
+    output mc_mon_stat_t   mon_stat_o,
+    output logic           mon_irq_o,          // one pulse per error record landed
+    output logic           m_axil_mon_awvalid,
+    input  logic           m_axil_mon_awready,
+    output logic [31:0]    m_axil_mon_awaddr,
+    output logic [2:0]     m_axil_mon_awprot,
+    output logic           m_axil_mon_wvalid,
+    input  logic           m_axil_mon_wready,
+    output logic [63:0]    m_axil_mon_wdata,
+    output logic [7:0]     m_axil_mon_wstrb,
+    input  logic           m_axil_mon_bvalid,
+    output logic           m_axil_mon_bready,
+    input  logic [1:0]     m_axil_mon_bresp,
     // ---- host AXI4 (data width = DFI word; external dwidth shim separate) ----
     input  logic [IW-1:0]  s_axi_awid,   input logic [AW-1:0] s_axi_awaddr,
     input  logic [7:0]     s_axi_awlen,  input logic [2:0]    s_axi_awsize,
@@ -375,6 +399,15 @@ module pumice_core
 
     // ---- init handshake init plane <-> DFI (ctl side) ----
     logic                      w_init_start, w_init_complete;
+    // ---- internal-event taps for mc_ocelus_plane (pruned at HAS_MON 0) ----
+    logic                      w_ev_aw_ragged, w_ev_ret_orphan, w_ev_rd_beat_lost;
+    logic [4:0]                w_ev_init_state;
+    logic                      w_ev_accept, w_ev_to_pre;
+    dram_op_e                  w_ev_accept_op;
+    logic                      w_ev_dir_flip, w_ev_dir;
+    logic [1:0]                w_ev_dir_cause;
+    logic [7:0]                w_ev_dir_batch;
+    logic [3:0]                w_ev_ref_pending;
 
     // ---- init plane -> scheduler plane init command injection ----
     logic                      w_init_cmd_v;
@@ -533,7 +566,9 @@ module pumice_core
         .rd_dfi_ret_data_i  (w_ret_data),
         .rd_dfi_ret_resp_i  (w_ret_resp),
         .rd_dfi_ret_last_i  (w_ret_last),
-        .busy_o             ()
+        .busy_o             (),
+        .dbg_aw_ragged_o    (w_ev_aw_ragged),
+        .dbg_ret_orphan_o   (w_ev_ret_orphan)
     );
 
     // ======================================================================
@@ -687,7 +722,7 @@ module pumice_core
         .init_cmd_row_o     (w_init_cmd_row),
         .init_busy_o        (),
         .init_done_o        (init_done_o),
-        .init_state_o       (),
+        .init_state_o       (w_ev_init_state),
         .cl_o               (cl_o),
         .cwl_o              (cwl_o),
         .bl_o               (bl_o)
@@ -864,8 +899,14 @@ module pumice_core
         .cmd_bg_o           (),
         .bank_row_active_o  (w_bank_row_active),
         .bank_open_row_o    (w_bank_open_row),
-        .cmd_accept_o       (),
-        .cmd_accept_op_o    ()
+        .cmd_accept_o       (w_ev_accept),
+        .cmd_accept_op_o    (w_ev_accept_op),
+        .dbg_dir_flip_o     (w_ev_dir_flip),
+        .dbg_dir_o          (w_ev_dir),
+        .dbg_dir_cause_o    (w_ev_dir_cause),
+        .dbg_dir_batch_o    (w_ev_dir_batch),
+        .dbg_ref_pending_o  (w_ev_ref_pending),
+        .dbg_accept_to_pre_o(w_ev_to_pre)
     );
 
     // =======================================================================
@@ -962,6 +1003,7 @@ module pumice_core
         .rd_ret_busy_o      (w_rd_ret_busy),
         .init_start_i       (w_init_start),
         .init_complete_o    (w_init_complete),
+        .rd_beat_lost_o     (w_ev_rd_beat_lost),
         .dfi_clk            (dfi_clk),
         .dfi_rstn           (dfi_rstn),
         .memtype_i          (memtype_i),
@@ -991,6 +1033,104 @@ module pumice_core
         .cal_valid_o        (w_cal_valid),
         .dfi_init_start_o   (dfi_init_start_o),
         .dfi_init_complete_i(dfi_init_complete_i)
+    );
+
+    // ======================================================================
+    // Ocelus observability plane (HAS_MON): port monitors on s_axi_*, the
+    // internal events above, everything out on m_axil_mon_*
+    // ======================================================================
+    mc_ocelus_plane #(
+        .HAS_MON         (HAS_MON),
+        .AXI_ID_WIDTH    (IW),
+        .AXI_ADDR_WIDTH  (AW),
+        .MON_ADDR_WIDTH  (32),
+        .ACLK_MHZ        (MON_ACLK_MHZ),
+        .UNIT_ID         (MON_UNIT_ID),
+        .AGENT_RD        (MON_AGENT_RD),
+        .AGENT_WR        (MON_AGENT_WR),
+        .AGENT_CORE      (MON_AGENT_CORE)
+    ) u_ocelus_plane (
+        .aclk                    (aclk),
+        .aresetn                 (aresetn),
+        .tap_arid                (s_axi_arid),
+        .tap_araddr              (s_axi_araddr),
+        .tap_arlen               (s_axi_arlen),
+        .tap_arvalid             (s_axi_arvalid),
+        .tap_arready             (s_axi_arready),
+        .tap_rid                 (s_axi_rid),
+        .tap_rresp               (s_axi_rresp),
+        .tap_rlast               (s_axi_rlast),
+        .tap_rvalid              (s_axi_rvalid),
+        .tap_rready              (s_axi_rready),
+        .tap_awid                (s_axi_awid),
+        .tap_awaddr              (s_axi_awaddr),
+        .tap_awlen               (s_axi_awlen),
+        .tap_awvalid             (s_axi_awvalid),
+        .tap_awready             (s_axi_awready),
+        .tap_wlast               (s_axi_wlast),
+        .tap_wvalid              (s_axi_wvalid),
+        .tap_wready              (s_axi_wready),
+        .tap_bid                 (s_axi_bid),
+        .tap_bresp               (s_axi_bresp),
+        .tap_bvalid              (s_axi_bvalid),
+        .tap_bready              (s_axi_bready),
+        .ev_cal_err_i            (cal_err_o),
+        .ev_zq_overdue_i         (zq_overdue_o),
+        .ev_ref_pending_i        (w_ev_ref_pending),
+        .ev_aw_ragged_i          (w_ev_aw_ragged),
+        .ev_rd_beat_lost_i       (w_ev_rd_beat_lost),
+        .ev_ret_orphan_i         (w_ev_ret_orphan),
+        .ev_init_done_i          (init_done_o),
+        .ev_init_state_i         (w_ev_init_state),
+        .ev_dir_flip_i           (w_ev_dir_flip),
+        .ev_dir_i                (w_ev_dir),
+        .ev_dir_cause_i          (w_ev_dir_cause),
+        .ev_dir_batch_i          (w_ev_dir_batch),
+        .ev_cmd_accept_i         (w_ev_accept),
+        .ev_cmd_accept_op_i      (w_ev_accept_op),
+        .ev_accept_to_pre_i      (w_ev_to_pre),
+        .ev_store_wr_full_i      (aw_push_valid && !aw_push_ready),
+        .ev_store_rd_full_i      (ar_push_valid && !ar_push_ready),
+        .ev_ring_full_i          (!rt_alloc_ready),
+        .cfg_rd_enable           (mon_cfg_i.rd_enable),
+        .cfg_wr_enable           (mon_cfg_i.wr_enable),
+        .cfg_core_enable         (mon_cfg_i.core_enable),
+        .cfg_error_enable        (mon_cfg_i.error_enable),
+        .cfg_compl_enable        (mon_cfg_i.compl_enable),
+        .cfg_timeout_enable      (mon_cfg_i.timeout_enable),
+        .cfg_threshold_enable    (mon_cfg_i.threshold_enable),
+        .cfg_timeout_us          (mon_cfg_i.timeout_us),
+        .cfg_freq_sel            (mon_cfg_i.freq_sel),
+        .cfg_active_threshold    (mon_cfg_i.active_threshold),
+        .cfg_latency_threshold   (mon_cfg_i.latency_threshold),
+        .cfg_axi_pkt_mask        (mon_cfg_i.axi_pkt_mask),
+        .cfg_core_ev_en          (mon_cfg_i.core_ev_en),
+        .cfg_err_select          (mon_cfg_i.err_select),
+        .cfg_base_addr           (mon_cfg_i.base_addr),
+        .cfg_limit_addr          (mon_cfg_i.limit_addr),
+        .cfg_flush_watermark     (mon_cfg_i.flush_watermark),
+        .cfg_err_base_addr       (mon_cfg_i.err_base_addr),
+        .cfg_err_limit_addr      (mon_cfg_i.err_limit_addr),
+        .cfg_err_flush_watermark (mon_cfg_i.err_flush_watermark),
+        .m_axil_awvalid          (m_axil_mon_awvalid),
+        .m_axil_awready          (m_axil_mon_awready),
+        .m_axil_awaddr           (m_axil_mon_awaddr),
+        .m_axil_awprot           (m_axil_mon_awprot),
+        .m_axil_wvalid           (m_axil_mon_wvalid),
+        .m_axil_wready           (m_axil_mon_wready),
+        .m_axil_wdata            (m_axil_mon_wdata),
+        .m_axil_wstrb            (m_axil_mon_wstrb),
+        .m_axil_bvalid           (m_axil_mon_bvalid),
+        .m_axil_bready           (m_axil_mon_bready),
+        .m_axil_bresp            (m_axil_mon_bresp),
+        .irq_o                   (mon_irq_o),
+        .err_rec_count           (mon_stat_o.err_rec_count),
+        .rd_error_count          (mon_stat_o.rd_error_count),
+        .wr_error_count          (mon_stat_o.wr_error_count),
+        .rd_compl_count          (mon_stat_o.rd_compl_count),
+        .wr_compl_count          (mon_stat_o.wr_compl_count),
+        .core_error_count        (mon_stat_o.core_error_count),
+        .dropped_count           (mon_stat_o.dropped_count)
     );
 
 endmodule : pumice_core

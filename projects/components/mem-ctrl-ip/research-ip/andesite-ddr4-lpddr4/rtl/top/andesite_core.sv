@@ -548,7 +548,9 @@ module andesite_core
         .rd_dfi_ret_data_i  (w_ret_data),
         .rd_dfi_ret_resp_i  (w_ret_resp),
         .rd_dfi_ret_last_i  (w_ret_last),
-        .busy_o             ()
+        .busy_o             (),
+        .dbg_aw_ragged_o     (),
+        .dbg_ret_orphan_o    ()
     );
 
     // ======================================================================

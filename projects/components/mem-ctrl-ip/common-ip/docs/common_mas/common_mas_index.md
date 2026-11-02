@@ -88,6 +88,9 @@ the two disagree, the HAS wins and this book is the defect.
 
 - [`mc_init_plane` — JEDEC init, MR shadow, PHY handshake](ch10_init_plane/01_mc_init_plane.md)
 
+### Chapter 11: `mc_ocelus_plane`
+- [`mc_ocelus_plane` — port monitors, internal events (`mc_monlite`), the packet writer](ch11_ocelus_plane/01_mc_ocelus_plane.md)
+
 > Command-flow order (per the family HAS plane stack) places the init plane
 > between the storage plane and the scheduler plane; it is filed as chapter
 > 10 so chapters 2–9 keep stable paths for inbound links. The architecture

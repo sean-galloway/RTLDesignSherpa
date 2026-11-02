@@ -128,6 +128,19 @@ module pumice_csr (
         logic LP_MR3_OP;
         logic STORE_STATS_MERGE;
         logic STORE_STATS_RD_MERGE;
+        logic MON_CTRL;
+        logic MON_LATENCY_THRESH;
+        logic MON_ROUTE;
+        logic MON_CORE_EV;
+        logic MON_BASE_ADDR;
+        logic MON_LIMIT_ADDR;
+        logic MON_ERR_BASE_ADDR;
+        logic MON_ERR_LIMIT_ADDR;
+        logic MON_WATERMARK;
+        logic MON_ERR_STATUS;
+        logic MON_RD_STATS;
+        logic MON_WR_STATS;
+        logic MON_CORE_STATS;
         logic ID;
         logic BUILD;
     } decoded_reg_strb_t;
@@ -200,6 +213,19 @@ module pumice_csr (
         decoded_reg_strb.LP_MR3_OP = cpuif_req_masked & (cpuif_addr == 12'h188);
         decoded_reg_strb.STORE_STATS_MERGE = cpuif_req_masked & (cpuif_addr == 12'h18c);
         decoded_reg_strb.STORE_STATS_RD_MERGE = cpuif_req_masked & (cpuif_addr == 12'h190);
+        decoded_reg_strb.MON_CTRL = cpuif_req_masked & (cpuif_addr == 12'h200);
+        decoded_reg_strb.MON_LATENCY_THRESH = cpuif_req_masked & (cpuif_addr == 12'h204);
+        decoded_reg_strb.MON_ROUTE = cpuif_req_masked & (cpuif_addr == 12'h208);
+        decoded_reg_strb.MON_CORE_EV = cpuif_req_masked & (cpuif_addr == 12'h20c);
+        decoded_reg_strb.MON_BASE_ADDR = cpuif_req_masked & (cpuif_addr == 12'h210);
+        decoded_reg_strb.MON_LIMIT_ADDR = cpuif_req_masked & (cpuif_addr == 12'h214);
+        decoded_reg_strb.MON_ERR_BASE_ADDR = cpuif_req_masked & (cpuif_addr == 12'h218);
+        decoded_reg_strb.MON_ERR_LIMIT_ADDR = cpuif_req_masked & (cpuif_addr == 12'h21c);
+        decoded_reg_strb.MON_WATERMARK = cpuif_req_masked & (cpuif_addr == 12'h220);
+        decoded_reg_strb.MON_ERR_STATUS = cpuif_req_masked & (cpuif_addr == 12'h224);
+        decoded_reg_strb.MON_RD_STATS = cpuif_req_masked & (cpuif_addr == 12'h228);
+        decoded_reg_strb.MON_WR_STATS = cpuif_req_masked & (cpuif_addr == 12'h22c);
+        decoded_reg_strb.MON_CORE_STATS = cpuif_req_masked & (cpuif_addr == 12'h230);
         decoded_reg_strb.ID = cpuif_req_masked & (cpuif_addr == 12'hff0);
         decoded_reg_strb.BUILD = cpuif_req_masked & (cpuif_addr == 12'hff4);
     end
@@ -590,6 +616,104 @@ module pumice_csr (
                 logic load_next;
             } VAL;
         } LP_MR3_OP;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } RD_EN;
+            struct {
+                logic next;
+                logic load_next;
+            } WR_EN;
+            struct {
+                logic next;
+                logic load_next;
+            } CORE_EN;
+            struct {
+                logic next;
+                logic load_next;
+            } ERROR_EN;
+            struct {
+                logic next;
+                logic load_next;
+            } COMPL_EN;
+            struct {
+                logic next;
+                logic load_next;
+            } TIMEOUT_EN;
+            struct {
+                logic next;
+                logic load_next;
+            } THRESH_EN;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } FREQ_SEL;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } TIMEOUT_US;
+        } MON_CTRL;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } VAL;
+        } MON_LATENCY_THRESH;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } PKT_MASK;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } ERR_SELECT;
+        } MON_ROUTE;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } EV_EN;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } ACTIVE_THRESH;
+        } MON_CORE_EV;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } VAL;
+        } MON_BASE_ADDR;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } VAL;
+        } MON_LIMIT_ADDR;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } VAL;
+        } MON_ERR_BASE_ADDR;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } VAL;
+        } MON_ERR_LIMIT_ADDR;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } FLUSH;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } ERR_FLUSH;
+        } MON_WATERMARK;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -892,6 +1016,84 @@ module pumice_csr (
                 logic [7:0] value;
             } VAL;
         } LP_MR3_OP;
+        struct {
+            struct {
+                logic value;
+            } RD_EN;
+            struct {
+                logic value;
+            } WR_EN;
+            struct {
+                logic value;
+            } CORE_EN;
+            struct {
+                logic value;
+            } ERROR_EN;
+            struct {
+                logic value;
+            } COMPL_EN;
+            struct {
+                logic value;
+            } TIMEOUT_EN;
+            struct {
+                logic value;
+            } THRESH_EN;
+            struct {
+                logic [3:0] value;
+            } FREQ_SEL;
+            struct {
+                logic [15:0] value;
+            } TIMEOUT_US;
+        } MON_CTRL;
+        struct {
+            struct {
+                logic [31:0] value;
+            } VAL;
+        } MON_LATENCY_THRESH;
+        struct {
+            struct {
+                logic [15:0] value;
+            } PKT_MASK;
+            struct {
+                logic [15:0] value;
+            } ERR_SELECT;
+        } MON_ROUTE;
+        struct {
+            struct {
+                logic [15:0] value;
+            } EV_EN;
+            struct {
+                logic [15:0] value;
+            } ACTIVE_THRESH;
+        } MON_CORE_EV;
+        struct {
+            struct {
+                logic [31:0] value;
+            } VAL;
+        } MON_BASE_ADDR;
+        struct {
+            struct {
+                logic [31:0] value;
+            } VAL;
+        } MON_LIMIT_ADDR;
+        struct {
+            struct {
+                logic [31:0] value;
+            } VAL;
+        } MON_ERR_BASE_ADDR;
+        struct {
+            struct {
+                logic [31:0] value;
+            } VAL;
+        } MON_ERR_LIMIT_ADDR;
+        struct {
+            struct {
+                logic [15:0] value;
+            } FLUSH;
+            struct {
+                logic [15:0] value;
+            } ERR_FLUSH;
+        } MON_WATERMARK;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -2694,6 +2896,466 @@ module pumice_csr (
         end
     end
     assign hwif_out.LP_MR3_OP.VAL.value = field_storage.LP_MR3_OP.VAL.value;
+    // Field: pumice_csr.MON_CTRL.RD_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.RD_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.RD_EN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.RD_EN.next = next_c;
+        field_combo.MON_CTRL.RD_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.RD_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON_CTRL.RD_EN.load_next) begin
+                field_storage.MON_CTRL.RD_EN.value <= field_combo.MON_CTRL.RD_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.RD_EN.value = field_storage.MON_CTRL.RD_EN.value;
+    // Field: pumice_csr.MON_CTRL.WR_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.WR_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.WR_EN.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.WR_EN.next = next_c;
+        field_combo.MON_CTRL.WR_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.WR_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON_CTRL.WR_EN.load_next) begin
+                field_storage.MON_CTRL.WR_EN.value <= field_combo.MON_CTRL.WR_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.WR_EN.value = field_storage.MON_CTRL.WR_EN.value;
+    // Field: pumice_csr.MON_CTRL.CORE_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.CORE_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.CORE_EN.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.CORE_EN.next = next_c;
+        field_combo.MON_CTRL.CORE_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.CORE_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON_CTRL.CORE_EN.load_next) begin
+                field_storage.MON_CTRL.CORE_EN.value <= field_combo.MON_CTRL.CORE_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.CORE_EN.value = field_storage.MON_CTRL.CORE_EN.value;
+    // Field: pumice_csr.MON_CTRL.ERROR_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.ERROR_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.ERROR_EN.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.ERROR_EN.next = next_c;
+        field_combo.MON_CTRL.ERROR_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.ERROR_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.MON_CTRL.ERROR_EN.load_next) begin
+                field_storage.MON_CTRL.ERROR_EN.value <= field_combo.MON_CTRL.ERROR_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.ERROR_EN.value = field_storage.MON_CTRL.ERROR_EN.value;
+    // Field: pumice_csr.MON_CTRL.COMPL_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.COMPL_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.COMPL_EN.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.COMPL_EN.next = next_c;
+        field_combo.MON_CTRL.COMPL_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.COMPL_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON_CTRL.COMPL_EN.load_next) begin
+                field_storage.MON_CTRL.COMPL_EN.value <= field_combo.MON_CTRL.COMPL_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.COMPL_EN.value = field_storage.MON_CTRL.COMPL_EN.value;
+    // Field: pumice_csr.MON_CTRL.TIMEOUT_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.TIMEOUT_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.TIMEOUT_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.TIMEOUT_EN.next = next_c;
+        field_combo.MON_CTRL.TIMEOUT_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.TIMEOUT_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.MON_CTRL.TIMEOUT_EN.load_next) begin
+                field_storage.MON_CTRL.TIMEOUT_EN.value <= field_combo.MON_CTRL.TIMEOUT_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.TIMEOUT_EN.value = field_storage.MON_CTRL.TIMEOUT_EN.value;
+    // Field: pumice_csr.MON_CTRL.THRESH_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.THRESH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.THRESH_EN.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.THRESH_EN.next = next_c;
+        field_combo.MON_CTRL.THRESH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.THRESH_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON_CTRL.THRESH_EN.load_next) begin
+                field_storage.MON_CTRL.THRESH_EN.value <= field_combo.MON_CTRL.THRESH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.THRESH_EN.value = field_storage.MON_CTRL.THRESH_EN.value;
+    // Field: pumice_csr.MON_CTRL.FREQ_SEL
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.FREQ_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.FREQ_SEL.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.FREQ_SEL.next = next_c;
+        field_combo.MON_CTRL.FREQ_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.FREQ_SEL.value <= 4'h0;
+        end else begin
+            if(field_combo.MON_CTRL.FREQ_SEL.load_next) begin
+                field_storage.MON_CTRL.FREQ_SEL.value <= field_combo.MON_CTRL.FREQ_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.FREQ_SEL.value = field_storage.MON_CTRL.FREQ_SEL.value;
+    // Field: pumice_csr.MON_CTRL.TIMEOUT_US
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CTRL.TIMEOUT_US.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CTRL.TIMEOUT_US.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CTRL.TIMEOUT_US.next = next_c;
+        field_combo.MON_CTRL.TIMEOUT_US.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CTRL.TIMEOUT_US.value <= 16'h3e8;
+        end else begin
+            if(field_combo.MON_CTRL.TIMEOUT_US.load_next) begin
+                field_storage.MON_CTRL.TIMEOUT_US.value <= field_combo.MON_CTRL.TIMEOUT_US.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CTRL.TIMEOUT_US.value = field_storage.MON_CTRL.TIMEOUT_US.value;
+    // Field: pumice_csr.MON_LATENCY_THRESH.VAL
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_LATENCY_THRESH.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_LATENCY_THRESH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_LATENCY_THRESH.VAL.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_LATENCY_THRESH.VAL.next = next_c;
+        field_combo.MON_LATENCY_THRESH.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_LATENCY_THRESH.VAL.value <= 32'h1000;
+        end else begin
+            if(field_combo.MON_LATENCY_THRESH.VAL.load_next) begin
+                field_storage.MON_LATENCY_THRESH.VAL.value <= field_combo.MON_LATENCY_THRESH.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.MON_LATENCY_THRESH.VAL.value = field_storage.MON_LATENCY_THRESH.VAL.value;
+    // Field: pumice_csr.MON_ROUTE.PKT_MASK
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_ROUTE.PKT_MASK.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_ROUTE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_ROUTE.PKT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_ROUTE.PKT_MASK.next = next_c;
+        field_combo.MON_ROUTE.PKT_MASK.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_ROUTE.PKT_MASK.value <= 16'h0;
+        end else begin
+            if(field_combo.MON_ROUTE.PKT_MASK.load_next) begin
+                field_storage.MON_ROUTE.PKT_MASK.value <= field_combo.MON_ROUTE.PKT_MASK.next;
+            end
+        end
+    end
+    assign hwif_out.MON_ROUTE.PKT_MASK.value = field_storage.MON_ROUTE.PKT_MASK.value;
+    // Field: pumice_csr.MON_ROUTE.ERR_SELECT
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_ROUTE.ERR_SELECT.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_ROUTE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_ROUTE.ERR_SELECT.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.MON_ROUTE.ERR_SELECT.next = next_c;
+        field_combo.MON_ROUTE.ERR_SELECT.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_ROUTE.ERR_SELECT.value <= 16'h9;
+        end else begin
+            if(field_combo.MON_ROUTE.ERR_SELECT.load_next) begin
+                field_storage.MON_ROUTE.ERR_SELECT.value <= field_combo.MON_ROUTE.ERR_SELECT.next;
+            end
+        end
+    end
+    assign hwif_out.MON_ROUTE.ERR_SELECT.value = field_storage.MON_ROUTE.ERR_SELECT.value;
+    // Field: pumice_csr.MON_CORE_EV.EV_EN
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CORE_EV.EV_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CORE_EV && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CORE_EV.EV_EN.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CORE_EV.EV_EN.next = next_c;
+        field_combo.MON_CORE_EV.EV_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CORE_EV.EV_EN.value <= 16'h7f;
+        end else begin
+            if(field_combo.MON_CORE_EV.EV_EN.load_next) begin
+                field_storage.MON_CORE_EV.EV_EN.value <= field_combo.MON_CORE_EV.EV_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CORE_EV.EV_EN.value = field_storage.MON_CORE_EV.EV_EN.value;
+    // Field: pumice_csr.MON_CORE_EV.ACTIVE_THRESH
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_CORE_EV.ACTIVE_THRESH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_CORE_EV && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_CORE_EV.ACTIVE_THRESH.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.MON_CORE_EV.ACTIVE_THRESH.next = next_c;
+        field_combo.MON_CORE_EV.ACTIVE_THRESH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_CORE_EV.ACTIVE_THRESH.value <= 16'h8;
+        end else begin
+            if(field_combo.MON_CORE_EV.ACTIVE_THRESH.load_next) begin
+                field_storage.MON_CORE_EV.ACTIVE_THRESH.value <= field_combo.MON_CORE_EV.ACTIVE_THRESH.next;
+            end
+        end
+    end
+    assign hwif_out.MON_CORE_EV.ACTIVE_THRESH.value = field_storage.MON_CORE_EV.ACTIVE_THRESH.value;
+    // Field: pumice_csr.MON_BASE_ADDR.VAL
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_BASE_ADDR.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_BASE_ADDR && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_BASE_ADDR.VAL.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_BASE_ADDR.VAL.next = next_c;
+        field_combo.MON_BASE_ADDR.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_BASE_ADDR.VAL.value <= 32'h0;
+        end else begin
+            if(field_combo.MON_BASE_ADDR.VAL.load_next) begin
+                field_storage.MON_BASE_ADDR.VAL.value <= field_combo.MON_BASE_ADDR.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.MON_BASE_ADDR.VAL.value = field_storage.MON_BASE_ADDR.VAL.value;
+    // Field: pumice_csr.MON_LIMIT_ADDR.VAL
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_LIMIT_ADDR.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_LIMIT_ADDR && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_LIMIT_ADDR.VAL.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_LIMIT_ADDR.VAL.next = next_c;
+        field_combo.MON_LIMIT_ADDR.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_LIMIT_ADDR.VAL.value <= 32'h0;
+        end else begin
+            if(field_combo.MON_LIMIT_ADDR.VAL.load_next) begin
+                field_storage.MON_LIMIT_ADDR.VAL.value <= field_combo.MON_LIMIT_ADDR.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.MON_LIMIT_ADDR.VAL.value = field_storage.MON_LIMIT_ADDR.VAL.value;
+    // Field: pumice_csr.MON_ERR_BASE_ADDR.VAL
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_ERR_BASE_ADDR.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_ERR_BASE_ADDR && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_ERR_BASE_ADDR.VAL.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_ERR_BASE_ADDR.VAL.next = next_c;
+        field_combo.MON_ERR_BASE_ADDR.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_ERR_BASE_ADDR.VAL.value <= 32'h0;
+        end else begin
+            if(field_combo.MON_ERR_BASE_ADDR.VAL.load_next) begin
+                field_storage.MON_ERR_BASE_ADDR.VAL.value <= field_combo.MON_ERR_BASE_ADDR.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.MON_ERR_BASE_ADDR.VAL.value = field_storage.MON_ERR_BASE_ADDR.VAL.value;
+    // Field: pumice_csr.MON_ERR_LIMIT_ADDR.VAL
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_ERR_LIMIT_ADDR.VAL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_ERR_LIMIT_ADDR && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_ERR_LIMIT_ADDR.VAL.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_ERR_LIMIT_ADDR.VAL.next = next_c;
+        field_combo.MON_ERR_LIMIT_ADDR.VAL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_ERR_LIMIT_ADDR.VAL.value <= 32'h0;
+        end else begin
+            if(field_combo.MON_ERR_LIMIT_ADDR.VAL.load_next) begin
+                field_storage.MON_ERR_LIMIT_ADDR.VAL.value <= field_combo.MON_ERR_LIMIT_ADDR.VAL.next;
+            end
+        end
+    end
+    assign hwif_out.MON_ERR_LIMIT_ADDR.VAL.value = field_storage.MON_ERR_LIMIT_ADDR.VAL.value;
+    // Field: pumice_csr.MON_WATERMARK.FLUSH
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_WATERMARK.FLUSH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_WATERMARK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_WATERMARK.FLUSH.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_WATERMARK.FLUSH.next = next_c;
+        field_combo.MON_WATERMARK.FLUSH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_WATERMARK.FLUSH.value <= 16'h8;
+        end else begin
+            if(field_combo.MON_WATERMARK.FLUSH.load_next) begin
+                field_storage.MON_WATERMARK.FLUSH.value <= field_combo.MON_WATERMARK.FLUSH.next;
+            end
+        end
+    end
+    assign hwif_out.MON_WATERMARK.FLUSH.value = field_storage.MON_WATERMARK.FLUSH.value;
+    // Field: pumice_csr.MON_WATERMARK.ERR_FLUSH
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_WATERMARK.ERR_FLUSH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_WATERMARK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_WATERMARK.ERR_FLUSH.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.MON_WATERMARK.ERR_FLUSH.next = next_c;
+        field_combo.MON_WATERMARK.ERR_FLUSH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_WATERMARK.ERR_FLUSH.value <= 16'h3;
+        end else begin
+            if(field_combo.MON_WATERMARK.ERR_FLUSH.load_next) begin
+                field_storage.MON_WATERMARK.ERR_FLUSH.value <= field_combo.MON_WATERMARK.ERR_FLUSH.next;
+            end
+        end
+    end
+    assign hwif_out.MON_WATERMARK.ERR_FLUSH.value = field_storage.MON_WATERMARK.ERR_FLUSH.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2711,7 +3373,7 @@ module pumice_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[71];
+    logic [31:0] readback_array[84];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2879,11 +3541,41 @@ module pumice_csr (
     assign readback_array[66][31:8] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? 24'h0 : '0;
     assign readback_array[67][31:0] = (decoded_reg_strb.STORE_STATS_MERGE && !decoded_req_is_wr) ? hwif_in.STORE_STATS_MERGE.VAL.next : '0;
     assign readback_array[68][31:0] = (decoded_reg_strb.STORE_STATS_RD_MERGE && !decoded_req_is_wr) ? hwif_in.STORE_STATS_RD_MERGE.VAL.next : '0;
-    assign readback_array[69][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[69][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[69][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[69][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[70][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[69][0:0] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.RD_EN.value : '0;
+    assign readback_array[69][1:1] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.WR_EN.value : '0;
+    assign readback_array[69][2:2] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.CORE_EN.value : '0;
+    assign readback_array[69][3:3] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.ERROR_EN.value : '0;
+    assign readback_array[69][4:4] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.COMPL_EN.value : '0;
+    assign readback_array[69][5:5] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.TIMEOUT_EN.value : '0;
+    assign readback_array[69][6:6] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.THRESH_EN.value : '0;
+    assign readback_array[69][7:7] = '0;
+    assign readback_array[69][11:8] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.FREQ_SEL.value : '0;
+    assign readback_array[69][15:12] = '0;
+    assign readback_array[69][31:16] = (decoded_reg_strb.MON_CTRL && !decoded_req_is_wr) ? field_storage.MON_CTRL.TIMEOUT_US.value : '0;
+    assign readback_array[70][31:0] = (decoded_reg_strb.MON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.MON_LATENCY_THRESH.VAL.value : '0;
+    assign readback_array[71][15:0] = (decoded_reg_strb.MON_ROUTE && !decoded_req_is_wr) ? field_storage.MON_ROUTE.PKT_MASK.value : '0;
+    assign readback_array[71][31:16] = (decoded_reg_strb.MON_ROUTE && !decoded_req_is_wr) ? field_storage.MON_ROUTE.ERR_SELECT.value : '0;
+    assign readback_array[72][15:0] = (decoded_reg_strb.MON_CORE_EV && !decoded_req_is_wr) ? field_storage.MON_CORE_EV.EV_EN.value : '0;
+    assign readback_array[72][31:16] = (decoded_reg_strb.MON_CORE_EV && !decoded_req_is_wr) ? field_storage.MON_CORE_EV.ACTIVE_THRESH.value : '0;
+    assign readback_array[73][31:0] = (decoded_reg_strb.MON_BASE_ADDR && !decoded_req_is_wr) ? field_storage.MON_BASE_ADDR.VAL.value : '0;
+    assign readback_array[74][31:0] = (decoded_reg_strb.MON_LIMIT_ADDR && !decoded_req_is_wr) ? field_storage.MON_LIMIT_ADDR.VAL.value : '0;
+    assign readback_array[75][31:0] = (decoded_reg_strb.MON_ERR_BASE_ADDR && !decoded_req_is_wr) ? field_storage.MON_ERR_BASE_ADDR.VAL.value : '0;
+    assign readback_array[76][31:0] = (decoded_reg_strb.MON_ERR_LIMIT_ADDR && !decoded_req_is_wr) ? field_storage.MON_ERR_LIMIT_ADDR.VAL.value : '0;
+    assign readback_array[77][15:0] = (decoded_reg_strb.MON_WATERMARK && !decoded_req_is_wr) ? field_storage.MON_WATERMARK.FLUSH.value : '0;
+    assign readback_array[77][31:16] = (decoded_reg_strb.MON_WATERMARK && !decoded_req_is_wr) ? field_storage.MON_WATERMARK.ERR_FLUSH.value : '0;
+    assign readback_array[78][15:0] = (decoded_reg_strb.MON_ERR_STATUS && !decoded_req_is_wr) ? hwif_in.MON_ERR_STATUS.REC_COUNT.next : '0;
+    assign readback_array[78][31:16] = (decoded_reg_strb.MON_ERR_STATUS && !decoded_req_is_wr) ? hwif_in.MON_ERR_STATUS.DROPPED.next : '0;
+    assign readback_array[79][15:0] = (decoded_reg_strb.MON_RD_STATS && !decoded_req_is_wr) ? hwif_in.MON_RD_STATS.ERRORS.next : '0;
+    assign readback_array[79][31:16] = (decoded_reg_strb.MON_RD_STATS && !decoded_req_is_wr) ? hwif_in.MON_RD_STATS.COMPLETIONS.next : '0;
+    assign readback_array[80][15:0] = (decoded_reg_strb.MON_WR_STATS && !decoded_req_is_wr) ? hwif_in.MON_WR_STATS.ERRORS.next : '0;
+    assign readback_array[80][31:16] = (decoded_reg_strb.MON_WR_STATS && !decoded_req_is_wr) ? hwif_in.MON_WR_STATS.COMPLETIONS.next : '0;
+    assign readback_array[81][15:0] = (decoded_reg_strb.MON_CORE_STATS && !decoded_req_is_wr) ? hwif_in.MON_CORE_STATS.ERRORS.next : '0;
+    assign readback_array[81][31:16] = (decoded_reg_strb.MON_CORE_STATS && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[82][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[82][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[82][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[82][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[83][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2891,7 +3583,7 @@ module pumice_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<71; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<84; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

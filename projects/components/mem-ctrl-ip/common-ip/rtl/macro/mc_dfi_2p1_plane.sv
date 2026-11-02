@@ -134,6 +134,9 @@ module mc_dfi_2p1_plane
     // init handshake (controller side)
     input  logic                       init_start_i,
     output logic                       init_complete_o,
+    // read-return contract break, one ctl_clk pulse (mc_monlite
+    // MC_EV_RD_BEAT_LOST): the aligner lost a beat
+    output logic                       rd_beat_lost_o,
 
     //=========================================================================
     // PHY DFI domain (dfi_clk)
@@ -350,6 +353,7 @@ module mc_dfi_2p1_plane
     // ======================================================================
     // Read aligner (dfi_clk): dfi_rddata -> rddata FIFO at t_rddata_en
     // ======================================================================
+    logic w_rd_beat_lost;
     mc_dfi_rd_aligner #(
         .DFI_DATA_WIDTH (DFI_DATA_WIDTH),
         .DFI_RATE       (DFI_RATE),
@@ -377,8 +381,23 @@ module mc_dfi_2p1_plane
         .cal_expect_i      (cal_expect_i),
         .cal_data_o        (cal_data_o),
         .cal_valid_o       (cal_valid_o),
-        .rd_ret_busy_o     (rd_ret_busy_o)
+        .rd_ret_busy_o     (rd_ret_busy_o),
+        .err_beat_lost_o   (w_rd_beat_lost)
     );
+
+    // the aligner runs on dfi_clk: carry its loss pulse to ctl_clk
+    generate if (DFI_CDC_EN) begin : g_lost_sync
+        sync_pulse u_lost_sync (
+            .i_src_clk   (dfi_clk),
+            .i_src_rst_n (dfi_rstn),
+            .i_pulse     (w_rd_beat_lost),
+            .i_dst_clk   (ctl_clk),
+            .i_dst_rst_n (ctl_rstn),
+            .o_pulse     (rd_beat_lost_o)
+        );
+    end else begin : g_lost_same
+        assign rd_beat_lost_o = w_rd_beat_lost;
+    end endgenerate
 
     wire unused = &{1'b0, w_fire_rank, 1'b0};
 

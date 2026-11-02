@@ -58,6 +58,13 @@ module granite_top_geared
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter bit BANK_EVT_REG      = 1'b1, // bank timer counters load one register after the pick's fire strobe (TASK-003 100 MHz; readiness exact); 0 = the live load
     parameter bit STORE_MERGE_EN    = 1'b1, // FIFO-store combining (TASK-006, default ON); 0 = none
+    // Ocelus observability (mc_ocelus_plane in the core; MON_* CSRs at 0x200)
+    parameter bit          HAS_MON        = 1'b0,
+    parameter int          MON_ACLK_MHZ   = 100,
+    parameter logic [7:0]  MON_UNIT_ID    = 8'h20,
+    parameter logic [15:0] MON_AGENT_RD   = 16'h0010,
+    parameter logic [15:0] MON_AGENT_WR   = 16'h0011,
+    parameter logic [15:0] MON_AGENT_CORE = 16'h0012,
     parameter bit HALF_AGG          = 1'b0, // half-width AXI aggregator at the host edge (TASK-005, deferred); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
@@ -118,6 +125,19 @@ module granite_top_geared
 
     output logic                    init_done_o,
 
+    // ---- Ocelus packet writer (HAS_MON; idle when 0) ----
+    output logic           mon_irq_o,          // one pulse per error record landed
+    output logic           m_axil_mon_awvalid,
+    input  logic           m_axil_mon_awready,
+    output logic [31:0]    m_axil_mon_awaddr,
+    output logic [2:0]     m_axil_mon_awprot,
+    output logic           m_axil_mon_wvalid,
+    input  logic           m_axil_mon_wready,
+    output logic [63:0]    m_axil_mon_wdata,
+    output logic [7:0]     m_axil_mon_wstrb,
+    input  logic           m_axil_mon_bvalid,
+    output logic           m_axil_mon_bready,
+    input  logic [1:0]     m_axil_mon_bresp,
     // ---- host AXI4 (HOST_AXI_DATA_WIDTH) ----
     input  logic [IW-1:0]  s_axi_awid,   input logic [AW-1:0] s_axi_awaddr,
     input  logic [7:0]     s_axi_awlen,  input logic [2:0]    s_axi_awsize,
@@ -336,6 +356,32 @@ module granite_top_geared
     logic [15:0]               w_zqcs_total;
     logic [31:0]               w_stat_wr_merge, w_stat_rd_merge;
 
+    // ---- Ocelus: MON_* CSRs -> the core's config struct, status back ----
+    mc_common_pkg::mc_mon_cfg_t  w_mon_cfg;
+    mc_common_pkg::mc_mon_stat_t w_mon_stat;
+    always_comb begin
+        w_mon_cfg.rd_enable           = hwif_out.MON_CTRL.RD_EN.value;
+        w_mon_cfg.wr_enable           = hwif_out.MON_CTRL.WR_EN.value;
+        w_mon_cfg.core_enable         = hwif_out.MON_CTRL.CORE_EN.value;
+        w_mon_cfg.error_enable        = hwif_out.MON_CTRL.ERROR_EN.value;
+        w_mon_cfg.compl_enable        = hwif_out.MON_CTRL.COMPL_EN.value;
+        w_mon_cfg.timeout_enable      = hwif_out.MON_CTRL.TIMEOUT_EN.value;
+        w_mon_cfg.threshold_enable    = hwif_out.MON_CTRL.THRESH_EN.value;
+        w_mon_cfg.timeout_us          = hwif_out.MON_CTRL.TIMEOUT_US.value;
+        w_mon_cfg.freq_sel            = hwif_out.MON_CTRL.FREQ_SEL.value;
+        w_mon_cfg.active_threshold    = hwif_out.MON_CORE_EV.ACTIVE_THRESH.value;
+        w_mon_cfg.latency_threshold   = hwif_out.MON_LATENCY_THRESH.VAL.value;
+        w_mon_cfg.axi_pkt_mask        = hwif_out.MON_ROUTE.PKT_MASK.value;
+        w_mon_cfg.core_ev_en          = hwif_out.MON_CORE_EV.EV_EN.value;
+        w_mon_cfg.err_select          = hwif_out.MON_ROUTE.ERR_SELECT.value;
+        w_mon_cfg.base_addr           = hwif_out.MON_BASE_ADDR.VAL.value;
+        w_mon_cfg.limit_addr          = hwif_out.MON_LIMIT_ADDR.VAL.value;
+        w_mon_cfg.flush_watermark     = hwif_out.MON_WATERMARK.FLUSH.value;
+        w_mon_cfg.err_base_addr       = hwif_out.MON_ERR_BASE_ADDR.VAL.value;
+        w_mon_cfg.err_limit_addr      = hwif_out.MON_ERR_LIMIT_ADDR.VAL.value;
+        w_mon_cfg.err_flush_watermark = hwif_out.MON_WATERMARK.ERR_FLUSH.value;
+    end
+
     always_comb begin
         hwif_in = '{default: '0};
         // Live status back to CSR
@@ -348,6 +394,13 @@ module granite_top_geared
         hwif_in.CAL_STATUS.zqcs_total.next = w_zqcs_total;
         hwif_in.STORE_STATS_MERGE.VAL.next    = w_stat_wr_merge;
         hwif_in.STORE_STATS_RD_MERGE.VAL.next = w_stat_rd_merge;
+        hwif_in.MON_ERR_STATUS.REC_COUNT.next  = w_mon_stat.err_rec_count;
+        hwif_in.MON_ERR_STATUS.DROPPED.next    = w_mon_stat.dropped_count;
+        hwif_in.MON_RD_STATS.ERRORS.next       = w_mon_stat.rd_error_count;
+        hwif_in.MON_RD_STATS.COMPLETIONS.next  = w_mon_stat.rd_compl_count;
+        hwif_in.MON_WR_STATS.ERRORS.next       = w_mon_stat.wr_error_count;
+        hwif_in.MON_WR_STATS.COMPLETIONS.next  = w_mon_stat.wr_compl_count;
+        hwif_in.MON_CORE_STATS.ERRORS.next     = w_mon_stat.core_error_count;
         for (int b = 0; b < (DFI_DATA_WIDTH / 32); b++) begin
             hwif_in.CAL_MRR32_DATA[b].VAL.VAL.next = w_mrr32_data[b*32 +: 32];
             hwif_in.CAL_MRR40_DATA[b].VAL.VAL.next = w_mrr40_data[b*32 +: 32];
@@ -428,6 +481,12 @@ module granite_top_geared
         .BANK_EVT_REG      (BANK_EVT_REG),
         .HALF_AGG          (HALF_AGG),
         .STORE_MERGE_EN    (STORE_MERGE_EN),
+        .HAS_MON           (HAS_MON),
+        .MON_ACLK_MHZ      (MON_ACLK_MHZ),
+        .MON_UNIT_ID       (MON_UNIT_ID),
+        .MON_AGENT_RD      (MON_AGENT_RD),
+        .MON_AGENT_WR      (MON_AGENT_WR),
+        .MON_AGENT_CORE    (MON_AGENT_CORE),
         .BANK_CAP_MIXED    (BANK_CAP_MIXED),
         .HAS_AGE           (HAS_AGE),
         .PP_TIMEOUT_CLOSE  (PP_TIMEOUT_CLOSE),
@@ -528,6 +587,20 @@ module granite_top_geared
         .zqcs_total_o       (w_zqcs_total),
         .stat_wr_merge_o    (w_stat_wr_merge),
         .stat_rd_merge_o    (w_stat_rd_merge),
+        .mon_cfg_i          (w_mon_cfg),
+        .mon_stat_o         (w_mon_stat),
+        .mon_irq_o          (mon_irq_o),
+        .m_axil_mon_awvalid (m_axil_mon_awvalid),
+        .m_axil_mon_awready (m_axil_mon_awready),
+        .m_axil_mon_awaddr  (m_axil_mon_awaddr),
+        .m_axil_mon_awprot  (m_axil_mon_awprot),
+        .m_axil_mon_wvalid  (m_axil_mon_wvalid),
+        .m_axil_mon_wready  (m_axil_mon_wready),
+        .m_axil_mon_wdata   (m_axil_mon_wdata),
+        .m_axil_mon_wstrb   (m_axil_mon_wstrb),
+        .m_axil_mon_bvalid  (m_axil_mon_bvalid),
+        .m_axil_mon_bready  (m_axil_mon_bready),
+        .m_axil_mon_bresp   (m_axil_mon_bresp),
         .s_axi_awid         (c_awid),
         .s_axi_awaddr       (c_awaddr),
         .s_axi_awlen        (c_awlen),

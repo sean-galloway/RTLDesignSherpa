@@ -624,7 +624,13 @@ module andesite_scheduler_plane
         .bank_open_row_o    (w_bank_open_row),
         .busy_o             (busy_o),
         .cmd_accept_o       (w_cmd_accept),
-        .cmd_accept_op_o    (w_cmd_accept_op)
+        .cmd_accept_op_o    (w_cmd_accept_op),
+        .dbg_dir_flip_o      (),
+        .dbg_dir_o           (),
+        .dbg_dir_cause_o     (),
+        .dbg_dir_batch_o     (),
+        .dbg_ref_pending_o   (),
+        .dbg_accept_to_pre_o ()
     );
 
     // The page-policy telemetry is produced by the wrapper's own page_policy

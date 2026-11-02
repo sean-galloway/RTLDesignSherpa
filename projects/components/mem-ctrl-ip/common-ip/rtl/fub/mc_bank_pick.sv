@@ -299,7 +299,13 @@ module mc_bank_pick
     output logic [31:0]               stall_actlimit_o,
     output logic [31:0]               stall_banktimer_o,
     output logic [31:0]               stall_noreq_o,
-    output logic [31:0]               stall_zq_o
+    output logic [31:0]               stall_zq_o,
+
+    // ---- direction debug (mc_monlite MC_EV_DIR_FLIP; unconnected = pruned) ----
+    output logic                      dbg_dir_flip_o,   // the direction turned last cycle (one cycle)
+    output logic                      dbg_dir_o,        // current direction, 1 = write
+    output logic [1:0]                dbg_dir_cause_o,  // why it turned: 0 old-direction fire, 1 drained, 2 batch cap
+    output logic [7:0]                dbg_dir_batch_o   // column ops in the batch that ended
 );
 
     localparam int RK0   = 0;
@@ -1397,5 +1403,35 @@ module mc_bank_pick
         assign stall_noreq_o = '0; assign stall_zq_o = '0;
         wire _unused_ss = &{1'b0, w_any_pending};
     end endgenerate
+
+    // ======================================================================
+    // Direction-flip debug: the cause, in the next-state block's order, and
+    // the length of the batch that ended, captured when the flip is decided.
+    // Read-only on the decision terms; nothing here feeds back.
+    // ======================================================================
+    logic [1:0] w_dir_cause, r_dir_cause;
+    logic [7:0] r_dir_end_batch;
+    always_comb begin
+        if (w_col_fire_now && (w_sel_is_wr != r_dir) && !r_dir_flip)
+            w_dir_cause = 2'd0;
+        else if ((r_dir ? !w_wr_col_pend : !w_rd_col_pend)
+                 && (r_dir ? w_rd_col_any : w_wr_col_any))
+            w_dir_cause = 2'd1;
+        else
+            w_dir_cause = 2'd2;
+    end
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_dir_cause     <= 2'd0;
+            r_dir_end_batch <= 8'd0;
+        end else if (w_dir_flip_nxt) begin
+            r_dir_cause     <= w_dir_cause;
+            r_dir_end_batch <= r_dir_batch;
+        end
+    )
+    assign dbg_dir_flip_o  = r_dir_flip;
+    assign dbg_dir_o       = r_dir;
+    assign dbg_dir_cause_o = r_dir_cause;
+    assign dbg_dir_batch_o = r_dir_end_batch;
 
 endmodule : mc_bank_pick

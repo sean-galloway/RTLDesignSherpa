@@ -417,3 +417,15 @@ Build hash word. `VAL[31:0]`, reset = 0.
 - `PHY_TIMING.memtype` and `PHY_TIMING.refresh_burst` are new runtime fields.
 - The observation block is single-rank as generated; the multi-rank per-rank
   layout described in earlier revisions is not present in the current RDL.
+
+## Ocelus observability block (`MON_*`, `0x200`-`0x230`)
+
+Present in every build, inert (reads 0) unless the top is built with
+`HAS_MON = 1`, which instantiates `mc_ocelus_plane` in the core: lite
+monitors on the AXI port, `mc_monlite` on internal events, and the
+`m_axil_mon_*` packet writer with `mon_irq_o`. The block is identical to
+granite's, at the same addresses, so one host program serves both. Every
+source enable resets to 0 and the two windows reset to 0; program both
+windows before enabling a source. Field-level detail is the generated map;
+the plane is common MAS chapter 11.
+

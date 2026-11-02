@@ -503,7 +503,13 @@ module scoria_scheduler_plane
         .cmd_extra_o        (w_cmd_extra),
         .bank_row_active_o  (w_bank_row_active),
         .bank_open_row_o    (w_bank_open_row),
-        .busy_o             (busy_o)
+        .busy_o             (busy_o),
+        .dbg_dir_flip_o      (),
+        .dbg_dir_o           (),
+        .dbg_dir_cause_o     (),
+        .dbg_dir_batch_o     (),
+        .dbg_ref_pending_o   (),
+        .dbg_accept_to_pre_o ()
     );
 
     // ---- optional command-history scoreboard -------------------------------

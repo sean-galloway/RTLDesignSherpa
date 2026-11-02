@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — tasks
 
-**Next ID: TASK-008** — never recycle a number, even when its item closed.
+**Next ID: TASK-009** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -15,7 +15,7 @@ state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 2 | parked pending a named condition |
 
@@ -34,6 +34,11 @@ state by construction rather than by discipline.
   3x LiteDRAM at 75); thrash cells remain the gap. [active/TASK-003.md](active/TASK-003.md).
 
 ## Closed
+
+- **TASK-008** — Ocelus observability on granite and pumice (`HAS_MON`, default 0):
+  lite port monitors + `mc_monlite` internal errors/debug -> one AXI-Lite packet
+  writer, `MON_*` CSRs at 0x200. RTL + sim; board not wired. CLOSED 2026-11-01.
+  [closed/TASK-008.md](closed/TASK-008.md).
 
 - **TASK-006** — store combining behind `STORE_MERGE_EN` (default 1 since 2026-10-29): the
   close_page pair walk doubles both ways and matches pumice, open_page pair

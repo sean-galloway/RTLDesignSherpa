@@ -95,6 +95,7 @@ The ring is sized by `RD_RET_DEPTH` (default 32). This decoupling fixed a bandwi
 | `hash_en_i` | input | 1 | Bank hash enable |
 | `hash_seed_i` | input | 8 | Bank hash seed |
 | `busy_o` | output | 1 | OR of write-intake, read-intake, and return-ring busy flags (`macro/mc_axi4_plane.sv:477`) |
+| `dbg_aw_ragged_o`, `dbg_ret_orphan_o` | output | 1 each | Debug taps for `mc_ocelus_plane` (chapter 11): a ragged AW leaving the write intake (its SLVERR B is queued then); the return ring's contract break (`mc_rd_return_ring.err_orphan_o`: a DFI beat with no issued ticket, or an issue to an empty ring). Unconnected = pruned |
 
 ### Host AXI4 slave
 | Channel | Port | Direction | Width | Description |

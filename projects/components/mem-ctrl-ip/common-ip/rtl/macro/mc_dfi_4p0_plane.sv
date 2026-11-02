@@ -355,7 +355,8 @@ module mc_dfi_4p0_plane
         .rd_dbi_o          (w_rd_dbi),
         .cal_expect_i      (1'b0),
         .cal_data_o        (),
-        .cal_valid_o       ()
+        .cal_valid_o       (),
+        .err_beat_lost_o     ()
     );
 
     // ======================================================================

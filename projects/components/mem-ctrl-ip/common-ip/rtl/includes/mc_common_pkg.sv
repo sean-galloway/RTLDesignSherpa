@@ -170,6 +170,67 @@ package mc_common_pkg;
     } mc_head_rec_t;
 
     //=========================================================================
+    // Ocelus CORE event codes (mc_monlite)
+    //=========================================================================
+    // The controller's internal events on the Ocelus bus: PROTOCOL_CORE
+    // packets, event_code = the value below, which is also the event's bit in
+    // MON_CORE_EV_EN. 0x00-0x07 are PktTypeError, 0x08-0x0F PktTypeDebug.
+    // Payloads (event_data, right-aligned) are listed in mc_monlite.
+
+    typedef enum logic [7:0] {
+        MC_EV_CAL_ERR      = 8'h00,  // LPDDR2 DQ calibration error (rising)
+        MC_EV_ZQ_OVERDUE   = 8'h01,  // ZQ interval expired ungranted (rising)
+        MC_EV_REF_BACKLOG  = 8'h02,  // refresh backlog reached its maximum (rising)
+        MC_EV_AW_RAGGED    = 8'h03,  // write burst not a whole DRAM burst: answered SLVERR
+        MC_EV_RD_BEAT_LOST = 8'h04,  // read-return aligner had a beat its consumer did not take
+        MC_EV_RET_ORPHAN   = 8'h05,  // return ring: a beat with no issued ticket, or an issue to an empty ring
+        MC_EV_DROPPED      = 8'h06,  // events lost because the monitor bus was busy (count)
+        MC_EV_INIT_DONE    = 8'h08,  // DRAM init sequence complete
+        MC_EV_INIT_STATE   = 8'h09,  // init sequencer state change
+        MC_EV_DIR_FLIP     = 8'h0A,  // bus direction turned (cause, batch)
+        MC_EV_REFRESH      = 8'h0B,  // REF / REFpb accepted by the DFI side
+        MC_EV_ZQ           = 8'h0C,  // ZQCS / ZQCL accepted
+        MC_EV_PAGE_TO_PRE  = 8'h0D,  // page-policy timeout precharge accepted
+        MC_EV_STORE_FULL   = 8'h0E,  // the store started refusing pushes (rising)
+        MC_EV_RING_FULL    = 8'h0F   // the read-return ring went full (rising)
+    } mc_event_e;
+
+    // mc_ocelus_plane configuration and status, as the cores carry them
+    // (fields map 1:1 onto the plane's cfg_* inputs / status outputs)
+    typedef struct packed {
+        logic        rd_enable;            // read-port monitor
+        logic        wr_enable;            // write-port monitor
+        logic        core_enable;          // mc_monlite (internal events)
+        logic        error_enable;         // port monitors: error packets
+        logic        compl_enable;         // port monitors: completion packets
+        logic        timeout_enable;       // port monitors: timeout packets
+        logic        threshold_enable;     // port monitors: threshold packets
+        logic [15:0] timeout_us;           // no progress this long (us) -> Timeout; 0 = never
+        logic [3:0]  freq_sel;
+        logic [15:0] active_threshold;
+        logic [31:0] latency_threshold;
+        logic [15:0] axi_pkt_mask;         // bit[packet type] = 1 drops it at the port monitors
+        logic [15:0] core_ev_en;           // bit[mc_event_e]
+        logic [15:0] err_select;           // bit[packet type] = 1 -> the error window
+        logic [31:0] base_addr;            // trace window
+        logic [31:0] limit_addr;
+        logic [15:0] flush_watermark;
+        logic [31:0] err_base_addr;        // error window
+        logic [31:0] err_limit_addr;
+        logic [15:0] err_flush_watermark;
+    } mc_mon_cfg_t;
+
+    typedef struct packed {
+        logic [15:0] err_rec_count;        // error records landed
+        logic [15:0] rd_error_count;
+        logic [15:0] wr_error_count;
+        logic [15:0] rd_compl_count;
+        logic [15:0] wr_compl_count;
+        logic [15:0] core_error_count;
+        logic [15:0] dropped_count;
+    } mc_mon_stat_t;
+
+    //=========================================================================
     // Helpers
     //=========================================================================
     // Each return is ONE LINE, deliberately: a multi-line return expression

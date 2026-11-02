@@ -19,12 +19,14 @@ records `swept`, because that is the stronger statement: the field is exercised
 at more than its reset. `ships` is for the fields where the reset is the ONLY
 value anything runs, which is precisely the population pumice BUG-003 came from.
 
-WHY THE FILE IS THIS LONG. It is 75 decisions. Before it existed they were
+WHY THE FILE IS THIS LONG. It is 98 decisions. Before it existed they were
 defaults nobody had read, and one of them (policy_mode resetting to the legacy
 build default while the board programmed mode 3) is what BUG-003 was. The
 population churns: 73 at TASK-015, 65 after BUG-020 retired the 27 undriven
 OBS_* registers, +10 writable fields with the 2026-10-07 LPDDR2 calibration
-block. DOCUMENTED_FIELD_COUNT below must always equal len(FIELDS) --
+block, 78 by 2026-11-01 (three added without the count moving), +20 with
+the MON_* Ocelus block that day. DOCUMENTED_FIELD_COUNT below must always
+equal len(FIELDS) --
 bin/tests/test_check_csr_reset_parity.py enforces it, because a count pinned
 anywhere else went stale and red for ten days (BUG-023).
 """
@@ -61,7 +63,10 @@ _JEDEC = ("the JEDEC command-stream checker (dv/tbclasses/pumice_cmd_stream_chec
 # asserts len(FIELDS) == this number; the tripwire only works if the count
 # moves in the SAME commit as the fields. BUG-023: the old floor (>= 70) lived
 # in bin/tests, was never re-based at BUG-020, and was red for ten days.
-DOCUMENTED_FIELD_COUNT = 75
+DOCUMENTED_FIELD_COUNT = 98
+
+_MON_TEST = "projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/dv/tbclasses/mc_ocelus_tb.py"  # run by dv/tests/top/test_pumice_ocelus.py
+_MON_ORACLE = "packets land in the programmed windows with the expected types and counts; with a source off, none do"
 
 FIELDS = {
     # ---- swept: DV runs more than the reset, with an oracle ------------------
@@ -219,6 +224,32 @@ FIELDS = {
     "CTRL.pwr_req_low_power": dict(waived="power-state request strobe"),
     "CTRL.pwr_req_self_refresh": dict(waived="power-state request strobe"),
     "CTRL.pwr_req_dpd": dict(waived="power-state request strobe (deep power down)"),
+
+    # ---- Ocelus observability (MON_*, 2026-11-01; inert at HAS_MON = 0) ------
+    # The enables are swept by the ocelus top tests; they ship OFF because the
+    # windows reset to 0 and a source writing before they are programmed would
+    # land on address 0. The windows have no shipping value: the integrator owns
+    # the memory map. Every other field ships its reset.
+    "MON_CTRL.RD_EN": dict(swept=(0, 1), by=_MON_TEST, oracle=_MON_ORACLE),
+    "MON_CTRL.WR_EN": dict(swept=(0, 1), by=_MON_TEST, oracle=_MON_ORACLE),
+    "MON_CTRL.CORE_EN": dict(swept=(0, 1), by=_MON_TEST, oracle=_MON_ORACLE),
+    "MON_CTRL.ERROR_EN": dict(ships=0x1, note="port monitors report errors once enabled"),
+    "MON_CTRL.COMPL_EN": dict(swept=(0, 1), by=_MON_TEST, oracle=_MON_ORACLE),
+    "MON_CTRL.TIMEOUT_EN": dict(ships=0x1, note="port monitors report a stuck transaction once enabled"),
+    "MON_CTRL.THRESH_EN": dict(ships=0x0, note="threshold packets are trace volume; off unless asked for"),
+    "MON_CTRL.FREQ_SEL": dict(ships=0x0, note="counter_freq_invariant index 0: the build's ACLK_MHZ"),
+    "MON_CTRL.TIMEOUT_US": dict(ships=0x3E8, note="1 ms of no progress is a stuck transaction"),
+    "MON_LATENCY_THRESH.VAL": dict(ships=0x1000, note="threshold packet above 4096 cycles (THRESH_EN)"),
+    "MON_ROUTE.PKT_MASK": dict(ships=0x0, note="the port monitors drop nothing by type"),
+    "MON_ROUTE.ERR_SELECT": dict(ships=0x9, note="Error and Timeout packets to the error window"),
+    "MON_CORE_EV.EV_EN": dict(swept=(0x007F, 0xFFFF), by=_MON_TEST, oracle=_MON_ORACLE),
+    "MON_CORE_EV.ACTIVE_THRESH": dict(ships=0x8, note="threshold at the lite's table depth"),
+    "MON_WATERMARK.FLUSH": dict(ships=0x8, note="trace beats buffered before a write-out"),
+    "MON_WATERMARK.ERR_FLUSH": dict(ships=0x3, note="every error record written as it completes"),
+    "MON_BASE_ADDR.VAL": dict(waived="the integrator's memory map; no shipping value. Sources stay off until programmed"),
+    "MON_LIMIT_ADDR.VAL": dict(waived="the integrator's memory map; no shipping value"),
+    "MON_ERR_BASE_ADDR.VAL": dict(waived="the integrator's memory map; no shipping value"),
+    "MON_ERR_LIMIT_ADDR.VAL": dict(waived="the integrator's memory map; no shipping value"),
 }
 
 # OBS_ROW_HIT[8] used to appear here as eight sw=rw waivers ("write clears").

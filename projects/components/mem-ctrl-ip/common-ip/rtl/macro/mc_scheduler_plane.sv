@@ -281,7 +281,15 @@ module mc_scheduler_plane
 
     // Pre-FIFO command accept (arbiter-side).
     output logic                      cmd_accept_o,
-    output dram_op_e                  cmd_accept_op_o
+    output dram_op_e                  cmd_accept_op_o,
+
+    // Debug taps for mc_monlite (unconnected = pruned)
+    output logic                      dbg_dir_flip_o,      // MC_BANK_PICK only; 0 on FRFCFS
+    output logic                      dbg_dir_o,
+    output logic [1:0]                dbg_dir_cause_o,
+    output logic [7:0]                dbg_dir_batch_o,
+    output logic [3:0]                dbg_ref_pending_o,   // refresh backlog (HAS_REFRESH_CTRL; else 0)
+    output logic                      dbg_accept_to_pre_o  // the accepted command is a page-timeout PRE
 );
 
     // ---- internal nets ----
@@ -515,7 +523,7 @@ module mc_scheduler_plane
                 // and the controller then precharged the wrong bank ahead of
                 // every device refresh: pumice refpb read back zeros.)
                 .grant_was_pb_i  (a_cmd_op == OP_REFPB),
-                .pending_refreshes_o   (),
+                .pending_refreshes_o   (dbg_ref_pending_o),
                 .refresh_drain_active_o(refresh_drain),
                 .refresh_kind_o        (w_refresh_kind),
                 .refresh_bank_o        (w_refresh_bank),
@@ -530,6 +538,7 @@ module mc_scheduler_plane
             assign refresh_drain  = refresh_drain_i;
             assign w_refresh_kind = refresh_kind_i;
             assign w_refresh_bank = refresh_bank_i;
+            assign dbg_ref_pending_o = '0;
             wire _unused_ref = &{1'b0, t_refi_i, refi_reload_i, refresh_burst_i,
                                  ref_postpone_i, ref_pullin_i, ref_mode_i,
                                  ref_trefi_pb_i, ref_trfc_pb_i};
@@ -844,7 +853,11 @@ module mc_scheduler_plane
             .stall_actlimit_o   (stall_actlimit_o),
             .stall_banktimer_o  (stall_banktimer_o),
             .stall_noreq_o      (stall_noreq_o),
-            .stall_zq_o         (stall_zq_o)
+            .stall_zq_o         (stall_zq_o),
+            .dbg_dir_flip_o     (dbg_dir_flip_o),
+            .dbg_dir_o          (dbg_dir_o),
+            .dbg_dir_cause_o    (dbg_dir_cause_o),
+            .dbg_dir_batch_o    (dbg_dir_batch_o)
         );
         assign a_cmd_bg = '0;
         // research-core-only inputs
@@ -987,6 +1000,11 @@ module mc_scheduler_plane
         .stall_noreq_o      (stall_noreq_o),
         .stall_zq_o         (stall_zq_o)
     );
+        // the research core has no direction register
+        assign dbg_dir_flip_o  = 1'b0;
+        assign dbg_dir_o       = 1'b0;
+        assign dbg_dir_cause_o = 2'd0;
+        assign dbg_dir_batch_o = 8'd0;
         wire _unused_arb = &{1'b0, wr_head_i, wr_head2_i, rd_head_i, rd_head2_i,
                              r_rd_ret_busy_sync1, sched_wr_batch_max_i,
                              wr_commit_ready_now_i};
@@ -1123,6 +1141,7 @@ module mc_scheduler_plane
 
     assign cmd_accept_o    = a_cmd_valid && a_cmd_ready;
     assign cmd_accept_op_o = a_cmd_op;
+    assign dbg_accept_to_pre_o = a_cmd_valid && a_cmd_ready && a_cmd_to_pre;
 
     // ---- optional command-history scoreboard -------------------------------
     generate if (HAS_CMD_HISTORY && (CMD_HISTORY_EN != 0)) begin : g_cmd_history

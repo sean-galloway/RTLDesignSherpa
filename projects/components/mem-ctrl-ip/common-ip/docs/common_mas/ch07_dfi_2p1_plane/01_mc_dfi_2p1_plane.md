@@ -161,6 +161,7 @@ These PHY-integration knobs are not datapath constants; pumice is the measured c
 | `rd_data_o` | out | `[RD_DW-1:0]` | Packed `{last,resp,data}` |
 | `init_start_i` | in | 1 | Init-start request (controller side) |
 | `init_complete_o` | out | 1 | Init-complete indication (controller side) |
+| `rd_beat_lost_o` | out | 1 | The read aligner had a beat its consumer did not take (`mc_dfi_rd_aligner.err_beat_lost_o`), one `ctl_clk` pulse: through `sync_pulse` when `DFI_CDC_EN`, direct otherwise. For `mc_ocelus_plane` (chapter 11) |
 
 ### PHY DFI domain (`dfi_clk`)
 

@@ -95,6 +95,7 @@ Ports are declared at `macro/mc_scheduler_plane.sv:69-240`.
 | Bank state | `bank_row_active_o`, `bank_open_row_o` | out | `[NUM_RANKS][NUM_BANKS]`, `[NUM_RANKS][NUM_BANKS][ROW_WIDTH-1:0]` | Registered bank-state image. |
 | Status | `busy_o` | out | 1 | `!init_done \|\| refresh_req \|\| cmd_fifo_valid \|\| any_bank_active` (internal init/refresh when the children are built). |
 | Pre-FIFO accept | `cmd_accept_o`, `cmd_accept_op_o` | out | 1, `dram_op_e` | Same-cycle accept pulse and opcode. |
+| Debug taps (chapter 11) | `dbg_dir_flip_o`, `dbg_dir_o`, `dbg_dir_cause_o`, `dbg_dir_batch_o`, `dbg_ref_pending_o`, `dbg_accept_to_pre_o` | out | 1, 1, 2, 8, 4, 1 | `mc_bank_pick`'s direction turn (pulse), the direction, why it turned (0 old-direction fire, 1 drained, 2 batch cap) and the length of the batch that ended -- 0 on FR-FCFS; the refresh backlog (0 without `HAS_REFRESH_CTRL`); the accepted command is a page-timeout PRE. For `mc_ocelus_plane`; unconnected = pruned. |
 
 ## 3. Internal structure
 
