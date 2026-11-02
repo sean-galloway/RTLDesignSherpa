@@ -7,20 +7,33 @@
 
 The BUG-004 fix made the MonBus tally path lossless and correctly keyed,
 and the sweep proved the board can now produce real hit/miss/evict/drain
-rate curves. Four gaps remain between this rig and the stream
-`perf_profiler` level of analysis. All are Genesys2 bring-up collateral
+rate curves. Item 1 (clear/freeze wiring) landed 2026-11-01; three gaps
+remain between this rig and the stream `perf_profiler` level of analysis.
+All are Genesys2 bring-up collateral
 (`projects/fpga-systems/Genesys2/cache-ip/amber/`) — no amber IP RTL
 changes except where noted.
 
 ## Items
 
-1. **Wire `tally_clear` / `tally_freeze` to the harness CSR.** Both are
-   tied off in `amber_pair_harness.sv` (line ~1299) although
-   `monbus_tally_axil` takes them as ports and `hcsr_ctrl` is an unused
-   dead output today. CTRL[0] = clear pulse (write-strobe generated),
-   CTRL[1] = freeze level. Removes the sweep's before/after differential
-   bookkeeping and, more importantly, makes the first-event latch bank
-   re-armable per run instead of one-shot-per-FPGA-load.
+1. ~~**Wire `tally_clear` / `tally_freeze` to the harness CSR.**~~ **DONE
+   2026-11-01.** `amber_harness_csr` CTRL[0] is now write-1-pulse
+   (self-clearing, reads 0) driving `tally_clear`; CTRL[1] is a level
+   driving `tally_freeze` (`amber_pair_harness.sv`). Host:
+   `AmberDriver.tally_clear()` (RMW, preserves freeze) /
+   `tally_freeze(on)`; `harness_probe()` magic moved to 0xC0FFEE58 so the
+   scratch round-trip can't fire a spurious clear or stick freeze; the
+   perf sweep now freezes → reads → clears per run instead of
+   before/after subtraction, and every run re-arms the latch bank. DV:
+   `tally_clear_freeze_test` in `test_amber_pair_harness_axil.py` pins
+   W1P readback, clear-to-zero, frozen-run drop, and resume-after-unfreeze
+   (was red before the wiring, green after; func+gate). Original text:
+
+   > Both are tied off in `amber_pair_harness.sv` (line ~1299) although
+   > `monbus_tally_axil` takes them as ports and `hcsr_ctrl` is an unused
+   > dead output today. CTRL[0] = clear pulse (write-strobe generated),
+   > CTRL[1] = freeze level. Removes the sweep's before/after differential
+   > bookkeeping and, more importantly, makes the first-event latch bank
+   > re-armable per run instead of one-shot-per-FPGA-load.
 
 2. **Injector latency counters (the stream perf_profiler analog).** The
    cycle injectors are blocking (one outstanding), so per-request latency

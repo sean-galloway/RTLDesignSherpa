@@ -34,6 +34,10 @@ digraph amber_tally_path {
     cfg [label="Legal-set CAM load\ntally_cfgw/cfgr", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
     cfg -> tally [style=dashed, color="#777777", label="CAM_CLEAR/KEY/LOAD"];
 
+    hcsr [label="Harness CSR\nCTRL[0]=clear (W1P)\nCTRL[1]=freeze (level)",
+          style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    hcsr -> tally [style=dashed, color="#777777", label="tally_clear / tally_freeze"];
+
     legend [shape=box, style=filled, fillcolor="white", color="black",
             label="Record layout\l\
 {packet[127:0], timestamp[63:0]}\l\

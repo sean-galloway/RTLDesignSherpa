@@ -20,7 +20,11 @@ top_block = {
         'size': 4,
         'sw': 'rw',
         'type': 'reg',
-        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+        'tally_clear': {'default': '0x0', 'offset': '0', 'sw': 'rw', 'type': 'field'},
+        # tally_clear is write-1-pulse in the RTL: a write with bit 0 set
+        # produces a one-cycle tally_clear strobe and the bit self-clears
+        # (always reads 0). tally_freeze is a plain level bit.
+        'tally_freeze': {'default': '0x0', 'offset': '1', 'sw': 'rw', 'type': 'field'},
     },
     'STATUS': {
         'address': '0x004',

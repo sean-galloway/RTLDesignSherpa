@@ -66,8 +66,11 @@ def harness_probe():
 
     The amber harness has no BUILD_ID constant, but CTRL is a plain RW storage
     register, so a scratch round-trip is safe and proves the bridge is alive.
+    The magic must keep bits [1:0] clear: CTRL[0] is the tally_clear W1P
+    strobe (self-clears, so it would break the readback match AND clear the
+    tally) and CTRL[1] is tally_freeze (a level that would stick).
     """
-    return scratch_probe(HARNESS_CSR_BASE, magic=0xC0FFEE5A)
+    return scratch_probe(HARNESS_CSR_BASE, magic=0xC0FFEE58)
 
 
 class CycleInjector(Device):
@@ -148,6 +151,21 @@ class AmberDriver:
         for key, idx in profile:
             cfgw.write_word("CAM_KEY", key & 0xFFFF_FFFF)
             cfgw.write("CAM_LOAD", VALID=1, INDEX=idx & 0xFF)
+
+    # ------------------------------------------------------------------
+    # Tally window control (harness CSR CTRL: [0]=clear W1P, [1]=freeze level)
+    # ------------------------------------------------------------------
+    def tally_freeze(self, on: bool = True) -> None:
+        """Hold/release bin counting. Host protocol per monbus_pkt_tally:
+        freeze, read the bins, then clear."""
+        self.bus["harness"].write("CTRL", tally_freeze=1 if on else 0)
+
+    def tally_clear(self) -> None:
+        """Zero every tally bin and re-arm the first-event latches.
+
+        Read-modify-write so the freeze level is preserved: the W1P clear
+        bit always reads back 0, so the read half never re-pulses it."""
+        self.bus["harness"].write("CTRL", tally_clear=1, rmw=True)
 
     # ------------------------------------------------------------------
     # Cycle injectors

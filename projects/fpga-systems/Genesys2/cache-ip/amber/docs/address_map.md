@@ -56,7 +56,7 @@ bridge.
 
 | Offset | Name | Access | Description |
 | --- | --- | --- | --- |
-| `0x000` | CTRL | RW | Global control (scratch / run gate) |
+| `0x000` | CTRL | RW | `[0]` TALLY_CLEAR — write-1-pulse: one-cycle `tally_clear` strobe to `monbus_tally_axil` (zeros all bins, re-arms the first-event latch bank); self-clears, always reads 0. `[1]` TALLY_FREEZE — level: hold bin counting for a coherent snapshot. `[31:2]` scratch. Host protocol: freeze, read bins, clear (RMW preserves freeze), unfreeze. |
 | `0x004` | STATUS | R | `{26'b0, ci1_err, ci0_err, ci1_busy, ci0_busy, ci1_done, ci0_done}` |
 | `0x008` | CYCLE_LO | R | Free-running cycle counter [31:0] |
 | `0x00C` | CYCLE_HI | R | Free-running cycle counter [63:32] |
@@ -114,5 +114,5 @@ These apertures expose the generated `tally_regs` register block from
 
 ---
 
-**Last Updated:** 2026-10-14
+**Last Updated:** 2026-11-01
 **Maintained By:** RTL Design Sherpa Project

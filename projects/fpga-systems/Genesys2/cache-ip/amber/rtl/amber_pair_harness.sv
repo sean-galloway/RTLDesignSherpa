@@ -1291,10 +1291,10 @@ module amber_pair_harness
         .cfgr_rresp  (s5_rresp),
         .cfgr_rvalid (s5_rvalid),
         .cfgr_rready (s5_rready),
-        .tally_freeze(1'b0),
+        .tally_freeze(hcsr_ctrl[1]),
         .tally_flush (1'b0),
         .tally_flush_busy(),
-        .tally_clear (1'b0)
+        .tally_clear (hcsr_ctrl[0])
     );
 
     // Tie off unused write channels on the count/read-only ports.
@@ -1383,6 +1383,9 @@ module amber_harness_csr (
             r_w_done  <= 1'b0;
             r_ctrl    <= '0;
         end else begin
+            // CTRL[0] (tally_clear) is write-1-pulse: a write with bit 0 set
+            // raises o_ctrl[0] for exactly one cycle, then it self-clears.
+            r_ctrl[0] <= 1'b0;
             if (s_axil_awvalid && s_axil_awready) begin
                 r_aw_done <= 1'b1;
                 r_awaddr  <= s_axil_awaddr;

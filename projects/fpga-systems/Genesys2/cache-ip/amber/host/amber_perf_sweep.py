@@ -8,13 +8,15 @@ per-channel elapsed times and software post-processes them, this sweep
 characterizes the amber MESI L1 pair on silicon from telemetry the board
 already has:
 
-  - MonBus tally bins (hit / miss / snoop / AXI read / AXI write) per run,
-    taken as DIFFERENCES (tally_clear is tied off in amber_pair_harness, so
-    counts accumulate across runs; per-run counts = after - before).
+  - MonBus tally bins (hit / miss / snoop / AXI read / AXI write) per run.
+    harness CSR CTRL drives monbus_tally_axil directly (CTRL[0]=clear W1P,
+    CTRL[1]=freeze level), so each run is a clean window: settle, freeze,
+    read, clear. No before/after subtraction.
   - Injector acc/rsp counts + CRC-32s (integrity and determinism).
-  - Tally first-event latch bank: exactly one shot per board reset (the
-    bank has no clear), used to capture the first four MonBus events of one
-    run with 90 MHz hardware timestamps and full 64-bit addresses.
+  - Tally first-event latch bank: re-armed by every tally_clear (the clear
+    walk resets latch_fill), so any config with latch=True captures its own
+    first four MonBus events with 90 MHz hardware timestamps and full
+    64-bit addresses.
 
 The sweep matrix walks region size (working set vs the 32 KB cache
 capacity), write mix, and sharing to expose the paths the fixed 4 KB smoke
@@ -114,6 +116,7 @@ CONFIGS = [
 def run_sweep(driver, *, count, configs=None, settle=0.25, say=print):
     names = set(configs) if configs else None
     driver.clear_and_load_profile(build_default_profile())
+    driver.tally_clear()  # start from zeroed bins; each run below re-clears
     results = []
     for name, mask, base0, base1, we_mix, do_latch in CONFIGS:
         if names and name not in names:
@@ -124,7 +127,6 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print):
         if do_latch:
             driver.bus["tally_cfgw"].write("WATCH_CTRL", ARM=1, MASK=0x0001)
 
-        bins_before, unc_before = _read_bins(driver)
         driver.configure_ci("ci0", seed=SEED0, addr_base=base0,
                             addr_mask=mask, count=count, we_mix=we_mix)
         driver.configure_ci("ci1", seed=SEED1, addr_base=base1,
@@ -133,26 +135,35 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print):
         driver.start_all()
         ok = driver.wait_done(timeout=180.0)
         wall = time.monotonic() - t0
-        time.sleep(settle)  # let the MonBus path drain before snapshotting
+        time.sleep(settle)  # let the MonBus path drain into the bins
 
-        bins_after, unc_after = _read_bins(driver)
-        delta = [a - b for a, b in zip(bins_after, bins_before)]
-        unc = unc_after - unc_before
+        # Freeze for a coherent snapshot, read, then clear for the next run
+        # (tally_clear is RMW: the freeze level survives the clear).
+        driver.tally_freeze(True)
+        bins, unc = _read_bins(driver)
+        delta = bins
+        unc_ = unc
 
         st0 = driver.ci_status("ci0")
         st1 = driver.ci_status("ci1")
         crc0 = driver.ci_crcs("ci0")
         crc1 = driver.ci_crcs("ci1")
 
+        if do_latch:
+            latch = _latch_capture(driver)
+
+        driver.tally_clear()
+        driver.tally_freeze(False)
+
         rec = {
             "config": name, "count": count, "mask": f"0x{mask:06x}",
             "base0": f"0x{base0:05x}", "base1": f"0x{base1:05x}",
             "we_mix": we_mix, "done": ok, "wall_s": round(wall, 3),
-            "delta_bins": delta, "unexpected": unc,
+            "bins": bins, "unexpected": unc_,
             "ci0": {**st0, **crc0}, "ci1": {**st1, **crc1},
         }
         if do_latch:
-            rec["latch"] = _latch_capture(driver)
+            rec["latch"] = latch
         results.append(rec)
 
         hits, misses, snoops, evicts, drops = delta[0], delta[1], delta[2], \

@@ -305,6 +305,76 @@ async def smoke_test(dut):
         "tally bins all zero: MonBus observation path is silent"
 
 
+async def _load_default_profile(tb):
+    await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_CLEAR, 0)
+    for key, idx in _default_profile():
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_KEY, key)
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 31) | (idx & 0xFF))
+
+
+async def _run_burst(tb, count: int):
+    """Program both injectors on the same 4 KB region and run to done."""
+    for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
+                          (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
+        await tb.write32(ci_base + CI_SEED, seed)
+        await tb.write32(ci_base + CI_ADDR_BASE, 0x0000_0000)
+        await tb.write32(ci_base + CI_ADDR_MASK, 0x0000_0FFF)
+        await tb.write32(ci_base + CI_TRANS_COUNT, count)
+        await tb.write32(ci_base + CI_CTRL, 64 << 8)
+    await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, (64 << 8) | 0x01)
+    await tb.write32(ADDR_CYCLE_INJECTOR1 + CI_CTRL, (64 << 8) | 0x01)
+
+    for _ in range(500_000):
+        status = await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)
+        if (status & 0x03) == 0x03:
+            return
+    raise AssertionError("cycle injectors did not finish")
+
+
+async def _read_bins(tb, n: int = 8):
+    return [await tb.read64(ADDR_TALLY_CNT + i * 8) for i in range(n)]
+
+
+@cocotb.test(timeout_time=5000, timeout_unit="ms")
+async def tally_clear_freeze_test(dut):
+    """harness_csr CTRL[0]=tally_clear (write-1-pulse) and CTRL[1]=tally_freeze
+    (level) drive monbus_tally_axil. Pins the amber TASK-001 item-1 wiring;
+    before it, CTRL was a dead register and both ports were tied off."""
+    clk_task = cocotb.start_soon(_manual_clock(dut))
+    tb = AmberPairHarnessAXILTest(dut, clk_task)
+    await tb.reset()
+    await _load_default_profile(tb)
+
+    # Burst 1: events accumulate.
+    await _run_burst(tb, count=48)
+    assert sum(await _read_bins(tb)) > 0, "burst 1 produced no tally events"
+
+    # CTRL[0] is W1P: write 1 -> one-cycle clear pulse, reads back 0.
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)
+    ctrl = await tb.read32(ADDR_HARNESS_CSR + HCSR_CTRL)
+    assert ctrl & 0x1 == 0, f"CTRL[0] must be self-clearing (read 0x{ctrl:08x})"
+
+    # The clear walks the count SRAM one entry per cycle; 256 cycles covers
+    # any legal TALLY_ADDR_BITS with margin.
+    for _ in range(256):
+        await cocotb.triggers.RisingEdge(dut.aclk)
+    bins = await _read_bins(tb)
+    assert sum(bins) == 0, f"tally_clear left nonzero bins: {bins}"
+
+    # CTRL[1] freeze is a level: events dropped (not counted) while held.
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x2)
+    ctrl = await tb.read32(ADDR_HARNESS_CSR + HCSR_CTRL)
+    assert ctrl & 0x2, f"CTRL[1] freeze level did not stick (read 0x{ctrl:08x})"
+    await _run_burst(tb, count=48)
+    bins = await _read_bins(tb)
+    assert sum(bins) == 0, f"tally counted while frozen: {bins}"
+
+    # Unfreeze: counting resumes.
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x0)
+    await _run_burst(tb, count=48)
+    assert sum(await _read_bins(tb)) > 0, "tally did not resume after unfreeze"
+
+
 @pytest.mark.parametrize("test_level", reg_level_grid())
 def test_amber_pair_harness_axil(request, test_level):
     module = "test_amber_pair_harness_axil"

@@ -127,9 +127,10 @@ python3 host/amber_perf_sweep.py
 
 The sweep is the stream-perf-analog for amber: it walks the working set
 from 64 B (one line, maximal coherence ping-pong) through 128 KB (4x
-capacity, thrash) at several write mixes, taking MonBus tally bins as
-per-run differentials (tally_clear is tied off in the harness, so counts
-accumulate run over run). From the bins it derives hit rate, snoop rate,
+capacity, thrash) at several write mixes. Each run is a clean tally window:
+harness CSR `CTRL[1]` (freeze) holds the bins for a coherent snapshot and
+`CTRL[0]` (write-1-pulse clear) zeroes them for the next run — no
+before/after subtraction. From the bins it derives hit rate, snoop rate,
 evictions, fills, drains, and AXI transaction counts per configuration.
 The tally legal-set profile is keyed from wire truth — see
 `build_default_profile()` in `host/amber_board.py`.
@@ -164,5 +165,5 @@ All diagrams are Graphviz `.dot` files in `docs/assets/graphviz/`, rendered to
 
 ---
 
-**Last Updated:** 2026-10-14
+**Last Updated:** 2026-11-01
 **Maintained By:** RTL Design Sherpa Project

@@ -40,7 +40,7 @@ digraph amber_pair_genesys2_harness {
          width=9.5, height=0.9, fontsize=11, fillcolor="#D6E4F0", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- sideband blocks ----
-    csr    [label="Harness CSR\nharness status: busy/done/error + cycle counter\n(config aperture 0x0001_0000)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    csr    [label="Harness CSR\nharness status: busy/done/error + cycle counter\ntally clear (CTRL[0] W1P) / freeze (CTRL[1])\n(config aperture 0x0001_0000)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     mmerge [label="Observer Merge\nmonbus_arbiter\n(one observer stream)", shape=invtrapezium, width=2.6,
             style="filled,dashed", fillcolor="#BFD7EE", style="filled,dashed", fillcolor="#FFF2CC"];
     mgrp   [label="AXIL Record Ingest\nmonbus_axil4_group_1wr\n(packets -> tally record writes)",
@@ -88,6 +88,7 @@ AXCACHE: 4'b1111 cacheable write-back (post #106)\l",
     xbar -> ci0   [style=dashed, color="#777777", xlabel="cfg seed/base/mask/count 0x0002_0000"];
     xbar -> ci1   [style=dashed, color="#777777", xlabel="cfg seed/base/mask/count 0x0003_0000"];
     xbar -> csr    [style=dashed, color="#777777", label="status 0x0001_0000"];
+    csr -> tally   [style=dashed, color="#777777", constraint=false, label="clear/freeze CTRL[1:0]"];
 
     // ---- observation sideband: merges off-flow, readback climbs to host ----
     top0 -> mmerge [style=dashed, color="#777777", constraint=false, xlabel="monbus 0"];
