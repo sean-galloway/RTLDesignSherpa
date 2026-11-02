@@ -333,7 +333,7 @@ All protocol-agnostic. The ocelus core, monbus infrastructure and monbus arbiter
 | `monbus_arbiter.sv` | Top-level monbus arbitration |
 | `monbus_group_core.sv` | Shared filter + FIFO core for all `monbus_*_*_group` wrappers (refactor introduced in `61edda71`) |
 | `monbus_group_core_1wr.sv` | The core with ONE master-write port, no slave-read side: errors to their own window (raw, never compressed, priority), trace to the other; `irq_out` is a registered PULSE per whole error RECORD landed, `err_rec_count` counts them (2026-10-23) |
-| `monbus_burst_writer.sv` | `monbus_group_core`'s continuous FSM-free burst writer lifted out (FIFO + window config as ports); the core keeps its inline copy, keep the two identical below the port list |
+| `monbus_burst_writer.sv` | `monbus_group_core`'s continuous FSM-free burst writer lifted out (FIFO + window config as ports); the core keeps its inline copy; since 2026-11-02 this copy pipelines its AW cap (granite TASK-008, A7 100 MHz), so the two are no longer identical |
 | `monbus_wr_mux2.sv` | Two AXI4-shaped write FUBs onto one: port 0 priority at AW (grant locked while stalled), W in AW order, B routed back in AW order -- both ports must share one AWID; formal at `formal/amba/monbus_wr_mux2` |
 | `monbus_record_expander.sv` | The raw 3-beat {ts, pkt_hi, pkt_lo} expander lifted out of the core; one per source in the 1wr core |
 | `monbus_axi4_axi4_group.sv` | AXI4↔AXI4 group |

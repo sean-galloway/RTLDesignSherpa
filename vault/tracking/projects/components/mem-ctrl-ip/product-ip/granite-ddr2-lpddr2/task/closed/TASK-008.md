@@ -51,9 +51,46 @@ CSRs, RTL + sim (no board harness change).
   1 970), read monitor 1 025, write monitor 1 305, arbiter 312, mc_monlite
   211. The `MON_*` registers cost ~280 FF in the CSR block at HAS_MON 0 too.
 
+## Board (2026-11-02, owner: "put granite on the board with light ocelus checks")
+
+- Build knob `GRANITE_HAS_MON=1` (create_project.tcl -> granite_char_top ->
+  harness -> macro). The macro answers `m_axil_mon` with a write-ack sink:
+  no packet memory, so the checks read the `MON_*` CSRs.
+- Host: `bin/seq_ocelus.py`, `make run SEQUENCES="init ocelus"
+  RUN_ARGS="--controller granite [--txn N]"`. One write-then-read pass;
+  completions == bursts per direction, rd / wr / core errors 0, error-window
+  records > 0, mismatched 0; DROPPED reported, not checked. Sim twin:
+  `test_granite_char_uart.py::test_granite_uart_ocelus` (HAS_MON=1).
+- Timing at 100 MHz (A7 -1) did not close as committed: WNS -5.2 ns, the
+  25-level AW-cap path in `monbus_burst_writer`; 75 MHz with that writer
+  was -2.5 ns, still in the writer. Fixed in RTL:
+  `rtl/amba/ocelus/monbus_burst_writer.sv` pipelines its epoch-start cap
+  (two stages, used after two quiet cycles), keeps the in-flight room as a
+  down-counter, and runs the no-record-fits fixup off the registered caps
+  (-5.2 -> -1.3 ns). `mc_ocelus_plane` registers the `ev_*` inputs (the
+  scheduler pick -> drop count path, -1.4 ns). Then closed at 100 MHz with
+  Explore: WNS +0.006, WHS +0.021, 43 147 LUT (68.1%); no trims or Pblocks.
+  Bitstream `ddr2_char_granite_100mhz_ocelus_pipe3_2026-11-02.bit` (board
+  gate scratch).
+- Board, that bitstream: smoke (init, write_read, memtest 32/32 over 128 MB)
+  pass. Ocelus x3 at 64 bursts: rd/wr completions 64/64, errors 0/0/0,
+  records ~31 820, dropped 334-338; at 1000 bursts: 1000/1000, errors 0,
+  dropped 6 943. One char windows rep ran clean, mixed_bl8 mismatched 0, wr / rd
+  MB/s: defaults 260 / 319, fixed_open_tr2 250 / 236, open_page 262 / 330.
+- The first board pass read core errors ~20 a pass. A per-event bisect on
+  the board (`MON_CORE_EV.EV_EN` one bit at a time) put them all on
+  `DROPPED` reports, an Error-class packet: no real error event fired. The
+  host check now leaves `DROPPED` off.
+- Writer gates: val/amba 1wr suites 24/24 (full). Mutations: room counter
+  not decremented -> 3 fail; pointer fixup disabled -> only
+  `axi4_group_1wr[errors_only-256]` fails, so window-wrap coverage is thin.
+  On the final RTL: granite top 22 / 1 xfail, pumice ocelus 6, char UART 2.
+  STREAM top 40 and RAPIDS top / top_beats / top_g 122 / 36 / 122 ran on the
+  first pipelined writer, before the fixup and FIFO-shrink change.
+
 ## Not done (follow-ups if wanted)
 
-- Board: no char-harness capture window for `m_axil_mon`, no bitstream with
-  HAS_MON = 1, no timing measurement of it at 100 MHz.
+- A board capture window for `m_axil_mon` (the packets themselves).
+- A 1wr test that wraps the window many times (see the mutation above).
 - Area trims not tried: group FIFO depths (192 / 96 beats), lite
   MAX_TRANSACTIONS 8.

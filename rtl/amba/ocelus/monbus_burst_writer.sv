@@ -12,10 +12,17 @@
 //   credit return.
 //
 //   This is the writer section of monbus_group_core (amba BUG-039
-//   redesign) lifted out verbatim so monbus_group_core_1wr can run one
-//   writer per source behind a single write port. monbus_group_core keeps
-//   its own inline copy (timing-closed, formally proven); the two are
-//   meant to stay textually identical below the port list.
+//   redesign) lifted out so monbus_group_core_1wr can run one writer per
+//   source behind a single write port. monbus_group_core keeps its own
+//   inline copy (timing-closed, formally proven). The two are NO LONGER
+//   textually identical: this copy pipelines the AW cap (2026-11-02, granite
+//   TASK-008). On an Artix-7 -1 the one-cycle plan was a 25-level path,
+//   15.1 ns. The epoch-start cap is registered in two stages and used only
+//   when its inputs have been quiet for two cycles, and the in-flight room is
+//   a down-counter (r_epoch_room) instead of total - covered. The
+//   no-record-fits fixup (geo_blocked / stub) reads the same registered
+//   caps under the same two-cycle settle. Behavior differs only by a bubble
+//   of up to two cycles at each epoch start and before each pointer fixup.
 //
 //   The FIFO read side is a plain valid/ready pop plus the live beat count
 //   (the writer registers the count itself: triggers and the AW cap read
@@ -153,6 +160,16 @@ module monbus_burst_writer #(
     logic [16:0]                 r_w_unsent_beats;    // AW-committed beats not yet W-sent (FIFO prefix)
     logic [16:0]                 r_aw_cov_beats;      // beats covered by AWs in the current epoch
     logic [15:0]                 r_epoch_total;       // frozen epoch budget (loaded at epoch start)
+    logic [16:0]                 r_epoch_room;        // r_epoch_total - r_aw_cov_beats, kept as a down-counter
+    // Pipelined epoch-start cap: stage 1 = the three record-rounded caps,
+    // stage 2 = their min. r_cap_chg_d1/d2 remember a cap-input change in
+    // the last two cycles; the cap is used only when both are clear.
+    logic [15:0]                 r_win_units, r_4kb_units, r_fifo_units;
+    logic [15:0]                 r_epoch_live;
+    logic                        r_cap_chg_d1, r_cap_chg_d2;
+    logic                        r_w_issue_d1;        // W pop a cycle back = r_fifo_beats shrinks now
+    logic                        w_cap_chg;           // a cap input changes at this edge
+    logic                        w_live_ok;           // r_epoch_live matches the current state
     logic                        r_cfg_pend_load;     // sticky: config adoption waiting for an epoch boundary
     logic [8:0]                  r_aw_subs;           // AW (sub-burst) handshakes issued (stats)
     logic [8:0]                  r_b_subs;            // B handshakes returned (credit)
@@ -297,14 +314,34 @@ module monbus_burst_writer #(
     // MAX_BURST_BEATS may be smaller than a record (AXIL leaves), which
     // only means more sub-bursts per epoch.  Only the low 8 bits go to
     // AWLEN (AXI4 awlen+1 <= 256 beats).
-    assign w_epoch_live = (w_win_units < w_4kb_units)
-                        ? ((w_win_units  < w_fifo_epoch_units) ? w_win_units  : w_fifo_epoch_units)
-                        : ((w_4kb_units  < w_fifo_epoch_units) ? w_4kb_units  : w_fifo_epoch_units);
+    //
+    // Pipelined (see header): w_epoch_live is the min of the stage-1
+    // REGISTERED caps and loads r_epoch_live, so r_epoch_live is two
+    // cycles behind the counters. It is only used when w_live_ok says no
+    // cap input changed in those two cycles. A FIFO
+    // that grew meanwhile leaves it low, which is conservative: still a
+    // whole-record multiple and no beat it does not hold.
+    assign w_epoch_live = (r_win_units < r_4kb_units)
+                        ? ((r_win_units  < r_fifo_units) ? r_win_units  : r_fifo_units)
+                        : ((r_4kb_units  < r_fifo_units) ? r_4kb_units  : r_fifo_units);
+    assign w_live_ok    = !r_cap_chg_d1 && !r_cap_chg_d2;
     assign w_epoch_inflight = (r_aw_cov_beats != 17'd0);
-    assign w_epoch_room = w_epoch_inflight ? (17'(r_epoch_total) - r_aw_cov_beats)
-                                           : 17'(w_epoch_live);
+    assign w_epoch_room = w_epoch_inflight ? r_epoch_room
+                        : (w_live_ok ? 17'(r_epoch_live) : 17'd0);
     assign w_epoch_load_en  = !w_epoch_inflight && w_aw_issue;
-    assign w_epoch_roll     = w_epoch_inflight && (w_epoch_room == 17'd0)
+    // Cap inputs: r_win_beats, r_wr_addr[11:0], r_w_unsent_beats,
+    // r_aw_cov_beats, and r_fifo_beats DECREASING (growth only leaves the
+    // cap conservative). Any pointer event, AW, W, roll or FIFO shrink
+    // counts as a change; a pointer fixup that rewrites the same value
+    // counts too, which only costs a bubble. A FIFO shrink is always a W
+    // pop (fifo_rd_ready == w_w_issue), and r_fifo_beats shows it one
+    // cycle later, so the W a cycle back stands in for comparing the live
+    // count (that compare put the FIFO's write side on this path).
+    assign w_cap_chg = w_aw_issue || w_w_issue || w_epoch_roll || w_stub_at_base
+                    || w_geo_blocked
+                    || ((r_cfg_pend_load || w_cfg_adopted_chg) && !w_epoch_inflight)
+                    || r_w_issue_d1;
+    assign w_epoch_roll     = w_epoch_inflight && (r_epoch_room == 17'd0)
                            && (r_w_unsent_beats == 17'd0) && (r_ws_count == 3'd0);
     assign w_aw_beats   = (w_epoch_room == 17'd0) ? 16'd0
                         : (w_epoch_room < 17'(MAX_BURST_BEATS))
@@ -319,15 +356,17 @@ module monbus_burst_writer #(
     // pointer to the page/span the epoch started in, and re-establishing
     // the pointer mid-epoch would split a record across non-adjacent
     // addresses.
-    assign w_geo_blocked = ((w_win_units < beats_per_unit)
-                        ||  (w_4kb_units < beats_per_unit))
-                        && !w_epoch_inflight;
+    // Pipelined: reads the stage-1 registered caps, so it waits out the
+    // same two-cycle settle as the epoch cap (w_live_ok).
+    assign w_geo_blocked = ((r_win_units < beats_per_unit)
+                        ||  (r_4kb_units < beats_per_unit))
+                        && !w_epoch_inflight && w_live_ok;
     // Exception: the window itself still has room and base is the stub --
     // step over the stub instead of rewinding (a full 4KB region always
     // fits at least one record).
     assign w_stub_at_base = w_geo_blocked
                          && (r_wr_addr == r_cfg_base_addr)
-                         && (w_win_units >= beats_per_unit);
+                         && (r_win_units >= beats_per_unit);
 
     // Compressor-style mod-3 instances (combinational); fed by the
     // registered budget / FIFO counters and the shallow 4KB math.
@@ -439,6 +478,14 @@ module monbus_burst_writer #(
             r_w_unsent_beats    <= 17'd0;
             r_aw_cov_beats      <= 17'd0;
             r_epoch_total       <= 16'd0;
+            r_epoch_room        <= 17'd0;
+            r_win_units         <= 16'd0;
+            r_4kb_units         <= 16'd0;
+            r_fifo_units        <= 16'd0;
+            r_epoch_live        <= 16'd0;
+            r_cap_chg_d1        <= 1'b1;
+            r_cap_chg_d2        <= 1'b1;
+            r_w_issue_d1        <= 1'b0;
             r_cfg_pend_load     <= 1'b0;
             r_aw_subs           <= 9'd0;
             r_b_subs            <= 9'd0;
@@ -464,6 +511,15 @@ module monbus_burst_writer #(
             // both read it; see the header note on the one-flop lag).
             r_fifo_beats <= beats_in_fifo;
 
+            // Pipelined epoch-start cap (two stages) and its change history.
+            r_win_units  <= w_win_units;
+            r_4kb_units  <= w_4kb_units;
+            r_fifo_units <= w_fifo_epoch_units;
+            r_epoch_live <= w_epoch_live;
+            r_cap_chg_d1 <= w_cap_chg;
+            r_cap_chg_d2 <= r_cap_chg_d1;
+            r_w_issue_d1 <= w_w_issue;
+
             // Timeout counter: cycles since the last accepted W handshake
             // while the FIFO holds data (feeds flush_trigger_timeout).
             if (w_fifo_empty) begin
@@ -487,6 +543,7 @@ module monbus_burst_writer #(
                 r_win_beats         <= w_full_budget;
                 r_aw_cov_beats      <= 17'd0;
                 r_epoch_total       <= 16'd0;
+                r_epoch_room        <= 17'd0;
                 r_cfg_pend_load     <= 1'b0;
             end else begin
                 if (w_cfg_adopted_chg) r_cfg_pend_load <= 1'b1;   // defer to the epoch boundary
@@ -497,22 +554,25 @@ module monbus_burst_writer #(
                                     ? (r_win_beats - w_4kb_beats) : 16'd0;
                     r_aw_cov_beats <= 17'd0;
                     r_epoch_total  <= 16'd0;
+                    r_epoch_room   <= 17'd0;
                 end else if (w_aw_issue) begin
                     r_wr_addr      <= r_wr_addr
                                     + ADDR_WIDTH'(w_aw_beats_p1 * 17'(BYTES_PER_BEAT));
                     r_win_beats    <= r_win_beats - w_aw_beats;
                     r_aw_cov_beats <= r_aw_cov_beats + w_aw_beats_p1;
+                    r_epoch_room   <= w_epoch_room - w_aw_beats_p1;
                 end else if (w_geo_blocked) begin
                     r_wr_addr      <= r_cfg_base_addr;
                     r_win_beats    <= w_full_budget;
                     r_aw_cov_beats <= 17'd0;
                     r_epoch_total  <= 16'd0;
+                    r_epoch_room   <= 17'd0;
                 end
             end
 
             // Freeze the epoch total on the first AW of an epoch
             // (w_epoch_load_en); it holds until the epoch completes.
-            if (w_epoch_load_en) r_epoch_total <= w_epoch_live;
+            if (w_epoch_load_en) r_epoch_total <= r_epoch_live;
 
             // Epoch rollover: the frozen total is fully covered and every
             // committed beat has left the W stream (unsent == 0 and the
@@ -526,6 +586,7 @@ module monbus_burst_writer #(
             if (w_epoch_roll) begin
                 r_aw_cov_beats <= 17'd0;
                 r_epoch_total  <= 16'd0;
+                r_epoch_room   <= 17'd0;
             end
 
             // AW-committed-not-W-sent beats (a prefix of the FIFO).

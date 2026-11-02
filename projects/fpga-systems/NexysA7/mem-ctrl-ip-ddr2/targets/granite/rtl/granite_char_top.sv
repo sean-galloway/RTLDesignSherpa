@@ -314,6 +314,9 @@ module granite_char_top #(
 `ifdef GRANITE_STORE_MERGE_EN
         .STORE_MERGE_EN     (`GRANITE_STORE_MERGE_EN),
 `endif
+`ifdef GRANITE_HAS_MON
+        .HAS_MON            (`GRANITE_HAS_MON),
+`endif
 `ifdef GRANITE_PP_TIMEOUT_CLOSE
         .PP_TIMEOUT_CLOSE   (`GRANITE_PP_TIMEOUT_CLOSE),
 `endif

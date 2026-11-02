@@ -95,6 +95,19 @@ queue drains. A repeat of an event whose bit is still held is lost and
 counted; the count leaves as one `DROPPED` packet once nothing else waits,
 and clears. Nothing back-pressures the taps.
 
+The plane registers every `ev_*` input once before `mc_monlite`, so all
+internal events reach it one cycle late, together, in their original order.
+Fed straight from the scheduler's pick, the event detect and drop count made
+the worst 100 MHz path on the Artix-7 (granite TASK-008, 17 levels).
+
+`DROPPED` is an Error-class packet (code 0x06 < 0x08), so it counts in
+`MON_CORE_STATS.ERRORS`. Under traffic the debug events (direction flips,
+page-timeout precharges, refreshes) repeat faster than the plane drains them:
+on the board a 64-burst write-then-read pass loses about 340 and sends about
+20 `DROPPED` packets. A check that reads `ERRORS` as "real errors" must
+disable the `DROPPED` event (`MON_CORE_EV.EV_EN` bit 6). The lost count then
+accumulates in `MON_ERR_STATUS.DROPPED` instead of clearing on each report.
+
 **Gating.** `cfg_enable = 0` clears every pending bit and stops new ones;
 `cfg_core_ev_en` masks events one by one. The edge detectors keep running
 regardless, so enabling the monitor while a level is already high reports

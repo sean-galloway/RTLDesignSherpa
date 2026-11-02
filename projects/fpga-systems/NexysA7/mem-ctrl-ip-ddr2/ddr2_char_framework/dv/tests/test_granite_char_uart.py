@@ -53,6 +53,11 @@ import ddr2_char as dc                                  # noqa: E402
 import pumice_master as pm                              # noqa: E402
 from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
+_SEQ = os.path.join(_REPO, "projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/bin")
+if _SEQ not in sys.path:
+    sys.path.insert(0, _SEQ)
+import seq_ocelus as so                                 # noqa: E402  (the board's own checks)
+
 # UART bit rate in system clocks (measured floor 4 on the pumice TB).
 CLKS_PER_BIT   = int(os.environ.get("TEST_CLKS_PER_BIT", "4"))
 FPGA_CLK_HZ    = 100_000_000
@@ -224,10 +229,61 @@ async def cocotb_test_granite_uart_smoke(dut):
     assert tx.startswith((b"R ", b"W ")), f"unexpected first bytes: {tx[:8]!r}"
 
 
+@cocotb.test(timeout_time=50, timeout_unit="ms")
+async def cocotb_test_granite_uart_ocelus(dut):
+    """HAS_MON = 1: the board's `ocelus` sequence checks (seq_ocelus.py) on the
+    smoke's write-then-read pass, through the real UART path. The packet
+    writer lands on granite_char_macro's write-ack sink, as on the board."""
+    drv, _chan, _dfi, _mem = await _bringup(dut)
+    txn = 4
+
+    def prog():
+        r = {}
+        drv.soft_reset()
+        drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
+        drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
+                               t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")),
+                               t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
+                               rd_in_order=True)
+        drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
+                          wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
+                          gear_ratio=GEAR_RATIO, bl=DRAM_BL)
+        dev = drv.pumice.regs
+        so.program_monitors(dev)
+        before = so.read_stats(dev)
+        seed, stride = 0x5EED0CE1, 4 * 8
+        drv.program_wr_engine(start_addr=0x0, burst_len=4, txn_count=txn,
+                              stride_0=stride, lfsr_seed=seed, axi_size=dc.AXI_SIZE_8)
+        drv.start_wr(); r["wr"] = pm.wait_engine(drv, "wr", timeout_s=30)
+        drv.program_rd_engine(start_addr=0x0, burst_len=4, txn_count=txn,
+                              stride_0=stride, lfsr_seed=seed, axi_size=dc.AXI_SIZE_8)
+        drv.start_rd(); r["rd"] = pm.wait_engine(drv, "rd", timeout_s=30)
+        exp, act, match, valid = drv.crc()
+        r.update(match=match, valid=valid, mism=drv.beats_mismatched())
+        r["d"] = so.window(before, so.read_stats(dev))
+        return r
+
+    r = await bridge(prog)()
+    dut._log.info("granite ocelus results: %s", r)
+    assert r["wr"] and r["rd"], f"engine did not finish: {r}"
+    assert r["valid"] and r["match"] and r["mism"] == 0, f"CRC/data mismatch: {r}"
+    bad = so.problems(r["d"], txn, txn)
+    assert not bad, f"ocelus: {bad} (window {r['d']})"
+
+
 # =============================================================================
 # pytest wrapper
 # =============================================================================
 def test_granite_uart_smoke(request):
+    _run(request, "cocotb_test_granite_uart_smoke", {})
+
+
+def test_granite_uart_ocelus(request):
+    """The Ocelus plane on the board harness (HAS_MON = 1); its OFF state is the smoke."""
+    _run(request, "cocotb_test_granite_uart_ocelus", {"HAS_MON": "1"})
+
+
+def _run(request, testcase, extra_params):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "granite_char_uart_tb_top"
     filelist_path = ("projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/"
@@ -266,7 +322,7 @@ def test_granite_uart_smoke(request):
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT_BYTES * 8),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEVICE_BYTES * 8),
               "DFI_RATE": str(DFI_RATE),
-              "DRAM_BL": str(DRAM_BL)}
+              "DRAM_BL": str(DRAM_BL), **extra_params}
     compile_args = [
         "+define+USE_ASYNC_RESET",
         FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
@@ -276,7 +332,7 @@ def test_granite_uart_smoke(request):
     ]
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module,
-        testcase="cocotb_test_granite_uart_smoke",
+        testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,
         parameters=params,
         compile_args=compile_args,

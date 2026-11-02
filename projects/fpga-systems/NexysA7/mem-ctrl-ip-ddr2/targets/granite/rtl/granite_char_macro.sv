@@ -56,6 +56,8 @@ module granite_char_macro
     parameter bit HAS_AGE           = 1'b0, // store age promotion (CSR age_thresh -> aged-first pick); 0 compiles the ages out (pumice TASK-059)
     parameter bit STORE_MERGE_EN    = 1'b1, // FIFO-store combining (granite TASK-006, default ON); 0 = none
     parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
+    parameter bit HAS_MON           = 1'b0, // Ocelus plane in the controller (granite TASK-008); its packet writer lands on a write-ack sink here
+    parameter int MON_ACLK_MHZ      = 100,  // mc_clk in MHz: scales the plane's microsecond timeout tick
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
@@ -358,6 +360,39 @@ module granite_char_macro
     assign dfi_ctrlupd_req_o      = 1'b0;
     assign dfi_phyupd_ack_o       = 1'b0;
 
+    // Ocelus write-ack sink. The board keeps no packet memory: every write the
+    // plane's AXI-Lite packet writer issues is accepted and answered OKAY, so the
+    // writer drains and the host checks the plane through the MON_* status CSRs
+    // (completion / error counts, error-record count, drops). One write in
+    // flight: AW and W are taken independently, then B, then the next pair.
+    // With HAS_MON = 0 the writer never raises a valid and this is idle.
+    logic w_mon_awvalid, w_mon_awready, w_mon_wvalid, w_mon_wready, w_mon_bready;
+    logic r_mon_aw_seen, r_mon_w_seen, r_mon_bvalid;
+    logic w_mon_aw_hs, w_mon_w_hs;
+    assign w_mon_awready = !r_mon_aw_seen && !r_mon_bvalid;
+    assign w_mon_wready  = !r_mon_w_seen  && !r_mon_bvalid;
+    assign w_mon_aw_hs   = w_mon_awvalid && w_mon_awready;
+    assign w_mon_w_hs    = w_mon_wvalid  && w_mon_wready;
+
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n,
+        if (`RST_ASSERTED(mc_rst_n)) begin
+            r_mon_aw_seen <= 1'b0;
+            r_mon_w_seen  <= 1'b0;
+            r_mon_bvalid  <= 1'b0;
+        end else begin
+            if (r_mon_bvalid) begin
+                if (w_mon_bready) r_mon_bvalid <= 1'b0;
+            end else if ((r_mon_aw_seen || w_mon_aw_hs) && (r_mon_w_seen || w_mon_w_hs)) begin
+                r_mon_aw_seen <= 1'b0;
+                r_mon_w_seen  <= 1'b0;
+                r_mon_bvalid  <= 1'b1;
+            end else begin
+                if (w_mon_aw_hs) r_mon_aw_seen <= 1'b1;
+                if (w_mon_w_hs)  r_mon_w_seen  <= 1'b1;
+            end
+        end
+    )
+
     // Host AXI is AXI_DATA_WIDTH; controller core + DFI run at DRAM_BEAT_WIDTH*DFI_RATE.
     // granite_top_geared bridges host<->core widths with the formal converters.
     granite_top_geared #(
@@ -387,6 +422,8 @@ module granite_char_macro
         .HAS_AGE           (HAS_AGE),
         .STORE_MERGE_EN    (STORE_MERGE_EN),
         .PP_TIMEOUT_CLOSE  (PP_TIMEOUT_CLOSE),
+        .HAS_MON           (HAS_MON),
+        .MON_ACLK_MHZ      (MON_ACLK_MHZ),
         .DFI_CMD_FIFO_DEPTH(DFI_CMD_FIFO_DEPTH),
         .DFI_WD_FIFO_DEPTH (DFI_WD_FIFO_DEPTH),
         .DFI_RD_FIFO_DEPTH (DFI_RD_FIFO_DEPTH),
@@ -412,18 +449,18 @@ module granite_char_macro
         .s_cpuif_wr_ack        (ctrl_cpuif_wr_ack),
         .s_cpuif_wr_err        (ctrl_cpuif_wr_err),
         .init_done_o           (),
-        // Ocelus packet writer: not used here (HAS_MON = 0); handshakes tied idle
+        // Ocelus packet writer -> the write-ack sink below (HAS_MON = 1)
         .mon_irq_o          (),
-        .m_axil_mon_awvalid (),
-        .m_axil_mon_awready (1'b1),
+        .m_axil_mon_awvalid (w_mon_awvalid),
+        .m_axil_mon_awready (w_mon_awready),
         .m_axil_mon_awaddr  (),
         .m_axil_mon_awprot  (),
-        .m_axil_mon_wvalid  (),
-        .m_axil_mon_wready  (1'b1),
+        .m_axil_mon_wvalid  (w_mon_wvalid),
+        .m_axil_mon_wready  (w_mon_wready),
         .m_axil_mon_wdata   (),
         .m_axil_mon_wstrb   (),
-        .m_axil_mon_bvalid  (1'b0),
-        .m_axil_mon_bready  (),
+        .m_axil_mon_bvalid  (r_mon_bvalid),
+        .m_axil_mon_bready  (w_mon_bready),
         .m_axil_mon_bresp   (2'b00),
         .s_axi_awid            (wr_awid),
         .s_axi_awaddr          (wr_awaddr),

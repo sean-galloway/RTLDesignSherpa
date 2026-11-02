@@ -174,6 +174,74 @@ module mc_ocelus_plane
         logic [15:0] w_timeout_cnt;
         assign w_timeout_cnt = (cfg_timeout_us == 16'h0) ? 16'hFFFF : cfg_timeout_us;
 
+        // ------------------------------------------------------------------
+        // Internal events, registered once. The taps come straight off the
+        // scheduler's pick and the store's full flags; feeding them through
+        // mc_monlite's detect and drop count in the same cycle made the A7's
+        // worst 100 MHz path (granite TASK-008, 17 levels, -1.4 ns). Every
+        // event moves one cycle together, so their order is unchanged.
+        // ------------------------------------------------------------------
+        logic        r_ev_cal_err;
+        logic        r_ev_zq_overdue;
+        logic [3:0]  r_ev_ref_pending;
+        logic        r_ev_aw_ragged;
+        logic        r_ev_rd_beat_lost;
+        logic        r_ev_ret_orphan;
+        logic        r_ev_init_done;
+        logic [4:0]  r_ev_init_state;
+        logic        r_ev_dir_flip;
+        logic        r_ev_dir;
+        logic [1:0]  r_ev_dir_cause;
+        logic [7:0]  r_ev_dir_batch;
+        logic        r_ev_cmd_accept;
+        dram_op_e    r_ev_cmd_accept_op;
+        logic        r_ev_accept_to_pre;
+        logic        r_ev_store_wr_full;
+        logic        r_ev_store_rd_full;
+        logic        r_ev_ring_full;
+
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                r_ev_cal_err        <= '0;
+                r_ev_zq_overdue     <= '0;
+                r_ev_ref_pending    <= '0;
+                r_ev_aw_ragged      <= '0;
+                r_ev_rd_beat_lost   <= '0;
+                r_ev_ret_orphan     <= '0;
+                r_ev_init_done      <= '0;
+                r_ev_init_state     <= '0;
+                r_ev_dir_flip       <= '0;
+                r_ev_dir            <= '0;
+                r_ev_dir_cause      <= '0;
+                r_ev_dir_batch      <= '0;
+                r_ev_cmd_accept     <= '0;
+                r_ev_cmd_accept_op  <= dram_op_e'('0);
+                r_ev_accept_to_pre  <= '0;
+                r_ev_store_wr_full  <= '0;
+                r_ev_store_rd_full  <= '0;
+                r_ev_ring_full      <= '0;
+            end else begin
+                r_ev_cal_err        <= ev_cal_err_i;
+                r_ev_zq_overdue     <= ev_zq_overdue_i;
+                r_ev_ref_pending    <= ev_ref_pending_i;
+                r_ev_aw_ragged      <= ev_aw_ragged_i;
+                r_ev_rd_beat_lost   <= ev_rd_beat_lost_i;
+                r_ev_ret_orphan     <= ev_ret_orphan_i;
+                r_ev_init_done      <= ev_init_done_i;
+                r_ev_init_state     <= ev_init_state_i;
+                r_ev_dir_flip       <= ev_dir_flip_i;
+                r_ev_dir            <= ev_dir_i;
+                r_ev_dir_cause      <= ev_dir_cause_i;
+                r_ev_dir_batch      <= ev_dir_batch_i;
+                r_ev_cmd_accept     <= ev_cmd_accept_i;
+                r_ev_cmd_accept_op  <= ev_cmd_accept_op_i;
+                r_ev_accept_to_pre  <= ev_accept_to_pre_i;
+                r_ev_store_wr_full  <= ev_store_wr_full_i;
+                r_ev_store_rd_full  <= ev_store_rd_full_i;
+                r_ev_ring_full      <= ev_ring_full_i;
+            end
+        )
+
         logic              mb_valid [3];
         logic              mb_ready [3];
         monitor_packet_t   mb_pkt   [3];
@@ -312,24 +380,24 @@ module mc_ocelus_plane
             .aresetn          (aresetn),
             .cfg_enable       (cfg_core_enable),
             .cfg_ev_en        (cfg_core_ev_en),
-            .cal_err_i        (ev_cal_err_i),
-            .zq_overdue_i     (ev_zq_overdue_i),
-            .ref_pending_i    (ev_ref_pending_i),
-            .aw_ragged_i      (ev_aw_ragged_i),
-            .rd_beat_lost_i   (ev_rd_beat_lost_i),
-            .ret_orphan_i     (ev_ret_orphan_i),
-            .init_done_i      (ev_init_done_i),
-            .init_state_i     (ev_init_state_i),
-            .dir_flip_i       (ev_dir_flip_i),
-            .dir_i            (ev_dir_i),
-            .dir_cause_i      (ev_dir_cause_i),
-            .dir_batch_i      (ev_dir_batch_i),
-            .cmd_accept_i     (ev_cmd_accept_i),
-            .cmd_accept_op_i  (ev_cmd_accept_op_i),
-            .accept_to_pre_i  (ev_accept_to_pre_i),
-            .store_wr_full_i  (ev_store_wr_full_i),
-            .store_rd_full_i  (ev_store_rd_full_i),
-            .ring_full_i      (ev_ring_full_i),
+            .cal_err_i        (r_ev_cal_err),
+            .zq_overdue_i     (r_ev_zq_overdue),
+            .ref_pending_i    (r_ev_ref_pending),
+            .aw_ragged_i      (r_ev_aw_ragged),
+            .rd_beat_lost_i   (r_ev_rd_beat_lost),
+            .ret_orphan_i     (r_ev_ret_orphan),
+            .init_done_i      (r_ev_init_done),
+            .init_state_i     (r_ev_init_state),
+            .dir_flip_i       (r_ev_dir_flip),
+            .dir_i            (r_ev_dir),
+            .dir_cause_i      (r_ev_dir_cause),
+            .dir_batch_i      (r_ev_dir_batch),
+            .cmd_accept_i     (r_ev_cmd_accept),
+            .cmd_accept_op_i  (r_ev_cmd_accept_op),
+            .accept_to_pre_i  (r_ev_accept_to_pre),
+            .store_wr_full_i  (r_ev_store_wr_full),
+            .store_rd_full_i  (r_ev_store_rd_full),
+            .ring_full_i      (r_ev_ring_full),
             .i_mon_time       (w_mon_time),
             .monbus_valid     (mb_valid[2]),
             .monbus_ready     (mb_ready[2]),
