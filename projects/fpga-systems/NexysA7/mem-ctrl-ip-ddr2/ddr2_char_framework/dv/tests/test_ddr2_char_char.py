@@ -555,6 +555,13 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 32,
         "TEST_CHAR_PROFILE": os.environ.get("TEST_CHAR_PROFILE", "smoke"),
         "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),
         "TEST_RDDATA_DELAY": os.environ.get("TEST_RDDATA_DELAY", "0"),
+        # The sim harness runs cmd_delay 0 (prog() above). pumice_char's
+        # ControllerConfig re-programs DFI_TUNING.cmd_delay on EVERY config
+        # since 4fdbd72c7, from TEST_CMD_DELAY with the BOARD default of 1;
+        # unpinned here, each config silently moved the sim to 1 and the
+        # close-page reads lost their returns (families, concurrent_gap_board).
+        # The perf runners pin it the same way.
+        "TEST_CMD_DELAY": os.environ.get("TEST_CMD_DELAY", "0"),
         # PIN t_rddata_en TOO. These three are ONE tuple describing the read/
         # write path, and only two were pinned -- so when the BOARD default
         # moved 6 -> 1 (pumice ISSUE-012 (was PUMICE-040), a real board win) it silently changed this
