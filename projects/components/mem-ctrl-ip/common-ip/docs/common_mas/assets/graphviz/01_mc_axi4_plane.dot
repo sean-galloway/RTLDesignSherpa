@@ -19,6 +19,10 @@ digraph mc_axi4_plane {
     axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W, style="rounded,filled", fillcolor="#E2EFDA"];
     axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
+    // ---- narrow-transfer pack: both columns pass through it (NARROW_EN, default on) ----
+    narrow [label="Narrow-Transfer Pack\nmc_axi4_narrow_pack - FUB (NARROW_EN)\nnarrow INCR -> full-width burst over the same words;\nW packed into words by strobe, R word replayed per narrow beat",
+            width=9, style="filled,dashed", fillcolor="white"];
+
     // ---- request side ----
     wr_split [label="Write Burst Splitter\nmc_wr_splitter - FUB\n(one sub-burst per DRAM burst)", group=W, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     rd_chop  [label="Read Burst Chopper\nmc_axi_burst_chopper - FUB\n(one sub-burst per DRAM burst)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
@@ -33,9 +37,11 @@ digraph mc_axi4_plane {
          fillcolor="white", width=13, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- host channel hops: request down, response up on the same hop ----
-    axi_wr   -> wr_split  [dir=both, xlabel="AW / W · B"];
+    axi_wr   -> narrow    [dir=both, xlabel="AW / W · B"];
+    axi_rd   -> narrow    [dir=both, xlabel="AR · R"];
+    narrow   -> wr_split  [dir=both, xlabel="AW / W (full width) · B"];
+    narrow   -> rd_chop   [dir=both, xlabel="AR (full width) · R"];
     wr_split -> wr_intake [xlabel="AW / W (split)"];
-    axi_rd   -> rd_chop   [dir=both, xlabel="AR · R"];
     rd_chop  -> rd_intake [xlabel="AR (split)"];
 
     // ---- write flow: down the left column, write done back up the same lane ----

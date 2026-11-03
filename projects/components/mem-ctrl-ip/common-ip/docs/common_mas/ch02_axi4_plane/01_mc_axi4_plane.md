@@ -24,7 +24,7 @@
 # `mc_axi4_plane` — AXI4 host interface and read-return ring
 
 **Module:** `macro/mc_axi4_plane.sv`
-**Child FUBs:** `fub/mc_wr_splitter.sv`, `fub/mc_axi_burst_chopper.sv`, `fub/mc_wr_intake.sv`, `fub/mc_rd_intake.sv`, `fub/mc_rd_return_ring.sv`
+**Child FUBs:** `fub/mc_axi4_narrow_pack.sv`, `fub/mc_wr_splitter.sv`, `fub/mc_axi_burst_chopper.sv`, `fub/mc_wr_intake.sv`, `fub/mc_rd_intake.sv`, `fub/mc_rd_return_ring.sv`
 
 `mc_axi4_plane` is the host-facing AXI4 slave boundary of the common memory-controller stack. It transforms host AXI4 read and write bursts into DFI-burst-sized descriptors that cross into `mc_storage_plane`, sources read-your-write snarf data from the write-data CAM, and presents the final AXI4 read-data and write-response channels to the host (`macro/mc_axi4_plane.sv:8-12`). It is the N=1 provider of the descriptor seam in lite builds (see [`common_has` chapter 2](../../common_has/common_has_index.md)).
 
@@ -33,11 +33,22 @@
 ## Child-instance map
 | Instance | Module | Parameter bindings in this plane | Role |
 |----------|--------|----------------------------------|------|
+| `g_narrow.u_narrow` | `mc_axi4_narrow_pack` | `AXI_ID_WIDTH=IW`, `AXI_ADDR_WIDTH=AW`, `AXI_DATA_WIDTH=DW`, `AXI_USER_WIDTH=UW`, `REC_DEPTH=NARROW_DEPTH` | Rewrite narrow INCR bursts to full width ahead of both splitters (`NARROW_EN=1`; straight wires when 0) |
 | `u_wr_split` | `mc_wr_splitter` | `AXI_ID_WIDTH=IW`, `AXI_ADDR_WIDTH=AW`, `AXI_DATA_WIDTH=DW`, `AXI_USER_WIDTH=UW`, `AXI_BEATS_PER_BURST=AXI_BEATS_PER_BURST` | Split host AW/W into DFI-burst sub-bursts and reframe WLAST (`macro/mc_axi4_plane.sv:207-256`) |
 | `u_rd_split` | `mc_axi_burst_chopper` | `AXI_ID_WIDTH=IW`, `AXI_ADDR_WIDTH=AW`, `AXI_USER_WIDTH=UW`, `STRB_BYTES=SW`, `AXI_BEATS_PER_BURST=AXI_BEATS_PER_BURST` | Split host AR into DFI-burst sub-commands (`macro/mc_axi4_plane.sv:259-296`) |
 | `u_wr_intake` | `mc_wr_intake` | full address-map set plus `AXI_BEATS_PER_BURST` | Write descriptor push + write-data pop + commit-driven B (`macro/mc_axi4_plane.sv:304-370`) |
 | `u_rd_intake` | `mc_rd_intake` | as `u_wr_intake`, plus `ORDER_FIFO_DEPTH=RD_RET_DEPTH+8` | Read descriptor push + snarf probe + R return (`macro/mc_axi4_plane.sv:373-445`) |
 | `u_rd_ring` | `mc_rd_return_ring` | `DEPTH=RD_RET_DEPTH`, `AXI_DATA_WIDTH=DW`, `AXI_BEATS_PER_BURST=AXI_BEATS_PER_BURST` | In-flight read return buffer (`macro/mc_axi4_plane.sv:450-475`) |
+
+## Narrow transfers
+Everything below the host edge is full-width only: the chopper steps every sub-command by `AXI_BEATS_PER_BURST` full beats and the intakes treat one AXI beat as one data word, whatever `AxSIZE` says. `mc_axi4_narrow_pack` sits between the host edge and the two splitters and is what makes a narrow `INCR` burst legal here (granite TASK-007):
+
+- **AW / AR.** A narrow `INCR` command (`AxSIZE` below the bus width) leaves at full size, its address aligned down to the word, and `AxLEN` = words spanned - 1, counted from the first beat's size-aligned offset within its word plus `(AxLEN+1) << AxSIZE` bytes. Full-width commands, and narrow `FIXED` / `WRAP`, leave unchanged. The controller does not support `FIXED` or `WRAP` at any width; the chopper treats every burst as `INCR`.
+- **W.** Narrow beats are merged into their word by strobe. The word leaves on the beat that ends it or on `WLAST`.
+- **R.** Each returned word is presented once per narrow beat that falls in it. The beat's bytes are already in the lanes its address selects, and `RLAST` is generated on the burst's last narrow beat. This relies on R bursts returning in AR order, which the ring guarantees.
+- **B.** Passes through: one AW in, one AW out.
+
+Side queues (`gaxi_fifo_sync`, `NARROW_DEPTH` records) carry each command's decision to its W and R beats. W must never wait on the controller's AW handshake. A master's W routinely runs several bursts ahead of it (the engine-runner pattern), and before this block those beats flowed into the controller's W skid. So the block accepts AW upstream whenever a record slot and an `NARROW_AWQ_DEPTH` AW-queue slot are free. An AW passes straight through when the queue is empty and the controller is ready, and otherwise waits in the queue, so the controller sees the same AW stream at the same times. W takes its record at upstream acceptance, or from the AW being presented. Full-width traffic costs no cycle. The first version gated W on the controller's AW handshake instead, and pumice's board-geometry `perf_write_ceiling` caught it: 17 W stall cycles against a budget of 16, where HEAD had 2. Without this block, any burst narrower than the controller's own bus wrote and read the wrong words: at 8-byte beats on the 128-bit DFI 1:4 build, 1020 of 1024 checked words came back wrong. The 64-bit host on the 1:2 build never showed it, because that controller is 32 bits wide and a 4-byte beat is full width there. An upsizing `axi4_dwidth_converter_*` does not help: it issues a burst no wider than the narrow bus unchanged (`CM_PASS`), so the narrow burst reaches the controller as is.
 
 ## Burst chop, split, and final coalescing
 `mc_axi_burst_chopper` is an FSM-free AR/AW burst chopper with one active bit, a remaining-beats counter, and a running address. Each sub-command spans at most `AXI_BEATS_PER_BURST` AXI beats; addresses step by `AXI_BURST_BYTES` so each sub-command lands on a DRAM-burst boundary (`fub/mc_axi_burst_chopper.sv:8-14`, `fub/mc_axi_burst_chopper.sv:44-64`). A ragged final chunk takes `min(remaining, AXI_BEATS_PER_BURST)` beats (`fub/mc_axi_burst_chopper.sv:27-29`).
@@ -83,6 +94,9 @@ The ring is sized by `RD_RET_DEPTH` (default 32). This decoupling fixed a bandwi
 | `RD_MERGE_MARK_REG` | 0 | Ring `MERGE_MARK_REG`: a shadow's marking lands the cycle after its allocation; inert without read merging (granite sets 1, `GRANITE_RD_MERGE_MARK_REG`) |
 | `RD_RET_BYPASS` | 0 | Ring `RET_BYPASS`: the next beat in ring order goes from the DFI return straight into the output skid (granite sets 1) |
 | `RD_RET_FALLTHRU` | 0 | Ring `RET_FALLTHRU`: a bypass beat that finds the skid empty is offered on the drain port in the return cycle (granite sets 1) |
+| `NARROW_EN` | 1 | `mc_axi4_narrow_pack` behind the host edge (narrow INCR support); 0 = straight wires, full-width hosts only |
+| `NARROW_AWQ_DEPTH` | 8 | Its AW queue: AWs accepted upstream while the controller back-pressures AW, so their W runs ahead as it would without the block |
+| `NARROW_DEPTH` | `RD_RET_DEPTH + 8` | Its side-queue depth: the ring's in-flight reads plus the AR skid / stage ahead of it, so the queue never throttles |
 | `IW`, `AW`, `DW`, `UW`, `SW`, `BKW`, `PTRW`, `RKW`, `DRAM_BURST_BYTES` | derived | Shorthand widths; `DRAM_BURST_BYTES = AXI_BEATS_PER_BURST * (DRAM_BEAT_WIDTH / 8)` |
 
 ## Ports

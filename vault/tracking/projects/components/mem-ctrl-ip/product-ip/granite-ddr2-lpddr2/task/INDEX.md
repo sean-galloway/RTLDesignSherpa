@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — tasks
 
-**Next ID: TASK-009** — never recycle a number, even when its item closed.
+**Next ID: TASK-010** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -13,27 +13,34 @@ state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 2 | parked pending a named condition |
+| [deferred/](deferred/) | 3 | parked pending a named condition |
 
 ## Open
 
-- **TASK-007** — narrow AXI beats on the 128-bit host of the DFI 1:4 build
-  return wrong data back to back (8-byte beats, incremental: 1020 of 1024;
-  full-width and the 64-bit host's 4-byte beats clean); a write after a
-  mismatching read hangs the engine. [open/TASK-007.md](open/TASK-007.md).
+None.
 
 ## Active
 
-- **TASK-003** — granite at 100 MHz and ahead of LiteDRAM through the same
-  harness: 100 MHz closes (b8665155e, timer loads registered); DDR2-400 board
-  point measured 2026-10-29 (streams 772/774 of 800, 1w+1r 761-773 combined,
-  3x LiteDRAM at 75); thrash cells remain the gap. [active/TASK-003.md](active/TASK-003.md).
+None.
 
 ## Closed
+
+- **TASK-007** — narrow AXI beats on a host as wide as the controller: the
+  plane had no narrow support at all (the chopper steps by full beats). Fixed
+  by `mc_axi4_narrow_pack` in `mc_axi4_plane` (`NARROW_EN` 1; all four
+  controllers); 1020 -> 0 mismatched, every AxSIZE clean, full width unchanged.
+  The post-mismatch write "hang" is the harness's sticky any_error. CLOSED
+  2026-11-02. [closed/TASK-007.md](closed/TASK-007.md).
+
+- **TASK-003** — granite at 100 MHz and ahead of LiteDRAM through the same
+  harness: 100 MHz closes with the merge default, DDR2-400 board point
+  772/774 of 800 streaming, LiteDRAM tally 42 / 18 / 0. Item 6's residuals
+  went to TASK-007 (narrow beats) and TASK-009 (1:4 board first word).
+  CLOSED 2026-11-02. [closed/TASK-003.md](closed/TASK-003.md).
 
 - **TASK-008** — Ocelus observability on granite and pumice (`HAS_MON`, default 0):
   lite port monitors + `mc_monlite` internal errors/debug -> one AXI-Lite packet
@@ -69,3 +76,7 @@ state by construction rather than by discipline.
   halves, the open_page pair cell is host-rate bound (no gain), unpaired halves
   pay the hold (-30 percent), a write hang on open_page. Wakes for a DRAM-bound
   same-ID master or a per-port placement. [deferred/TASK-005.md](deferred/TASK-005.md).
+- **TASK-009** — the DFI 1:4 board point's first DQ word of each read run is
+  sampled before the device drives it (PHY side, ahead of the controller)
+  -- DEFERRED 2026-11-02, pending 1:4 as a product point; four board
+  experiments listed. [deferred/TASK-009.md](deferred/TASK-009.md).

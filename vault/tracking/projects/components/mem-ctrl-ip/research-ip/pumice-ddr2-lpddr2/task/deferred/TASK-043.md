@@ -11,7 +11,15 @@
 > task.
 
 **Priority:** P1 (owner's load point)
-**Status:** open -- sim side DONE 2026-10-22 (RDL widened to eight per
+**Status:** DEFERRED 2026-11-02 (owner) -- eight injectors per direction
+are a parameter (`CHAR_NUM_GEN=8`) that works in sim on every proxy; on the
+xc7a100t they cost 91 percent of the LUTs and miss 75 MHz on congestion
+(below), so the board point waits for a larger part or a harness that is
+smaller per engine. Unpark condition: a target device with room for eight
+engines per direction, or a board need for the eight-thread load point.
+The shipped harness stays at four.
+
+History: sim side DONE 2026-10-22 (RDL widened to eight per
 direction, global block 0x400 -> 0x600, engine block gathers eight, granite
 harness / sim top / perf proxy carry NUM_GEN; `TEST_NUM_GEN=8` runs
 integrity-clean on both proxies -- numbers in the Phase 3 report §5.1).

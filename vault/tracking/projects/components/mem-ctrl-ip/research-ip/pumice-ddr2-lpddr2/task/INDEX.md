@@ -12,28 +12,31 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 52 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
-| [deferred/](deferred/) | 2 | parked pending a named condition |
+| [deferred/](deferred/) | 4 | parked pending a named condition |
 
 ## Open
 
-- **TASK-047** — dual issue on DFI 1:2: a row command on the other phase of
+None.
+
+## Deferred
+
+- **TASK-047** — DEFERRED 2026-11-02 (owner; bounded gain against the
+  75 MHz arbiter cone, pumice at rest). Dual issue on DFI 1:2: a row command on the other phase of
   the column's DFI word, so the ACT/PRE slot is free rather than well
   placed (bounded gain: 1 slot in 9 on bank walks; nothing on streams).
   Design study done -- two output lanes, 2-wide command word, two bank-timer
   events per cycle, columns on phase 1 (PHY re-alignment on the board).
   Timing is the gate: the arbiter cone is the 75 MHz critical path.
 
-- **TASK-043** — ddr2_char harness: eight injectors per direction. The GO
-  register's four start bits per direction cap `NUM_GEN` at 4
-  (`char_engine_block` stops elaboration); widen the RDL, regenerate, lift
-  the check, teach the host. Owner's load point (2026-10-22): each injector
-  runs eight threads at once.
-
-## Deferred
+- **TASK-043** — DEFERRED 2026-11-02 (owner; eight engines per direction
+  run in sim but cost 91 percent of the xc7a100t and miss 75 MHz on
+  congestion; wakes for a larger part). ddr2_char harness: eight injectors per direction. The RDL,
+  engine block and host already carry eight (`CHAR_NUM_GEN` build knob);
+  what is missing is a board point, and the shipped harness stays at four.
 
 - **TASK-042** — DEFERRED 2026-11-02 (owner: LPDDR on every technology waits
   for summer 2027 and test boards built following Antmicro's methods). LPDDR2 board enablement: from "vaguely supported" to fully

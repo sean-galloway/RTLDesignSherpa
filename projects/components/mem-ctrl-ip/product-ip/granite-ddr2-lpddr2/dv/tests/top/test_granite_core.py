@@ -154,6 +154,71 @@ async def cocotb_test_granite_core(dut):
                   roundtrips)
 
 
+@cocotb.test(timeout_time=10, timeout_unit="ms")
+async def cocotb_test_granite_core_narrow(dut):
+    """Narrow AXI beats (granite TASK-007), one AxSIZE per cell. One DRAM burst
+    (BL_WORDS words) is written as (BL_WORDS * SW) >> AxSIZE narrow INCR beats,
+    back to back: the DFI write bus must carry the packed words, exactly
+    BL_WORDS of them (one burst, not one per beat). The burst is then read back
+    as the same narrow beats: every beat must carry its bytes in the lanes its
+    address selects. Before mc_axi4_narrow_pack the chopper stepped each
+    narrow beat by a full word, so beat 1 onwards wrote and read the wrong
+    words."""
+    size = int(os.environ.get("NARROW_SIZE", "3"))
+    nb = 1 << size
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
+    _idle(dut)
+    dut.aresetn.value = 0
+    dut.dfi_rstn.value = 0
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    dut.dfi_rstn.value = 1
+    for _ in range(6):
+        await RisingEdge(dut.aclk)
+    bfm = _init_masters(dut)
+    captured = []
+    cocotb.start_soon(_dfi_model(dut, captured))
+    for _ in range(400):
+        await RisingEdge(dut.aclk)
+        if int(dut.init_done_o.value):
+            break
+    assert int(dut.init_done_o.value) == 1, "init never completed"
+
+    rng = random.Random(int(os.environ.get("SEED", "1")))
+    addr = 0x3000
+    nbeats = (BL_WORDS * SW) // nb
+    data = [rng.getrandbits(8 * nb) for _ in range(nbeats)]
+    line = b"".join(d.to_bytes(nb, "little") for d in data)
+    words = [int.from_bytes(line[k * SW:(k + 1) * SW], "little") for k in range(BL_WORDS)]
+
+    await with_timeout(bfm.wr.write_transaction(addr, data, burst_len=nbeats, id=1, size=size),
+                       _PHASE_TIMEOUT_US, "us")
+
+    async def _wait_wrdata():
+        while len(captured) < BL_WORDS:
+            await RisingEdge(dut.dfi_clk)
+    await with_timeout(_wait_wrdata(), _PHASE_TIMEOUT_US, "us")
+    for _ in range(40):
+        await RisingEdge(dut.dfi_clk)
+    assert len(captured) == BL_WORDS, \
+        f"AxSIZE {size}: {len(captured)} words on the DFI write bus for one burst, expected {BL_WORDS}"
+    assert captured == words, \
+        (f"AxSIZE {size}: DFI write words {[hex(x) for x in captured]} != packed "
+         f"{[hex(x) for x in words]}")
+
+    rd = await with_timeout(bfm.rd.read_transaction(addr, burst_len=nbeats, id=1, size=size),
+                            _PHASE_TIMEOUT_US, "us")
+    assert len(rd) == nbeats, f"AxSIZE {size}: {len(rd)} R beats, expected {nbeats}"
+    bad = [i for i in range(nbeats)
+           if ((rd[i] >> (8 * ((i * nb) % SW))) & ((1 << (8 * nb)) - 1)) != data[i]]
+    assert not bad, (f"AxSIZE {size}: {len(bad)} of {nbeats} narrow read beats wrong, "
+                     f"first at beat {bad[0]}")
+    dut._log.info("PASS narrow: AxSIZE %d, %d beats -> %d DFI words -> %d beats read back",
+                  size, nbeats, len(captured), nbeats)
+
+
 async def _cmd_monitor(dut):
     """Count command-stream fires by op while a phase runs. Killed by the caller
     when the phase ends; results are read by _dump_probes via dut._cmd_log."""
@@ -545,6 +610,32 @@ def test_granite_core(request, test_level):
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_granite_core",
+        sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
+        compile_args=["+define+USE_ASYNC_RESET", "--assert"],
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")
+
+
+@pytest.mark.parametrize("size", [0, 1, 2, 3, 4])
+def test_granite_core_narrow(request, size):
+    """granite TASK-007: narrow INCR beats at every legal AxSIZE on the 128-bit host."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "granite_core"
+    test_name = f"cocotb_test_granite_core_narrow_{size}"
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    params = dict(_core_params())
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+                 "COCOTB_LOG_LEVEL": "INFO",
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 "NARROW_SIZE": str(size),
+                 **level_env("func")}
+    extra_env.update(params)
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module, testcase="cocotb_test_granite_core_narrow",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert"],
         waves=bool(int(os.environ.get("WAVES", "0"))),

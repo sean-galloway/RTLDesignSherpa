@@ -1,6 +1,6 @@
 # TASK-003 — granite at 100 MHz, and ahead of LiteDRAM through the same harness
 
-**State:** active (opened 2026-10-26, owner's direction: "I want granite to
+**State:** CLOSED 2026-11-02 (opened 2026-10-26, owner's direction: "I want granite to
 converge at 100 MHz and kick LiteDRAM's ass performance wise").
 **Depends on:** TASK-002 (age-FIFO store, landed 3a1479820).
 
@@ -1560,4 +1560,42 @@ the owner).
   four threads); power-on half_pair -1 to -2 percent with lower latency.
   Report section "What the store combiner costs and buys". The product
   default is unchanged (merge on).
+
+## Resolution (CLOSED 2026-11-02, owner)
+
+Both halves are met, item by item against "What this task changes":
+
+1. Direction stickiness and the hold yield: done 2026-10-26, measured on the
+   board; extended 2026-11-01 by bank ownership and the direction lock
+   (`DIR_OWNS_ROWS`, `DIR_HOLD_IDLE`, 695b42e0d) with the any-flip leftover
+   rule that fixed the 367k-cycle multigen starvation, gated by
+   `test_granite_char_perf_mg` (8b332b860).
+2./3. Push and fire cones: superseded by measurement. Both cones turned out
+   route-bound (74-83 percent wire), not depth-bound; the store's push cone
+   fell 103 -> 40 with the age-FIFO store, and the 100 MHz close came from
+   the pick's tail, fanout and the bank timers' registered loads
+   (b8665155e, WNS +0.004, 2026-10-28 evening / 10-29).
+4. Harness at 100 MHz: done 2026-10-28 (address generators pipelined, the
+   last two harness classes registered).
+5. Within-class age tie-break with a starvation bound: done 2026-10-29
+   (thresh >= 16 neutral; `HAS_AGE` stays 0, the CSR-weight form was not
+   needed).
+6. DFI 1:4 at 100 MHz with BL8: built, timed and brought up; the 1:4 proxy is
+   clean on all four stream families at full-width beats. Two residuals left
+   this task: the narrow-beat return defect is granite TASK-007, and the
+   board's one wrong DQ word per read run (the PHY's first beat, ahead of the
+   controller) is parked as granite TASK-009.
+
+100 MHz: closes with the product default (`STORE_MERGE_EN=1`) since
+2026-10-30/31 (531273ad1 + the timing-CSR false path d30055b2b, accepted by
+the owner); every profile 0 failed and 0 mismatched on the board at 75 and
+100 MHz. The remaining margin levers are granite TASK-004 (deferred).
+
+Against LiteDRAM through the same harness: the DDR2-400 board point streams
+772/774 of 800 MB/s and runs 1w+1r at 761-773 combined (3x LiteDRAM's 75 MHz
+point); the 2026-10-31 tRTP fix took the last throughput lead; the tally on
+the power-on hybrid page mode is granite 42 / LiteDRAM 18 / tie 0. Read
+latency floor: 5 cycles behind LiteDRAM's 18; the owner dropped that item on
+2026-11-01. Open-page mixed-window bimodality (refresh phase selecting the
+write/read run length) was measured and judged not a lock; no change.
 

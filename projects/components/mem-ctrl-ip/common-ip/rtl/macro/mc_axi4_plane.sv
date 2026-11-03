@@ -70,6 +70,11 @@ module mc_axi4_plane #(
                                            //     full-width beat (one DRAM burst, not two). granite TASK-005; 0 = none (pumice)
     parameter int HALF_AGG_HOLD    = 4,    // cycles a lone lo waits for its hi (HALF_AGG only)
     parameter int HALF_AGG_DEPTH   = RD_RET_DEPTH, // side-queue depth = commands in flight per direction; below the plane's outstanding capacity it throttles full-width traffic (proxy: +8 rd cycles at 4)
+    parameter bit NARROW_EN        = 1'b1, // 1 = mc_axi4_narrow_pack behind the host edge: narrow INCR bursts (AxSIZE below the bus) are
+                                           //     rewritten to the full-width burst over the same words, W packed and R replayed by beat
+                                           //     (granite TASK-007). Full-width traffic passes combinationally. 0 = full-width hosts only
+    parameter int NARROW_DEPTH     = RD_RET_DEPTH + 8, // its side-queue depth: the ring's in-flight reads plus the AR skid/stage ahead of it
+    parameter int NARROW_AWQ_DEPTH = 8,    // its AW queue: AWs held while the controller back-pressures AW, so W runs ahead as it would without the block
 
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
@@ -238,6 +243,16 @@ module mc_axi4_plane #(
     logic [1:0]    ha_arburst; logic ha_arlock; logic [3:0] ha_arcache; logic [2:0] ha_arprot;
     logic [3:0]    ha_arqos;  logic [3:0] ha_arregion; logic [UW-1:0] ha_aruser; logic ha_arvalid, ha_arready;
     logic [IW-1:0] ha_rid;    logic [DW-1:0] ha_rdata; logic [1:0] ha_rresp; logic ha_rlast; logic [UW-1:0] ha_ruser; logic ha_rvalid, ha_rready;
+    // behind it, the narrow-transfer pack (NARROW_EN) or straight wires (B passes through either way)
+    logic [IW-1:0] na_awid;   logic [AW-1:0] na_awaddr;  logic [7:0] na_awlen;  logic [2:0] na_awsize;
+    logic [1:0]    na_awburst; logic na_awlock; logic [3:0] na_awcache; logic [2:0] na_awprot;
+    logic [3:0]    na_awqos;  logic [3:0] na_awregion; logic [UW-1:0] na_awuser; logic na_awvalid, na_awready;
+    logic [DW-1:0] na_wdata;  logic [SW-1:0] na_wstrb; logic na_wlast; logic [UW-1:0] na_wuser; logic na_wvalid, na_wready;
+    logic [IW-1:0] na_bid;    logic [1:0] na_bresp; logic [UW-1:0] na_buser; logic na_bvalid, na_bready;
+    logic [IW-1:0] na_arid;   logic [AW-1:0] na_araddr;  logic [7:0] na_arlen;  logic [2:0] na_arsize;
+    logic [1:0]    na_arburst; logic na_arlock; logic [3:0] na_arcache; logic [2:0] na_arprot;
+    logic [3:0]    na_arqos;  logic [3:0] na_arregion; logic [UW-1:0] na_aruser; logic na_arvalid, na_arready;
+    logic [IW-1:0] na_rid;    logic [DW-1:0] na_rdata; logic [1:0] na_rresp; logic na_rlast; logic [UW-1:0] na_ruser; logic na_rvalid, na_rready;
 
     generate
     if (HALF_AGG) begin : g_half_agg
@@ -307,6 +322,74 @@ module mc_axi4_plane #(
     end
     endgenerate
 
+    generate
+    if (NARROW_EN) begin : g_narrow
+        mc_axi4_narrow_pack #(
+            .AXI_ID_WIDTH   (IW),
+            .AXI_ADDR_WIDTH (AW),
+            .AXI_DATA_WIDTH (DW),
+            .AXI_USER_WIDTH (UW),
+            .REC_DEPTH      (NARROW_DEPTH),
+            .AWQ_DEPTH      (NARROW_AWQ_DEPTH)
+        ) u_narrow (
+            .aclk        (aclk),
+            .aresetn     (aresetn),
+            .fub_awid    (ha_awid),       .fub_awaddr  (ha_awaddr),     .fub_awlen   (ha_awlen),
+            .fub_awsize  (ha_awsize),     .fub_awburst (ha_awburst),    .fub_awlock  (ha_awlock),
+            .fub_awcache (ha_awcache),    .fub_awprot  (ha_awprot),     .fub_awqos   (ha_awqos),
+            .fub_awregion(ha_awregion),   .fub_awuser  (ha_awuser),     .fub_awvalid (ha_awvalid),
+            .fub_awready (ha_awready),
+            .fub_wdata   (ha_wdata),      .fub_wstrb   (ha_wstrb),      .fub_wlast   (ha_wlast),
+            .fub_wuser   (ha_wuser),      .fub_wvalid  (ha_wvalid),     .fub_wready  (ha_wready),
+            .fub_bid     (ha_bid),        .fub_bresp   (ha_bresp),      .fub_buser   (ha_buser),
+            .fub_bvalid  (ha_bvalid),     .fub_bready  (ha_bready),
+            .fub_arid    (ha_arid),       .fub_araddr  (ha_araddr),     .fub_arlen   (ha_arlen),
+            .fub_arsize  (ha_arsize),     .fub_arburst (ha_arburst),    .fub_arlock  (ha_arlock),
+            .fub_arcache (ha_arcache),    .fub_arprot  (ha_arprot),     .fub_arqos   (ha_arqos),
+            .fub_arregion(ha_arregion),   .fub_aruser  (ha_aruser),     .fub_arvalid (ha_arvalid),
+            .fub_arready (ha_arready),
+            .fub_rid     (ha_rid),        .fub_rdata   (ha_rdata),      .fub_rresp   (ha_rresp),
+            .fub_rlast   (ha_rlast),      .fub_ruser   (ha_ruser),      .fub_rvalid  (ha_rvalid),
+            .fub_rready  (ha_rready),
+            .m_awid      (na_awid),       .m_awaddr    (na_awaddr),     .m_awlen     (na_awlen),
+            .m_awsize    (na_awsize),     .m_awburst   (na_awburst),    .m_awlock    (na_awlock),
+            .m_awcache   (na_awcache),    .m_awprot    (na_awprot),     .m_awqos     (na_awqos),
+            .m_awregion  (na_awregion),   .m_awuser    (na_awuser),     .m_awvalid   (na_awvalid),
+            .m_awready   (na_awready),
+            .m_wdata     (na_wdata),      .m_wstrb     (na_wstrb),      .m_wlast     (na_wlast),
+            .m_wuser     (na_wuser),      .m_wvalid    (na_wvalid),     .m_wready    (na_wready),
+            .m_bid       (na_bid),        .m_bresp     (na_bresp),      .m_buser     (na_buser),
+            .m_bvalid    (na_bvalid),     .m_bready    (na_bready),
+            .m_arid      (na_arid),       .m_araddr    (na_araddr),     .m_arlen     (na_arlen),
+            .m_arsize    (na_arsize),     .m_arburst   (na_arburst),    .m_arlock    (na_arlock),
+            .m_arcache   (na_arcache),    .m_arprot    (na_arprot),     .m_arqos     (na_arqos),
+            .m_arregion  (na_arregion),   .m_aruser    (na_aruser),     .m_arvalid   (na_arvalid),
+            .m_arready   (na_arready),
+            .m_rid       (na_rid),        .m_rdata     (na_rdata),      .m_rresp     (na_rresp),
+            .m_rlast     (na_rlast),      .m_ruser     (na_ruser),      .m_rvalid    (na_rvalid),
+            .m_rready    (na_rready)
+        );
+    end else begin : g_no_narrow
+        assign na_awid = ha_awid;   assign na_awaddr = ha_awaddr;   assign na_awlen = ha_awlen;
+        assign na_awsize = ha_awsize; assign na_awburst = ha_awburst; assign na_awlock = ha_awlock;
+        assign na_awcache = ha_awcache; assign na_awprot = ha_awprot; assign na_awqos = ha_awqos;
+        assign na_awregion = ha_awregion; assign na_awuser = ha_awuser; assign na_awvalid = ha_awvalid;
+        assign ha_awready = na_awready;
+        assign na_wdata = ha_wdata; assign na_wstrb = ha_wstrb; assign na_wlast = ha_wlast;
+        assign na_wuser = ha_wuser; assign na_wvalid = ha_wvalid; assign ha_wready = na_wready;
+        assign ha_bid = na_bid; assign ha_bresp = na_bresp; assign ha_buser = na_buser;
+        assign ha_bvalid = na_bvalid; assign na_bready = ha_bready;
+        assign na_arid = ha_arid;   assign na_araddr = ha_araddr;   assign na_arlen = ha_arlen;
+        assign na_arsize = ha_arsize; assign na_arburst = ha_arburst; assign na_arlock = ha_arlock;
+        assign na_arcache = ha_arcache; assign na_arprot = ha_arprot; assign na_arqos = ha_arqos;
+        assign na_arregion = ha_arregion; assign na_aruser = ha_aruser; assign na_arvalid = ha_arvalid;
+        assign ha_arready = na_arready;
+        assign ha_rid = na_rid; assign ha_rdata = na_rdata; assign ha_rresp = na_rresp;
+        assign ha_rlast = na_rlast; assign ha_ruser = na_ruser; assign ha_rvalid = na_rvalid;
+        assign na_rready = ha_rready;
+    end
+    endgenerate
+
     // ---- WR request side: chop AW into DFI-burst sub-commands + reframe W ---
     mc_wr_splitter #(
         .AXI_ID_WIDTH  (IW),
@@ -317,25 +400,25 @@ module mc_axi4_plane #(
     ) u_wr_split (
         .aclk        (aclk),
         .aresetn     (aresetn),
-        .fub_awid    (ha_awid),
-        .fub_awaddr  (ha_awaddr),
-        .fub_awlen   (ha_awlen),
-        .fub_awsize  (ha_awsize),
-        .fub_awburst (ha_awburst),
-        .fub_awlock  (ha_awlock),
-        .fub_awcache (ha_awcache),
-        .fub_awprot  (ha_awprot),
-        .fub_awqos   (ha_awqos),
-        .fub_awregion(ha_awregion),
-        .fub_awuser  (ha_awuser),
-        .fub_awvalid (ha_awvalid),
-        .fub_awready (ha_awready),
-        .fub_wdata   (ha_wdata),
-        .fub_wstrb   (ha_wstrb),
-        .fub_wlast   (ha_wlast),
-        .fub_wuser   (ha_wuser),
-        .fub_wvalid  (ha_wvalid),
-        .fub_wready  (ha_wready),
+        .fub_awid    (na_awid),
+        .fub_awaddr  (na_awaddr),
+        .fub_awlen   (na_awlen),
+        .fub_awsize  (na_awsize),
+        .fub_awburst (na_awburst),
+        .fub_awlock  (na_awlock),
+        .fub_awcache (na_awcache),
+        .fub_awprot  (na_awprot),
+        .fub_awqos   (na_awqos),
+        .fub_awregion(na_awregion),
+        .fub_awuser  (na_awuser),
+        .fub_awvalid (na_awvalid),
+        .fub_awready (na_awready),
+        .fub_wdata   (na_wdata),
+        .fub_wstrb   (na_wstrb),
+        .fub_wlast   (na_wlast),
+        .fub_wuser   (na_wuser),
+        .fub_wvalid  (na_wvalid),
+        .fub_wready  (na_wready),
         .m_awid      (sw_awid),
         .m_awaddr    (sw_awaddr),
         .m_awlen     (sw_awlen),
@@ -369,19 +452,19 @@ module mc_axi4_plane #(
     ) u_rd_split (
         .aclk        (aclk),
         .aresetn     (aresetn),
-        .fub_axid    (ha_arid),
-        .fub_axaddr  (ha_araddr),
-        .fub_axlen   (ha_arlen),
-        .fub_axsize  (ha_arsize),
-        .fub_axburst (ha_arburst),
-        .fub_axlock  (ha_arlock),
-        .fub_axcache (ha_arcache),
-        .fub_axprot  (ha_arprot),
-        .fub_axqos   (ha_arqos),
-        .fub_axregion(ha_arregion),
-        .fub_axuser  (ha_aruser),
-        .fub_axvalid (ha_arvalid),
-        .fub_axready (ha_arready),
+        .fub_axid    (na_arid),
+        .fub_axaddr  (na_araddr),
+        .fub_axlen   (na_arlen),
+        .fub_axsize  (na_arsize),
+        .fub_axburst (na_arburst),
+        .fub_axlock  (na_arlock),
+        .fub_axcache (na_arcache),
+        .fub_axprot  (na_arprot),
+        .fub_axqos   (na_arqos),
+        .fub_axregion(na_arregion),
+        .fub_axuser  (na_aruser),
+        .fub_axvalid (na_arvalid),
+        .fub_axready (na_arready),
         .m_axid      (sr_arid),
         .m_axaddr    (sr_araddr),
         .m_axlen     (sr_arlen),
@@ -460,11 +543,11 @@ module mc_axi4_plane #(
         .s_axi_wvalid  (sw_wvalid),
         .s_axi_wready  (sw_wready),
         // consolidated B straight to the host (one B per host burst)
-        .s_axi_bid      (ha_bid),
-        .s_axi_bresp    (ha_bresp),
-        .s_axi_buser    (ha_buser),
-        .s_axi_bvalid   (ha_bvalid),
-        .s_axi_bready   (ha_bready),
+        .s_axi_bid      (na_bid),
+        .s_axi_bresp    (na_bresp),
+        .s_axi_buser    (na_buser),
+        .s_axi_bvalid   (na_bvalid),
+        .s_axi_bready   (na_bready),
         .aw_push_valid_o(aw_push_valid_o),
         .aw_push_ready_i(aw_push_ready_i),
         .aw_push_rank_o (),
@@ -538,13 +621,13 @@ module mc_axi4_plane #(
         .ar_agg_i      (sr_ar_agg),
         .ar_last_i     (sr_ar_last),
         // collapsed R straight to the host (one RLAST per host burst)
-        .s_axi_rid          (ha_rid),
-        .s_axi_rdata        (ha_rdata),
-        .s_axi_rresp        (ha_rresp),
-        .s_axi_rlast        (ha_rlast),
-        .s_axi_ruser        (ha_ruser),
-        .s_axi_rvalid       (ha_rvalid),
-        .s_axi_rready       (ha_rready),
+        .s_axi_rid          (na_rid),
+        .s_axi_rdata        (na_rdata),
+        .s_axi_rresp        (na_rresp),
+        .s_axi_rlast        (na_rlast),
+        .s_axi_ruser        (na_ruser),
+        .s_axi_rvalid       (na_rvalid),
+        .s_axi_rready       (na_rready),
         .ar_push_valid_o    (ar_push_valid_o),
         .ar_push_ready_i    (ar_push_ready_i),
         .ar_push_rank_o     (),

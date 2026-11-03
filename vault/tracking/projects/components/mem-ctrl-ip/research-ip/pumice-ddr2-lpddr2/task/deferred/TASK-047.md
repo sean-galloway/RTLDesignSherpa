@@ -11,7 +11,11 @@
 > (the arbiter cone is the 75 MHz critical path at +0.001 ns).
 
 **Priority:** P3 (research; bounded gain, real timing risk)
-**Status:** open -- design study done, not started
+**Status:** DEFERRED 2026-11-02 (owner) -- design study done, not started.
+Bounded gain (1 slot in 9 on bank walks, nothing on streams) against the
+75 MHz arbiter cone; pumice is at rest and the DDR2 effort moves to
+scoria. Unpark condition: a DDR2 workload that is ACT-slot bound, or the
+same structure wanted for scoria/granite.
 **Owner:** TBD
 
 ## Why

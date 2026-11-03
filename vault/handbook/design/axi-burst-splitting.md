@@ -52,3 +52,19 @@ summary: A block that cuts one burst into several must restart every later piece
   `beat_lanes`), unit-tested against A3.4.1. The converter matrix tests
   (`*_burst_matrix`) drive every burst type x size x alignment and check
   the slave-side AXI is legal as well as the bytes.
+- **A chopper that steps by bus words has to read AxSIZE, or stand behind a
+  block that does.** The memory controllers' `mc_axi_burst_chopper` stepped
+  every sub-command by `AXI_BEATS_PER_BURST` full beats, and the intakes
+  counted one AXI beat as one data word. A narrow INCR burst on a host as wide
+  as the controller therefore read and wrote a different word on every beat
+  after the first: 1020 of 1024 wrong at 8-byte beats on the 128-bit DFI 1:4
+  build (granite TASK-007, 2026-11-02). The 64-bit 1:2 host never showed it,
+  because that controller is 32 bits wide and a 4-byte beat is full width
+  there. Two things hid it: a geometry where narrow did not exist, and an
+  upsizing converter that passes narrow bursts through unchanged (`CM_PASS`,
+  correctly, per the rule above). The fix is `mc_axi4_narrow_pack` at the
+  plane's host edge: narrow INCR is rewritten to the full-width burst over
+  the same words, W is packed by strobe, and each R word is replayed per
+  narrow beat. When a block below "only takes full-width beats", something at
+  the port must make that true; the test is a narrow burst on a host exactly
+  as wide as the block.
