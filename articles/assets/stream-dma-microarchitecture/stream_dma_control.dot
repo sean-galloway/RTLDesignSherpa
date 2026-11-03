@@ -1,0 +1,28 @@
+digraph stream_dma_control {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.90", ranksep="0.78", splines=ortho,
+         label=<<B>Stream's work and data handoff, one channel (simplified)</B>>,
+         labelloc=t, labeljust=c];
+  node [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+        fillcolor="white", color="black", margin="0.16,0.09"];
+  edge [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+  desc [label="Supply and prefetch work\nDescriptor engine",
+        shape=box, style="filled,diagonals", peripheries=2,
+        fillcolor="#FCE4D6", group="C"];
+  sched [label="Own the active transfer\nChannel scheduler",
+         shape=box, style="filled,diagonals", peripheries=2,
+         fillcolor="#FCE4D6", group="C"];
+  read [label="Fetch source data\nAXI read engine",
+        shape=box, peripheries=2, fillcolor="#D6E4F0", group="L"];
+  sram [label="Buffer and account for beats\nPer-channel SRAM",
+        shape=cylinder, fillcolor="#E8DFF5", group="C"];
+  write [label="Send destination data\nAXI write engine",
+         shape=box, peripheries=2, fillcolor="#D6E4F0", group="R"];
+
+  desc -> sched [xlabel="next\ndescriptor"];
+  sched -> read [penwidth=1.8, xlabel="source address\nand beat count"];
+  read -> sram [xlabel="accepted\nR beats"];
+  sram -> write [xlabel="buffered\ndata beats"];
+  sched -> write [penwidth=1.8, xlabel="destination address\nand beat count"];
+}

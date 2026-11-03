@@ -1,0 +1,41 @@
+digraph stream_dma_sram_pointers {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.95", ranksep="0.85", splines=ortho,
+         label=<<B>Two reservation ledgers around one Stream channel SRAM</B>>,
+         labelloc=t, labeljust=c];
+  node [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+        fillcolor="white", color="black", margin="0.14,0.08"];
+  edge [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+  alloc [label="Space ledger\nstream_alloc_ctrl - FUB\n\nalloc_wr_ptr += burst on AR reservation\nalloc_rd_ptr += 1 on accepted W beat\nspace_free = SD - (alloc_wr_ptr - alloc_rd_ptr)",
+         shape=box, peripheries=2, fillcolor="#D6E4F0", group="L"];
+  fifo [label="Physical channel FIFO\ngaxi_fifo_sync - storage",
+        shape=cylinder, fillcolor="#E8DFF5", group="C"];
+  drain [label="Data ledger\nstream_drain_ctrl - FUB\n\nactual_wr_ptr += 1 on FIFO write\ndrain_rd_ptr += burst on AW reservation\ndata_available = actual_wr_ptr - drain_rd_ptr",
+         shape=box, peripheries=2, fillcolor="#D6E4F0", group="R"];
+
+  rdeng [label="Reserve space before AR\nAXI read engine",
+         shape=box, peripheries=2, fillcolor="#D6E4F0", group="L"];
+  bridge [label="Align registered FIFO read with W\nstream_latency_bridge - FUB",
+          shape=box, peripheries=2, fillcolor="#D6E4F0", group="C"];
+  wreng [label="Reserve data before AW\nAXI write engine",
+         shape=box, peripheries=2, fillcolor="#D6E4F0", group="C"];
+  bar [label="Shared AXI data boundary (flopped)",
+       shape=box, style="rounded,filled", fillcolor="#E2EFDA",
+       penwidth=2.2, width=6.8, group="C"];
+
+  fifo -> rdeng [dir=back, color="#1A7A1A", penwidth=1.8,
+                 xlabel="R beats write\nFIFO data"];
+  rdeng -> bar [dir=back, color="#1A7A1A",
+                xlabel="AXI R\nread data"];
+  fifo -> bridge [xlabel="FIFO read\ndata"];
+  bridge -> wreng [xlabel="aligned\nwrite beats"];
+  wreng -> bar [xlabel="AXI W\nwrite data"];
+
+  alloc -> rdeng [dir=both, constraint=false, style=dashed, color="#777777",
+                  xlabel="space_free down\nreservation up"];
+  drain -> wreng [dir=both, constraint=false, style=dashed, color="#777777",
+                  xlabel="data_available down\nreservation up"];
+  wreng -> alloc [constraint=false, style=dashed, color="#777777",
+                  xlabel="accepted W beat\nreleases one space"];
+}
