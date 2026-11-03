@@ -144,6 +144,13 @@ def _cfg(dut, page_policy=0):
         getattr(dut, t).value = 0
     dut.rd_phase_i.value = 0
     dut.wr_phase_i.value = 0
+    # TASK-047 row lane: off unless the build carries it (PUMICE_DUAL=1 ->
+    # DUAL_ISSUE=1), in which case it runs with row commands on phase 1 and
+    # columns on phase 0 for every cell
+    _dual = os.environ.get("DUAL_ISSUE", "0") == "1"
+    for t in ("row_phase_i", "dual_issue_en_i"):
+        if hasattr(dut, t):
+            getattr(dut, t).value = 1 if _dual else 0
     dut.t_phy_wrlat_i.value = 1
     dut.t_rddata_en_i.value = 2
     # NOTE: the s_axi_* channels are deliberately NOT touched here. The
@@ -160,11 +167,32 @@ def _mkaddr(bank, row, col):
             << BYTE_OFFSET)
 
 
+async def _row_lane_probe(dut):
+    """PUMICE_DUAL builds: say whether the TASK-047 row lane ever fired, so a
+    green cell proves the lane ran rather than sitting idle beside it."""
+    sp = dut.u_core.u_sched_plane
+    n = 0
+    while True:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        if int(sp.a2_act.value) or int(sp.a2_pre.value):
+            n += 1
+            if n in (1, 10, 100, 1000):
+                dut._log.info("TASK-047 row lane: %d lane-2 fire(s) by %s ns", n,
+                              get_sim_time("ns"))
+                # the cocotb log is pytest-captured; leave the count beside
+                # the build (the simulator's cwd) as well
+                with open("row_lane_fires.txt", "w") as fh:
+                    fh.write(f"{n}\n")
+
+
 async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
     """clocks + reset + config + strict DFISlavePHY(golden) + init -> returns memory."""
     cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units="ns").start())
     cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units="ns").start())
     _cfg(dut, page_policy)
+    if os.environ.get("DUAL_ISSUE", "0") == "1":
+        cocotb.start_soon(_row_lane_probe(dut))
     dut.aresetn.value = 0
     dut.dfi_rstn.value = 0
     await ClockCycles(dut.aclk, 10)
@@ -2168,7 +2196,9 @@ def _run(request, testcase, params_over=None, enhanced=False):
     # The enhanced and base builds of one testcase are different netlists;
     # give them separate build trees so they cannot race (a shared tree
     # produced a g++ segfault when both compiled at once, 2026-09-09).
-    sim_build = sim_build_path(tests_dir, testcase + ("" if enhanced else "_base"))
+    dual = os.environ.get("PUMICE_DUAL", "0") == "1"
+    sfx = ("" if enhanced else "_base") + ("_dual" if dual else "")
+    sim_build = sim_build_path(tests_dir, testcase + sfx)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
@@ -2182,10 +2212,13 @@ def _run(request, testcase, params_over=None, enhanced=False):
               # PUMICE_CLOSE_ON_DRAIN=0/1 overrides the core's close-on-drain
               # default (TASK-044 A/B; unset = the RTL default)
               **({"CLOSE_ON_DRAIN": os.environ["PUMICE_CLOSE_ON_DRAIN"]}
-                 if os.environ.get("PUMICE_CLOSE_ON_DRAIN") else {})}
+                 if os.environ.get("PUMICE_CLOSE_ON_DRAIN") else {}),
+              # PUMICE_DUAL=1 builds the TASK-047 row lane and runs every cell
+              # with it on (bring-up drives dual_issue_en_i / row_phase_i)
+              **({"DUAL_ISSUE": "1"} if dual else {})}
     if params_over:
         params.update(params_over)
-    tag = testcase + ("" if enhanced else "_base")
+    tag = testcase + sfx
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{tag}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),

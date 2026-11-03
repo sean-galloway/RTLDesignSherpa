@@ -59,7 +59,8 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
                            cmd_delay: int = 1,
                            phy_rd_dq_busy: int = 14,
                            rtw_guard: int = 6,
-                           rd_phase: Optional[int] = None) -> Dict[str, int]:
+                           rd_phase: Optional[int] = None,
+                           row_phase: int = 0) -> Dict[str, int]:
     """JEDEC DDR2 timings in MC cycles for a controller at ``mc_clk_hz`` driving
     the DRAM at ``ck_per_mc`` CK per MC cycle (DFI_RATE=2 -> 2). Every ns value
     rounds UP; every CK minimum rounds up too and the larger of the two wins.
@@ -180,7 +181,11 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     tck_ns = period_ns / ck_per_mc
     rtp_ck = max(ceil(part["tRTP"] / tck_ns), DDR2_CK_MIN["tRTP"])
     rd_to_pre_ck = half_bl + rtp_ck - 2
-    p = (ck_per_mc - 1) if rd_phase is None else int(rd_phase)
+    # A PRE on row_phase (DFI_PHASE.row_phase, TASK-047) sits row_phase CK
+    # later in its MC cycle, which only shortens the CK distance owed here.
+    # Every ns-derived delay above already carries a full (ck_per_mc - 1) CK
+    # phase margin, so ACT on row_phase -> column on phase 0 (tRCD) is covered.
+    p = max(0, ((ck_per_mc - 1) if rd_phase is None else int(rd_phase)) - int(row_phase))
     rtp_mc = max(1, ceil((rd_to_pre_ck + p) / ck_per_mc))
     rd_window_mc = (int(phy_rd_dq_busy) + 1 - (int(t_phy_wrlat) - (int(cmd_delay) - 1))
                     + int(rtw_guard))
@@ -271,7 +276,8 @@ class Pumice(Device):
     # ----- DFI phase --------------------------------------------------------
     def set_dfi_phase(self, rd_phase: int, wr_phase: int = 0,
                       gear_ratio: Optional[int] = None,
-                      bl: Optional[int] = None) -> None:
+                      bl: Optional[int] = None,
+                      row_phase: Optional[int] = None) -> None:
         """Place the READ/WRITE DFI commands on given sub-phases (a7ddrphy
         rdphase/wrphase contract). DFI_PHASE @ APB 0x060; set while idle.
 
@@ -296,6 +302,10 @@ class Pumice(Device):
             fields["gear_ratio"] = gear_ratio & 0x3
         if bl is not None:
             fields["bl"] = bl & 0xF
+        # row_phase (TASK-047): the phase of every non-column command; the
+        # dual-issue row lane needs it off rd_phase / wr_phase. None keeps it.
+        if row_phase is not None:
+            fields["row_phase"] = row_phase & 0x7
         self._wr("DFI_PHASE", **fields)
 
     def get_dfi_phase(self) -> tuple:
@@ -526,7 +536,8 @@ class Pumice(Device):
                          row_sel: Optional[int] = None,
                          col_sel: Optional[int] = None,
                          access_pref: Optional[int] = None,
-                         qos_en: Optional[bool] = None) -> None:
+                         qos_en: Optional[bool] = None,
+                         dual_issue: Optional[bool] = None) -> None:
         """SCHED_POLICY (Axis 1). order_mode: 0=build default (FR-FCFS),
         1=in_order, 3=age_threshold; age_thresh in MC cycles/16 (0 = off).
         On a BASE bitstream in_order is per-channel FIFO (each CAM issues its
@@ -548,6 +559,10 @@ class Pumice(Device):
             kw["access_pref"] = access_pref & 0x3
         if qos_en is not None:
             kw["qos_en"] = 1 if qos_en else 0
+        # TASK-047: a row command rides the column's DFI word (DUAL_ISSUE
+        # builds; needs DFI_PHASE.row_phase off both column phases).
+        if dual_issue is not None:
+            kw["dual_issue"] = 1 if dual_issue else 0
         if kw:
             self._wr("SCHED_POLICY", **kw)
 

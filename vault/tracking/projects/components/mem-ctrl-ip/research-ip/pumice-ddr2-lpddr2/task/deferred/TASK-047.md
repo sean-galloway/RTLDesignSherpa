@@ -189,7 +189,7 @@ bank) passes at depth 30 with every lane cover reached; removing any one of
 the lane's three fire terms fails it (`a_row2_no_row`, `a_row2_bank`,
 `a_trrd_spacing`). Verilator lint warning sets identical with the lane on
 and off. RDS-DV `DFISlavePHY` decodes every selected phase whenever two or
-more carry a command (it read only the first); DV unit (DFI subset, 308 +
+more carry a command (it read only the first; RDS-DV #99, `1b83ed1`); DV unit (DFI subset, 308 +
 2 new) and DFI sim tests pass.
 
 **Timing (Nexys A7, clean Vivado runs of scratch trees, HEAD vs HEAD +

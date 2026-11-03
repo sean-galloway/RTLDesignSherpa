@@ -76,3 +76,20 @@ one runs alone at the 1-in-flight rate. Every 8/1 shape "missed" (0.49 to
 time both were active. Floor the rate between the later first beat and the
 earlier last beat of the two streams; the contention case already did, and
 passed.
+
+## A small delta between configurations can be the refresh phase (2026-11-03)
+
+A perf run that executes phases back to back (the DDR2 char proxy runs
+incremental, row_major, col_ilv, col_major, each write then read) carries the
+refresh timer across them. A change that shortens one phase moves where every
+later phase meets tREFI, so a later phase can take one refresh more or one
+fewer: about 25 cycles at the pumice board point (drain PRE, REF, ACT), or
+1 percent of a 2 200-cycle phase. pumice TASK-047 measured row_major reads at
+2157 vs 2181 cycles and col_major writes at 3951 vs 4004 with its dual-issue
+lane off and on. Run alone, col_major was cycle-identical, and the row_major
+read trace showed three refresh gaps against four with every other read
+back-to-back. The lane had not cost anything. granite TASK-007 hit the same
+effect on col_major reads the day before.
+
+**Before attributing a delta of about one refresh drain to the change, rerun
+that family alone and count the refresh gaps in its command trace.**

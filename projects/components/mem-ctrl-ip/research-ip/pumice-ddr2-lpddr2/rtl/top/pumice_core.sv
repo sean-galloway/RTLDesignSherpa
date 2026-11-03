@@ -74,6 +74,11 @@ module pumice_core
     parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
     parameter bit FAST_RD_RELEASE = 1'b1, // mc_scheduler_plane: commands skip the CMD_DELAY write-data lead while no write is in the line
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
+    // DUAL_ISSUE (TASK-047): build the scheduler's row lane -- a demand ACT /
+    // PRE in the same DFI word as a column, on DFI_PHASE.row_phase. Runtime
+    // enable SCHED_POLICY.dual_issue; the lane runs only on DDR2 with row_phase
+    // off both column phases and one column command per DFI word.
+    parameter bit DUAL_ISSUE     = 1'b0,
                                          // Off since BUG-027 (the "youngest schedulable"
                                          // predicate chopped page-hit write streams); back
                                          // on with the exact predicate of TASK-044 (a
@@ -208,6 +213,8 @@ module pumice_core
     input  logic [7:0]                 lp_mr1_op_i, lp_mr2_op_i, lp_mr3_op_i, // CSR LP_MR1/2/3_OP
     input  logic                       init_restart_i,              // CTRL.init_force_restart
     input  logic [PHW-1:0]             rd_phase_i, wr_phase_i,
+    input  logic [PHW-1:0]             row_phase_i,     // DFI_PHASE.row_phase: every non-column command
+    input  logic                       dual_issue_en_i, // SCHED_POLICY.dual_issue (DUAL_ISSUE builds)
     input  logic [7:0]                 t_phy_wrlat_i, t_rddata_en_i,
     // Active DFI gear = log2(active DFI rate). DFI_RATE is the compile-time MAX
     // that sizes all buses; gear_i selects the active phase count at runtime.
@@ -304,7 +311,8 @@ module pumice_core
 );
 
     localparam int PTRW = $clog2(NUM_ENTRIES);
-    localparam int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1;
+    localparam int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1
+                          + (DUAL_ISSUE ? (2 + BKW + ROW_WIDTH) : 0);
     localparam int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH;
     localparam int RD_DW  = 1 + 2 + DFI_DATA_WIDTH;
 
@@ -348,6 +356,15 @@ module pumice_core
         w_sub_phase_stride = PHW'(w_bl_pumice);
     end
 
+    // DUAL_ISSUE effective enable: DDR2 (an LPDDR2 command fills the CA word),
+    // the row phase clear of both column phases, and one column command per
+    // DFI word (sub-word packing uses the other phases). Static CSRs; the
+    // arbiter samples the result in the controller domain.
+    logic w_dual_en;
+    assign w_dual_en = DUAL_ISSUE && dual_issue_en_i && (memtype_i == MEMTYPE_DDR2)
+                    && (row_phase_i != rd_phase_i) && (row_phase_i != wr_phase_i)
+                    && (w_n_subcmd == SUBW_MAX'(1));
+
     // ---- scheduler <-> IFC CAM per-entry vectors ----
     logic [NUM_ENTRIES-1:0]             w_wr_sch_v,     w_rd_sch_v;
     logic [NUM_ENTRIES*BKW-1:0]         w_wr_sch_bank,  w_rd_sch_bank;
@@ -382,7 +399,17 @@ module pumice_core
     logic [COL_WIDTH-1:0]      w_cmd_col;
     logic                      w_cmd_ap, w_cmd_mrr;
     logic [CMD_DW-1:0]         w_cmd_data;
-    assign w_cmd_data = {w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
+    // DUAL_ISSUE row lane, valid with w_cmd_v
+    logic                      w_cmd2_act, w_cmd2_pre;
+    logic [BKW-1:0]            w_cmd2_bank;
+    logic [ROW_WIDTH-1:0]      w_cmd2_row;
+    generate if (DUAL_ISSUE) begin : g_cmd2_word
+        assign w_cmd_data = {w_cmd2_act, w_cmd2_pre, w_cmd2_bank, w_cmd2_row,
+                             w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
+    end else begin : g_cmd1_word
+        assign w_cmd_data = {w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
+        wire _unused_cmd2 = &{1'b0, w_cmd2_act, w_cmd2_pre, w_cmd2_bank, w_cmd2_row};
+    end endgenerate
 
     // ---- scheduler <-> training plane ----
     logic                      w_trn_req, w_trn_grant;
@@ -748,11 +775,13 @@ module pumice_core
         .HAS_MODE_REGISTER (1'b0),
         .CLOSE_ON_DRAIN    (CLOSE_ON_DRAIN),
         .FAST_RD_RELEASE   (FAST_RD_RELEASE),
+        .DUAL_ISSUE        (DUAL_ISSUE),
         .SCHED_CORE        (SCHED_CORE)
     ) u_sched_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
+        .dual_issue_en_i    (w_dual_en),
         .memtype_i          (memtype_i),
         .page_mode_i        (page_mode_i),
         .page_tr_init_i     (page_tr_init_i),
@@ -881,6 +910,10 @@ module pumice_core
         .cmd_col_o          (w_cmd_col),
         .cmd_ap_o           (w_cmd_ap),
         .cmd_extra_o        (w_cmd_mrr),
+        .cmd2_act_o         (w_cmd2_act),
+        .cmd2_pre_o         (w_cmd2_pre),
+        .cmd2_bank_o        (w_cmd2_bank),
+        .cmd2_row_o         (w_cmd2_row),
         // maintenance-class command channel (from training plane)
         .maint_req_i        (w_trn_req),
         .maint_grant_o      (w_trn_grant),
@@ -987,7 +1020,8 @@ module pumice_core
         .CMD_HISTORY_EN  (CMD_HISTORY_EN),
         .HIST_T_RFC      (HIST_T_RFC_CORE),
         .HIST_T_RTW      (HIST_T_RTW_CORE),
-        .HIST_T_WTR      (HIST_T_WTR_CORE)
+        .HIST_T_WTR      (HIST_T_WTR_CORE),
+        .DUAL_ISSUE      (DUAL_ISSUE)
     ) u_dfi_plane (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
@@ -1009,6 +1043,7 @@ module pumice_core
         .memtype_i          (memtype_i),
         .rd_phase_i         (rd_phase_i),
         .wr_phase_i         (wr_phase_i),
+        .row_phase_i        (row_phase_i),
         .t_phy_wrlat_i      (t_phy_wrlat_i),
         .t_rddata_en_i      (t_rddata_en_i),
         .gear_i             (gear_i),

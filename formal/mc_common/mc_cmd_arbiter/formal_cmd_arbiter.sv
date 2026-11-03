@@ -57,7 +57,11 @@ module formal_cmd_arbiter #(
     // every task, so any regression re-opens the bug on prove/cover/issue019
     // alike. Kept as a parameter only so the pre-fix RTL can still be run
     // bare (chparam -set ISSUE019 0) for a mutation-style check.
-    parameter int ISSUE019 = 0
+    parameter int ISSUE019 = 0,
+    // DUAL: build the arbiter's TASK-047 row lane, its runtime enable free.
+    // The rank-global windows are then checked over BOTH lanes' ACTs, plus the
+    // lane contract (never the main lane's bank, never beside a main-lane row).
+    parameter int DUAL = 0
 ) (
     input logic aclk,
     input logic aresetn
@@ -107,6 +111,12 @@ module formal_cmd_arbiter #(
     (* anyseq *) reg [NE*CW-1:0]  wr_sch_col_i, rd_sch_col_i;
     (* anyseq *) reg [NE*NE-1:0]  wr_sch_older_i, rd_sch_older_i;
     (* anyseq *) reg            wr_commit_ready_i, rd_issue_ready_i, cmd_ready_i;
+    (* anyseq *) reg            dual_issue_en_i;
+    wire row2_act_o, row2_pre_o;
+    wire [BKW-1:0] row2_bank_o;
+    wire [RW-1:0]  row2_row_o;
+    // every ACT either lane fires: the rank-global windows count them all
+    wire any_act = evt_act_o || row2_act_o;
 
     // init is complete: this proof is about mission-mode scheduling, and the
     // init sequencer drives the command bus directly before that.
@@ -128,10 +138,12 @@ module formal_cmd_arbiter #(
 
     mc_cmd_arbiter #(
         .NUM_RANKS(NR), .NUM_BANKS(NB), .ROW_WIDTH(RW), .COL_WIDTH(CW),
-        .AXI_ID_WIDTH(IW), .NUM_ENTRIES(NE), .AGE_WIDTH(AGEW)
+        .AXI_ID_WIDTH(IW), .NUM_ENTRIES(NE), .AGE_WIDTH(AGEW),
+        .DUAL_ISSUE(DUAL != 0)
     ) u_arb (
         .aclk(aclk), .aresetn(aresetn),
-        .page_policy_i(page_policy_i), .sched_order_mode_i(sched_order_mode_i),
+        .page_policy_i(page_policy_i), .dual_issue_en_i(dual_issue_en_i),
+        .sched_order_mode_i(sched_order_mode_i),
         .sched_row_sel_i(sched_row_sel_i), .sched_col_sel_i(sched_col_sel_i),
         .sched_access_pref_i(sched_access_pref_i),
         .sched_wr_high_wm_i(sched_wr_high_wm_i),
@@ -178,6 +190,8 @@ module formal_cmd_arbiter #(
         // was, so it stays a free input of the proof.
         .zq_req_i(1'b0), .zq_grant_o(), .t_zqcs_i(16'd0),
         .tccd_l_ok_i(1'b1), .trrd_l_ok_i(1'b1), .pick_group_o(),
+        .row2_act_o(row2_act_o), .row2_pre_o(row2_pre_o),
+        .row2_bank_o(row2_bank_o), .row2_row_o(row2_row_o),
         .stall_zq_o()
     );
 
@@ -190,7 +204,7 @@ module formal_cmd_arbiter #(
         .mc_clk(aclk), .mc_rst_n(aresetn),
         .t_faw_i(t_faw), .t_rrd_i(t_rrd), .t_wtr_global_i(t_wtr),
         .t_rtw_i(t_rtw), .t_ccd_i(t_ccd),
-        .evt_act_i(evt_act_o), .evt_act_rank_i(evt_rank_o),
+        .evt_act_i(any_act), .evt_act_rank_i(row2_act_o ? '0 : evt_rank_o),
         .evt_rd_i(evt_rd_o), .evt_wr_i(evt_wr_o),
         .tfaw_window_ok_o(tfaw_ok_i), .trrd_window_ok_o(trrd_ok_i),
         .twtr_global_ok_o(twtr_ok_i), .trtw_window_ok_o(trtw_ok_i),
@@ -257,12 +271,12 @@ module formal_cmd_arbiter #(
             age_act <= 0; seen_act <= 1'b0; n_act <= 0;
             for (i = 0; i < 4; i = i + 1) faw_age[i] <= {AW{1'b1}};
         end else begin
-            if (evt_act_o) begin age_act <= 1; seen_act <= 1'b1; end
+            if (any_act) begin age_act <= 1; seen_act <= 1'b1; end
             else if (age_act != {AW{1'b1}}) age_act <= age_act + 1'b1;
 
             for (i = 0; i < 4; i = i + 1)
                 if (faw_age[i] != {AW{1'b1}}) faw_age[i] <= faw_age[i] + 1'b1;
-            if (evt_act_o) begin
+            if (any_act) begin
                 faw_age[3] <= (faw_age[2] == {AW{1'b1}}) ? {AW{1'b1}} : faw_age[2] + 1'b1;
                 faw_age[2] <= (faw_age[1] == {AW{1'b1}}) ? {AW{1'b1}} : faw_age[1] + 1'b1;
                 faw_age[1] <= (faw_age[0] == {AW{1'b1}}) ? {AW{1'b1}} : faw_age[0] + 1'b1;
@@ -279,16 +293,27 @@ module formal_cmd_arbiter #(
         // tRRD: no two ACTs closer than t_rrd, ANY banks. This is the one the
         // per-bank bank_timer cannot see and the command-history checker was
         // same-bank-blind to.
-        if (ISSUE019 != 0 && evt_act_o && seen_act)
+        if (ISSUE019 != 0 && any_act && seen_act)
             a_trrd_spacing: assert (age_act >= {2'b0, t_rrd});
 
         // tFAW: this ACT is the fifth only if four earlier ones exist, and the
         // oldest of those four must have left the window.
-        if (ISSUE019 != 0 && evt_act_o && n_act >= 3'd4)
+        if (ISSUE019 != 0 && any_act && n_act >= 3'd4)
             a_tfaw_window: assert (faw_age[3] >= {2'b0, t_faw});
 
-        // one DRAM command per cycle -- the DFI carries one slot
+        // one DRAM command per cycle per lane
         a_single_issue: assert ($countones({evt_act_o, evt_rd_o, evt_wr_o, evt_pre_o}) <= 1);
+
+        // TASK-047 lane contract. The row lane is ACT or PRE, never both; it
+        // fires only beside a column or an idle main lane (so one DFI word has
+        // at most one row command and one ACT); and never to the bank the main
+        // lane fires to. Without DUAL the lane is constant 0.
+        a_row2_onehot:  assert (!(row2_act_o && row2_pre_o));
+        a_row2_no_row:  assert (!((row2_act_o || row2_pre_o) && (evt_act_o || evt_pre_o)));
+        a_row2_bank:    assert (!((row2_act_o || row2_pre_o) && (evt_rd_o || evt_wr_o)
+                                  && (row2_bank_o == evt_bank_o)));
+        if (DUAL == 0)
+            a_row2_off: assert (!row2_act_o && !row2_pre_o);
     end
 
     // =====================================================================
@@ -301,6 +326,12 @@ module formal_cmd_arbiter #(
         c_fifth_act:  cover (evt_act_o && n_act >= 3'd4);
         c_act_diff_bank: cover (evt_act_o && seen_act && age_act < 10'd6);
         c_col:        cover (evt_rd_o || evt_wr_o);
+        // the lane must actually fire for its asserts to mean anything
+        if (DUAL != 0) begin
+            c_row2_act_beside_col: cover (row2_act_o && (evt_rd_o || evt_wr_o));
+            c_row2_pre_beside_col: cover (row2_pre_o && (evt_rd_o || evt_wr_o));
+            c_row2_then_act:       cover (evt_act_o && seen_act && age_act <= 10'd4);
+        end
     end
 
 endmodule

@@ -350,6 +350,11 @@ module ddr2_char_top #(
 `else
         .SCHED_CORE      (0),   // pumice is FR-FCFS (owner, 2026-10-22); BANK_PICK is granite's
 `endif
+        // TASK-047 row lane: `PUMICE_DUAL_ISSUE builds it (create_project.tcl
+        // env PUMICE_DUAL_ISSUE=1); the runtime enable is SCHED_POLICY.dual_issue.
+`ifdef PUMICE_DUAL_ISSUE
+        .DUAL_ISSUE      (1'b1),
+`endif
 `ifdef PUMICE_SYS_100
         .FPGA_CLK_HZ     (100_000_000)  // sys = 100 MHz -> UART baud divisor (timing build)
 `elsif PUMICE_SYS_50

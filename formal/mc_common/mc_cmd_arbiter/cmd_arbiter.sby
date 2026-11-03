@@ -2,6 +2,8 @@
 prove
 issue019
 cover
+dual
+dual_cover
 
 [options]
 # Four ACTs at tRRD>=2 spans >=8 cycles and the fifth must clear tFAW (up to
@@ -13,11 +15,17 @@ issue019: mode bmc
 issue019: depth 30
 cover: mode cover
 cover: depth 30
+dual: mode bmc
+dual: depth 30
+dual_cover: mode cover
+dual_cover: depth 30
 
 [engines]
 prove:    smtbmc bitwuzla
 issue019: smtbmc bitwuzla
 cover: smtbmc bitwuzla
+dual: smtbmc bitwuzla
+dual_cover: smtbmc bitwuzla
 
 [script]
 read_verilog -formal arb_flat.v
@@ -27,6 +35,9 @@ read -formal -sv formal_cmd_arbiter.sv
 # re-checks the rank-global windows live), so the assertions are armed for
 # EVERY task now -- a regression re-opens BUG-021 on any of them.
 chparam -set ISSUE019 1 formal_cmd_arbiter
+# TASK-047: the row lane built, its enable free (dual / dual_cover)
+dual: chparam -set DUAL 1 formal_cmd_arbiter
+dual_cover: chparam -set DUAL 1 formal_cmd_arbiter
 prep -top formal_cmd_arbiter
 
 [files]

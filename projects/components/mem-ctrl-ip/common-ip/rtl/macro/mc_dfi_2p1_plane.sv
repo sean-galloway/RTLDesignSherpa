@@ -105,8 +105,12 @@ module mc_dfi_2p1_plane
     // rddata_en window width (DQ-bus occupancy of one read). Defaults to
     // BL_WORDS (legacy); set separately when the DRAM beat != device word.
     parameter int RD_EN_CYC = BL_WORDS,
+    // DUAL_ISSUE (pumice TASK-047): the command word carries the scheduler's
+    // row lane in its top bits; mc_dfi_cmd_path drives it on row_phase_i.
+    parameter bit DUAL_ISSUE = 1'b0,
     // FIFO payloads
-    parameter int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1,
+    parameter int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1
+                         + (DUAL_ISSUE ? (2 + BKW + ROW_WIDTH) : 0),
     parameter int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH,   // {last,strb,data}
     parameter int RD_DW  = 1 + 2 + DFI_DATA_WIDTH                 // {last,resp,data}
 ) (
@@ -146,6 +150,7 @@ module mc_dfi_2p1_plane
     input  memtype_e                   memtype_i,
     input  logic [PHW-1:0]             rd_phase_i,
     input  logic [PHW-1:0]             wr_phase_i,
+    input  logic [PHW-1:0]             row_phase_i,   // non-column command phase (DUAL_ISSUE row lane)
     input  logic [7:0]                 t_phy_wrlat_i,
     input  logic [7:0]                 t_rddata_en_i,
     // Direction turnaround for the DFI-side column pacer (pumice BUG-017 (was PUMICE-042)).
@@ -299,13 +304,15 @@ module mc_dfi_2p1_plane
         .HIST_T_RAS      (HIST_T_RAS),
         .HIST_T_RFC      (HIST_T_RFC),
         .HIST_T_WTR      (HIST_T_WTR),
-        .HIST_T_RTW      (HIST_T_RTW)
+        .HIST_T_RTW      (HIST_T_RTW),
+        .DUAL_ISSUE      (DUAL_ISSUE)
     ) u_cmd (
         .dfi_clk           (dfi_clk),
         .dfi_rstn          (dfi_rstn),
         .memtype_i         (memtype_i),
         .rd_phase_i        (rd_phase_i),
         .wr_phase_i        (wr_phase_i),
+        .row_phase_i       (row_phase_i),
         .n_subcmd_i        (n_subcmd_i),
         .sub_col_stride_i  (sub_col_stride_i),
         .sub_phase_stride_i(sub_phase_stride_i),

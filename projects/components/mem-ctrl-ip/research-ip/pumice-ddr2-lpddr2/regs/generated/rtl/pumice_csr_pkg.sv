@@ -610,10 +610,15 @@ package pumice_csr_pkg;
     } pumice_csr__DFI_PHASE__bl__out_t;
 
     typedef struct {
+        logic [2:0] value;
+    } pumice_csr__DFI_PHASE__row_phase__out_t;
+
+    typedef struct {
         pumice_csr__DFI_PHASE__rd_phase__out_t rd_phase;
         pumice_csr__DFI_PHASE__wr_phase__out_t wr_phase;
         pumice_csr__DFI_PHASE__gear_ratio__out_t gear_ratio;
         pumice_csr__DFI_PHASE__bl__out_t bl;
+        pumice_csr__DFI_PHASE__row_phase__out_t row_phase;
     } pumice_csr__DFI_PHASE__out_t;
 
     typedef struct {
@@ -664,6 +669,10 @@ package pumice_csr_pkg;
     } pumice_csr__SCHED_POLICY__qos_en__out_t;
 
     typedef struct {
+        logic value;
+    } pumice_csr__SCHED_POLICY__dual_issue__out_t;
+
+    typedef struct {
         logic [7:0] value;
     } pumice_csr__SCHED_POLICY__age_thresh__out_t;
 
@@ -674,6 +683,7 @@ package pumice_csr_pkg;
         pumice_csr__SCHED_POLICY__col_sel__out_t col_sel;
         pumice_csr__SCHED_POLICY__access_pref__out_t access_pref;
         pumice_csr__SCHED_POLICY__qos_en__out_t qos_en;
+        pumice_csr__SCHED_POLICY__dual_issue__out_t dual_issue;
         pumice_csr__SCHED_POLICY__age_thresh__out_t age_thresh;
     } pumice_csr__SCHED_POLICY__out_t;
 

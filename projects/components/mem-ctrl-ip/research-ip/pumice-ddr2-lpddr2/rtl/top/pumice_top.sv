@@ -35,6 +35,7 @@ module pumice_top
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
     parameter int SCHED_CORE     = 1,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge (pumice_core; TASK-044)
+    parameter bit DUAL_ISSUE     = 1'b0, // the scheduler's row lane (pumice_core; TASK-047)
     parameter bit FAST_RD_RELEASE = 1'b1, // reads skip the CMD_DELAY write-data lead while no write is in the line (pumice_core)
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
@@ -337,6 +338,7 @@ module pumice_top
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
         .SCHED_CORE       (SCHED_CORE),
         .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
+        .DUAL_ISSUE       (DUAL_ISSUE),
         .FAST_RD_RELEASE  (FAST_RD_RELEASE),
         .HAS_LPDDR2       (HAS_LPDDR2),
         .DFI_CDC_EN       (DFI_CDC_EN),
@@ -425,6 +427,8 @@ module pumice_top
         .init_restart_i     (hwif_out.CTRL.init_force_restart.value),
         .rd_phase_i         (hwif_out.DFI_PHASE.rd_phase.value[PHW-1:0]),
         .wr_phase_i         (hwif_out.DFI_PHASE.wr_phase.value[PHW-1:0]),
+        .row_phase_i        (hwif_out.DFI_PHASE.row_phase.value[PHW-1:0]),
+        .dual_issue_en_i    (hwif_out.SCHED_POLICY.dual_issue.value),
         .t_phy_wrlat_i      (hwif_out.PHY_TIMING.t_phy_wrlat.value),
         .t_rddata_en_i      (hwif_out.PHY_TIMING.t_rddata_en.value),
         .gear_i             (hwif_out.DFI_PHASE.gear_ratio.value),

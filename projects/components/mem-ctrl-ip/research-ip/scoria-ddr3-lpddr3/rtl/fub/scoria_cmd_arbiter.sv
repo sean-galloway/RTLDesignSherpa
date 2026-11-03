@@ -152,6 +152,7 @@ module scoria_cmd_arbiter
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
+        .dual_issue_en_i    (1'b0),           // no DUAL_ISSUE row lane here
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),
         .sched_col_sel_i    (sched_col_sel_i),
@@ -248,6 +249,10 @@ module scoria_cmd_arbiter
         .cmd_col_o          (cmd_col_o),
         .cmd_ap_o           (cmd_ap_o),
         .cmd_extra_o        (w_cmd_extra),
+        .row2_act_o         (),
+        .row2_pre_o         (),
+        .row2_bank_o        (),
+        .row2_row_o         (),
         .stall_bp_o         (stall_bp_o),
         .stall_refresh_o    (stall_refresh_o),
         .stall_turnaround_o (stall_turnaround_o),

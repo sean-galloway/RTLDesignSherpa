@@ -51,6 +51,11 @@ module mc_scheduler_plane
     parameter bit HAS_ZQ      = 1'b0,
     parameter int MAINT_EXTRA_WIDTH = 1,
     parameter bit CLOSE_ON_DRAIN = 1'b1,
+    // DUAL_ISSUE (pumice TASK-047, FR-FCFS core only): the arbiter's row lane.
+    // A demand ACT / PRE rides the command word beside a column (cmd2_*_o);
+    // the DFI command path puts it on its own phase. dual_issue_en_i is the
+    // runtime enable. 0 = single issue, bit-identical.
+    parameter bit DUAL_ISSUE     = 1'b0,
     // Pick core: MC_SCHED_BANK_PICK = mc_bank_pick, the family core on the
     // per-bank head-record contract (wr/rd_head*_i); MC_SCHED_FRFCFS =
     // mc_cmd_arbiter, the research core on the per-entry vectors (*_sch_*_i).
@@ -95,6 +100,7 @@ module mc_scheduler_plane
 
     // ---- config ----
     input  page_policy_e              page_policy_i,
+    input  logic                      dual_issue_en_i,   // DUAL_ISSUE runtime enable
 
     // ---- runtime page-policy CSR fields + telemetry ----
     input  logic [1:0]                sched_order_mode_i,
@@ -272,6 +278,13 @@ module mc_scheduler_plane
     output logic [COL_WIDTH-1:0]      cmd_col_o,
     output logic                      cmd_ap_o,
     output logic [MAINT_EXTRA_WIDTH-1:0] cmd_extra_o,
+    // DUAL_ISSUE row lane, valid with cmd_valid_o (constant 0 without it). The
+    // word carries a row command beside -- or, cmd_op_o == OP_NOP, instead of
+    // -- the main command; always to another bank than cmd_bank_o.
+    output logic                      cmd2_act_o,
+    output logic                      cmd2_pre_o,
+    output logic [BKW-1:0]            cmd2_bank_o,
+    output logic [ROW_WIDTH-1:0]      cmd2_row_o,
 
     // registered bank-state image (for rock page_policy / history checkers)
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_row_active_o,
@@ -317,6 +330,10 @@ module mc_scheduler_plane
     logic [BGW_EFF-1:0] a_cmd_bg;
     logic [ROW_WIDTH-1:0] a_cmd_row; logic [COL_WIDTH-1:0] a_cmd_col; logic a_cmd_ap;
     logic [MAINT_EXTRA_WIDTH-1:0] a_cmd_extra;
+    // DUAL_ISSUE row lane, fired this cycle (arbiter row2_*)
+    logic                 a2_act, a2_pre;
+    logic [BKW-1:0]       a2_bank;
+    logic [ROW_WIDTH-1:0] a2_row;
 
     // ======================================================================
     // v2 children: init / mode-register / refresh / page-policy
@@ -575,6 +592,10 @@ module mc_scheduler_plane
                 .cmd_row_i         (a_cmd_row),
                 .cmd_ap_i          (a_cmd_ap),
                 .pre_is_timeout_i  (a_cmd_to_pre),
+                .cmd2_act_i        (a2_act),
+                .cmd2_pre_i        (a2_pre),
+                .cmd2_bank_i       (a2_bank),
+                .cmd2_row_i        (a2_row),
                 .bank_row_active_i (w_bank_row_active[0]),
                 .bank_open_row_i   (w_bank_open_row[0]),
                 .ap_mode_en_o      (w_pp_ap_en),
@@ -660,6 +681,10 @@ module mc_scheduler_plane
         .evt_rank_i       (evt_rank),
         .evt_bank_i       (evt_bank),
         .evt_row_i        (evt_row),
+        .evt2_act_i       (a2_act),
+        .evt2_pre_i       (a2_pre),
+        .evt2_bank_i      (a2_bank),
+        .evt2_row_i       (a2_row),
         .bank_act_ready_la_o (w_bank_act_ready_la),
         .bank_rdwr_ready_la_o(w_bank_rdwr_ready_la),
         .bank_pre_ready_la_o (w_bank_pre_ready_la),
@@ -701,8 +726,9 @@ module mc_scheduler_plane
         .t_ccd_s_i       (t_ccd_s_i),
         .t_rrd_l_i       (t_rrd_l_i),
         .t_rrd_s_i       (t_rrd_s_i),
-        .evt_act_i       (evt_act),
-        .evt_act_rank_i  (evt_rank),
+        // a lane-2 ACT never fires beside a main-lane ACT, and it is rank 0
+        .evt_act_i       (evt_act || a2_act),
+        .evt_act_rank_i  (a2_act ? RKW'(0) : evt_rank),
         .evt_act_bg_i    (w_evt_bg),
         .evt_rd_i        (evt_rd),
         .evt_wr_i        (evt_wr),
@@ -860,6 +886,8 @@ module mc_scheduler_plane
             .dbg_dir_batch_o    (dbg_dir_batch_o)
         );
         assign a_cmd_bg = '0;
+        assign a2_act = 1'b0; assign a2_pre = 1'b0;
+        assign a2_bank = '0;  assign a2_row = '0;
         // research-core-only inputs
         wire _unused_pick = &{1'b0, sched_order_mode_i, sched_row_sel_i, sched_col_sel_i,
                               sched_access_pref_i, sched_wr_high_wm_i, sched_wr_low_wm_i,
@@ -870,7 +898,8 @@ module mc_scheduler_plane
                               rd_sch_bank_i, rd_sch_row_i, rd_sch_col_i, rd_sch_older_i,
                               rd_sch_age_exceed_i, rd_sch_qos_i, rd_sch_head_rel_i,
                               wr_sch_valid_i, rd_sch_valid_i, wr_commit_ready_i,
-                              wr_sch_pend_i, rd_sch_pend_i, w_pp_drain_ok};
+                              wr_sch_pend_i, rd_sch_pend_i, w_pp_drain_ok,
+                              dual_issue_en_i};
     end else begin : g_arbiter
     assign wr_commit_cand_o = 1'b0;
     assign rd_issue_cand_o  = 1'b0;
@@ -890,11 +919,13 @@ module mc_scheduler_plane
         .AGE_WIDTH   (AGE_WIDTH),
         .HAS_ZQ      (HAS_ZQ),
         .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH),
-        .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN)
+        .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
+        .DUAL_ISSUE  (DUAL_ISSUE)
     ) u_arbiter (
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
+        .dual_issue_en_i    (dual_issue_en_i),
         .ap_mode_en_i       (w_pp_ap_en),
         .ap_close_i         (w_pp_ap_close),
         .timeout_pre_req_i  (w_pp_to_req),
@@ -991,6 +1022,10 @@ module mc_scheduler_plane
         .cmd_col_o          (a_cmd_col),
         .cmd_ap_o           (a_cmd_ap),
         .cmd_extra_o        (a_cmd_extra),
+        .row2_act_o         (a2_act),
+        .row2_pre_o         (a2_pre),
+        .row2_bank_o        (a2_bank),
+        .row2_row_o         (a2_row),
         .stall_bp_o         (stall_bp_o),
         .stall_refresh_o    (stall_refresh_o),
         .stall_turnaround_o (stall_turnaround_o),
@@ -1022,16 +1057,37 @@ module mc_scheduler_plane
     // ======================================================================
     // Output command FIFO (scheduler -> DFI). Packs {ap,col,row,bg,bank,rank,extra,op}.
     // ======================================================================
-    localparam int CMD_W = $bits(dram_op_e) + RKW + BKW + BGW_EFF + ROW_WIDTH + COL_WIDTH + 1 + MAINT_EXTRA_WIDTH;
-    logic [CMD_W-1:0] w_cmd_wr_data, w_cmd_rd_data;
-    assign w_cmd_wr_data = {a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bg, a_cmd_bank, a_cmd_rank, a_cmd_extra, a_cmd_op};
+    // DUAL_ISSUE: the word grows by the row lane {act, pre, bank, row}, and a
+    // word may carry the row lane alone (main op OP_NOP). The row lane's fire
+    // already includes a_cmd_ready (it fires only into a free slot), so the
+    // push is the OR of the two fires.
+    localparam int CMD_W1 = $bits(dram_op_e) + RKW + BKW + BGW_EFF + ROW_WIDTH + COL_WIDTH + 1 + MAINT_EXTRA_WIDTH;
+    localparam int CMD_W2 = DUAL_ISSUE ? (2 + BKW + ROW_WIDTH) : 0;
+    localparam int CMD_W  = CMD_W1 + CMD_W2;
+    logic [CMD_W-1:0]  w_cmd_wr_data, w_cmd_rd_data;
+    logic [CMD_W1-1:0] w_cmd1_wr_data;
+    logic              w_push_valid;
+    dram_op_e          w_push_op;
+    assign w_push_valid   = a_cmd_valid || a2_act || a2_pre;
+    assign w_push_op      = a_cmd_valid ? a_cmd_op : OP_NOP;
+    assign w_cmd1_wr_data = {a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bg, a_cmd_bank, a_cmd_rank, a_cmd_extra, w_push_op};
+    generate if (DUAL_ISSUE) begin : g_cmd2_pack
+        assign w_cmd_wr_data = {a2_act, a2_pre, a2_bank, a2_row, w_cmd1_wr_data};
+        assign {cmd2_act_o, cmd2_pre_o, cmd2_bank_o, cmd2_row_o} = w_cmd_rd_data[CMD_W-1 -: CMD_W2];
+    end else begin : g_cmd1_pack
+        assign w_cmd_wr_data = w_cmd1_wr_data;
+        assign cmd2_act_o  = 1'b0;
+        assign cmd2_pre_o  = 1'b0;
+        assign cmd2_bank_o = '0;
+        assign cmd2_row_o  = '0;
+    end endgenerate
 
     logic w_cmd_rd_valid, w_cmd_pop;
     dram_op_e w_rd_op;
     gaxi_fifo_sync #(.DATA_WIDTH(CMD_W), .DEPTH(CMD_FIFO_DEPTH)) u_cmd_fifo (
         .axi_aclk   (aclk),
         .axi_aresetn(aresetn),
-        .wr_valid   (a_cmd_valid),
+        .wr_valid   (w_push_valid),
         .wr_ready   (a_cmd_ready),
         .wr_data    (w_cmd_wr_data),
         .rd_ready   (w_cmd_pop),
@@ -1059,7 +1115,7 @@ module mc_scheduler_plane
     localparam int TOKW = $clog2(CMD_FIFO_DEPTH + 1);
     logic            w_cmd_push, w_tok_mature, w_fast_now, w_tok_in;
     logic [TOKW-1:0] r_tok_cnt;
-    assign w_cmd_push = a_cmd_valid && a_cmd_ready;
+    assign w_cmd_push = w_push_valid && a_cmd_ready;
     generate if (CMD_DELAY > 0) begin : g_cmd_delay
         logic [CMD_DELAY-1:0] r_tok_shift;
         assign w_tok_in = w_cmd_push && !w_fast_now;
@@ -1102,14 +1158,14 @@ module mc_scheduler_plane
                 for (int g = 1; g < 4; g++) if (r_gmax[g] > w_gm) w_gm = r_gmax[g];
             end
             assign w_line_empty = !w_cmd_push && !w_cmd_rd_valid && (r_tok_shift == '0);
-            assign w_fast_now   = r_fast && !(w_cmd_push && is_write_op(a_cmd_op));
+            assign w_fast_now   = r_fast && !(w_cmd_push && is_write_op(w_push_op));
             `ALWAYS_FF_RST(aclk, aresetn,
                 if (`RST_ASSERTED(aresetn)) begin
                     r_smax <= '1; r_idle <= '0; r_fast <= 1'b0;
                 end else begin
                     r_smax <= 17'(w_gm) + 17'(CMD_DELAY);
                     r_idle <= w_line_empty ? ((r_idle == '1) ? r_idle : r_idle + 17'd1) : '0;
-                    if (w_cmd_push && is_write_op(a_cmd_op)) r_fast <= 1'b0;
+                    if (w_cmd_push && is_write_op(w_push_op)) r_fast <= 1'b0;
                     else if (init_done && (r_idle >= r_smax)) r_fast <= 1'b1;
                 end
             )
@@ -1130,7 +1186,7 @@ module mc_scheduler_plane
                                     - (w_cmd_pop    ? TOKW'(1) : TOKW'(0));
     )
 
-    assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bg_o, cmd_bank_o, cmd_rank_o, w_maint_extra_out, w_rd_op} = w_cmd_rd_data;
+    assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bg_o, cmd_bank_o, cmd_rank_o, w_maint_extra_out, w_rd_op} = w_cmd_rd_data[CMD_W1-1:0];
     assign cmd_op_o    = w_rd_op;
 
     assign bank_row_active_o = w_bank_row_active;

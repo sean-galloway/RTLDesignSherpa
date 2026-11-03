@@ -37,7 +37,8 @@ Knobs: TEST_TREFI (585 = board), TEST_TXN (256), TEST_GAP (0), TEST_BURST_LEN
 (8), TEST_FAMILIES, TEST_NUM_GEN (1), TEST_TIMING_OVERRIDES (""), PERF_DUMP,
 PERF_CMD_TRACE, PERF_PICK_TRACE (per-cycle pick-core rows, _START/_N),
 PERF_ARB_TRACE (per-cycle FR-FCFS arbiter rows to <PERF_DUMP>.arb.txt, _START/_N),
-TEST_ACCESS_PREF (SCHED_POLICY.access_pref, FR-FCFS core), TEST_SCHED_CORE
+TEST_ACCESS_PREF (SCHED_POLICY.access_pref, FR-FCFS core), TEST_DUAL (1 = build
+pumice's TASK-047 row lane and run it: SCHED_POLICY.dual_issue, row_phase 1), TEST_SCHED_CORE
 (1 = BANK_PICK, 0 = FRFCFS). TEST_FAMILIES may include `mixed` (perf_mixed_family.py:
 bank-paired threads one row apart, reads and writes concurrent; needs TEST_NUM_GEN >= 2).
 Geometry defaults to the BOARD: rate-2 / 32b beat / x16 / BL4
@@ -230,6 +231,9 @@ async def _cmd_probe(dut, log):
     except AttributeError as e:
         dut._log.info("PERF_CMD_TRACE: scheduler plane probe absent (%r)", e)
         return
+    # pumice TASK-047 row lane (DUAL_ISSUE builds): fires beside the main lane
+    s_act2 = getattr(sp, "a2_act", None)
+    s_pre2 = getattr(sp, "a2_pre", None)
     cyc = 0
     while True:
         await RisingEdge(dut.aclk)
@@ -243,6 +247,10 @@ async def _cmd_probe(dut, log):
             elif int(s_act.value):
                 log.append(("ACT", cyc))
             elif int(s_pre.value):
+                log.append(("PRE", cyc))
+            if s_act2 is not None and int(s_act2.value):
+                log.append(("ACT", cyc))
+            elif s_pre2 is not None and int(s_pre2.value):
                 log.append(("PRE", cyc))
         except Exception:
             pass
@@ -774,9 +782,16 @@ async def cocotb_test_pumice_perf(dut):
         if access_pref:
             drv.set_sched_policy(access_pref=int(access_pref, 0))
             out["access_pref"] = int(access_pref, 0)
+        # TEST_DUAL: the TASK-047 row lane (a DUAL_ISSUE build), row commands on
+        # phase 1 beside columns on rd/wr_phase
+        dual = os.environ.get("TEST_DUAL", "0") == "1"
+        if dual:
+            drv.set_sched_policy(dual_issue=True)
+            out["dual_issue"] = 1
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
-                          gear_ratio=GEAR_RATIO, bl=DRAM_BL)
+                          gear_ratio=GEAR_RATIO, bl=DRAM_BL,
+                          row_phase=(1 if dual else None))
         # Part-derived timings at the 75 MHz board clock (like the board), then
         # any like-for-like overrides on top. Both recorded.
         timings = drv.set_jedec_timings(
@@ -939,6 +954,8 @@ def test_ddr2_char_perf(request):
         repo_root=repo_root, filelist_path=_FILELIST)
 
     tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
+    if os.environ.get("TEST_DUAL", "0") == "1":
+        tag += "_dual"        # a different netlist: its own build tree
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -971,6 +988,7 @@ def test_ddr2_char_perf(request):
         "TEST_PAGE_MODE": os.environ.get("TEST_PAGE_MODE", ""),
         "TEST_TR_INIT": os.environ.get("TEST_TR_INIT", ""),
         "TEST_ACCESS_PREF": os.environ.get("TEST_ACCESS_PREF", ""),
+        "TEST_DUAL": os.environ.get("TEST_DUAL", "0"),
         "TEST_TREFI": os.environ.get("TEST_TREFI", "585"),
         "TEST_TXN": os.environ.get("TEST_TXN", "256"),
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),
@@ -1003,6 +1021,7 @@ def test_ddr2_char_perf(request):
               "SCHED_CORE": os.environ.get("TEST_SCHED_CORE", "0"),  # pumice is FR-FCFS (owner, 2026-10-22)
               # TEST_CLOSE_ON_DRAIN=0/1 overrides pumice's close-on-drain (TASK-044 A/B); unset = the RTL default
               **({"CLOSE_ON_DRAIN": os.environ["TEST_CLOSE_ON_DRAIN"]} if os.environ.get("TEST_CLOSE_ON_DRAIN") else {}),
+              **({"DUAL_ISSUE": "1"} if os.environ.get("TEST_DUAL", "0") == "1" else {}),
               # injectors per direction: the macro default (4) unless the run
               # asks for more (eight per direction is the owner's load point)
               "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0))),

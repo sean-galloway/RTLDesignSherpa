@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-027** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-028** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 23 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
@@ -20,7 +20,10 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-None.
+- **ISSUE-027** — OPEN 2026-11-03: HEAD misses the 50 MHz shipping point by
+  2.84 ns (24 endpoints, all the arbiter's 27-level classify cone); the
+  2026-10-27 bitstream closed at +0.029. Not bisected. Found by TASK-047's
+  A/B builds.
 
 ## Closed
 

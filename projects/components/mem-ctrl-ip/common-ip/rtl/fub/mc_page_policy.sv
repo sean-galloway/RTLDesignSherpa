@@ -97,6 +97,13 @@ module mc_page_policy
     // a close by prediction, so the predictor treats it like a timeout close
     input  logic                       cmd_ap_i,
     input  logic                       pre_is_timeout_i,  // the PRE on cmd_op_i is this block's timeout close (from the core)
+    // the scheduler's DUAL_ISSUE row lane, fired this cycle (a demand ACT or
+    // PRE, never a timeout close, always another bank than cmd_*); tie to 0
+    // without it
+    input  logic                       cmd2_act_i,
+    input  logic                       cmd2_pre_i,
+    input  logic [BKW-1:0]             cmd2_bank_i,
+    input  logic [ROW_WIDTH-1:0]       cmd2_row_i,
 
     // ---- registered per-bank row state (same bus the arbiter registers) ----
     input  logic [NUM_BANKS-1:0]       bank_row_active_i,
@@ -266,12 +273,18 @@ module mc_page_policy
     logic [BKW-1:0]       w_pc_bank;
     logic [ROW_WIDTH-1:0] w_pc_row;
     logic                 w_pc_ap, w_pc_to, w_pc_demand;
+    logic                 w_pc2_act, w_pc2_pre;     // DUAL_ISSUE row lane, same view
+    logic [BKW-1:0]       w_pc2_bank;
+    logic [ROW_WIDTH-1:0] w_pc2_row;
     generate if (PRED_CMD_REG) begin : g_pred_cmd_reg
         logic                 r_pc_valid;
         dram_op_e             r_pc_op;
         logic [BKW-1:0]       r_pc_bank;
         logic [ROW_WIDTH-1:0] r_pc_row;
         logic                 r_pc_ap, r_pc_to, r_pc_demand;
+        logic                 r_pc2_act, r_pc2_pre;
+        logic [BKW-1:0]       r_pc2_bank;
+        logic [ROW_WIDTH-1:0] r_pc2_row;
         `ALWAYS_FF_RST(aclk, aresetn, begin
             if (`RST_ASSERTED(aresetn)) begin
                 r_pc_valid  <= 1'b0;
@@ -281,6 +294,10 @@ module mc_page_policy
                 r_pc_ap     <= 1'b0;
                 r_pc_to     <= 1'b0;
                 r_pc_demand <= 1'b0;
+                r_pc2_act   <= 1'b0;
+                r_pc2_pre   <= 1'b0;
+                r_pc2_bank  <= '0;
+                r_pc2_row   <= '0;
             end else begin
                 r_pc_valid  <= cmd_valid_i;
                 r_pc_op     <= cmd_op_i;
@@ -289,6 +306,10 @@ module mc_page_policy
                 r_pc_ap     <= cmd_ap_i;
                 r_pc_to     <= pre_is_timeout_i;
                 r_pc_demand <= demand_i;
+                r_pc2_act   <= cmd2_act_i;
+                r_pc2_pre   <= cmd2_pre_i;
+                r_pc2_bank  <= cmd2_bank_i;
+                r_pc2_row   <= cmd2_row_i;
             end
         end)
         assign w_pc_valid  = r_pc_valid;
@@ -298,6 +319,10 @@ module mc_page_policy
         assign w_pc_ap     = r_pc_ap;
         assign w_pc_to     = r_pc_to;
         assign w_pc_demand = r_pc_demand;
+        assign w_pc2_act   = r_pc2_act;
+        assign w_pc2_pre   = r_pc2_pre;
+        assign w_pc2_bank  = r_pc2_bank;
+        assign w_pc2_row   = r_pc2_row;
     end else begin : g_pred_cmd_live
         assign w_pc_valid  = cmd_valid_i;
         assign w_pc_op     = cmd_op_i;
@@ -306,6 +331,10 @@ module mc_page_policy
         assign w_pc_ap     = cmd_ap_i;
         assign w_pc_to     = pre_is_timeout_i;
         assign w_pc_demand = demand_i;
+        assign w_pc2_act   = cmd2_act_i;
+        assign w_pc2_pre   = cmd2_pre_i;
+        assign w_pc2_bank  = cmd2_bank_i;
+        assign w_pc2_row   = cmd2_row_i;
     end endgenerate
 
     // ---- issued-stream decodes (predictor / telemetry view) ----------------
@@ -314,6 +343,20 @@ module mc_page_policy
     assign w_is_act = w_pc_valid && (w_pc_op == OP_ACT);
     assign w_is_pre = w_pc_valid && ((w_pc_op == OP_PRE) || (w_pc_op == OP_PREA));
     assign w_is_ref = w_pc_valid && is_refresh_op(w_pc_op);
+
+    // Per-bank ACT / PRE from either lane (DUAL_ISSUE: lane 2 is always another
+    // bank, so at most one lane names any bank b in a cycle). w_act_row_b is the
+    // row the ACT on bank b opens.
+    logic [NUM_BANKS-1:0] w_act_b, w_pre_b;
+    logic [ROW_WIDTH-1:0] w_act_row_b [NUM_BANKS];
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            automatic logic l2 = int'(w_pc2_bank) == b;
+            w_act_b[b]     = (w_is_act && (int'(w_pc_bank) == b)) || (w_pc2_act && l2);
+            w_pre_b[b]     = (w_is_pre && (int'(w_pc_bank) == b)) || (w_pc2_pre && l2);
+            w_act_row_b[b] = (w_pc2_act && l2) ? w_pc2_row : w_pc_row;
+        end
+    end
 
     // ---- per-bank idle timers (fixed_open / adapt_time) --------------------
     // A bank's timer arms while its row is open and RELOADS on any command to
@@ -405,17 +448,20 @@ module mc_page_policy
                     r_drain_arm[b] <= 1'b0;
                     r_row_cols[b]  <= '0;
                 end
-                if (w_is_pre && (int'(w_pc_bank) == b)) begin
+                if (w_pre_b[b]) begin
+                    // a lane-2 PRE is a demand close (w_pre_was_timeout names
+                    // the main lane only, and only its bank)
+                    automatic logic to = w_pre_was_timeout && (int'(w_pc_bank) == b);
                     r_ap_closed[b] <= 1'b0;
-                    r_to_closed[b] <= w_pre_was_timeout;
-                    if (!w_pre_was_timeout) r_keep_open[b] <= 1'b0;   // a real row change
+                    r_to_closed[b] <= to;
+                    if (!to) r_keep_open[b] <= 1'b0;                  // a real row change
                 end
                 if (w_is_apcol && (int'(w_pc_bank) == b)) begin
                     r_to_closed[b] <= 1'b1;                           // auto-precharge: a predicted close
                     r_ap_closed[b] <= 1'b1;
                 end
-                if (w_is_act && (int'(w_pc_bank) == b) && r_to_closed[b]
-                    && (w_pc_row == r_last_row[b]))
+                if (w_act_b[b] && r_to_closed[b]
+                    && (w_act_row_b[b] == r_last_row[b]))
                     r_keep_open[b] <= 1'b1;                           // we closed a row we needed
                 // drain-close evidence: an ACT to a different row than the
                 // last one, after a SHORT-lived row, arms it; an ACT reopening
@@ -443,8 +489,8 @@ module mc_page_policy
                 // 2049 / 80 for the build-default drain close; board 701 vs
                 // 729 MB/s). Only an already-armed bank auto-precharges, so a
                 // stream's timeout-closed rows still never arm this way.
-                if (w_is_act && (int'(w_pc_bank) == b)) begin
-                    r_drain_arm[b] <= r_last_vld[b] && (w_pc_row != r_last_row[b])
+                if (w_act_b[b]) begin
+                    r_drain_arm[b] <= r_last_vld[b] && (w_act_row_b[b] != r_last_row[b])
                                       && ((r_row_cols[b] <= COLCW'(DRAIN_ARM_MAX_COLS))
                                           || !r_to_closed[b] || r_ap_closed[b]);
                     r_row_cols[b]  <= '0;
@@ -474,7 +520,9 @@ module mc_page_policy
                     // Row closed (or engine off): clear.
                     r_idle[b]    <= '0;
                     r_expired[b] <= r_expired[b] && bank_row_active_i[b];
-                end else if ((cmd_valid_i && (int'(cmd_bank_i) == b)) || open_row_demand_i[b]) begin
+                end else if ((cmd_valid_i && (int'(cmd_bank_i) == b))
+                             || ((cmd2_act_i || cmd2_pre_i) && (int'(cmd2_bank_i) == b))
+                             || open_row_demand_i[b]) begin
                     // Any command to the bank re-warms the row -- and so does
                     // a queued column for the open row: idle means nobody
                     // wants the row, not merely that nobody has reached it.
@@ -541,6 +589,7 @@ module mc_page_policy
         end else begin
             if (w_is_pre && !w_pre_was_timeout)
                 r_conflict_mark[w_pc_bank] <= 1'b1;
+            if (w_pc2_pre) r_conflict_mark[w_pc2_bank] <= 1'b1;   // lane 2: a demand close
 
             if (w_is_col) stat_page_hit_o <= stat_page_hit_o + 32'h1;
 
@@ -553,23 +602,27 @@ module mc_page_policy
             // The re-activation case (open -> timeout close -> reopen, with no
             // column op in between) simply sets the flag twice, which is why
             // this counts correctly where col_ops - ACT does not.
-            if (w_is_act) r_act_pending[w_pc_bank] <= 1'b1;
+            if (w_is_act)  r_act_pending[w_pc_bank]  <= 1'b1;
+            if (w_pc2_act) r_act_pending[w_pc2_bank] <= 1'b1;
             if (w_is_col) begin
                 if (r_act_pending[w_pc_bank])
                     r_act_pending[w_pc_bank] <= 1'b0;
                 else
                     stat_row_hit_o[w_pc_bank] <= stat_row_hit_o[w_pc_bank] + 32'h1;
             end
-            if (w_is_act) begin
+            // the two lanes never both carry an ACT (or both a PRE) in one
+            // cycle: lane 2 fires only beside a column or an idle main lane
+            if (w_is_act || w_pc2_act) begin
+                automatic logic [BKW-1:0] ab = w_pc2_act ? w_pc2_bank : w_pc_bank;
                 stat_act_o <= stat_act_o + 32'h1;
-                if (r_conflict_mark[w_pc_bank]) begin
+                if (r_conflict_mark[ab]) begin
                     stat_page_miss_o <= stat_page_miss_o + 32'h1;
-                    r_conflict_mark[w_pc_bank] <= 1'b0;
+                    r_conflict_mark[ab] <= 1'b0;
                 end else begin
                     stat_page_empty_o <= stat_page_empty_o + 32'h1;
                 end
             end
-            if (w_is_pre) stat_pre_o <= stat_pre_o + 32'h1;
+            if (w_is_pre || w_pc2_pre) stat_pre_o <= stat_pre_o + 32'h1;
             if (w_is_ref) begin
                 stat_ref_o <= stat_ref_o + 32'h1;
                 // Sampled at the REF's own issue cycle, so it reflects demand

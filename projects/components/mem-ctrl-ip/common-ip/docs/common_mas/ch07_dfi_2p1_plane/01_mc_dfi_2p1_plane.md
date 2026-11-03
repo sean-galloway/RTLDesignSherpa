@@ -67,7 +67,7 @@ At runtime `gear_i` selects the active rate within the compile-time maximum: `ac
 
 ## Command path
 
-`mc_dfi_cmd_path` pops the abstract command stream from the CDC FIFO, unpacks `{mrr, ap, col, row, bank, rank, op}`, and drives the multi-phase DFI command bus (`fub/mc_dfi_cmd_path.sv:8-10`). It places READ on `rd_phase_i` and WRITE on `wr_phase_i`; everything else lands on phase 0 (`fub/mc_dfi_cmd_path.sv:231-238`).
+`mc_dfi_cmd_path` pops the abstract command stream from the CDC FIFO, unpacks `{mrr, ap, col, row, bank, rank, op}`, and drives the multi-phase DFI command bus (`fub/mc_dfi_cmd_path.sv:8-10`). It places READ on `rd_phase_i` and WRITE on `wr_phase_i`; everything else lands on `row_phase_i` (0 by default). A `DUAL_ISSUE` build carries the scheduler's row lane `{act, pre, bank, row}` in the top bits of the word and drives it with a second formatter on `row_phase_i`, merged into the same DFI word like one more sub-command; the main op may then be `OP_NOP`, which drives nothing. The lane is masked off on LPDDR2, whose command fills the CA word (pumice TASK-047; [scheduler plane 8.1](../ch04_scheduler_plane/01_mc_scheduler_plane.md)).
 
 The path performs **no JEDEC timing enforcement**: all delays come from the scheduler. The only remaining holds are structural — a read may not issue unless the aligner has a free slot, and a write may not issue before its data is staged (`fub/mc_dfi_cmd_path.sv:175-214`). This policy followed pumice `BUG-017` (was `PUMICE-042`): holding columns for `tRTW`/`tWTR` here compressed REF→ACT spacing in the in-order FIFO and caused 180 consecutive reads to return an undriven DQ bus (`fub/mc_dfi_cmd_path.sv:181-190`; see pumice MAS [`15_gear_dfi.md`](../../../../research-ip/pumice-ddr2-lpddr2/docs/pumice_mas/ch02_blocks/15_gear_dfi.md)).
 
@@ -138,7 +138,8 @@ These PHY-integration knobs are not datapath constants; pumice is the measured c
 | `BL_WORDS` | derived | Alias of `BURST_WORDS` |
 | `RD_MAX_OUTSTANDING` | 16 | Read-aligner outstanding-read tracking depth |
 | `RD_EN_CYC` | derived | `rddata_en` window width |
-| `CMD_DW` | derived | Command FIFO payload width |
+| `DUAL_ISSUE` | 1'b0 | The command word carries the scheduler's row lane (pumice TASK-047) |
+| `CMD_DW` | derived | Command FIFO payload width (+ `2 + BKW + ROW_WIDTH` with `DUAL_ISSUE`) |
 | `WD_DW` | derived | Write-data FIFO payload width `{last,strb,data}` |
 | `RD_DW` | derived | Read-return FIFO payload width `{last,resp,data}` |
 
@@ -172,6 +173,7 @@ These PHY-integration knobs are not datapath constants; pumice is the measured c
 | `memtype_i` | in | `memtype_e` | DDR2 / LPDDR2 selector |
 | `rd_phase_i` | in | `[PHW-1:0]` | DFI phase carrying READ command |
 | `wr_phase_i` | in | `[PHW-1:0]` | DFI phase carrying WRITE command |
+| `row_phase_i` | in | `[PHW-1:0]` | DFI phase carrying every non-column command and the row lane |
 | `t_phy_wrlat_i` | in | `[7:0]` | WR cmd → `dfi_wrdata_en` delay |
 | `t_rddata_en_i` | in | `[7:0]` | RD cmd → `dfi_rddata_en` window delay |
 | `gear_i` | in | `[1:0]` | Active gear: `active_rate = 1 << gear_i` |

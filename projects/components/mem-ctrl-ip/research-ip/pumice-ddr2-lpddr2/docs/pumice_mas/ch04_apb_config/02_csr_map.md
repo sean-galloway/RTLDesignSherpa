@@ -262,8 +262,11 @@ There is no scheme selector, `scheme_or`, or `synth_mask_obs`. ROW_MAJOR / BANK_
 |------|------------|---------|-----------------------------------|
 | 2:0  | `rd_phase` | 0       | READ command DFI sub-phase        |
 | 6:4  | `wr_phase` | 0       | WRITE command DFI sub-phase       |
+| 8:7  | `gear_ratio` | 2     | log2(active DFI rate); must equal the PHY's nphases |
+| 12:9 | `bl`       | 8       | JEDEC burst length (MR0 device beats): 4/8/16 |
+| 15:13 | `row_phase` | 0      | Sub-phase of every non-column command (ACT, PRE, REF, MRS). The `SCHED_POLICY.dual_issue` row lane needs it off `rd_phase` and `wr_phase` (TASK-047) |
 
-Sliced to `clog2(DFI_RATE)` bits downstream; upper bits ignored when `DFI_RATE` is small. On the Nexys A7 a7ddrphy, rd_phase=0 (the PHY handles rdphase internally).
+Sliced to `clog2(DFI_RATE)` bits downstream; upper bits ignored when `DFI_RATE` is small. On the Nexys A7 a7ddrphy, rd_phase=0 (the PHY handles rdphase internally). With `row_phase` 1 and the columns on 0, an ACT -> column distance is one CK shorter than the MC-cycle count and a column -> PRE distance one CK longer; the host's timing derivation already carries a full phase margin on every ns-derived delay, so tRCD holds.
 
 ### PHY_TIMING @ 0x064 (rw)
 
@@ -298,7 +301,8 @@ Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.
 | 9:8 | `access_pref` | 0x0 | rw | Address-arbiter class preference: 0=default (bank preparation: a ready row command follows a column, columns follow a row command -- TASK-045), 1=column_first (legacy), 2=row_first, 3=precharge_first |
 | 10:10 | `RSVD_10` | 0x0 | r | Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors) |
 | 11:11 | `qos_en` | 0x0 | rw | 1 = factor AxQOS into the pick (highest ready first, age tie-break) |
-| 15:12 | `RSVD_15_12` | 0x0 | r | Reserved |
+| 12:12 | `dual_issue` | 0x0 | rw | TASK-047: a ready demand ACT or PRE rides the same DFI word as a column, on `DFI_PHASE.row_phase`; under the default `access_pref` a row command that can ride the lane no longer takes a column's slot (one whose bank a column candidate holds still does). Takes effect only on a `DUAL_ISSUE` build, on DDR2, with `row_phase` off both column phases and one column command per DFI word. FR-FCFS core only |
+| 15:13 | `RSVD_15_13` | 0x0 | r | Reserved |
 | 23:16 | `age_thresh` | 0x0 | rw | age_threshold mode: age (MC cycles/16) above which a reference is boosted |
 | 31:24 | `RSVD_31_24` | 0x0 | r | Reserved |
 

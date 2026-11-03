@@ -62,6 +62,13 @@ module mc_bank_timers
     input  logic [RKW-1:0]             evt_rank_i,
     input  logic [BKW-1:0]             evt_bank_i,
     input  logic [ROW_WIDTH-1:0]       evt_row_i,
+    // Second event set: the scheduler's DUAL_ISSUE row lane (ACT / PRE only),
+    // always to a different bank than evt_* in the same cycle. Tie to 0
+    // without it.
+    input  logic                       evt2_act_i,
+    input  logic                       evt2_pre_i,
+    input  logic [BKW-1:0]             evt2_bank_i,
+    input  logic [ROW_WIDTH-1:0]       evt2_row_i,
 
     // ----- per-bank readiness to the arbiter (combinational, single-stage) -----
     // advisory lookahead twins (see mc_bank_timer.sv); BANK_LA=0 == the live set
@@ -100,8 +107,9 @@ module mc_bank_timers
     for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
         for (genvar b = 0; b < NUM_BANKS; b++) begin : g_bank
             // route the scheduler's command event to THIS bank only
-            logic w_sel;
-            assign w_sel = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
+            logic w_sel, w_sel2;
+            assign w_sel  = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
+            assign w_sel2 = (k == 0) && (evt2_bank_i == BKW'(b));   // lane 2 is rank 0
 
             mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(BANK_LA), .LA_AP(BANK_LA_AP),
                             .SET_LAG(EVT_REG)) u_bt (
@@ -113,12 +121,12 @@ module mc_bank_timers
                 .t_rc_i          (w_t_rc),
                 .t_wr_i          (w_t_wr),
                 .t_rtp_i         (w_t_rtp),
-                .set_act_i       (evt_act_i && w_sel),
+                .set_act_i       ((evt_act_i && w_sel) || (evt2_act_i && w_sel2)),
                 .set_rd_i        (evt_rd_i  && w_sel),
                 .set_wr_i        (evt_wr_i  && w_sel),
-                .set_pre_i       (evt_pre_i && w_sel),
+                .set_pre_i       ((evt_pre_i && w_sel) || (evt2_pre_i && w_sel2)),
                 .set_ap_i        (evt_ap_i),
-                .row_i           (evt_row_i),
+                .row_i           ((evt2_act_i && w_sel2) ? evt2_row_i : evt_row_i),
                 .safe_act_o      (bank_act_ready_o [k][b]),
                 .safe_rd_o       (bank_rdwr_ready_o[k][b]),
                 .safe_wr_o       (/* == safe_rd */),

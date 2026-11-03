@@ -243,7 +243,14 @@ addrmap pumice_csr {
         // window (stale) = the on-silicon read-fail root cause. It also carries
         // the burst length that MR0 encodes, so software programs one value.
         field { sw = rw; hw = r; desc = "JEDEC burst length (MR0 device beats): 4/8/16"; } bl[12:9] = 4'd8;
-        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:13]      = 19'h0;
+        // TASK-047: the DFI sub-phase of every NON-column command (ACT, PRE,
+        // REF, MRS, ...). 0 = the legacy placement. The scheduler's row lane
+        // (SCHED_POLICY.dual_issue) puts a row command in the same DFI word as
+        // a column and needs this off rd_phase and wr_phase; the timing CSRs
+        // then carry the phase difference (row -> column loses it, column ->
+        // row gains it), which the host's timing derivation applies.
+        field { sw = rw; hw = r; desc = "Non-column (row) command DFI sub-phase"; } row_phase[15:13] = 3'd0;
+        field { sw = r;  hw = na; desc = "Reserved";                   } RSVD[31:16]      = 16'h0;
 
     } DFI_PHASE @ 0x060;
 
@@ -676,7 +683,11 @@ addrmap pumice_csr {
             desc = "1 = factor AxQOS into the pick (highest ready first, age tie-break)";
         } qos_en[11:11] = 1'b0;
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_12[15:12] = 4'h0;
+        field {
+            sw = rw; hw = r;
+            desc = "TASK-047 dual issue: a ready demand ACT or PRE rides the same DFI word as a column (on DFI_PHASE.row_phase) instead of taking a command slot of its own; under the default access_pref a row command that can ride the lane no longer takes a column's slot (one whose bank a column candidate holds still does). Takes effect only on a DUAL_ISSUE build, on DDR2, with row_phase different from rd_phase and wr_phase and one column command per DFI word. FR-FCFS core only.";
+        } dual_issue[12:12] = 1'b0;
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_13[15:13] = 3'h0;
 
         field {
             sw = rw; hw = r;

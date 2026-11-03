@@ -48,6 +48,7 @@ All parameters are declared at `macro/mc_scheduler_plane.sv:27-68`.
 | `FAST_RD_RELEASE` | 0 | 1 = a command skips `CMD_DELAY` while no write is in the line: entered after the line has been empty for `CMD_DELAY` + the largest programmed spacing, left by a WR push (that WR takes the full delay). Granite sets 1 (`granite_pkg`); pumice sets 1 (`pumice_core` parameter, forwarded by `pumice_top` and `pumice_top_geared`). |
 | `DIR_OWNS_ROWS` | 1'b0 | `mc_bank_pick`: the direction holding the bus (`r_dir`) may close the other direction's open row until its batch cap; 0 keeps the courtesy that withholds a PRE while the other direction's head hits the row. From the cap on the courtesy holds again, so the owner cannot close the row the waiting direction opens for the column that flips the bus. Granite sets 1 (`granite_pkg`). |
 | `DIR_HOLD_IDLE` | 0 | `mc_bank_pick`: the direction register also holds while the current direction has a queued head in any bank, for at most this many cycles without a command of its own (0 = off; the batch cap still bounds a run). Granite sets 8. With `DIR_OWNS_ROWS` it ends the one-bank-per-run lock of a mixed load (board, 100 MHz, 2026-11-01, six runs each: mixed window read 202 -> 283 or 319 MB/s at power-on, 202 -> 330 open page, 197 -> 236 fixed open). |
+| `DUAL_ISSUE` | 1'b0 | FR-FCFS core only: build the arbiter's row lane (section 8.1). Pumice passes it through `pumice_core`, `pumice_top` and `pumice_top_geared`; granite, scoria and andesite leave it 0. The runtime enable is `dual_issue_en_i`. |
 | `HAS_ZQ` | 1'b0 | Include ZQ calibration branch and tZQCS block. |
 | `MAINT_EXTRA_WIDTH` | 1 | Width of `cmd_extra_o` / `maint_extra_i` (pumice=MRR, andesite=MPC[5:0]). |
 | `HAS_INIT_SEQUENCER` | 1'b1 | Build the `mc_xddr2_init_sequencer` child; 0 takes the init stream from the `init_*_i` ports. |
@@ -73,6 +74,7 @@ Ports are declared at `macro/mc_scheduler_plane.sv:69-240`.
 |---|---|---|---|---|
 | Clock/reset | `aclk`, `aresetn` | in | 1 | MC clock and active-low reset. |
 | Config | `page_policy_i` | in | `page_policy_e` | OPEN / CLOSE / HAPPY_HYBRID selector. |
+| Config | `dual_issue_en_i` | in | 1 | Row-lane runtime enable (`DUAL_ISSUE` builds; ignored otherwise and by the BANK_PICK core). The core gates it: DDR2, a row phase off both column phases, one column command per DFI word. |
 | Scheduler CSR | `sched_order_mode_i`, `sched_row_sel_i`, `sched_col_sel_i`, `sched_access_pref_i` | in | 2 each | ORDER mode, row/col select, class preference. |
 | Scheduler CSR | `sched_wr_high_wm_i`, `sched_wr_batch_max_i`, `sched_wr_low_wm_i` | in | 8 each | Write-batch watermarks and max. |
 | Scheduler CSR | `sched_prio_sub_i`, `sched_qos_en_i` | in | 2, 1 | Read-vs-write tie-break and QoS enable. |
@@ -92,6 +94,7 @@ Ports are declared at `macro/mc_scheduler_plane.sv:69-240`.
 | Write CAM | `wr_sch_valid_i`, `wr_sch_bank_i`, `wr_sch_row_i`, `wr_sch_col_i`, `wr_sch_older_i`, `wr_sch_age_exceed_i`, `wr_sch_qos_i`, `wr_sch_head_rel_i`, `wr_commit_ready_i`, `wr_commit_valid_o`, `wr_commit_slot_o` | in/out | varies | Write schedulable-entry vectors and commit handshake. |
 | Read CAM | `rd_sch_valid_i`, `rd_sch_bank_i`, `rd_sch_row_i`, `rd_sch_col_i`, `rd_sch_older_i`, `rd_sch_age_exceed_i`, `rd_sch_qos_i`, `rd_sch_head_rel_i`, `rd_issue_ready_i`, `rd_issue_valid_o`, `rd_issue_slot_o` | in/out | varies | Read schedulable-entry vectors and issue handshake. |
 | Command output | `cmd_valid_o`, `cmd_ready_i`, `cmd_op_o`, `cmd_rank_o`, `cmd_bank_o`, `cmd_bg_o`, `cmd_row_o`, `cmd_col_o`, `cmd_ap_o`, `cmd_extra_o` | out/in | varies | DFI command descriptor. |
+| Row lane | `cmd2_act_o`, `cmd2_pre_o`, `cmd2_bank_o`, `cmd2_row_o` | out | 1, 1, `BKW`, `ROW_WIDTH` | The second command of the same word (valid with `cmd_valid_o`); constant 0 without `DUAL_ISSUE`. With a row command alone in the word, `cmd_op_o` is `OP_NOP`. |
 | Bank state | `bank_row_active_o`, `bank_open_row_o` | out | `[NUM_RANKS][NUM_BANKS]`, `[NUM_RANKS][NUM_BANKS][ROW_WIDTH-1:0]` | Registered bank-state image. |
 | Status | `busy_o` | out | 1 | `!init_done \|\| refresh_req \|\| cmd_fifo_valid \|\| any_bank_active` (internal init/refresh when the children are built). |
 | Pre-FIFO accept | `cmd_accept_o`, `cmd_accept_op_o` | out | 1, `dram_op_e` | Same-cycle accept pulse and opcode. |
@@ -131,7 +134,7 @@ Rock-specific training/init/ZQ requesters collapse to a generic maintenance slot
 
 ## 7. Output command descriptor
 
-The FIFO write data is packed `{ap, col, row, bg, bank, rank, extra, op}` (`macro/mc_scheduler_plane.sv:697`) and unpacked in the same order at the output (`macro/mc_scheduler_plane.sv:738`). The `extra` field carries the maintenance value for generic maintenance commands; otherwise it is zero. This is the scheduler-side seam; DFI-generation packing is described in [DFI Boundary Lineage](../../03_dfi_boundary_lineage.md).
+The FIFO write data is packed `{ap, col, row, bg, bank, rank, extra, op}` and unpacked in the same order at the output. A `DUAL_ISSUE` build prepends the row lane, `{act, pre, bank, row, ...}`, and pushes on either lane's fire; a word whose main lane did not fire carries `OP_NOP` there. `CMD_DELAY` and `FAST_RD_RELEASE` treat the word as one command. The `extra` field carries the maintenance value for generic maintenance commands; otherwise it is zero. This is the scheduler-side seam; DFI-generation packing is described in [DFI Boundary Lineage](../../03_dfi_boundary_lineage.md).
 
 ## 8. Fire-stage authority
 
@@ -156,6 +159,51 @@ Other proven guard terms:
 - **ONE-CYCLE BLIND SPOT**: turnaround history registers load the cycle after a fire, so a command picked in the same cycle another fires sees stale history. The fix adds an in-flight fire term to the live turnaround equations (`fub/mc_cmd_arbiter.sv:849-858`; `fub/mc_global_timers.sv:100-124`).
 - **Parked-victim PRE guard**: a PRE leaves the registered row image stale for up to three cycles; a column picked against it lands on the closed row and wedges the AR-order drain. The column mask includes `!w_pre_col_guard` (`fub/mc_cmd_arbiter.sv:441-453`).
 - **BUG-002 / tZQCS fire-stage block**: the tZQCS counter loads on accepted fire, so a classify-time check is one cycle early. Every demand-class fire gate includes `!w_zq_busy` (`fub/mc_cmd_arbiter.sv:278-284`). Refresh is placed above ZQ in the priority cone because inside tZQCS the refresh branch cannot run; `w_ref_safe` carries `!w_rfc_busy`, while refresh is kept out of the ZQ window by cone priority, and the code warns not to "tidy" this into symmetry (`fub/mc_cmd_arbiter.sv:1104-1116`, `1378-1386`).
+
+### 8.1 The row lane (`DUAL_ISSUE`, pumice TASK-047)
+
+At DFI 1:2 with BL4 on x16, one column per MC cycle saturates the data bus, so
+a single-issue arbiter spends a command slot of its own on every ACT and PRE:
+9 slots per 8-column row on a bank walk even with bank preparation hiding tRCD.
+The PHY takes a command on each DFI phase, so the second phase is free.
+
+With the row lane built and enabled:
+
+- **Pick.** While the class priority picks the column, the pre-pick's demand
+  ACT (or, with none, its demand PRE) is loaded into a second, row-only output
+  register at the same edge as the main one. It is built from the pre-pick
+  registers only, like the TASK-044 forward terms, and skips a row command whose
+  bank is either column candidate's bank. Under the default `access_pref`
+  (bank preparation) a row command that can ride the lane no longer takes the
+  column's slot; one that cannot (its bank is a column candidate's) still does,
+  and with no column pickable the row command takes the main lane as before.
+- **Fire.** The lane fires on the live bank image: an ACT needs the bank closed,
+  `bank_act_ready_i`, tFAW, tRRD and no tRFC; a PRE needs the bank open and
+  `bank_pre_ready_i`. It never fires beside a main-lane row, refresh, ZQ or
+  maintenance command, so a word carries at most one ACT and tRRD / tFAW see at
+  most one per cycle, and never to the main lane's bank. It never blocks the
+  main lane. A blocked lane-2 command holds while its bank is in the state it
+  needs and is dropped otherwise; row commands consume no CAM entry, so a drop
+  is lossless.
+- **Guards.** The lane's register is a row command in flight for every shadow
+  the main lane's is (`w_inflight_preact`, `w_if_preact_out`, `w_act_guard`,
+  the speculative-hit and early-ACT forward terms), and its fires feed
+  `r_guard0`, `r_actg0`, `r_actsh_*`, `r_pre_closing` and `r_preguard0`.
+- **Timers and policy.** `mc_bank_timers` takes a second event set (`evt2_*`),
+  `mc_global_timers` sees the lane's ACT on `evt_act_i`, and `mc_page_policy`
+  takes it on `cmd2_*` for the idle timers, the close predictor and the
+  telemetry.
+- **Placement.** `mc_dfi_cmd_path` drives the lane with its own formatter on
+  `row_phase_i`, which also carries every main-lane non-column command; the core
+  enables the lane only with `row_phase` off `rd_phase` and `wr_phase`.
+
+Bench (`test_pumice_core_bankprep.py`, board geometry, bank-interleaved rows,
+2026-11-03): 9 -> 8 slots per row in both directions, columns per cycle 0.878
+-> 0.996 (writes) and 0.890 -> 1.000 (reads), no mismatches and no JEDEC
+violations. The formal wrapper's `dual` task checks tRRD / tFAW across both
+lanes and the lane contract above. Not lane-aware: the scheduler-side and
+DFI-wire command-history checkers, the Ocelus accept tap, and the DDR4 L/S
+windows (`NUM_BG > 1` builds leave the lane off).
 
 ## 9. Page-policy context
 

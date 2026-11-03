@@ -202,6 +202,12 @@ if {[info exists ::env(PUMICE_SCHED_CORE)] && $::env(PUMICE_SCHED_CORE) ne ""} {
 } else {
     set _freq_note "$_freq_note, SCHED_CORE=0 (FRFCFS, the top's default)"
 }
+# PUMICE_DUAL_ISSUE=1: build pumice's scheduler row lane (TASK-047). The
+# runtime enable is SCHED_POLICY.dual_issue; unset, the lane is not built.
+if {[info exists ::env(PUMICE_DUAL_ISSUE)] && $::env(PUMICE_DUAL_ISSUE) eq "1"} {
+    lappend current_defines "PUMICE_DUAL_ISSUE"
+    set _freq_note "$_freq_note, DUAL_ISSUE=1"
+}
 # Say it loudly and unconditionally. "Which clock is this .bit" must never be
 # inferred from a board log two hundred lines in.
 puts "=============================================================="

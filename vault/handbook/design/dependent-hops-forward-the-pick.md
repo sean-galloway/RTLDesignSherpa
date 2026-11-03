@@ -148,3 +148,21 @@ Related: [[plane-boundary-registered-snapshots]] (why the image is
 registered in the first place), [[priority-logic-depth]],
 [[block-boundary-dead-cycles]] (the same "account every excess cycle"
 discipline for datapaths).
+
+## A second issue lane is in flight for every guard (TASK-047, 2026-11-03)
+
+The same arbiter grew a row-only second output lane (`DUAL_ISSUE`: an ACT or
+PRE in the same DFI word as a column, on its own phase). Every shadow and
+forward term above answers "is a row command on this bank in flight or just
+fired?", and a lane that one of them does not see re-opens the hazards they
+close: the pre-pick ACT picked twice, a column classified against a row its
+ACT has not opened, a refresh drain that misses an open bank. So the lane
+register counts as in flight wherever the main output register does
+(`w_inflight_preact`, `w_if_preact_out`, `w_act_guard`, the speculative-hit and
+early-ACT terms), and its fires feed `r_guard0`, `r_actg0`, `r_actsh_*`,
+`r_pre_closing` and `r_preguard0`. The lane loads at the main register's edge,
+from the same pre-pick registers, so the pre-pick moves past the command it
+took. The lane fires on the live image, never beside a main-lane row command
+and never to the main lane's bank. The formal wrapper's `dual` task checks
+that contract, and removing any one of its three fire terms fails it.
+

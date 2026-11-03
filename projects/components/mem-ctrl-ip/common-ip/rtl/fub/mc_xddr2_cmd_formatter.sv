@@ -94,6 +94,9 @@ module mc_xddr2_cmd_formatter
     // legacy "everything on phase 0" behavior when both are 0.
     input  logic [PHW-1:0]                rd_phase_i,
     input  logic [PHW-1:0]                wr_phase_i,
+    // Phase for every NON-column command (ACT/PRE/REF/MRS/...). 0 = the legacy
+    // placement. The DUAL_ISSUE row lane needs it off the column phases.
+    input  logic [PHW-1:0]                row_phase_i,
 
     // ----- multi-phase DFI control bus -----
     output logic [DFI_ADDR_BUS_W-1:0]     dfi_address_o,
@@ -342,7 +345,7 @@ module mc_xddr2_cmd_formatter
     logic [DFI_CS_BUS_W-1:0]    w_dfi_odt;
 
     // Target phase for the decoded command: READ on rd_phase, WRITE on
-    // wr_phase, everything else on phase 0. This aligns the R/W command with
+    // wr_phase, everything else on row_phase (phase 0 by default). This aligns the R/W command with
     // the a7ddrphy rdphase/wrphase so the returned/launched burst lands in the
     // expected DFI cycle. Non-R/W commands (ACT/PRE/REF/MRS) have no data-phase
     // contract, so phase 0 is fine and preserves legacy behavior.
@@ -351,7 +354,7 @@ module mc_xddr2_cmd_formatter
         unique case (cmd_op_i)
             OP_RD, OP_RDA: w_cmd_phase = rd_phase_i;
             OP_WR, OP_WRA: w_cmd_phase = wr_phase_i;
-            default:       w_cmd_phase = '0;
+            default:       w_cmd_phase = row_phase_i;
         endcase
     end
 

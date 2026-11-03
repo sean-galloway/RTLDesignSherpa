@@ -126,6 +126,20 @@ all gated on the command sink accepting the push:
    legacy order, 2 row_first, 3 precharge_first);
    the class is chosen from the possibly-narrowed per-class picks, then
    read-over-write applies within it.
+   `SCHED_POLICY.dual_issue` (TASK-047, a `DUAL_ISSUE` build) removes the
+   reason for that alternation: a ready demand ACT or PRE to another bank is
+   loaded into a second, row-only output register beside the column and
+   fires in the same DFI word on `DFI_PHASE.row_phase`, so a bank walk costs
+   8 command slots per 8-column row instead of 9. Under bank preparation a
+   row command that can ride the lane no longer takes the column's slot;
+   one whose bank a column candidate holds still does. The
+   row lane fires on the live bank image like the main lane, never beside a
+   main-lane row command (so one word carries at most one ACT) and never to
+   the main lane's bank; it holds while its bank is in the state it needs and
+   is dropped otherwise, without blocking the main lane. Every in-flight and
+   fired guard the main lane's ACT / PRE feeds, its fires feed too. The DFI
+   command path drives it with its own formatter. Common MAS ch.4 has the
+   detail.
    `SCHED_POLICY.row_sel/col_sel` further steer the SELECTION within the
    (possibly narrowed) activate/column classes: population-first
    (most/fewest schedulable entries sharing the candidate's {bank,row},

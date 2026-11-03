@@ -887,6 +887,7 @@ module granite_core
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
+        .dual_issue_en_i    (1'b0),           // FR-FCFS row lane: not on the pick core
         .memtype_i          (memtype_i),
         .page_mode_i        (page_mode_i),
         .page_tr_init_i     (page_tr_init_i),
@@ -1012,6 +1013,10 @@ module granite_core
         .cmd_col_o          (w_cmd_col),
         .cmd_ap_o           (w_cmd_ap),
         .cmd_extra_o        (w_cmd_mrr),
+        .cmd2_act_o         (),
+        .cmd2_pre_o         (),
+        .cmd2_bank_o        (),
+        .cmd2_row_o         (),
         .maint_req_i        (w_trn_req),
         .maint_grant_o      (w_trn_grant),
         .maint_op_i         (w_trn_op),
@@ -1140,6 +1145,7 @@ module granite_core
         .memtype_i          (memtype_i),
         .rd_phase_i         (rd_phase_i),
         .wr_phase_i         (wr_phase_i),
+        .row_phase_i        ('0),             // every non-column command on phase 0
         .t_phy_wrlat_i      (t_phy_wrlat_i),
         .t_rddata_en_i      (t_rddata_en_i),
         .gear_i             (gear_i),

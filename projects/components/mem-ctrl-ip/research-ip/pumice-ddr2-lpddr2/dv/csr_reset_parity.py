@@ -117,6 +117,7 @@ FIELDS = {
                "declaration this file's header warns against."),
     "DFI_PHASE.rd_phase": dict(ships=0x0, note="board bring-up tuple, ILA-verified 2026-09-05"),
     "DFI_PHASE.wr_phase": dict(ships=0x0, note="board bring-up tuple, ILA-verified 2026-09-05"),
+    "DFI_PHASE.row_phase": dict(ships=0x0, note="TASK-047: every non-column command on phase 0, the legacy placement; the dual-issue lane (deferred) needs 1"),
 
     "INIT_TIMING0.t_dll_wait": dict(ships=0x0100, note="DDR2 DLL lock, 200 CK at the shipping clock"),
     "INIT_TIMING0.t_init_wait": dict(ships=0x0200, note="power-on wait"),
@@ -168,6 +169,7 @@ FIELDS = {
     "REF_TIMING_PB.trefi_pb": dict(ships=0x0000, note="per-bank refresh interval; unused while REF_CTRL.mode=0"),
     "REF_TIMING_PB.trfc_pb": dict(ships=0x00, note="per-bank tRFC; unused while REF_CTRL.mode=0"),
 
+    "SCHED_POLICY.dual_issue": dict(ships=0x0, note="TASK-047 row lane OFF; only a DUAL_ISSUE build has the lane, and it is deferred on ISSUE-027"),
     "SCHED_POLICY.order_mode": dict(ships=0x0, note="FR-FCFS. TASK-002 measured reordering worth 3.9x, so this is the shipping choice"),
     "SCHED_POLICY.prio_sub": dict(ships=0x0, note="no sub-priority within a pick"),
     "SCHED_POLICY.row_sel": dict(ships=0x0, note="default row selector"),

@@ -34,6 +34,7 @@ module pumice_core_tb_top
     parameter int CMD_HISTORY_EN = 0,  // -G from DV: arm the history scoreboard
     parameter int SCHED_CORE     = 0,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
     parameter bit CLOSE_ON_DRAIN = 1'b1, // -G from DV: pumice close-on-drain A/B (TASK-044)
+    parameter bit DUAL_ISSUE     = 1'b0, // -G from DV: build the row lane (TASK-047)
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,
@@ -86,6 +87,8 @@ module pumice_core_tb_top
     input  logic [15:0]      t_init_wait_i, t_dll_wait_i,
     input  logic [7:0]       t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
     input  logic [PHW-1:0]   rd_phase_i, wr_phase_i,
+    input  logic [PHW-1:0]   row_phase_i,
+    input  logic             dual_issue_en_i,
     input  logic [7:0]       t_phy_wrlat_i, t_rddata_en_i,
     output logic [3:0]       cl_o, cwl_o, bl_o,
     output logic             init_done_o,
@@ -177,7 +180,8 @@ module pumice_core_tb_top
         .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
         .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .DRAM_BL(DRAM_BL), .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
         .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS), .RD_RET_DEPTH(RD_RET_DEPTH),
-        .CMD_HISTORY_EN(CMD_HISTORY_EN), .SCHED_CORE(SCHED_CORE), .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN)
+        .CMD_HISTORY_EN(CMD_HISTORY_EN), .SCHED_CORE(SCHED_CORE), .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
+        .DUAL_ISSUE(DUAL_ISSUE)
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(memtype_i), .page_policy_i(page_policy_i),
@@ -244,6 +248,7 @@ module pumice_core_tb_top
         .t_init_wait_i(t_init_wait_i), .t_dll_wait_i(t_dll_wait_i),
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
+        .row_phase_i(row_phase_i), .dual_issue_en_i(dual_issue_en_i),
         .t_phy_wrlat_i(t_phy_wrlat_i), .t_rddata_en_i(t_rddata_en_i),
         // gear_i = log2(DFI_RATE) so the ACTIVE DFI rate == the build DFI_RATE
         // (full rate, all phases active) — bit-identical to the pre-gear

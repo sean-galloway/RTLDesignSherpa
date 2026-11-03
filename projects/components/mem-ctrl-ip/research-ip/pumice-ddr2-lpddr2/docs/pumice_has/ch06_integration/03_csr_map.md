@@ -270,6 +270,9 @@ legacy all-on-phase-0 behavior.
 |------|------------|-------|--------------------------------|
 | 2:0  | `rd_phase` | 0     | READ command DFI sub-phase     |
 | 6:4  | `wr_phase` | 0     | WRITE command DFI sub-phase    |
+| 8:7  | `gear_ratio` | 2   | log2(active DFI rate); must equal the PHY's nphases |
+| 12:9 | `bl`       | 8     | JEDEC burst length (MR0 device beats): 4/8/16 |
+| 15:13 | `row_phase` | 0    | Sub-phase of every non-column command; the dual-issue row lane needs it off both column phases (TASK-047) |
 
 ### `PHY_TIMING` (0x064, R/W)
 

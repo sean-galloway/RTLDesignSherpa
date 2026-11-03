@@ -360,6 +360,7 @@ module scoria_scheduler_plane
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
+        .dual_issue_en_i    (1'b0),           // no DUAL_ISSUE row lane here (pumice TASK-047)
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),
         .sched_col_sel_i    (sched_col_sel_i),
@@ -501,6 +502,10 @@ module scoria_scheduler_plane
         .cmd_accept_o       (),
         .cmd_accept_op_o    (),
         .cmd_extra_o        (w_cmd_extra),
+        .cmd2_act_o         (),
+        .cmd2_pre_o         (),
+        .cmd2_bank_o        (),
+        .cmd2_row_o         (),
         .bank_row_active_o  (w_bank_row_active),
         .bank_open_row_o    (w_bank_open_row),
         .busy_o             (busy_o),

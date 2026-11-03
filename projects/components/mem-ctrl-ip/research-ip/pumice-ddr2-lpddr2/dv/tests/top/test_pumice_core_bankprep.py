@@ -22,6 +22,8 @@ Knobs (environment):
   TEST_TR_INIT    page_tr_init_i (default 0, the CSR reset since TASK-048)
   TEST_ROWS       rows per phase (default 128)
   TEST_BANKS      banks to hop over (default 8; 1 = col_major shape)
+  TEST_DUAL       1 = build the TASK-047 row lane (DUAL_ISSUE) and run it:
+                  dual_issue_en_i = 1, row_phase_i = 1 (columns stay on 0)
   ARB_TRACE_START / ARB_TRACE_N
                   per-cycle FR-FCFS arbiter rows for that cycle window, to
                   <label>.arb.txt (same cycle counter as the fire log)
@@ -54,6 +56,7 @@ def _sched_knobs():
 
 async def _fire_log(dut, log):
     sp = dut.u_core.u_sched_plane
+    lane2 = hasattr(sp, "a2_act")   # TASK-047 row lane (DUAL_ISSUE builds)
     cyc = 0
     while True:
         await RisingEdge(dut.aclk)
@@ -66,6 +69,11 @@ async def _fire_log(dut, log):
         elif int(sp.evt_act.value):
             log.append(("ACT", cyc))
         elif int(sp.evt_pre.value):
+            log.append(("PRE", cyc))
+        # a lane-2 row command fires beside the main lane, in the same cycle
+        if lane2 and int(sp.a2_act.value):
+            log.append(("ACT", cyc))
+        elif lane2 and int(sp.a2_pre.value):
             log.append(("PRE", cyc))
 
 
@@ -172,6 +180,10 @@ async def cocotb_test_pumice_core_bankprep(dut):
     sched = _sched_knobs()
     for k, v in sched.items():
         getattr(dut, k).value = v
+    dual = os.environ.get("TEST_DUAL", "0") == "1"
+    if dual:
+        dut.row_phase_i.value = 1
+        dut.dual_issue_en_i.value = 1
     # Refresh far away: the shape under test is the row switch, not tREFI.
     dut.t_refi_i.value = 0x3FFF
     dut.refi_reload_i.value = 1
@@ -214,7 +226,7 @@ async def cocotb_test_pumice_core_bankprep(dut):
     rd = _phase_stats(log, rd_c[0] - 4, rd_c[-1] + 1, "RD") if rd_c else {}
     out = {
         "label": label, "rows": n_rows, "banks": n_banks, "cols_per_row": cols_per_row,
-        "sched": sched, "page_mode": int(dut.page_mode_i.value), "tr_init": int(dut.page_tr_init_i.value),
+        "sched": sched, "dual": dual, "page_mode": int(dut.page_mode_i.value), "tr_init": int(dut.page_tr_init_i.value),
         "geometry": {"beat": core.DRAM_BEAT, "bl": core.BL, "dev_w": core.DRAM_DEV_W,
                      "bl_words": core.BL_WORDS, "t_rcd": int(dut.t_rcd_i.value), "t_rp": int(dut.t_rp_i.value)},
         "wr": wr, "rd": rd,
@@ -252,6 +264,7 @@ def test_pumice_core_bankprep(request):
               "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "16"),
               "RD_RET_DEPTH": os.environ.get("PUMICE_RD_RET_DEPTH", "64"),
               "SCHED_CORE": os.environ.get("TEST_SCHED_CORE", "0"),
+              "DUAL_ISSUE": "1" if os.environ.get("TEST_DUAL", "0") == "1" else "0",
               **({"CLOSE_ON_DRAIN": os.environ["PUMICE_CLOSE_ON_DRAIN"]}
                  if os.environ.get("PUMICE_CLOSE_ON_DRAIN") else {})}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{tag}.log"),

@@ -78,6 +78,12 @@ module mc_dfi_cmd_path
     // HAS_MRR=1 preserves the 2.1 default; HAS_MRR=0 drops the bit from CMD_DW
     // and ties the formatter's cmd_mrr_i to 0.
     parameter int HAS_MRR        = 1,
+    // DUAL_ISSUE (pumice TASK-047): the command word carries a second, row-only
+    // command {act, pre, bank, row} in its top bits (the scheduler's row lane).
+    // It is driven by its own formatter on row_phase_i, beside the main
+    // command, in the same DFI word; never to the main command's bank. The
+    // main op may be OP_NOP (the word carries the row command alone).
+    parameter bit DUAL_ISSUE     = 1'b0,
     // Sub-DFI-word burst packing (task #146). N_SUBCMD sub-column-commands of one
     // scheduled column command are issued in ONE DFI cycle at command phases
     // {base, base+SUB_PHASE_STRIDE, ...} and columns {col, col+SUB_COL_STRIDE,
@@ -105,7 +111,8 @@ module mc_dfi_cmd_path
     // Packed command word: {mrr, ap, col, row, bank, rank, op} when HAS_MRR=1;
     // {ap, col, row, bank, rank, op} when HAS_MRR=0. Matches the scheduler's
     // cmd FIFO packing.
-    parameter int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + HAS_MRR,
+    parameter int CMD_DW1 = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + HAS_MRR,
+    parameter int CMD_DW = CMD_DW1 + (DUAL_ISSUE ? (2 + BKW + ROW_WIDTH) : 0),
     // Sub-command COUNT width: holds the value N_SUBCMD (1..N_SUBCMD), so it
     // needs clog2(N_SUBCMD+1) bits (clog2(N) alone cannot represent N).
     parameter int SUBW_MAX = $clog2(N_SUBCMD + 1)
@@ -115,6 +122,9 @@ module mc_dfi_cmd_path
     input  memtype_e                   memtype_i,
     input  logic [PHW-1:0]             rd_phase_i,
     input  logic [PHW-1:0]             wr_phase_i,
+    // phase of every non-column command; the DUAL_ISSUE row lane rides it, so it
+    // must differ from rd_phase_i / wr_phase_i when that lane is in use
+    input  logic [PHW-1:0]             row_phase_i,
     // Direction-turnaround pacing (pumice BUG-017 (was PUMICE-042)), in DFI cycles. Driven from the
 
     // ---- runtime sub-DFI-word framing (from bl+gear CSRs; <= compile MAX) ----
@@ -165,9 +175,9 @@ module mc_dfi_cmd_path
     dram_op_e             w_op;
     generate
         if (HAS_MRR != 0) begin : g_unpack_mrr
-            assign {w_mrr, w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
+            assign {w_mrr, w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i[CMD_DW1-1:0];
         end else begin : g_unpack_no_mrr
-            assign {w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i;
+            assign {w_ap, w_col, w_row, w_bank, w_rank, w_op} = cmd_data_i[CMD_DW1-1:0];
             assign w_mrr = 1'b0;
         end
     endgenerate
@@ -234,7 +244,7 @@ module mc_dfi_cmd_path
         unique case (w_op)
             OP_RD, OP_RDA: w_base_phase = rd_phase_i;
             OP_WR, OP_WRA: w_base_phase = wr_phase_i;
-            default:       w_base_phase = '0;
+            default:       w_base_phase = row_phase_i;
         endcase
     end
 
@@ -256,8 +266,11 @@ module mc_dfi_cmd_path
             logic                sub_active;
             logic [PHW-1:0]      sub_phase;
             logic [COL_WIDTH-1:0] sub_col;
+            // A DUAL_ISSUE word may carry the row lane alone: its main op is
+            // then OP_NOP and drives nothing (no selected NOP on its phase).
             assign sub_active = cmd_valid_i && w_gate
-                              && (SUBW_MAX'(gs) < w_n_sub);
+                              && (SUBW_MAX'(gs) < w_n_sub)
+                              && !(DUAL_ISSUE && (w_op == OP_NOP));
             // Phase / column for this sub. Only column ops fan out; ACT/PRE/REF/
             // MRS keep sub 0 on the base phase (their gs>0 subs are inactive).
             assign sub_phase  = w_base_phase
@@ -294,6 +307,7 @@ module mc_dfi_cmd_path
                 .cmd_len_i    ('0),
                 .rd_phase_i   (sub_phase),
                 .wr_phase_i   (sub_phase),
+                .row_phase_i  (sub_phase),
                 .dfi_address_o(w_sub_address[gs]),
                 .dfi_bank_o   (w_sub_bank[gs]),
                 .dfi_cas_n_o  (w_sub_cas_n[gs]),
@@ -305,6 +319,76 @@ module mc_dfi_cmd_path
         end
     endgenerate
 
+    // ---- DUAL_ISSUE row lane: its own formatter on row_phase_i ---------------
+    logic [DFI_ADDR_BUS_W-1:0] w_r2_address;
+    logic [DFI_BANK_BUS_W-1:0] w_r2_bank;
+    logic [DFI_CTRL_BUS_W-1:0] w_r2_cas_n, w_r2_ras_n, w_r2_we_n;
+    logic [DFI_CS_BUS_W-1:0]   w_r2_cs_n, w_r2_odt;
+    generate if (DUAL_ISSUE) begin : g_row2
+        logic                 w2_act, w2_pre;
+        logic [BKW-1:0]       w2_bank;
+        logic [ROW_WIDTH-1:0] w2_row;
+        // DDR2 only: an LPDDR2 command rides the CA word on dfi_address for
+        // ANY op the formatter sees, and two of them would OR into garbage.
+        // The core never enables the lane on LPDDR2; this keeps the merge
+        // clean regardless.
+        logic [DFI_ADDR_BUS_W-1:0] w_f2_address;
+        logic [DFI_BANK_BUS_W-1:0] w_f2_bank;
+        logic [DFI_CTRL_BUS_W-1:0] w_f2_cas_n, w_f2_ras_n, w_f2_we_n;
+        logic [DFI_CS_BUS_W-1:0]   w_f2_cs_n, w_f2_odt;
+        logic                      w_f2_ddr2;
+        assign {w2_act, w2_pre, w2_bank, w2_row} = cmd_data_i[CMD_DW-1:CMD_DW1];
+        assign w_f2_ddr2 = (memtype_i == MEMTYPE_DDR2);
+        mc_xddr2_cmd_formatter #(
+            .NUM_RANKS      (NUM_RANKS),
+            .NUM_BANKS      (NUM_BANKS),
+            .ROW_WIDTH      (ROW_WIDTH),
+            .COL_WIDTH      (COL_WIDTH),
+            .BURST_LEN_WIDTH(BURST_LEN_WIDTH),
+            .DFI_RATE       (DFI_RATE),
+            .DFI_ADDR_WIDTH (DFI_ADDR_WIDTH),
+            .DFI_BANK_WIDTH (DFI_BANK_WIDTH),
+            .DFI_CTRL_WIDTH (DFI_CTRL_WIDTH),
+            .DFI_CS_WIDTH   (DFI_CS_WIDTH)
+        ) u_fmt_row2 (
+            .mc_clk       (dfi_clk),
+            .mc_rst_n     (dfi_rstn),
+            .memtype_i    (memtype_i),
+            .cmd_valid_i  (cmd_valid_i && w_gate && (w2_act || w2_pre)),
+            .cmd_ready_o  (),
+            .cmd_op_i     (w2_act ? OP_ACT : OP_PRE),
+            .cmd_rank_i   (RKW'(0)),
+            .cmd_bank_i   (w2_bank),
+            .cmd_row_i    (w2_row),
+            .cmd_col_i    ('0),
+            .cmd_mrr_i    (1'b0),
+            .cmd_len_i    ('0),
+            .rd_phase_i   (row_phase_i),
+            .wr_phase_i   (row_phase_i),
+            .row_phase_i  (row_phase_i),
+            .dfi_address_o(w_f2_address),
+            .dfi_bank_o   (w_f2_bank),
+            .dfi_cas_n_o  (w_f2_cas_n),
+            .dfi_ras_n_o  (w_f2_ras_n),
+            .dfi_we_n_o   (w_f2_we_n),
+            .dfi_cs_n_o   (w_f2_cs_n),
+            .dfi_odt_o    (w_f2_odt)
+        );
+        assign w_r2_address = w_f2_ddr2 ? w_f2_address : '0;
+        assign w_r2_bank    = w_f2_ddr2 ? w_f2_bank    : '0;
+        assign w_r2_cas_n   = w_f2_ddr2 ? w_f2_cas_n   : '1;
+        assign w_r2_ras_n   = w_f2_ddr2 ? w_f2_ras_n   : '1;
+        assign w_r2_we_n    = w_f2_ddr2 ? w_f2_we_n    : '1;
+        assign w_r2_cs_n    = w_f2_ddr2 ? w_f2_cs_n    : '1;
+        assign w_r2_odt     = w_f2_ddr2 ? w_f2_odt     : '0;
+    end else begin : g_no_row2
+        assign w_r2_address = '0;
+        assign w_r2_bank    = '0;
+        assign {w_r2_cas_n, w_r2_ras_n, w_r2_we_n} = '1;
+        assign w_r2_cs_n    = '1;
+        assign w_r2_odt     = '0;
+    end endgenerate
+
     // Merge the per-sub placed buses into ONE multi-phase command word. Each
     // active sub owns a distinct phase; every other phase (and every inactive
     // sub) is NOP: cs_n/ras_n/cas_n/we_n = all-ones, addr/bank/odt = 0. So:
@@ -313,13 +397,14 @@ module mc_dfi_cmd_path
     //   * addr/bank/odt : OR across subs — the placed value on a sub's phase
     //     survives; 0 elsewhere.
     always_comb begin
-        dfi_address_o = '0;
-        dfi_bank_o    = '0;
-        dfi_odt_o     = '0;
-        dfi_cas_n_o   = '1;
-        dfi_ras_n_o   = '1;
-        dfi_we_n_o    = '1;
-        dfi_cs_n_o    = '1;
+        // the DUAL_ISSUE row lane merges like one more sub (its own phase)
+        dfi_address_o = w_r2_address;
+        dfi_bank_o    = w_r2_bank;
+        dfi_odt_o     = w_r2_odt;
+        dfi_cas_n_o   = w_r2_cas_n;
+        dfi_ras_n_o   = w_r2_ras_n;
+        dfi_we_n_o    = w_r2_we_n;
+        dfi_cs_n_o    = w_r2_cs_n;
         for (int s = 0; s < N_SUBCMD; s++) begin
             dfi_address_o |= w_sub_address[s];
             dfi_bank_o    |= w_sub_bank[s];

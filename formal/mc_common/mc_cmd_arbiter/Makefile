@@ -37,5 +37,9 @@ issue019: arb_flat.v
 cover: arb_flat.v
 	sby -f cmd_arbiter.sby cover
 
+# TASK-047 row lane (DUAL_ISSUE): bmc + cover with the lane built
+dual: arb_flat.v
+	sby -f cmd_arbiter.sby dual dual_cover
+
 clean:
 	rm -rf *_flat.v arb_flat.v cmd_arbiter_prove cmd_arbiter_issue019 cmd_arbiter_cover

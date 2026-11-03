@@ -37,7 +37,7 @@ when DFI_RATE &lt; the field width.</p>
         <th></th>
     </tr>
     <tr id="RSVD">
-        <td>[31:13]</td>
+        <td>[31:16]</td>
         <td><a href="#RSVD.desc">RSVD</a></td>
         <td>
             <span title='Read-only'>r</span></td>
@@ -54,6 +54,26 @@ when DFI_RATE &lt; the field width.</p>
                 title="Switch radix" aria-label="Switch radix"
                 data-name="RSVD" onclick="onRadixSwitch(this)">H</button>
             <a class="headerlink" href="#RSVD" title="Permalink to this row"></a>
+        </td>
+    </tr>
+    <tr id="row_phase">
+        <td>[15:13]</td>
+        <td><a href="#row_phase.desc">row_phase</a></td>
+        <td>
+            <span title='Readable and Writable'>rw</span></td>
+        <td>0x0
+        </td>
+        <td>
+            <input id="_FieldValueTesterrow_phase" class="field-value-tester"
+                type="text" autocomplete="off"
+                data-name="row_phase" oninput="onDecodedFieldInput(this)"/>
+        </td>
+        <td>-</td>
+        <td>
+            <button type="button" id="_RadixButtonrow_phase" class="radix-button"
+                title="Switch radix" aria-label="Switch radix"
+                data-name="row_phase" onclick="onRadixSwitch(this)">H</button>
+            <a class="headerlink" href="#row_phase" title="Permalink to this row"></a>
         </td>
     </tr>
     <tr id="bl">
@@ -160,6 +180,13 @@ when DFI_RATE &lt; the field width.</p>
 </h3>
 <div id="_Content.RSVD.desc">
 <p>Reserved</p>
+</div>
+
+<h3 id="row_phase.desc">row_phase
+    <a class="headerlink" href="#row_phase.desc" title="Permalink to this headline"></a>
+</h3>
+<div id="_Content.row_phase.desc">
+<p>Non-column (row) command DFI sub-phase</p>
 </div>
 
 <h3 id="bl.desc">bl

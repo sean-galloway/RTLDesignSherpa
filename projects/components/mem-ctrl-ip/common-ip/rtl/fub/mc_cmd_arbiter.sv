@@ -83,6 +83,13 @@ module mc_cmd_arbiter
     // page-hit streams keep their open-row behavior.
     parameter bit CLOSE_ON_DRAIN = 1'b1,
     parameter int MAINT_EXTRA_WIDTH = 1, // width of maint_extra_i; pumice maps trn_cmd_mrr, andesite maps mpc[5:0]
+    // DUAL_ISSUE (pumice TASK-047): a second, ROW-only output lane. While the
+    // main lane carries a demand column, a ready demand ACT or PRE to a
+    // different bank rides the same command word in row2_*; the DFI command
+    // path places it on its own phase. Build gate; dual_issue_en_i is the
+    // runtime enable. 0 = single issue, the lane is constant-0 and trims away.
+    // Single-rank, NUM_BG == 1 only (the L/S windows are not lane-aware).
+    parameter bit DUAL_ISSUE = 1'b0,
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
     parameter int PTRW = (NUM_ENTRIES > 1) ? $clog2(NUM_ENTRIES) : 1,
@@ -92,6 +99,7 @@ module mc_cmd_arbiter
     input  logic                      aclk,
     input  logic                      aresetn,
     input  page_policy_e              page_policy_i,
+    input  logic                      dual_issue_en_i,   // DUAL_ISSUE runtime enable
 
     // ---- SCHED_POLICY order mode (TASK-001 Axis 1) ----
     input  logic [1:0]                sched_order_mode_i,
@@ -235,6 +243,16 @@ module mc_cmd_arbiter
     output logic                      cmd_ap_o,
     output logic [MAINT_EXTRA_WIDTH-1:0] cmd_extra_o,
 
+    // ---- DUAL_ISSUE row lane: FIRES this cycle with the command push --------
+    // row2_act_o / row2_pre_o strobe when the lane-2 command fires (it is
+    // pushed in the same FIFO word as cmd_*_o, which may itself be idle, and
+    // it doubles as the lane's bank-timer / global-timer event). Always to a
+    // different bank than a main-lane command firing in the same cycle.
+    output logic                      row2_act_o,
+    output logic                      row2_pre_o,
+    output logic [BKW-1:0]            row2_bank_o,
+    output logic [ROW_WIDTH-1:0]      row2_row_o,
+
     // ---- stall-cause attribution (TASK-006) ----
     output logic [31:0]               stall_bp_o,
     output logic [31:0]               stall_refresh_o,
@@ -273,6 +291,23 @@ module mc_cmd_arbiter
     logic                 r_wr_commit, r_rd_issue;
     logic [PTRW-1:0]      r_commit_slot, r_issue_slot;
     logic [MAINT_EXTRA_WIDTH-1:0] r_cmd_extra;
+
+    // ---- DUAL_ISSUE row lane (TASK-047) -------------------------------------
+    // r2_*: the lane-2 register, a demand ACT (r2_pre = 0) or PRE (r2_pre = 1).
+    // Loaded at the same edge as the main output register, from the same
+    // pre-pick registers, so the pre-pick advances past the command it took and
+    // the classify guards below see it in flight exactly as they see the main
+    // lane's. w2_*: the lane-2 pick this cycle (registers only).
+    logic                 w_dual;
+    logic                 r2_valid, r2_pre;
+    logic [BKW-1:0]       r2_bank;
+    logic [ROW_WIDTH-1:0] r2_row;
+    logic                 w2_load, w2_pre;
+    logic [BKW-1:0]       w2_bank;
+    logic [ROW_WIDTH-1:0] w2_row;
+    logic                 w2_safe, w2_hold, w2_fire;
+    logic [NUM_BANKS-1:0] w2_act_out, w2_pre_out, w2_act_pick, w2_pre_pick;
+    assign w_dual = DUAL_ISSUE && dual_issue_en_i;
 
     // Pre-pick registers
     logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
@@ -424,7 +459,8 @@ module mc_cmd_arbiter
     // Forward-masks covering the extra output-register cycle
     logic w_inflight_col, w_inflight_preact;
     assign w_inflight_col    = r_pick_valid && (r_do_rd || r_do_wr);
-    assign w_inflight_preact = r_pick_valid && (r_do_act || r_do_pre);
+    // the lane-2 register is a row command in flight too (DUAL_ISSUE)
+    assign w_inflight_preact = (r_pick_valid && (r_do_act || r_do_pre)) || r2_valid;
 
     // =====================================================================
     // IN-FLIGHT SHADOW -- what has this arbiter already committed that the
@@ -461,7 +497,8 @@ module mc_cmd_arbiter
         if (rd_pre_f) w_if_preact_pre |= (NUM_BANKS'(1) << rd_pre_bank);
         if (wr_pre_f) w_if_preact_pre |= (NUM_BANKS'(1) << wr_pre_bank);
 
-        w_if_preact_out = w_inflight_preact ? (NUM_BANKS'(1) << r_bank) : '0;
+        w_if_preact_out = (r_pick_valid && (r_do_act || r_do_pre)) ? (NUM_BANKS'(1) << r_bank) : '0;
+        if (r2_valid) w_if_preact_out |= (NUM_BANKS'(1) << r2_bank);
 
         w_if_col_sel = '0;
         if (w_sel_rd_col_f)
@@ -513,7 +550,12 @@ module mc_cmd_arbiter
     logic [ROW_WIDTH-1:0] w_pick_row;
     assign w_act_out   = (r_pick_valid && r_do_act) ? (NUM_BANKS'(1) << r_bank) : '0;
     assign w_pre_out   = (r_pick_valid && r_do_pre) ? (NUM_BANKS'(1) << r_bank) : '0;
-    assign w_act_guard = w_if_act_sel | w_if_act_pre | w_act_out | w_act_pick | r_actg0 | r_actg1;
+    // DUAL_ISSUE: the lane-2 ACT in its register (w2_act_out) or being loaded
+    // (w2_act_pick) guards its bank the same way; r_actg0/1 take its fire.
+    assign w2_act_out  = (r2_valid && !r2_pre) ? (NUM_BANKS'(1) << r2_bank) : '0;
+    assign w2_pre_out  = (r2_valid &&  r2_pre) ? (NUM_BANKS'(1) << r2_bank) : '0;
+    assign w_act_guard = w_if_act_sel | w_if_act_pre | w_act_out | w_act_pick | r_actg0 | r_actg1
+                       | w2_act_out | w2_act_pick;
 
     logic [NUM_BANKS-1:0] w_col_inflight_guard;
     assign w_col_inflight_guard = w_if_col_sel | w_if_col_pre;
@@ -803,6 +845,8 @@ module mc_cmd_arbiter
             // path; a speculation whose ACT never fired is dropped there.
             automatic logic           phit_spec = (w_act_pick[pbank] && (w_pick_row == prow))
                                                 || (w_act_out[pbank] && (r_row == prow))
+                                                || (w2_act_pick[pbank] && (w2_row == prow))
+                                                || (w2_act_out[pbank] && (r2_row == prow))
                                                 || (r_actsh_vld[pbank] && (r_actsh_row[pbank] == prow));
             // TASK-044 early ACT: the bank is closing (AP drain, demand PRE
             // fired and not yet in the image, or the PRE is being picked /
@@ -810,7 +854,8 @@ module mc_cmd_arbiter
             // live bank is closed AND tRP / tRC are met.
             automatic logic           pclosing = (CLOSE_ON_DRAIN && r_ap_closing[pbank])
                                                 || r_pre_closing[pbank] || w_pre_out[pbank]
-                                                || w_pre_pick[pbank];
+                                                || w_pre_pick[pbank]
+                                                || w2_pre_out[pbank] || w2_pre_pick[pbank];
             if (pool_valid[e]) begin
                 // COLUMN. The sink-FIFO gate is direction-specific and
                 // correctness-critical: an RD may only fire when the rd CAM's
@@ -1391,6 +1436,21 @@ module mc_cmd_arbiter
                       && !rd_sch_age_exceed_i[rd_pre_s]);
     end
 
+    // ---- DUAL_ISSUE row lane: candidates ------------------------------------
+    // The pre-pick's demand ACT / PRE that may ride lane 2: not the bank of
+    // either column candidate, so the two lanes of one word never touch one
+    // bank. Registers only. The class priority below reads them too.
+    logic w2_act_rd, w2_act_wr, w2_pre_rd, w2_pre_wr, w2_act_v, w2_pre_v;
+    function automatic logic f2_free (input logic [BKW-1:0] b);
+        return !(rd_col_f && (rd_col_bank == b)) && !(wr_col_f && (wr_col_bank == b));
+    endfunction
+    assign w2_act_rd = rd_act_f && f2_free(rd_act_bank);
+    assign w2_act_wr = wr_act_f && f2_free(wr_act_bank);
+    assign w2_pre_rd = rd_pre_f && f2_free(rd_pre_bank);
+    assign w2_pre_wr = wr_pre_f && f2_free(wr_pre_bank);
+    assign w2_act_v  = w_act_gate_live && (w2_act_rd || w2_act_wr);
+    assign w2_pre_v  = w2_pre_rd || w2_pre_wr;
+
     // ---- class priority ------------------------------------------------------
     // access_pref 0 (default, TASK-045): BANK PREPARATION. The classes
     // alternate the way mc_bank_pick's do -- after a column, a ready row
@@ -1426,8 +1486,14 @@ module mc_cmd_arbiter
             2'd3:    w_pick_class = w_c_pre ? CL_PRE
                                   : w_c_col ? CL_COL
                                   : w_c_act ? CL_ACT : CL_NONE;
-            default: w_pick_class = (r_last_was_col && w_c_act) ? CL_ACT
-                                  : (r_last_was_col && w_c_pre) ? CL_PRE
+            // DUAL_ISSUE: a row command that can ride lane 2 beside the
+            // column does not take the column's slot; one that cannot (its
+            // bank is a column candidate's) still does, as bank preparation
+            // places it. Column-first outright cost streams and col_major
+            // about 1 percent against this order (proxy, 2026-11-03).
+            default: w_pick_class = (r_last_was_col && w_c_act && !(w_dual && w2_act_v)) ? CL_ACT
+                                  : (r_last_was_col && w_c_pre
+                                     && !(w_dual && (w2_act_v || w2_pre_v))) ? CL_PRE
                                   : w_c_col ? CL_COL
                                   : w_c_act ? CL_ACT
                                   : w_c_pre ? CL_PRE : CL_NONE;
@@ -1646,6 +1712,72 @@ module mc_cmd_arbiter
     assign w_pre_pick = w_pre_pick_vld
                       ? (NUM_BANKS'(1) << (w_pre_pick_rd ? rd_pre_bank : wr_pre_bank)) : '0;
 
+    // ---- DUAL_ISSUE row lane: pick -----------------------------------------
+    // While the main lane's class is the column, the pre-pick's rideable demand
+    // ACT -- or, with none, its rideable demand PRE (w2_*_v above) -- is loaded
+    // into lane 2 at the same edge, side by side with the read/write choice the
+    // main ACT/PRE branches would make. Built from registers only, like
+    // w_act_pick: the main pick comb's outputs never enter this cone.
+    assign w2_load   = w_dual && w_dmd_reach && (w_pick_class == CL_COL) && (w2_act_v || w2_pre_v);
+    assign w2_pre    = !w2_act_v;
+    always_comb begin
+        if (w2_act_v) begin
+            w2_bank = (w2_act_rd && !(w_act_wrf && w2_act_wr)) ? rd_act_bank : wr_act_bank;
+            w2_row  = (w2_act_rd && !(w_act_wrf && w2_act_wr)) ? rd_act_row  : wr_act_row;
+        end else begin
+            w2_bank = (w2_pre_rd && !(w_pre_wrf && w2_pre_wr)) ? rd_pre_bank : wr_pre_bank;
+            w2_row  = '0;
+        end
+    end
+    assign w2_act_pick = (w2_load && !w2_pre) ? (NUM_BANKS'(1) << w2_bank) : '0;
+    assign w2_pre_pick = (w2_load &&  w2_pre) ? (NUM_BANKS'(1) << w2_bank) : '0;
+
+    // ---- DUAL_ISSUE row lane: fire -----------------------------------------
+    // Lane 2 fires on the LIVE bank image, like the main lane, and never beside
+    // a main-lane row, refresh, ZQ or maintenance command (only beside a column
+    // or an idle main lane), so one word carries at most one row command and
+    // tRRD / tFAW still see at most one ACT per cycle. It never blocks the main
+    // lane. A blocked lane-2 command HOLDS while its bank is in the state it
+    // needs (closed or closing for an ACT, open for a PRE) -- the wait is a
+    // timer, and holding costs the main lane nothing -- and is dropped
+    // otherwise; a drop is lossless (row commands consume no CAM entry, the
+    // demand re-classifies).
+    logic w2_main_row;
+    assign w2_main_row = r_pick_valid && !(r_do_rd || r_do_wr);
+    always_comb begin
+        w2_safe = !w2_main_row && !maint_busy_i && !w_zq_busy
+                && !(r_pick_valid && (r_bank == r2_bank));
+        if (r2_pre) w2_safe = w2_safe && bank_row_active_i[RK0][r2_bank]
+                                      && bank_pre_ready_i[RK0][r2_bank];
+        else        w2_safe = w2_safe && !bank_row_active_i[RK0][r2_bank]
+                                      && bank_act_ready_i[RK0][r2_bank]
+                                      && tfaw_ok_i[RK0] && trrd_ok_i[RK0] && !w_rfc_busy;
+    end
+    assign w2_fire = r2_valid && cmd_ready_i && w2_safe;
+    assign w2_hold = r2_valid && !w2_fire
+                   && (r2_pre ? bank_row_active_i[RK0][r2_bank]
+                              : (!bank_row_active_i[RK0][r2_bank]
+                                 || (CLOSE_ON_DRAIN && r_ap_closing[r2_bank])
+                                 || r_pre_closing[r2_bank]));
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r2_valid <= 1'b0; r2_pre <= 1'b0; r2_bank <= '0; r2_row <= '0;
+        end else if (w2_hold) begin
+            r2_valid <= 1'b1;
+        end else if (w_out_ready) begin
+            r2_valid <= w2_load;
+            r2_pre   <= w2_pre;
+            r2_bank  <= w2_bank;
+            r2_row   <= w2_row;
+        end else begin
+            r2_valid <= 1'b0;
+        end
+    )
+    assign row2_act_o  = w2_fire && !r2_pre;
+    assign row2_pre_o  = w2_fire &&  r2_pre;
+    assign row2_bank_o = r2_bank;
+    assign row2_row_o  = r2_row;
+
     // ---- output register ----------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) r_dir_rr <= 1'b0;
@@ -1764,21 +1896,28 @@ module mc_cmd_arbiter
             r_preguard0 <= '0; r_preguard1 <= '0; r_preguard2 <= '0;
         end else begin
             r_guard1 <= r_guard0;
-            r_guard0 <= '0;
             r_ap_closing <= w_ap_fire_bank | (r_ap_closing & r_bank_row_active[RK0]);
-            if (w_fire_out && (r_do_act || r_do_pre || r_do_rd || r_do_wr))
-                r_guard0 <= (NUM_BANKS'(1) << r_bank);
+            // DUAL_ISSUE: a lane-2 fire (w2_fire, always another bank than a
+            // main-lane fire in the same cycle) feeds every fired-command guard
+            // the main lane's ACT / PRE fires do.
+            r_guard0 <= ((w_fire_out && (r_do_act || r_do_pre || r_do_rd || r_do_wr))
+                         ? (NUM_BANKS'(1) << r_bank) : '0)
+                      | (w2_fire ? (NUM_BANKS'(1) << r2_bank) : '0);
             // TASK-044 forward paths
             r_pre_closing <= ((w_fire_out && r_do_pre) ? (NUM_BANKS'(1) << r_bank) : '0)
+                           | (row2_pre_o ? (NUM_BANKS'(1) << r2_bank) : '0)
                            | (r_pre_closing & r_bank_row_active[RK0]);
-            r_actsh_vld   <= (w_fire_out && r_do_act) ? (NUM_BANKS'(1) << r_bank) : '0;
+            r_actsh_vld   <= ((w_fire_out && r_do_act) ? (NUM_BANKS'(1) << r_bank) : '0)
+                           | (row2_act_o ? (NUM_BANKS'(1) << r2_bank) : '0);
             if (w_fire_out && r_do_act) r_actsh_row[r_bank] <= r_row;
+            if (row2_act_o)             r_actsh_row[r2_bank] <= r2_row;
             r_actg1 <= r_actg0;
-            r_actg0 <= (w_fire_out && r_do_act) ? (NUM_BANKS'(1) << r_bank) : '0;
+            r_actg0 <= ((w_fire_out && r_do_act) ? (NUM_BANKS'(1) << r_bank) : '0)
+                     | (row2_act_o ? (NUM_BANKS'(1) << r2_bank) : '0);
             r_preguard2 <= r_preguard1;
             r_preguard1 <= r_preguard0;
-            r_preguard0 <= (w_fire_out && r_do_pre)
-                         ? (NUM_BANKS'(1) << r_bank) : '0;
+            r_preguard0 <= ((w_fire_out && r_do_pre) ? (NUM_BANKS'(1) << r_bank) : '0)
+                         | (row2_pre_o ? (NUM_BANKS'(1) << r2_bank) : '0);
             r_wrfire1 <= r_wrfire0;
             r_wrfire0 <= w_fire_out && r_do_wr;
             r_rdfire1 <= r_rdfire0;
