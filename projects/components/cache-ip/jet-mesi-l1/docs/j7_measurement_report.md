@@ -25,11 +25,12 @@
 
 # J7: the non-blocking delta, measured on silicon
 
-**Status: FIRST SILICON DATA (amber + jet MSHR=8), GRID RUNS PENDING** — both
+**Status: SILICON DATA COMPLETE (amber + jet MSHR ∈ {2, 4, 8, 16})** — all
 rigs swept on the Genesys 2 on 2026-11-03 (`results/perf_sweep_20261103T125952Z.json`
-in the amber area, `results/perf_sweep_mshr8_20261103T125016Z.json` in the jet
-area). MSHR_COUNT ∈ {2, 4, 16} builds are queued; amber stands in as the
-MSHR=1 column until then.
+in the amber area, `results/perf_sweep_mshr{2,4,8,16}_*.json` in the jet
+area). The grid is flat — the rig tops out at 2 outstanding misses
+(see metric 2) — so amber's MSHR=1 column and jet's MSHR=2 column bracket
+the whole reachable range.
 
 J7 is the PRD's measurement success criterion: quantify what the MSHRs buy
 over amber's blocking pipeline, with MonBus evidence, on identical stimulus.
@@ -157,7 +158,11 @@ replay.
 | 2 | 390471 | 0 | 0 | 604 |
 | 4 | 390471 (bit-identical to 2) | 0 | 0 | 604 |
 | 8 | 389438 | 0 | 0 | 600 |
-| 16 | _pending_ | | | |
+| 16 | 390471 (bit-identical to 2) | 0 | 0 | 604 |
+
+(The MSHR=8 run's 0.26% cycle delta is sweep-order state carryover — a
+standalone smoke ran before it — not an MSHR effect; 2/4/16 are
+bit-identical because the design never exceeds 2 outstanding misses.)
 
 ### 3. Sustained fill bandwidth
 
