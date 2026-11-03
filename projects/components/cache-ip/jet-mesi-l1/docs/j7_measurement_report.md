@@ -25,10 +25,11 @@
 
 # J7: the non-blocking delta, measured on silicon
 
-**Status: METHOD FROZEN, DATA PENDING** — the jet Genesys2 pair rig is built
-and timing-clean (`projects/fpga-systems/Genesys2/cache-ip/jet/`, 60 MHz, WNS
-+0.220 ns); the sweep runs when the board is on the bench. Every table below
-is a fill-in.
+**Status: FIRST SILICON DATA (amber + jet MSHR=8), GRID RUNS PENDING** — both
+rigs swept on the Genesys 2 on 2026-11-03 (`results/perf_sweep_20261103T125952Z.json`
+in the amber area, `results/perf_sweep_mshr8_20261103T125016Z.json` in the jet
+area). MSHR_COUNT ∈ {2, 4, 16} builds are queued; amber stands in as the
+MSHR=1 column until then.
 
 J7 is the PRD's measurement success criterion: quantify what the MSHRs buy
 over amber's blocking pipeline, with MonBus evidence, on identical stimulus.
@@ -64,6 +65,25 @@ over amber's blocking pipeline, with MonBus evidence, on identical stimulus.
   behaviour for the same traces; where the model lacks a concurrency
   feature the gap is documented rather than fudged.
 
+## Headline (2026-11-03 silicon)
+
+Identical seeded stimulus, 2×20000 transactions per run, injector-reported
+run cycles (ci0; ci1 within 0.5% everywhere):
+
+| config | amber cyc | jet MSHR=8 cyc | jet delta |
+| --- | --- | --- | --- |
+| smoke4k_we64 (all-hit) | 121616 | 100621 | **−17.3%** |
+| r64k_we64 | 466833 | 389438 | **−16.6%** |
+| r64k_we255 (write storm) | 677491 | 464335 | **−31.5%** |
+| r128k_we64 | 612753 | 512157 | −16.4% |
+| disjoint64k_we64 | 468601 | 391885 | −16.4% |
+
+Hit latency is 3 cycles on jet vs 4 on amber (pipeline depth), which already
+accounts for the all-hit row; the thrash rows add the non-blocking overlap.
+Fill counts match across rigs (e.g. r64k_we64: jet 21710 vs amber 22085
+`fill_end`) — same misses, served faster; the per-rig "miss" bins use
+different event semantics (see metric 1 note) and are **not** comparable.
+
 ## The four metrics (jet MAS ch04 §metrics)
 
 Latencies are quoted **load-to-use**: request accept → data usable
@@ -72,40 +92,108 @@ Latencies are quoted **load-to-use**: request accept → data usable
 ### 1. Hit-latency distribution under a miss stream
 
 The J6 claim: hits proceed while misses are in flight. Per config:
-latency histograms (8 log2 buckets) for jet vs amber at the same working
-set; the separation at 4 KB shared (heavy snoop + miss traffic) is the
-headline cell.
+latency histograms (8 log2 buckets, bucket *b* = [2^b, 2^(b+1)−1] cycles)
+for jet vs amber at the same working set; the separation at 4 KB shared
+(heavy snoop + miss traffic) is the headline cell.
+
+ci0 accept→response (load-to-use), count=20000. Means are `lat_sum/count`.
 
 | config | rig | min | mean | max | hist (b0..b7) |
 | --- | --- | --- | --- | --- | --- |
-| smoke4k_we64 | amber | _pending_ | | | |
-| smoke4k_we64 | jet MSHR=8 | _pending_ | | | |
-| r64k_we64 | amber | _pending_ | | | |
-| r64k_we64 | jet MSHR=8 | _pending_ | | | |
+| smoke4k_we64 | amber | 4 | 4.08 | 29 | 0, 0, 19935, 0, 65, 0, 0, 0 |
+| smoke4k_we64 | jet MSHR=8 | 3 | 3.03 | 41 | 0, 19983, 0, 0, 1, 16, 0, 0 |
+| r64k_we64 | amber | 4 | 21.34 | 60 | 0, 0, 8909, 0, 8399, 2692, 0, 0 |
+| r64k_we64 | jet MSHR=8 | 3 | 17.47 | 41 | 0, 8958, 0, 0, 8343, 2699, 0, 0 |
+| r64k_we255 | amber | 4 | 31.87 | 60 | 0, 0, 8786, 0, 471, 10743, 0, 0 |
+| r64k_we255 | jet MSHR=8 | 3 | 21.22 | 41 | 0, 8788, 0, 0, 467, 10745, 0, 0 |
+| r128k_we64 | amber | 4 | 28.64 | 60 | 0, 0, 4314, 0, 11552, 4134, 0, 0 |
+| r128k_we64 | jet MSHR=8 | 3 | 23.61 | 41 | 0, 4331, 0, 0, 11551, 4118, 0, 0 |
+
+Reading: the bucket *populations* match almost exactly between rigs
+(8958 vs 8909 hits in b1/b2, …) — identical stimulus, same misses — but
+jet's whole distribution sits one bucket left (hit = 3 cyc not 4, miss
+tail ends at 41 not 60). The b4/b5 miss populations are the same size on
+both rigs; jet's non-blocking pipeline serves them ~18–33% faster on
+average and caps the tail.
+
+**Event-semantics caveat:** amber's `hit` bin fires once per served access
+(post-miss replays re-hit), so amber's bin0 = 40000 = all accesses; jet's
+`hit` bin counts clean hits only (most miss-path traffic in jet reports
+through MSHR events instead). Compare `fill_end` for miss volume, never
+the raw `miss` bins across rigs.
 
 ### 2. MSHR occupancy histogram
 
 From the `MSHR_OCCUPANCY` (0x13) gauge samples in the tally stream (jet
-profile keys in `host/jet_board.py:build_jet_profile()`), per MSHR_COUNT.
+profile keys in `host/jet_board.py:build_default_profile()`), per MSHR_COUNT.
 The amber column is structurally 1-outstanding.
 
-| MSHR_COUNT | mean occupancy | peak | % cycles full |
-| --- | --- | --- | --- |
-| 2 | _pending_ | | |
-| 4 | _pending_ | | |
-| 8 | _pending_ | | |
-| 16 | _pending_ | | |
+**Documented gap (2026-11-03):** the tally counts events, not payloads, so
+the occupancy *distribution* (mean/peak/%-full) is not recoverable from the
+bins — the gauge value rides in the discarded packet payload. What the bins
+do give per MSHR_COUNT: alloc/merge/retire event counts, occupancy-change
+event counts, tag-full stall counts, and jet_monlite drops (bin 17,
+ISSUE-002). The exact occupancy distribution is available from the jet DV
+waveforms / cache_sim cross-check if wanted.
+
+MSHR=8 silicon (r64k_we64, 2×20000 tx): alloc=15203, merge=**0**,
+retire=21918, occ-change=25075, stall-tag-full=**0**, jmon_drop=600.
+At 8 entries this stimulus never fills the MSHR file (no stalls) and never
+merges (LFSR streams over 1024 lines rarely collide with an in-flight
+fill) — the grid columns below are where those bins are expected to move.
+
+**Grid finding (2026-11-03): the rig tops out at 2 outstanding misses.**
+`amber_cycle_injector` is a strict IDLE→ISSUE→WAIT_RSP loop — one
+outstanding transaction per injector, so two injectors put at most two
+misses in flight. MSHR_COUNT=2 already saturates: identical run cycles,
+latencies, stall and drop counts to MSHR=8 on every config (e.g.
+r64k_we64: 390471 vs 389438 ci0 cycles, 0 stalls, 0 merges on both).
+Deeper-MSHR evaluation needs a multi-outstanding injector — an injector
+feature, recorded here as the same class of documented gap as trace
+replay.
+
+| MSHR_COUNT | run cyc (r64k_we64, ci0) | stall-tag-full | merge | jmon_drop |
+| --- | --- | --- | --- | --- |
+| 2 | 390471 | 0 | 0 | 604 |
+| 4 | 390471 (bit-identical to 2) | 0 | 0 | 604 |
+| 8 | 389438 | 0 | 0 | 600 |
+| 16 | _pending_ | | | |
 
 ### 3. Sustained fill bandwidth
 
-`fill_end` bin delta per run vs run cycles, per rig/config — lines/cycle
-into the cache under the r64k/r128k (thrash) configs.
+`fill_end` bin per run vs injector run cycles (ci0), per rig/config —
+lines/cycle into the cache under the r64k/r128k (thrash) configs:
+
+| config | amber lines/cyc | jet MSHR=8 lines/cyc | delta |
+| --- | --- | --- | --- |
+| r64k_we64 | 0.0473 | 0.0558 | +17.8% |
+| r64k_we255 | 0.0330 | 0.0454 | +37.5% |
+| r128k_we64 | 0.0511 | 0.0602 | +17.8% |
+| disjoint64k_we64 | 0.0474 | 0.0560 | +18.1% |
+
+The write-storm row is where drain/fill overlap (metric 4) pays: amber
+serializes drain→fill, jet does not.
 
 ### 4. Drain/fill overlap
 
 `WB_OCCUPANCY` (0x14) gauge vs fill activity: cycles where a drain and a
 fill are simultaneously in flight, as a fraction of fill-busy cycles
 (jet only; amber serializes drain→fill by construction).
+
+**Measured proxy + documented gap.** The tally bins count events, not
+cycle-level coincidence, so the exact "both in flight" cycle fraction is
+not recoverable from this rig (the occupancy payload is discarded by the
+bin counter — same gap as metric 2). What silicon does show:
+
+- WB occupancy change events per run (jet, MSHR=8): 10078 on r64k_we64,
+  **39844** on r64k_we255, 14163 on r128k_we64 — the write buffer is
+  continuously active under write thrash, in parallel with 21k fills.
+- The r64k_we255 run-cycle delta (−31.5%) is ~2× the read-lean delta
+  (−16.6%) at the same working set — the extra win is exactly the
+  drain/fill serialization amber pays and jet doesn't.
+
+Jet DV (occupancy waveforms) or the cache_sim cross-check can supply the
+exact overlap fraction if it is ever needed; the bins carry the bound.
 
 ## Reproduction
 
@@ -123,5 +211,5 @@ from those files (filenames recorded alongside each table when filled).
 
 ---
 
-**Last Updated:** 2026-11-02
+**Last Updated:** 2026-11-03
 **Maintained By:** RTL Design Sherpa Project

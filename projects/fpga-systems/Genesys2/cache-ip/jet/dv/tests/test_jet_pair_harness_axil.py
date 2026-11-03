@@ -108,7 +108,9 @@ def _default_profile():
       * 0x00A1 -- l1_axi4_plane transport observer (jet_top.sv AGENT_ID override).
                   Emits an AXI/PktTypeError drop report with code 0x0E.
       * 0x00A2 -- jet_monlite J7 perf events (jet_monlite.sv default AGENT_ID).
-                  Emits CORE/PktTypePerf MSHR/WB/stall events 0x10-0x15.
+                  Emits CORE/PktTypePerf MSHR/WB/stall events 0x10-0x15 and a
+                  PktTypeError drop report (code 0x09) when its output queue
+                  overflows (more than two candidate events in a cycle).
 
     The CAM key does not carry unit_id, so the AXI rd/wr monlites merge into
     one bin.
@@ -136,6 +138,7 @@ def _default_profile():
         (_key(0x00A2, 4, 4, 0x13), 14),  # MSHR occupancy
         (_key(0x00A2, 4, 4, 0x14), 15),  # WB occupancy
         (_key(0x00A2, 4, 4, 0x15), 16),  # stall tag-full
+        (_key(0x00A2, 4, 0, 0x09), 17),  # jet_monlite drop report (queue overflow)
     ]
 
 

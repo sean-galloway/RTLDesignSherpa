@@ -69,7 +69,7 @@ def _decode_packet(words, ts):
 
 def _read_bins(driver):
     tally = driver.bus["tally_cnt"]
-    bins = [tally.read(f"COUNT{i}") for i in range(12)]
+    bins = [tally.read(f"COUNT{i}") for i in range(18)]
     return bins, tally.read("UNEXPECTED")
 
 
@@ -166,13 +166,15 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print):
         hits, misses, snoops, evicts, drops = delta[0], delta[1], delta[2], \
             delta[3], delta[4]
         fill_end, drain_end = delta[7], delta[9]
+        jmon_drops = delta[17]  # jet_monlite queue-overflow drop reports
+        rec["jmon_drops"] = jmon_drops
         # Hit events fire once per SERVED access (post-miss replays re-hit),
         # so bin0 = total accesses; true miss rate = miss/accesses.
         lat_mean0 = lat0["lat_sum"] / count if count else 0
         lat_mean1 = lat1["lat_sum"] / count if count else 0
         say(f"  acc={hits} miss={misses} snoop={snoops} evict={evicts} "
             f"drop={drops} fill_end={fill_end} drain_end={drain_end} "
-            f"unc={unc_} "
+            f"jmon_drop={jmon_drops} unc={unc_} "
             f"miss%={100.0 * misses / hits if hits else 0:.1f} "
             f"lat0={lat0['lat_min']}/{lat_mean0:.1f}/{lat0['lat_max']} "
             f"lat1={lat1['lat_min']}/{lat_mean1:.1f}/{lat1['lat_max']} "
