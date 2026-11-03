@@ -55,7 +55,9 @@ ABC_LEV_RE = re.compile(r'\blev\s*=\s*(\d+)')
 def write_scripts(args, work: Path, sources: list[str], incdirs: list[str]) -> Path:
     lib = LIB[args.corner]
     abc_script = work / 'abc.script'
-    abc_script.write_text(f"strash\nmap -p -B 0.2 -A 0.9 -D {args.period_ps}\nbuffer -c -N 6\ntopo\n"
+    # plain `buffer`, not `buffer -c`: on plane-sized netlists the -c pass dies with
+    # "node has no fanout" or segfaults (pumice_core, mc_storage_plane, 2026-11-03)
+    abc_script.write_text(f"strash\nmap -p -B 0.2 -A 0.9 -D {args.period_ps}\ntopo\nbuffer -N 6\ntopo\n"
                           "upsize -c\ndnsize -c\nstime -c\nprint_stats -m\n")
     gparams = ' '.join(f'-G {g}' for g in args.param)
     incs = ' '.join(f'-I{d}' for d in incdirs)
@@ -145,7 +147,7 @@ def run_sta(args, work: Path) -> dict:
     # the ASAP7 Liberty time unit is 1 ps, so the period is in ps as given
     tcl.write_text(f"""{reads}read_verilog {work / 'netlist.v'}
 link_design {args.top}
-create_clock -name clk -period {args.period_ps} [get_ports {args.clock}]
+create_clock -name clk -period {args.period_ps} [get_ports {{{' '.join(args.clock.split(','))}}}]
 report_checks -path_delay max -group_path_count 1 -digits 2 > {rpt}
 puts "WORST_SLACK [worst_slack -max]"
 puts "TNS [total_negative_slack -max]"
@@ -183,7 +185,7 @@ def main() -> int:
     ap.add_argument('--filelist', required=True, help='repo-relative .f (nested -f and $REPO_ROOT resolved)')
     ap.add_argument('--corner', default='TT', choices=sorted(LIB))
     ap.add_argument('--period-ps', type=int, default=1000, help="ABC's delay target and the STA clock")
-    ap.add_argument('--clock', default='aclk', help='clock port for the STA check')
+    ap.add_argument('--clock', default='aclk', help='clock port(s) for the STA check, comma-separated for a multi-clock block')
     ap.add_argument('--param', '-G', action='append', default=[], help='NAME=VALUE top parameter')
     ap.add_argument('--sta', action='store_true', help='run the OpenSTA register-to-register check too')
     ap.add_argument('--tag', default='', help='free label carried into the JSON row')
