@@ -35,6 +35,22 @@ Phases per the spec:
   latch bank, latch readback RDL). The amber rig now meets the measurement
   bar; the J7 sweep can measure latency distributions, not just rates.
 
+## Phase 7 progress (2026-11-02)
+
+- **Step 1 (rig) DONE**: `projects/fpga-systems/Genesys2/cache-ip/jet/` —
+  two `jet_top` + `jet_pair_fabric` + the post-upgrade injector/tally
+  collateral, mirrored from the amber rig. DV green (AXIL + UART, func+gate;
+  all five harness tests including latency/latch/clear-freeze), lint clean,
+  `MSHR_COUNT` generic wired into the Vivado flow for the {2,4,8,16} grid.
+- **Timing**: the cpu_req→snoop-accept combinational cone (31 levels) fails
+  90 MHz (WNS −4.065) — jet ISSUE-001, expected T13-class finding, the v2
+  pipelining fix is deliberately out of scope here. The rig runs at
+  **60 MHz, WNS +0.220 ns, 0 failing endpoints**; J7 metrics are
+  cycle-based so the amber↔jet comparison is unaffected.
+- **Steps 2–3 (sweep + report) PENDING the board**: method frozen in
+  `docs/j7_measurement_report.md` (fill-in tables). Step 4 (this task's
+  closure) waits on those.
+
 ## Done when
 
 The PRD success criteria hold: every amber proof and golden-model parity

@@ -79,6 +79,14 @@ if {[llength $defines] > 0} { set_property verilog_define $defines $src_fs }
 
 puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
+
+# J7 sweep knob: the MSHR_COUNT grid {2,4,8,16} builds one bitstream per
+# value. Defaults to the RTL parameter (jet_pkg::MSHR_COUNT = 8) when unset.
+if {[info exists ::env(MSHR_COUNT)]} {
+    set_property generic "MSHR_COUNT=$::env(MSHR_COUNT)" $src_fs
+    puts "Generic override: MSHR_COUNT=$::env(MSHR_COUNT)"
+}
+
 update_compile_order -fileset sources_1
 
 # ---- Constraints ----
