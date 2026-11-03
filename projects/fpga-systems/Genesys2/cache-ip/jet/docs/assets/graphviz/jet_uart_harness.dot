@@ -1,0 +1,42 @@
+// Jet pair-rig Genesys2 -- host UART harness path.
+// Source: rtl/jet_pair_harness.sv and rtl/jet_pair_genesys2_top.sv.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Flow geography: host commands top-down through the UART bridge and AXIL
+// decoder to the DUT CSR slaves; read responses climb back up on the right.
+digraph jet_uart_harness {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho,
+           label="Jet pair-rig Genesys2 -- host UART harness path",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host [label="Host PC\npyserial / jet_board.py", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart [label="UART pad\nFT232R USB-UART\n115200 8N1", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    bridge [label="UART to AXIL Bridge\nuart_axil_bridge\ntext W/R cmd -> AXIL master", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    decoder [label="AXIL Address Decode\nbridge_jet_axil\n1 master x 6 slaves", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    // DUT CSR slaves as the boundary bar
+    dut [label="DUT CSR slaves\nharness_csr + cycle_injector0/1\n+ tally_cnt/cfgw/cfgr",
+         width=6.5, height=0.9, fontsize=11, fillcolor="#D6E4F0", style="rounded,filled,bold", fillcolor="#E2EFDA"];
+
+    host -> uart [dir=both, label="USB UART"];
+    uart -> bridge [dir=both, label="RX/TX serial"];
+    bridge -> decoder [label="AXIL AW/W/AR down, B/R up"];
+
+    // command decode and dispatch down the center
+    decoder -> dut [label="AXIL routed to slave (penwidth=1.8)", penwidth=1.8];
+
+    // read response climbs back up
+    dut -> decoder [color="#1A7A1A", constraint=false, label="B/R response"];
+    decoder -> bridge [color="#1A7A1A", constraint=false, label="B/R response"];
+    bridge -> uart [color="#1A7A1A", constraint=false, dir=both, label="OK / 0x resp"];
+
+    // direct AXIL bypass (sim only) shown dashed off to the side
+    direct [label="Direct AXIL host\nUSE_DIRECT_HOST=1 (sim/cocotb)",
+            fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    direct -> decoder [style=dashed, color="#777777", label="host_axi_*"];
+
+    { rank=same; bridge; direct; }
+}

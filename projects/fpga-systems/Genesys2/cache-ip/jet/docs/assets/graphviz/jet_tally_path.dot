@@ -1,0 +1,46 @@
+// Jet pair-rig Genesys2 -- MonBus tally observation path.
+// Source: rtl/jet_pair_harness.sv (jet_top monitor outputs through
+// monbus_arbiter -> monbus_axil4_group_1wr -> monbus_tally_axil).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Flow geography: two cache monitor streams merge, are ingested as AXIL
+// record writes, and counted; host reads bin counts back up the right edge.
+digraph jet_tally_path {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho,
+           label="Jet pair-rig Genesys2 -- MonBus tally observation path",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    c0 [label="Cache 0 monitor\njet_top monbus", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    c1 [label="Cache 1 monitor\njet_top monbus", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+
+    merge [label="Observer merge\nmonbus_arbiter\n2 clients -> 1 stream",
+           shape=invtrapezium, width=3.0, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+
+    group [label="AXIL record ingest\nmonbus_axil4_group_1wr\npackets -> AXIL writes", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    tally [label="MonBus tally\nmonbus_tally_axil\n33 bins (32 legal + UNEXPECTED)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    host [label="Host read-back\ncnt/cfgw/cfgr apertures", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+
+    c0 -> merge [style=dashed, color="#777777", label="monbus 0"];
+    c1 -> merge [style=dashed, color="#777777", label="monbus 1"];
+    merge -> group [style=dashed, color="#777777", label="merged stream"];
+    group -> tally [label="rec_aw/w/b (AXIL 64b)"];
+    tally -> host [color="#1A7A1A", constraint=false, label="cnt_ar/r (AXIL 64b, host reads low 32b)"];
+
+    cfg [label="Legal-set CAM load\ntally_cfgw/cfgr", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    cfg -> tally [style=dashed, color="#777777", label="CAM_CLEAR/KEY/LOAD"];
+
+    hcsr [label="Harness CSR\nCTRL[0]=clear (W1P)\nCTRL[1]=freeze (level)",
+          style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    hcsr -> tally [style=dashed, color="#777777", label="tally_clear / tally_freeze"];
+
+    legend [shape=box, style=filled, fillcolor="white", color="black",
+            label="Record layout\l\
+{packet[127:0], timestamp[63:0]}\l\
+N_PROFILE=32 legal-set bins + 1 catch-all\l",
+            fontsize=9, align=left, shape=note];
+}
