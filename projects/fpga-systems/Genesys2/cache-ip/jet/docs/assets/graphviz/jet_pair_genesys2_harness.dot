@@ -52,7 +52,7 @@ digraph jet_pair_genesys2_harness {
     legend [shape=box, style=filled, fillcolor="white", color="black",
             label="Parameters (fixed at build)\l\
 geometry: s128w4l64b64 (128 sets, 4 ways, 64B line, 64b bus)\l\
-clk: 90 MHz (200 MHz LVDS osc -> IBUFDS -> MMCM)\l\
+clk: 60 MHz (200 MHz LVDS osc -> IBUFDS -> MMCM; jet ISSUE-001)\l\
 memory: 512 KB BRAM\l\
 AXCACHE: 4'b1111 cacheable write-back (post #106)\l",
             fontsize=9, align=left, shape=note];

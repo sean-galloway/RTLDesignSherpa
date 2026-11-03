@@ -15,7 +15,7 @@ already has:
   - Injector acc/rsp counts + CRC-32s (integrity and determinism).
   - Tally first-event latch bank: re-armed by every tally_clear (the clear
     walk resets latch_fill), so any config with latch=True captures its own
-    first four MonBus events with 90 MHz hardware timestamps and full
+    first four MonBus events with 60 MHz hardware timestamps and full
     64-bit addresses.
 
 The sweep matrix walks region size (working set vs the 32 KB cache

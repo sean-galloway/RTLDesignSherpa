@@ -4,7 +4,7 @@
 // Module: jet_pair_genesys2_top
 // Purpose: Genesys 2 (Kintex-7 XC7K325T-2) board top for the jet pair-rig
 //          bring-up harness. Differential 200 MHz oscillator -> IBUFDS ->
-//          MMCME2_BASE 90MHz + BUFG, pushbutton reset two-flop sync, UART
+//          MMCME2_BASE 60MHz + BUFG, pushbutton reset two-flop sync, UART
 //          rx/tx pins, and the jet_pair_harness instance.
 
 `timescale 1ns / 1ps
@@ -13,9 +13,9 @@
 
 module jet_pair_genesys2_top #(
     // Harness clock = VCO_MHZ / CLKOUT0_DIVIDE, VCO = 200 MHz sysclk * MULT_F.
-    parameter int VCO_MHZ        = 1350,
-    parameter int CLKOUT0_DIVIDE = 15,
-    parameter int UART_BAUD      = 115_200,
+    parameter int  VCO_MHZ        = 1350,
+    parameter real CLKOUT0_DIVIDE = 22.5,
+    parameter int  UART_BAUD      = 115_200,
     // jet geometry (pair-rig FULL)
     parameter int ADDR_WIDTH     = l1_pkg::AMBER_ADDR_WIDTH,
     parameter int SETS           = l1_pkg::AMBER_SETS,
@@ -38,7 +38,8 @@ module jet_pair_genesys2_top #(
     output logic [7:0] led
 );
 
-    localparam int FPGA_CLK_HZ = (VCO_MHZ * 1_000_000) / CLKOUT0_DIVIDE;
+    localparam real FPGA_CLK_HZ_REAL = real'(VCO_MHZ) * 1_000_000.0 / CLKOUT0_DIVIDE;
+    localparam int  FPGA_CLK_HZ      = $rtoi(FPGA_CLK_HZ_REAL);
     localparam real CLKFBOUT_MULT = real'(VCO_MHZ) / 200.0;
     localparam int MEM_DEPTH = (MEM_DEPTH_KB * 1024 * 8) / BUS_WIDTH;
 
@@ -48,8 +49,8 @@ module jet_pair_genesys2_top #(
                    VCO_MHZ, real'(VCO_MHZ) / 200.0);
         if (VCO_MHZ < 600 || VCO_MHZ > 1440)
             $error("VCO_MHZ=%0d outside the -2 Kintex MMCM range 600..1440", VCO_MHZ);
-        if ((VCO_MHZ * 1_000_000) % CLKOUT0_DIVIDE != 0)
-            $error("VCO_MHZ=%0d / CLKOUT0_DIVIDE=%0d is not an integer Hz frequency",
+        if (FPGA_CLK_HZ_REAL != real'(FPGA_CLK_HZ))
+            $error("VCO_MHZ=%0d / CLKOUT0_DIVIDE=%0f is not an integer Hz frequency",
                    VCO_MHZ, CLKOUT0_DIVIDE);
     end
 

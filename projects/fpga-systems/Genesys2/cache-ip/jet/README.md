@@ -58,7 +58,9 @@ talks to the design over UART through a generated AXI4-Lite bridge.
 
 - **Board:** Digilent Genesys 2 (Kintex-7 `xc7k325tffg900-2`).
 - **Clock:** 200 MHz LVDS oscillator → `IBUFDS` → `MMCME2_BASE`
-  (`VCO=1350 MHz`, `CLKOUT0_DIVIDE=15`) → 90 MHz system clock.
+  (`VCO=1350 MHz`, `CLKOUT0_DIVIDE=22.5`) → 60 MHz system clock.
+  Reclocked from 90 MHz to 60 MHz because the jet v1 non-blocking pipeline
+  does not close timing at 90 MHz (see `vault/tracking/projects/components/cache-ip/jet-mesi-l1/issue/open/ISSUE-001.md`).
 - **UART:** 115200 8N1 on the FT232R USB-UART (`uart_tx_in` / `uart_rx_out`).
 - **LEDs:** `LD7=busy`, `LD6=done`, `LD5=error`, `LD0=heartbeat`.
 

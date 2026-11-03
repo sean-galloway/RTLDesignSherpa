@@ -2,7 +2,7 @@
 ## Genesys 2 Constraints — jet pair-rig bring-up harness
 ##==============================================================================
 ## Board: Digilent Genesys 2 (Kintex-7 XC7K325T-2FFG900C)
-## Top:   jet_pair_genesys2_top  (MMCM: 200 MHz LVDS sysclk -> 90 MHz)
+## Top:   jet_pair_genesys2_top  (MMCM: 200 MHz LVDS sysclk -> 60 MHz)
 ## Host:  single USB-UART link (115200 8N1 via the board's FT232R)
 ## Pins from the Digilent Genesys-2-Master.xdc (Rev H), matching the proven
 ## stream_genesys2_top.xdc. Timing exceptions ported from the same file.

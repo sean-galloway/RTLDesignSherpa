@@ -38,9 +38,9 @@ SIM_TESTS := $(FRAMEWORK_ROOT)/dv/tests
 # jet geometry is fixed at the FULL pair-rig configuration.
 export JET_USE_MONITOR ?= 1
 
-# Harness clock: 90 MHz from the 200 MHz LVDS oscillator.
+# Harness clock: 60 MHz from the 200 MHz LVDS oscillator.
 export JET_VCO_MHZ        ?= 1350
-export JET_CLKOUT0_DIVIDE ?= 15
+export JET_CLKOUT0_DIVIDE ?= 22.5
 
 # Tally CAM legal-set size.
 export MON_N_PROFILE ?= 32

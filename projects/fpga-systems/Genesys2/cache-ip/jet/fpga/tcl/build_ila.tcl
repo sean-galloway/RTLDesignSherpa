@@ -49,7 +49,7 @@ if {[get_property PROGRESS [get_runs synth_1]] != "100%"} {
 }
 open_run synth_1 -name synth_1
 
-# ---- ILA clock: the 90 MHz harness clock ----
+# ---- ILA clock: the 60 MHz harness clock ----
 set dbg_clk ""
 foreach cand {aclk clk90 clk_90} {
     set n [get_nets -quiet $cand]
