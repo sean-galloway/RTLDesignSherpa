@@ -71,6 +71,23 @@ TALLY_CAM_CLEAR = 0x100
 TALLY_CAM_KEY = 0x108
 TALLY_CAM_LOAD = 0x110
 
+# Tally cfgr readback offsets (32-bit words; see tally_regs.rdl)
+TALLY_LATCH_STATUS = 0x10   # {VALID[16], FILL[15:0]}
+TALLY_LATCH_PKT0 = 0x18
+TALLY_LATCH_TS_LO = 0x38
+TALLY_LATCH_TS_HI = 0x40
+TALLY_LATCH_SEL = 0x120     # cfgw aperture
+TALLY_WATCH_CTRL = 0x118    # cfgw aperture
+
+# Cycle-injector latency instrumentation (formal/amber TASK-001 item 2)
+CI_LAT_MIN = 0x24
+CI_LAT_MAX = 0x28
+CI_RUN_CYCLES = 0x2C
+CI_LAT_SUM_LO = 0x40
+CI_LAT_SUM_HI = 0x44
+CI_LAT_HIST0 = 0x48         # .. 0x64, 8 log2 buckets
+TALLY_NUM_LATCH = 16
+
 
 def _key(agent: int, protocol: int, pkt_type: int, event: int) -> int:
     return ((agent & 0xFFFF) << 16) | ((protocol & 0xF) << 12) | \
@@ -339,40 +356,139 @@ async def _read_bins(tb, n: int = 8):
 async def tally_clear_freeze_test(dut):
     """harness_csr CTRL[0]=tally_clear (write-1-pulse) and CTRL[1]=tally_freeze
     (level) drive monbus_tally_axil. Pins the amber TASK-001 item-1 wiring;
-    before it, CTRL was a dead register and both ports were tied off."""
+    before it, CTRL was a dead register and both ports were tied off.
+
+    Clear protocol (load-bearing): the MonBus path must DRAIN before the
+    clear pulse. tally_clear realigns the tally's 3-beat reassembler, but
+    cannot flush a partial record buffered in the upstream group -- a clear
+    landing mid-record phase-shifts the record stream and every later packet
+    lands in UNEXPECTED. So: settle, freeze, clear. UNEXPECTED is read as a
+    canary: misassembly would pump it."""
     clk_task = cocotb.start_soon(_manual_clock(dut))
     tb = AmberPairHarnessAXILTest(dut, clk_task)
     await tb.reset()
     await _load_default_profile(tb)
 
+    async def settle(cycles=256):
+        for _ in range(cycles):
+            await cocotb.triggers.RisingEdge(dut.aclk)
+
+    async def read_unexpected():
+        return await tb.read64(ADDR_TALLY_CNT + 32 * 8)
+
     # Burst 1: events accumulate.
     await _run_burst(tb, count=48)
+    await settle()  # drain the MonBus path into the bins
     assert sum(await _read_bins(tb)) > 0, "burst 1 produced no tally events"
+    unc0 = await read_unexpected()
 
     # CTRL[0] is W1P: write 1 -> one-cycle clear pulse, reads back 0.
-    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)
+    # Freeze first (counting stops; the drained path holds no partial
+    # records), then clear with the freeze bit held set.
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x2)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x3)
     ctrl = await tb.read32(ADDR_HARNESS_CSR + HCSR_CTRL)
     assert ctrl & 0x1 == 0, f"CTRL[0] must be self-clearing (read 0x{ctrl:08x})"
+    assert ctrl & 0x2, f"CTRL[1] freeze level did not stick (read 0x{ctrl:08x})"
 
     # The clear walks the count SRAM one entry per cycle; 256 cycles covers
     # any legal TALLY_ADDR_BITS with margin.
-    for _ in range(256):
-        await cocotb.triggers.RisingEdge(dut.aclk)
+    await settle()
     bins = await _read_bins(tb)
     assert sum(bins) == 0, f"tally_clear left nonzero bins: {bins}"
+    assert await read_unexpected() == 0, "clear did not zero UNEXPECTED"
 
-    # CTRL[1] freeze is a level: events dropped (not counted) while held.
-    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x2)
-    ctrl = await tb.read32(ADDR_HARNESS_CSR + HCSR_CTRL)
-    assert ctrl & 0x2, f"CTRL[1] freeze level did not stick (read 0x{ctrl:08x})"
+    # Frozen burst: events dropped (not counted) while held.
     await _run_burst(tb, count=48)
+    await settle()
     bins = await _read_bins(tb)
     assert sum(bins) == 0, f"tally counted while frozen: {bins}"
+    assert await read_unexpected() == 0, "UNEXPECTED grew while frozen"
 
     # Unfreeze: counting resumes.
     await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x0)
     await _run_burst(tb, count=48)
+    await settle()
     assert sum(await _read_bins(tb)) > 0, "tally did not resume after unfreeze"
+
+
+@cocotb.test(timeout_time=5000, timeout_unit="ms")
+async def injector_latency_test(dut):
+    """Cycle-injector latency instrumentation (formal/amber TASK-001 item 2):
+    per-request latency min/max/sum, 8-bucket log2 histogram, run-cycle count.
+    On the pre-instrument RTL these offsets decoded to 0xDEAD_BEEF, so every
+    assertion below is discriminating."""
+    clk_task = cocotb.start_soon(_manual_clock(dut))
+    tb = AmberPairHarnessAXILTest(dut, clk_task)
+    await tb.reset()
+
+    # Pre-run: zero samples -> LAT_MIN reads 0 (not the all-ones init).
+    assert await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_LAT_MIN) == 0
+
+    count = 64
+    await _run_burst(tb, count=count)
+
+    for ci_base, name in [(ADDR_CYCLE_INJECTOR0, "ci0"),
+                          (ADDR_CYCLE_INJECTOR1, "ci1")]:
+        lat_min = await tb.read32(ci_base + CI_LAT_MIN)
+        lat_max = await tb.read32(ci_base + CI_LAT_MAX)
+        run_cycles = await tb.read32(ci_base + CI_RUN_CYCLES)
+        sum_lo = await tb.read32(ci_base + CI_LAT_SUM_LO)
+        sum_hi = await tb.read32(ci_base + CI_LAT_SUM_HI)
+        lat_sum = (sum_hi << 32) | sum_lo
+        hist = [await tb.read32(ci_base + CI_LAT_HIST0 + 4 * i) for i in range(8)]
+
+        dut._log.info(f"{name}: min={lat_min} max={lat_max} sum={lat_sum} "
+                      f"run_cycles={run_cycles} hist={hist}")
+
+        assert 0 < lat_min <= lat_max, \
+            f"{name}: bad min/max {lat_min}/{lat_max}"
+        assert count * lat_min <= lat_sum <= count * lat_max, \
+            f"{name}: sum {lat_sum} outside [{count * lat_min}, {count * lat_max}]"
+        assert sum(hist) == count, \
+            f"{name}: histogram total {sum(hist)} != {count}"
+        # Busy time covers every wait cycle plus issue/address cycles.
+        assert lat_sum <= run_cycles, \
+            f"{name}: latency sum {lat_sum} exceeds run cycles {run_cycles}"
+
+
+@cocotb.test(timeout_time=5000, timeout_unit="ms")
+async def tally_latch_bank_test(dut):
+    """16-deep first-event latch bank (formal/amber TASK-001 items 1+3):
+    an all-types watch mask fills all 16 slots, slot readback is indexed by
+    LATCH_SEL, timestamps are non-decreasing, and tally_clear re-arms."""
+    clk_task = cocotb.start_soon(_manual_clock(dut))
+    tb = AmberPairHarnessAXILTest(dut, clk_task)
+    await tb.reset()
+    await _load_default_profile(tb)
+
+    # Arm the watch for every packet type (mask bit per 4-bit pkt_type).
+    await tb.write32(ADDR_TALLY_CFGW + TALLY_WATCH_CTRL, (1 << 31) | 0xFFFF)
+    await _run_burst(tb, count=48)
+
+    status = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_STATUS)
+    fill = status & 0xFFFF
+    assert fill == TALLY_NUM_LATCH, \
+        f"latch fill {fill} != {TALLY_NUM_LATCH} (bank deeper than 4 wanted)"
+
+    # Walk all slots: VALID set, timestamps non-decreasing in capture order.
+    prev_ts = -1
+    for slot in range(TALLY_NUM_LATCH):
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_LATCH_SEL, slot)
+        st = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_STATUS)
+        assert st & (1 << 16), f"slot {slot} invalid with fill={fill}"
+        ts_lo = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_TS_LO)
+        ts_hi = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_TS_HI)
+        ts = (ts_hi << 32) | ts_lo
+        assert ts >= prev_ts, f"slot {slot} ts {ts} < previous {prev_ts}"
+        prev_ts = ts
+
+    # tally_clear re-arms the bank (item 1's real payoff).
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)
+    for _ in range(256):
+        await cocotb.triggers.RisingEdge(dut.aclk)
+    status = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_STATUS)
+    assert (status & 0xFFFF) == 0, f"latch fill not re-armed: 0x{status:08x}"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

@@ -159,7 +159,12 @@ module monbus_tally_axil
             r_pkt_hi <= '0;
             r_ts     <= '0;
         end else if (tally_clear) begin
-            r_beat   <= 2'd0;            // re-align records on a clear
+            // Re-align records on a clear. SAFE only when the producer has
+            // drained: a partial record buffered in the upstream group keeps
+            // arriving after the clear and phase-shifts the stream (every
+            // later packet lands in UNEXPECTED). Host/DV protocol: settle the
+            // MonBus path, freeze, then clear.
+            r_beat   <= 2'd0;
         end else if (w_w_hs) begin
             case (r_beat)
                 2'd0: begin r_ts <= rec_wdata[MONBUS_TS_WIDTH-1:0]; r_beat <= 2'd1; end

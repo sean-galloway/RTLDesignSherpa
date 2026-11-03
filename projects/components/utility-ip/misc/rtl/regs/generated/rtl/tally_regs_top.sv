@@ -66,6 +66,13 @@ module tally_regs_top (
     //--------------------------------------------------------------------------
     typedef struct {
         struct {
+            logic LATCH_STATUS;
+            logic LATCH_PKT0;
+            logic LATCH_PKT1;
+            logic LATCH_PKT2;
+            logic LATCH_PKT3;
+            logic LATCH_TS_LO;
+            logic LATCH_TS_HI;
             logic CAM_CLEAR;
             logic CAM_KEY;
             logic CAM_LOAD;
@@ -80,6 +87,13 @@ module tally_regs_top (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
+        decoded_reg_strb.TALLY.LATCH_STATUS = cpuif_req_masked & (cpuif_addr == 9'h10);
+        decoded_reg_strb.TALLY.LATCH_PKT0 = cpuif_req_masked & (cpuif_addr == 9'h18);
+        decoded_reg_strb.TALLY.LATCH_PKT1 = cpuif_req_masked & (cpuif_addr == 9'h20);
+        decoded_reg_strb.TALLY.LATCH_PKT2 = cpuif_req_masked & (cpuif_addr == 9'h28);
+        decoded_reg_strb.TALLY.LATCH_PKT3 = cpuif_req_masked & (cpuif_addr == 9'h30);
+        decoded_reg_strb.TALLY.LATCH_TS_LO = cpuif_req_masked & (cpuif_addr == 9'h38);
+        decoded_reg_strb.TALLY.LATCH_TS_HI = cpuif_req_masked & (cpuif_addr == 9'h40);
         decoded_reg_strb.TALLY.CAM_CLEAR = cpuif_req_masked & (cpuif_addr == 9'h100);
         decoded_reg_strb.TALLY.CAM_KEY = cpuif_req_masked & (cpuif_addr == 9'h108);
         decoded_reg_strb.TALLY.CAM_LOAD = cpuif_req_masked & (cpuif_addr == 9'h110);
@@ -357,13 +371,22 @@ module tally_regs_top (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[3];
-    assign readback_array[0][31:0] = (decoded_reg_strb.TALLY.CAM_KEY && !decoded_req_is_wr) ? field_storage.TALLY.CAM_KEY.KEY.value : '0;
-    assign readback_array[1][15:0] = (decoded_reg_strb.TALLY.WATCH_CTRL && !decoded_req_is_wr) ? field_storage.TALLY.WATCH_CTRL.MASK.value : '0;
-    assign readback_array[1][30:16] = '0;
-    assign readback_array[1][31:31] = (decoded_reg_strb.TALLY.WATCH_CTRL && !decoded_req_is_wr) ? field_storage.TALLY.WATCH_CTRL.ARM.value : '0;
-    assign readback_array[2][7:0] = (decoded_reg_strb.TALLY.LATCH_SEL && !decoded_req_is_wr) ? field_storage.TALLY.LATCH_SEL.SEL.value : '0;
-    assign readback_array[2][31:8] = '0;
+    logic [31:0] readback_array[10];
+    assign readback_array[0][15:0] = (decoded_reg_strb.TALLY.LATCH_STATUS && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[0][16:16] = (decoded_reg_strb.TALLY.LATCH_STATUS && !decoded_req_is_wr) ? 1'h0 : '0;
+    assign readback_array[0][31:17] = '0;
+    assign readback_array[1][31:0] = (decoded_reg_strb.TALLY.LATCH_PKT0 && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[2][31:0] = (decoded_reg_strb.TALLY.LATCH_PKT1 && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[3][31:0] = (decoded_reg_strb.TALLY.LATCH_PKT2 && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[4][31:0] = (decoded_reg_strb.TALLY.LATCH_PKT3 && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[5][31:0] = (decoded_reg_strb.TALLY.LATCH_TS_LO && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[6][31:0] = (decoded_reg_strb.TALLY.LATCH_TS_HI && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[7][31:0] = (decoded_reg_strb.TALLY.CAM_KEY && !decoded_req_is_wr) ? field_storage.TALLY.CAM_KEY.KEY.value : '0;
+    assign readback_array[8][15:0] = (decoded_reg_strb.TALLY.WATCH_CTRL && !decoded_req_is_wr) ? field_storage.TALLY.WATCH_CTRL.MASK.value : '0;
+    assign readback_array[8][30:16] = '0;
+    assign readback_array[8][31:31] = (decoded_reg_strb.TALLY.WATCH_CTRL && !decoded_req_is_wr) ? field_storage.TALLY.WATCH_CTRL.ARM.value : '0;
+    assign readback_array[9][7:0] = (decoded_reg_strb.TALLY.LATCH_SEL && !decoded_req_is_wr) ? field_storage.TALLY.LATCH_SEL.SEL.value : '0;
+    assign readback_array[9][31:8] = '0;
 
     // Reduce the array
     always_comb begin
@@ -371,7 +394,7 @@ module tally_regs_top (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<3; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<10; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

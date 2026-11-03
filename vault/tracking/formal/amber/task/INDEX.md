@@ -13,15 +13,16 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
-## Open
+## Closed
 
-- **TASK-001** ([page](open/TASK-001.md)) — G2 rig measurement upgrade: wire
-  tally_clear/freeze to the harness CSR, injector latency counters
-  (stream-perf-profiler analog), bigger/re-armable latch bank, RDL entries
-  for the latch readback words.
+- **TASK-001** ([page](closed/TASK-001.md)) — G2 rig measurement upgrade:
+  tally clear/freeze CSR wiring, injector latency counters, 16-deep
+  re-armable latch bank, RDL entries for the latch readback. All four items
+  landed 2026-11-01/02; board rebuild + sweep re-run pending (needs the
+  Genesys 2). Clears jet T13's blocker.

@@ -42,14 +42,17 @@ talks to the design over UART through a generated AXI4-Lite bridge.
 2. **Deterministic stress stimulus** — two `amber_cycle_injector` blocks
    issue pseudo-random read/write CPU requests from programmed seeds, with
    per-injector CRC-32 accumulation of issued write data and returned read
-   data.
+   data, plus per-run latency instrumentation: min/max/sum, an 8-bucket
+   log2 histogram, and a busy-cycle count.
 3. **Host control over UART** — a `uart_axil_bridge` translates ASCII write/read
    commands into AXI4-Lite transactions that program injectors, poll status,
    and read back MonBus tallies.
 4. **Observation** — cache MonBus streams merge through `monbus_arbiter`, are
    ingested by `monbus_axil4_group_1wr` (write-only: everything lands in the
    tally record window), and counted by
-   `monbus_tally_axil`; the host reads the resulting bin counts.
+   `monbus_tally_axil`; the host reads the resulting bin counts. The tally's
+   16-slot first-event latch bank captures raw packets under a watch mask and
+   re-arms on every tally clear (harness CSR `CTRL[0]`/`CTRL[1]`).
 
 ## Board and clock
 
@@ -65,7 +68,7 @@ talks to the design over UART through a generated AXI4-Lite bridge.
 | --- | --- |
 | `rtl/amber_pair_genesys2_top.sv` | Board top: clocking, reset sync, LED heartbeat, harness instance. |
 | `rtl/amber_pair_harness.sv` | Integration harness: UART bridge, generated AXIL decoder, CSR, injectors, caches, fabric, memory, MonBus tally path. |
-| `rtl/amber_cycle_injector.sv` | Per-core stimulus engine: AXIL CSR slave, LFSR address/data generation, CRC-32 accumulators. |
+| `rtl/amber_cycle_injector.sv` | Per-core stimulus engine: AXIL CSR slave, LFSR address/data generation, CRC-32 accumulators, per-run latency min/max/sum + log2 histogram + busy cycles. |
 | `rtl/bridges/configs/bridge_amber_axil.toml` | 1-master × 6-slave AXIL bridge definition. |
 | `rtl/filelists/amber_pair_genesys2_top.f` | Top-level filelist closure. |
 | `host/amber_board.py` | Named-register host driver and smoke campaign. |

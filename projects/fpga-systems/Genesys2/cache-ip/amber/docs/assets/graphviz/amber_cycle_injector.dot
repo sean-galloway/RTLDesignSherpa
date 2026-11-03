@@ -53,6 +53,11 @@ digraph amber_cycle_injector {
     fsm -> timeout [style=dashed, color="#777777", constraint=false, label="wait count"];
     timeout -> fsm [style=dashed, color="#777777", constraint=false, label="timeout -> err"];
 
+    // latency instrumentation (per run, cleared on run start)
+    lat [label="Latency instrumentation\nmin/max/sum + log2 histogram(8)\n+ run cycles", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fsm -> lat [style=dashed, color="#777777", label="WAIT_RSP occupancy"];
+    lat -> axil [constraint=false, style=dashed, color="#777777", label="LAT_* / RUN_CYCLES"];
+
     legend [shape=box, style=filled, fillcolor="white", color="black",
             label="Parameters (fixed at build)\l\
 ADDR_WIDTH=32, BUS_WIDTH=64\l\

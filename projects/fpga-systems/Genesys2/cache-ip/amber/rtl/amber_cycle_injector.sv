@@ -6,9 +6,13 @@
 //
 // Module: amber_cycle_injector
 // Purpose: Per-core stimulus engine for the amber pair-rig Genesys2 bring-up.
-//   AXIL4-Lite CSR slave (16-word regfile) drives a deterministic cpu_req GAXI
-//   master.  One outstanding transaction at a time; counts accepts and responses;
-//   raises ERR_FLAG if a response never arrives.
+//   AXIL4-Lite CSR slave (32-word decode window; the original 16-word regfile
+//   plus read-only latency/occupancy instrumentation) drives a deterministic
+//   cpu_req GAXI master.  One outstanding transaction at a time; counts accepts
+//   and responses; raises ERR_FLAG if a response never arrives. Being blocking,
+//   per-request latency is exactly FSM_WAIT_RSP occupancy + 1, so the block
+//   records latency min/max/sum, an 8-bucket log2 histogram, and a run-cycle
+//   count per run (formal/amber TASK-001 item 2).
 //
 //   Family-aligned with rtl/amba/shared/axi4_master_wr_injector:
 //     - Addresses come from the house dma_address_gen using base + strided index
@@ -99,20 +103,36 @@ module amber_cycle_injector
 
     // ------------------------------------------------------------------
     // CSR map (32-bit word offsets)
+    //   Decode is addr[6:2] (32-word window). Words 0x00-0x3C are the
+    //   original 16-word regfile; the latency/occupancy instrumentation
+    //   (formal/amber TASK-001 item 2) fills the three historic holes and
+    //   lives above 0x40. All instrument registers are read-only, cleared
+    //   on run start. Latency is cycles from request accept to response
+    //   handshake (FSM_WAIT_RSP occupancy + 1), one sample per request.
     // ------------------------------------------------------------------
-    localparam logic [3:0] CSR_CTRL          = 4'h0;
-    localparam logic [3:0] CSR_SEED          = 4'h1;
-    localparam logic [3:0] CSR_ADDR_BASE     = 4'h2;
-    localparam logic [3:0] CSR_ADDR_MASK     = 4'h3;
-    localparam logic [3:0] CSR_TRANS_COUNT   = 4'h4;
-    localparam logic [3:0] CSR_STATUS        = 4'h5;
-    localparam logic [3:0] CSR_ACC_COUNT     = 4'h6;
-    localparam logic [3:0] CSR_RSP_COUNT     = 4'h7;
-    localparam logic [3:0] CSR_ERR_FLAG      = 4'h8;
-    localparam logic [3:0] CSR_RSP_CRC_LO    = 4'hC;   // word 12
-    localparam logic [3:0] CSR_RSP_CRC_HI    = 4'hD;   // word 13
-    localparam logic [3:0] CSR_WDATA_CRC_LO  = 4'hE;   // word 14
-    localparam logic [3:0] CSR_WDATA_CRC_HI  = 4'hF;   // word 15
+    localparam logic [4:0] CSR_CTRL          = 5'h00;
+    localparam logic [4:0] CSR_SEED          = 5'h01;
+    localparam logic [4:0] CSR_ADDR_BASE     = 5'h02;
+    localparam logic [4:0] CSR_ADDR_MASK     = 5'h03;
+    localparam logic [4:0] CSR_TRANS_COUNT   = 5'h04;
+    localparam logic [4:0] CSR_STATUS        = 5'h05;
+    localparam logic [4:0] CSR_ACC_COUNT     = 5'h06;
+    localparam logic [4:0] CSR_RSP_COUNT     = 5'h07;
+    localparam logic [4:0] CSR_ERR_FLAG      = 5'h08;
+    localparam logic [4:0] CSR_LAT_MIN       = 5'h09;   // 0x24
+    localparam logic [4:0] CSR_LAT_MAX       = 5'h0A;   // 0x28
+    localparam logic [4:0] CSR_RUN_CYCLES    = 5'h0B;   // 0x2C
+    localparam logic [4:0] CSR_RSP_CRC_LO    = 5'h0C;   // word 12
+    localparam logic [4:0] CSR_RSP_CRC_HI    = 5'h0D;   // word 13
+    localparam logic [4:0] CSR_WDATA_CRC_LO  = 5'h0E;   // word 14
+    localparam logic [4:0] CSR_WDATA_CRC_HI  = 5'h0F;   // word 15
+    localparam logic [4:0] CSR_LAT_SUM_LO    = 5'h10;   // 0x40
+    localparam logic [4:0] CSR_LAT_SUM_HI    = 5'h11;   // 0x44
+    localparam logic [4:0] CSR_LAT_HIST0     = 5'h12;   // 0x48 .. 0x64 (8 buckets)
+
+    // Histogram bucket edges are powers of two: bucket b covers latencies
+    // [2^b, 2^(b+1)-1] and bucket 7 catches >= 128. Bucket 0 is latency 1.
+    localparam int LAT_HIST_BUCKETS = 8;
 
     localparam logic [31:0] CSR_CTRL_RUN_MASK     = 32'h0000_0001;
     localparam int          CSR_CTRL_WE_MIX_SHIFT = 8;
@@ -132,6 +152,14 @@ module amber_cycle_injector
     logic        r_err_flag;
     logic [BUS_WIDTH-1:0] r_rsp_crc;
     logic [BUS_WIDTH-1:0] r_wdata_crc;
+
+    // Latency / occupancy instrumentation (read-only, cleared on run start)
+    logic [31:0] r_lat_cnt;   // cycles the in-flight request has waited
+    logic [31:0] r_lat_min;
+    logic [31:0] r_lat_max;
+    logic [63:0] r_lat_sum;
+    logic [31:0] r_run_cycles;
+    logic [31:0] r_lat_hist [LAT_HIST_BUCKETS];
 
     assign o_done     = r_done;
     assign o_busy     = r_busy;
@@ -354,7 +382,7 @@ module amber_cycle_injector
                 r_w_done  <= 1'b0;
                 for (int b = 0; b < 4; b++) begin
                     if (r_wstrb[b]) begin
-                        case (r_awaddr[5:2])
+                        case (r_awaddr[6:2])
                             CSR_CTRL:        r_ctrl[8*b +: 8]        <= r_wdata_reg[8*b +: 8];
                             CSR_SEED:        r_seed[8*b +: 8]        <= r_wdata_reg[8*b +: 8];
                             CSR_ADDR_BASE:   r_addr_base[8*b +: 8]   <= r_wdata_reg[8*b +: 8];
@@ -389,7 +417,8 @@ module amber_cycle_injector
     assign s_axil_rdata   = r_rdata;
 
     always_comb begin
-        case (r_ar_addr[5:2])
+        r_rdata = 32'hDEAD_BEEF;
+        case (r_ar_addr[6:2])
             CSR_CTRL:          r_rdata = r_ctrl;
             CSR_SEED:          r_rdata = r_seed;
             CSR_ADDR_BASE:     r_rdata = r_addr_base;
@@ -399,11 +428,21 @@ module amber_cycle_injector
             CSR_ACC_COUNT:     r_rdata = r_acc_count;
             CSR_RSP_COUNT:     r_rdata = r_rsp_count;
             CSR_ERR_FLAG:      r_rdata = {31'b0, r_err_flag};
+            CSR_LAT_MIN:       r_rdata = (r_rsp_count == '0) ? 32'h0 : r_lat_min;
+            CSR_LAT_MAX:       r_rdata = r_lat_max;
+            CSR_RUN_CYCLES:    r_rdata = r_run_cycles;
             CSR_RSP_CRC_LO:    r_rdata = r_rsp_crc[31:0];
             CSR_RSP_CRC_HI:    r_rdata = r_rsp_crc[63:32];
             CSR_WDATA_CRC_LO:  r_rdata = r_wdata_crc[31:0];
             CSR_WDATA_CRC_HI:  r_rdata = r_wdata_crc[63:32];
-            default:           r_rdata = 32'hDEAD_BEEF;
+            CSR_LAT_SUM_LO:    r_rdata = r_lat_sum[31:0];
+            CSR_LAT_SUM_HI:    r_rdata = r_lat_sum[63:32];
+            default: begin
+                if (r_ar_addr[6:2] >= CSR_LAT_HIST0 &&
+                    r_ar_addr[6:2] < CSR_LAT_HIST0 + 5'(LAT_HIST_BUCKETS)) begin
+                    r_rdata = r_lat_hist[3'(r_ar_addr[6:2] - CSR_LAT_HIST0)];
+                end
+            end
         endcase
     end
 
@@ -443,6 +482,26 @@ module amber_cycle_injector
     assign w_crc_wdata_strobe = w_lfsr_advance;
     assign w_crc_rsp_strobe  = (r_fsm == FSM_WAIT_RSP) && cpu_rsp_rd_valid;
 
+    // ------------------------------------------------------------------
+    // Latency sample: cycles from request accept to response handshake.
+    // r_lat_cnt runs while parked in FSM_WAIT_RSP; the sample adds the
+    // handshake cycle itself, so a next-cycle response measures 1.
+    // Bucket = floor(log2(sample)) capped at 7 (sample is always >= 1).
+    // ------------------------------------------------------------------
+    logic [31:0] w_lat_sample;
+    logic [4:0]  w_lat_msb;
+    logic [2:0]  w_lat_bucket;
+
+    assign w_lat_sample = r_lat_cnt + 32'd1;
+
+    always_comb begin
+        w_lat_msb = 5'd0;
+        for (int i = 1; i < 32; i++) begin
+            if (w_lat_sample[i]) w_lat_msb = 5'(i);
+        end
+    end
+    assign w_lat_bucket = (w_lat_msb > 5'd7) ? 3'd7 : w_lat_msb[2:0];
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_fsm         <= FSM_IDLE;
@@ -452,7 +511,17 @@ module amber_cycle_injector
             r_busy        <= 1'b0;
             r_err_flag    <= 1'b0;
             r_timeout_cnt <= '0;
+            r_lat_cnt     <= '0;
+            r_lat_min     <= '1;
+            r_lat_max     <= '0;
+            r_lat_sum     <= '0;
+            r_run_cycles  <= '0;
+            for (int b = 0; b < LAT_HIST_BUCKETS; b++) r_lat_hist[b] <= '0;
         end else begin
+            if (r_busy) begin
+                r_run_cycles <= (r_run_cycles == 32'hFFFF_FFFF)
+                                ? r_run_cycles : r_run_cycles + 1'b1;
+            end
             case (r_fsm)
                 FSM_IDLE: begin
                     if (r_ctrl[0]) begin
@@ -463,6 +532,12 @@ module amber_cycle_injector
                         r_rsp_count   <= '0;
                         r_err_flag    <= 1'b0;
                         r_timeout_cnt <= '0;
+                        r_lat_cnt     <= '0;
+                        r_lat_min     <= '1;
+                        r_lat_max     <= '0;
+                        r_lat_sum     <= '0;
+                        r_run_cycles  <= '0;
+                        for (int b = 0; b < LAT_HIST_BUCKETS; b++) r_lat_hist[b] <= '0;
                     end
                 end
 
@@ -478,6 +553,7 @@ module amber_cycle_injector
                                          ? r_acc_count : r_acc_count + 1'b1;
                         r_fsm         <= FSM_WAIT_RSP;
                         r_timeout_cnt <= '0;
+                        r_lat_cnt     <= '0;
                     end
                 end
 
@@ -485,6 +561,12 @@ module amber_cycle_injector
                     if (cpu_rsp_rd_valid) begin
                         r_rsp_count <= (r_rsp_count == 32'hFFFF_FFFF)
                                        ? r_rsp_count : r_rsp_count + 1'b1;
+                        if (w_lat_sample < r_lat_min) r_lat_min <= w_lat_sample;
+                        if (w_lat_sample > r_lat_max) r_lat_max <= w_lat_sample;
+                        r_lat_sum <= r_lat_sum + 64'(w_lat_sample);
+                        if (r_lat_hist[w_lat_bucket] != 32'hFFFF_FFFF) begin
+                            r_lat_hist[w_lat_bucket] <= r_lat_hist[w_lat_bucket] + 1'b1;
+                        end
                         if (r_rsp_count + 1'b1 >= r_trans_count) begin
                             r_fsm  <= FSM_IDLE;
                             r_done <= 1'b1;
@@ -494,6 +576,7 @@ module amber_cycle_injector
                         end
                     end else begin
                         r_timeout_cnt <= r_timeout_cnt + 1'b1;
+                        r_lat_cnt     <= r_lat_cnt + 1'b1;
                         if (&r_timeout_cnt) begin
                             r_err_flag <= 1'b1;
                             r_fsm      <= FSM_IDLE;

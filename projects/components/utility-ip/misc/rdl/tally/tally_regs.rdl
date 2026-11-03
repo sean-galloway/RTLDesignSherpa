@@ -76,6 +76,51 @@ regfile tally_regs {
           desc = "Which capture slot the read port returns.";
           field { sw=rw; hw=r; } SEL[7:0] = 0;
     } LATCH_SEL @ 0x120;
+
+    //-------------------------------------------------------------------------
+    // First-event latch READBACK (cfgr aperture, 0x10-0x40). Read-only; the
+    // values live in monbus_pkt_tally's latch bank and are served by the hand
+    // decode in monbus_tally_axil, NOT by this regblock -- declared here so the
+    // host named-register API covers them (formal/amber TASK-001 item 4).
+    // hw=na: no storage or hwif in the generated RTL. The slot returned is the
+    // one selected by LATCH_SEL. Read LATCH_STATUS first: FILL says how many
+    // slots hold events (up to TALLY_NUM_LATCH).
+    //-------------------------------------------------------------------------
+    reg { name = "Latch status";
+          desc = "FILL = slots captured so far; VALID = selected slot holds an event.";
+          field { sw=r; hw=na; } FILL[15:0]   = 16'h0000;
+          field { sw=r; hw=na; } VALID[16:16] = 1'b0;
+    } LATCH_STATUS @ 0x10;
+
+    reg { name = "Latch packet word 0";
+          desc = "Selected slot packet[31:0].";
+          field { sw=r; hw=na; } DATA[31:0] = 32'h00000000;
+    } LATCH_PKT0 @ 0x18;
+
+    reg { name = "Latch packet word 1";
+          desc = "Selected slot packet[63:32].";
+          field { sw=r; hw=na; } DATA[31:0] = 32'h00000000;
+    } LATCH_PKT1 @ 0x20;
+
+    reg { name = "Latch packet word 2";
+          desc = "Selected slot packet[95:64].";
+          field { sw=r; hw=na; } DATA[31:0] = 32'h00000000;
+    } LATCH_PKT2 @ 0x28;
+
+    reg { name = "Latch packet word 3";
+          desc = "Selected slot packet[127:96].";
+          field { sw=r; hw=na; } DATA[31:0] = 32'h00000000;
+    } LATCH_PKT3 @ 0x30;
+
+    reg { name = "Latch timestamp low";
+          desc = "Selected slot timestamp[31:0].";
+          field { sw=r; hw=na; } DATA[31:0] = 32'h00000000;
+    } LATCH_TS_LO @ 0x38;
+
+    reg { name = "Latch timestamp high";
+          desc = "Selected slot timestamp[63:32].";
+          field { sw=r; hw=na; } DATA[31:0] = 32'h00000000;
+    } LATCH_TS_HI @ 0x40;
 };
 
 addrmap tally_regs_top {

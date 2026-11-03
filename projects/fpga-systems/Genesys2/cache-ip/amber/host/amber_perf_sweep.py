@@ -45,15 +45,8 @@ from amber_board import (AmberDriver, build_amber_bridge,
 SEED0 = 0x1234_5678
 SEED1 = 0xDEAD_BEEF
 
-# cfgr-aperture offsets decoded in monbus_tally_axil but not present in the
-# RDL regmap (read raw through the bridge).
-CFGR_LATCH_STATUS = 0x10   # {latch_valid, latch_fill}
-CFGR_LATCH_PKT0   = 0x18   # packet[31:0]
-CFGR_LATCH_PKT1   = 0x20   # packet[63:32]
-CFGR_LATCH_PKT2   = 0x28   # packet[95:64]
-CFGR_LATCH_PKT3   = 0x30   # packet[127:96]
-CFGR_LATCH_TS0    = 0x38   # timestamp[31:0]
-CFGR_LATCH_TS1    = 0x40   # timestamp[63:32]
+# cfgr-aperture latch readback offsets used to be raw bridge reads; they are
+# named registers in the regenerated tally_regs regmap (TASK-001 item 4).
 
 _PROTO_NAMES = {0: "AXI", 1: "AXIS", 2: "APB", 3: "ARB",
                 4: "CORE", 5: "WB", 6: "CXS"}
@@ -81,19 +74,21 @@ def _read_bins(driver):
 
 
 def _latch_capture(driver):
-    """Read back the first-event latch bank (assumes WATCH armed + filled)."""
+    """Read back the first-event latch bank (assumes WATCH armed + filled).
+
+    The latch readback words are named registers in the regenerated
+    tally_regs regmap (formal/amber TASK-001 item 4); FILL says how many of
+    the 16 slots hold events."""
     cfgw = driver.bus["tally_cfgw"]
-    status = driver.bridge.read(TALLY_CFGR_BASE + CFGR_LATCH_STATUS)
-    fill = status & 0xFFFF
+    cfgr = driver.bus["tally_cfgr"]
+    fill = cfgr.read("LATCH_STATUS") & 0xFFFF
     events = []
-    for i in range(4):
+    for i in range(min(fill, 16)):
         cfgw.write("LATCH_SEL", SEL=i)
-        words = [driver.bridge.read(TALLY_CFGR_BASE + off) for off in
-                 (CFGR_LATCH_PKT0, CFGR_LATCH_PKT1,
-                  CFGR_LATCH_PKT2, CFGR_LATCH_PKT3)]
-        ts_lo = driver.bridge.read(TALLY_CFGR_BASE + CFGR_LATCH_TS0)
-        ts_hi = driver.bridge.read(TALLY_CFGR_BASE + CFGR_LATCH_TS1)
-        events.append(_decode_packet(words, (ts_hi << 32) | ts_lo))
+        words = [cfgr.read(n) for n in
+                 ("LATCH_PKT0", "LATCH_PKT1", "LATCH_PKT2", "LATCH_PKT3")]
+        ts = (cfgr.read("LATCH_TS_HI") << 32) | cfgr.read("LATCH_TS_LO")
+        events.append(_decode_packet(words, ts))
     return {"fill": fill, "events": events}
 
 
@@ -148,6 +143,8 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print):
         st1 = driver.ci_status("ci1")
         crc0 = driver.ci_crcs("ci0")
         crc1 = driver.ci_crcs("ci1")
+        lat0 = driver.ci_latency("ci0")
+        lat1 = driver.ci_latency("ci1")
 
         if do_latch:
             latch = _latch_capture(driver)
@@ -160,7 +157,7 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print):
             "base0": f"0x{base0:05x}", "base1": f"0x{base1:05x}",
             "we_mix": we_mix, "done": ok, "wall_s": round(wall, 3),
             "bins": bins, "unexpected": unc_,
-            "ci0": {**st0, **crc0}, "ci1": {**st1, **crc1},
+            "ci0": {**st0, **crc0, **lat0}, "ci1": {**st1, **crc1, **lat1},
         }
         if do_latch:
             rec["latch"] = latch
@@ -171,10 +168,15 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print):
         fill_end, drain_end = delta[7], delta[9]
         # Hit events fire once per SERVED access (post-miss replays re-hit),
         # so bin0 = total accesses; true miss rate = miss/accesses.
+        lat_mean0 = lat0["lat_sum"] / count if count else 0
+        lat_mean1 = lat1["lat_sum"] / count if count else 0
         say(f"  acc={hits} miss={misses} snoop={snoops} evict={evicts} "
             f"drop={drops} fill_end={fill_end} drain_end={drain_end} "
-            f"unc={unc} "
+            f"unc={unc_} "
             f"miss%={100.0 * misses / hits if hits else 0:.1f} "
+            f"lat0={lat0['lat_min']}/{lat_mean0:.1f}/{lat0['lat_max']} "
+            f"lat1={lat1['lat_min']}/{lat_mean1:.1f}/{lat1['lat_max']} "
+            f"cyc0={lat0['run_cycles']} cyc1={lat1['run_cycles']} "
             f"wall={wall:.2f}s err={st0['err_flag'] or st1['err_flag']}")
         if unc != 0 or st0["err_flag"] or st1["err_flag"] or not ok:
             say(f"[sweep] WARNING {name}: unexpected/err/timeout flag set")

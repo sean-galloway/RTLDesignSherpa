@@ -116,6 +116,21 @@ class CycleInjector(Device):
         wdata_crc = (hi << 32) | lo
         return {"rsp_crc": rsp_crc, "wdata_crc": wdata_crc}
 
+    def latency(self) -> dict:
+        """Per-run latency/occupancy stats (TASK-001 item 2).
+
+        Latency is cycles from request accept to response handshake;
+        buckets are log2 (bucket b = [2^b, 2^(b+1)-1], bucket 7 = >=128)."""
+        lo = self.read("LAT_SUM_LO")
+        hi = self.read("LAT_SUM_HI")
+        return {
+            "lat_min": self.read("LAT_MIN"),
+            "lat_max": self.read("LAT_MAX"),
+            "lat_sum": (hi << 32) | lo,
+            "run_cycles": self.read("RUN_CYCLES"),
+            "lat_hist": [self.read(f"LAT_HIST{i}") for i in range(8)],
+        }
+
 
 class AmberDriver:
     """Unified named-register driver for the amber pair-rig harness."""
@@ -164,7 +179,12 @@ class AmberDriver:
         """Zero every tally bin and re-arm the first-event latches.
 
         Read-modify-write so the freeze level is preserved: the W1P clear
-        bit always reads back 0, so the read half never re-pulses it."""
+        bit always reads back 0, so the read half never re-pulses it.
+
+        Protocol: the MonBus path must be drained first (settle, then
+        freeze). A clear landing while the upstream group holds a partial
+        record phase-shifts the 3-beat record stream and sends every later
+        packet to UNEXPECTED."""
         self.bus["harness"].write("CTRL", tally_clear=1, rmw=True)
 
     # ------------------------------------------------------------------
@@ -203,6 +223,9 @@ class AmberDriver:
 
     def ci_crcs(self, name: str) -> dict:
         return self.bus[name].crcs()
+
+    def ci_latency(self, name: str) -> dict:
+        return self.bus[name].latency()
 
 
 # ----------------------------------------------------------------------

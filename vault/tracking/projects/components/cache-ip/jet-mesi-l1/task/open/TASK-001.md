@@ -28,8 +28,12 @@ Phases per the spec:
 ## Depends on
 
 - The shared core at `cache-ip/common-ip` (reused unchanged).
-- Phase 7 waits on the amber rig upgrade (formal TASK-001) for the board
-  measurement quality bar.
+- ~~Phase 7 waits on the amber rig upgrade (formal TASK-001) for the board
+  measurement quality bar.~~ **CLEARED 2026-11-02**: formal/amber TASK-001
+  closed (all four items landed — tally clear/freeze CSR wiring, injector
+  latency min/max/sum + log2 histogram + run cycles, 16-deep re-armable
+  latch bank, latch readback RDL). The amber rig now meets the measurement
+  bar; the J7 sweep can measure latency distributions, not just rates.
 
 ## Done when
 

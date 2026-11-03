@@ -1245,7 +1245,8 @@ module amber_pair_harness
         .ADDR_WIDTH      (32),
         .DATA_WIDTH      (64),
         .TALLY_ADDR_BITS (MON_TALLY_ADDR_BITS),
-        .N_PROFILE       (MON_N_PROFILE)
+        .N_PROFILE       (MON_N_PROFILE),
+        .TALLY_NUM_LATCH (16)
     ) u_tally (
         .aclk(aclk),
         .aresetn(aresetn),
