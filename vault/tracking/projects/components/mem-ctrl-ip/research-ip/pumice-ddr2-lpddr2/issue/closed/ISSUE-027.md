@@ -10,7 +10,9 @@
 
 **Priority:** P1 -- the shipped bitstream is from the 10-27 text; any new
 pumice bitstream from HEAD fails timing at the board clock.
-**Status:** OPEN. Measured, not bisected.
+**Status:** CLOSED 2026-11-03 -- the arbiter's QoS max was a 16-stage serial
+ripple at the end of the cone; a balanced tree closes 50 MHz at +0.057 ns
+(see Resolution).
 **Owner:** TBD
 
 ## What is seen
@@ -84,3 +86,42 @@ commit that added the three levels (likely a classify or shadow term in the
 shared arbiter) and for the LUT growth that stretched the routes; the
 lasting fix for a cone that is 83 percent wire is the arbiter / CAM
 restructure TASK-060 left as the owner's call.
+
+## Resolution (2026-11-03)
+
+Not bisected: the bucketing said the cone, so the cone was read. The arbiter
+alone, synthesized to ASAP7 with its classify nets kept
+(`projects/asic-trials/timing_characterization/work/synth_module.py`, TT,
+1 ns), put the worst path at 3.27 ns over 118 cells: classify done at 1.12 ns
+(`rd_col_me`), then 2.15 ns of one repeated compare-select pattern, 16 deep.
+That is `qos_top` in `mc_cmd_arbiter`, the STAGE-1a QoS filter after
+classify and the order overlay. It found the highest AxQOS with a serial
+`if (q > best) best = q` walk over all 16 entries. `sched_qos_en_i` is a
+runtime CSR, so the logic is built (and on the critical path) whether or not
+QoS is on. The Vivado path's last ~15 LUT levels, inside the write CAM's
+hierarchy where the QoS values come from, plus one CSR cell, were the same
+walk.
+
+**Fix:** a balanced pairwise max (clog2(NUM_ENTRIES) compare-select levels).
+Proven equal to the walk with a yosys SAT miter for NUM_ENTRIES 16, 8, 5 and
+3; a mutated tree fails the miter.
+
+| measure | before | after |
+|---|---|---|
+| arbiter alone, ASAP7 TT, worst reg-to-reg | 3.27 ns, 118 cells | **1.83 ns, 62 cells** |
+| board, 50 MHz, combiner on (the shipping point) | -2.843 ns, 24 failing | **+0.057 ns, 0 failing**, hold clean |
+| board, 50 MHz, + TASK-047 lane | -3.689 ns, 40 failing | **+0.134 ns, 0 failing** |
+| board, 75 MHz, combiner on | -9.794 ns, 4 283 failing | -5.158 ns, 2 480 failing |
+| board LUT / FF (50 MHz) | 45 652 / 35 387 | 45 248 / 35 287 |
+
+75 MHz is back to the 10-27 picture (-5.63 then): the arbiter
+population -> STAGE-1b -> classify loop (65 endpoints, 3.9 ns logic / 14.5 ns
+route) and the bank timers -> write CAM strobes TASK-060 named. The 50 MHz
+margin is thin and on that same loop. The next cut is moving the STAGE-1b
+selection's in-flight shadows (`w_if_*_sel`, the per-entry and tCCD terms) out
+of classify into STAGE-1b against the pre-pick registers. Not done here.
+
+Verification: pumice 222 / 222 at both geometries, common-ip macro 36 + 3
+xfail, `formal/mc_common/mc_cmd_arbiter` prove / cover / dual / dual_cover
+pass, lint clean.
+

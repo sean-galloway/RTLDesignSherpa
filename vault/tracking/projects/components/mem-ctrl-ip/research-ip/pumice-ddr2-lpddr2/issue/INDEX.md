@@ -12,20 +12,19 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 23 | done (kept for history) |
+| [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-027** — OPEN 2026-11-03: HEAD misses the 50 MHz shipping point by
-  2.84 ns (24 endpoints, all the arbiter's 27-level classify cone); the
-  2026-10-27 bitstream closed at +0.029. Not bisected. Found by TASK-047's
-  A/B builds.
+None.
 
 ## Closed
+
+- **ISSUE-027** — CLOSED 2026-11-03: HEAD missed the 50 MHz shipping point by 2.84 ns. The arbiter's QoS max was a 16-stage serial ripple at the end of the classify cone; a balanced tree (SAT-proven equal) closes 50 MHz at +0.057 ns, +0.134 with the TASK-047 lane; ASAP7 arbiter 3.27 -> 1.83 ns.
 
 - **ISSUE-026** — CLOSED 2026-11-02: an RTL sizing defect on CDC builds, not the TB. Across the crossing (dfi_clk = 2 x aclk) the no-back-pressure read-return FIFO at depth 4 lost a beat on two back-to-back reads; `granite_core` now uses `DFI_RD_FIFO_DEPTH` only when `DFI_CDC_EN = 0` and the whole window (`RD_RET_DEPTH x BURST_WORDS`) otherwise. Board (same-clock) builds unchanged; TB pins removed.
 - **ISSUE-021** — CLOSED 2026-10-29 (option 1): `mc_training_plane` gained

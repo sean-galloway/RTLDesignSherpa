@@ -1093,17 +1093,30 @@ module mc_cmd_arbiter
     // ---- ACCESS_PREF / QoS -------------------------------------------------
     typedef enum logic [1:0] {CL_NONE, CL_COL, CL_ACT, CL_PRE} pick_class_e;
 
+    // The highest AxQOS among the masked entries, then every masked entry at
+    // that level. The maximum is a balanced pairwise tree (clog2(NUM_ENTRIES)
+    // compare-select levels). It was a serial `if (q > best) best = q` walk,
+    // one compare-select per entry -- 16 in series at NUM_ENTRIES = 16, at the
+    // END of the classify -> STAGE-1a cone, so it was most of the arbiter's
+    // critical path whether or not QoS was enabled (sched_qos_en_i is runtime):
+    // ASAP7 2.15 of 3.27 ns, and the last ~15 LUT levels of the 27-level
+    // Vivado path that missed 50 MHz (pumice ISSUE-027). Masked-out entries
+    // enter the tree as 0, which is what the walk's initial best did.
+    localparam int QL = (NUM_ENTRIES > 1) ? $clog2(NUM_ENTRIES) : 1;
     function automatic logic [NUM_ENTRIES-1:0] qos_top(
         input logic [NUM_ENTRIES-1:0]     mask,
         input logic [NUM_ENTRIES*4-1:0]   qosv
     );
-        logic [3:0] best;
+        logic [3:0] v [NUM_ENTRIES];
         logic [NUM_ENTRIES-1:0] out;
-        best = '0;
         for (int i = 0; i < NUM_ENTRIES; i++)
-            if (mask[i] && (qosv[i*4 +: 4] > best)) best = qosv[i*4 +: 4];
+            v[i] = mask[i] ? qosv[i*4 +: 4] : 4'd0;
+        for (int l = 0; l < QL; l++)
+            for (int i = 0; i < NUM_ENTRIES; i += (2 << l))
+                if (i + (1 << l) < NUM_ENTRIES)
+                    if (v[i + (1 << l)] > v[i]) v[i] = v[i + (1 << l)];
         for (int i = 0; i < NUM_ENTRIES; i++)
-            out[i] = mask[i] && (qosv[i*4 +: 4] == best);
+            out[i] = mask[i] && (qosv[i*4 +: 4] == v[0]);
         return out;
     endfunction
 

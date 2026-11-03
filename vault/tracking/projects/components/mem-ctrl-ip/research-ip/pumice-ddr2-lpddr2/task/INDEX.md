@@ -12,26 +12,20 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 52 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
-| [deferred/](deferred/) | 4 | parked pending a named condition |
+| [deferred/](deferred/) | 3 | parked pending a named condition |
 
 ## Open
 
-None.
+- **TASK-047** — OPEN 2026-11-03 (unparked: ISSUE-027 closed). Dual issue on
+  DFI 1:2, built behind `DUAL_ISSUE`, sim and formal green (9 -> 8 slots per
+  bank-walk row); the 50 MHz board build with the lane closes at +0.134 ns.
+  Remaining: the board run.
 
 ## Deferred
-
-- **TASK-047** — DEFERRED 2026-11-03 after a best-effort pass (owner: "give
-  best effort then defer if needed"). Dual issue on DFI 1:2: a demand ACT/PRE
-  rides the column's DFI word on `DFI_PHASE.row_phase` (`DUAL_ISSUE` build,
-  default off and cycle-identical; `SCHED_POLICY.dual_issue`). Sim and
-  formal green: 9 -> 8 slots per bank-walk row, col_ilv +12 / +14 percent
-  one thread, col_major +11 / +13 percent eight threads. Timing moves under
-  1 ns on a cone HEAD already fails; wakes when ISSUE-027 (HEAD misses its
-  50 MHz board clock) is resolved.
 
 - **TASK-043** — DEFERRED 2026-11-02 (owner; eight engines per direction
   run in sim but cost 91 percent of the xc7a100t and miss 75 MHz on

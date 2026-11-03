@@ -68,3 +68,25 @@ the ordering compare disappeared altogether: same-ID entries keep a linked
 list, and "the oldest with this ID" is the one flagged as that list's head.
 The cheapest max is the one you never compute -- see
 [[area-measure-by-hierarchy]] for how the reports steered each pass.
+
+## A running max in a loop is a ripple chain (pumice ISSUE-027, 2026-11-03)
+
+    best = '0;
+    for (int i = 0; i < N; i++)
+        if (mask[i] && (q[i] > best)) best = q[i];
+
+reads like a parallel reduction and synthesizes as N compare-selects in series,
+because each `best` depends on the one before. In `mc_cmd_arbiter`'s QoS filter
+(N = 16, at the end of the classify cone) it was 2.15 of the 3.27 ns worst path
+in ASAP7 and the last ~15 LUT levels of the path that took pumice off its 50 MHz
+board clock (-2.84 ns). It was there whether or not QoS was enabled, because the
+enable is a runtime CSR. A balanced pairwise tree (clog2 N levels, masked-out
+entries entering as the identity) is the same function. Prove the swap with a
+SAT miter (yosys `miter -equiv` + `sat -verify -prove-asserts`), and mutate the
+tree once to see the miter fail. Results: arbiter 1.83 ns / 62 cells; board
++0.057 ns.
+
+**Grep for the shape:** a variable assigned from itself inside a `for` in an
+`always_comb` or function (`best = ... best ...`, `acc = acc + ...` with a
+compare in it). Every one is a chain of depth N; ask whether N is small
+enough to keep.

@@ -11,7 +11,9 @@
 > (the arbiter cone is the 75 MHz critical path at +0.001 ns).
 
 **Priority:** P3 (research; bounded gain, real timing risk)
-**Status:** DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
+**Status:** OPEN 2026-11-03 (unparked the same day: ISSUE-027 closed and the
+50 MHz board build with the lane closes at +0.134 ns, 0 failing). Remaining:
+the board run. Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
 and see if it can happen; give best effort then defer if needed"). Built
 behind `DUAL_ISSUE` (default off, cycle-identical to HEAD), verified in sim
 and formal: 9 -> 8 slots per bank-walk row, col_ilv +12 / +14 percent at one
@@ -216,3 +218,13 @@ with `SCHED_POLICY.dual_issue=1`, `DFI_PHASE.row_phase=1`. Not done:
 BANK_PICK parity (granite's core has no lane), the scheduler-side and
 DFI-wire command-history checkers and the Ocelus accept tap do not see the
 lane, and the eight-writer column-supply gap above.
+
+### 2026-11-03: unparked -- ISSUE-027 closed, the lane closes 50 MHz
+
+ISSUE-027's fix (the arbiter's QoS max as a tree) closes the shipping point:
+50 MHz, combiner on, HEAD +0.057 ns and **with the lane +0.134 ns**, 0 failing,
+hold clean, 45 992 LUT (+744 over the same text without the lane). Next:
+`PUMICE_SYS_50=1 PUMICE_DUAL_ISSUE=1 make bitstream`, then the char profiles
+on the board with `SCHED_POLICY.dual_issue=1` and `DFI_PHASE.row_phase=1`
+against the lane-off bitstream, with zero mismatches as the bar.
+
