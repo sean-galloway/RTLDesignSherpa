@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Stream DMA: clear specifications, full-rate streaming</title>
+  <desc id="desc">Architecture and microarchitecture specification sheets feed a Stream multi-channel DMA chip. Continuous cyan and gold data streams leave the chip.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050D18"/>
+      <stop offset="0.55" stop-color="#0A1B2D"/>
+      <stop offset="1" stop-color="#102A3B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#29D3E2" stop-opacity="0.20"/>
+      <stop offset="0.65" stop-color="#29D3E2" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#29D3E2" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173B52"/>
+      <stop offset="1" stop-color="#0B1E31"/>
+    </linearGradient>
+    <linearGradient id="streamCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#42E8F5" stop-opacity="0.95"/>
+      <stop offset="0.65" stop-color="#42E8F5" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#42E8F5" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="streamGold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFCB6B" stop-opacity="0.95"/>
+      <stop offset="0.65" stop-color="#FFCB6B" stop-opacity="0.50"/>
+      <stop offset="1" stop-color="#FFCB6B" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#91C7D8" stroke-opacity="0.045"/>
+      <circle cx="0" cy="0" r="1.4" fill="#91C7D8" fill-opacity="0.08"/>
+    </pattern>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000712" flood-opacity="0.55"/>
+    </filter>
+    <filter id="lineGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#42E8F5"/>
+    </marker>
+    <marker id="arrowGold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#FFCB6B"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+  <ellipse cx="800" cy="500" rx="680" ry="390" fill="url(#glow)"/>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif">
+    <text x="92" y="102" fill="#74A9BA" font-size="15" font-weight="600" letter-spacing="5">PROJECT STREAM</text>
+    <text x="88" y="180" fill="#F2FAFC" font-size="76" font-weight="700" letter-spacing="3">STREAM</text>
+    <text x="94" y="225" fill="#B6D2DC" font-size="25" letter-spacing="0.4">Clear specifications. Full-rate streaming.</text>
+    <path d="M96 253H330" stroke="#FFCB6B" stroke-width="3"/>
+    <path d="M342 253H394" stroke="#42E8F5" stroke-width="3"/>
+  </g>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif" filter="url(#shadow)">
+    <text x="112" y="346" fill="#74A9BA" font-size="13" font-weight="600" letter-spacing="3">ARCHITECTURE + MICROARCHITECTURE</text>
+    <g transform="rotate(-4 258 455)">
+      <rect x="108" y="372" width="300" height="166" rx="14" fill="#102B40" stroke="#4B7B90" stroke-width="2"/>
+      <rect x="108" y="372" width="10" height="166" rx="5" fill="#FFCB6B"/>
+      <text x="144" y="420" fill="#F2FAFC" font-size="28" font-weight="700">HAS</text>
+      <text x="144" y="449" fill="#FFCB6B" font-size="14" font-weight="600" letter-spacing="1.5">SYSTEM CONTRACTS</text>
+      <path d="M144 478H360M144 499H326" stroke="#8EB4C2" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+    </g>
+    <g transform="rotate(3 290 620)">
+      <rect x="134" y="540" width="312" height="166" rx="14" fill="#102B40" stroke="#4B7B90" stroke-width="2"/>
+      <rect x="134" y="540" width="10" height="166" rx="5" fill="#42E8F5"/>
+      <text x="170" y="588" fill="#F2FAFC" font-size="28" font-weight="700">MAS</text>
+      <text x="170" y="617" fill="#42E8F5" font-size="14" font-weight="600" letter-spacing="1.5">CONCRETE MECHANISMS</text>
+      <path d="M170 646H398M170 667H364" stroke="#8EB4C2" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+    </g>
+  </g>
+
+  <g fill="none" stroke-linecap="round">
+    <path d="M410 458C510 458 540 458 622 458" stroke="#FFCB6B" stroke-width="3" stroke-opacity="0.75" marker-end="url(#arrowGold)"/>
+    <path d="M450 622C530 622 548 550 630 538" stroke="#42E8F5" stroke-width="3" stroke-opacity="0.75" marker-end="url(#arrowCyan)"/>
+  </g>
+  <text x="493" y="432" fill="#9CC6D3" font-family="Inter, Helvetica, Arial, sans-serif" font-size="12" letter-spacing="2">SPECIFICATIONS</text>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif" filter="url(#shadow)">
+    <g stroke="#3B8297" stroke-width="4" stroke-linecap="round">
+      <path d="M620 410H650M620 458H650M620 506H650M620 554H650M620 602H650"/>
+      <path d="M950 410H980M950 458H980M950 506H980M950 554H980M950 602H980"/>
+    </g>
+    <rect x="650" y="360" width="300" height="282" rx="24" fill="url(#chip)" stroke="#67D9E7" stroke-width="2.5"/>
+    <rect x="667" y="377" width="266" height="248" rx="16" fill="none" stroke="#6EA4B7" stroke-opacity="0.25"/>
+    <circle cx="800" cy="405" r="4" fill="#FFCB6B" filter="url(#lineGlow)"/>
+    <text x="800" y="468" text-anchor="middle" fill="#F3FCFE" font-size="34" font-weight="700" letter-spacing="2">STREAM</text>
+    <text x="800" y="502" text-anchor="middle" fill="#9CC6D3" font-size="14" font-weight="600" letter-spacing="2">MULTI-CHANNEL DMA</text>
+    <g stroke-linecap="round" stroke-width="6">
+      <path d="M718 540H882" stroke="#42E8F5" opacity="0.85"/>
+      <path d="M718 562H882" stroke="#FFCB6B" opacity="0.80"/>
+      <path d="M718 584H882" stroke="#42E8F5" opacity="0.60"/>
+      <path d="M718 606H882" stroke="#6B91A5" opacity="0.55"/>
+    </g>
+  </g>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif">
+    <text x="1080" y="346" fill="#74A9BA" font-size="13" font-weight="600" letter-spacing="3">CONTINUOUS DATA BEATS</text>
+  </g>
+  <g fill="none" stroke-linecap="round">
+    <path d="M978 410C1130 380 1290 390 1510 340" stroke="url(#streamCyan)" stroke-width="5" marker-end="url(#arrowCyan)"/>
+    <path d="M978 486C1160 470 1320 480 1530 450" stroke="url(#streamGold)" stroke-width="5" marker-end="url(#arrowGold)"/>
+    <path d="M978 562C1160 580 1330 570 1510 610" stroke="url(#streamCyan)" stroke-width="5" marker-end="url(#arrowCyan)"/>
+    <path d="M978 622C1150 660 1320 660 1500 710" stroke="url(#streamGold)" stroke-width="4" stroke-opacity="0.65"/>
+  </g>
+  <g filter="url(#lineGlow)">
+    <rect x="1150" y="384" width="58" height="12" rx="6" fill="#8CF4FC" transform="rotate(-4 1150 384)"/>
+    <rect x="1280" y="466" width="62" height="12" rx="6" fill="#FFE0A0" transform="rotate(-2 1280 466)"/>
+    <rect x="1200" y="568" width="58" height="12" rx="6" fill="#8CF4FC" transform="rotate(2 1200 568)"/>
+  </g>
+
+  <g font-family="Inter, Helvetica, Arial, sans-serif">
+    <text x="96" y="842" fill="#6F9AAA" font-size="13" font-weight="600" letter-spacing="3">SPECIFY  /  IMPLEMENT  /  MEASURE</text>
+    <text x="1504" y="842" text-anchor="end" fill="#6F9AAA" font-size="13" letter-spacing="2">RTL DESIGN SHERPA</text>
+  </g>
+</svg>

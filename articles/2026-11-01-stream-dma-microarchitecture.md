@@ -7,6 +7,8 @@ tags: dma, axi, rtl, fpga, ai, microarchitecture
 
 I used Claude to help me implement Stream, a high-performance, multi-channel DMA. The first working version arrived quickly, but its AXI utilization did not. Getting from a working design to one that streams at line rate turned out to be a useful lesson in what an LLM can infer, and what a designer still needs to specify.
 
+![Architecture and microarchitecture specifications feeding Stream's multi-channel DMA, with continuous data streams leaving the chip](assets/stream-dma-microarchitecture/stream_dma_hero.png)
+
 Is Stream any good? The current FPGA measurements say yes, within its documented operating envelope. But the result wasn't a one-week AI success story. The control architecture worked early because I described it in detail. The AXI engines needed a second attempt because I initially gave them a performance goal instead of a microarchitecture. Months of FPGA work then turned "it passes" into evidence I could trust.
 
 ## The thoughts behind Stream
