@@ -1,7 +1,7 @@
 # TASK-001: implement jet per the 2026-10-28 design spec
 
 **Priority:** P2
-**Status:** open
+**Status:** closed 2026-11-03 — all seven phases done; J7 measured on silicon (see phase-7 note). Open follow-ups live as ISSUE-001/002.
 **Owner:** TBD
 
 Filed 2026-10-28, the day J1–J7 closed (Sean) and the design spec
@@ -47,9 +47,16 @@ Phases per the spec:
   pipelining fix is deliberately out of scope here. The rig runs at
   **60 MHz, WNS +0.220 ns, 0 failing endpoints**; J7 metrics are
   cycle-based so the amber↔jet comparison is unaffected.
-- **Steps 2–3 (sweep + report) PENDING the board**: method frozen in
-  `docs/j7_measurement_report.md` (fill-in tables). Step 4 (this task's
-  closure) waits on those.
+- **Steps 2–4 DONE 2026-11-03** (board on the bench): amber rebuilt with the
+  TASK-001 collateral (90 MHz, WNS +0.179, 0 failing) and swept clean; jet
+  swept at MSHR_COUNT ∈ {2, 4, 8, 16} (bitstreams all timing-clean; the
+  MSHR=16 build is tightest at WNS +0.054). J7 report filled with first
+  silicon data: −16.6% run cycles on 64 KB thrash, −31.5% on the write
+  storm, hit latency 3 vs 4 cycles, miss tail capped at 41 vs 60 cycles,
+  fill bandwidth +18–37.5%. Grid is flat (injector is 1-outstanding, so
+  MSHR=2 saturates the rig — documented in the report). Two findings filed
+  as issues, both out of v1 scope: ISSUE-001 (90 MHz cone, jet v2) and
+  ISSUE-002 (jet_monlite 2-event/cycle drop limit, measured and counted).
 
 ## Done when
 

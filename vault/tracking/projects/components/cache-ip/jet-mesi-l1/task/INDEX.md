@@ -11,18 +11,15 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-001** — implement jet per the 2026-10-28 design spec (J1–J7 ruled):
-  jet_pkg + jet_mshr + jet_wb_buffer + jet_rsp_seq + jet_control, DV ladder,
-  formal liveness at tiny geometry, FULL soak grids, Genesys2 pair-rig
-  measurement sweep.
+(none — TASK-000 is the reserved lane template)
 
 ## Active
 
@@ -30,4 +27,12 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Closed
 
+- **TASK-001** — implement jet per the 2026-10-28 design spec (J1–J7 ruled):
+  jet_pkg + jet_mshr + jet_wb_buffer + jet_rsp_seq + jet_control, DV ladder,
+  formal liveness at tiny geometry, FULL soak grids, Genesys2 pair-rig
+  measurement sweep. Closed 2026-11-03: all seven phases done; J7 measured on
+  silicon (−16.6% thrash / −31.5% write-storm run cycles vs amber, hit 3 vs 4
+  cycles, fill BW +18–37.5%; MSHR grid flat — the rig tops out at 2
+  outstanding misses). Follow-ups: ISSUE-001 (90 MHz cone, jet v2), ISSUE-002
+  (jet_monlite drop limit).
 - **TASK-002** — restructure jet RTL into planes (mem-ctrl doctrine): CPU / coherence-core / fabric planes, ACE swappable for a future CHI plane. Coordinate with amber TASK-002.  Closed 2026-11-01: planes landed (with `jet_ace_top` carrying the J7 `jet_monlite` / MSHR stream), fabric contract doc + CHI stub in place; full regression is the restructure plan's Task 6.

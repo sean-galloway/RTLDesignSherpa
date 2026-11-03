@@ -24,13 +24,14 @@ None.
 
 ## Deferred
 
-- **TASK-047** — DEFERRED 2026-11-02 (owner; bounded gain against the
-  75 MHz arbiter cone, pumice at rest). Dual issue on DFI 1:2: a row command on the other phase of
-  the column's DFI word, so the ACT/PRE slot is free rather than well
-  placed (bounded gain: 1 slot in 9 on bank walks; nothing on streams).
-  Design study done -- two output lanes, 2-wide command word, two bank-timer
-  events per cycle, columns on phase 1 (PHY re-alignment on the board).
-  Timing is the gate: the arbiter cone is the 75 MHz critical path.
+- **TASK-047** — DEFERRED 2026-11-03 after a best-effort pass (owner: "give
+  best effort then defer if needed"). Dual issue on DFI 1:2: a demand ACT/PRE
+  rides the column's DFI word on `DFI_PHASE.row_phase` (`DUAL_ISSUE` build,
+  default off and cycle-identical; `SCHED_POLICY.dual_issue`). Sim and
+  formal green: 9 -> 8 slots per bank-walk row, col_ilv +12 / +14 percent
+  one thread, col_major +11 / +13 percent eight threads. Timing moves under
+  1 ns on a cone HEAD already fails; wakes when ISSUE-027 (HEAD misses its
+  50 MHz board clock) is resolved.
 
 - **TASK-043** — DEFERRED 2026-11-02 (owner; eight engines per direction
   run in sim but cost 91 percent of the xc7a100t and miss 75 MHz on
