@@ -12,15 +12,14 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 50 | done (kept for history) |
+| [open/](open/) | 2 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 52 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
-| [deferred/](deferred/) | 1 | parked pending a named condition |
+| [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Open
 
-- **TASK-062** — OPEN 2026-10-25: ocelus on the memory controllers (owner): a monbus port out of granite and pumice, axi_monitor_lite on the slave port plus a controller event source (first event: the TASK-061 age invariant as an ERROR), through the ocelus monbus arbiter; the shared decoder on the sim side.
 - **TASK-047** — dual issue on DFI 1:2: a row command on the other phase of
   the column's DFI word, so the ACT/PRE slot is free rather than well
   placed (bounded gain: 1 slot in 9 on bank walks; nothing on streams).
@@ -34,13 +33,14 @@ exactly one state by construction rather than by discipline.
   the check, teach the host. Owner's load point (2026-10-22): each injector
   runs eight threads at once.
 
-- **TASK-042** — LPDDR2 board enablement: from "vaguely supported" to fully
+## Deferred
+
+- **TASK-042** — DEFERRED 2026-11-02 (owner: LPDDR on every technology waits
+  for summer 2027 and test boards built following Antmicro's methods). LPDDR2 board enablement: from "vaguely supported" to fully
   enabled for the incoming LPDDR2 board -- runtime ZQ calibration (first
   content of `pumice_training_layer` per the owner's MC-001 ruling), board
   timing/CSR definition, BFM/DV gap check, bring-up harness, and REFpb
   runtime exercise.
-
-## Deferred
 
 - **TASK-033** — the v2/v3 power and mode-register deferrals (6 RTL TODO markers).
   Parked pending the DDR3/LPDDR3 (`scoria`) project, where several are likely to
@@ -49,10 +49,12 @@ exactly one state by construction rather than by discipline.
 
 ## Active
 
-- **TASK-060** — ACTIVE 2026-10-25: half-burst injector family with a rotation index i=0..7 (the two halves of a DRAM burst i+1 transactions apart; eight threads, one window each) -- pure injector programming; needs a pumice write combiner at CAM insert (merge on matching uncommitted {bank,row,col}) plus a merge counter so aggregation is seen and its knee measured. Reads later.
+None.
 
 ## Closed
 
+- **TASK-062** — CLOSED 2026-11-02: Ocelus on both controllers, delivered as granite TASK-008 (`mc_ocelus_plane`, common-ip): lite AXI monitors, `mc_monlite` internal events, one AXI-Lite packet writer; granite on the board at 100 MHz, pumice sim-verified (6 cells). The TASK-061 age invariant and a write-merge fallback have no RTL source and were not built.
+- **TASK-060** — CLOSED 2026-11-02: half-burst injectors (`cfg_idx1_bit`, `gap_sweep`), pumice write and read combiners (`WR_MERGE_EN` / `RD_MERGE_EN`, counted), the half families and profiles, the one-thread knee and the thread sweep; granite and LiteDRAM merge nothing. The combiner text misses 75 MHz by 5.6 ns (ships at 50 MHz); the arbiter / CAM restructure is the owner's call.
 - **TASK-061** — CLOSED 2026-10-29: the age-carrying per-bank FIFO, delivered as `gaxi_age_fifo_sync` (PEEK, pool age, `age_dec`, per-head OLDEST/thresh flop) and installed as granite's sixteen bank queues under granite TASK-002; the flag's place in the select is granite TASK-003 item 5.
 - **TASK-059** — CLOSED 2026-10-24: ASAP7 per-plane baseline on the fixed intake (granite 21 220 / pumice 46 227 cells); `HAS_AGE=0` granite default (-1 443 ASAP7 cells, board 5 631 -> 5 140 LUT / 3 532 -> 3 196 FF, cycle-identical, smoked + charred); `PP_TIMEOUT_CLOSE=0` measured and REJECTED (-8 % column streams: the idle-timeout close is the engine's live function in granite, tr_init 1); `make smoke`. Report 5.19 / 5.20.
 - **TASK-058** — CLOSED 2026-10-24: the store's per-bank cap made conditional

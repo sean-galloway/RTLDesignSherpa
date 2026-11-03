@@ -7,7 +7,12 @@
 > training-layer ruling recorded there.
 
 **Priority:** P1 (board-driven)
-**Status:** open
+**Status:** DEFERRED 2026-11-02 -- owner: LPDDR is deferred on every
+technology (pumice LPDDR2, scoria LPDDR3, andesite LPDDR4) until summer 2027,
+when test boards built following Antmicro's methods are in hand. The named
+condition for unparking: an LPDDR test board on the bench. The sim-side work
+below (runtime ZQ, verified at fub and macro level) stays as it is; nothing
+is removed.
 **Owner:** TBD
 
 > **2026-10-15 status (mc_init_plane work):** the runtime-ZQ RTL is common

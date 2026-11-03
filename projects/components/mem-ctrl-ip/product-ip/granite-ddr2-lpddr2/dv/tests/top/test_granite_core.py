@@ -564,11 +564,10 @@ def test_granite_core_merge(request, merge_en):
     os.makedirs(log_dir, exist_ok=True)
     params = dict(_core_params())
     params["STORE_MERGE_EN"] = str(merge_en)
-    # Whole-window return FIFO: at the product default (4) the OFF state's two
-    # back-to-back reads of one burst trip the rd aligner's lost-beat
-    # assertion in this TB (pumice ISSUE-026); the combining under test is
-    # independent of that depth.
-    params["DFI_RD_FIFO_DEPTH"] = "0"
+    # The product default return FIFO (DFI_RD_FIFO_DEPTH 4). This TB runs the
+    # crossing (DFI_CDC_EN 1, dfi_clk = 2 x aclk), where granite_core sizes it
+    # to the whole window; the OFF state's two back-to-back reads of one burst
+    # are what lost a beat when 4 applied here too (pumice ISSUE-026).
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
@@ -595,11 +594,10 @@ def test_granite_core_merge_fill_lag(request, merge_en):
     os.makedirs(log_dir, exist_ok=True)
     params = dict(_core_params())
     params["STORE_MERGE_EN"] = str(merge_en)
-    # Whole-window return FIFO: at the product default (4) the OFF state's two
-    # back-to-back reads of one burst trip the rd aligner's lost-beat
-    # assertion in this TB (pumice ISSUE-026); the combining under test is
-    # independent of that depth.
-    params["DFI_RD_FIFO_DEPTH"] = "0"
+    # The product default return FIFO (DFI_RD_FIFO_DEPTH 4). This TB runs the
+    # crossing (DFI_CDC_EN 1, dfi_clk = 2 x aclk), where granite_core sizes it
+    # to the whole window; the OFF state's two back-to-back reads of one burst
+    # are what lost a beat when 4 applied here too (pumice ISSUE-026).
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
@@ -748,7 +746,6 @@ def test_granite_core_page_mode(request, page_mode, stim):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = dict(_core_params())
-    params["DFI_RD_FIFO_DEPTH"] = "0"
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO", "PAGE_MODE": str(page_mode), "STIM": stim,
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),

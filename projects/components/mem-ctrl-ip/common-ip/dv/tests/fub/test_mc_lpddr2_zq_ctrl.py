@@ -16,17 +16,22 @@ boundary with demand TB-driven:
   4. Grant-wait overdue: defer disabled, demand held while ungranted ->
      obs_overdue_o rises, next issue is still ZQCS.
   5. Gating: zq_en=0 / init_done=0 / DDR2 / interval=0 -> never requests.
+  6. Seeded random soak (defer on, demand and overdue cap random per cycle,
+     80% grant on request): the accounting identity, DUT total == TB grants.
+     SEED 58170 is pinned -- pumice BUG-024's seed, whose last loop cycle
+     grants, so it fails if the total is read before its register settles.
 
 Production change that makes each test fail: re-gate the FSM transitions,
 change the MRW row packing, or alter the overdue/defer counting.
 """
 
 import os
+import random
 
 import pytest
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, with_timeout
+from cocotb.triggers import RisingEdge, Timer, with_timeout
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
@@ -185,28 +190,82 @@ async def cocotb_test_gated(dut):
             assert int(dut.cal_busy.value) == 0
 
 
+@cocotb.test()
+async def cocotb_test_random_soak(dut):
+    cocotb.start_soon(Clock(dut.mc_clk, 10, units="ns").start())
+    # PIN_SEED is the pinned cell's own seed: the repo conftest stamps SEED per
+    # test node, which would overwrite a SEED passed through extra_env.
+    seed = int(os.environ.get("PIN_SEED") or os.environ.get("SEED", "12345"))
+    rng = random.Random(seed)
+    level = os.environ.get("TEST_LEVEL", "FUNC").upper()
+    n_cycles = {"GATE": 200, "FUNC": 1000, "FULL": 5000}.get(level, 1000)
+    await _drive(dut, zq_en=0, init_done=0, interval=20, t_zqcs=3, t_zqcl=6)
+    await _reset(dut)
+    for _ in range(4):          # five idle clocks out of reset, as the
+        await RisingEdge(dut.mc_clk)   # original soak: the seed's cycle alignment
+    dut.zq_defer_en.value = 1
+    dut.zq_en.value = 1
+    dut.init_done.value = 1
+
+    # Reads land 100 ps after the edge, once the registered outputs have
+    # updated: zq_req is Q of the state, so a read AT the edge still shows the
+    # request the grant just retired and the TB would grant it twice (the
+    # arbiters' !r_zq_grant term is the same rule).
+    grants = 0
+    for _ in range(n_cycles):
+        dut.demand.value = 1 if rng.random() < 0.4 else 0
+        dut.overdue_max.value = rng.randint(0, 20)
+        await RisingEdge(dut.mc_clk)
+        await Timer(100, units="ps")
+        if int(dut.zq_req.value) and rng.random() < 0.8:
+            dut.zq_grant.value = 1
+            await RisingEdge(dut.mc_clk)
+            await Timer(1, units="ps")
+            dut.zq_grant.value = 0
+            grants += 1
+    assert grants >= n_cycles // 200, f"SEED={seed}: only {grants} grants"
+    dut._log.info(f"random_soak SEED={seed} level={level} cycles={n_cycles} grants={grants}")
+
+    # zqcs_total is Q of r_total, one clock behind a grant on the loop's last
+    # cycle. Reading it without this settle was pumice BUG-024: 36 == 37 at
+    # SEED 58170, and at every seed whose final cycle granted (82 of 2002).
+    for _ in range(2):
+        await RisingEdge(dut.mc_clk)
+    await Timer(100, units="ps")
+    assert int(dut.zqcs_total.value) == grants, (
+        f"SEED={seed}: DUT total {int(dut.zqcs_total.value)} != TB grants {grants}")
+
+
 TESTS = [
     "cocotb_test_zqcs_interval",
     "cocotb_test_zqcl_on_overdue_cap",
     "cocotb_test_defer_exit_on_demand_loss",
     "cocotb_test_grant_wait_overdue",
     "cocotb_test_gated",
+    "cocotb_test_random_soak",
 ]
 
+# (testcase, pinned SEED or None = the suite's own)
+CELLS = [(t, None) for t in TESTS] + [("cocotb_test_random_soak", 58170)]
 
-@pytest.mark.parametrize("testcase", TESTS)
-def test_mc_lpddr2_zq_ctrl(request, testcase):
+
+@pytest.mark.parametrize("testcase, seed", CELLS,
+                         ids=[t if s is None else f"{t}-seed{s}" for t, s in CELLS])
+def test_mc_lpddr2_zq_ctrl(request, testcase, seed):
     from cocotb_test.simulator import run
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "mc_lpddr2_zq_ctrl_tb_top"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = sim_build_path(tests_dir, testcase)
+    cell = testcase if seed is None else f"{testcase}_seed{seed}"
+    sim_build = sim_build_path(tests_dir, cell)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
-    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{cell}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
-                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml")}
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{cell}.xml")}
+    if seed is not None:
+        extra_env["PIN_SEED"] = str(seed)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env,

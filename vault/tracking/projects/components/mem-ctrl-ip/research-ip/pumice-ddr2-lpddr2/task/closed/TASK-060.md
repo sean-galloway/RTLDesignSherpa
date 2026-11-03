@@ -8,7 +8,7 @@
 > legal-AxLEN quantum (`AXI_BEATS_PER_BURST`).
 
 **Priority:** P2
-**Status:** active 2026-10-25 (owner: "please fix this in pumice and validate it in sim. Then gather the data.")
+**Status:** closed 2026-11-02 (active from 2026-10-25; owner: "please fix this in pumice and validate it in sim. Then gather the data.")
 **Owner:** TBD
 
 ## What is asked (owner, 2026-10-24/25)
@@ -618,3 +618,35 @@ Lint at three parameter points (MERGE_EN 0/1, 1 and 4 beats); pumice
 run-all-func-both; injector suites on clean builds (wr 147, rd 161, pair
 12); ddr2_char framework run-all-func 222 passed / 2 xfail on the combiner
 text (pre-injector-mode run; the post-mode run is in the board section).
+
+## Closed (2026-11-02)
+
+Everything the task asked for exists and has been measured:
+
+- **Injectors**: half-DFI-burst transactions with the halves alternating
+  (`cfg_idx1_bit`), the rotation as pure programming, and the gap sweep
+  (`gap_sweep`). No injector RTL beyond the index bit.
+- **Pumice combiners**: the write combiner at CAM insert (`WR_MERGE_EN`,
+  two Bs through the done queue) and the read combiner (`RD_MERGE_EN`, a
+  shadow ticket on the return ring), both default on, both counted
+  (`STORE_STATS_MERGE` / `STORE_STATS_RD_MERGE`). Landed in bea5b861f.
+- **Families** in `half_burst_family.py` and `perf_half_rot_family.py`,
+  shared by the proxy and the board; profiles `half_burst`, `half_burst8`,
+  `half_threads`, `half_gap` (`pumice_perf_bracketing.md` section 4.3 and
+  section 8).
+- **The knee**, the number the task was for: one thread merges every
+  `half_pair` and no `half_oct`, and the thread sweep shows where merging
+  stops as the threads' halves interleave at the port (sections above).
+  Granite and LiteDRAM merge nothing through the same profile.
+
+Re-gated on 2026-11-02 HEAD: pumice `make clean-all && run-all-func-both`
+222 / 222 at both geometries.
+
+**Not done here, recorded so it is not lost.** The combiner text misses
+pumice's 75 MHz design point by 5.6 ns and 100 MHz by 9.0 ns, route-bound in
+the arbiter per-entry queues and the bank-timer -> write-CAM cone (timing
+census above); it ships at 50 MHz (+0.029 ns). Restructuring the arbiter and
+CAM for that is the owner's call (standing instruction), not a follow-on of
+this task. The combiners are parameters, so a 75 MHz pumice build can drop
+them.
+

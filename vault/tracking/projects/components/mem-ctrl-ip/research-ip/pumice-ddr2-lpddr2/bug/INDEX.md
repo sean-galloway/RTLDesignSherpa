@@ -12,29 +12,31 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 27 | done (kept for history) |
+| [closed/](closed/) | 29 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-030** (2026-10-22) — the page policy's idle-timeout close (fixed_open,
-  reset tr_init 2) precharges rows whose next burst is already queued: one ACT
-  per 8-column burst from three threads up, 307 / 354 vs 554 / 553 MB/s on
-  FR-FCFS, hidden on BANK_PICK by the absence of free slots. Fix: per-bank
-  open-row-demand veto in `mc_page_policy` (common-ip), telemetry classifies
-  timeout closes correctly, proxy knobs reach the engine.
-- **BUG-024** — pumice_zq_ctrl random_soak loses exactly one grant at some
-  SEED draws (`total() == grants` off by one; repro: `SEED=58170` on the
-  random_soak test). PROVEN PRE-EXISTING (reproduced on pristine 0a0a216c6);
-  surfaced 2026-10-10 during Phase 2 Task 1 and exonerated by A/B. Likely a
-  grant/accept one-cycle skew in a defer/overdue window; discriminator in
-  the item.
+None.
 
 ## Closed
 
+- **BUG-030** — CLOSED 2026-11-02: the idle-timeout close that collapsed
+  multi-thread streaming to 307 / 354 MB/s. Fixed 488a9654c (mistake
+  predictor, open-row-demand veto, fire-side policy feed, exported timeout
+  branch); TASK-048 reset `tr_init` to 0. Re-measured on today's RTL, FR-FCFS
+  row_major: 4 threads 566.8 / 567.9, 8 threads 555.9 / 561.3 (539.0 / 561.6
+  with the timer armed at 2), 0 mismatches.
+- **BUG-024** — CLOSED 2026-11-02: TEST defect, not RTL. The ZQ soak compared
+  `total() == grants` the clock the loop ended, but `obs_zqcs_total_o` is
+  registered, so every seed whose final cycle granted read one low (82 of
+  2 002 seeds, all final-cycle grants; 0 after a two-clock settle; SEED 58170
+  = 36 vs 37 exactly). Soak restored in common-ip
+  `test_mc_lpddr2_zq_ctrl.py` with the settle and a pinned seed58170 cell
+  (`PIN_SEED`: the conftest overwrites SEED); mutation-checked.
 - **BUG-031** — CLOSED 2026-10-24: granite read none on the Nexys A7 since TASK-054: two continuous drivers on `mc_rd_intake.map_req_o`; Verilator silent, Vivado `Synth 8-6859` and the AR valid tied to GND. One driver per branch; `make bitstream` fails on the message now; verified by leveled init + write_read + 128 MB memtest. Board LUT/FF since TASK-054 corrected (report 5.18).
 - **BUG-029** — the scheduler plane fed the refresh controller's REFpb
   rotor mirror from the command FIFO HEAD (`cmd_op_o == OP_REFPB`) instead of

@@ -68,8 +68,8 @@ module granite_top_geared
     parameter bit HALF_AGG          = 1'b0, // half-width AXI aggregator at the host edge (TASK-005, deferred); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
-    parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
-                                            // return in the same-clock form where the ring is always ready; 2 loses beats where dfi_clk runs at 2x aclk
+    parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO, same-clock builds only (DFI_CDC_EN = 0); with the crossing on
+                                            // granite_core uses the whole window, RD_RET_DEPTH x BURST_WORDS (pumice ISSUE-026)
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
     parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)

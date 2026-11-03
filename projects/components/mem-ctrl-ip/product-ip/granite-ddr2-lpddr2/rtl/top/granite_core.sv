@@ -89,8 +89,10 @@ module granite_core
     parameter bit HALF_AGG          = 1'b0, // the half-width AXI aggregator at the host edge (TASK-005, DEFERRED: no gain on the pair cell, 30 percent hold cost on unpaired halves, a write hang on open_page); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
-    parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
-                                            // return in the same-clock form where the ring is always ready; 2 loses beats where dfi_clk runs at 2x aclk
+    parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO, SAME-CLOCK builds only (DFI_CDC_EN = 0): 4 holds the return where the
+                                            // ring is always ready. With the crossing on, or 0, it is RD_RET_DEPTH x BURST_WORDS (the whole window):
+                                            // the aligner cannot back-pressure, and across the CDC a read stream arrives faster than aclk drains it
+                                            // (pumice ISSUE-026: 4 lost a beat on two back-to-back reads at dfi_clk = 2 x aclk; 8 held two reads)
     // Compile-time JEDEC timings (mem-ctrl recovery Phase 3 report 5.10,
     // item 3). 1 = the scheduler plane's timers compare against the T_*
     // constants below and the TIMINGS CSRs are ignored -- a one-part product
@@ -1086,6 +1088,14 @@ module granite_core
     // ======================================================================
     // Plane 3: DFI plane
     // ======================================================================
+    // Read-return FIFO depth. mc_dfi_rd_aligner has no back-pressure on
+    // dfi_rddata_valid, so its FIFO must hold every beat the ring cannot take
+    // yet. On one clock the ring takes a beat per cycle and DFI_RD_FIFO_DEPTH
+    // (4) is enough; across the CDC the drain runs at aclk behind a pointer
+    // synchroniser, so the bound is the reads the ring holds in flight.
+    localparam int DFI_RD_FIFO_EFF = ((DFI_RD_FIFO_DEPTH > 0) && !DFI_CDC_EN)
+                                   ? DFI_RD_FIFO_DEPTH : (RD_RET_DEPTH * BURST_WORDS);
+
     mc_dfi_2p1_plane #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
@@ -1100,7 +1110,7 @@ module granite_core
         .SUBW_MAX        (SUBW_MAX),
         .BURST_WORDS     (BURST_WORDS),
         .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
-        .RD_FIFO_DEPTH   ((DFI_RD_FIFO_DEPTH > 0) ? DFI_RD_FIFO_DEPTH : (RD_RET_DEPTH * BURST_WORDS)),
+        .RD_FIFO_DEPTH   (DFI_RD_FIFO_EFF),
         .WD_FIFO_DEPTH   (DFI_WD_FIFO_DEPTH),
         .CMD_FIFO_DEPTH  (DFI_CMD_FIFO_DEPTH),
         .DFI_CDC_EN      (DFI_CDC_EN),

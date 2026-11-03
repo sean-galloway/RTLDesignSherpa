@@ -12,21 +12,19 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 22 | done (kept for history) |
+| [closed/](closed/) | 23 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-026** — two back-to-back reads of one burst trip the rd aligner's
-  lost-beat assertion at DFI_RD_FIFO_DEPTH 4 in the granite core TB
-  (STORE_MERGE_EN=0 directed test); passes at the whole-window depth. TB
-  service timing or a ring not-ready case. [open/ISSUE-026.md](open/ISSUE-026.md).
+None.
 
 ## Closed
 
+- **ISSUE-026** — CLOSED 2026-11-02: an RTL sizing defect on CDC builds, not the TB. Across the crossing (dfi_clk = 2 x aclk) the no-back-pressure read-return FIFO at depth 4 lost a beat on two back-to-back reads; `granite_core` now uses `DFI_RD_FIFO_DEPTH` only when `DFI_CDC_EN = 0` and the whole window (`RD_RET_DEPTH x BURST_WORDS`) otherwise. Board (same-clock) builds unchanged; TB pins removed.
 - **ISSUE-021** — CLOSED 2026-10-29 (option 1): `mc_training_plane` gained
   `demand_i`, driven in both cores from the store's scheduler request
   vectors, so the ZQ block's defer / ZQCL / overdue policy is reachable and
