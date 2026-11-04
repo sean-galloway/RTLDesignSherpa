@@ -428,6 +428,15 @@ class ControllerConfig:
     cmd_delay:     int = int(os.environ.get("TEST_CMD_DELAY", "1"))
     rd_phase:      int = 0
     wr_phase:      int = 0
+    # TASK-047 dual issue: TEST_DUAL_ISSUE=1 sets SCHED_POLICY.dual_issue, and
+    # every row command moves to DFI_PHASE.row_phase (default 1 with the lane,
+    # 0 without -- the RDL reset), off both column phases. Only a
+    # PUMICE_DUAL_ISSUE=1 bitstream has the lane; on any other the bit is inert.
+    # Lane off, neither field is written (only pumice's CSR map has them),
+    # unless TEST_ROW_PHASE is set explicitly: then row_phase is written alone.
+    dual_issue:    bool = os.environ.get("TEST_DUAL_ISSUE", "0") != "0"
+    row_phase:     int = int(os.environ.get("TEST_ROW_PHASE", "1"))
+    row_phase_set: bool = "TEST_ROW_PHASE" in os.environ
     # JEDEC DDR2 timings (MC cycles) derived from the part + the MC clock.
     # Until 2026-09-08 nothing programmed TIMINGS_*, so every board number was
     # taken on the RDL resets (tRCD/tRP 15 cycles, tCCD 4 = 8 CK, tREFI 1950
@@ -459,7 +468,9 @@ class ControllerConfig:
         # Program the read-capture alignment every scenario for the same
         # reason as the latencies above: soft_reset clears it, and a read
         # one cycle off valid mismatches 100%.
-        drv.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=self.wr_phase)
+        row_phase = self.row_phase if (self.dual_issue or self.row_phase_set) else None
+        drv.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=self.wr_phase,
+                          row_phase=row_phase)
         drv.set_dfi_rddata_delay(self.rddata_delay)
         drv.set_dfi_cmd_delay(self.cmd_delay)
         # JEDEC timings BEFORE the per-config refresh override below, so a
@@ -470,7 +481,8 @@ class ControllerConfig:
             applied = drv.set_jedec_timings(
                 self.mc_clk_hz, t_rddata_en=self.t_rddata_en,
                 rddata_delay=self.rddata_delay,
-                t_phy_wrlat=self.t_phy_wrlat, cmd_delay=self.cmd_delay)
+                t_phy_wrlat=self.t_phy_wrlat, cmd_delay=self.cmd_delay,
+                row_phase=row_phase or 0)
             print(f"[config {self.name}] jedec timings @ {self.mc_clk_hz/1e6:.2f} MHz: "
                   + " ".join(f"{k}={v}" for k, v in applied.items()),
                   file=sys.stderr, flush=True)
@@ -547,7 +559,8 @@ class ControllerConfig:
             row_sel=self.row_sel if self.row_sel is not None else 0,
             col_sel=self.col_sel if self.col_sel is not None else 0,
             access_pref=self.access_pref if self.access_pref is not None else 0,
-            qos_en=bool(self.qos_en) if self.qos_en is not None else False)
+            qos_en=bool(self.qos_en) if self.qos_en is not None else False,
+            dual_issue=True if self.dual_issue else None)
 
 
 # Presets. Every knob here is a CSR the CURRENT controller reads (2026-09-09

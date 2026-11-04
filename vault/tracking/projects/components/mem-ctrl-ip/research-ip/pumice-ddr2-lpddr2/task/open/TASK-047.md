@@ -228,3 +228,55 @@ hold clean, 45 992 LUT (+744 over the same text without the lane). Next:
 on the board with `SCHED_POLICY.dual_issue=1` and `DFI_PHASE.row_phase=1`
 against the lane-off bitstream, with zero mismatches as the bar.
 
+
+### 2026-11-03, board at 50 MHz: the lane closes clean, the lane BUILD with the lane off does not
+
+Two bitstreams from the same text (tree_q50 lane-off, tree_q50d `PUMICE_DUAL_ISSUE=1`),
+all eight char profiles, `PUMICE_MC_CLK_HZ=50000000`. Host knob added:
+`TEST_DUAL_ISSUE=1` (pumice_char ControllerConfig) sets SCHED_POLICY.dual_issue and
+DFI_PHASE.row_phase (`TEST_ROW_PHASE`, default 1); lane off, neither field is
+written (only pumice's map has them). Passes: A lane-off build, B lane build lane
+off, C lane build lane on.
+
+| profile | rows | mismatched beats A / B / C | wr / rd C vs B (mean) | best row C vs B |
+|---|---|---|---|---|
+| every | 68 | 0 / 0 / 0 | +7.6 / +7.9 % | +32 % open_page col_major_interleaved_bl4 |
+| windows | 9 | 0 / **18,952** / 0 | -3.7 / +1.9 % | +12 % row_thrash_bl8 |
+| half_threads | 48 | 0 / 0 / 0 | +1.0 / +0.3 % | +6 % |
+| concurrent | 8 | 0 / 0 / 0 | +5.3 / +5.3 % | +33 % col_major_interleaved_bl8 |
+| multigen | 8 | 0 / 0 / 0 | +2.5 / +2.5 % | +7 % |
+| half_burst / half_burst8 / half_gap | 48 | 0 / 0 / 0 | within 1 % | |
+
+B vs A bandwidth is 1.000 on every profile (the off lane costs nothing), but B lost
+data. `windows` repeated (seeds are fixed per scenario, so every run writes the same
+data to the same addresses):
+
+| bitstream | lane | windows runs | failed (scenarios, beats) |
+|---|---|---|---|
+| lane-off build | -- | 4 (one per fresh program + 2 reruns + pass A) | 0 |
+| lane build | off | 7 | 3: random_bl8 open/close (~5,960 / ~4,730), mixed_bl8 close (8,258), row_thrash_bl8 close (10,661) once |
+| lane build | on | 1 (pass C) | 0 |
+
+Intermittent, not reprogram-linked (a fail followed a pass with no reprogram), and
+only the lane build with the lane OFF. Open: reproduce in the char harness sim with
+DUAL_ISSUE=1 and dual_issue_en=0 on the windows random/mixed scenarios; the DFI
+command path's NOP gate (`!(DUAL_ISSUE && w_op == OP_NOP)`) and the wider command
+word are the RTL that differs with the lane off. CSVs/logs:
+scratchpad `t047_board/`.
+
+Later the same evening, `windows` only, lane build:
+
+| run set (time) | lane | row_phase | runs | failed |
+|---|---|---|---|---|
+| alternating, 18:00-18:46 | on | 1 | 4 | 0 |
+| alternating, 18:00-18:46 | off | 0 | 4 | 2 (random_bl8 open/close, ~5,950 / ~4,700) |
+| split, 19:00-19:44 (after a granite bitstream ran) | off | 1 | 4 | 0 |
+| split, 19:00-19:44 | off | 0 | 4 | 0 |
+
+Totals: lane build lane off 5 / 19 failed, lane on 0 / 5, lane-off build 0 / 4.
+The split (TEST_ROW_PHASE now writes row_phase with the lane off) did not
+discriminate -- nothing failed in it, including the setting that failed before.
+The failure is intermittent and time- or state-dependent; the counts no longer
+cleanly separate the lane build from the lane-off build. Next: interleaved soak
+of both bitstreams (same profile, alternating programs) for real failure rates,
+and a char-harness sim of windows random_bl8 with DUAL_ISSUE=1, lane off.
