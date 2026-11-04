@@ -16,8 +16,8 @@ state by construction rather than by discipline.
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 6 | done (kept for history) |
-| [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 3 | parked pending a named condition |
+| [dropped/](dropped/) | 1 | ended without completing |
+| [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Open
 
@@ -64,6 +64,13 @@ None.
   ns. Residual (where the aged class sits in the select, `HAS_AGE` 0) folded
   into TASK-003 item 5. CLOSED 2026-10-29. [closed/TASK-002.md](closed/TASK-002.md).
 
+## Dropped
+
+- **TASK-005** — the simple AXI aggregator in granite's AXI plane (`HALF_AGG`)
+  -- DROPPED 2026-11-03, superseded by TASK-006's store combiner, which merges
+  on the DRAM address across IDs and threads with no hold. Block and
+  parameters deleted (text at dd27f9bda). [dropped/TASK-005.md](dropped/TASK-005.md).
+
 ## Deferred
 
 - **TASK-004** — granite 100 MHz timing margin: the remaining levers (LA=3 pick
@@ -71,11 +78,6 @@ None.
   the pick trim measured and not levers) -- DEFERRED 2026-10-29, pending a build
   that no longer closes at 100 MHz with the shipped directives, or a product
   point above 100 MHz. [deferred/TASK-004.md](deferred/TASK-004.md).
-- **TASK-005** — the simple AXI aggregator in granite's AXI plane (`HALF_AGG`,
-  block kept, off) -- DEFERRED 2026-10-29, measured: pairs only same-ID adjacent
-  halves, the open_page pair cell is host-rate bound (no gain), unpaired halves
-  pay the hold (-30 percent), a write hang on open_page. Wakes for a DRAM-bound
-  same-ID master or a per-port placement. [deferred/TASK-005.md](deferred/TASK-005.md).
 - **TASK-009** — the DFI 1:4 board point's first DQ word of each read run is
   sampled before the device drives it (PHY side, ahead of the controller)
   -- DEFERRED 2026-11-02, pending 1:4 as a product point; four board

@@ -5,13 +5,15 @@ summary: Drop the amba axi4_aggregator_cmd pairing core into mc_axi4_plane behin
 
 # TASK-005 — the simple AXI aggregator in granite's AXI plane, for the half-burst pair walk
 
-**State:** deferred · **Area:** product-ip/granite-ddr2-lpddr2 · **Opened:** 2026-10-29
-**Status:** deferred 2026-10-29 -- measured, more problem than it is worth (owner's
-rule); un-deferred by a master whose traffic is adjacent same-ID half-width
-pairs AND is DRAM-bound rather than issue-rate-bound, or by a fix of the
-open_page write hang if the block is ever wanted on. The block stays in the
-tree behind `HALF_AGG = 0` (granite_core, geared top, plane), lint-clean,
-with the on state runnable (`GRANITE_HALF_AGG=1`).
+**State:** dropped · **Area:** product-ip/granite-ddr2-lpddr2 · **Opened:** 2026-10-29
+**Status:** DROPPED 2026-11-03, superseded by TASK-006 (owner: "kill the
+aggregator especially if similar function happens in the store"). The store
+combiner merges half-width columns on the DRAM address across IDs and threads
+with no hold, is the product default at 75 and 100 MHz, and covers every cell
+this block won. `mc_axi4_half_agg`, its filelist and the `HALF_AGG` /
+`HALF_AGG_HOLD` / `HALF_AGG_DEPTH` parameters (plane, granite_core, geared
+top, the two granite top runners) are deleted; the text is at dd27f9bda.
+Deferred 2026-10-29 before that, measured, more problem than it is worth.
 **Owner's direction (2026-10-29):** "can you try dropping in the aggregator
 into either the axi-plane, or the storage-plane? Please file this and we
 will defer if it is more problem than it is worth."
@@ -166,3 +168,21 @@ If it is ever wanted, it belongs per master port ahead of the interconnect
 where adjacency holds, with a cross-ID pairing variant (the replays would
 carry the second ID) and the W hold resolved; and the win exists only for a
 DRAM-bound master, which the char injectors are not.
+
+### 2026-11-03: dropped -- the store does it
+
+What the 2026-10-29 verdict left open is answered by TASK-006. The store
+combiner (`STORE_MERGE_EN`, default 1) matches an uncommitted entry's
+{bank, row, col}, so it pairs halves whatever their IDs, thread or port
+order, and an unpaired half pays nothing. Board, 75 MHz, close_page pair
+walk 1 / 2 / 3 / 4 threads, write MB/s: base 30 / 49 / 73 / 96, this block
+(fixed ID) 60 / 49 / 49 / 96 at one thread only, the store 60 / 101 / 145 /
+189; reads double the same way. Since 2026-10-30/31 it also closes at
+100 MHz. The one cell neither moves (open_page, one thread) is host-issue
+bound. TASK-007's `mc_axi4_narrow_pack` now owns the host edge for narrow
+bursts inside one transaction; nothing needs cross-transaction pairing
+there. Removed: `mc_axi4_half_agg.sv` and `.f`, the parameters and the
+`GRANITE_HALF_AGG` runner knob. Lint warning sets identical to HEAD on
+mc_axi4_plane, granite_top_geared and pumice_core. The amba
+`axi4_aggregator_cmd` / `axi4_{wr,rd}_aggregator` stay: library blocks,
+not this controller's.

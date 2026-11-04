@@ -86,7 +86,6 @@ module granite_core
     parameter logic [15:0] MON_AGENT_RD  = 16'h0010,
     parameter logic [15:0] MON_AGENT_WR  = 16'h0011,
     parameter logic [15:0] MON_AGENT_CORE = 16'h0012,
-    parameter bit HALF_AGG          = 1'b0, // the half-width AXI aggregator at the host edge (TASK-005, DEFERRED: no gain on the pair cell, 30 percent hold cost on unpaired halves, a write hang on open_page); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO, SAME-CLOCK builds only (DFI_CDC_EN = 0): 4 holds the return where the
@@ -444,8 +443,7 @@ module granite_core
         .WDATA_FIFO_DEPTH (INTAKE_FIFO_DEPTH),
         .SKID_DEPTH_R     (AXI_SKID_DEPTH),
         .SKID_DEPTH_W     (AXI_SKID_DEPTH),
-        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP),
-        .HALF_AGG         (HALF_AGG)
+        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP)
     ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),

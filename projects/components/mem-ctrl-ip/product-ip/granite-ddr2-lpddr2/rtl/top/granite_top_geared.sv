@@ -65,7 +65,6 @@ module granite_top_geared
     parameter logic [15:0] MON_AGENT_RD   = 16'h0010,
     parameter logic [15:0] MON_AGENT_WR   = 16'h0011,
     parameter logic [15:0] MON_AGENT_CORE = 16'h0012,
-    parameter bit HALF_AGG          = 1'b0, // half-width AXI aggregator at the host edge (TASK-005, deferred); 0 = none
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO, same-clock builds only (DFI_CDC_EN = 0); with the crossing on
@@ -479,7 +478,6 @@ module granite_top_geared
         .HAS_PAGE_POLICY   (HAS_PAGE_POLICY),
         .BANK_TW           (BANK_TW),
         .BANK_EVT_REG      (BANK_EVT_REG),
-        .HALF_AGG          (HALF_AGG),
         .STORE_MERGE_EN    (STORE_MERGE_EN),
         .HAS_MON           (HAS_MON),
         .MON_ACLK_MHZ      (MON_ACLK_MHZ),
