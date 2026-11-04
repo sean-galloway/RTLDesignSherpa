@@ -272,10 +272,23 @@ module jet_pair_fabric
     input  logic [2:0]                  c1_coh_req_type,
 
     // ------------------------------------------------------------------
-    // Peer FSM visibility (the caches' ctrl_state; the safe-peer wait)
+    // Peer FSM visibility (the caches' ctrl_state; the safe-peer wait).
+    // ISSUE-001 v2: the state is REGISTERED at this fabric's input (the
+    // live cone from the peer's cpu_req skid through its classify into the
+    // AC skid was the worst 100 MHz path).  peerN_lkup_live is the peer's
+    // LIVE "a request is present at the lookup" bit (a skid occupancy
+    // register, shallow): the only dangerous transition a 1-cycle-old
+    // state view can miss is IDLE -> classify-outcome in the accept cycle,
+    // and lkup_live covers exactly that cycle.  All later cycles of a
+    // miss/hit are multi-cycle pseudo-states, so the registered view
+    // carries them.  The kill rule's relative timing is preserved: the
+    // peer's coh pulse is itself registered at the source, so the pulse
+    // and the state view shift together.
     // ------------------------------------------------------------------
     input  logic [3:0]                  peer0_state,
     input  logic [3:0]                  peer1_state,
+    input  logic                        peer0_lkup_live,
+    input  logic                        peer1_lkup_live,
 
     // ------------------------------------------------------------------
     // Shared-memory AXI4 master side (to sdpram_slave_axi4_axi4)
@@ -611,14 +624,31 @@ module jet_pair_fabric
     // same line. The pending override is therefore restricted to the
     // miss states where the kill rule is evaluated.
     // ------------------------------------------------------------------
+    // Registered peer-state view + the peer's live lkup bit (see the port
+    // comment): the safe-peer decision below never touches the peer's
+    // combinational classify cone.
+    logic [3:0] peer0_state_q, peer1_state_q;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            peer0_state_q <= 4'(ST_INIT);
+            peer1_state_q <= 4'(ST_INIT);
+        end else begin
+            peer0_state_q <= peer0_state;
+            peer1_state_q <= peer1_state;
+        end
+    end
+
     logic [3:0] peer_state_now;
     logic       peer_pend_now;
+    logic       peer_lkup_now;
     always_comb begin
         if (grant_q == 1'b0) begin
-            peer_state_now = peer1_state;   // snooping cache 1
+            peer_state_now = peer1_state_q;   // snooping cache 1
+            peer_lkup_now  = peer1_lkup_live;
             peer_pend_now  = (pend_cnt_q[1] != 3'd0) || coh_pulse_vld[1];
         end else begin
-            peer_state_now = peer0_state;   // snooping cache 0
+            peer_state_now = peer0_state_q;   // snooping cache 0
+            peer_lkup_now  = peer0_lkup_live;
             peer_pend_now  = (pend_cnt_q[0] != 3'd0) || coh_pulse_vld[0];
         end
     end
@@ -637,8 +667,8 @@ module jet_pair_fabric
     // data-expecting snoop must wait for the commit)
     wire peer_drain_grant = drain_vld_q[1'(1 - grant_q)]
         && (drain_line_q[1'(1 - grant_q)] == grant_addr_q);
-    wire peer_safe_data = !peer_unsafe(peer_state_now)
-        || (peer_pend_now && !peer_drain_grant
+    wire peer_safe_data = (!peer_unsafe(peer_state_now) && !peer_lkup_now)
+        || (peer_pend_now && !peer_drain_grant && !peer_lkup_now
             && ((peer_state_now == ST_MISS_FILL)
                 || (peer_state_now == ST_MISS_DRAIN)));
     // issue-time kill: same rule against the CURRENT queue/drain state,
@@ -969,14 +999,14 @@ module jet_pair_fabric
                 drain_line_q[grant_q] <= grant_addr_q;
             end else begin
                 if (drain_vld_q[0]
-                    && ((peer0_state == ST_IDLE) || (peer0_state == ST_LOOKUP)
-                        || (peer0_state == ST_HIT_RD)
-                        || (peer0_state == ST_HIT_WR)))
+                    && ((peer0_state_q == ST_IDLE) || (peer0_state_q == ST_LOOKUP)
+                        || (peer0_state_q == ST_HIT_RD)
+                        || (peer0_state_q == ST_HIT_WR)))
                     drain_vld_q[0] <= 1'b0;
                 if (drain_vld_q[1]
-                    && ((peer1_state == ST_IDLE) || (peer1_state == ST_LOOKUP)
-                        || (peer1_state == ST_HIT_RD)
-                        || (peer1_state == ST_HIT_WR)))
+                    && ((peer1_state_q == ST_IDLE) || (peer1_state_q == ST_LOOKUP)
+                        || (peer1_state_q == ST_HIT_RD)
+                        || (peer1_state_q == ST_HIT_WR)))
                     drain_vld_q[1] <= 1'b0;
             end
 

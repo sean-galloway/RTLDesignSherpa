@@ -13,6 +13,8 @@
 
 module amber_pair_genesys2_top #(
     // Harness clock = VCO_MHZ / CLKOUT0_DIVIDE, VCO = 200 MHz sysclk * MULT_F.
+    // 1350 / 15 = 90 MHz (committed, verified).  100 MHz = 1200/12 is
+    // staged for the all-cache 100 MHz push (jet ISSUE-001 work).
     parameter int VCO_MHZ        = 1350,
     parameter int CLKOUT0_DIVIDE = 15,
     parameter int UART_BAUD      = 115_200,

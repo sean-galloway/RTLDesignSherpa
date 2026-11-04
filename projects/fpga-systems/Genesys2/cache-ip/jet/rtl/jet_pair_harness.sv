@@ -651,6 +651,7 @@ module jet_pair_harness
 
     logic                  init_busy0, init_busy1;
     logic [3:0]            ctrl_state0, ctrl_state1;
+    logic                  lkup_live0, lkup_live1;
 
     // jet_top adds a `busy` output; it is a status rollup the harness does
     // not use (o_busy is already derived from the cycle injectors). Tie it
@@ -751,6 +752,7 @@ module jet_pair_harness
         .mon_timestamp   (mon0_timestamp),
         .init_busy       (init_busy0),
         .ctrl_state      (ctrl_state0),
+        .lkup_live       (lkup_live0),
         .busy            (jet0_busy_unused)
     );
 
@@ -841,6 +843,7 @@ module jet_pair_harness
         .mon_timestamp   (mon1_timestamp),
         .init_busy       (init_busy1),
         .ctrl_state      (ctrl_state1),
+        .lkup_live       (lkup_live1),
         .busy            (jet1_busy_unused)
     );
 
@@ -995,6 +998,8 @@ module jet_pair_harness
         .c1_coh_req_type   (coh1_type),
         .peer0_state       (ctrl_state0),
         .peer1_state       (ctrl_state1),
+        .peer0_lkup_live   (lkup_live0),
+        .peer1_lkup_live   (lkup_live1),
         .mem_arid          (mem_arid),
         .mem_araddr        (mem_araddr),
         .mem_arlen         (mem_arlen),

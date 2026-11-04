@@ -960,12 +960,35 @@ module jet_coh_core
         end
     )
 
-    assign coh_req_valid = w_fill_accept | ctrl_drain_start | r_wb_coh_pend;
-    assign coh_req_addr  = w_fill_accept ? ctrl_fill_addr
-                         : r_wb_coh_pend ? r_wb_coh_addr
-                                         : wb_drain_addr;
-    assign coh_req_type  = w_fill_accept ? eng_fill_class
-                                         : 3'(AMBER_ACE_WRITE_BACK);
+    // Registered one cycle at the plane boundary (ISSUE-001): the
+    // combinational cone cpu_req skid -> classify/tag-hit -> fill accept ->
+    // coh_req -> fabric kill-rule compare -> peer AC skid measured 35
+    // levels / ~15.2 ns on Kintex-7 (fails 90 MHz).  The fabric consumes
+    // the pulse purely as an announcement -- its live tap and its
+    // registered pend queue shift together, so all relative ordering is
+    // preserved and every fabric decision simply happens one cycle later.
+    logic                  w_coh_req_valid;
+    logic [ADDR_WIDTH-1:0] w_coh_req_addr;
+    logic [2:0]            w_coh_req_type;
+
+    assign w_coh_req_valid = w_fill_accept | ctrl_drain_start | r_wb_coh_pend;
+    assign w_coh_req_addr  = w_fill_accept ? ctrl_fill_addr
+                           : r_wb_coh_pend ? r_wb_coh_addr
+                                           : wb_drain_addr;
+    assign w_coh_req_type  = w_fill_accept ? eng_fill_class
+                                           : 3'(AMBER_ACE_WRITE_BACK);
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            coh_req_valid <= 1'b0;
+            coh_req_addr  <= '0;
+            coh_req_type  <= '0;
+        end else begin
+            coh_req_valid <= w_coh_req_valid;
+            coh_req_addr  <= w_coh_req_addr;
+            coh_req_type  <= w_coh_req_type;
+        end
+    )
 
     // ------------------------------------------------------------------
     // Status roll-ups
@@ -1057,6 +1080,129 @@ module jet_coh_core
         end
     end
 
+    // ------------------------------------------------------------------
+    // Observation tap pipeline (ISSUE-001 v2, 2026-11-03).  Both monitors
+    // tap the deep classify cone (w_hit_way / crresp / alloc pulses), and
+    // at 100 MHz the worst paths in the design END inside them (route-
+    // dominated: the monitor logic is placed far from the classify).
+    // Observation is cycle-shift-insensitive, so register every tap (and
+    // mon_time with them, keeping events and timestamps in lockstep);
+    // every relative relationship the monitors rely on (miss-set sample
+    // vs MISS_VICTIM pseudo-state, alloc->retire latency, stall duration)
+    // is a delta and survives the uniform one-cycle shift.
+    // ------------------------------------------------------------------
+    logic [63:0]                     r_mon_time;
+    // l1_monlite bundle (constants tap_miss_class/tap_victim_state stay direct)
+    logic [3:0]                      r_mt_ctrl_state;
+    logic [SET_W-1:0]                r_mt_hit_set;
+    logic [WAY_W-1:0]                r_mt_hit_way;
+    logic [2:0]                      r_mt_hit_state_before;
+    logic                            r_mt_req_we;
+    logic [SET_W-1:0]                r_mt_miss_set;
+    logic                            r_mt_snoop_fire;
+    logic [2:0]                      r_mt_snoop_type;
+    logic                            r_mt_snoop_hit;
+    logic [AMBER_CRRESP_WIDTH-1:0]   r_mt_snoop_resp;
+    logic                            r_mt_victim_load;
+    logic [ADDR_WIDTH-1:0]           r_mt_victim_addr;
+    logic [WAY_W-1:0]                r_mt_victim_way;
+    logic                            r_mt_tag_wr_en;
+    logic [SET_W-1:0]                r_mt_tag_wr_set;
+    logic [WAY_W-1:0]                r_mt_tag_wr_way;
+    logic [2:0]                      r_mt_tag_wr_new_state;
+    logic [2:0]                      r_mt_state_old;
+    logic [ADDR_WIDTH-1:0]           r_mt_fill_addr;
+    logic                            r_mt_drain_done;
+    // jet_monlite bundle
+    logic                            r_jm_alloc;
+    logic [SET_W-1:0]                r_jm_alloc_set;
+    logic [1:0]                      r_jm_alloc_cls;
+    logic [MW-1:0]                   r_jm_alloc_idx;
+    logic                            r_jm_merge;
+    logic [MW-1:0]                   r_jm_merge_idx;
+    logic [MW:0]                     r_jm_merge_depth;
+    logic                            r_jm_retire;
+    logic [MW-1:0]                   r_jm_retire_idx;
+    logic [MW:0]                     r_jm_occ;
+    logic [$clog2(VICTIM_DEPTH+1)-1:0] r_jm_wb_occ;
+    logic                            r_jm_stall;
+    logic [2:0]                      r_jm_stall_reason;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_mon_time            <= '0;
+            r_mt_ctrl_state       <= 4'(AMBER_CTRL_INIT);
+            r_mt_hit_set          <= '0;
+            r_mt_hit_way          <= '0;
+            r_mt_hit_state_before <= '0;
+            r_mt_req_we           <= 1'b0;
+            r_mt_miss_set         <= '0;
+            r_mt_snoop_fire       <= 1'b0;
+            r_mt_snoop_type       <= '0;
+            r_mt_snoop_hit        <= 1'b0;
+            r_mt_snoop_resp       <= '0;
+            r_mt_victim_load      <= 1'b0;
+            r_mt_victim_addr      <= '0;
+            r_mt_victim_way       <= '0;
+            r_mt_tag_wr_en        <= 1'b0;
+            r_mt_tag_wr_set       <= '0;
+            r_mt_tag_wr_way       <= '0;
+            r_mt_tag_wr_new_state <= '0;
+            r_mt_state_old        <= '0;
+            r_mt_fill_addr        <= '0;
+            r_mt_drain_done       <= 1'b0;
+            r_jm_alloc            <= 1'b0;
+            r_jm_alloc_set        <= '0;
+            r_jm_alloc_cls        <= '0;
+            r_jm_alloc_idx        <= '0;
+            r_jm_merge            <= 1'b0;
+            r_jm_merge_idx        <= '0;
+            r_jm_merge_depth      <= '0;
+            r_jm_retire           <= 1'b0;
+            r_jm_retire_idx       <= '0;
+            r_jm_occ              <= '0;
+            r_jm_wb_occ           <= '0;
+            r_jm_stall            <= 1'b0;
+            r_jm_stall_reason     <= '0;
+        end else begin
+            r_mon_time            <= mon_time;
+            r_mt_ctrl_state       <= mon_state;
+            r_mt_hit_set          <= lkup_addr[OFF_W +: SET_W];
+            r_mt_hit_way          <= u_control.w_hit_way;
+            r_mt_hit_state_before <= u_control.w_hit_state;
+            r_mt_req_we           <= lkup_we;
+            r_mt_miss_set         <= r_mon_miss_set;
+            r_mt_snoop_fire       <= ctrl_snoop_req & ctrl_snoop_ready;
+            r_mt_snoop_type       <= ctrl_snoop_type;
+            r_mt_snoop_hit        <= (ctrl_crresp != '0);
+            r_mt_snoop_resp       <= ctrl_crresp;
+            r_mt_victim_load      <= ctrl_mshr_alloc & mshr_alloc_gnt
+                                     & ctrl_mshr_alloc_wb_valid;
+            r_mt_victim_addr      <= {ctrl_wb_cap_line, {OFF_W{1'b0}}};
+            r_mt_victim_way       <= ctrl_mshr_alloc_victim_way;
+            r_mt_tag_wr_en        <= ctrl_tag_a_wr_en;
+            r_mt_tag_wr_set       <= ctrl_tag_a_wr_set;
+            r_mt_tag_wr_way       <= mon_tag_wr_way;
+            r_mt_tag_wr_new_state <= ctrl_tag_a_wr_tag_state[2:0];
+            r_mt_state_old        <= mon_state_old;
+            r_mt_fill_addr        <= ctrl_fill_addr;
+            r_mt_drain_done       <= eng_drain_done;
+            r_jm_alloc            <= mshr_alloc_ev;
+            r_jm_alloc_set        <= mshr_alloc_ev_set;
+            r_jm_alloc_cls        <= mshr_alloc_ev_cls;
+            r_jm_alloc_idx        <= mshr_alloc_ev_idx;
+            r_jm_merge            <= mshr_merge_ev;
+            r_jm_merge_idx        <= mshr_merge_ev_idx;
+            r_jm_merge_depth      <= mshr_merge_ev_depth;
+            r_jm_retire           <= mshr_retire_ev;
+            r_jm_retire_idx       <= mshr_retire_ev_idx;
+            r_jm_occ              <= mshr_occupancy;
+            r_jm_wb_occ           <= wb_occupancy;
+            r_jm_stall            <= ctrl_lkup_stall;
+            r_jm_stall_reason     <= ctrl_lkup_stall_reason;
+        end
+    )
+
     l1_monlite #(
         .ADDR_WIDTH  (ADDR_WIDTH),
         .SETS        (SETS),
@@ -1067,30 +1213,29 @@ module jet_coh_core
     ) u_monlite (
         .clk                 (aclk),
         .rst_n               (aresetn),
-        .tap_ctrl_state      (mon_state),
-        .tap_hit_set         (lkup_addr[OFF_W +: SET_W]),
-        .tap_hit_way         (u_control.w_hit_way),
-        .tap_hit_state_before(u_control.w_hit_state),
-        .tap_req_we          (lkup_we),
-        .tap_miss_set        (r_mon_miss_set),
+        .tap_ctrl_state      (r_mt_ctrl_state),
+        .tap_hit_set         (r_mt_hit_set),
+        .tap_hit_way         (r_mt_hit_way),
+        .tap_hit_state_before(r_mt_hit_state_before),
+        .tap_req_we          (r_mt_req_we),
+        .tap_miss_set        (r_mt_miss_set),
         .tap_miss_class      (2'(AMBER_MISS_UNKNOWN)),
-        .tap_snoop_fire      (ctrl_snoop_req & ctrl_snoop_ready),
-        .tap_snoop_type      (ctrl_snoop_type),
-        .tap_snoop_hit       (ctrl_crresp != '0),
-        .tap_snoop_resp      (ctrl_crresp),
-        .tap_victim_load     (ctrl_mshr_alloc & mshr_alloc_gnt
-                              & ctrl_mshr_alloc_wb_valid),
-        .tap_victim_addr     ({ctrl_wb_cap_line, {OFF_W{1'b0}}}),
-        .tap_victim_way      (ctrl_mshr_alloc_victim_way),
+        .tap_snoop_fire      (r_mt_snoop_fire),
+        .tap_snoop_type      (r_mt_snoop_type),
+        .tap_snoop_hit       (r_mt_snoop_hit),
+        .tap_snoop_resp      (r_mt_snoop_resp),
+        .tap_victim_load     (r_mt_victim_load),
+        .tap_victim_addr     (r_mt_victim_addr),
+        .tap_victim_way      (r_mt_victim_way),
         .tap_victim_state    (AMBER_STATE_M),
-        .tap_tag_wr_en       (ctrl_tag_a_wr_en),
-        .tap_tag_wr_set      (ctrl_tag_a_wr_set),
-        .tap_tag_wr_way      (mon_tag_wr_way),
-        .tap_tag_wr_new_state(ctrl_tag_a_wr_tag_state[2:0]),
-        .tap_state_old       (mon_state_old),
-        .tap_fill_addr       (ctrl_fill_addr),
-        .tap_drain_done      (eng_drain_done),
-        .i_mon_time          (mon_time),
+        .tap_tag_wr_en       (r_mt_tag_wr_en),
+        .tap_tag_wr_set      (r_mt_tag_wr_set),
+        .tap_tag_wr_way      (r_mt_tag_wr_way),
+        .tap_tag_wr_new_state(r_mt_tag_wr_new_state),
+        .tap_state_old       (r_mt_state_old),
+        .tap_fill_addr       (r_mt_fill_addr),
+        .tap_drain_done      (r_mt_drain_done),
+        .i_mon_time          (r_mon_time),
         .monbus_valid        (mon_valid),
         .monbus_ready        (mon_ready),
         .monbus_packet       (mon_packet),
@@ -1117,20 +1262,20 @@ module jet_coh_core
     ) u_jet_monlite (
         .clk                 (aclk),
         .rst_n               (aresetn),
-        .mshr_alloc_i        (mshr_alloc_ev),
-        .mshr_alloc_set_i    (mshr_alloc_ev_set),
-        .mshr_alloc_cls_i    (mshr_alloc_ev_cls),
-        .mshr_alloc_idx_i    (mshr_alloc_ev_idx),
-        .mshr_merge_i        (mshr_merge_ev),
-        .mshr_merge_idx_i    (mshr_merge_ev_idx),
-        .mshr_merge_depth_i  (mshr_merge_ev_depth),
-        .mshr_retire_i       (mshr_retire_ev),
-        .mshr_retire_idx_i   (mshr_retire_ev_idx),
-        .mshr_occupancy_i    (mshr_occupancy),
-        .wb_occupancy_i      (wb_occupancy),
-        .ctrl_stall_i        (ctrl_lkup_stall),
-        .ctrl_stall_reason_i (ctrl_lkup_stall_reason),
-        .i_mon_time          (mon_time),
+        .mshr_alloc_i        (r_jm_alloc),
+        .mshr_alloc_set_i    (r_jm_alloc_set),
+        .mshr_alloc_cls_i    (r_jm_alloc_cls),
+        .mshr_alloc_idx_i    (r_jm_alloc_idx),
+        .mshr_merge_i        (r_jm_merge),
+        .mshr_merge_idx_i    (r_jm_merge_idx),
+        .mshr_merge_depth_i  (r_jm_merge_depth),
+        .mshr_retire_i       (r_jm_retire),
+        .mshr_retire_idx_i   (r_jm_retire_idx),
+        .mshr_occupancy_i    (r_jm_occ),
+        .wb_occupancy_i      (r_jm_wb_occ),
+        .ctrl_stall_i        (r_jm_stall),
+        .ctrl_stall_reason_i (r_jm_stall_reason),
+        .i_mon_time          (r_mon_time),
         .monbus_valid        (j7_mon_valid),
         .monbus_ready        (j7_mon_ready),
         .monbus_packet       (j7_mon_packet),

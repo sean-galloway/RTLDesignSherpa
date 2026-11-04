@@ -717,6 +717,43 @@ module jet_control
                                & (r_upgr_line == w_req_line);
 
     // ------------------------------------------------------------------
+    // Hit-serve pend register, declarations (ISSUE-001 v2, 2026-11-03):
+    // the hit serve (array read for read hits, array write + E->M tag
+    // write for write hits, and the response deposit) moves ONE CYCLE
+    // after the accept.  The classify still decides accept/stall/merge/
+    // alloc at the accept; only the array serve defers.  jet_rsp_seq
+    // deposits are tag-indexed and latency-agnostic, so the deposit
+    // landing a cycle later is contract-clean.
+    //   * The pend is one-deep; a hit accept needs it empty or draining
+    //     this cycle (w_srv_fire).
+    //   * Fire conditions move the OLD accept-time port holds to the
+    //     fire cycle: reads need the deposit port and the port-A read
+    //     address; writes also need the W port (fill beats > commit
+    //     merge > pend write) and, for an E->M promotion, the tag port.
+    //   * Hazards: any request to the pend's line stalls while a write
+    //     pends (RAW through the deferred array/tag write); snoop grants
+    //     are held while a write pends (sn_safe must stay address-
+    //     agnostic, so the gate is not line-qualified).  Both bounded:
+    //     the pend drains as soon as its ports free up.
+    // ------------------------------------------------------------------
+    logic                  r_srv_vld;
+    logic                  r_srv_we;
+    logic [SEQ_W-1:0]      r_srv_seq;
+    logic [LINE_W-1:0]     r_srv_line;
+    logic [SET_W-1:0]      r_srv_set;
+    logic [BEAT_W-1:0]     r_srv_beat;
+    logic [TAG_W-1:0]      r_srv_atag;
+    logic [WAY_W-1:0]      r_srv_way;
+    logic [WAYS-1:0]       r_srv_way_onehot;
+    logic [BUS_WIDTH-1:0]  r_srv_wdata;
+    logic [STRB_W-1:0]     r_srv_be;
+    logic                  r_srv_e2m;
+
+    logic w_srv_fire_rd;
+    logic w_srv_fire_wr;
+    logic w_srv_fire;
+
+    // ------------------------------------------------------------------
     // Snoop service (MAS ch02_blocks/05: the three answer sources in the
     // fixed match order WB > MSHR > array -- the newest claim on the line
     // answers).  The l1_snoop_resp transport accepts an AC only while
@@ -887,7 +924,12 @@ module jet_control
     assign w_cu_completing = fill_done_i
                              & (r_fq_cls[r_fq_done_ptr] == JET_CLS_CU);
     assign sn_safe_o  = ~r_init_busy & (r_sn_state == SN_IDLE)
-                        & ~w_any_done & ~r_cap_busy & ~w_cu_completing;
+                        & ~w_any_done & ~r_cap_busy & ~w_cu_completing
+                        // a pended write hit's array/tag write has not
+                        // landed: a snoop answered now could read the
+                        // pre-write data.  Address-agnostic (the safe
+                        // window rule); bounded by the pend drain.
+                        & ~(r_srv_vld & r_srv_we);
     assign w_sn_gnt   = sn_req_i & sn_safe_o;
     assign sn_ready_o = w_sn_gnt;
 
@@ -1058,43 +1100,60 @@ module jet_control
                                          : r_cmt_rdata[r_cmt_k[MW-1:0]]);
 
     // ------------------------------------------------------------------
+    // Hit-serve pend register (ISSUE-001 v2, 2026-11-03): the hit serve
+    // (array read for read hits, array write + E->M tag write for write
+    // hits, and the response deposit) moves ONE CYCLE after the accept.
+    // The accept cycle used to close cpu_req-skid -> tag read -> classify
+    // -> way select -> array WE / deposit in a single cycle (~13 ns on
+    // Kintex-7, 55k failing endpoints at 100 MHz); the classify still
+    // decides accept/stall/merge/alloc at the accept, only the array
+    // serve defers.  jet_rsp_seq deposits are tag-indexed and latency-
+    // agnostic, so the deposit landing a cycle later is contract-clean.
+    // (Declarations live with the classify inputs, ahead of the snoop
+    // section -- sn_safe_o below gates on r_srv_vld.)
+    // ------------------------------------------------------------------
+    assign w_srv_fire_rd = r_srv_vld & ~r_srv_we
+                           & ~w_cmt_cpl & ~w_cmt_datrd;
+    assign w_srv_fire_wr = r_srv_vld & r_srv_we
+                           & ~w_cmt_cpl & ~fill_beat_valid_i & ~w_cmt_datwr
+                           & ~(r_srv_e2m & (w_cmt_tagwr | w_sn_tagwr));
+    assign w_srv_fire    = w_srv_fire_rd | w_srv_fire_wr;
+
+    // ------------------------------------------------------------------
     // Classify (one request, one window)
     // ------------------------------------------------------------------
     logic           w_acceptable;
     logic           w_stall;
     logic [2:0]     w_reason;
-    logic           w_yield;
 
     always_comb begin
         w_acceptable = 1'b0;
         w_stall      = 1'b0;
         w_reason     = STALL_NONE;
-        w_yield      = 1'b0;
         if (lkup_valid_i && !r_init_busy && !w_sn_block_cpu) begin
             if (w_upgr_line_stall) begin
                 // any access to the in-flight upgrade's line waits for
                 // the CU commit (the held write merges only there)
                 w_stall  = 1'b1;
                 w_reason = STALL_XCLASS;
+            end else if (r_srv_vld & r_srv_we & (r_srv_line == w_req_line)) begin
+                // a write hit's array/tag write is still pending on this
+                // line (ISSUE-001 v2 serve pend): any new access would see
+                // the pre-write state.  Bounded: the pend drains as soon
+                // as its ports free.
+                w_stall  = 1'b1;
+                w_reason = STALL_COMMIT;
             end else if (w_hit_rd) begin
-                // read hits hold while the commit owns the deposit port
-                // or the port-A read address (bounded: the walk length)
-                if (!(w_cmt_cpl | w_cmt_datrd)) begin
+                // the serve is deferred to the pend register: the accept
+                // needs only pend room (the deposit/read-port holds moved
+                // to the pend's fire condition)
+                if (~r_srv_vld | w_srv_fire) begin
                     w_acceptable = 1'b1;
                 end
             end else if (w_hit_wr) begin
-                // write hits take the W port subject to fill beats and a
-                // commit store-merge (fill beats > commit merge > write
-                // hits, both bounded); the E->M promotion also needs the
-                // tag port, which a commit install owns for its cycle
-                if (w_cmt_cpl) begin
-                    // deposit port owned: hold (not a yield -- no W-port
-                    // write is competing)
-                end else if (fill_beat_valid_i | w_cmt_datwr) begin
-                    w_yield = 1'b1;
-                end else if ((w_hit_state == AMBER_STATE_E) & w_cmt_tagwr) begin
-                    // tag port owned by a commit install: hold
-                end else begin
+                // same pend room rule; the W-port / tag-port holds moved
+                // to w_srv_fire_wr
+                if (~r_srv_vld | w_srv_fire) begin
                     w_acceptable = 1'b1;
                 end
             end else if (w_hit_upgr) begin
@@ -1127,6 +1186,14 @@ module jet_control
                 end else if (mshr_full_i) begin
                     w_stall  = 1'b1;
                     w_reason = STALL_MSHR_FULL;
+                end else if (r_srv_vld & (r_srv_set == w_req_set)
+                             & (r_srv_way == repl_victim_way_i)) begin
+                    // the hit-serve pend targets the way this miss would
+                    // evict: the victim capture would read the pre-serve
+                    // data, and fill beats could land in the slot before a
+                    // pended read serve fires.  Bounded by the pend drain.
+                    w_stall  = 1'b1;
+                    w_reason = STALL_COMMIT;
                 end else if (mshr_set_full_i | w_upgr_victim_block
                              | w_victim_claimed) begin
                     w_stall  = 1'b1;
@@ -1162,7 +1229,11 @@ module jet_control
     assign lkup_stall_reason_o = w_stall ? w_reason
             : (lkup_valid_i & ~r_init_busy & w_acceptable & ~tag_gnt_i)
               ? STALL_TAG_FULL : STALL_NONE;
-    assign lkup_wr_yield_o   = w_yield;
+    // lkup_wr_yield_o keeps its pre-pend meaning ("a write hit is waiting
+    // on the W port behind fill beats / a commit merge"), now observed at
+    // the serve pend instead of the accept (ISSUE-001 v2).
+    assign lkup_wr_yield_o   = r_srv_vld & r_srv_we & ~w_srv_fire_wr
+                               & (fill_beat_valid_i | w_cmt_datwr);
 
     assign w_accept_rd    = w_accept & w_hit_rd;
     assign w_accept_wr    = w_accept & w_hit_wr;
@@ -1177,6 +1248,44 @@ module jet_control
     assign cap_busy_o        = r_cap_busy;
     assign init_busy_o       = r_init_busy;
     assign ctrl_error_o      = r_ctrl_err;
+
+    // ------------------------------------------------------------------
+    // Hit-serve pend capture: a hit accept loads the serve record; the
+    // array serve and deposit happen when w_srv_fire (next cycle at the
+    // earliest).  A push in the pend's fire cycle reloads it (depth-1
+    // pipe), which the classify's pend-room rule already allows.
+    // ------------------------------------------------------------------
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_srv_vld        <= 1'b0;
+            r_srv_we         <= 1'b0;
+            r_srv_seq        <= '0;
+            r_srv_line       <= '0;
+            r_srv_set        <= '0;
+            r_srv_beat       <= '0;
+            r_srv_atag       <= '0;
+            r_srv_way        <= '0;
+            r_srv_way_onehot <= '0;
+            r_srv_wdata      <= '0;
+            r_srv_be         <= '0;
+            r_srv_e2m        <= 1'b0;
+        end else begin
+            r_srv_vld <= (w_accept_rd | w_accept_wr) | (r_srv_vld & ~w_srv_fire);
+            if (w_accept_rd | w_accept_wr) begin
+                r_srv_we         <= w_accept_wr;
+                r_srv_seq        <= tag_i;
+                r_srv_line       <= w_req_line;
+                r_srv_set        <= w_req_set;
+                r_srv_beat       <= w_req_beat;
+                r_srv_atag       <= w_req_tag;
+                r_srv_way        <= w_hit_way;
+                r_srv_way_onehot <= w_hit_way_onehot;
+                r_srv_wdata      <= lkup_wdata_i;
+                r_srv_be         <= lkup_be_i;
+                r_srv_e2m        <= w_accept_wr & (w_hit_state == AMBER_STATE_E);
+            end
+        end
+    )
 
     // ------------------------------------------------------------------
     // Fill launch (held until fill_accept_i) + completion-queue push.
@@ -1202,13 +1311,13 @@ module jet_control
     assign w_fq_pop  = w_cmt_retire | (r_cmt_state == C_CU_DEPOSIT);
 
     // ------------------------------------------------------------------
-    // Response deposit: the commit pipeline wins the port; hit accepts
-    // are held in those cycles, so no deposit is ever lost.
+    // Response deposit: the commit pipeline wins the port; the serve pend
+    // fires only when the port is free, so no deposit is ever lost.
     // ------------------------------------------------------------------
-    assign cpl_valid_o = w_cmt_cpl | w_accept_rd | w_accept_wr;
-    assign cpl_tag_o   = w_cmt_cpl ? w_cmt_cpl_tag : tag_i;
+    assign cpl_valid_o = w_cmt_cpl | w_srv_fire;
+    assign cpl_tag_o   = w_cmt_cpl ? w_cmt_cpl_tag : r_srv_seq;
     assign cpl_data_o  = w_cmt_cpl ? w_cmt_cpl_data
-                         : w_accept_rd ? dat_a_rdata_i : lkup_wdata_i;
+                         : r_srv_we ? r_srv_wdata : dat_a_rdata_i;
 
     // ------------------------------------------------------------------
     // Array port A
@@ -1217,21 +1326,21 @@ module jet_control
     assign tag_a_wr_en_o = (r_init_busy & ~`RST_ASSERTED(rst_n))
                            | w_cmt_tagwr
                            | w_sn_tagwr
-                           | (w_accept_wr & (w_hit_state == AMBER_STATE_E));
+                           | (w_srv_fire_wr & r_srv_e2m);
     assign tag_a_wr_way_onehot_o = r_init_busy ? {WAYS{1'b1}}
                            : w_cmt_tagwr
                              ? ((r_cmt_state == C_CU_INSTALL)
                                 ? w_upgr_way_onehot : w_cmt_way_onehot)
                            : w_sn_tagwr
                              ? w_sn_way_onehot
-                           : w_hit_way_onehot;
+                           : r_srv_way_onehot;
     assign tag_a_wr_set_o        = r_init_busy ? r_init_cnt
                            : w_cmt_tagwr
                              ? ((r_cmt_state == C_CU_INSTALL)
                                 ? r_upgr_set : w_cmt_set)
                            : w_sn_tagwr
                              ? r_sn_set
-                           : w_req_set;
+                           : r_srv_set;
     assign tag_a_wr_tag_state_o  = r_init_busy
                                    ? {{TAG_W{1'b0}}, AMBER_STATE_I}
                            : (r_cmt_state == C_INSTALL)
@@ -1248,30 +1357,30 @@ module jet_control
                                                           : AMBER_STATE_M}
                            : w_sn_tagwr
                              ? {r_sn_tag, r_sn_nxt}
-                           : {w_req_tag, AMBER_STATE_M};
+                           : {r_srv_atag, AMBER_STATE_M};
 
     assign dat_a_addr_o         = w_cmt_datrd ? {w_cmt_set, w_slot_beat}
-                                              : {w_req_set, w_req_beat};
-    assign dat_a_way_o          = w_cmt_datrd ? r_cmt_way : w_hit_way;
-    assign dat_a_wr_en_o        = w_accept_wr | w_cmt_datwr;
+                                              : {r_srv_set, r_srv_beat};
+    assign dat_a_way_o          = w_cmt_datrd ? r_cmt_way : r_srv_way;
+    assign dat_a_wr_en_o        = w_srv_fire_wr | w_cmt_datwr;
     assign dat_a_wr_way_onehot_o = w_cmt_datwr
                                    ? ((r_cmt_state == C_CU_MERGE)
                                       ? w_upgr_way_onehot
                                       : w_cmt_way_onehot)
-                                   : w_hit_way_onehot;
+                                   : r_srv_way_onehot;
     assign dat_a_wr_addr_o      = w_cmt_datwr
                                   ? ((r_cmt_state == C_CU_MERGE)
                                      ? {r_upgr_set, r_upgr_beat}
                                      : {w_cmt_set, w_slot_beat})
-                                  : {w_req_set, w_req_beat};
+                                  : {r_srv_set, r_srv_beat};
     assign dat_a_wr_wdata_o     = w_cmt_datwr
                                   ? ((r_cmt_state == C_CU_MERGE)
                                      ? r_upgr_wdata : w_slot_wdata)
-                                  : lkup_wdata_i;
+                                  : r_srv_wdata;
     assign dat_a_wr_be_o        = w_cmt_datwr
                                   ? ((r_cmt_state == C_CU_MERGE)
                                      ? r_upgr_be : w_slot_be)
-                                  : lkup_be_i;
+                                  : r_srv_be;
 
     // ------------------------------------------------------------------
     // Array port B: the snoop's CD read owns the port while a data-carrying

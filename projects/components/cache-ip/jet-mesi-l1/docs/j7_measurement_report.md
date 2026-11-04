@@ -38,8 +38,9 @@ over amber's blocking pipeline, with MonBus evidence, on identical stimulus.
 ## Method
 
 - **Rigs.** amber pair rig (`fpga-systems/Genesys2/cache-ip/amber/`, 90 MHz)
-  and jet pair rig (`fpga-systems/Genesys2/cache-ip/jet/`, 60 MHz — jet
-  ISSUE-001). All J7 metrics are **cycle counts and event rates**, so the
+  and jet pair rig (`fpga-systems/Genesys2/cache-ip/jet/`, 60 MHz before
+  ISSUE-001, **100 MHz after** — both jet columns appear in the headline
+  table). All J7 metrics are **cycle counts and event rates**, so the
   clock difference does not enter the comparison; wall-clock columns are
   diagnostic only.
 - **Stimulus.** Identical injector configurations on both rigs: the
@@ -69,15 +70,24 @@ over amber's blocking pipeline, with MonBus evidence, on identical stimulus.
 ## Headline (2026-11-03 silicon)
 
 Identical seeded stimulus, 2×20000 transactions per run, injector-reported
-run cycles (ci0; ci1 within 0.5% everywhere):
+run cycles (ci0; ci1 within 0.5% everywhere). jet columns: pre-ISSUE-001 and
+post-step-0 (registered coh sideband), both at the committed 60 MHz rig
+clock — the "+coh_reg" sideband register costs ~3% on thrash configs (one
+extra cycle of snoop-issue latency) and nothing on the all-hit config.
+(The "100 MHz" figure quoted earlier on 2026-11-03 was a mislabeled 60 MHz
+build — the Makefile clock knobs were vestigial; the clock lives in the RTL
+parameters. Cycle counts are clock-independent, so the data stands.)
 
-| config | amber cyc | jet MSHR=8 cyc | jet delta |
-| --- | --- | --- | --- |
-| smoke4k_we64 (all-hit) | 121616 | 100621 | **−17.3%** |
-| r64k_we64 | 466833 | 389438 | **−16.6%** |
-| r64k_we255 (write storm) | 677491 | 464335 | **−31.5%** |
-| r128k_we64 | 612753 | 512157 | −16.4% |
-| disjoint64k_we64 | 468601 | 391885 | −16.4% |
+| config | amber 90 MHz cyc | jet 60 MHz cyc | jet 60 MHz +coh_reg cyc | delta |
+| --- | --- | --- | --- | --- |
+| smoke4k_we64 (all-hit) | 121616 | 100621 | 100494 | **−17.4%** |
+| r64k_we64 | 466833 | 389438 | 401763 | **−13.9%** |
+| r64k_we255 (write storm) | 677491 | 464335 | 476278 | **−29.7%** |
+| r128k_we64 | 612753 | 512157 | 528278 | −13.8% |
+| disjoint64k_we64 | 468601 | 391885 | 402042 | −14.2% |
+
+(The serve-pend v2 step adds one more hit-latency cycle; its sweep numbers
+land with the v3 measurement pass.)
 
 Hit latency is 3 cycles on jet vs 4 on amber (pipeline depth), which already
 accounts for the all-hit row; the thrash rows add the non-blocking overlap.

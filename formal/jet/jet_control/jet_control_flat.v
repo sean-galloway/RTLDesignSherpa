@@ -1140,6 +1140,21 @@ module jet_control (
 	assign w_wb_block = w_victim_dirty & (wb_full_i | r_cap_busy);
 	assign w_upgr_victim_block = (r_upgr_valid & (r_upgr_set == w_req_set)) & (r_upgr_way == repl_victim_way_i);
 	assign w_upgr_line_stall = (w_serve_hit & r_upgr_valid) & (r_upgr_line == w_req_line);
+	reg r_srv_vld;
+	reg r_srv_we;
+	reg [SEQ_W - 1:0] r_srv_seq;
+	reg [LINE_W - 1:0] r_srv_line;
+	reg [SET_W - 1:0] r_srv_set;
+	reg [BEAT_W - 1:0] r_srv_beat;
+	reg [TAG_W - 1:0] r_srv_atag;
+	reg [WAY_W - 1:0] r_srv_way;
+	reg [2 - 1:0] r_srv_way_onehot;
+	reg [64 - 1:0] r_srv_wdata;
+	reg [STRB_W - 1:0] r_srv_be;
+	reg r_srv_e2m;
+	wire w_srv_fire_rd;
+	wire w_srv_fire_wr;
+	wire w_srv_fire;
 	wire [TAG_W - 1:0] w_sn_tag;
 	wire [SET_W - 1:0] w_sn_set;
 	wire [LINE_W - 1:0] w_sn_line;
@@ -1303,7 +1318,7 @@ module jet_control (
 	assign sn_crresp_o = w_sn_crresp;
 	assign w_any_done = r_fq_cnt != r_fq_undone;
 	assign w_cu_completing = fill_done_i & (r_fq_cls[r_fq_done_ptr] == 2'b10);
-	assign sn_safe_o = (((~r_init_busy & (r_sn_state == SN_IDLE)) & ~w_any_done) & ~r_cap_busy) & ~w_cu_completing;
+	assign sn_safe_o = ((((~r_init_busy & (r_sn_state == SN_IDLE)) & ~w_any_done) & ~r_cap_busy) & ~w_cu_completing) & ~(r_srv_vld & r_srv_we);
 	assign w_sn_gnt = sn_req_i & sn_safe_o;
 	assign sn_ready_o = w_sn_gnt;
 	assign w_sn_block_cpu = (w_sn_gnt | (r_sn_state != SN_IDLE)) | sn_want_i;
@@ -1388,34 +1403,33 @@ module jet_control (
 	end
 	assign w_cmt_cpl_tag = (r_cmt_state == C_CU_DEPOSIT ? r_upgr_seq : r_cmt_seqs[r_cmt_k[MW - 1:0]]);
 	assign w_cmt_cpl_data = (r_cmt_state == C_CU_DEPOSIT ? r_upgr_wdata : (w_slot_we ? w_slot_wdata : r_cmt_rdata[r_cmt_k[MW - 1:0]]));
+	assign w_srv_fire_rd = ((r_srv_vld & ~r_srv_we) & ~w_cmt_cpl) & ~w_cmt_datrd;
+	assign w_srv_fire_wr = ((((r_srv_vld & r_srv_we) & ~w_cmt_cpl) & ~fill_beat_valid_i) & ~w_cmt_datwr) & ~(r_srv_e2m & (w_cmt_tagwr | w_sn_tagwr));
+	assign w_srv_fire = w_srv_fire_rd | w_srv_fire_wr;
 	reg w_acceptable;
 	reg w_stall;
 	reg [2:0] w_reason;
-	reg w_yield;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_acceptable = 1'b0;
 		w_stall = 1'b0;
 		w_reason = STALL_NONE;
-		w_yield = 1'b0;
 		if ((lkup_valid_i && !r_init_busy) && !w_sn_block_cpu) begin
 			if (w_upgr_line_stall) begin
 				w_stall = 1'b1;
 				w_reason = STALL_XCLASS;
 			end
+			else if ((r_srv_vld & r_srv_we) & (r_srv_line == w_req_line)) begin
+				w_stall = 1'b1;
+				w_reason = STALL_COMMIT;
+			end
 			else if (w_hit_rd) begin
-				if (!(w_cmt_cpl | w_cmt_datrd))
+				if (~r_srv_vld | w_srv_fire)
 					w_acceptable = 1'b1;
 			end
 			else if (w_hit_wr) begin
-				if (w_cmt_cpl)
-					;
-				else if (fill_beat_valid_i | w_cmt_datwr)
-					w_yield = 1'b1;
-				else if ((w_hit_state == 3'b010) & w_cmt_tagwr)
-					;
-				else
+				if (~r_srv_vld | w_srv_fire)
 					w_acceptable = 1'b1;
 			end
 			else if (w_hit_upgr) begin
@@ -1448,6 +1462,10 @@ module jet_control (
 				w_stall = 1'b1;
 				w_reason = STALL_MSHR_FULL;
 			end
+			else if ((r_srv_vld & (r_srv_set == w_req_set)) & (r_srv_way == repl_victim_way_i)) begin
+				w_stall = 1'b1;
+				w_reason = STALL_COMMIT;
+			end
 			else if ((mshr_set_full_i | w_upgr_victim_block) | w_victim_claimed) begin
 				w_stall = 1'b1;
 				w_reason = STALL_SET_OVERSUB;
@@ -1471,7 +1489,7 @@ module jet_control (
 	assign lkup_ready_o = w_accept;
 	assign lkup_stall_o = ((lkup_valid_i & ~r_init_busy) & ~w_accept) & (w_stall | (w_acceptable & ~tag_gnt_i));
 	assign lkup_stall_reason_o = (w_stall ? w_reason : (((lkup_valid_i & ~r_init_busy) & w_acceptable) & ~tag_gnt_i ? STALL_TAG_FULL : STALL_NONE));
-	assign lkup_wr_yield_o = w_yield;
+	assign lkup_wr_yield_o = ((r_srv_vld & r_srv_we) & ~w_srv_fire_wr) & (fill_beat_valid_i | w_cmt_datwr);
 	assign w_accept_rd = w_accept & w_hit_rd;
 	assign w_accept_wr = w_accept & w_hit_wr;
 	assign w_accept_upgr = w_accept & w_hit_upgr;
@@ -1484,6 +1502,37 @@ module jet_control (
 	assign cap_busy_o = r_cap_busy;
 	assign init_busy_o = r_init_busy;
 	assign ctrl_error_o = r_ctrl_err;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_srv_vld <= 1'b0;
+			r_srv_we <= 1'b0;
+			r_srv_seq <= 1'sb0;
+			r_srv_line <= 1'sb0;
+			r_srv_set <= 1'sb0;
+			r_srv_beat <= 1'sb0;
+			r_srv_atag <= 1'sb0;
+			r_srv_way <= 1'sb0;
+			r_srv_way_onehot <= 1'sb0;
+			r_srv_wdata <= 1'sb0;
+			r_srv_be <= 1'sb0;
+			r_srv_e2m <= 1'b0;
+		end
+		else begin
+			r_srv_vld <= (w_accept_rd | w_accept_wr) | (r_srv_vld & ~w_srv_fire);
+			if (w_accept_rd | w_accept_wr) begin
+				r_srv_we <= w_accept_wr;
+				r_srv_seq <= tag_i;
+				r_srv_line <= w_req_line;
+				r_srv_set <= w_req_set;
+				r_srv_beat <= w_req_beat;
+				r_srv_atag <= w_req_tag;
+				r_srv_way <= w_hit_way;
+				r_srv_way_onehot <= w_hit_way_onehot;
+				r_srv_wdata <= lkup_wdata_i;
+				r_srv_be <= lkup_be_i;
+				r_srv_e2m <= w_accept_wr & (w_hit_state == 3'b010);
+			end
+		end
 	wire w_launch;
 	wire [32 - 1:0] w_launch_addr;
 	wire [1:0] w_launch_cls;
@@ -1495,21 +1544,21 @@ module jet_control (
 	assign fill_cls_o = (r_fill_pend ? r_fill_cls : w_launch_cls);
 	assign w_fq_push = fill_start_o & fill_accept_i;
 	assign w_fq_pop = w_cmt_retire | (r_cmt_state == C_CU_DEPOSIT);
-	assign cpl_valid_o = (w_cmt_cpl | w_accept_rd) | w_accept_wr;
-	assign cpl_tag_o = (w_cmt_cpl ? w_cmt_cpl_tag : tag_i);
-	assign cpl_data_o = (w_cmt_cpl ? w_cmt_cpl_data : (w_accept_rd ? dat_a_rdata_i : lkup_wdata_i));
+	assign cpl_valid_o = w_cmt_cpl | w_srv_fire;
+	assign cpl_tag_o = (w_cmt_cpl ? w_cmt_cpl_tag : r_srv_seq);
+	assign cpl_data_o = (w_cmt_cpl ? w_cmt_cpl_data : (r_srv_we ? r_srv_wdata : dat_a_rdata_i));
 	assign tag_a_set_o = (r_init_busy ? r_init_cnt : w_req_set);
-	assign tag_a_wr_en_o = (((r_init_busy & ~(!rst_n)) | w_cmt_tagwr) | w_sn_tagwr) | (w_accept_wr & (w_hit_state == 3'b010));
-	assign tag_a_wr_way_onehot_o = (r_init_busy ? {2 {1'b1}} : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? w_upgr_way_onehot : w_cmt_way_onehot) : (w_sn_tagwr ? w_sn_way_onehot : w_hit_way_onehot)));
-	assign tag_a_wr_set_o = (r_init_busy ? r_init_cnt : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? r_upgr_set : w_cmt_set) : (w_sn_tagwr ? r_sn_set : w_req_set)));
-	assign tag_a_wr_tag_state_o = (r_init_busy ? {{TAG_W {1'b0}}, 3'b000} : (r_cmt_state == C_INSTALL ? {w_cmt_tag, w_install_state} : (r_cmt_state == C_PEND ? {w_cmt_tag, (r_cmt_pend == 2'b10 ? 3'b000 : 3'b001)} : (r_cmt_state == C_CU_INSTALL ? {w_upgr_tag, (r_upgr_killed ? 3'b000 : 3'b011)} : (w_sn_tagwr ? {r_sn_tag, r_sn_nxt} : {w_req_tag, 3'b011})))));
-	assign dat_a_addr_o = (w_cmt_datrd ? {w_cmt_set, w_slot_beat} : {w_req_set, w_req_beat});
-	assign dat_a_way_o = (w_cmt_datrd ? r_cmt_way : w_hit_way);
-	assign dat_a_wr_en_o = w_accept_wr | w_cmt_datwr;
-	assign dat_a_wr_way_onehot_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? w_upgr_way_onehot : w_cmt_way_onehot) : w_hit_way_onehot);
-	assign dat_a_wr_addr_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? {r_upgr_set, r_upgr_beat} : {w_cmt_set, w_slot_beat}) : {w_req_set, w_req_beat});
-	assign dat_a_wr_wdata_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? r_upgr_wdata : w_slot_wdata) : lkup_wdata_i);
-	assign dat_a_wr_be_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? r_upgr_be : w_slot_be) : lkup_be_i);
+	assign tag_a_wr_en_o = (((r_init_busy & ~(!rst_n)) | w_cmt_tagwr) | w_sn_tagwr) | (w_srv_fire_wr & r_srv_e2m);
+	assign tag_a_wr_way_onehot_o = (r_init_busy ? {2 {1'b1}} : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? w_upgr_way_onehot : w_cmt_way_onehot) : (w_sn_tagwr ? w_sn_way_onehot : r_srv_way_onehot)));
+	assign tag_a_wr_set_o = (r_init_busy ? r_init_cnt : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? r_upgr_set : w_cmt_set) : (w_sn_tagwr ? r_sn_set : r_srv_set)));
+	assign tag_a_wr_tag_state_o = (r_init_busy ? {{TAG_W {1'b0}}, 3'b000} : (r_cmt_state == C_INSTALL ? {w_cmt_tag, w_install_state} : (r_cmt_state == C_PEND ? {w_cmt_tag, (r_cmt_pend == 2'b10 ? 3'b000 : 3'b001)} : (r_cmt_state == C_CU_INSTALL ? {w_upgr_tag, (r_upgr_killed ? 3'b000 : 3'b011)} : (w_sn_tagwr ? {r_sn_tag, r_sn_nxt} : {r_srv_atag, 3'b011})))));
+	assign dat_a_addr_o = (w_cmt_datrd ? {w_cmt_set, w_slot_beat} : {r_srv_set, r_srv_beat});
+	assign dat_a_way_o = (w_cmt_datrd ? r_cmt_way : r_srv_way);
+	assign dat_a_wr_en_o = w_srv_fire_wr | w_cmt_datwr;
+	assign dat_a_wr_way_onehot_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? w_upgr_way_onehot : w_cmt_way_onehot) : r_srv_way_onehot);
+	assign dat_a_wr_addr_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? {r_upgr_set, r_upgr_beat} : {w_cmt_set, w_slot_beat}) : {r_srv_set, r_srv_beat});
+	assign dat_a_wr_wdata_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? r_upgr_wdata : w_slot_wdata) : r_srv_wdata);
+	assign dat_a_wr_be_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? r_upgr_be : w_slot_be) : r_srv_be);
 	assign dat_b_addr_o = (w_sn_portb ? {r_sn_set, r_sn_beat} : {r_cap_set, r_cap_beat});
 	assign dat_b_way_o = (w_sn_portb ? r_sn_way : r_cap_way);
 	assign repl_req_o = w_accept_alloc;

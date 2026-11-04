@@ -200,6 +200,7 @@ module jet_pair_rig_tb
     // status
     logic                     init_busy0, init_busy1;
     logic [3:0]               ctrl_state0, ctrl_state1;
+    logic                   lkup_live0, lkup_live1;
 
     // ------------------------------------------------------------------
     // The two caches
@@ -291,6 +292,7 @@ module jet_pair_rig_tb
         .mon_timestamp   (mon0_timestamp),
         .init_busy       (init_busy0),
         .ctrl_state      (ctrl_state0),
+        .lkup_live       (lkup_live0),
         .busy            ()
     );
 
@@ -381,6 +383,7 @@ module jet_pair_rig_tb
         .mon_timestamp   (mon1_timestamp),
         .init_busy       (init_busy1),
         .ctrl_state      (ctrl_state1),
+        .lkup_live       (lkup_live1),
         .busy            ()
     );
 
@@ -558,6 +561,8 @@ module jet_pair_rig_tb
         .c1_coh_req_type   (coh1_type),
         .peer0_state       (ctrl_state0),
         .peer1_state       (ctrl_state1),
+        .peer0_lkup_live   (lkup_live0),
+        .peer1_lkup_live   (lkup_live1),
         .mem_arid          (mem_arid),
         .mem_araddr        (mem_araddr),
         .mem_arlen         (mem_arlen),

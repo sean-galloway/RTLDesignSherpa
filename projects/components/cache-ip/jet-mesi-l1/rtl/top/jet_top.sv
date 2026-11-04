@@ -204,6 +204,13 @@ module jet_top
     // ------------------------------------------------------------------
     output logic                        init_busy,
     output logic [3:0]                  ctrl_state,
+    // a request is present at the lookup THIS cycle (the CPU plane's skid
+    // occupancy -- a plain register bit, not the classify cone).  The pair
+    // fabric gates its registered peer-state view with this live bit so a
+    // request arriving between the fabric's state sample and its AC issue
+    // still blocks the issue (ISSUE-001 v2; the live bit is what keeps the
+    // kill-rule corner closed).
+    output logic                        lkup_live,
     output logic                        busy
 );
 
@@ -244,6 +251,10 @@ module jet_top
     // J4 response sequencer's tag/cpl partner pins
     // ------------------------------------------------------------------
     logic                     lkup_valid;
+
+    // the fabric's live per-peer "request at the lookup" term (ISSUE-001
+    // v2): the skid's valid is a register bit, NOT the classify cone
+    assign lkup_live = lkup_valid;
     logic [ADDR_WIDTH-1:0]    lkup_addr;
     logic                     lkup_we;
     logic [STRB_W-1:0]        lkup_be;
@@ -714,8 +725,10 @@ module jet_top
 
     // The D-8 sideband never drops a fill launch (a drain-start collision
     // replays the WRITE_BACK the next cycle -- see the sideband note).
+    // The sideband is registered at the jet_coh_core boundary (ISSUE-001),
+    // so the pulse is visible the cycle AFTER the accept.
     assert property (@(posedge aclk) disable iff (!w_aresetn)
-        (u_coh.w_fill_accept |-> (coh_req_valid
+        (u_coh.w_fill_accept |=> (coh_req_valid
                             && (coh_req_type != 3'(AMBER_ACE_WRITE_BACK)))))
         else $error("jet_top: fill launch dropped from the coh sideband");
     // a drain-start/fill-launch collision registers the replay
@@ -726,7 +739,7 @@ module jet_top
     // a pending replay always drives the sideband when no fill wins
     wire w_wb_replay_fires = u_coh.r_wb_coh_pend & ~u_coh.w_fill_accept;
     assert property (@(posedge aclk) disable iff (!w_aresetn)
-        (w_wb_replay_fires |-> (coh_req_valid
+        (w_wb_replay_fires |=> (coh_req_valid
                                 && (coh_req_type == 3'(AMBER_ACE_WRITE_BACK)))))
         else $error("jet_top: pending WRITE_BACK replay not driven");
     // pragma translate_on

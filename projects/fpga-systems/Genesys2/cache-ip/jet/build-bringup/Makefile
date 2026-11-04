@@ -38,9 +38,10 @@ SIM_TESTS := $(FRAMEWORK_ROOT)/dv/tests
 # jet geometry is fixed at the FULL pair-rig configuration.
 export JET_USE_MONITOR ?= 1
 
-# Harness clock: 60 MHz from the 200 MHz LVDS oscillator.
-export JET_VCO_MHZ        ?= 1350
-export JET_CLKOUT0_DIVIDE ?= 22.5
+# Harness clock: set by the RTL parameters VCO_MHZ/CLKOUT0_DIVIDE in
+# rtl/jet_pair_genesys2_top.sv (1350/22.5 = 60 MHz committed; 100 MHz is the
+# ISSUE-001 v3 lookup-pipeline work). No env knob -- a Makefile variable
+# here would silently NOT reach the RTL (learned 2026-11-03).
 
 # Tally CAM legal-set size.
 export MON_N_PROFILE ?= 32

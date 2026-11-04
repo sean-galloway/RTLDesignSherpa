@@ -221,6 +221,7 @@ module jet_core_th
         .mon_timestamp   (mon_timestamp),
         .init_busy       (init_busy),
         .ctrl_state      (ctrl_state),
+        .lkup_live       (),
         .busy            (busy)
     );
 

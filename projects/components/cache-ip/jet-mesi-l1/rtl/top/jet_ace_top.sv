@@ -730,9 +730,10 @@ module jet_ace_top
 
     // The on-chip launch stream feeding the fabric plane's l1_ace_issue
     // never drops a fill launch: every accept presents a read-channel
-    // class (RNSD/RU/CU).
+    // class (RNSD/RU/CU).  The stream is registered at the jet_coh_core
+    // boundary (ISSUE-001), so the pulse lands the cycle AFTER the accept.
     assert property (@(posedge aclk) disable iff (!w_aresetn)
-        (u_coh.w_fill_accept |-> (coh_req_valid
+        (u_coh.w_fill_accept |=> (coh_req_valid
                             && (coh_req_type != 3'(AMBER_ACE_WRITE_BACK)))))
         else $error("jet_ace_top: fill launch dropped from the issue stream");
     // pragma translate_on

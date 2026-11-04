@@ -35,9 +35,9 @@ SIM_TESTS := $(FRAMEWORK_ROOT)/dv/tests
 # amber geometry is fixed at the FULL pair-rig configuration.
 export AMBER_USE_MONITOR ?= 1
 
-# Harness clock: 90 MHz from the 200 MHz LVDS oscillator.
-export AMBER_VCO_MHZ        ?= 1350
-export AMBER_CLKOUT0_DIVIDE ?= 15
+# Harness clock: set by the RTL parameters VCO_MHZ/CLKOUT0_DIVIDE in
+# rtl/amber_pair_genesys2_top.sv (1200/12 = 100 MHz; was 1350/15 = 90 MHz).
+# No env knob -- a Makefile variable here would silently NOT reach the RTL.
 
 # Tally CAM legal-set size.
 export MON_N_PROFILE ?= 32

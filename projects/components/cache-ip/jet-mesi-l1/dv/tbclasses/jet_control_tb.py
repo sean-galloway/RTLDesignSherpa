@@ -177,8 +177,9 @@ class JetControlTB(TBBase):
         self.sn_cd_gap = False
         # snoop_starvation_bound streams misses while commits deposit: a
         # merge/alloc accept may legitimately coincide with a commit's
-        # deposit (the commit owns the port; hit deposits are unaffected --
-        # hit accepts are held in deposit cycles)
+        # deposit (the commit owns the port), and with the ISSUE-001 v2
+        # serve pend a previous hit's deposit may fire in any later cycle --
+        # the "no deposit" checks are tag-qualified instead of absolute
         self.deposit_overlap_ok = False
 
         # golden models
@@ -1006,6 +1007,7 @@ class JetControlTB(TBBase):
                 rec['line'] = line
                 rec['set'] = set_idx
                 rec['beat'] = beat
+                rec['srv_wait'] = await self._await_serve(rec, label)
                 return rec
             if int(d.lkup_stall_o.value):
                 stalls += 1
@@ -1065,45 +1067,19 @@ class JetControlTB(TBBase):
         if cls['hit']:
             way = self._hit_way(set_idx, line)
             self._score(f"{label} hit: line resident", way is not None, True)
-            # response deposit: read returns the array beat, write echoes
-            self._score(f"{label} hit deposit valid",
-                        int(d.cpl_valid_o.value), 1)
-            self._score(f"{label} hit deposit tag",
-                        int(d.cpl_tag_o.value), tag)
+            # The serve (deposit + W-port write + E->M tag write) fires one
+            # cycle after the accept at the earliest (ISSUE-001 v2 serve
+            # pend) and can wait on the commit/fill ports.  Record the
+            # expectation; _await_serve checks it at the fire cycle.
             if we:
                 exp_data = wdata
             else:
                 exp_data = self._beat_of(self.array_data[(set_idx, way)],
                                          beat)
-            self._score(f"{label} hit deposit data",
-                        int(d.cpl_data_o.value), exp_data)
             rec['deposit'] = exp_data
-            if we:
-                # write merge lands on the W port this cycle
-                self._score(f"{label} write merge en",
-                            int(d.ctrl_dat_wr_en_o.value), 1)
-                self._score(f"{label} write merge way",
-                            int(d.dat_wr_way_onehot_o.value), 1 << way)
-                self._score(f"{label} write merge addr",
-                            int(d.dat_wr_addr_o.value),
-                            (set_idx << self.BEAT_BITS) | beat)
-                self._score(f"{label} write merge data",
-                            int(d.dat_wr_wdata_o.value), wdata)
-                self._score(f"{label} write merge be",
-                            int(d.dat_wr_be_o.value), be)
-                # arch model (the W-port monitor maintains array_data)
-                self._apply_store(self.arch_data[line], beat, be, wdata,
-                                  self.STRB_W)
-                # E -> M promotion on the tag port (suppressed when M)
-                st = self.slot_state[(set_idx, way)]
-                self._score(f"{label} promotion write",
-                            int(d.ctrl_tag_wr_en_o.value),
-                            1 if st == 'E' else 0)
-                if st == 'E':
-                    exp_ts = ((line >> self.SET_BITS) << 3) | STATE_CODE['M']
-                    self._score(f"{label} promotion tag_state",
-                                int(d.tag_wr_tag_state_o.value), exp_ts)
-                    self.slot_state[(set_idx, way)] = 'M'
+            rec['pend_srv'] = {'way': way, 'exp_data': exp_data,
+                               'e2m': we and
+                                      self.slot_state[(set_idx, way)] == 'E'}
         elif cls['merge']:
             cands = [e for e in self.entries
                      if e['line'] == line and not e['committed']]
@@ -1112,8 +1088,11 @@ class JetControlTB(TBBase):
             self._score(f"{label} merge: no alloc",
                         int(d.mshr_alloc_gnt_o.value), 0)
             if not self.deposit_overlap_ok:
+                # a previous hit's serve pend may fire in this cycle; the
+                # invariant is no deposit for THIS request's fresh tag
                 self._score(f"{label} merge: no deposit",
-                            int(d.cpl_valid_o.value), 0)
+                            int(d.cpl_valid_o.value)
+                            and int(d.cpl_tag_o.value) == tag, 0)
             if cands:
                 cands[0]['requesters'].append(
                     {'tag': tag, 'we': we, 'beat': beat, 'be': be,
@@ -1123,7 +1102,8 @@ class JetControlTB(TBBase):
                         int(d.mshr_alloc_gnt_o.value), 1)
             if not self.deposit_overlap_ok:
                 self._score(f"{label} alloc: no deposit",
-                            int(d.cpl_valid_o.value), 0)
+                            int(d.cpl_valid_o.value)
+                            and int(d.cpl_tag_o.value) == tag, 0)
             way = rec['victim_way']
             vline = self.tags.get((set_idx, way))
             vdirty = (vline is not None
@@ -1148,7 +1128,8 @@ class JetControlTB(TBBase):
             self._score(f"{label} upgrade: no alloc",
                         int(d.mshr_alloc_gnt_o.value), 0)
             self._score(f"{label} upgrade: no deposit",
-                        int(d.cpl_valid_o.value), 0)
+                        int(d.cpl_valid_o.value)
+                        and int(d.cpl_tag_o.value) == tag, 0)
             way = self._hit_way(set_idx, line)
             self._score(f"{label} upgrade: line resident S",
                         self.slot_state.get((set_idx, way)), 'S')
@@ -1156,6 +1137,54 @@ class JetControlTB(TBBase):
                 'tag': tag, 'line': line, 'set': set_idx, 'way': way,
                 'beat': beat, 'be': be, 'wdata': wdata}
         return rec
+
+    async def _await_serve(self, rec, label, max_cycles=20):
+        """ISSUE-001 v2 serve pend: a hit's array serve + deposit fire one
+        cycle after the accept at the earliest (the pend can wait on the
+        commit/fill ports).  Poll for the fire and score the displaced
+        accept-era observables there.  Returns the fire-cycle wait count
+        (0 = fired on the first cycle after the accept)."""
+        d = self.dut
+        exp = rec.get('pend_srv')
+        if exp is None:
+            return 0
+        for wait in range(max_cycles):
+            await self._drive_pt()
+            await self._settle()
+            if not (int(d.cpl_valid_o.value)
+                    and int(d.cpl_tag_o.value) == rec['tag']):
+                continue
+            self._score(f"{label} hit deposit data",
+                        int(d.cpl_data_o.value), exp['exp_data'])
+            if rec['we']:
+                way = exp['way']
+                self._score(f"{label} write merge en",
+                            int(d.ctrl_dat_wr_en_o.value), 1)
+                self._score(f"{label} write merge way",
+                            int(d.dat_wr_way_onehot_o.value), 1 << way)
+                self._score(f"{label} write merge addr",
+                            int(d.dat_wr_addr_o.value),
+                            (rec['set'] << self.BEAT_BITS) | rec['beat'])
+                self._score(f"{label} write merge data",
+                            int(d.dat_wr_wdata_o.value), rec['wdata'])
+                self._score(f"{label} write merge be",
+                            int(d.dat_wr_be_o.value), rec['be'])
+                # arch model (the W-port monitor maintains array_data)
+                self._apply_store(self.arch_data[rec['line']], rec['beat'],
+                                  rec['be'], rec['wdata'], self.STRB_W)
+                # E -> M promotion on the tag port (suppressed when M)
+                self._score(f"{label} promotion write",
+                            int(d.ctrl_tag_wr_en_o.value),
+                            1 if exp['e2m'] else 0)
+                if exp['e2m']:
+                    exp_ts = ((rec['line'] >> self.SET_BITS) << 3) \
+                             | STATE_CODE['M']
+                    self._score(f"{label} promotion tag_state",
+                                int(d.tag_wr_tag_state_o.value), exp_ts)
+                    self.slot_state[(rec['set'], way)] = 'M'
+            return wait
+        self._score(f"{label} hit deposit valid (serve fired)", 0, 1)
+        return max_cycles
 
     # ------------------------------------------------------------------
     # misc sync helpers
@@ -1553,9 +1582,10 @@ class JetControlTB(TBBase):
         await self._reset_pipeline()
 
     async def _scen_fill_beats_win_wport(self):
-        """fill_beats_win_wport (J2): a write hit yields the W port for a
-        bounded 8-beat fill stream, then proceeds; a read hit in the same
-        window does not yield."""
+        """fill_beats_win_wport (J2): a write hit accepts at once (the
+        serve pend absorbs the wait, ISSUE-001 v2) and its serve then waits
+        out the bounded 8-beat fill stream on the W port; a read hit in
+        the same window serves without waiting."""
         r0 = self.release_count
         line_x = (0xA0 << self.SET_BITS) | 70
         await self._install_line(line_x, 'M')
@@ -1575,13 +1605,18 @@ class JetControlTB(TBBase):
                     rd['stalls'] + rd['yields'], 0)
         self._score("wport: read hit accepted mid-stream",
                     int(self.dut.fill_beat_valid_i.value), 1)
-        # the write hit yields the W port for the rest of the stream
+        # the write hit ACCEPTS at once (the serve pend absorbs the W-port
+        # wait, ISSUE-001 v2); the pend's fire then waits out the beat
+        # stream -- the yield moved from the accept to the serve
         wdata = 0x0BADC0DE0DDC0DE0
         wr = await self._req(self._compose_addr(0xA0, 70, 1), 1, 0xFF,
                              wdata, label='wport:write_hit')
-        self._score("wport: write hit yielded", wr['yields'] > 0, True)
-        self._score("wport: yield bounded by the beat stream",
-                    wr['yields'] <= self.FILL_BEATS, True)
+        self._score("wport: write hit accepted without a yield",
+                    wr['yields'], 0)
+        self._score("wport: serve waited for the W port",
+                    wr['srv_wait'] > 0, True)
+        self._score("wport: serve wait bounded by the beat stream",
+                    wr['srv_wait'] <= self.FILL_BEATS + 2, True)
         self._score("wport: no stall reason for a yield", wr['stalls'], 0)
         self._score("wport: write accepted after the stream",
                     wr['cls']['hit'], 1)
@@ -2144,11 +2179,14 @@ class JetControlTB(TBBase):
         self.next_tag = (self.next_tag + 1) % self.RSP_DEPTH
         way_a = self._hit_way(24, line_a)
         exp_data = self._beat_of(self.array_data[(24, way_a)], 2)
+        await RisingEdge(d.clk)
+        d.lkup_valid_i.value = 0
+        # the serve pend deposits the cycle after the accept (ISSUE-001 v2)
+        await self._drive_pt()
+        await self._settle()
         self._score("prio: hit deposit tag", int(d.cpl_tag_o.value), tag)
         self._score("prio: hit deposit data", int(d.cpl_data_o.value),
                     exp_data)
-        await RisingEdge(d.clk)
-        d.lkup_valid_i.value = 0
         self._score("prio: no double deposit", tag in self.deposits, False)
         self.deposits[tag] = exp_data
         self.lru.update(24, way_a)

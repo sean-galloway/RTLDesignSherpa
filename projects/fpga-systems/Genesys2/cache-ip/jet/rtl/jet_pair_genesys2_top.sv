@@ -4,7 +4,7 @@
 // Module: jet_pair_genesys2_top
 // Purpose: Genesys 2 (Kintex-7 XC7K325T-2) board top for the jet pair-rig
 //          bring-up harness. Differential 200 MHz oscillator -> IBUFDS ->
-//          MMCME2_BASE 60MHz + BUFG, pushbutton reset two-flop sync, UART
+//          MMCME2_BASE 100MHz + BUFG, pushbutton reset two-flop sync, UART
 //          rx/tx pins, and the jet_pair_harness instance.
 
 `timescale 1ns / 1ps
@@ -13,6 +13,8 @@
 
 module jet_pair_genesys2_top #(
     // Harness clock = VCO_MHZ / CLKOUT0_DIVIDE, VCO = 200 MHz sysclk * MULT_F.
+    // 1350 / 22.5 = 60 MHz.  (100 MHz = 1350/13.5 needs the v3 lookup
+    // pipeline -- see jet ISSUE-001.)
     parameter int  VCO_MHZ        = 1350,
     parameter real CLKOUT0_DIVIDE = 22.5,
     parameter int  UART_BAUD      = 115_200,
