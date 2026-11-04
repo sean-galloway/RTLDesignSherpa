@@ -50,8 +50,10 @@ relative ordering is preserved and every fabric decision lands one cycle
 later. Same-cycle assertions in `jet_top.sv`/`jet_ace_top.sv` moved to `|=>`.
 
 Gates: jet component DV 41/41 (incl. pair-rig + amber-oracle parity);
-Genesys2 harness DV 4/4 (AXIL+UART, func+gate). Formal re-run not applicable
-— the jet_control formal closure does not include `jet_coh_core`.
+Genesys2 harness DV 4/4 (AXIL+UART, func+gate). Formal: the v2 serve-pend
+changed `jet_control` itself, so the safety harness re-ran against the
+regenerated flat: **PASS at depth 64** (boolector, 6h51m, 2026-11-04).
+Liveness (depth 176) rebaselines with the v3 lookup pipeline.
 
 ## v2 pipelining program (2026-11-03, owner-approved)
 

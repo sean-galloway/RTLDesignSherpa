@@ -37,10 +37,11 @@ over amber's blocking pipeline, with MonBus evidence, on identical stimulus.
 
 ## Method
 
-- **Rigs.** amber pair rig (`fpga-systems/Genesys2/cache-ip/amber/`, 90 MHz)
+- **Rigs.** amber pair rig (`fpga-systems/Genesys2/cache-ip/amber/`, 100 MHz
+  since 2026-11-03 — `61a0f476e`; the sweeps quoted here were taken at its
+  earlier 90 MHz clock)
   and jet pair rig (`fpga-systems/Genesys2/cache-ip/jet/`, 60 MHz before
-  ISSUE-001, **100 MHz after** — both jet columns appear in the headline
-  table). All J7 metrics are **cycle counts and event rates**, so the
+  ISSUE-001). All J7 metrics are **cycle counts and event rates**, so the
   clock difference does not enter the comparison; wall-clock columns are
   diagnostic only.
 - **Stimulus.** Identical injector configurations on both rigs: the
