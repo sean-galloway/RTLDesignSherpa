@@ -44,7 +44,7 @@ space, and the internal block diagrams of every significant piece.
 | Question | Answer |
 | --- | --- |
 | Board | Digilent Genesys 2 (Kintex-7 `xc7k325tffg900-2`) |
-| Clock | 90 MHz from 200 MHz LVDS oscillator via MMCM |
+| Clock | 100 MHz from 200 MHz LVDS oscillator via MMCM (VCO 1200 / 12; was 90 MHz = 1350/15 before 2026-11-03) |
 | Host link | UART 115200 8N1 through FT232R |
 | DUT top | `amber_pair_genesys2_top` |
 | Harness | `amber_pair_harness` |

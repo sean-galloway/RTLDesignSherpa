@@ -58,7 +58,9 @@ talks to the design over UART through a generated AXI4-Lite bridge.
 
 - **Board:** Digilent Genesys 2 (Kintex-7 `xc7k325tffg900-2`).
 - **Clock:** 200 MHz LVDS oscillator → `IBUFDS` → `MMCME2_BASE`
-  (`VCO=1350 MHz`, `CLKOUT0_DIVIDE=15`) → 90 MHz system clock.
+  (`VCO=1200 MHz`, `CLKOUT0_DIVIDE=12`) → 100 MHz system clock (closed
+  2026-11-03 at WNS +0.014 ns; 1350/13.5 is not expressible with the int
+  parameter, so the MMCM runs at the 1200 MHz VCO instead).
 - **UART:** 115200 8N1 on the FT232R USB-UART (`uart_tx_in` / `uart_rx_out`).
 - **LEDs:** `LD7=busy`, `LD6=done`, `LD5=error`, `LD0=heartbeat`.
 

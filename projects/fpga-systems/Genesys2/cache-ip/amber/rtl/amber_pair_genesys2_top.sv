@@ -13,10 +13,10 @@
 
 module amber_pair_genesys2_top #(
     // Harness clock = VCO_MHZ / CLKOUT0_DIVIDE, VCO = 200 MHz sysclk * MULT_F.
-    // 1350 / 15 = 90 MHz (committed, verified).  100 MHz = 1200/12 is
-    // staged for the all-cache 100 MHz push (jet ISSUE-001 work).
-    parameter int VCO_MHZ        = 1350,
-    parameter int CLKOUT0_DIVIDE = 15,
+    // 1200 / 12 = 100 MHz trial (integer divide; 1350/13.5 is not expressible
+    // with an int parameter). VCO 1200 is inside the Kintex-7 -2 MMCM range.
+    parameter int VCO_MHZ        = 1200,
+    parameter int CLKOUT0_DIVIDE = 12,
     parameter int UART_BAUD      = 115_200,
     // amber geometry (pair-rig FULL)
     parameter int ADDR_WIDTH     = l1_pkg::AMBER_ADDR_WIDTH,
