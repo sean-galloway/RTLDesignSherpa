@@ -673,6 +673,10 @@ package pumice_csr_pkg;
     } pumice_csr__SCHED_POLICY__dual_issue__out_t;
 
     typedef struct {
+        logic value;
+    } pumice_csr__SCHED_POLICY__fast_rd_release__out_t;
+
+    typedef struct {
         logic [7:0] value;
     } pumice_csr__SCHED_POLICY__age_thresh__out_t;
 
@@ -684,6 +688,7 @@ package pumice_csr_pkg;
         pumice_csr__SCHED_POLICY__access_pref__out_t access_pref;
         pumice_csr__SCHED_POLICY__qos_en__out_t qos_en;
         pumice_csr__SCHED_POLICY__dual_issue__out_t dual_issue;
+        pumice_csr__SCHED_POLICY__fast_rd_release__out_t fast_rd_release;
         pumice_csr__SCHED_POLICY__age_thresh__out_t age_thresh;
     } pumice_csr__SCHED_POLICY__out_t;
 

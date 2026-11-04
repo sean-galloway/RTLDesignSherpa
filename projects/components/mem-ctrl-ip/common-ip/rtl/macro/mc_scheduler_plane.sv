@@ -46,7 +46,9 @@ module mc_scheduler_plane
     parameter int CMD_DELAY      = 6,
     // FAST_RD_RELEASE: let commands bypass the CMD_DELAY write-data lead while
     // no write is in the line (granite TASK-003, 2026-10-31). Off = the uniform
-    // delay, bit-identical. See the fixed-delay release block below.
+    // delay, bit-identical. Builds the path; fast_rd_en_i is the runtime enable
+    // (enable low = the uniform delay, bit-identical). See the fixed-delay
+    // release block below.
     parameter bit FAST_RD_RELEASE = 1'b0,
     parameter bit HAS_ZQ      = 1'b0,
     parameter int MAINT_EXTRA_WIDTH = 1,
@@ -101,6 +103,7 @@ module mc_scheduler_plane
     // ---- config ----
     input  page_policy_e              page_policy_i,
     input  logic                      dual_issue_en_i,   // DUAL_ISSUE runtime enable
+    input  logic                      fast_rd_en_i,      // FAST_RD_RELEASE runtime enable
 
     // ---- runtime page-policy CSR fields + telemetry ----
     input  logic [1:0]                sched_order_mode_i,
@@ -1112,6 +1115,9 @@ module mc_scheduler_plane
     // and from that WR on the stream is the uniform-delay stream, so nothing
     // after it is later than without this option. Tokens never overtake: in
     // fast mode the shift register is empty and every token matures on push.
+    // fast_rd_en_i gates the SET and forces a CLEAR, so dropping it mid-traffic
+    // only returns the stream to the uniform delay; with it held low r_fast
+    // never sets and the stream is the uniform-delay stream.
     localparam int TOKW = $clog2(CMD_FIFO_DEPTH + 1);
     logic            w_cmd_push, w_tok_mature, w_fast_now, w_tok_in;
     logic [TOKW-1:0] r_tok_cnt;
@@ -1165,15 +1171,18 @@ module mc_scheduler_plane
                 end else begin
                     r_smax <= 17'(w_gm) + 17'(CMD_DELAY);
                     r_idle <= w_line_empty ? ((r_idle == '1) ? r_idle : r_idle + 17'd1) : '0;
-                    if (w_cmd_push && is_write_op(w_push_op)) r_fast <= 1'b0;
+                    if (!fast_rd_en_i || (w_cmd_push && is_write_op(w_push_op)))
+                        r_fast <= 1'b0;
                     else if (init_done && (r_idle >= r_smax)) r_fast <= 1'b1;
                 end
             )
         end else begin : g_no_fast
             assign w_fast_now = 1'b0;
+            wire _unused_fast = &{1'b0, fast_rd_en_i};
         end
     end else begin : g_cmd_nodelay
         assign w_fast_now   = 1'b0;
+        wire _unused_fast = &{1'b0, fast_rd_en_i};
         assign w_tok_in     = 1'b0;
         assign w_tok_mature = w_cmd_push;
     end endgenerate

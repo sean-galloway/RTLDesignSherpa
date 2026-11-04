@@ -89,6 +89,7 @@ module pumice_core_tb_top
     input  logic [PHW-1:0]   rd_phase_i, wr_phase_i,
     input  logic [PHW-1:0]   row_phase_i,
     input  logic             dual_issue_en_i,
+    input  logic             fast_rd_en_i,
     input  logic [7:0]       t_phy_wrlat_i, t_rddata_en_i,
     output logic [3:0]       cl_o, cwl_o, bl_o,
     output logic             init_done_o,
@@ -249,6 +250,7 @@ module pumice_core_tb_top
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
         .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
         .row_phase_i(row_phase_i), .dual_issue_en_i(dual_issue_en_i),
+        .fast_rd_en_i(fast_rd_en_i),
         .t_phy_wrlat_i(t_phy_wrlat_i), .t_rddata_en_i(t_rddata_en_i),
         // gear_i = log2(DFI_RATE) so the ACTIVE DFI rate == the build DFI_RATE
         // (full rate, all phases active) — bit-identical to the pre-gear

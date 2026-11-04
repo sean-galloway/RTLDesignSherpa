@@ -302,7 +302,8 @@ Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.
 | 10:10 | `RSVD_10` | 0x0 | r | Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors) |
 | 11:11 | `qos_en` | 0x0 | rw | 1 = factor AxQOS into the pick (highest ready first, age tie-break) |
 | 12:12 | `dual_issue` | 0x0 | rw | TASK-047: a ready demand ACT or PRE rides the same DFI word as a column, on `DFI_PHASE.row_phase`; under the default `access_pref` a row command that can ride the lane no longer takes a column's slot (one whose bank a column candidate holds still does). Takes effect only on a `DUAL_ISSUE` build, on DDR2, with `row_phase` off both column phases and one column command per DFI word. FR-FCFS core only |
-| 15:13 | `RSVD_15_13` | 0x0 | r | Reserved |
+| 13:13 | `fast_rd_release` | 0x0 | rw | Fast read release: after the command line has been idle for `CMD_DELAY` plus the largest programmed timing, commands skip the `CMD_DELAY` write-data lead until the next WRITE, which takes the full delay again. 0 = the uniform delay. Resets off: pumice BUG-033, board read corruption with it on. Takes effect only on a `FAST_RD_RELEASE` build; safe to change at any time |
+| 15:14 | `RSVD_15_14` | 0x0 | r | Reserved |
 | 23:16 | `age_thresh` | 0x0 | rw | age_threshold mode: age (MC cycles/16) above which a reference is boosted |
 | 31:24 | `RSVD_31_24` | 0x0 | r | Reserved |
 

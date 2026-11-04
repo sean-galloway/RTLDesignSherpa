@@ -821,19 +821,20 @@ request. All hw-readable so they drive the controller core.</p>
 
 <p>Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.</p>
 
-| Bits| Identifier|Access|Reset|Name|
-|-----|-----------|------|-----|----|
-| 1:0 | order_mode|  rw  | 0x0 |  — |
-| 3:2 |  prio_sub |  rw  | 0x0 |  — |
-| 5:4 |  row_sel  |  rw  | 0x0 |  — |
-| 7:6 |  col_sel  |  rw  | 0x0 |  — |
-| 9:8 |access_pref|  rw  | 0x0 |  — |
-|  10 |  RSVD_10  |   r  | 0x0 |  — |
-|  11 |   qos_en  |  rw  | 0x0 |  — |
-|  12 | dual_issue|  rw  | 0x0 |  — |
-|15:13| RSVD_15_13|   r  | 0x0 |  — |
-|23:16| age_thresh|  rw  | 0x0 |  — |
-|31:24| RSVD_31_24|   r  | 0x0 |  — |
+| Bits|   Identifier  |Access|Reset|Name|
+|-----|---------------|------|-----|----|
+| 1:0 |   order_mode  |  rw  | 0x0 |  — |
+| 3:2 |    prio_sub   |  rw  | 0x0 |  — |
+| 5:4 |    row_sel    |  rw  | 0x0 |  — |
+| 7:6 |    col_sel    |  rw  | 0x0 |  — |
+| 9:8 |  access_pref  |  rw  | 0x0 |  — |
+|  10 |    RSVD_10    |   r  | 0x0 |  — |
+|  11 |     qos_en    |  rw  | 0x0 |  — |
+|  12 |   dual_issue  |  rw  | 0x0 |  — |
+|  13 |fast_rd_release|  rw  | 0x0 |  — |
+|15:14|   RSVD_15_14  |   r  | 0x0 |  — |
+|23:16|   age_thresh  |  rw  | 0x0 |  — |
+|31:24|   RSVD_31_24  |   r  | 0x0 |  — |
 
 #### order_mode field
 
@@ -867,7 +868,11 @@ request. All hw-readable so they drive the controller core.</p>
 
 <p>TASK-047 dual issue: a ready demand ACT or PRE rides the same DFI word as a column (on DFI_PHASE.row_phase) instead of taking a command slot of its own; under the default access_pref a row command that can ride the lane no longer takes a column's slot (one whose bank a column candidate holds still does). Takes effect only on a DUAL_ISSUE build, on DDR2, with row_phase different from rd_phase and wr_phase and one column command per DFI word. FR-FCFS core only.</p>
 
-#### RSVD_15_13 field
+#### fast_rd_release field
+
+<p>Fast read release (mc_scheduler_plane FAST_RD_RELEASE): after the command line has been idle for CMD_DELAY plus the largest programmed timing, commands skip the CMD_DELAY write-data lead until the next WRITE, which takes the full delay again. 0 = the uniform delay. Reset OFF: pumice BUG-033, board read data corruption (windows random_bl8, about 1 run in 3 at 50 MHz) with it on. Takes effect only on a FAST_RD_RELEASE build; safe to change at any time (clearing only returns the stream to the uniform delay).</p>
+
+#### RSVD_15_14 field
 
 <p>Reserved</p>
 

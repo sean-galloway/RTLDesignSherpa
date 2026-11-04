@@ -151,6 +151,11 @@ def _cfg(dut, page_policy=0):
     for t in ("row_phase_i", "dual_issue_en_i"):
         if hasattr(dut, t):
             getattr(dut, t).value = 1 if _dual else 0
+    # FAST_RD_RELEASE runtime enable (SCHED_POLICY.fast_rd_release): off, as
+    # the register resets (pumice BUG-033), unless PUMICE_FAST_RD=1. Granite
+    # runs the same scheduler path always on.
+    if hasattr(dut, "fast_rd_en_i"):
+        dut.fast_rd_en_i.value = 1 if os.environ.get("PUMICE_FAST_RD", "0") == "1" else 0
     dut.t_phy_wrlat_i.value = 1
     dut.t_rddata_en_i.value = 2
     # NOTE: the s_axi_* channels are deliberately NOT touched here. The

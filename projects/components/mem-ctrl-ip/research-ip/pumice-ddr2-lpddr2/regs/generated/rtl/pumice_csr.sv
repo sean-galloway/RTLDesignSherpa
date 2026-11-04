@@ -504,6 +504,10 @@ module pumice_csr (
                 logic load_next;
             } dual_issue;
             struct {
+                logic next;
+                logic load_next;
+            } fast_rd_release;
+            struct {
                 logic [7:0] next;
                 logic load_next;
             } age_thresh;
@@ -933,6 +937,9 @@ module pumice_csr (
             struct {
                 logic value;
             } dual_issue;
+            struct {
+                logic value;
+            } fast_rd_release;
             struct {
                 logic [7:0] value;
             } age_thresh;
@@ -2402,6 +2409,29 @@ module pumice_csr (
         end
     end
     assign hwif_out.SCHED_POLICY.dual_issue.value = field_storage.SCHED_POLICY.dual_issue.value;
+    // Field: pumice_csr.SCHED_POLICY.fast_rd_release
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.fast_rd_release.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.fast_rd_release.value & ~decoded_wr_biten[13:13]) | (decoded_wr_data[13:13] & decoded_wr_biten[13:13]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.fast_rd_release.next = next_c;
+        field_combo.SCHED_POLICY.fast_rd_release.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.fast_rd_release.value <= 1'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.fast_rd_release.load_next) begin
+                field_storage.SCHED_POLICY.fast_rd_release.value <= field_combo.SCHED_POLICY.fast_rd_release.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.fast_rd_release.value = field_storage.SCHED_POLICY.fast_rd_release.value;
     // Field: pumice_csr.SCHED_POLICY.age_thresh
     always_comb begin
         automatic logic [7:0] next_c;
@@ -3526,7 +3556,8 @@ module pumice_csr (
     assign readback_array[23][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 1'h0 : '0;
     assign readback_array[23][11:11] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.qos_en.value : '0;
     assign readback_array[23][12:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.dual_issue.value : '0;
-    assign readback_array[23][15:13] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 3'h0 : '0;
+    assign readback_array[23][13:13] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.fast_rd_release.value : '0;
+    assign readback_array[23][15:14] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 2'h0 : '0;
     assign readback_array[23][23:16] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.age_thresh.value : '0;
     assign readback_array[23][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
     assign readback_array[24][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;

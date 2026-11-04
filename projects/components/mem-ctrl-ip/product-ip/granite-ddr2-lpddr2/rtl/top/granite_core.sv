@@ -886,6 +886,7 @@ module granite_core
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
         .dual_issue_en_i    (1'b0),           // FR-FCFS row lane: not on the pick core
+        .fast_rd_en_i       (1'b1),           // FAST_RD_RELEASE always on when built (GRANITE_FAST_RD_RELEASE)
         .memtype_i          (memtype_i),
         .page_mode_i        (page_mode_i),
         .page_tr_init_i     (page_tr_init_i),

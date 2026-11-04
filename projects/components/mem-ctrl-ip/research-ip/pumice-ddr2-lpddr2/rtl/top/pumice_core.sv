@@ -72,7 +72,7 @@ module pumice_core
     parameter bit WR_MERGE_EN = 1'b1, // write combining in the wr CAM: two partial writes to one DRAM burst commit once (pumice TASK-060)
     parameter bit RD_MERGE_EN = 1'b1, // read combining in the rd CAM: two reads of one unissued DRAM burst issue once, the ring returns it twice (pumice TASK-060)
     parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
-    parameter bit FAST_RD_RELEASE = 1'b0, // OFF: pumice BUG-033 (board data corruption with it on); mc_scheduler_plane: commands skip the CMD_DELAY write-data lead while no write is in the line
+    parameter bit FAST_RD_RELEASE = 1'b1, // build the mc_scheduler_plane fast release (commands skip the CMD_DELAY write-data lead while no write is in the line); runtime enable SCHED_POLICY.fast_rd_release, reset OFF for pumice BUG-033
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
     // DUAL_ISSUE (TASK-047): build the scheduler's row lane -- a demand ACT /
     // PRE in the same DFI word as a column, on DFI_PHASE.row_phase. Runtime
@@ -215,6 +215,7 @@ module pumice_core
     input  logic [PHW-1:0]             rd_phase_i, wr_phase_i,
     input  logic [PHW-1:0]             row_phase_i,     // DFI_PHASE.row_phase: every non-column command
     input  logic                       dual_issue_en_i, // SCHED_POLICY.dual_issue (DUAL_ISSUE builds)
+    input  logic                       fast_rd_en_i,    // SCHED_POLICY.fast_rd_release (FAST_RD_RELEASE builds)
     input  logic [7:0]                 t_phy_wrlat_i, t_rddata_en_i,
     // Active DFI gear = log2(active DFI rate). DFI_RATE is the compile-time MAX
     // that sizes all buses; gear_i selects the active phase count at runtime.
@@ -782,6 +783,7 @@ module pumice_core
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
         .dual_issue_en_i    (w_dual_en),
+        .fast_rd_en_i       (fast_rd_en_i),
         .memtype_i          (memtype_i),
         .page_mode_i        (page_mode_i),
         .page_tr_init_i     (page_tr_init_i),

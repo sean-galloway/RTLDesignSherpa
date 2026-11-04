@@ -537,7 +537,8 @@ class Pumice(Device):
                          col_sel: Optional[int] = None,
                          access_pref: Optional[int] = None,
                          qos_en: Optional[bool] = None,
-                         dual_issue: Optional[bool] = None) -> None:
+                         dual_issue: Optional[bool] = None,
+                         fast_rd_release: Optional[bool] = None) -> None:
         """SCHED_POLICY (Axis 1). order_mode: 0=build default (FR-FCFS),
         1=in_order, 3=age_threshold; age_thresh in MC cycles/16 (0 = off).
         On a BASE bitstream in_order is per-channel FIFO (each CAM issues its
@@ -563,6 +564,10 @@ class Pumice(Device):
         # builds; needs DFI_PHASE.row_phase off both column phases).
         if dual_issue is not None:
             kw["dual_issue"] = 1 if dual_issue else 0
+        # pumice BUG-033: commands skip the CMD_DELAY lead after an idle line
+        # (FAST_RD_RELEASE builds). Resets off; on corrupts board reads.
+        if fast_rd_release is not None:
+            kw["fast_rd_release"] = 1 if fast_rd_release else 0
         if kw:
             self._wr("SCHED_POLICY", **kw)
 

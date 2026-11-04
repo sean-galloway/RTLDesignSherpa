@@ -361,6 +361,7 @@ module scoria_scheduler_plane
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
         .dual_issue_en_i    (1'b0),           // no DUAL_ISSUE row lane here (pumice TASK-047)
+        .fast_rd_en_i       (1'b0),           // no FAST_RD_RELEASE build here
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),
         .sched_col_sel_i    (sched_col_sel_i),
