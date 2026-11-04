@@ -130,13 +130,15 @@ module mc_bank_fifo_store
     // the CSR field is inert (pumice TASK-059 measured the stamp form out at 490 LUT).
     parameter bit HAS_AGE            = 1'b1,
     // Combining (granite TASK-006, pumice's TASK-060 form on the FIFO store):
-    // a write whose {bank,row,col} matches a live, uncommitted, un-merged
-    // single-burst write entry takes no slot -- its beats land in that entry
+    // a write whose {bank,row,col} AND AXI id match a live, uncommitted,
+    // un-merged single-burst write entry takes no slot -- its beats land in that entry
     // under their strobes (byte enables, strobes OR'ed) and the entry owes a
-    // second B with the merged id; a read whose key matches a live, unissued
-    // read entry takes no slot and no ticket of its own -- the plane
+    // second B with the merged id; a read whose key and id match a live,
+    // unissued read entry takes no slot and no ticket of its own -- the plane
     // allocates it as a SHADOW of that entry's ticket (mc_rd_return_ring)
-    // and the one DRAM burst returns twice. 0 = every access its own entry.
+    // and the one DRAM burst returns twice. Different ids never combine
+    // (owner's rule, 2026-11-03): two ids are two requestors. 0 = every access
+    // its own entry.
     parameter bit MERGE_EN           = 1'b0,
     parameter bit HEAD2_EN           = 1'b1,// 0 = one head record per bank: head2 outputs are constant 0, and the pick
                                             //     core idles a pair for the cycle after each of its column fires (its
@@ -462,7 +464,7 @@ module mc_bank_fifo_store
     logic w_aw_take, w_aw_fire, w_wd_fire, w_fill_done;
     logic w_wr_cap_ok, w_rd_cap_ok;   // conditional per-bank cap (BANK_CAP_MIXED), assigned below the RD slots
     // ---- write merge candidate (MERGE_EN): a live write entry with the held
-    //      AW's key that is not committed (nor being committed this cycle),
+    //      AW's key AND id (different ids never combine) that is not committed (nor being committed this cycle),
     //      carries no merge yet and is a single-burst write. Fills are in AW
     //      order, so the target's own fill is always ahead of the merge's.
     //      The merged write's id must not be carried by any OTHER live
@@ -484,7 +486,7 @@ module mc_bank_fifo_store
         w_mg_idclash = 1'b0;
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             w_mg_match[i] = MERGE_EN && r_wr_valid[i] && !r_wr_cmt[i] && !r_wr_mgv[i]
-                          && r_wr_last[i] && r_awh_am[i];
+                          && r_wr_last[i] && r_awh_am[i] && r_awh_ie[i];
             if (w_mg_match[i]) begin w_mg_found = 1'b1; w_mg_slot = PTRW'(i); end
         end
         for (int i = 0; i < NUM_ENTRIES; i++) begin
@@ -855,6 +857,7 @@ module mc_bank_fifo_store
     logic [ROW_WIDTH-1:0] r_rd_row    [NUM_ENTRIES];
     logic [COL_WIDTH-1:0] r_rd_col    [NUM_ENTRIES];
     logic [RTW-1:0]       r_rd_ticket [NUM_ENTRIES];
+    logic [IW-1:0]        r_rd_id     [NUM_ENTRIES];   // MERGE_EN: only a same-id read combines
     logic [QCW-1:0]       r_rq_cnt    [NUM_BANKS];     // bookkeeping beside the FIFOs, as the WR side
     logic [ROW_WIDTH-1:0] r_rq_tail_row [NUM_BANKS];
     logic                 w_rq_sp_new;
@@ -879,16 +882,19 @@ module mc_bank_fifo_store
     logic [ROW_WIDTH-1:0] r_arh_row;
     logic [COL_WIDTH-1:0] r_arh_col;
     logic [RTW-1:0]       r_arh_ticket;
+    logic [IW-1:0]        r_arh_id;
     logic w_ar_take, w_ar_fire, w_ar_fire_hold, w_ar_direct, w_rd_issue_fire, w_ars_ok;
     // the AR being placed: the hold when it is full, else (AR_DIRECT) the push
     logic [BKW-1:0]       w_ars_bank;
     logic [ROW_WIDTH-1:0] w_ars_row;
     logic [COL_WIDTH-1:0] w_ars_col;
     logic [RTW-1:0]       w_ars_ticket;
+    logic [IW-1:0]        w_ars_id;
     assign w_ars_bank   = r_arh_vld ? r_arh_bank   : ar_push_bank_i;
     assign w_ars_row    = r_arh_vld ? r_arh_row    : ar_push_row_i;
     assign w_ars_col    = r_arh_vld ? r_arh_col    : ar_push_col_i;
     assign w_ars_ticket = r_arh_vld ? r_arh_ticket : rt_alloc_ticket_i;
+    assign w_ars_id     = r_arh_vld ? r_arh_id     : ar_push_id_i;
     assign w_ars_ok       = w_rd_have_free && (r_rq_cnt[w_ars_bank] != QCW'(QD))
                           && w_rq_wr_ready[w_ars_bank] && w_rd_cap_ok;
     assign w_ar_fire_hold = r_arh_vld && w_ars_ok;
@@ -898,7 +904,8 @@ module mc_bank_fifo_store
     assign ar_push_ready_o    = rd_cam_ins_ready_o && rt_alloc_ready_i;
     assign w_ar_take       = ar_push_valid_i && ar_push_ready_o;
     // ---- read merge (MERGE_EN): the AR being pushed matches a live, unissued
-    //      read entry (not being issued this cycle) or the held AR, by key;
+    //      read entry (not being issued this cycle) or the held AR, by key
+    //      and id (different ids never combine);
     //      the plane allocates it as a shadow of that ticket and this store
     //      takes nothing. Combinational from the push inputs, as the ring's
     //      alloc is in the same handshake.
@@ -912,11 +919,11 @@ module mc_bank_fifo_store
             w_rdmg_match[i] = MERGE_EN && r_rd_valid[i]
                             && !w_rd_is_cand[i]
                             && (r_rd_bank[i] == ar_push_bank_i) && (r_rd_row[i] == ar_push_row_i)
-                            && (r_rd_col[i]  == ar_push_col_i);
+                            && (r_rd_col[i]  == ar_push_col_i) && (r_rd_id[i] == ar_push_id_i);
             if (w_rdmg_match[i]) begin w_rdmg_found = 1'b1; w_rdmg_ticket = r_rd_ticket[i]; end
         end
         if (MERGE_EN && r_arh_vld && (r_arh_bank == ar_push_bank_i) && (r_arh_row == ar_push_row_i)
-            && (r_arh_col == ar_push_col_i)) begin
+            && (r_arh_col == ar_push_col_i) && (r_arh_id == ar_push_id_i)) begin
             w_rdmg_found  = 1'b1;
             w_rdmg_ticket = r_arh_ticket;
         end
@@ -947,12 +954,14 @@ module mc_bank_fifo_store
             r_arh_row    <= '0;
             r_arh_col    <= '0;
             r_arh_ticket <= '0;
+            r_arh_id     <= '0;
         end else if (w_ar_take && !ar_merge_o && !w_ar_direct) begin
             r_arh_vld    <= 1'b1;
             r_arh_bank   <= ar_push_bank_i;
             r_arh_row    <= ar_push_row_i;
             r_arh_col    <= ar_push_col_i;
             r_arh_ticket <= rt_alloc_ticket_i;
+            r_arh_id     <= ar_push_id_i;
         end else if (w_ar_fire_hold) begin
             r_arh_vld    <= 1'b0;
         end
@@ -985,6 +994,7 @@ module mc_bank_fifo_store
                 r_rd_row   [w_rd_free_slot] <= w_ars_row;
                 r_rd_col   [w_rd_free_slot] <= w_ars_col;
                 r_rd_ticket[w_rd_free_slot] <= w_ars_ticket;
+                r_rd_id    [w_rd_free_slot] <= w_ars_id;
             end
             if (w_rd_issue_fire) r_rd_valid[rd_issue_slot_i] <= 1'b0;
             for (int b = 0; b < NUM_BANKS; b++) begin
@@ -1436,6 +1446,6 @@ module mc_bank_fifo_store
     wire _unused = &{1'b0, snarf_probe_valid_i, snarf_probe_bank_i, snarf_probe_row_i,
                      snarf_probe_col_i, snarf_probe_id_i, snarf_probe_len_i,
                      snarf_accept_i, snarf_rd_ready_i, aw_push_qos_i, aw_push_agg_i,
-                     ar_push_qos_i, ar_push_id_i};
+                     ar_push_qos_i};
 
 endmodule : mc_bank_fifo_store

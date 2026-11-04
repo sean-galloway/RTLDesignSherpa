@@ -209,3 +209,23 @@ the merge target out of the head record in the admission cycle. Same
 merge rate, same held-write result, 0.13 ns back at 75 MHz; the combiner
 still does not close at 100 MHz on its own (-1.6 ns, the fire-to-store /
 ring cone). TASK-003 log, 2026-10-30.
+
+**Addendum 2026-11-03: different ids never combine.** Owner's ruling: a merge
+across AXI ids is a bug (two ids are two requestors). `mc_bank_fifo_store` now
+requires the id as well as {bank,row,col}: the write match adds the held AW's
+registered id compare (`r_awh_ie`), and read slots and the held AR carry an id
+(`r_rd_id`, `r_arh_id`) that the read match compares. `cocotb_test_granite_core_merge`
+gains a two-id phase (same pairs, ids 1 and 2: two bursts, two DRAM reads,
+counters unmoved, both STORE_MERGE_EN states); the fill-lag test now gives each
+pair one id. Each id compare mutated out fails the new phase ("writes / reads
+from two ids merged"). granite func 27 passed + 1 xfail, common-ip macro 36 +
+3 xfail, lint warning set unchanged.
+
+What it costs, read off the table above: the counter-id columns were all
+cross-id merges and are gone. With one id per thread, reads still merge
+(close_page pair 1..4 thr 75 / 123 / 175 / 193 rd MB/s) but writes did not
+merge even before (30 / 49 / 73 / 87 wr): the same-id B-order guard blocks a
+write merge while ANY other live write carries that id, and a one-id thread
+always has some. The guard is stricter than ordering needs -- only a same-id
+write YOUNGER than the target can be overtaken by the merged B -- so a write
+merge for one-id threads would need that age-qualified guard. Not done.

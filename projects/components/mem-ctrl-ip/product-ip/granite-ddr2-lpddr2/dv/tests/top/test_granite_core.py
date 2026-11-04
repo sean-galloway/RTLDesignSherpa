@@ -399,6 +399,8 @@ async def cocotb_test_granite_core_merge(dut):
     first's entry (ONE burst reaches the DFI write bus, carrying the second
     write's bytes) and both get a B; two back-to-back reads of that address
     take ONE DRAM read (the second is a shadow ticket) and both return it.
+    The same pairs from two DIFFERENT ids never combine (owner's rule,
+    2026-11-03): two bursts and two DRAM reads, both states, counters unmoved.
     With STORE_MERGE_EN=0 (the parameter's OFF state) the same traffic takes
     two bursts each way and the counters stay 0: the test asserts the exact
     count for whichever state it was built with, so it fails if the knob is
@@ -468,15 +470,38 @@ async def cocotb_test_granite_core_merge(dut):
         assert rd_merges == 0, f"STORE_MERGE_EN=0 must not merge reads, counted {rd_merges}"
         assert rds[0][1][:BL_WORDS] == d1 and rds[1][1][:BL_WORDS] == d2, \
             "without combining the two reads serve the two bursts in write order"
+    # ---- the same pairs from two different ids: never combined ----------
+    # rd_q drained above, so the model's next reads serve these two bursts.
+    d3 = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+    d4 = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+    captured.clear()
+    await with_timeout(bfm.write_many([(addr, d3), (addr, d4)], axid_fn=lambda k: 1 + k),
+                       _PHASE_TIMEOUT_US, "us")
+    for _ in range(200):
+        await RisingEdge(dut.dfi_clk)
+        if len(captured) >= 2 * BL_WORDS:
+            break
+    assert int(dut.stat_wr_merge_o.value) == wr_merges, \
+        f"writes from two ids merged (count {wr_merges} -> {int(dut.stat_wr_merge_o.value)})"
+    assert len(captured) == 2 * BL_WORDS and captured[:BL_WORDS] == d3 \
+        and captured[BL_WORDS:2 * BL_WORDS] == d4, \
+        f"two ids must reach the DFI bus as two bursts in order, saw {len(captured)} words"
+    rds = await with_timeout(bfm.read_many([addr, addr], axid_fn=lambda k: 1 + k),
+                             _PHASE_TIMEOUT_US, "us")
+    assert int(dut.stat_rd_merge_o.value) == rd_merges, \
+        f"reads from two ids merged (count {rd_merges} -> {int(dut.stat_rd_merge_o.value)})"
+    # two ids may complete in either order; each must see its own DRAM read
+    assert len(rds) == 2 and sorted(tuple(b[:BL_WORDS]) for _, b in rds) == sorted([tuple(d3), tuple(d4)]), \
+        "two ids must take two DRAM reads"
     _assert_no_held_write(dut)
-    dut._log.info("PASS: store combining %s", "merges a same-burst pair" if merge_en
-                  else "off: no merges, two bursts")
+    dut._log.info("PASS: store combining %s; different ids never combine",
+                  "merges a same-burst same-id pair" if merge_en else "off: no merges, two bursts")
 
 
 @cocotb.test(timeout_time=20000, timeout_unit="us")
 async def cocotb_test_granite_core_merge_fill_lag(dut):
     """Store combining with the write DATA lagging the addresses (TASK-006,
-    2026-10-29): eight same-burst pairs from distinct ids arrive with the W
+    2026-10-29): eight same-burst pairs, one id per pair, arrive with the W
     channel on the slow_producer profile, so every entry in the pool is
     allocated and merged before its own fill lands -- up to two pending
     fills per entry, sixteen in all. The fill-order FIFO must hold them:
@@ -520,7 +545,8 @@ async def cocotb_test_granite_core_merge_fill_lag(dut):
         reqs.append((addrs[k], first[k]))
         reqs.append((addrs[k], second[k]))
     captured.clear()
-    await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: k & 0xF), _PHASE_TIMEOUT_US, "us")
+    # one id per PAIR: only a same-id pair combines (different ids never do)
+    await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: (k // 2) & 0xF), _PHASE_TIMEOUT_US, "us")
     want_words = (n_pairs if merge_en else 2 * n_pairs) * BL_WORDS
     for _ in range(2000):
         await RisingEdge(dut.dfi_clk)
