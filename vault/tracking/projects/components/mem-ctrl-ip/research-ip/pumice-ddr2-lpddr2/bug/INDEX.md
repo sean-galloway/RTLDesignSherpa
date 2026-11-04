@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-033** — never recycle a number, even when its item closed.
+**Next ID: BUG-034** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -13,7 +13,7 @@ exactly one state by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 29 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
@@ -21,6 +21,13 @@ exactly one state by construction rather than by discipline.
 ## Open
 
 None.
+
+## Active
+
+- **BUG-033** — reads return wrong data with `FAST_RD_RELEASE` on: board
+  `windows` random_bl8 fails ~1 run in 3 at 50 MHz (13 / 55 on HEAD builds,
+  0 / 8 on the 10-27 bitstream, 0 / 8 on HEAD with the option off). Mechanism
+  open; pumice default turned off. [active/BUG-033.md](active/BUG-033.md).
 
 ## Closed
 

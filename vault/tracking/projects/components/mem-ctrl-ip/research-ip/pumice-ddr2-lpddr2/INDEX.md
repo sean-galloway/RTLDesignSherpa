@@ -27,7 +27,7 @@ filing; IDs are per-lane sequences.
 | Lane | For | open | active | closed | dropped |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | 2 | 0 | 52 | 4 |
-| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 0 | 29 | 2 |
+| [bug/](bug/INDEX.md) | a defect with a reproduction | 1 | 1 | 29 | 2 |
 | [issue/](issue/INDEX.md) | an anomaly/risk/question not yet diagnosed | 1 | 0 | 24 | 3 |
 
 Counts INCLUDE each lane's `NNN-000` template, which lives in `open/` -- that is

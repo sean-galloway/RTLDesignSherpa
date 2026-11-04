@@ -280,3 +280,23 @@ The failure is intermittent and time- or state-dependent; the counts no longer
 cleanly separate the lane build from the lane-off build. Next: interleaved soak
 of both bitstreams (same profile, alternating programs) for real failure rates,
 and a char-harness sim of windows random_bl8 with DUAL_ISSUE=1, lane off.
+
+### 2026-11-04: the data loss is not the lane -- it is FAST_RD_RELEASE (pumice BUG-033)
+
+An interleaved soak overturned the attribution above. windows only, 50 MHz:
+
+| bitstream | runs | failed |
+|---|---|---|
+| lane-off build (no DUAL_ISSUE) | 10 + 8 + 8 | 2 + 3 + 3 |
+| lane build, lane off | 10 | 0 |
+| 2026-10-27 shipped | 8 | 0 |
+| HEAD text, FAST_RD_RELEASE = 0 | 8 | 0 |
+
+Every HEAD build fails `random_bl8` about one run in three, with or without the
+lane; neither the 10-27 text nor HEAD with `FAST_RD_RELEASE` off fails. The option
+was turned on for pumice in `bfc3cbf7a` (2026-10-31), after the last clean pumice
+`windows` sweep (2026-10-30). Filed as **pumice BUG-033**; pumice's default is
+now 0. For this task the lane's board result stands: lane on, 0 mismatched on
+every profile, +7.6 / +7.9 % on `every`. What is left before closing: a lane-on
+vs lane-off board A/B on a FAST_RD_RELEASE = 0 build (the numbers above were
+taken with it on), then the default decision for DUAL_ISSUE.

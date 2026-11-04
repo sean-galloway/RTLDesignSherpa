@@ -36,7 +36,7 @@ module pumice_top
     parameter int SCHED_CORE     = 1,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge (pumice_core; TASK-044)
     parameter bit DUAL_ISSUE     = 1'b0, // the scheduler's row lane (pumice_core; TASK-047)
-    parameter bit FAST_RD_RELEASE = 1'b1, // reads skip the CMD_DELAY write-data lead while no write is in the line (pumice_core)
+    parameter bit FAST_RD_RELEASE = 1'b0, // OFF: pumice BUG-033 (board data corruption with it on); reads skip the CMD_DELAY write-data lead while no write is in the line (pumice_core)
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
     parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
