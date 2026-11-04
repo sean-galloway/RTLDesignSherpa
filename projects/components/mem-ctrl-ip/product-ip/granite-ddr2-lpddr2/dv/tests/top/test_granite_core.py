@@ -401,6 +401,9 @@ async def cocotb_test_granite_core_merge(dut):
     take ONE DRAM read (the second is a shadow ticket) and both return it.
     The same pairs from two DIFFERENT ids never combine (owner's rule,
     2026-11-03): two bursts and two DRAM reads, both states, counters unmoved.
+    One id (a stream): a pair merges while an OLDER same-id write is still in
+    flight, and does not when a same-id write arrived between its halves (the
+    merged B would overtake it).
     With STORE_MERGE_EN=0 (the parameter's OFF state) the same traffic takes
     two bursts each way and the counters stay 0: the test asserts the exact
     count for whichever state it was built with, so it fails if the knob is
@@ -493,6 +496,35 @@ async def cocotb_test_granite_core_merge(dut):
     # two ids may complete in either order; each must see its own DRAM read
     assert len(rds) == 2 and sorted(tuple(b[:BL_WORDS]) for _, b in rds) == sorted([tuple(d3), tuple(d4)]), \
         "two ids must take two DRAM reads"
+
+    # ---- one id, an older same-id write in flight: the pair still merges ---
+    burst_bytes = BL_WORDS * (DW // 8)
+    ax, ay = addr + 2 * burst_bytes, addr + 3 * burst_bytes
+    e0, ea, eb = ([rng.randrange(1 << DW) for _ in range(BL_WORDS)] for _ in range(3))
+    async def one_id_writes(reqs, want_bursts):
+        captured.clear()
+        await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: 3), _PHASE_TIMEOUT_US, "us")
+        for _ in range(400):
+            await RisingEdge(dut.dfi_clk)
+            if len(captured) >= len(want_bursts) * BL_WORDS:
+                break
+        for _ in range(50):
+            await RisingEdge(dut.dfi_clk)
+        got = sorted(tuple(captured[i:i + BL_WORDS]) for i in range(0, len(captured), BL_WORDS))
+        assert got == sorted(tuple(b) for b in want_bursts), \
+            f"one-id writes: expected {len(want_bursts)} bursts, saw {len(captured) // BL_WORDS}"
+    m0 = int(dut.stat_wr_merge_o.value)
+    await one_id_writes([(ax, e0), (ay, ea), (ay, eb)],
+                        [e0, eb] if merge_en else [e0, ea, eb])
+    m1 = int(dut.stat_wr_merge_o.value)
+    assert m1 - m0 == (1 if merge_en else 0), \
+        f"one id, older write in flight: expected {1 if merge_en else 0} merge, counted {m1 - m0}"
+    # ---- one id, a younger same-id write between the halves: no merge ------
+    ax2, ay2 = addr + 4 * burst_bytes, addr + 5 * burst_bytes
+    f1, fc, fd = ([rng.randrange(1 << DW) for _ in range(BL_WORDS)] for _ in range(3))
+    await one_id_writes([(ay2, fc), (ax2, f1), (ay2, fd)], [fc, f1, fd])
+    m2 = int(dut.stat_wr_merge_o.value)
+    assert m2 == m1, f"a same-id write between the halves must block the merge (count {m1} -> {m2})"
     _assert_no_held_write(dut)
     dut._log.info("PASS: store combining %s; different ids never combine",
                   "merges a same-burst same-id pair" if merge_en else "off: no merges, two bursts")

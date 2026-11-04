@@ -229,3 +229,47 @@ write merge while ANY other live write carries that id, and a one-id thread
 always has some. The guard is stricter than ordering needs -- only a same-id
 write YOUNGER than the target can be overtaken by the merged B -- so a write
 merge for one-id threads would need that age-qualified guard. Not done.
+
+**Addendum 2026-11-03 (later): one-id write merges.** Owner: "ideally the ids
+from a stream will all be the same" -- so the write merge must work within one
+id. Two changes in `mc_bank_fifo_store`:
+
+1. The same-id guard is age-qualified: `r_wr_yng[i]` is set on every live
+   same-id slot when a write of that id is admitted, and a merge needs the
+   target's bit clear (it is the youngest write of its id). Older same-id
+   writes in flight no longer block it. Test: `cocotb_test_granite_core_merge`
+   one-id phases -- (X, Y, Y) merges once with X in flight, (Y', X', Y') does
+   not merge; restoring the old guard fails the first ("expected 2 bursts, saw
+   3"), dropping `r_wr_yng` fails the second ("expected 3 bursts, saw 2").
+2. The merged-B order moved from admission to the B output. The old rule held
+   any AW whose id sat in the merged-B queue; the queue drained only in cycles
+   with no done of its own, so on a one-id stream every AW stalled behind it
+   (store trace, granite proxy: 4 merges then an 11-cycle admission stall,
+   repeating). Now, while anything is queued, every later done queues behind
+   it as a one- or two-B record, so Bs leave in drain order; the AW is never
+   held. The queue only delays Bs (each still leaves after its own drain), and
+   the drain still holds only when the queue is full.
+
+Proxy (granite_char_perf, half_pair, one thread, one id, open policy, row
+major, page mode 0), write cycles for 64 half beats: merge off 86, merge with
+guard only 142 (32 merges), guard + B queue 87 (32 merges), 0 mismatched.
+
+Board 75 MHz, `half_threads`, one id per thread, wr / rd MB/s, 0 mismatched
+everywhere. Guard + B queue build: WNS +0.925, 0 failing, 40,254 LUTs.
+
+| cell | no merge | old guard (10-29) | guard only | guard + B queue |
+|---|---|---|---|---|
+| close_page pair 1 / 2 / 3 / 4 thr | 30/37, 49/59, 73/87, 96/96 | 30/75, 49/123, 73/175, 87/193 | 60/75, 102/147, 146/193, 186/193 | 60/75, 102/147, 144/193, 185/193 |
+| open_page pair 1 / 2 / 3 / 4 thr | 288/239, 287/288, 254/280, 214/248 | 289/242, 286/293, 184/292, 168/290 | 156/292, 168/294, 171/293, 185/291 | 294/292, 291/294, 290/293, 286/291 |
+| defaults pair 1 / 2 / 3 / 4 thr | -- | -- | 164/294 .. 206/291 | 294/294, 292/295, 290/292, 287/291 |
+
+The close_page write column matches pumice's (98 / 192 / 193 / 179) from three
+threads; open_page pair now beats no-merge both ways (+34 percent writes at four
+threads). `every` (51 rows) and `concurrent` (4) unchanged against 2026-10-30
+(wr/rd ratio >= 0.998 / 0.957, 0 mismatched). Counter ids: no write merges at
+all, as the id rule says (open_page pair 1 thr 288, close_page 30).
+
+Not fixed here, found on the way: granite keeps no same-id commit order ACROSS
+banks (B leaves in drain order, and the FR-FCFS pick can commit a younger
+same-id write to another bank first), so same-id B order can break with no
+merge involved. A merge never adds to it.

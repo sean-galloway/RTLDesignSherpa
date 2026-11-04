@@ -152,6 +152,35 @@ async def _pick_probe(dut, path, n_cycles=160):
         json.dump(rows, fh)
 
 
+async def _store_trace(dut, path, n_cycles=120):
+    """PERF_STORE_TRACE=<path>: the FIFO store's write admission, merge, commit
+    and drain strobes for n_cycles from the first write merge (granite
+    TASK-006: where a merged one-id stream spends its cycles)."""
+    try:
+        st = dut.u_dut.u_dut.u_ctrl.u_core.g_fifo_store.u_fifo_store
+    except AttributeError:
+        return
+    names = ["aw_push_valid_i", "aw_push_ready_o", "r_awh_vld", "w_aw_fire", "w_aw_merge",
+             "w_mg_found", "w_mg_idclash", "w_mg_ok", "r_awh_dh", "w_wr_have_free",
+             "wd_valid_i", "wd_ready_o", "w_fill_done", "wr_commit_valid_i",
+             "w_wr_commit_fire", "w_fetch", "w_cm_fire", "w_done1", "w_d2q_pop", "r_fo_cnt"]
+    rows, started = [], False
+    while len(rows) < n_cycles:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        v = {}
+        for nm in names:
+            try:
+                v[nm] = int(getattr(st, nm).value)
+            except Exception:  # noqa: BLE001
+                v[nm] = None
+        started = started or bool(v["w_aw_merge"])
+        if started:
+            rows.append(v)
+    with open(path, "w") as fh:
+        json.dump(rows, fh)
+
+
 async def _lat_probe(dut, path, max_cycles=400000):
     """PERF_LAT_PROBE=<path>: the cycle of every handshake at each read-path
     boundary, so one read's latency splits into stages (granite TASK-003,
@@ -682,6 +711,8 @@ async def cocotb_test_granite_perf(dut):
         cocotb.start_soon(_pick_probe(dut, os.environ["PERF_PICK_PROBE"]))
     if os.environ.get("PERF_LAT_PROBE"):
         cocotb.start_soon(_lat_probe(dut, os.environ["PERF_LAT_PROBE"]))
+    if os.environ.get("PERF_STORE_TRACE"):
+        cocotb.start_soon(_store_trace(dut, os.environ["PERF_STORE_TRACE"]))
 
     r = await bridge(prog)()
     if mism_log:
@@ -786,6 +817,7 @@ def _run_granite_perf(request, over=None):
         "PERF_GATE_TRACE": _g("PERF_GATE_TRACE", ""),
         "PERF_PICK_PROBE": _g("PERF_PICK_PROBE", ""),
         "PERF_LAT_PROBE": _g("PERF_LAT_PROBE", ""),
+        "PERF_STORE_TRACE": _g("PERF_STORE_TRACE", ""),
         "TEST_MAX_OUT": _g("TEST_MAX_OUT", "0"),
         "PERF_DRAM_TRACE": _g("PERF_DRAM_TRACE", ""),
         "TEST_PAGE_MODE": _g("TEST_PAGE_MODE", ""),
