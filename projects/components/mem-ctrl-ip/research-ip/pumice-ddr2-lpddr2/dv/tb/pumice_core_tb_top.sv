@@ -134,6 +134,8 @@ module pumice_core_tb_top
     logic [31:0] stat_row_hit [NUM_BANKS];
     logic [31:0] stat_act, stat_pre, stat_ref;
     logic [31:0] stat_ref_busy;
+    // TASK-060 combiner counters, read by the merge-id test (two ids never merge)
+    logic [31:0] stat_merge, stat_rd_merge;
 
     logic [DFI_ADDR_BUS_W-1:0]  phy_dfi_address;
     logic [DFI_BANK_BUS_W-1:0]  phy_dfi_bank;
@@ -217,8 +219,8 @@ module pumice_core_tb_top
         // stat_ref counts host idle time too, so this is the one a measured
         // refresh cost comes from.
         .stat_ref_busy_o(stat_ref_busy),
-        .stat_merge_o       (),   // write-merge counter (pumice TASK-060): not observed here
-        .stat_rd_merge_o    (),   // read-merge counter (pumice TASK-060): not observed here
+        .stat_merge_o       (stat_merge),      // write merges (pumice TASK-060)
+        .stat_rd_merge_o    (stat_rd_merge),   // read merges (pumice TASK-060)
         .stat_row_hit_o(stat_row_hit),
         // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);
         // no runtime MR retune in this TB, init_restart tied off.

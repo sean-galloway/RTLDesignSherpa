@@ -34,7 +34,7 @@ module mc_wr_data_cam #(
     parameter int N_SRAM_SLOTS    = NUM_ENTRIES,  // may be < NUM_ENTRIES
     // bursts allowed in the commit drain queue, incl. the one being fetched
     parameter int WR_DRAIN_AHEAD  = 2,
-    // Write combining (pumice TASK-060). 1 = a write whose {bank,row,col} matches a
+    // Write combining (pumice TASK-060). 1 = a write whose {bank,row,col} and id match a
     // live, unscheduled, un-merged entry MERGES into it at fill time: its bytes are
     // written into the entry's SRAM slot under their strobes, the strobes are ORed,
     // the entry commits ONCE as one DRAM burst and answers TWO Bs (its own id, then
@@ -329,7 +329,8 @@ module mc_wr_data_cam #(
     // commit section): the arbiter's commit accept this cycle
     logic w_commit_fire, w_dq_pop;
     // ---- insert-time merge candidate (pumice TASK-060) ------------------------
-    // Youngest live, unscheduled, un-merged, non-split entry with the same key.
+    // Youngest live, unscheduled, un-merged, non-split entry with the same key
+    // AND the same AXI id: two ids never combine (owner's rule, 2026-11-03).
     // No entry is allocated for a merge; the decision is re-made at fill time
     // against the live entry (the arbiter sees sch_valid one cycle stale, so an
     // entry can still be committed after we chose it -- the fill side handles it).
@@ -342,7 +343,7 @@ module mc_wr_data_cam #(
             w_mg_match[i] = MERGE_EN && r_valid[i] && !r_sched[i] && !r_mgv[i] && !r_mgfill[i]
                             && !r_agg[i] && !ins_agg_i
                             && (r_bank[i] == ins_bank_i) && (r_row[i] == ins_row_i)
-                            && (r_col[i] == ins_col_i);
+                            && (r_col[i] == ins_col_i) && (r_id[i] == ins_id_i);
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             automatic logic y = 1'b1;
             for (int j = 0; j < NUM_ENTRIES; j++)
@@ -394,7 +395,7 @@ module mc_wr_data_cam #(
                              && !r_agg[i] && r_fdone[i]
                              && !(w_commit_fire && (commit_slot_i == PTRW'(i)))
                              && (r_bank[i] == w_fq_bank) && (r_row[i] == w_fq_row)
-                             && (r_col[i] == w_fq_col);
+                             && (r_col[i] == w_fq_col) && (r_id[i] == w_fq_id);
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             automatic logic y = 1'b1;
             for (int j = 0; j < NUM_ENTRIES; j++)

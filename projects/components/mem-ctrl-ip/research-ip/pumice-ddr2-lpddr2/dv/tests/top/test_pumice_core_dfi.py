@@ -884,6 +884,77 @@ async def cocotb_test_pumice_core_b2b(dut):
     dut._log.info(f"PASS: back-to-back — {n} tightly-issued bursts round-trip vs golden (DQ pacing)")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_merge_ids(dut):
+    """TASK-060 combiners never merge across AXI ids (owner's rule, 2026-11-03).
+
+    Phase 1, one id per pair: back-to-back write pairs to one burst, then
+    back-to-back read pairs. Some must merge (stat_merge / stat_rd_merge move),
+    which proves the counters and the merge window are live -- without that
+    the two-id phase below would pass on a design that never merges.
+    Phase 2, the same traffic with the two halves of each pair on DIFFERENT
+    ids: both counters must not move. Every read is checked against the golden
+    DRAM model. With one id the younger write wins (AXI same-id order); with two
+    ids AXI orders nothing (a master needing it waits for the first B), so
+    FR-FCFS may commit either last -- the two reads of the pair must then agree
+    on one of the two writes."""
+    await _bring_up(dut, page_policy=0)
+    rng = random.Random(int(os.environ.get("SEED", "6")))
+    n = {"gate": 8, "basic": 8, "func": 16, "medium": 16, "full": 32}.get(
+        os.environ.get("TEST_LEVEL", "basic").lower(), 8)
+    seen = set()
+
+    def addrs(k):
+        out = []
+        while len(out) < k:
+            a = _mkaddr(rng.randint(0, NUM_BANKS - 1), rng.randint(0, 63), rng.randint(0, 63) * BL)
+            if a not in seen:
+                seen.add(a)
+                out.append(a)
+        return out
+
+    async def phase(tag, ids, same_id):
+        # ids(k) -> (id of the first half, id of the second) for pair k. Pairs use
+        # disjoint ids so no pair's merge is blocked by another pair's same-id
+        # write (the wr CAM's same-id B-order guard).
+        pa = addrs(n)
+        reqs, rds, want, older = [], [], {}, {}
+        for k, a in enumerate(pa):
+            d1 = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+            d2 = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+            reqs += [(a, d1), (a, d2)]
+            want[a], older[a] = d2, d1
+            rds += [a, a]
+        idv = [i for k in range(n) for i in ids(k)]
+        w0, r0 = int(dut.stat_merge.value), int(dut.stat_rd_merge.value)
+        await _BFM['b'].write_many(reqs, axid_fn=lambda j: idv[j])
+        await ClockCycles(dut.aclk, 400)
+        w1 = int(dut.stat_merge.value)
+        got = await _BFM['b'].read_many(rds, axid_fn=lambda j: idv[j])
+        r1 = int(dut.stat_rd_merge.value)
+        assert len(got) == len(rds), f"{tag}: {len(got)} of {len(rds)} reads returned"
+        seen_val = {}
+        for a, beats in got:
+            v = beats[:BL_WORDS]
+            ok = v == want[a] or (not same_id and v == older[a])
+            assert ok, \
+                f"{tag}: read @ {a:#x} returned {[hex(x) for x in v]}, want " \
+                + ("the younger write" if same_id else "one of the pair's writes") \
+                + f" {[hex(x) for x in want[a]]}"
+            assert seen_val.setdefault(a, v) == v, \
+                f"{tag}: the two reads @ {a:#x} disagree ({seen_val[a]} vs {v})"
+        dut._log.info("%s: %d pairs, write merges %d, read merges %d", tag, n, w1 - w0, r1 - r0)
+        return w1 - w0, r1 - r0
+
+    wm, rm = await phase("one id per pair", lambda k: (2 * k, 2 * k), same_id=True)
+    assert wm > 0 and rm > 0, \
+        f"same-id pairs must merge (writes {wm}, reads {rm}): the two-id phase proves nothing otherwise"
+    wm, rm = await phase("two ids per pair", lambda k: (2 * k, 2 * k + 1), same_id=False)
+    assert wm == 0, f"{wm} write(s) merged across two AXI ids"
+    assert rm == 0, f"{rm} read(s) merged across two AXI ids"
+    dut._log.info("PASS: combiners merge within an id and never across ids")
+
+
 # ---------------------------------------------------------------------------
 # Write-stream perf measurement (TASK-002)
 #
@@ -2283,6 +2354,7 @@ def test_pumice_core_refresh_collide(request):
 def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_close")
 def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")
+def test_pumice_core_merge_ids(request): _run(request, "cocotb_test_pumice_core_merge_ids")
 def test_pumice_core_perf_read_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_read_ceiling")
 def test_pumice_core_perf_intake_admit_rate(request):

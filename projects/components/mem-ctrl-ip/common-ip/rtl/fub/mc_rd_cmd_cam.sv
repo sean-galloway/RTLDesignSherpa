@@ -23,7 +23,7 @@
 //          ~180 MB/s on the board. See design/README.md.)
 //
 //          Read combining (MERGE_EN, pumice TASK-060): an insert whose
-//          {bank,row,col} matches a LIVE entry (admitted, not yet issued)
+//          {bank,row,col} AND AXI id match a LIVE entry (admitted, not yet issued)
 //          allocates nothing. Its ticket is handed to the return ring as a
 //          SHADOW of the matched entry's ticket: one DRAM burst is issued, the
 //          ring hands its beats out twice, in AR order, and the intake frames
@@ -53,7 +53,7 @@ module mc_rd_cmd_cam #(
     parameter int AGE_WIDTH       = 16,
     parameter int RD_RET_DEPTH    = 32,   // mc_rd_return_ring DEPTH (ticket space)
     // Read combining (pumice TASK-060): 1 = an insert matching a live entry's
-    // {bank,row,col} takes no entry and rides that entry's DRAM burst through
+    // {bank,row,col} and AXI id takes no entry and rides that entry's DRAM burst through
     // the return ring (ins_merge_o). 0 = every read is its own burst.
     parameter bit MERGE_EN        = 1'b0,
 
@@ -191,8 +191,10 @@ module mc_rd_cmd_cam #(
 
     // ---- read combining: insert-time match against live entries ------------
     // Every live entry is unissued (issue frees), so any match is a burst
-    // still to come. With MERGE_EN two live entries never share a key (the
-    // second always merged), so the priority of the scan is moot.
+    // still to come. The key includes the AXI id: two ids never combine
+    // (owner's rule, 2026-11-03). With MERGE_EN two live entries never share
+    // a {key, id} (the second always merged), so the priority of the scan is
+    // moot.
     logic            w_mg_hit;
     logic [PTRW-1:0] w_mg_slot;
     logic            w_ins_alloc;    // an insert that takes an entry
@@ -201,7 +203,8 @@ module mc_rd_cmd_cam #(
         w_mg_slot = '0;
         for (int i = NUM_ENTRIES-1; i >= 0; i--)
             if (MERGE_EN && r_valid[i] && (r_bank[i] == ins_bank_i)
-                && (r_row[i] == ins_row_i) && (r_col[i] == ins_col_i)) begin
+                && (r_row[i] == ins_row_i) && (r_col[i] == ins_col_i)
+                && (r_id[i] == ins_id_i)) begin
                 w_mg_hit  = 1'b1;
                 w_mg_slot = PTRW'(i);
             end
