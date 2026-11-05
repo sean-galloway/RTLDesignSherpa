@@ -507,6 +507,12 @@ class SimpleTest:
         # (1:4 / BL8 / MR0=0x0433) do not match this DFI_RATE=2 / BL4 build, so
         # they are always programmed explicitly rather than rmw-preserved.
         program_geometry(d, rd_phase=self.rd_phase, wr_phase=0)
+        # pumice BUG-033 A/B: TEST_FAST_RD_EARLY=1 sets SCHED_POLICY.fast_rd_release
+        # here, before the first read (leveling verify included), as the
+        # always-on FAST_RD_RELEASE builds ran. TEST_FAST_RD alone sets it later,
+        # in ControllerConfig.apply. Off by default: the field is pumice-only.
+        if os.environ.get("TEST_FAST_RD_EARLY", "0") != "0":
+            d.set_sched_policy(fast_rd_release=True)
         if do_leveling:
             self.level = ensure_leveled(d, level_cache=self.level_cache,
                                         verbose=False, base_addr=self.base,
