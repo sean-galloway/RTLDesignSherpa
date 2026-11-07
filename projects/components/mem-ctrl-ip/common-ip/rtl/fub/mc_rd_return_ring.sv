@@ -258,6 +258,23 @@ module mc_rd_return_ring #(
     assign busy_o = !w_empty || w_iq_rd_valid || w_hd_vld || r_if_valid;
 
     // ---- sequential --------------------------------------------------------
+    // Reset-free skid payload (memory-controllers MC-005, 2026-11-06): the
+    // 2-deep prefetch skid's data / last / resp were never reset -- r_sk_cnt
+    // and the pointers (reset below) say which entries are live -- but they
+    // sat inside the async-reset process and Vivado implemented them in flops
+    // (Synth 8-4767, both controllers). Same two push conditions as before.
+    always_ff @(posedge aclk) begin
+        if (r_if_valid) begin
+            r_sk_data [r_sk_wr] <= r_rd_q;
+            r_sk_blast[r_sk_wr] <= r_if_blast;
+            r_sk_resp [r_sk_wr] <= r_if_resp;
+        end else if (w_byp && !w_ft_take) begin
+            r_sk_data [r_sk_wr] <= dfi_ret_data_i;
+            r_sk_blast[r_sk_wr] <= (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1));
+            r_sk_resp [r_sk_wr] <= dfi_ret_resp_i;
+        end
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_head <= '0; r_tail <= '0; r_occ <= '0;
@@ -328,14 +345,8 @@ module mc_rd_return_ring #(
             // fetch stage 2: the captured beat enters the skid tail
             // (RET_BYPASS: or the bypassed return beat, never in the same cycle)
             if (r_if_valid) begin
-                r_sk_data [r_sk_wr] <= r_rd_q;
-                r_sk_blast[r_sk_wr] <= r_if_blast;
-                r_sk_resp [r_sk_wr] <= r_if_resp;
                 r_sk_wr             <= r_sk_wr + 1'b1;
             end else if (w_byp && !w_ft_take) begin
-                r_sk_data [r_sk_wr] <= dfi_ret_data_i;
-                r_sk_blast[r_sk_wr] <= (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1));
-                r_sk_resp [r_sk_wr] <= dfi_ret_resp_i;
                 r_sk_wr             <= r_sk_wr + 1'b1;
             end
             if (w_dr_fire && !w_ft_take) r_sk_rd <= r_sk_rd + 1'b1;

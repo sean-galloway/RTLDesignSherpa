@@ -71,6 +71,14 @@ module char_gen_wr_order_q #(
     assign head_valid = !w_empty || w_bypass;
     assign head_sel   = w_empty ? push_sel : r_q[r_rd_ptr];
 
+    // Queue storage, reset-free (memory-controllers MC-005, 2026-11-06): the
+    // entries were never reset -- r_count and the pointers below say which are
+    // live -- but written inside the async-reset process Vivado implemented the
+    // array in flops (Synth 8-4767 on both controller builds). Same push.
+    always_ff @(posedge clk) begin
+        if (push) r_q[r_wr_ptr] <= push_sel;
+    end
+
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_wr_ptr <= '0;
@@ -81,7 +89,6 @@ module char_gen_wr_order_q #(
             // covers the cycle it was pushed on, and a burst longer than one
             // beat still has to find it here next clock.
             if (push) begin
-                r_q[r_wr_ptr] <= push_sel;
                 r_wr_ptr      <= (r_wr_ptr == PTRW'(DEPTH-1)) ? '0 : (r_wr_ptr + PTRW'(1));
             end
             if (pop) begin

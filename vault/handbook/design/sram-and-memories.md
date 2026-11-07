@@ -67,3 +67,17 @@ reset, and an entry under a reset pointer is overwritten before it can be
 read. Check the post-implementation "LUT as Memory" and register counts
 when a FIFO depth changes; a register count that grows by width x depth is
 this.
+
+The mechanical check is the synth log, not the utilization table: Vivado
+names every array it refused as RAM with `[Synth 8-4767] ... implemented in
+registers` and the reason `RAM is sensitive to asynchronous reset signal`.
+`grep -c 'Synth 8-4767' vivado.log` after `make synth` is the count; it was
+35 on pumice and 30 on granite on the 10-27 builds (memory-controllers
+ISSUE-001) and every one of those arrays was a tag written ONCE under a
+dynamic slot index and never reset -- the reset branch beside it was for other
+state. Moving the write statements into their own clock-only `always_ff`
+(same condition, same index) is behaviour-identical in simulation, which is
+why nothing but the synth log can tell you it was needed (memory-controllers
+MC-005, 2026-11-06). A census helps: for every `[N]` array, list its write
+sites and whether any is a reset-loop write; the single-site, no-reset ones
+are the candidates.

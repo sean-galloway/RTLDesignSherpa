@@ -1,11 +1,11 @@
 # memory-controllers — task lane
 
-**Next ID: MC-004** — never recycle a number.
+**Next ID: MC-006** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 2 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
@@ -13,6 +13,14 @@
 ## Open
 
 (none)
+
+## Active
+
+- **MC-004** -- two-register `gaxi_skid_buffer`, no data reset, no shift
+  (ISSUE-001 row 1; ~3k LUT chip-wide). Started 2026-11-06.
+- **MC-005** -- storage arrays out of `ALWAYS_FF_RST` into reset-free
+  `always_ff` with the live state kept in the reset block (ISSUE-001 row 2b;
+  35 / 30 arrays dissolved to flops today). Started 2026-11-06.
 
 ## Closed
 

@@ -328,6 +328,22 @@ module mc_rd_cmd_cam #(
     end
 
     // ---- sequential --------------------------------------------------------
+    // Reset-free tag storage (memory-controllers MC-005, 2026-11-06): written
+    // once at insert, read only through a slot r_valid says is live, never
+    // reset. Kept out of the async-reset process so Vivado can infer RAM
+    // (Synth 8-4767 dissolved r_ticket into flops on the 10-27 pumice build).
+    always_ff @(posedge aclk) begin
+        if (w_ins_alloc) begin
+            r_bank  [w_free_slot] <= ins_bank_i;
+            r_row   [w_free_slot] <= ins_row_i;
+            r_col   [w_free_slot] <= ins_col_i;
+            r_id    [w_free_slot] <= ins_id_i;
+            r_qos   [w_free_slot] <= ins_qos_i;
+            r_ticket[w_free_slot] <= ins_ticket_i;
+            r_age   [w_free_slot] <= r_age_ctr;
+        end
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_age_ctr <= '0;
@@ -341,13 +357,6 @@ module mc_rd_cmd_cam #(
             // insert (a merged read takes no entry: its ticket shadows the match)
             if (w_ins_alloc) begin
                 r_valid [w_free_slot] <= 1'b1;
-                r_bank  [w_free_slot] <= ins_bank_i;
-                r_row   [w_free_slot] <= ins_row_i;
-                r_col   [w_free_slot] <= ins_col_i;
-                r_id    [w_free_slot] <= ins_id_i;
-                r_qos   [w_free_slot] <= ins_qos_i;
-                r_ticket[w_free_slot] <= ins_ticket_i;
-                r_age   [w_free_slot] <= r_age_ctr;
                 // age matrix: new slot is YOUNGEST -> older than nobody, and
                 // every other slot is older than it.
                 for (int j = 0; j < NUM_ENTRIES; j++) begin
