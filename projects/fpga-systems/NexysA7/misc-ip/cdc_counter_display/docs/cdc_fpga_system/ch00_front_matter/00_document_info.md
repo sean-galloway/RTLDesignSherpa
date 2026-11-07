@@ -40,7 +40,7 @@
 |---|---|---|
 | CDC demo operator guide | `docs/cdc_demo_guide/` | the chaptered guide for someone at the board |
 | Harness procedure | `docs/HARNESS.md` | CSR map plus the scripted demo procedure |
-| CDC failure taxonomy | `docs/CDC_DEMO_TODO.md` | the modes of CDC failure, and "why it sometimes works anyway" |
+| CDC failure taxonomy | `docs/CDC_FAILURE_MODES.md` | the modes of CDC failure, and "why it sometimes works anyway" |
 | Project README | `README.md` | the two-build table and the build/program commands |
 | pumice system book | `../../pumice/docs/pumice_fpga_system/` | the same book for the other Nexys A7 project, where the harness is shared rather than per-build |
 

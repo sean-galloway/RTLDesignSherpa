@@ -171,32 +171,40 @@ make host-cdc_demo ARGS=monitor
 
 ## What this enables
 
-- **Live CDC demo on real silicon.** Press the four buttons, host watches VALUE/PRESS_COUNT update across the CDC. With `CDC_MODE=0` (Gray-coded sync) the reads are always coherent regardless of clock speed.
-- **Watch CDC actually break.** Put one counter in `CDC_MODE=1` (no CDC, raw cross), set `AUTO_INC=1`, then sweep its `PICKOFF` from slow → fast. The 7-seg digit for that counter stays clean at slow speeds (the "lucky" case from `CDC_DEMO_TODO.md` §4), then visibly flickers and shows garbage at fast speeds (multi-bit bus skew). Other counters in `CDC_MODE=0` stay clean throughout — side-by-side comparison on one board.
+- **Live CDC demo on real silicon.** Press the four buttons, host watches VALUE/PRESS_COUNT update across the CDC. In a safe mode (`CDC_MODE` 2, 3 or 4: async FIFO, two-phase, four-phase) the reads are always coherent regardless of clock speed.
+- **Watch CDC actually break.** Put one counter in `CDC_MODE=0` (no CDC, raw flop per bit), set `AUTO_INC=1`, then sweep its divided clock (`DIVISOR.DIV_PICKOFF` with `CLOCK_SELECT=4`) from slow to fast. The 7-seg digit for that counter stays clean at slow speeds (the "lucky" case in [`CDC_FAILURE_MODES.md`](CDC_FAILURE_MODES.md)), then visibly flickers and shows garbage at fast speeds (multi-bit bus skew). Counters in a safe mode stay clean throughout -- side-by-side comparison on one board.
 - **Sweep clock-ratio space.** Host can set arbitrary pickoff values per counter; combined with `AUTO_INC=1` this exercises the full source-clock range with no UART bottleneck.
 - **Headless characterization.** No physical button presses needed — the host can either inject thousands of synthetic presses via `HOST_PRESS` or flip `AUTO_INC=1` to drive the counter at line rate.
 - **Same UART + AXIL pattern as `stream_characterization` / `timing_characterization`.** One bitstream, one TTY, one Python runner. Familiar wiring.
 
 ### The headline "watch it fail" demo
 
+`CDC_MODE` resets to **0 (NO-CDC)** on every counter. After reset the counters
+are button-driven on slow clocks, so the raw crossing looks fine -- which is
+the point of the demo. One command runs the whole sweep:
+
 ```
-# All four counters start in proper CDC mode, slow clock, button-driven.
-# That's the default after reset — nothing to do.
-
-# Pick counter 2 for the demo. Switch it to broken-CDC + auto-increment.
-host_write(ctr2.CDC_MODE, 1)        # NO CDC
-host_write(ctr2.AUTO_INC, 1)        # Every ctr_clk edge advances counter
-
-host_write(ctr2.PICKOFF, 23)        # ~6 Hz   → display: 00 01 02 03 ... clean
-host_write(ctr2.PICKOFF, 19)        # ~95 Hz  → still clean (faster but legible)
-host_write(ctr2.PICKOFF, 15)        # ~1.5 kHz → still clean (display refresh averages)
-host_write(ctr2.PICKOFF, 11)        # ~24 kHz → still clean (~lucky)
-host_write(ctr2.PICKOFF, 7)         # ~390 kHz → flicker starts
-host_write(ctr2.PICKOFF, 3)         # ~6 MHz   → visible garbage
-host_write(ctr2.PICKOFF, 0)         # ~50 MHz  → total scramble
-
-# Set DISP_SELECT to 2 to put the broken counter on the 7-seg.
-# Compare against counter 0 or 1 (still in proper CDC mode) — those
-# stay clean at any pickoff.
+make host-cdc_demo ARGS="watch-fail --counter 2"
 ```
+
+What it does, register by register (`build-demo/host/cdc_programs.py`
+`watch_fail`):
+
+```
+DISP_SELECT    = 2                      # put the counter under test on the 7-seg
+ctr2.CDC_MODE  = 0                      # NO CDC (the reset value; set explicitly)
+ctr2.AUTO_INC  = 1                      # every ctr_clk edge advances the counter
+ctr2.INIT = 0, INCREMENT = 1, CFG_LOAD  # start from zero, count by one
+ctr2.DIVISOR   = CLOCK_SELECT=4, DIV_PICKOFF=23   # ~6 Hz    -> 00 01 02 03 ... clean
+                                  DIV_PICKOFF=15   # ~1.5 kHz -> still clean (display refresh averages)
+                                  DIV_PICKOFF=11   # ~24 kHz  -> still clean (~lucky)
+                                  DIV_PICKOFF=7    # ~390 kHz -> flicker starts
+                                  DIV_PICKOFF=3    # ~6 MHz   -> visible garbage
+                                  DIV_PICKOFF=0    # ~50 MHz  -> total scramble
+# (default sweep is 23 19 15 13 11 9 7 5 3 1 0; --pickoffs overrides it.
+#  VALUE is sampled 10x per step; unique-value count is the verdict.)
+# At the end it leaves the counter in CDC_MODE=2 (SYNC_FIFO), AUTO_INC=0, pickoff 23.
+```
+
+Compare against a counter in mode 2, 3 or 4: it stays clean at any pickoff.
 

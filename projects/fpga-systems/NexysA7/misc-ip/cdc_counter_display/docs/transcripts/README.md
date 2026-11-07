@@ -61,4 +61,4 @@ If the series goes well, candidates for follow-ups:
 
 - [`../RUNBOOK.md`](../RUNBOOK.md) — operator's guide for the board (the live demo cheat sheet the videos walk through)
 - [`../HARNESS.md`](../HARNESS.md) — CSR map for the host runner
-- [`../CDC_DEMO_TODO.md`](../CDC_DEMO_TODO.md) — taxonomy of CDC failure modes (background reading)
+- [`../CDC_FAILURE_MODES.md`](../CDC_FAILURE_MODES.md) — taxonomy of CDC failure modes (background reading)

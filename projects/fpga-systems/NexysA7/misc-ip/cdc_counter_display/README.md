@@ -12,7 +12,7 @@
 | **build-demo (UART harness, default)** — four counters, four buttons, host-controlled clock divisors, switchable proper-vs-broken CDC, watch-it-fail demo | `cdc_demo_top` | `make bitstream` | `make program` | `make host-cdc_demo ARGS="watch-fail --counter 2"` runs the headline demo: take one counter to NO-CDC mode, sweep its clock from slow → fast, watch the 7-seg flicker garbage at high speeds while the other counters stay clean. |
 
 **Demo-build docs:** [`docs/HARNESS.md`](docs/HARNESS.md) (CSR map + scripted demo procedure).
-**Demo-build background:** [`docs/CDC_DEMO_TODO.md`](docs/CDC_DEMO_TODO.md) (taxonomy of CDC failure modes + "why it sometimes works anyway" pitfalls).
+**Demo-build background:** [`docs/CDC_FAILURE_MODES.md`](docs/CDC_FAILURE_MODES.md) (taxonomy of CDC failure modes + "why it sometimes works anyway" pitfalls).
 
 Each build is its own `build-*` directory (`build-phase1/` and `build-demo/`) with its own RTL top, filelist, XDC and Vivado project tree. The component Makefile is a dispatcher: targets go to `build-demo` by default, `BUILD=phase1` selects the other. All flow logic lives in the global `make/fpga_flow.mk` — the build Makefiles are variables only.
 

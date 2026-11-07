@@ -31,7 +31,7 @@ harness around the four counter domains, the five selectable crossings, and the
 flow that makes an unsafe crossing fail visibly on demand.
 
 > The operator procedure lives in `docs/cdc_demo_guide/` and `docs/HARNESS.md`,
-> and the taxonomy of CDC failure modes in `docs/CDC_DEMO_TODO.md`. This book
+> and the taxonomy of CDC failure modes in `docs/CDC_FAILURE_MODES.md`. This book
 > explains the apparatus: what is in each bitstream, why the two builds share
 > almost nothing, and why each part of the demonstration is shaped the way it is.
 

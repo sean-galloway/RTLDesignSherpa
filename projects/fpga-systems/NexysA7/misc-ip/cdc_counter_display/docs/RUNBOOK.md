@@ -9,8 +9,9 @@ display digit means, and how to drive the headline "watch CDC break" demo
 from the board alone (no laptop required, though one is supported via UART).
 
 For the CSR map and host-script reference see [`HARNESS.md`](HARNESS.md).
-For the CDC primitive taxonomy and the "why it sometimes works anyway"
-pitfalls, see [`CDC_DEMO_TODO.md`](CDC_DEMO_TODO.md).
+For the CDC failure modes and the "why it sometimes works anyway"
+pitfalls, see [`CDC_FAILURE_MODES.md`](CDC_FAILURE_MODES.md); for which
+primitive to use, the rtl-cdc book it links.
 
 ---
 
