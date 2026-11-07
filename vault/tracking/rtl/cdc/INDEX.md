@@ -14,7 +14,7 @@ Pick the lane before filing:
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | 1 | 0 | 2 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 1 | 1 | 3 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 4 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
 
 Items live one per file under the lane directories below; this page is the

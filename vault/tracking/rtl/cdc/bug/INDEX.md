@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,13 +22,15 @@ by construction rather than by discipline.
 
 ## Active
 
-- **BUG-004** — `glitch_free_n_dff_arn` has no `ASYNC_REG` attribute on its
-  synchronizer array, so every `gaxi_fifo_async` pointer crossing is unclassified
-  by Vivado's CDC report and may be split across slices. Found 2026-11-05 under
-  memory-controllers ISSUE-001. Attribute added 2026-11-06; awaiting a board report_cdc. [active/BUG-004.md](active/BUG-004.md).
-
+None.
 
 ## Closed
+
+- **BUG-004** — `glitch_free_n_dff_arn` had no `ASYNC_REG` attribute on its
+  synchronizer array. Found 2026-11-05 under memory-controllers ISSUE-001;
+  attribute added 2026-11-06; confirmed 2026-11-07 on a routed granite Nexys A7
+  build (120 flops all carry it, 0 SRL, every stage pair in one slice).
+  [closed/BUG-004.md](closed/BUG-004.md).
 
 - **BUG-001** — cdc_4_phase_handshake FAST_PATH acknowledged a transfer the receiver never took
 - **BUG-002** — fifo_async wavedrom scenarios hand-drove dut.read against a live BFM
