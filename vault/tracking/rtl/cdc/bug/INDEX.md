@@ -2,7 +2,7 @@
 
 # cdc — bugs
 
-**Next ID: BUG-004** — never recycle a number, even when its item closed.
+**Next ID: BUG-005** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -13,12 +13,19 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+## Active
+
+- **BUG-004** — `glitch_free_n_dff_arn` has no `ASYNC_REG` attribute on its
+  synchronizer array, so every `gaxi_fifo_async` pointer crossing is unclassified
+  by Vivado's CDC report and may be split across slices. Found 2026-11-05 under
+  memory-controllers ISSUE-001. Attribute added 2026-11-06; awaiting a board report_cdc. [active/BUG-004.md](active/BUG-004.md).
 
 
 ## Closed

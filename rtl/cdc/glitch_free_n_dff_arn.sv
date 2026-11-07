@@ -335,7 +335,10 @@ module glitch_free_n_dff_arn #(
     localparam int DW = WIDTH;
 
     ////////////////////////////////////////////////////////////////////////////
-    // Packed array to hold the states
+    // Packed array to hold the states. ASYNC_REG keeps every stage pair in
+    // one slice and marks the chain for the CDC report; SHREG_EXTRACT stops
+    // Vivado folding it into an SRL (cdc BUG-004, 2026-11-06).
+    (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *)
     logic [FC-1:0][WIDTH-1:0] r_q_array;
 
     `ALWAYS_FF_RST(clk, rst_n,
