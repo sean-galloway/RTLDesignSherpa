@@ -1,7 +1,7 @@
 # Claude Code Guide for RTL Design Sherpa
 
-**Version:** 1.3
-**Last Updated:** 2026-09-20
+**Version:** 1.4
+**Last Updated:** 2026-11-07
 **Purpose:** Help Claude Code work efficiently with this repository
 
 ---
@@ -245,10 +245,12 @@ from TBClasses.shared.tbbase import TBBase
    NOT -- there is no `rtl/amba/PRD.md`, `rtl/common/PRD.md` or
    `rtl/math/PRD.md`, and there never has been.
 
-2. **Check the task tracker.** Work items live in `vault/tracking/<area>/`, split
-   into `open.md` / `active.md` / `closed.md` / `dropped.md` with an
-   `INDEX.md` carrying the counts. Some components also keep a local
-   `TASKS.md`; the `rtl/` subsystems do not.
+2. **Check the task tracker.** Work items live in `vault/tracking/<area>/`
+   (the area mirrors the repo path) in three lanes, `task/`, `bug/` and
+   `issue/`, with one file per item in a directory per state (`open/`,
+   `active/`, `closed/`, `dropped/`, `deferred/`). The `tasks` skill has the
+   essentials; `vault/tracking/INDEX.md` is the authority. Never create a
+   `TASKS.md` or `TODO.md` beside code.
 
 3. **Review known issues** before modifying RTL. `rtl/amba/KNOWN_ISSUES/` and
    `projects/components/<name>/known_issues/` exist; `rtl/common` and
@@ -375,10 +377,10 @@ demand rather than every session; invoke it before writing or changing a test.
    - Changing requirements
    - Reaching milestones
 
-4. **Update TASKS.md** when:
-   - Starting new work
-   - Completing tasks
-   - Discovering new issues
+4. **Update the tracker** (`vault/tracking/<area>/`, see the `tasks` skill) when:
+   - Starting new work (`git mv` the item to `active/`)
+   - Completing work (`git mv` it to `closed/`)
+   - Discovering a defect or an open question (a new `bug/` or `issue/` item)
 
 5. **Update KNOWN_ISSUES/** when:
    - Finding bugs
@@ -459,5 +461,10 @@ demand rather than every session; invoke it before writing or changing a test.
   no subsystem; it points at `vault/tracking/<area>/` now. The naming section
   claimed "always `aresetn`" and "`i_clk` for common modules" -- measured, it
   is `clk`/`rst_n` in `rtl/common`, with zero of either.
+- v1.4 (2026-11-07): Session startup and "Documentation Requirements" still
+  described flat `open.md`/`active.md` tracker pages and said to update a
+  `TASKS.md`; the flat pages were all migrated to task/bug/issue lanes (one
+  file per item, `git mv` between state directories) on 2026-09-27. Both now
+  point at the lanes and the `tasks` skill.
 
 **Maintained By:** RTL Design Sherpa Project

@@ -22,7 +22,8 @@ Non-negotiables:
   Record the failing seed and hand it on.
 
 - **A quarantine without a recorded reason is a silently deleted test.** Every
-  quarantine gets a reason and a task in `/vault/tracking/<area>/open.md`.
+  quarantine gets a reason and an item in `/vault/tracking/<area>/issue/open/`
+  (or `bug/open/` once diagnosed).
 
 - **"Fixed" is a measurement.** Before reporting anything fixed: a clean rebuild
   that reproduces the pass, and a mutation check showing the test can still go RED.

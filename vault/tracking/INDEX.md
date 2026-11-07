@@ -12,15 +12,14 @@ vault/tracking/<area>/
   bug/        defects               INDEX.md + open/ active/ closed/ dropped/
   issue/      undiagnosed problems  INDEX.md + open/ active/ closed/ dropped/
               ^ each state is a DIRECTORY holding one file per item, <ID>.md
-
-  # LEGACY task lane -- frozen, close out in place, do not add to:
-  active.md   in progress right now
-  open.md     accepted, ready to start
-  deferred.md accepted, deliberately PARKED - waiting on a named external
-              condition (a consumer, a decision, a dependency), not on effort
-  closed.md   done (completed; kept for history, not deleted)
-  dropped.md  ended without completing (abandoned / superseded / won't do)
+              deferred/ is a fifth state, created in a lane on first need
 ```
+
+The flat `open.md` / `active.md` / `closed.md` / `deferred.md` / `dropped.md`
+pages this tree started with are gone: every area was migrated into lanes
+(tooling TASK-001, formerly TOOL-001, closed 2026-09-27) and no flat page remains. `MIGRATION_MAP.md`
+maps each old ID to its new lane ID. The checker still recognises a flat page
+if one reappears, so it cannot hide items, but do not create one.
 
 ## Three lanes: task, bug, issue (Sean, 2026-09-24)
 
@@ -124,8 +123,8 @@ it, so the parking is a recorded decision rather than quiet neglect (added
 2026-08-11, Sean; COMMON-007's hierarchical-arbitration slice was the
 motivating case — shaped, elaborated, and twice deliberately parked pending
 a consumer, which `open` kept misrepresenting as ready-to-start work).
-Areas create `deferred.md` when they first need it; an absent file means
-nothing is parked.
+A lane creates its `deferred/` directory when it first needs one; an absent
+directory means nothing is parked.
 
 ## Sub-areas: an area may hold items AND contain sub-areas (Sean, 2026-09-25)
 
@@ -199,7 +198,8 @@ the same mistake.
 
 ## Task IDs are permanent — never recycle one
 
-Each area's `INDEX.md` carries a **`Next ID:`** line near the top. Take that
+Each LANE's `INDEX.md` (`<area>/task/INDEX.md`, `.../bug/INDEX.md`,
+`.../issue/INDEX.md`) carries a **`Next ID:`** line near the top. Take that
 number, use it, bump the line. **Never reuse a number because its task
 closed.** A task ID is a permanent handle: `[[PUMICE-011]]` in a handbook
 note, a commit message, or a session memory has to keep meaning one thing
@@ -222,17 +222,21 @@ disambiguated by date. Five such collisions remain across four areas.
   renumber the new task instead);
 * a missing or stale `Next ID:` line (<= the highest ID already in use).
 
-It also WARNS, without blocking, when a task in `closed.md`/`dropped.md`
+It also WARNS, without blocking, when an item in `closed/` or `dropped/`
 still says `**Status:** open`. That one is a warning by design: deciding
 whether such a task is "closed with a stale line" or "still open and
 misfiled" needs someone who knows the work, and auto-flipping the text would
 launder open work into the closed pile. Eleven of those exist today — see [[AUDIT-002]].
 
     bin/check_task_ids.py                 # check everything
-    bin/check_task_ids.py --next pumice   # -> PUMICE-045
+    bin/check_task_ids.py --next rtl/amba/bug   # -> next BUG-NNN in that lane
 
 
 ## Heading shape — every task is `## <ID>`, uniformly (Sean, 2026-09-14)
+
+_Applies to the retired flat pages, kept for the history it records. In a
+lane, the item file's H1 is the ID (`# BUG-012: ...`) and must match the
+filename; sections inside the body are `##` or deeper._
 
 **A task entry is an `##` heading, and the ID is the heading.** Not `###`, not
 a bare number, not a mixture:
@@ -285,19 +289,20 @@ otherwise. New IDs should be numeric.
 
 **All task tracking lives here.** Do not create a `TASKS.md`, `TODO.md`, or
 `*_TODO.md` next to code — that scatter is exactly what this directory
-replaces. A note-to-self about a file belongs in `vault/tracking/<area>/open.md`, not in
-a new file beside the file.
+replaces. A note-to-self about a file belongs in a new item under
+`vault/tracking/<area>/<lane>/open/`, not in a new file beside the file.
 
 ## Lifecycle
 
-A task moves `open → active → closed` (done) — or to `dropped` if it ends
+An item moves `open → active → closed` (done) — or to `dropped` if it ends
 without being completed, or `open ↔ deferred` when the blocker is an external
-condition rather than effort — by **cutting** its block from one page and
-pasting it into the next. Never copy: a task must exist in exactly one state.
-Keep the task's `**Status:**` line current with a date and, when dropping or
-deferring, the one-line reason (for deferred: the condition that un-defers
-it). New tasks get the next `TASK-NNN` (or area-appropriate) id and start in
-`open.md`.
+condition rather than effort — by **`git mv`** of its file between state
+directories, and the lane INDEX is updated in the same commit. Never copy: an
+item exists in exactly one state, and the checker fails on the same ID under
+two. Keep the item's `**Status:**` line current with a date and, when dropping
+or deferring, the one-line reason (for deferred: the condition that un-defers
+it). New items take the lane's `Next ID:` (or `bin/check_task_ids.py --next
+<lane path>`) and start in `open/`.
 
 ## Reporting status
 

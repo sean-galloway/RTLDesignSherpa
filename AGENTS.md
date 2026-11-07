@@ -46,7 +46,7 @@ and its note ever disagree, the note is right and this file is stale.
   the ID from the lane's `INDEX.md` or `bin/check_task_ids.py --next <lane
   path>`, write one file per item, and change state with `git mv`. Cite an ID
   with its area ("pumice BUG-009"). `vault/tracking/INDEX.md` is the
-  authority; the `tasks` skill still describes the retired flat pages.
+  authority; the `tasks` skill is the short version.
 - **Context about one area** (why this block is the way it is) goes in
   `vault/repo-wide-projects/<same path as the code>/INDEX.md`.
 

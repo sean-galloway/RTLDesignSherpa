@@ -326,7 +326,7 @@ Two things bite here, and both are silent.
 typed the `rm -rf` by hand. Either way a concurrent session's in-flight build
 disappears, and the failure does not look like a deletion -- it surfaces as a
 missing file inside Verilator, or a model that finishes and is simply wrong.
-`vault/tracking/rtl/amba/open.md` records three occurrences before the cause was
+The amba tracker (then a flat `open.md`, since migrated to lanes) recorded three occurrences before the cause was
 found. Both targets now call `bin/clean_sim_builds.py`, which reads the
 `.sim_busy` marker `sim_build_path()` writes and skips directories whose owning
 pid is still alive, reporting what it skipped. Liveness is the test, not

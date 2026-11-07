@@ -809,7 +809,7 @@ verilator --lint-only rtl/{subsystem}/{module}.sv
 
 **Step 5: Document**
 - Update subsystem `PRD.md` if major feature
-- Update `TASKS.md` with completion
+- Close the item in `vault/tracking/<area>/` (`git mv` to `closed/`)
 - Add to `KNOWN_ISSUES/` if limitations found
 
 ### 7.2 Modifying Existing RTL

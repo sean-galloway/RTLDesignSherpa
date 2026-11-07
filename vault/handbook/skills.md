@@ -33,7 +33,7 @@ durable lesson, it goes in the **note**, and the skill keeps pointing at it.
 | [regressions](../../.claude/skills/regressions/SKILL.md) | [[running-regressions]] | `make clean-all && make run-all-{gate,func,full}-parallel`, never a bare pytest |
 | [review-rounds](../../.claude/skills/review-rounds/SKILL.md) | [[kimi-review-rounds]] | External doc-review rounds: bundles, dispatch, triage, humanization pass |
 | [test-review](../../.claude/skills/test-review/SKILL.md) | [[test-review]] | Auditing test collateral with the review pipeline: grab list, bundle layout, checklist |
-| [tasks](../../.claude/skills/tasks/SKILL.md) | [/vault/tracking/INDEX.md](../tracking/INDEX.md) | Where TODOs live — the `/vault/tracking/<area>/` lifecycle pages |
+| [tasks](../../.claude/skills/tasks/SKILL.md) | [/vault/tracking/INDEX.md](../tracking/INDEX.md) | Where work items live — `/vault/tracking/<area>/` task/bug/issue lanes, one file per item |
 | [uart-harness](../../.claude/skills/uart-harness/SKILL.md) | [[uart-harness]] | One host program running identically against cocotb sim and the FPGA |
 
 The `tasks` skill points at the tracking tree (work items), not a handbook note —

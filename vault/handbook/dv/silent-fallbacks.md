@@ -366,7 +366,7 @@ status, so the check was **skipped** -- no output, no warning, exit 0.
 
 Two prefixes in live use defeated it, neither of them exotic:
 
-- `**Status:** <emoji> CLOSED 2026-09-15` -- 37 lines in `vault/tracking/rtl/amba/closed.md`
+- `**Status:** <emoji> CLOSED 2026-09-15` -- 37 lines in amba's flat `closed.md` (since migrated to lanes)
 - `**Status:** [x] Done (2026-09-20)` -- 13 lines using a markdown checkbox
 
 So roughly **50 of the tracker's 277 status lines were never checked**, and the

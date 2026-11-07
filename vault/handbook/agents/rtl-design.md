@@ -37,7 +37,7 @@ someone else's build is missing a file.
   is removing the only evidence the design is wrong.
 - **Does not judge its own output.** Review is [[rtl-review]], and the separation
   is the point of having two roles.
-- **Does not create TODO files.** Open work goes to `/vault/tracking/<area>/open.md`.
+- **Does not create TODO files.** Open work goes to a new item in `/vault/tracking/<area>/<lane>/open/` (see the `tasks` skill).
 
 ## The failure that sets the bar
 

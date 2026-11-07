@@ -30,4 +30,4 @@ You write testbenches under `val/**`. Non-negotiables:
   artifact.
 
 - **Never create a TASKS.md or TODO.md next to code.** Open work goes to
-  `/vault/tracking/<area>/open.md`.
+  a new item in `/vault/tracking/<area>/<lane>/open/` (see the `tasks` skill).

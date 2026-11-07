@@ -34,8 +34,8 @@ Route, do not repair:
 - **Test defect** - the RTL is right and the stimulus or checker is wrong. Route
   to [[dv-author]].
 - **Flake** - passes and fails on the same build with different seeds. Record the
-  failing seed, quarantine with a reason and a task in
-  `/vault/tracking/<area>/open.md`. A quarantine without a recorded reason is a
+  failing seed, quarantine with a reason and an item in
+  `/vault/tracking/<area>/issue/open/` (or `bug/open/` once diagnosed). A quarantine without a recorded reason is a
   silently deleted test.
 - **Infrastructure** - build, filelist, tool or board. Often [[filelists]]: an
   unregistered module is one of the two silent failures there.

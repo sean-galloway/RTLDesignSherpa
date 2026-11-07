@@ -1,48 +1,48 @@
 ---
 name: tasks
-description: Where project tasks/TODOs live and how to track them - the /vault/tracking/<area>/ directory with open/active/deferred/closed/dropped lifecycle pages. Use whenever you would record a TODO, start/finish a task, or are tempted to create a TASKS.md or TODO.md next to code.
+description: Where project tasks, bugs and issues live and how to track them - vault/tracking/<area>/ with task/bug/issue lanes, one file per item, state = directory, transitions by git mv, IDs from bin/check_task_ids.py --next. Use whenever you would record a TODO, file a bug, start/finish/park an item, or are tempted to create a TASKS.md or TODO.md next to code.
 ---
 
 # tasks
 
-READ FIRST: /vault/tracking/INDEX.md (the master index IS the authority for this convention).
+READ FIRST: `vault/tracking/INDEX.md`. It is the authority for this convention;
+this skill is a signpost and stops at the essentials.
 
-All task tracking lives in `/vault/tracking/<area>/`. Each area has `INDEX.md` plus four
-lifecycle pages: `open.md` (ready to start), `active.md` (in progress),
-`deferred.md` (deliberately parked - the block must NAME the condition that
-un-defers it; created per-area on first need), `closed.md` (done),
-`dropped.md` (ended without completing).
+**Never create a `TASKS.md`, `TODO.md` or `*_TODO.md` next to code.** That
+scatter is what `vault/tracking/` replaces, and it is the rule agents break
+most often here.
 
-The rule agents break: **never create a `TASKS.md` / `TODO.md` / `*_TODO.md`
-next to code.** That scatter is what /vault/tracking/ replaces. A note-to-self goes in
-`/vault/tracking/<area>/open.md`, not in a new file beside the module.
+## The shape
 
-Move a task by CUTTING its block between pages (never copy - one state only),
-and keep its `**Status:**` line dated. `closed` = done; `dropped` = decided not
-to do it - keep them apart so history stays honest.
+```
+vault/tracking/<area>/              area mirrors the repo path (rtl/amba, projects/components/...)
+  INDEX.md                          rollup
+  task/  bug/  issue/               three lanes, each with its own INDEX.md and Next ID
+    open/ active/ closed/ dropped/  one file per item: <ID>.md
+    deferred/                       created on first need
+```
 
-Migration is in progress (tracked as TOOL-001 in vault/tracking/tooling/active.md):
-`amba` is migrated; other areas' rows in /vault/tracking/INDEX.md are marked `pending`
-and still point at their old file until moved.
+- **Pick the lane.** `task` = planned work (starts from intent). `bug` = a
+  defect where you can state expected AND observed behaviour. `issue` =
+  undiagnosed; it resolves into a bug, a task, or a recorded no-action.
+- **Take the ID** from the lane INDEX's `Next ID:` line, or
+  `bin/check_task_ids.py --next <lane path>` (e.g.
+  `--next rtl/amba/bug`). Bump the line. Never recycle an ID; `-000` is the
+  reserved template; real items start at `-001`.
+- **One file per item.** Filename == ID == H1 (`# BUG-012: ...`). Add the item
+  to the lane INDEX; the checker fails on a missing entry or a ghost.
+- **State is the directory; a transition is `git mv`**
+  (`git mv open/BUG-012.md active/BUG-012.md`). Keep the dated `**Status:**`
+  line in step. `closed` = done, `dropped` = decided not to do it,
+  `deferred` = parked on a NAMED external condition.
+- **The area is the namespace.** File the item in the area of the code it is
+  about, and cite it with the area: "pumice BUG-009", "amba TASK-073". Never
+  invent compound prefixes (`PUMICE-BUG-001` does not parse).
+- **Check before committing:** `bin/check_task_ids.py --area <path>`. It also
+  runs from the pre-commit hook whenever a `vault/tracking/**` file is staged.
 
-## Migrating an area (do every area identically)
+`known_issues/` beside the code is a different thing: a won't-fix ledger of
+defects we accept. A vault item is something we intend to resolve.
 
-1. **Fence-aware split** the source file into task blocks. Only treat a line
-   starting with `##`/`###` as a header when NOT inside a ``` code fence — task
-   bodies embed markdown/code examples whose lines start with `##`, and a naive
-   split silently drops the tail of those tasks.
-2. **Classify by REAL repo state, not the stale `**Status:**` marker.** Verify
-   each task against the tree (does the file/feature exist, did the work land?).
-   The amba pilot's "active" bucket was mostly already done. closed = done,
-   dropped = decided-against.
-3. Write `INDEX.md` + `open/active/closed/dropped.md` (see vault/tracking/rtl/amba/ for the
-   shape). Keep each task block intact; drop only scaffolding (legends, phase
-   headers, stale summary tables).
-4. **Repoint every inbound reference** to /vault/tracking/<area>/ and delete the
-   original file (owner's chosen policy).
-5. **Verify**: task-block count and content match the original; all links
-   resolve. The counts looking clean is not proof — the first amba pass looked
-   clean and had dropped a task's tail.
-
-Enforcement authority remains /GLOBAL_REQUIREMENTS.md. Design/DV/FPGA practice
-lives in the handbook (vault/handbook/INDEX.md), not here - this tracks WORK.
+Enforcement authority remains `/GLOBAL_REQUIREMENTS.md`. Design, DV and FPGA
+method lives in the handbook (`vault/handbook/INDEX.md`); this tracks WORK.
