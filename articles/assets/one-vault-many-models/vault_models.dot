@@ -1,0 +1,36 @@
+digraph vault_models {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.45", ranksep="0.70", newrank=true,
+         label=<<B>Four coding agents, two front doors, one set of notes</B>>,
+         labelloc=t, labeljust=c];
+  node [fontname="Helvetica", fontsize=10, shape=box, style="filled,rounded",
+        fillcolor="#D6E4F0", color="#2F4F5F", margin="0.16,0.09"];
+  edge [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+  claude [label="Claude\nClaude Code harness"];
+  kimi   [label="Kimi\nKimi Code harness"];
+  qwen   [label="Qwen\nlocal, own lane of work"];
+  nemo   [label="Nemotron\nlocal, own lane of work"];
+
+  cmd    [label="CLAUDE.md\n.claude/skills  .claude/agents\nsignposts: name a note, stop", fillcolor="#FCE4D6"];
+  amd    [label="AGENTS.md\nnon-negotiables only\nnames the canonical note", fillcolor="#FCE4D6"];
+
+  vault  [label="vault/\nhandbook (method)  |  tracking (work)  |  repo-wide-projects (context)", shape=cylinder, fillcolor="#E8DFF5", width=7.0];
+
+  work   [label="RTL, tests, proofs, docs, tracked items", shape=box, style="filled", fillcolor="#FFFFFF", width=7.0];
+  gates  [label="pre-commit + CI gates\ncheck_task_ids  check_tag_survival  check_doc_examples", shape=box, style="filled", fillcolor="#F2F2F2", width=7.0];
+
+  claude -> cmd [label="reads at\nsession start"];
+  kimi -> amd   [label="reads"];
+  qwen -> amd   [label="reads"];
+  nemo -> amd   [label="reads"];
+
+  cmd -> vault  [label="points at"];
+  amd -> vault  [label="points at"];
+
+  vault -> work  [label="the same method for every agent", penwidth=1.8];
+  work -> gates  [label="every commit, whichever agent wrote it"];
+
+  {rank=same; claude; kimi; qwen; nemo}
+  {rank=same; cmd; amd}
+}

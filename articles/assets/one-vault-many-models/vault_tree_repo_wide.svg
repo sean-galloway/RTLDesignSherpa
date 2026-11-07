@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="522" viewBox="0 0 1240 522" role="img" aria-label="vault/repo-wide-projects/: same paths as the code">
+<rect width="1240" height="522" fill="#FFFFFF"/>
+<rect width="8" height="522" fill="#29B3C2"/>
+<text x="44" y="48" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#0B1E31">vault/repo-wide-projects/: same paths as the code</text>
+<text x="44" y="76" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">Conceptual. One note per area; the path you know in the repo is the path you look up.</text>
+<text x="44" y="118" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">└── </tspan><tspan fill="#0B1E31" font-weight="700">repo-wide-projects/</tspan></text>
+<text x="44" y="146" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    ├── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<path d="M214 141H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="146" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">one line per area + release status</text>
+<text x="44" y="174" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    ├── </tspan><tspan fill="#0B1E31" font-weight="700">projects/</tspan></text>
+<text x="44" y="202" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    │   ├── </tspan><tspan fill="#0B1E31" font-weight="700">components/</tspan></text>
+<text x="44" y="230" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    │   │   └── </tspan><tspan fill="#6B4FA0" font-weight="400">&lt;component&gt;/</tspan></text>
+<path d="M330 225H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="230" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">dma-ip/stream, fabric-gen-ip/bridge ...</text>
+<text x="44" y="258" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    │   │       └── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<path d="M330 253H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="258" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">why this component is the way it is</text>
+<text x="44" y="286" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    │   └── </tspan><tspan fill="#0B1E31" font-weight="700">fpga-systems/</tspan></text>
+<text x="44" y="314" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    │       └── </tspan><tspan fill="#6B4FA0" font-weight="400">&lt;board&gt;/</tspan></text>
+<path d="M291 309H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="314" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">NexysA7, Genesys2</text>
+<text x="44" y="342" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    │           └── </tspan><tspan fill="#6B4FA0" font-weight="400">&lt;system&gt;/</tspan></text>
+<text x="44" y="370" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    │               └── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<path d="M368 365H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="370" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">why this board system is built this way</text>
+<text x="44" y="398" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    └── </tspan><tspan fill="#0B1E31" font-weight="700">rtl/</tspan></text>
+<text x="44" y="426" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        └── </tspan><tspan fill="#6B4FA0" font-weight="400">&lt;subsystem&gt;/</tspan></text>
+<path d="M291 421H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="426" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">amba, common, cdc, math</text>
+<text x="44" y="454" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">            └── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<path d="M291 449H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="454" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">durable context for one subsystem</text>
+<text x="1210" y="506" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="11" letter-spacing="2" fill="#8AA2AE">TREE: bin/pytree.py  ·  RTL DESIGN SHERPA</text>
+</svg>

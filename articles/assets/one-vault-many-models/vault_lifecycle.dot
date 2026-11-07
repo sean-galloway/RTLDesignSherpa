@@ -1,0 +1,26 @@
+digraph vault_lifecycle {
+  graph [rankdir=LR, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.55", ranksep="0.85",
+         label=<<B>One item, one file: a state change is a git mv</B>>,
+         labelloc=t, labeljust=c];
+  node [fontname="Helvetica", fontsize=10, shape=box, style="filled,rounded",
+        fillcolor="#D6E4F0", color="#2F4F5F", margin="0.16,0.09"];
+  edge [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+  issue    [label="issue/open\nundiagnosed anomaly", fillcolor="#E8DFF5"];
+  open     [label="open/\nanyone could start it today"];
+  deferred [label="deferred/\nparked on a NAMED condition", fillcolor="#F2F2F2", style="filled,rounded,dashed"];
+  active   [label="active/\nin progress"];
+  closed   [label="closed/\nthe work got done", fillcolor="#FCE4D6"];
+  dropped  [label="dropped/\ndecided not to do it", fillcolor="#FCE4D6"];
+
+  issue -> open    [label="diagnosed: re-filed\nas a bug or task"];
+  open -> active   [label="git mv"];
+  open -> deferred [dir=both, style=dashed,
+                    xlabel="park: blocked on a consumer or decision   \nun-park: that condition is met   "];
+  active -> closed [label="git mv", penwidth=1.8];
+  active -> dropped [label="superseded\nor moot"];
+
+  {rank=same; open; deferred}
+  {rank=same; closed; dropped}
+}

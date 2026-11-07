@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="662" viewBox="0 0 1240 662" role="img" aria-label="vault/tracking/: area, lane, state">
+<rect width="1240" height="662" fill="#FFFFFF"/>
+<rect width="8" height="662" fill="#29B3C2"/>
+<text x="44" y="48" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#0B1E31">vault/tracking/: area, lane, state</text>
+<text x="44" y="76" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">Conceptual. Area is the namespace, lane is the kind of item, directory is the state.</text>
+<text x="44" y="118" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">└── </tspan><tspan fill="#0B1E31" font-weight="700">tracking/</tspan></text>
+<text x="44" y="146" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    ├── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<path d="M214 141H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="146" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">lane rules + what the checker enforces</text>
+<text x="44" y="174" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">    └── </tspan><tspan fill="#6B4FA0" font-weight="400">&lt;area&gt;/</tspan></text>
+<path d="M204 169H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="174" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">mirrors the repo path: rtl/amba, dma-ip/stream ...</text>
+<text x="44" y="202" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        ├── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<path d="M253 197H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="202" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">rollup: counts per lane and state</text>
+<text x="44" y="230" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        ├── </tspan><tspan fill="#0B1E31" font-weight="700">bug/</tspan></text>
+<path d="M214 225H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="230" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">a defect: expected AND observed behaviour</text>
+<text x="44" y="258" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   ├── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<path d="M291 253H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="258" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">Next ID; lists exactly the files on disk</text>
+<text x="44" y="286" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   ├── </tspan><tspan fill="#0B1E31" font-weight="700">active/</tspan></text>
+<path d="M282 281H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="286" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">in progress</text>
+<text x="44" y="314" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   │   └── </tspan><tspan fill="#1E2A33" font-weight="400">BUG-NNN.md</tspan></text>
+<path d="M349 309H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="314" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">move here with git mv</text>
+<text x="44" y="342" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   ├── </tspan><tspan fill="#0B1E31" font-weight="700">closed/</tspan></text>
+<path d="M282 337H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="342" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">the work got done</text>
+<text x="44" y="370" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   │   └── </tspan><tspan fill="#1E2A33" font-weight="400">BUG-NNN.md</tspan></text>
+<text x="44" y="398" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   ├── </tspan><tspan fill="#0B1E31" font-weight="700">dropped/</tspan></text>
+<path d="M291 393H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="398" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">decided not to do it</text>
+<text x="44" y="426" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   │   └── </tspan><tspan fill="#1E2A33" font-weight="400">BUG-NNN.md</tspan></text>
+<text x="44" y="454" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   └── </tspan><tspan fill="#0B1E31" font-weight="700">open/</tspan></text>
+<path d="M262 449H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="454" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">anyone could start it today</text>
+<text x="44" y="482" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │       └── </tspan><tspan fill="#1E2A33" font-weight="400">BUG-NNN.md</tspan></text>
+<path d="M349 477H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="482" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">filename == ID == H1</text>
+<text x="44" y="510" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        ├── </tspan><tspan fill="#0B1E31" font-weight="700">issue/</tspan></text>
+<path d="M233 505H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="510" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">undiagnosed: resolves into a bug, task, or no-action</text>
+<text x="44" y="538" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        │   └── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<text x="44" y="566" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">        └── </tspan><tspan fill="#0B1E31" font-weight="700">task/</tspan></text>
+<path d="M224 561H588" stroke="#E1E9ED" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="600" y="566" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#4B6573">planned work: starts from intent</text>
+<text x="44" y="594" font-family="DejaVu Sans Mono, monospace" font-size="16" xml:space="preserve"><tspan fill="#9DB3BE">            └── </tspan><tspan fill="#B0661A" font-weight="700">INDEX.md</tspan></text>
+<text x="1210" y="646" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="11" letter-spacing="2" fill="#8AA2AE">TREE: bin/pytree.py  ·  RTL DESIGN SHERPA</text>
+</svg>
