@@ -50,7 +50,15 @@ refresh_hw_device -update_hw_probes false [current_hw_device]
 
 set_property PROGRAM.FILE $bit [current_hw_device]
 set_property PROBES.FILE  $ltx [current_hw_device]
-program_hw_devices [current_hw_device]
+# CAP_NO_PROGRAM=1: attach and arm only. Programming resets the FPGA and with
+# it the read-path cell the host just levelled (IDELAY tap, bitslip,
+# rddata_delay), so a capture of a levelled board programs ONCE (`make program
+# BITSTREAM=.../ddr2_char_ila.bit`), levels over UART, then arms here.
+if {[info exists ::env(CAP_NO_PROGRAM)] && $::env(CAP_NO_PROGRAM) eq "1"} {
+    puts "CAP_NO_PROGRAM=1: not programming; attaching to the running ILA bitstream."
+} else {
+    program_hw_devices [current_hw_device]
+}
 refresh_hw_device [current_hw_device]
 
 set ila [get_hw_ilas -of_objects [current_hw_device]]
@@ -113,7 +121,13 @@ if {$trig eq "ref"} {
     set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] / 2}] $ila
     set _pw [get_property WIDTH $p]
     set_property TRIGGER_COMPARE_VALUE "eq${_pw}'h1" $p
-    puts "ILA armed (trigger: rd_dbg_mismatch == 1 -- the pumice BUG-014 (was PUMICE-037) corruption)."
+    # ... AND the stream's valid: mismatch is actual != expected, a level that
+    # is 1 on an idle bus, so alone it fires the instant the ILA is armed
+    # (2026-11-06, BUG-033 capture 1: trigger on an idle bus, idle counter
+    # ticking, no command in the window). Basic trigger = global AND.
+    set pv [get_hw_probes -of_objects $ila *w_rd_dbg_valid*]
+    set_property TRIGGER_COMPARE_VALUE "eq1'h1" $pv
+    puts "ILA armed (trigger: rd_dbg_valid & rd_dbg_mismatch -- the pumice BUG-014 (was PUMICE-037) corruption)."
     puts "Now run the failing workload: a concurrent read+write with reader gap >= 8."
 } elseif {$trig eq "rd"} {
     set p [get_hw_probes -of_objects $ila *w_dfi_rddata_valid*]
@@ -144,8 +158,11 @@ if {$trig eq "ref"} {
     puts "ILA armed (trigger: dfi_wrdata_en != 0). Waiting for a UART write ..."
 }
 run_hw_ila $ila
-# Block up to ~60 s for the trigger (the orchestrator drives a read meanwhile).
-wait_on_hw_ila -timeout 60 $ila
+# Block for the trigger (the orchestrator drives traffic meanwhile). CAP_TIMEOUT
+# seconds, default 60; a workload that fails one run in three at ~6 min a run
+# (pumice BUG-033) needs ~1800.
+set cap_timeout [expr {[info exists ::env(CAP_TIMEOUT)] ? int($::env(CAP_TIMEOUT)) : 60}]
+wait_on_hw_ila -timeout $cap_timeout $ila
 upload_hw_ila_data $ila
 write_hw_ila_data -csv_file -force $out [current_hw_ila_data]
 puts "ILA capture written: $out"

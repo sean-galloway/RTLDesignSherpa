@@ -910,7 +910,15 @@ module ddr2_char_harness
     // here can answer. 1:1 accounting (too few beats from data/rresp/mismatch,
     // too many from stray/late/duplicate R beats) is inside gen_any_error.
     assign w_wr_error     = w_gen_any_error;
-    assign w_rd_error     = w_gen_any_error | w_rd_dbg_mismatch;
+    // The debug stream's mismatch is a FIFO payload field: a LEVEL that is
+    // meaningful only under rd_dbg_valid and otherwise holds whatever the last
+    // entry carried (1 on an idle bus after any mismatch, and after reset the
+    // compare of a zero actual against a stale expected). Unqualified it kept
+    // rd_error latched on every PUMICE_RD_DBG_FIFO build, so the host's
+    // leveling write-wait failed and every (bitslip, tap) read "no eye" while
+    // the plain build on the same board levelled clean (pumice BUG-033 ILA
+    // builds 1 and 2, 2026-11-06).
+    assign w_rd_error     = w_gen_any_error | (w_rd_dbg_valid & w_rd_dbg_mismatch);
     // Placeholder: no in-harness init sequencer yet — surface CSR-side sticky.
     assign w_init_done    = 1'b1;
     assign w_init_fail    = 1'b0;

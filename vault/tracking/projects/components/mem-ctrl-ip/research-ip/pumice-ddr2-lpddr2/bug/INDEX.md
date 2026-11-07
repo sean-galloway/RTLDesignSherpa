@@ -26,8 +26,10 @@ None.
 
 - **BUG-033** — reads return wrong data with `FAST_RD_RELEASE` on: board
   `windows` random_bl8 fails ~1 run in 3 at 50 MHz (13 / 55 on HEAD builds,
-  0 / 8 on the 10-27 bitstream, 0 / 8 on HEAD with the option off). Mechanism
-  open; pumice default turned off. [active/BUG-033.md](active/BUG-033.md).
+  0 / 8 on the 10-27 bitstream, 0 / 8 on HEAD with the option off). Now a
+  runtime bit, reset off. Mechanism caught on the board ILA 2026-11-06: an
+  ACTIVATE two cycles after a REFRESH (tRFC 7) under the bit, reads behind it
+  return 0 / all-ones. Fix pending. [active/BUG-033.md](active/BUG-033.md).
 
 ## Closed
 

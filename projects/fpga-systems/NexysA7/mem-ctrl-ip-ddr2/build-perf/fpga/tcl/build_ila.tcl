@@ -55,7 +55,10 @@ if {$dbg_clk eq ""} {
 }
 puts "ILA clock net: $dbg_clk"
 
-set depth 4096
+# ILA_DEPTH overrides the sample depth (power of two; 4096 default). Smaller
+# buys routing slack: the 4096-deep, 37-probe build of 2026-11-06 met timing
+# by 0.004 ns and the board's read path would not level on it.
+set depth [expr {[info exists ::env(ILA_DEPTH)] && $::env(ILA_DEPTH) ne "" ? int($::env(ILA_DEPTH)) : 4096}]
 create_debug_core u_ila_0 ila
 set_property C_DATA_DEPTH        $depth [get_debug_cores u_ila_0]
 set_property C_TRIGIN_EN         false  [get_debug_cores u_ila_0]
@@ -71,6 +74,23 @@ connect_debug_port u_ila_0/clk [get_nets $dbg_clk]
 # Collect ALL MARK_DEBUG nets and group them into buses by base name (strip
 # the [N] bit suffix), preserving bit order. Robust vs get_nets bracket-glob
 # quirks (a literal "name[*]" is a Tcl char-class, not a bus wildcard).
+# ILA_EXTRA_NETS: space-separated hierarchical net globs to probe IN ADDITION
+# to the RTL's mark_debug nets, marked here on the synthesized netlist so the
+# shared RTL carries no attribute. Register outputs survive synthesis by name
+# (*/r_fast, */r_tok_shift[*]); a combinational net may have been absorbed
+# into a LUT, in which case it is reported and skipped. pumice BUG-033 uses
+# this for the scheduler plane's fast-release state.
+if {[info exists ::env(ILA_EXTRA_NETS)] && $::env(ILA_EXTRA_NETS) ne ""} {
+    foreach pat $::env(ILA_EXTRA_NETS) {
+        set extra [get_nets -quiet -hier -filter "NAME =~ $pat"]
+        if {[llength $extra] == 0} {
+            puts "ILA_EXTRA_NETS: no net matches $pat (absorbed or renamed) -- skipped"
+        } else {
+            set_property MARK_DEBUG true $extra
+            puts "ILA_EXTRA_NETS: $pat -> [llength $extra] net(s): [lrange $extra 0 3]"
+        }
+    }
+}
 set marked [get_nets -hier -filter {MARK_DEBUG}]
 puts "marked nets: [llength $marked]"
 set order {}

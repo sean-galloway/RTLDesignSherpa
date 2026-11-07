@@ -334,11 +334,53 @@ def _make_dfi_slave(dut):
         write_ref=WRITE_REF_WRDATA_EN,  # as legacy
         write_latency=None,             # as legacy
     )
+    # CHAR_A7_FREE="rd_lat,valid_lat,wr_lat" swaps in the a7ddrphy-faithful
+    # free-running read model (data anchored to the RD command, valid = the
+    # controller's rddata_en delayed): the board's PHY, not the gated loopback.
+    # For board-tuple runs (TEST_T_RDDATA_EN / TEST_RDDATA_DELAY /
+    # TEST_T_PHY_WRLAT / TEST_CMD_DELAY at the board values).
+    _a7 = os.environ.get("CHAR_A7_FREE")
+    if _a7:
+        _rl, _vl, _wl = (int(x) for x in _a7.split(","))
+        timing = DFITimingProfile.a7ddrphy_free_running(
+            read_latency=_rl, read_valid_latency=_vl, write_latency=_wl)
     slave = DFISlavePHY(dut, dut.aclk, base=base, memory=memory,
                         timing=timing, dfi_phase_bytes=DRAM_BEAT_BYTES)
     slave.dram = DramStateModel(timings=base.timings, num_banks=NUM_BANKS,
                                 policy=ViolationPolicy(hard=frozenset()))
     return slave, memory
+
+
+async def _dfi_port_trace(dut, max_lines: int):
+    """CHAR_DFI_TRACE=N: log the PHY-side DFI read signals cycle by cycle
+    (raw per-phase buses, hex) on every cycle with a chip-select, a
+    rddata_en or a rddata_valid, for the first N such cycles. For aligning
+    the free-running a7ddrphy model (CHAR_A7_FREE) against the controller's
+    rddata_en cadence (pumice BUG-033): a RD is cs_n low with ras_n=1,
+    cas_n=0, we_n=1 in that phase."""
+    n = 0
+    cyc = 0
+    cs_all = (1 << len(dut.phy_dfi_cs_n)) - 1
+    while n < max_lines:
+        await ClockCycles(dut.aclk, 1)
+        cyc += 1
+        cs = int(dut.phy_dfi_cs_n.value)
+        en = int(dut.phy_dfi_rddata_en.value)
+        vld = int(dut.phy_dfi_rddata_valid.value)
+        ras = int(dut.phy_dfi_ras_n.value)
+        cas = int(dut.phy_dfi_cas_n.value)
+        # any command (chip select low in any phase: ACT/PRE/RD/WR/REF/MRS),
+        # or a read enable or valid. CHAR_DFI_TRACE_COLONLY=1 keeps only column
+        # commands (RD/WR) plus en/vld, for the read-alignment traces.
+        col = ((~cs) & ras & (~cas)) & cs_all
+        anycmd = (cs != cs_all)
+        want = col if os.environ.get("CHAR_DFI_TRACE_COLONLY") == "1" else anycmd
+        if want or en or vld:
+            dut._log.info("DFITRACE %d cs_n=%x ras=%x cas=%x we=%x bank=%x addr=%x en=%x vld=%x rddata=%x",
+                          cyc, cs, int(dut.phy_dfi_ras_n.value), int(dut.phy_dfi_cas_n.value),
+                          int(dut.phy_dfi_we_n.value), int(dut.phy_dfi_bank.value),
+                          int(dut.phy_dfi_address.value), en, vld, int(dut.phy_dfi_rddata.value))
+            n += 1
 
 
 async def _bringup(dut, *, init_complete_delay: int = 20):
@@ -353,6 +395,8 @@ async def _bringup(dut, *, init_complete_delay: int = 20):
     chan = await h.start()
 
     dfi_slave, memory = _make_dfi_slave(dut)
+    if os.environ.get("CHAR_DFI_TRACE"):
+        cocotb.start_soon(_dfi_port_trace(dut, int(os.environ["CHAR_DFI_TRACE"])))
 
     async def _assert_init_complete():
         await ClockCycles(dut.aclk, init_complete_delay)
@@ -372,6 +416,9 @@ async def cocotb_test_char_families(dut):
     round-trip clean over the loopback. Perf ordering is NOT asserted -- the
     loopback models no DDR2 page timing (see module docstring)."""
     drv, chan, _dfi, _mem = await _bringup(dut)
+    # CHAR_TXN_SCALE multiplies the profile's txn counts (the board runs ~4000);
+    # a rare board fault needs more than the default single pass to show.
+    txn_scale = int(os.environ.get("CHAR_TXN_SCALE", "1"))
 
     # Pull the SAME run definition the board CLI uses (RUN_PROFILES["smoke"]);
     # the only difference from an FPGA run is txn_scale (sim=1 for speed, the
@@ -395,10 +442,21 @@ async def cocotb_test_char_families(dut):
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=DFI_RATE.bit_length() - 1,
                           bl=DRAM_BL)
-        return pc.run_profile(drv, profile, txn_scale=1, base_addr=0x0,
-                              timeout_s=60)
+        # CHAR_NO_LEVEL=1 skips the a7ddrphy read-leveling sweep. In sim the
+        # IDELAY/bitslip strobes are no-ops, so the sweep only re-tests one
+        # (rden, rddata_delay, wrlat) alignment 256 times; with the free-running
+        # PHY model (CHAR_A7_FREE) the alignment itself is what is being
+        # calibrated, and the families' mismatch counts are the measurement.
+        return pc.run_profile(drv, profile, txn_scale=txn_scale, base_addr=0x0,
+                              do_leveling=(os.environ.get("CHAR_NO_LEVEL", "0") != "1"),
+                              timeout_s=60 * txn_scale)
 
     recs = await bridge(prog)()
+    # DRAM-model timing violations (all soft here: counted, not fatal). A
+    # data-integrity pass can hide a JEDEC violation the model does not turn
+    # into wrong data; the board does.
+    dut._log.info("DRAM-model violations: %s",
+                  _dfi.dram.policy.soft_violation_counts or "none")
     configs = sorted({r.config for r in recs})
     dut._log.info("\n%s", pc.format_table(recs))
 
@@ -545,6 +603,9 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 32,
     # construction. It was {testcase}_r{dfi_rate}, which gave the default and
     # x16 board-geometry builds ONE directory despite being different RTL.
     tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
+    # CHAR_BUILD_TAG: a private build dir, so variants of one test run in parallel.
+    if os.environ.get("CHAR_BUILD_TAG"):
+        tag += "_" + os.environ["CHAR_BUILD_TAG"]
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -592,6 +653,9 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 32,
         "TEST_TXN": os.environ.get("TEST_TXN", "64"),
         "CONCURRENT_DUMP": os.environ.get("CONCURRENT_DUMP", ""),
         "TEST_DRAM_BL": str(bl),
+        # pumice BUG-033: TEST_FAST_RD=1 has pumice_char set
+        # SCHED_POLICY.fast_rd_release on every config.
+        "TEST_FAST_RD": os.environ.get("TEST_FAST_RD", "0"),
         # MR0 burst-length field must agree: A[2:0] 010 = BL4, 011 = BL8.
         "TEST_MR0": "0x0433" if bl == 8 else "0x0432",
     }

@@ -197,6 +197,12 @@ async def _bring_up(dut, page_policy=0, read_latency=0, strict_read=False):
     cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units="ns").start())
     cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units="ns").start())
     _cfg(dut, page_policy)
+    # PUMICE_FAST_RD=1 drives SCHED_POLICY.fast_rd_release (fast_rd_en_i) for the
+    # whole run, so every cell -- and the TB top's command-history checker at the
+    # DFI -- sees the fast-release stream (pumice BUG-033 board capture: REF then
+    # ACT two cycles later at the DRAM with tRFC programmed 7). Default off, as
+    # on the board's reset.
+    dut.fast_rd_en_i.value = int(os.environ.get("PUMICE_FAST_RD", "0"))
     if os.environ.get("DUAL_ISSUE", "0") == "1":
         cocotb.start_soon(_row_lane_probe(dut))
     dut.aresetn.value = 0

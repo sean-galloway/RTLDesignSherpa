@@ -2709,6 +2709,7 @@ def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
                 txn_scale: int = 1, base_addr: int = 0x0, timeout_s: float = 20.0,
                 geom: Geometry = DEFAULT_GEOM, clk_mhz: "Optional[float]" = None,
                 progress: Optional[Callable[[str, int, int], None]] = None,
+                do_leveling: bool = True,
                 ) -> List[CharRecord]:
     """Run a named RUN_PROFILES matrix. This is the entry both the sim test and
     the board CLI call, so `run_profile(drv, "smoke")` is the SAME program in
@@ -2743,6 +2744,7 @@ def run_profile(drv: DDR2CharDriver, profile: str = "smoke", *,
                       clk_mhz=clk_mhz, progress=progress,
                       concurrent=p.get("concurrent"),
                       gen_mix=p.get("gen_mix"), sc_over=sc_over or None,
+                      do_leveling=do_leveling,
                       sc_sweep=sc_sweep,
                       same_bank_rows=p.get("same_bank_rows", 8),
                       n_hot=p.get("n_hot"),
