@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — tasks
 
-**Next ID: TASK-022** — never recycle a number, even when its item closed.
+**Next ID: TASK-024** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 20 | done (kept for history) |
+| [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -32,6 +32,8 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-022** — descriptor-driven 2D/strided addressing (`USE_ROW_COL_MAJOR_ADDRESSING`, was TASKS.md TASK-101); built 2026-07-06, top-tested 2026-07-29 with BUG-010 fixed; migrated 2026-11-07
+- **TASK-023** — STREAM v1.0 ledger (APB config, `stream_top_ch8`, integration tests; TASKS.md TASK-001..003) and the old enhancement-ideas list, disposed; closed 2025-11-30, migrated 2026-11-07
 - **TASK-019** — CLOSED 2026-10-25: `monbus_axil4_group_1wr` on both STREAM tops and stream-g; `MON_GROUP_ERR_*` window + `MON_ERR_REC_COUNT`; records read from memory in sim (top monbus test) and on the Genesys 2 harness (error window = top 4 KB of comp_sram, `dump_monbus.py`); books MAS 0.104 / HAS 0.101 / board 1.5; rapids twin TASK-039
 - **TASK-020** — stream-g: STREAM's schedulers sequenced by gatling firmware (its own image), measured against STREAM on the Genesys 2 the rapids-g way; closed 2026-10-25
 - **TASK-021** — stream-g lone-channel chain plateau (32-80 beats): the one-slot poll tested the chain hook only on a pass's first read; fixed in STREAM's own firmware, board 1,890 -> 1,126 cycles at 32 beats; closed 2026-10-25

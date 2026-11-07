@@ -13,9 +13,9 @@ is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 0 | 0 | 15 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 0 | 0 | 20 | 0 | 0 |
-| [issue/](issue/INDEX.md) | 0 | 0 | 0 | 1 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 22 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 21 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 1 | 0 |
 
 Open counts include the reserved `-000` template in each lane, which is never a
 real item. **Each lane carries its own `Next ID`** — see the lane INDEXes.
@@ -27,8 +27,9 @@ different tasks in two areas. Cite one from outside as "STREAM BUG-001".
 ## Renamed 2026-09-24
 
 Everything moved into the lanes and was renumbered into per-lane sequences.
-The flat pages (`open.md`, `active.md`, `closed.md`, `dropped.md`) are now
-pointers and take no new items. Old numbers appear in commit messages and
+The flat pages (`open.md`, `active.md`, `closed.md`, `dropped.md`) are gone.
+The component's own `TASKS.md` was folded in on 2026-11-07 as TASK-022 and
+TASK-023 and deleted. Old numbers appear in commit messages and
 handbook notes, so the map is kept:
 
 | Was | Is |
