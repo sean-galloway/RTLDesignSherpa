@@ -1099,6 +1099,17 @@ module granite_core
     // synchroniser, so the bound is the reads the ring holds in flight.
     localparam int DFI_RD_FIFO_EFF = ((DFI_RD_FIFO_DEPTH > 0) && !DFI_CDC_EN)
                                    ? DFI_RD_FIFO_DEPTH : (RD_RET_DEPTH * BURST_WORDS);
+    // Write-data FIFO depth. The drain stages a burst CMD_DELAY_EFF cycles
+    // ahead of its WR; across the CDC the staged token follows the last word
+    // by one more cycle (mc_dfi_cdc, memory-controllers BUG-002). A FIFO that
+    // cannot hold that lead plus a burst settles at its full depth, and from
+    // then on the drain's last word -- and so the token -- lands only as the
+    // serializer pops, after the WR is already at the head: 4 held cycles on
+    // a 24-write stream at depth 16, 0 at 32 (2026-11-06). Same clock: as
+    // given (16 measured cycle-identical to 32 there).
+    localparam int DFI_WD_FIFO_NEED = CMD_DELAY_EFF + 1 + BURST_WORDS;
+    localparam int DFI_WD_FIFO_EFF  = (!DFI_CDC_EN || (DFI_WD_FIFO_DEPTH >= DFI_WD_FIFO_NEED))
+                                    ? DFI_WD_FIFO_DEPTH : (1 << $clog2(DFI_WD_FIFO_NEED));
 
     mc_dfi_2p1_plane #(
         .NUM_RANKS       (NUM_RANKS),
@@ -1115,7 +1126,7 @@ module granite_core
         .BURST_WORDS     (BURST_WORDS),
         .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
         .RD_FIFO_DEPTH   (DFI_RD_FIFO_EFF),
-        .WD_FIFO_DEPTH   (DFI_WD_FIFO_DEPTH),
+        .WD_FIFO_DEPTH   (DFI_WD_FIFO_EFF),
         .CMD_FIFO_DEPTH  (DFI_CMD_FIFO_DEPTH),
         .DFI_CDC_EN      (DFI_CDC_EN),
         .CMD_FALLTHRU    (GRANITE_DFI_CMD_FALLTHRU),

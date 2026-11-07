@@ -247,3 +247,32 @@ the same swap halves the block. Removing a crossing is a flop win on an
 FPGA; the LUT lever is the depth that the crossing's round trip once
 justified (see "Depth must cover the pointer round trip" above -- that
 reason is gone in the same-clock form).*
+
+## Two independent crossings carry no order between them (2026-11-06)
+
+`mc_dfi_cdc` crossed a write burst's data and its "burst staged" token in two
+async FIFOs, each on its own Gray pointer and 2-flop synchronizer, and its port
+comment said the token went "through the same synchronizer as the data
+pointer, so never visible before the data". It did not: two synchronizers
+resolving the same source edge can settle one destination cycle apart, so the
+token could lead the data and the command path could accept the WR a cycle
+before its data was there (memory-controllers BUG-002). Rules:
+
+- A guarantee of the form "X is never visible before Y" needs X and Y to
+  cross on ONE pointer (one FIFO, X in Y's payload), or X launched at least
+  one source cycle after Y so the worst-case settle of Y is still earlier
+  than the best case of X. `mc_dfi_cdc` now launches the token a cycle after
+  the burst's last word (`r_wtok_push`), with the token FIFO at twice the data
+  depth so the delayed push can never find it full.
+- A comment that names the mechanism ("the same synchronizer") is what kept
+  this from being read for a year. When the mechanism is the guarantee,
+  state it as the structural fact the code shows, and check the code shows it.
+- The delay costs a word of headroom, not a cycle of lead: with granite's
+  16-deep write-data FIFO the stream settled at the FIFO's full depth, and from
+  then on the drain's last word -- and the token -- landed only as the
+  serializer popped, so the WR was at the DFI head 4 cycles without its data
+  on a 24-write stream. Raising `CMD_DELAY` by one changed nothing (the lead is
+  irrelevant at a full-depth equilibrium); a 32-deep FIFO took it to 0.
+  `granite_core` derives `DFI_WD_FIFO_EFF >= CMD_DELAY_EFF + 1 + BURST_WORDS`
+  for two-clock builds. A staging FIFO's depth bounds the lead the staging can
+  give, whatever the release delay says.

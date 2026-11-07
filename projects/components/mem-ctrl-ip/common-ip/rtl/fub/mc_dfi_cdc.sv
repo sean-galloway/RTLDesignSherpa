@@ -105,9 +105,12 @@ module mc_dfi_cdc #(
     // write-burst-staged tokens (phy): one per COMPLETE burst that has crossed
     // into the wrdata FIFO. The command path pops one per WR it accepts, so a
     // WR command can never reach the PHY ahead of its data (the write analog
-    // of the read aligner's op_ready backpressure). Pushed on the ctl edge that
-    // accepts the burst's LAST word, through the same N_FLOP_CROSS synchronizer
-    // as the data pointer, so never visible on dfi_clk before the data is.
+    // of the read aligner's op_ready backpressure). The token crosses in its
+    // OWN async FIFO, on its own Gray pointer and synchronizer, so it is pushed
+    // one ctl cycle AFTER the burst's last data word: launched together, two
+    // independent synchronizers can resolve a dfi cycle apart and the token
+    // could lead the data (memory-controllers BUG-002); launched a cycle later
+    // it never can.
     // With the controller's rate-matched commit + CMD_DELAY this gate is an
     // INVARIANT (never holds); the counters in pumice_dfi_cmd_path prove it.
     output logic              pwr_staged_valid_o,
@@ -144,11 +147,20 @@ module mc_dfi_cdc #(
     );
 
     // ---- wrdata : ctl -> phy ------------------------------------------------
-    // The data word and (on the burst's last word) its staged token are
-    // accepted together: both FIFOs must have room, so neither can run ahead.
-    logic w_wd_data_ready, w_wtok_ready, w_wtok_push;
-    assign wd_ready_o  = w_wd_data_ready && w_wtok_ready;
-    assign w_wtok_push = wd_valid_i && wd_last_i && w_wd_data_ready;
+    // The data word is accepted when both FIFOs have room. The staged token
+    // for a burst's LAST word is pushed one ctl cycle later (BUG-002, above):
+    // the data pointer's crossing then always settles no later than the
+    // token's. Tokens in flight (queued + the one pending push) never exceed
+    // the bursts still in the data FIFO plus one, so at 2 x WD_DEPTH the token
+    // FIFO never fills and the delayed push always lands.
+    logic w_wd_data_ready, w_wtok_ready, w_wd_take;
+    logic r_wtok_push;
+    assign wd_ready_o = w_wd_data_ready && w_wtok_ready;
+    assign w_wd_take  = wd_valid_i && wd_ready_o;
+    `ALWAYS_FF_RST(ctl_clk, ctl_rstn,
+        if (`RST_ASSERTED(ctl_rstn)) r_wtok_push <= 1'b0;
+        else                         r_wtok_push <= w_wd_take && wd_last_i;
+    )
 
     gaxi_fifo_async #(
         .DATA_WIDTH  (WD_DW),
@@ -168,10 +180,10 @@ module mc_dfi_cdc #(
         .rd_data       (pwd_data_o)
     );
 
-    // Sized WD_DEPTH: at most one token per data word can ever be staged.
+    // 2 x WD_DEPTH: see above (one token per burst, plus the delayed push).
     gaxi_fifo_async #(
         .DATA_WIDTH  (1),
-        .DEPTH       (WD_DEPTH),
+        .DEPTH       (2 * WD_DEPTH),
         .USE_JOHNSON (USE_JOHNSON),
         .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_wtok_fifo (
@@ -179,7 +191,7 @@ module mc_dfi_cdc #(
         .axi_wr_aresetn(ctl_rstn),
         .axi_rd_aclk   (dfi_clk),
         .axi_rd_aresetn(dfi_rstn),
-        .wr_valid      (w_wtok_push),
+        .wr_valid      (r_wtok_push),
         .wr_ready      (w_wtok_ready),
         .wr_data       (1'b1),
         .rd_ready      (pwr_staged_pop_i),
