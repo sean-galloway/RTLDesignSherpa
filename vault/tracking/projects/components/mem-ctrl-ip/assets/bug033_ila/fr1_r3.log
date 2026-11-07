@@ -1,0 +1,71 @@
+/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/bin/board_lock.sh --board nexys_a7_100t -- python3 /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/build-perf/../bin/run_smoke.py --board nexys_a7_100t --baud 115200 --profile windows --txn-scale 4000 --char-csv /tmp/claude-1000/-mnt-data-github-RTLDesignSherpa/af42be44-f9ae-4bc5-806e-3e1980146142/scratchpad/ila/cap7/fr1_r3.csv \
+    --sequences init char
+[autodetect] pumice DDR2 char harness found on /dev/ttyUSB3
+Connected to /dev/ttyUSB3 at 115200 baud
+[run] 2 sequence(s): init -> char
+[seq] init -- soft reset, controller cfg, geometry, read-path leveling
+[init] board: DDR2 v1 dfi_rate=2 gear=1 bl=4 row=13 bank=6 axi=64b beat=32b dev=16b clk=50.00MHz
+[seq] init PASS (303.12s)
+[seq] char -- controller-config x scenario perf matrix (pumice_char run_profile)
+[char] profile=windows txn_scale=4000 clk=50.0 MHz
+[char] defaults/mixed_bl8 (1/9)
+[read-path] WARNING: t_rddata_en=1 with rddata_delay=7 is OFF the measured clean diagonal (rddata_delay should be 2). Every clean pair found by the joint board sweep is on that line. An off-diagonal pair can read plausible bandwidth while corrupting data -- check integrity, not just throughput (pumice ISSUE-015).
+[config defaults] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[config defaults] paging at the RDL resets: page_policy_or=0 policy_mode=3 tr_init=0
+[config defaults] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[config defaults] paging at the RDL resets: page_policy_or=0 policy_mode=3 tr_init=0
+[config defaults] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[config defaults] paging at the RDL resets: page_policy_or=0 policy_mode=3 tr_init=0
+[config open_page] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[config open_page] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[config open_page] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[config close_page] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[config close_page] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[config close_page] jedec timings @ 50.00 MHz: tRC=4 tRCD=2 tRP=2 tRAS=3 tRFC=7 tREFI=390 tRRD=1 tFAW=3 tWTR=3 tCCD=1 tWR=4 tRTP=1 tRTW=20
+[char] defaults/row_thrash_bl8 (2/9)
+[char] defaults/random_bl8 (3/9)
+[char] open_page/mixed_bl8 (4/9)
+[char] open_page/row_thrash_bl8 (5/9)
+[char] open_page/random_bl8 (6/9)
+[char] close_page/mixed_bl8 (7/9)
+[char] close_page/row_thrash_bl8 (8/9)
+[char] close_page/random_bl8 (9/9)
+
+config           scenario                  ok blen gap   id   wr_MB/s   rd_MB/s    peak  rd%pk wr_util rd_util  rd_lat   hit%  ACT/txn     ACT     PRE  REF~win  thrash    limiter  blk_cyc
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+defaults         mixed_bl8                  Y    8   0  fix     133.2     111.8     400  28.0%   14.2%   14.2%     0.0      -        -       -       -        -      -          -        -
+defaults         row_thrash_bl8             Y    8   0  fix     302.8     335.5     400  83.9%    8.0%    5.6%    56.6  87.0%     4.15  132682    9364   3122.0   7.1%    refresh   217.1k
+defaults         random_bl8                 Y    8   0  fix     285.2     317.0     400  79.3%    8.0%    5.6%    58.8  87.4%     4.03  129013   14634   3304.0  11.3%    refresh   286.2k
+open_page        mixed_bl8                  Y    8   0  fix     130.9     107.7     400  26.9%   14.2%   14.2%     0.0      -        -       -       -        -      -          -        -
+open_page        row_thrash_bl8             Y    8   0  fix     278.3     305.5     400  76.4%    8.0%    5.6%    59.6  87.1%     4.14  132570  132570   3428.0 100.0%    refresh   213.0k
+open_page        random_bl8                 N    8   0  fix     265.3     284.5     400  71.1%    8.0%    5.6%    62.9  87.9%     3.88  124184  124184   3682.0 100.0%    refresh   328.0k
+close_page       mixed_bl8                  N    8   0  fix      84.6      65.8     400  16.4%   10.7%   10.7%     0.0      -        -       -       -        -      -          -        -
+close_page       row_thrash_bl8             Y    8   0  fix     180.0     196.4     400  49.1%    7.5%    5.3%    92.2  86.5%     4.33  138668   10668   5334.0   7.7% turnaround     1.1M
+close_page       random_bl8                 N    8   0  fix     161.1     174.9     400  43.7%    7.5%    5.3%    99.4  86.5%     4.33  138673   10466   5988.0   7.5% turnaround     1.3M
+
+[config: close_page]   <- experiment REFERENCE CORNER (close-page), NOT the shipping default; hardware defaults to OPEN page
+[config: defaults]
+[config: open_page]   <- the SHIPPING default (PAGE_POLICY_OPEN = 2'h0)
+cross-config BW @ bl=8, BOTH directions (MB/s; ratio vs baseline):
+[stalls] 195441250 stalled cycles over 6 points, 1.8% DRAM-bound -- noreq=98.2% turnaround=1.2% refresh=0.6% actlimit=0.0% banktimer=0.0% bp=0.0% tccd=0.0%
+[stalls] buckets are exclusive and sum to the stalled count, so an unclassified cause inflates a neighbour rather than vanishing.
+[FLAG] open_page/random_bl8: NOT OK -- 5952 beats mismatched; random: 4 injector(s), LFSR walk in a 2-row region per injector
+[FLAG] close_page/mixed_bl8: NOT OK -- mixed: 4 writers + 4 readers from one GO, union 131.5 MB/s over 6227572 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]; 15328 beats mismatched
+[FLAG] close_page/random_bl8: NOT OK -- 4716 beats mismatched; random: 4 injector(s), LFSR walk in a 2-row region per injector
+[char] wrote 9 records -> /tmp/claude-1000/-mnt-data-github-RTLDesignSherpa/af42be44-f9ae-4bc5-806e-3e1980146142/scratchpad/ila/cap7/fr1_r3.csv
+[seq] char raised: RuntimeError: char: 3/9 scenarios failed (first: open_page/random_bl8)
+Traceback (most recent call last):
+  File "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/bin/sequence.py", line 312, in run
+    value = seq.run(self.ctx)
+            ^^^^^^^^^^^^^^^^^
+  File "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/bin/seq_char.py", line 67, in run
+    raise RuntimeError(
+RuntimeError: char: 3/9 scenarios failed (first: open_page/random_bl8)
+
+[seq] char FAIL (44.93s)
+[run] stopping: later sequences would measure a board that never came up
+[run] 2 sequence(s), 348.05s total: FAILURES
+  init  PASS   303.12s
+  char  FAIL    44.93s  RuntimeError: char: 3/9 scenarios failed (first: open_page/random_bl8)
+UART connection closed
+make: *** [/mnt/data/github/RTLDesignSherpa/make/fpga_flow.mk:373: run] Error 1
