@@ -43,6 +43,21 @@
 // Depth is expected to be 2..8 inclusive (any integer). The shift-register form
 // is optimal at depths 2–3 (the common case for AXI channel skids) and
 // still cheaper than the packed-vector form for depths up through 8.
+//
+// ---------------------------------------------------------------------------
+// STORAGE RESET (DATA_RST, memory-controllers MC-004, 2026-11-06)
+// ---------------------------------------------------------------------------
+// The slots held the whole design's cost: on the 10-29 pumice checkpoint the
+// 49 instances were 6,366 LUT / 6,430 FF, 17% of the Artix-7, ~1 LUT per data
+// flop, because every slot bit was a 4-way mux (hold / load / shift / CLEAR TO
+// ZERO) on an async-reset flop. The data in a skid buffer is dead state
+// whenever rd_valid is low -- the valid/ready contract says so -- so neither
+// the reset value nor the clear is observable through the ports.
+// DATA_RST=0 (default) writes the slots in a reset-free always_ff gated only by
+// the load/shift conditions: the head slot is a 2:1 mux (wr_data / next slot)
+// and every other slot is a flop with a clock enable, ~0.5 LUT per data flop.
+// DATA_RST=1 keeps the previous form verbatim for any consumer that reads
+// rd_data without rd_valid. The handshake registers are untouched by DATA_RST.
 // ---------------------------------------------------------------------------
 
 `timescale 1ns / 1ps
@@ -52,6 +67,13 @@
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH = 2, // 2..8 inclusive, or 0 = combinational pass-through -- guarded below
+    // Data storage reset style (memory-controllers MC-004, 2026-11-06):
+    //   0 = reset-free slots, no clear of a vacated slot (the FPGA form:
+    //       ~0.5 LUT per data flop, rd_data is stale while rd_valid is low)
+    //   1 = the pre-MC-004 form: every slot async-reset to zero and the
+    //       vacated tail slot cleared to zero (~1 LUT per data flop)
+    // The handshake (wr_ready / rd_valid / count) is identical either way.
+    parameter bit DATA_RST = 1'b0,
     // Legacy shorthand params (kept for source-compatibility)
     parameter int DW = DATA_WIDTH
 ) (
@@ -126,47 +148,86 @@ module gaxi_skid_buffer #(
             /* verilator lint_on UNUSED */
         end else begin : g_skid
             for (genvar gi = 0; gi < DEPTH; gi++) begin : g_slot
-                `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                    if (`RST_ASSERTED(axi_aresetn)) begin
-                        r_data[gi] <= '0;
-                    end else begin
+                if (DATA_RST) begin : g_rst
+                    // Pre-MC-004 storage, kept verbatim: async reset to zero
+                    // and the vacated tail slot cleared to zero.
+                    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+                        if (`RST_ASSERTED(axi_aresetn)) begin
+                            r_data[gi] <= '0;
+                        end else begin
+                            unique case ({w_wr_xfer, w_rd_xfer})
+                                2'b10: begin
+                                    // Write only: new data lands at the tail
+                                    // (index == current count).
+                                    if (r_data_count == gi[3:0]) begin
+                                        r_data[gi] <= wr_data;
+                                    end
+                                    // else: hold — no shift on write-only.
+                                end
+                                2'b01: begin
+                                    // Read only: shift down one slot.
+                                    if (gi < DEPTH-1) begin
+                                        r_data[gi] <= r_data[gi+1];
+                                    end else begin
+                                        r_data[gi] <= '0;  // clear the vacated tail
+                                    end
+                                end
+                                2'b11: begin
+                                    // Simultaneous r+w: shift, and the slot that
+                                    // would land at count-1 after the shift takes
+                                    // wr_data instead. For i == count-1 we load
+                                    // wr_data; for every other slot we shift.
+                                    if (r_data_count >= 1 &&
+                                        gi[3:0] == (r_data_count - 4'd1)) begin
+                                        r_data[gi] <= wr_data;
+                                    end else if (gi < DEPTH-1) begin
+                                        r_data[gi] <= r_data[gi+1];
+                                    end else begin
+                                        r_data[gi] <= '0;
+                                    end
+                                end
+                                default: begin
+                                    // 2'b00 — hold.
+                                end
+                            endcase
+                        end
+                    )
+                end else begin : g_norst
+                    // Reset-free storage (MC-004). Same load / shift decisions
+                    // as g_rst minus the reset branch and the tail clear; a
+                    // slot nobody is reading just holds whatever it held.
+                    // The occupancy that makes a slot readable lives in
+                    // r_data_count (reset below), never in the slot itself.
+                    always_ff @(posedge axi_aclk) begin
                         unique case ({w_wr_xfer, w_rd_xfer})
                             2'b10: begin
-                                // Write only: new data lands at the tail
-                                // (index == current count).
+                                // Write only: new data lands at the tail.
                                 if (r_data_count == gi[3:0]) begin
                                     r_data[gi] <= wr_data;
                                 end
-                                // else: hold — no shift on write-only.
                             end
                             2'b01: begin
-                                // Read only: shift down one slot.
+                                // Read only: shift down one slot; the tail holds.
                                 if (gi < DEPTH-1) begin
                                     r_data[gi] <= r_data[gi+1];
-                                end else begin
-                                    r_data[gi] <= '0;  // clear the vacated tail
                                 end
                             end
                             2'b11: begin
-                                // Simultaneous r+w: shift, and the slot that
-                                // would land at count-1 after the shift takes
-                                // wr_data instead. For i == count-1 we load
-                                // wr_data; for every other slot we shift.
+                                // Simultaneous r+w: the slot at count-1 after
+                                // the shift takes wr_data, every other shifts.
                                 if (r_data_count >= 1 &&
                                     gi[3:0] == (r_data_count - 4'd1)) begin
                                     r_data[gi] <= wr_data;
                                 end else if (gi < DEPTH-1) begin
                                     r_data[gi] <= r_data[gi+1];
-                                end else begin
-                                    r_data[gi] <= '0;
                                 end
                             end
                             default: begin
-                                // 2'b00 — hold.
+                                // 2'b00 -- hold.
                             end
                         endcase
                     end
-                )
+                end
             end
 
         // =========================================================================

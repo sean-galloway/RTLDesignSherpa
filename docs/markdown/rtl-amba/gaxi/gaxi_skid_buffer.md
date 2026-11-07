@@ -49,6 +49,7 @@ The skid buffer is the simplest useful elastic buffer: it decouples a producer f
 |-----------|------|---------|-------------|
 | `DATA_WIDTH` | int | 32 | Data bus width in bits |
 | `DEPTH` | int | 2 | Buffer depth: 2..8 inclusive (odd depths are legal), or 0 for a combinational pass-through (no register: `wr_ready = rd_ready`, `rd_valid = wr_valid`, `rd_data = wr_data`, counts read 0). Elaboration fails on 1 and above 8. Depth 0 serves the bridge's per-port latency modes. |
+| `DATA_RST` | bit | 0 | Slot storage reset style (memory-controllers MC-004). `0`: the slots are written in a reset-free `always_ff` gated only by the load/shift conditions and a vacated slot is not cleared, so `rd_data` holds stale data while `rd_valid` is low; the head slot is one 2:1 mux per bit and every other slot a clock-enabled flop (about 0.5 LUT per data flop on Artix-7). `1`: the pre-MC-004 storage, every slot async-reset to zero and the vacated tail cleared to zero (about 1 LUT per data flop). The handshake outputs and `count` are identical in both styles; only `rd_data` while `rd_valid` is low differs. |
 
 **Derived Parameters:**
 - `DW` = DATA_WIDTH
@@ -63,6 +64,7 @@ The skid buffer is the simplest useful elastic buffer: it decouples a producer f
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH = 2,        // 2..8 inclusive, or 0 = pass-through
+    parameter bit DATA_RST = 1'b0,  // 0 = reset-free slots (FPGA), 1 = legacy reset + clear
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
     parameter int BW = BUF_WIDTH
