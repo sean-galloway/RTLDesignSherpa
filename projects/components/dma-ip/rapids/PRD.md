@@ -119,7 +119,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 
 ### Other Documentation
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
-- **[TASKS](TASKS.md)** - Work items (largely pre-beats history)
+- **[Tracker](../../../../vault/tracking/projects/components/dma-ip/rapids/INDEX.md)** - Work items (`vault/tracking/projects/components/dma-ip/rapids/`)
 - **[Validation Report](../../../../vault/tracking/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md)** - Test results (pre-beats snapshot)
 
 ---
@@ -561,7 +561,7 @@ See `rtl/top_beats/rapids_beats_top.sv` for the complete, authoritative port lis
 - ⏳ Stress testing ongoing
 - ⏳ Edge case refinement
 
-**See:** `TASKS.md` for detailed work items
+**See:** `vault/tracking/projects/components/dma-ip/rapids/` for work items
 
 ### 10.2 Roadmap
 
@@ -898,7 +898,7 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
 |------|---------|
 | `projects/components/dma-ip/rapids/PRD.md` | This document (overview) |
 | `projects/components/dma-ip/rapids/CLAUDE.md` | AI assistance guide |
-| `projects/components/dma-ip/rapids/TASKS.md` | Work items (largely pre-beats history) |
+| `vault/tracking/projects/components/dma-ip/rapids/INDEX.md` | Work items (task / bug / issue lanes) |
 | `projects/components/dma-ip/rapids/docs/rapids_beats_has/` | **Architecture specification** |
 | `projects/components/dma-ip/rapids/docs/rapids_beats_mas/` | **Micro-architecture specification** |
 | `projects/components/dma-ip/rapids/known_issues/` | Bug tracking |
@@ -1100,5 +1100,5 @@ The shell scripts will automatically:
 - **← Back to Root:** `/PRD.md`
 - **Complete Specification:** `docs/rapids_beats_has/rapids_beats_has_index.md` + `docs/rapids_beats_mas/rapids_beats_mas_index.md`
 - **AI Guidance:** `CLAUDE.md`
-- **Tasks:** `TASKS.md`
+- **Tasks:** `vault/tracking/projects/components/dma-ip/rapids/`
 - **Issues:** `known_issues/`

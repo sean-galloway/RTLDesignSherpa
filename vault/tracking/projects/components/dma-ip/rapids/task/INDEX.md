@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-040** — never recycle a number, even when its item closed.
+**Next ID: TASK-045** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,21 +12,30 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 36 | done (kept for history) |
-| [dropped/](dropped/) | 0 | ended without completing |
+| [closed/](closed/) | 39 | done (kept for history) |
+| [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 - **TASK-031** — strap values on RAPIDS (TILE_LAND_FLITS 16, TILE_DESC_PER_CORE 2, fixed at build); TILE_STRAPS @ 0x7FC built 2026-10-19; TILE_SPEC 11.12 row remains
 - **TASK-032** — Genesys 2 harness for RAPIDS as the tile I/O (rapids_tile): cell/core injectors on the CXS links, credit intake, receiver; cell sender + credit intake built 2026-10-19
+- **TASK-043** — move the inline `TimeoutTB` classes out of the two scheduler timeout tests into `dv/tbclasses/` (residual of TASK-042, filed 2026-11-07)
 - **TASK-033** — tagged, indexed tile intake (delta interleaves/reorders): per-flit {sender, pos, head}, landing ring (MonBus stays off the fabric); pencilled in + cycle-model validated 2026-10-19
 
 ## Active
 
+## Dropped
+
+- **TASK-044** — the pre-beats TASKS.md work list (its TASK-002, 004-009), superseded by the beats rearchitecture; seven dispositions and the pre-beats -> beats path map (dropped 2026-11-07)
+
 ## Closed
+
+- **TASK-040** — autonomous descriptor chaining (TASKS.md TASK-011); beats resync 516f68164, `test_descriptor_chaining`
+- **TASK-041** — channel idle composition (TASKS.md TASK-012), equivalent form in `scheduler_group_beats.sv`
+- **TASK-042** — RAPIDS TB classes in `dv/tbclasses/` (TASKS.md TASK-003); residual is TASK-043
 
 - **TASK-039** — CLOSED 2026-10-25: `monbus_axil4_group_1wr` on every RAPIDS top (byte, beats, 8/16ch, CXS, rapids-g); `s_axil_err_*` gone, `cfg_mon_err_*` + `mon_err_rec_count` ports; TBs and both Genesys 2 harnesses follow; books Beats HAS 0.18 / Beats MAS 0.15 / HAS 0.95 / MAS 0.85; board run waived (G2 is STREAM's); STREAM twin TASK-019
 

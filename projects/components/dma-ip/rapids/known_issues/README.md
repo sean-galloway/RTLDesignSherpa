@@ -233,7 +233,7 @@ grep -r "Severity.*High" projects/components/dma-ip/rapids/known_issues/active/
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` + `docs/rapids_beats_mas/` - Complete RAPIDS specification
 - `projects/components/dma-ip/rapids/PRD.md` - Product requirements document
 - `projects/components/dma-ip/rapids/CLAUDE.md` - AI assistant guide
-- `projects/components/dma-ip/rapids/TASKS.md` - Work items (largely pre-beats history)
+- `vault/tracking/projects/components/dma-ip/rapids/INDEX.md` - Work items (task / bug / issue lanes)
 
 **Test Infrastructure:**
 - `projects/components/dma-ip/rapids/dv/tests/fub_beats/` (+ `fub/`) - Individual FUB tests

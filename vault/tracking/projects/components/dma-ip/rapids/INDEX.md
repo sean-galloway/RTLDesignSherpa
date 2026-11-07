@@ -13,8 +13,8 @@ is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 4 | 0 | 34 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 1 | 0 | 16 | 1 | 0 |
+| [task/](task/INDEX.md) | 5 | 0 | 39 | 1 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 17 | 1 | 0 |
 | [issue/](issue/INDEX.md) | 1 | 0 | 7 | 0 | 0 |
 
 Open counts include the reserved `-000` template in each lane, which is never a
@@ -26,7 +26,18 @@ are different bugs. Cite one from outside as "RAPIDS BUG-001".
 ## Renamed 2026-09-24
 
 Everything moved into the lanes and was renumbered into per-lane sequences.
-`open.md` and `closed.md` are now pointers and take no new items. Old numbers
+The flat pages are gone. The component's own `TASKS.md` was folded in on
+2026-11-07; its numbers collide with this lane's, so they map as:
+
+| TASKS.md | Is |
+|---|---|
+| `TASK-001` | [BUG-018](bug/closed/BUG-018.md) |
+| `TASK-003` | [TASK-042](task/closed/TASK-042.md) (residual [TASK-043](task/open/TASK-043.md)) |
+| `TASK-011` | [TASK-040](task/closed/TASK-040.md) |
+| `TASK-012` | [TASK-041](task/closed/TASK-041.md) |
+| `TASK-002`, `-004`..`-009` | [TASK-044](task/dropped/TASK-044.md) (dropped, one disposition each) |
+
+The 2026-09-24 renumbering, for the older IDs: Old numbers
 appear in commit messages and handbook notes, so the map is kept:
 
 | Was | Is |

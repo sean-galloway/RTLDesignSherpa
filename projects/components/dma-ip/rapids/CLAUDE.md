@@ -868,7 +868,7 @@ it is written. `dv/tests/analyze_beats_coverage.py` writes to
 - MAS `ch02_fub_blocks/`, `ch03_macro_blocks/`, `ch04_interfaces/` - per-block
   and interface detail; HAS `ch05_programming/` - the programming model
 
-**This component:** `PRD.md`, `TASKS.md`, `known_issues/`.
+**This component:** `PRD.md`, `known_issues/`; work items in `vault/tracking/projects/components/dma-ip/rapids/`.
 
 **Validation:** `vault/tracking/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` -- test results, but a
 **pre-beats snapshot** (last updated 2026-07-22; it still discusses
