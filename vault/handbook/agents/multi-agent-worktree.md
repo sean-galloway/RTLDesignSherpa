@@ -70,6 +70,23 @@ The incidents, each a different leak path:
 
 The rules:
 
+- **Work on `main`. Never create a branch** unless Sean explicitly says so. In
+  a shared tree a branch is not isolation, it is a trap: another agent's
+  `git checkout main` silently moves you off it mid-sequence (2026-08-30, a
+  commit meant for `pumice-any-axi-burst-length` landed on `main` that way),
+  and work parked on a branch is invisible to every other agent. A change too
+  risky for `main` is a signal to split it smaller, not to branch.
+- **Commit with a pathspec: `git commit -F <msgfile> -- <paths>`.** A bare
+  `git commit` writes the whole INDEX, and the index is shared -- a peer's
+  ordinary `git add` rides your commit no matter how carefully you staged.
+  2026-09-04: one path staged, bare commit, and 06de8fb5 shipped a peer's two
+  pumice files under a monbus message. Write the message to a file so a
+  heredoc never evaluates backticks.
+- **Never `git commit --amend`.** Amend takes the whole index too, even when
+  you only meant to fix the message. 2026-10-01: amending 9d50e5781 to unmangle
+  a message absorbed three of a peer's staged rapids files. To fix a message,
+  make a follow-up commit or leave it; a history rewrite while peers are
+  committing is worse than the damage.
 - **Verify the staged SET, not staged paths.** Before every commit:
   `git diff --cached --name-status`, compare against your intended list BOTH
   ways - anything staged you did not list (adds, and especially deletions and
