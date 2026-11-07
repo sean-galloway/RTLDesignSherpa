@@ -31,7 +31,9 @@ import sys
 SRC_HOOKUPS = [
     ("u_cmd_fifo",  "wr_ready", "cmd_ready_o"),
     ("u_wd_fifo",   "wr_ready", "w_wd_data_ready"),
-    ("u_wtok_fifo", "wr_valid", "w_wtok_push"),
+    # memory-controllers BUG-002 (2026-11-07): the async token push is the
+    # REGISTERED last-take, one ctl cycle after the data word.
+    ("u_wtok_fifo", "wr_valid", "r_wtok_push"),
     ("u_wtok_fifo", "wr_ready", "w_wtok_ready"),
     ("u_wtok_fifo", "rd_valid", "pwr_staged_valid_o"),
     ("u_rd_fifo",   "wr_ready", "prd_ready_o"),
@@ -41,7 +43,7 @@ SRC_HOOKUPS = [
 ALIAS_PROBES = [
     ("o_p_w_wd_data_ready", "w_wd_data_ready"),
     ("o_p_w_wtok_ready",    "w_wtok_ready"),
-    ("o_p_w_wtok_push",     "w_wtok_push"),
+    ("o_p_w_wtok_push",     "r_wtok_push"),
     ("o_p_w_istart_push",   "w_istart_push"),
     ("o_p_w_icmp_push",     "w_icmp_push"),
 ]
@@ -77,6 +79,15 @@ def main():
                      "in the sv2v output -- flat net names changed; re-audit "
                      "before probing" % (inst, port, expr))
 
+    # --- 1b. every aliased net is declared inside the g_async branch ----------
+    mod0 = text.index("module mc_dfi_cdc (")
+    ga = text.index("begin : g_async", mod0)
+    gs = text.index("else begin : g_sync", ga)
+    for _, net in ALIAS_PROBES:
+        if (" %s;" % net) not in text[ga:gs] and (" %s," % net) not in text[ga:gs]:
+            sys.exit("inject_probes: AUDIT FAIL: `%s` is not declared inside g_async "
+                     "-- a module-level alias would be an implicit wire" % net)
+
     # --- 2. fill the dangling wr_ready hookups ----------------------------
     for inst, net in DANGLING_PROBES.items():
         body = instance_body(text, inst)
@@ -104,9 +115,19 @@ def main():
         decl_at = text.index(");", mod_start) + 2
         decls = "".join("\toutput wire %s;\n" % p for p, _ in ALIAS_PROBES)
         decls += "".join("\toutput wire %s;\n" % p for p in DANGLING_PROBES.values())
-        decls += "".join("\tassign %s = %s;\n" % (p, n)
-                         for p, n in ALIAS_PROBES)
         text = text[:decl_at] + "\n" + decls + text[decl_at:]
+        # The aliased nets live INSIDE the DFI_CDC_EN generate branch
+        # (`begin : g_async`, since 5f13f4648 2026-10-24). An assign at module
+        # level does not see them: yosys declares the name IMPLICITLY as a free
+        # wire and every probe-based assertion proves nothing (found 2026-11-07,
+        # pumice BUG-033: "Identifier `\\r_wtok_push' is implicitly declared"
+        # in the sby log). The assigns go inside the branch, just before its
+        # `end else begin : g_sync`.
+        g_async = text.index("begin : g_async", mod_start)
+        g_sync = text.index("else begin : g_sync", g_async)
+        end_async = text.rindex("end", g_async, g_sync)
+        assigns = "".join("\t\t\tassign %s = %s;\n" % (p, n) for p, n in ALIAS_PROBES)
+        text = text[:end_async] + assigns + "\t\t" + text[end_async:]
 
     open(dst, "w").write(text)
     # stderr: the flat is built through a pipe (make/formal_flat.mk FLAT_POST),

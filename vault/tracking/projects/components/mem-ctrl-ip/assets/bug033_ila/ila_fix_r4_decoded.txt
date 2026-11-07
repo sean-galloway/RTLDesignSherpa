@@ -1,0 +1,71 @@
+columns: {'cs': 'w_dfi_cs_n[1:0]', 'ras': 'w_dfi_ras_n[1:0]', 'cas': 'w_dfi_cas_n[1:0]', 'we': 'w_dfi_we_n[1:0]', 'bank': 'w_dfi_bank[5:0]', 'addr': 'w_dfi_address[25:0]', 'en': 'w_dfi_rddata_en[1:0]', 'vld': 'w_dfi_rddata_valid[1:0]', 'rd': 'w_dfi_rddata[63:0]', 'trig': 'TRIGGER', 'dbgv': 'u_harness/w_rd_dbg_valid', 'dbgm': 'u_harness/w_rd_dbg_mismatch', 'dbga': 'u_harness/w_rd_dbg_actual[63:0]', 'dbge': 'u_harness/w_rd_dbg_expected[63:0]', 'tok': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_cmd_delay.r_tok_shift_reg_n_0_[5:0]', 'rfc': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rfc_cnt_reg[15]_0[15:0]', 'grant': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_grant_reg_0', 'pv': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_pick_valid_reg_0', 'doact': None, 'op': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_op_reg[3]_0[3:0]', 'req': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_refresh.u_refresh/refresh_req_o_reg_0', 'drain': None, 'pull': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_refresh.u_refresh/r_pullin_reg[2]_0[2:0]'}
+samples 2048, trigger at 1024
+  -60 RD      b1 a00068 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=a27a9ba264d05ce7
+  -59 RD      b1 a0006c en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=000000000000a27a
+  -58 RD      b1 a00070 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -57 RD      b1 a00074 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=6 req=1 pull=0 rd=0000000000000000
+  -56 RD      b1 a00078 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -55 --      b0 a00000 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=1 req=0 pull=0 rd=4b01b4948dab73d1
+  -54 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=c6543a1f00fefd5a
+  -53 --      b0 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=51aaa98397006ec6
+  -52 --      b0 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=dcff27081a55e04d
+  -51 --      b0 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=7e578ebab8fd49ff
+  -50 RD      b1 a0007c en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=6 req=1 pull=0 rd=f302003135a8c774
+  -49 --      b0 a00000 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=6 req=1 pull=0 rd=64fc93ada25654e8
+  -48 PRE     b1 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=6 req=1 pull=0 rd=00000000000064fc
+  -47 --      b0 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=6 req=1 pull=0 rd=0000000000000000
+  -46 ACT     b1 a00001 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -45 RD      b1 a00060 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -44 RD      b1 a00064 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -43 RD      b1 a00068 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=8 req=0 pull=0 rd=e9a91d262f03da63
+  -42 PRE     b0 a00000 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=000000000000e9a9
+  -41 PRE     b2 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -40 PRE     b4 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -39 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -38 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=a3316fab659ba8ee
+  -37 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=2e64e120e8ce2665
+  -36 PRE     b1 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=b99a72bc7f30b5f9
+  -35 --      b0 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=000000000000b99a
+  -34 --      b0 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -33 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=0 req=0 pull=0 rd=0000000000000000
+  -32 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=1 req=0 pull=0 rd=0000000000000000
+  -31 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=1 req=0 pull=0 rd=0000000000000000
+  -30 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=1 op=2 req=1 pull=0 rd=0000000000000000
+  -29 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -28 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -27 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -26 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -25 REF     b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -24 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000 DBG act=a3316fab659ba8ee exp=a3316fab659ba8ee
+  -23 ACT     b1 a00001 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000 DBG act=2e64e120e8ce2665 exp=2e64e120e8ce2665
+  -22 ACT     b0 a00003 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000 DBG act=b99a72bc7f30b5f9 exp=b99a72bc7f30b5f9
+  -21 RD      b1 a0006c en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -20 RD      b1 a00070 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -19 RD      b1 a00074 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=1 req=0 pull=0 rd=0000000000000000
+  -18 RD      b1 a00078 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -17 RD      b1 a0007c en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -16 RD      b0 a00220 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -15 RD      b0 a00224 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000000000
+  -14 RD      b0 a00228 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=ffffffffffffffff
+  -13 RD      b0 a0022c en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=ffffffffffffffff
+  -12 RD      b0 a00230 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=ffffffffffffffff
+  -11 ACT     b4 a00005 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=ffffffffffffffff
+  -10 RD      b0 a00238 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=6 req=1 pull=0 rd=ffffffffffffffff
+   -9 RD      b0 a0023c en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=4ae3cb948c490cd1
+   -8 RD      b0 a00234 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=1 req=0 pull=0 rd=c7b6451f011c825a
+   -7 RD      b4 a00220 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=5048d68396e211c6
+   -6 RD      b4 a00224 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=dd1d58081bb79f4d
+   -5 RD      b4 a00228 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=7fb5f1bab91f36ff
+   -4 RD      b4 a0022c en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000007fb5
+   -3 RD      b4 a00230 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=651eecada3b42be8
+   -2 PRE     b0 a00000 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=e84b62262ee1a563
+   -1 RD      b4 a00238 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=f2e07f31344ab874
+    0 ACT     b0 a00006 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=7cf93ad6ba53fd93 DBG act=ffffffffffffffff exp=34cffc37f2653b72 MISMATCH  <== TRIGGER
+    1 RD      b4 a00234 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 op=6 req=1 pull=0 rd=f1acb45d37067318 DBG act=ffffffffffffffff exp=9667558550cd92c0 MISMATCH
+    2 RD      b0 a00220 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=665227c1a0f8e084 DBG act=ffffffffffffffff exp=1b32db0edd981c4b MISMATCH
+    3 RD      b4 a0023c en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=1 req=0 pull=0 rd=eb07a94a2dad6e0f DBG act=ffffffffffffffff exp=8ccc48924a668fd7 MISMATCH
+    4 RD      b0 a00224 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=49af00f88f05c7bd DBG act=ffffffffffffffff exp=0199c619c733015c MISMATCH
+    5 RD      b0 a00228 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=00000000000049af
+    6 RD      b0 a0022c en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=53041def95aedaaa
+    7 RD      b0 a00230 en=3 vld=0 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=0000000000005304
+    8 RD      b0 a00234 en=3 vld=3 tok=0 rfc=7 grant=0 pv=0 op=2 req=1 pull=0 rd=c4fa8e7302504936

@@ -122,7 +122,19 @@ module formal_dfi_cdc #(
     parameter int CMD_DEPTH = 4,
     parameter int WD_DEPTH  = 4,
     parameter int RD_DEPTH  = 4,
-    parameter int TOK_DEPTH = 4
+    parameter int TOK_DEPTH = 4,
+    // LINERATE (pumice BUG-033, 2026-11-07): the command FIFO's write side
+    // must never stall a burst at one command per cycle, because it sits
+    // downstream of the scheduler's fire and a stall there compresses the
+    // in-order stream behind it. Under LINERATE the writer offers a command
+    // every cycle and the reader always takes one; the assertion is that
+    // cmd_ready_o never drops. It HOLDS at CMD_DEPTH 8 (the plane default)
+    // and at 32, to bmc depth 24 on one clock: the pointer round trip does
+    // not fill an 8-deep FIFO at one command per cycle, which is what the
+    // handbook's rate measurement said and what the board confirmed when
+    // deepening it to 32 changed nothing. Depth 4 is the known-stalling
+    // value (0.58 per cycle measured) and the mutation check.
+    parameter int LINERATE = 0
 ) (
     input logic clk,
     input logic rstn
@@ -196,10 +208,45 @@ module formal_dfi_cdc #(
     wire w_rd_push  = prd_valid_i  && prd_ready_o;
     wire w_rd_pop   = rd_valid_o   && rd_ready_i;
 
+    // LINERATE environment and property (see the parameter).
+    always @(posedge clk) if (LINERATE != 0 && f_past_valid >= 2) begin
+        assume (cmd_valid_i);
+        assume (pcmd_ready_i);
+    end
+    always @(posedge clk) if (LINERATE != 0 && rstn && f_past_valid > 2)
+        a_cmd_no_stall: assert (cmd_ready_o);
+    // reachable in every task: a run of command pushes with the write side
+    // still ready (the LINERATE assertion must be able to bind)
+    always @(posedge clk) if (rstn)
+        c_cmd_burst_6: cover (f_cmd_push_n >= 8'd6 && cmd_ready_o);
+
+    // DFI-side contract (see a_tok_push_lands): a burst's LAST data word
+    // leaves the data FIFO only after its token has left the token FIFO.
+    // The data word carries no last flag of its own through the CDC, so the
+    // environment marks it: bit 0 of the data word is the last flag.
+    reg [9:0] f_bursts_in, f_tok_in;
+    wire w_pwd_last_pop = pwd_valid_o && pwd_ready_i && pwd_data_o[0];
+    always @(posedge clk) if (f_past_valid >= 2) assume (wd_data_i[0] == wd_last_i);
+    always @(posedge clk) if (rstn && f_past_valid > 2)
+        a_env_token_before_data: assume (!w_pwd_last_pop || (f_tok_in < f_bursts_in));
+    always @(posedge clk) begin
+        if (!rstn) begin
+            f_bursts_in <= 0; f_tok_in <= 0;
+        end else begin
+            f_bursts_in <= f_bursts_in + {9'd0, (w_wd && wd_last_i)} - {9'd0, w_pwd_last_pop};
+            f_tok_in    <= f_tok_in + {9'd0, w_tok_fire}
+                                    - {9'd0, (pwr_staged_valid_o && pwr_staged_pop_i)};
+        end
+    end
+
     // =====================================================================
     // FAMILY 1 -- TOKEN / DATA PAIRING
     // =====================================================================
     reg [9:0] f_last_beats, f_tok_pushes, f_staged_pops;
+    // memory-controllers BUG-002: the token is pushed one ctl cycle AFTER the
+    // burst's last data word is taken, so the data pointer's crossing settles
+    // no later than the token's. f_last_take_d is that pending push.
+    reg       f_last_take_d;
     always @(posedge clk) begin
         // Reset on !rstn ONLY: rstn is released while f_past_valid is still 2,
         // and from that cycle the DUT already stores pushes -- a shadow that
@@ -208,8 +255,9 @@ module formal_dfi_cdc #(
         // active one cycle before the counters). Assertions stay gated at
         // f_past_valid > 2 below.
         if (!rstn) begin
-            f_last_beats <= 0; f_tok_pushes <= 0; f_staged_pops <= 0;
+            f_last_beats <= 0; f_tok_pushes <= 0; f_staged_pops <= 0; f_last_take_d <= 1'b0;
         end else begin
+            f_last_take_d <= w_wd && wd_last_i;
             if (w_wd && wd_last_i) f_last_beats <= f_last_beats + 1'b1;
             if (w_tok_fire) f_tok_pushes <= f_tok_pushes + 1'b1;
             if (pwr_staged_valid_o && pwr_staged_pop_i)
@@ -222,15 +270,22 @@ module formal_dfi_cdc #(
         // port-level equation it is meant to carry. These five are the whole
         // name-resolution audit; a mis-wired probe fails here.
         a_aud_wd_ready: assert (wd_ready_o == (p_w_wd_data_ready && p_w_wtok_ready));
-        a_aud_tok_push: assert (p_w_wtok_push == ((wd_valid_i && wd_last_i) && p_w_wd_data_ready));
+        // The token push is the REGISTERED accepted last beat (BUG-002).
+        a_aud_tok_push: assert (p_w_wtok_push == f_last_take_d);
 
-        // The accepted token push IS the accepted last beat. Algebraically
-        // identical in the source; asserted so a wiring change that breaks
-        // the algebra cannot pass:
-        //   w_tok_fire = wd_valid_i && wd_last_i && w_wd_data_ready && w_wtok_ready
-        //   w_wd       = wd_valid_i &&              w_wd_data_ready && w_wtok_ready
-        a_pair_fire_eq: assert (w_tok_fire == (w_wd && wd_last_i));
-        a_token_per_burst: assert (f_tok_pushes == f_last_beats);
+        // The delayed push must always land: a token the FIFO refuses is a
+        // burst the DFI side never learns is complete. Sized 2 x WD_DEPTH for
+        // exactly this: one token per burst still in the data FIFO, plus the
+        // one in flight. That bound rests on the DFI side's contract (the
+        // command path pops the token when the WR is accepted and the
+        // serializer drains the burst's data AFTER that), assumed below as
+        // a_env_token_before_data; with the environment fully free the proof
+        // found the 9th single-beat burst's token refused at 8 stored, which
+        // no real DFI side can produce.
+        a_tok_push_lands: assert (!(p_w_wtok_push && !p_w_wtok_ready));
+        // One token per burst, one cycle behind: pushes so far plus the one
+        // pending equal the last beats taken.
+        a_token_per_burst: assert (f_tok_pushes + {9'd0, f_last_take_d} == f_last_beats);
 
         // The PHY port never presents more staged bursts than the controller
         // completed. Counting is qualified by pwr_staged_valid_o itself, so

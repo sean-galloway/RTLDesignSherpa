@@ -1,0 +1,19 @@
+columns: {'cs': 'w_dfi_cs_n[1:0]', 'ras': 'w_dfi_ras_n[1:0]', 'cas': 'w_dfi_cas_n[1:0]', 'we': 'w_dfi_we_n[1:0]', 'bank': 'w_dfi_bank[5:0]', 'addr': 'w_dfi_address[25:0]', 'en': 'w_dfi_rddata_en[1:0]', 'vld': 'w_dfi_rddata_valid[1:0]', 'rd': 'w_dfi_rddata[63:0]', 'trig': 'TRIGGER', 'dbgv': 'u_harness/w_rd_dbg_valid', 'dbgm': 'u_harness/w_rd_dbg_mismatch', 'dbga': 'u_harness/w_rd_dbg_actual[63:0]', 'dbge': 'u_harness/w_rd_dbg_expected[63:0]', 'tok': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_cmd_delay.r_tok_shift_reg_n_0_[5:0]', 'rfc': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rfc_cnt[7:0]', 'grant': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_grant', 'pv': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_pick_valid', 'doact': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_do_act', 'dopre': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_do_pre', 'rdiss': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_issue', 'op': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_op[3:0]', 'pend': 'u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_refresh.u_refresh/r_pending[3:0]', 'pull': 'u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_refresh.u_refresh/r_pullin[2:0]'}
+samples 2048, trigger at 1024
+  -12 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+  -11 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+  -10 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+   -9 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=1 pull=0
+   -8 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=1 pull=0
+   -7 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=1 pv=1 doact=0 dopre=0 rdiss=0 op=8 pend=1 pull=0
+   -6 --      b0 a00000 en=0 vld=0 tok=0 rfc=7 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+   -5 --      b0 a00000 en=0 vld=0 tok=0 rfc=6 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+   -4 --      b0 a00000 en=0 vld=0 tok=0 rfc=5 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+   -3 --      b0 a00000 en=0 vld=0 tok=0 rfc=4 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+   -2 --      b0 a00000 en=0 vld=0 tok=0 rfc=3 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+   -1 --      b0 a00000 en=0 vld=0 tok=0 rfc=2 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+    0 REF     b0 a00000 en=0 vld=0 tok=0 rfc=1 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0  <== TRIGGER
+    1 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+    2 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+    3 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0
+    4 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 pend=0 pull=0

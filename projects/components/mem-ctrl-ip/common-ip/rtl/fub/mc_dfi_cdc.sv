@@ -146,6 +146,35 @@ module mc_dfi_cdc #(
         .rd_data       (pcmd_data_o)
     );
 
+    // The command FIFO's write side must NEVER stall: it is downstream of the
+    // scheduler's fire, so a stall here is invisible to the arbiter's JEDEC
+    // counters and the in-order stream behind it drains compressed (the
+    // TASK-007 class). It was the first suspect for pumice BUG-033 and was
+    // cleared: the formal LINERATE task shows CMD_DEPTH 8 streams a burst at
+    // one per cycle, and the board failed the same way at 32. Counted like
+    // the write-staged hold in mc_dfi_cmd_path so the DV can read it
+    // hierarchically; a non-zero total is a sizing defect, not a stall to
+    // tolerate.
+    logic [31:0] r_cmd_stall_cnt;
+    logic [15:0] r_cmd_stall_run, r_cmd_stall_max;
+    `ALWAYS_FF_RST(ctl_clk, ctl_rstn,
+        if (`RST_ASSERTED(ctl_rstn)) begin
+            r_cmd_stall_cnt <= '0; r_cmd_stall_run <= '0; r_cmd_stall_max <= '0;
+        end else begin
+            if (cmd_valid_i && !cmd_ready_o) begin
+                r_cmd_stall_cnt <= r_cmd_stall_cnt + 1;
+                r_cmd_stall_run <= r_cmd_stall_run + 1;
+                if (r_cmd_stall_run + 1 > r_cmd_stall_max) r_cmd_stall_max <= r_cmd_stall_run + 1;
+            end else begin
+                r_cmd_stall_run <= '0;
+            end
+        end
+    )
+`ifdef VERILATOR
+    final $display("MC_DFI_CDC: command FIFO write side stalled %0d cycles total, longest stall %0d (CMD_DEPTH %0d)",
+                   r_cmd_stall_cnt, r_cmd_stall_max, CMD_DEPTH);
+`endif
+
     // ---- wrdata : ctl -> phy ------------------------------------------------
     // The data word is accepted when both FIFOs have room. The staged token
     // for a burst's LAST word is pushed one ctl cycle later (BUG-002, above):

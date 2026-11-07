@@ -140,6 +140,33 @@ of them live in `timing_characterization`, whose flops would have elaborated
 synchronous while the rest of the tree was async. `bin/check_shared_include_copies.py`
 (wired into the pre-commit hook) now fails on any tracked copy that has drifted.
 
+## ILA probes by net name: name the register, not a glob over it (2026-11-07)
+
+`build_ila.tcl` takes `ILA_EXTRA_NETS` so a debug build can probe internal
+state the RTL does not `mark_debug` (the shared RTL must carry no attribute).
+The pumice BUG-033 arbiter capture probed `*u_arbiter/r_rfc_cnt_reg*`,
+`*u_arbiter/r_grant_reg*`, `*u_arbiter/r_pick_valid_reg*` and read a counter
+stuck at 7, a grant that never rose and a pick-valid that rose once in 2,048
+samples with six refreshes on the wire. None of those were the registers.
+Vivado names a flop's Q net after the RTL signal, plainly
+(`.../u_arbiter/r_rfc_cnt[3]`, `.../r_grant`, `.../r_pick_valid`); the names
+with `_reg` in them are the cell and its FAN-IN copies: `r_rfc_cnt_reg[15]_0`
+is the CSR field `TIMINGS_RFC_REFI.tRFC` arriving at the counter's load mux,
+`r_grant_reg_0` is a LUT output, `r_pick_valid_reg_0` another. A glob ending
+in `_reg*` collects exactly the wrong set, and it reports a plausible bus
+width, so nothing in the build log says so. The 16 "counter" bits reading 7
+were in fact useful -- they prove the programmed tRFC reaches the arbiter --
+but by accident.
+
+Two rules: find the names first (`open_checkpoint` the synth dcp, then
+`get_pins -leaf -of_objects [get_nets ...] -filter {DIRECTION == OUT}` and
+the driver cell's `REF_NAME`: an `FD*` on a plainly named net is the
+register), and pass them EXACTLY. `build_ila.tcl` treats a pattern with no
+wildcard as `NAME ==`, because `[k]` inside a `=~` glob is a character class
+and `r_rfc_cnt[3]` would match `r_rfc_cnt3`. Replicated registers show up as
+several plainly named nets with one value; fan-in copies show up as `_reg_N`
+nets with another block's value.
+
 ## Flow notes
 
 - Non-project batch Tcl driven by the Makefiles above

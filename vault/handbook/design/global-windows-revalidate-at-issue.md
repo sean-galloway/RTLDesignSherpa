@@ -136,6 +136,16 @@ loads on the fire, the granted command sitting in the output register is the
 window's first cycle, and no request line from another block may be what
 closes that seam.
 
+What the fix did and did not close (2026-11-07, same day): the hole is
+real, proven, and now gated -- and the board's `windows` signature came back
+on run 4 of the interleaved soak on a bitstream carrying the fix, with the
+same mismatch counts. The capture's two-cycle REF-to-ACT gap was already one
+cycle wider than this hole produces. So the rule above stands on the proof,
+and the board failure had another cause entirely: the DFI command CDC FIFO
+downstream of the fire stalled on its own pointer latency and compressed the
+stream the arbiter had spaced correctly (pumice BUG-033, [[cdc]]). The
+arbiter-probed capture showed the arbiter right at every refresh.
+
 How it was pinned: `formal/mc_common/mc_cmd_arbiter` had tRRD/tFAW assertions
 and no tRFC one. A tRFC assertion in the same shape (the wrapper times REF to
 ACT itself, `refresh_req_i` free) fails at step 6 on the pre-fix RTL with

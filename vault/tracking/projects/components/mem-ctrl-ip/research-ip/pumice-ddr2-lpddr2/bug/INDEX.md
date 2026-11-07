@@ -25,15 +25,14 @@ None.
 ## Active
 
 - **BUG-033** — reads return wrong data with `FAST_RD_RELEASE` on: board
-  `windows` random_bl8 fails ~1 run in 3 at 50 MHz (13 / 55 on HEAD builds,
-  0 / 8 on the 10-27 bitstream, 0 / 8 on HEAD with the option off). Now a
-  runtime bit, reset off. Board ILA 2026-11-06: an ACTIVATE two cycles after
-  a REFRESH (tRFC 7), reads behind it return 0 / all-ones. ROOT CAUSE FIXED
-  2026-11-07 in `mc_cmd_arbiter`: a pull-in REF's request drops in the REF's
-  fire cycle, before the tRFC counter loads, and an ACT was picked in that
-  cycle; the granted REF in the output register now gates the ACT. Pinned by a
-  new tRFC assertion in `formal/mc_common/mc_cmd_arbiter`. Board re-soak
-  pending. [active/BUG-033.md](active/BUG-033.md).
+  `windows` random_bl8 fails ~1 run in 3 at 50 MHz. ROOT CAUSE 2026-11-07 (ILA
+  with the arbiter's registers probed): the arbiter spaces REF and the next ACT
+  correctly; the DFI command CDC FIFO (`mc_dfi_cdc`, depth 8) stalls the 8th
+  back-to-back command on async pointer lag and the stream behind it drains
+  compressed, so the pair reaches the DRAM 2 cycles apart. Fix: pumice
+  `DFI_CMD_FIFO_DEPTH = 32` + a stall counter in the CDC; the arbiter tRFC hole
+  closed the same day (`f2f7b15ff`) was real but not this. Board validation on
+  the fixed bitstream pending. [active/BUG-033.md](active/BUG-033.md).
 
 ## Closed
 

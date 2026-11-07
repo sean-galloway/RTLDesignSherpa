@@ -129,6 +129,25 @@ if {$trig eq "ref"} {
     set_property TRIGGER_COMPARE_VALUE "eq1'h1" $pv
     puts "ILA armed (trigger: rd_dbg_valid & rd_dbg_mismatch -- the pumice BUG-014 (was PUMICE-037) corruption)."
     puts "Now run the failing workload: a concurrent read+write with reader gap >= 8."
+} elseif {$trig eq "refarb"} {
+    # pumice BUG-033: a refresh granted by the ARBITER while reads are still
+    # outstanding at the DFI read aligner -- a refresh amid traffic, not the
+    # idle-gap refresh the wire-level "ref" trigger lands on when the char
+    # step pauses between scenarios. Needs the ILA_EXTRA_NETS build with
+    # .../u_arbiter/r_grant and .../u_rd/r_outstanding[*] probed.
+    set pg [get_hw_probes -quiet -of_objects $ila *u_arbiter/r_grant]
+    set po [get_hw_probes -quiet -of_objects $ila *u_rd/r_outstanding*]
+    if {[llength $pg] == 0 || [llength $po] == 0} {
+        puts stderr "ERROR: refarb needs the arbiter r_grant and aligner r_outstanding probes."
+        exit 1
+    }
+    set_property TRIGGER_COMPARE_VALUE "eq1'h1" $pg
+    set wo [get_property WIDTH $po]
+    # the hex literal needs ceil(width/4) digits or the hw_server rejects it
+    set zo [string repeat 0 [expr {($wo + 3) / 4}]]
+    set_property TRIGGER_COMPARE_VALUE "neq${wo}'h${zo}" $po
+    set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] / 2}] $ila
+    puts "ILA armed (trigger: arbiter REF grant with reads outstanding = refresh amid traffic)."
 } elseif {$trig eq "rd"} {
     set p [get_hw_probes -of_objects $ila *w_dfi_rddata_valid*]
     set_property CONTROL.TRIGGER_POSITION [expr {[get_property CONTROL.DATA_DEPTH $ila] - 512}] $ila

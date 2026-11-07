@@ -93,6 +93,36 @@ rate floor caught it. Depth 8 streams at one beat per cycle.
   (`test_axi4_cdc`: 0.85 at three clock ratios). A crossing that halves
   throughput is a defect the data check cannot see.
 
+### Suspecting the round trip when the stream compresses (pumice BUG-033, 2026-11-07)
+
+A command CDC downstream of a scheduler's fire is where any stall becomes
+corruption: the arbiter's JEDEC counters run in its own time, the stall is
+invisible to them, and the in-order stream behind it drains compressed. On
+pumice BUG-033 the ILA showed a REF and the ACT behind it, spaced eleven
+cycles by the arbiter, reaching the DRAM two cycles apart; the 8-deep async
+command CDC (`mc_dfi_cdc`, plane default) was the obvious suspect and was
+deepened to 32. The board failed identically on the deeper build, and the
+LINERATE task added to `formal/mc_common/mc_dfi_cdc` then proved that depth 8
+streams a 24-command burst at one per cycle with no write-side stall (depth 4
+is the one that does not, as measured above). The real stall was a lost
+release token in the scheduler plane ([[credit-tokens-count-every-event]]).
+
+What stays from it:
+
+- **Prove the depth, do not argue it.** The pointer-latency arithmetic that
+  "showed" 8 fills was wrong; the proof took thirty minutes and settled it.
+  The LINERATE task runs at the plane default so the claim is checked every
+  time the proof runs.
+- **A crossing on a spacing contract gets a stall counter.** `mc_dfi_cdc`
+  now counts write-side stalls (`r_cmd_stall_cnt`, read hierarchically like
+  the `mc_dfi_cmd_path` write-staged hold), so "never stalls" is a number in
+  every sim rather than a comment.
+- **A same-clock integration still pays the async latency** when the
+  crossing is built (`DFI_CDC_EN = 1` with `dfi_clk` tied to `mc_clk`, the
+  Nexys harness); the latency is a cost, not a stall, but granite's harness
+  builds the synchronous form (`DFI_CDC_EN = 0`), which is the cheaper
+  answer for a board where the two clocks are one net.
+
 ## A handshake across independently reset domains: four-phase, and never a one-sided cancel
 
 Two rules from the rtc time-set commit (issue #56, 2026-09-09), each learned

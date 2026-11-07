@@ -1114,6 +1114,16 @@ module granite_core
     localparam int DFI_WD_FIFO_NEED = CMD_DELAY_EFF + 1 + BURST_WORDS;
     localparam int DFI_WD_FIFO_EFF  = (!DFI_CDC_EN || (DFI_WD_FIFO_DEPTH >= DFI_WD_FIFO_NEED))
                                     ? DFI_WD_FIFO_DEPTH : (1 << $clog2(DFI_WD_FIFO_NEED));
+    // Command FIFO depth. Same clock: as given (4 measured cycle-identical).
+    // Across the CDC a 4-deep async FIFO streams at ~0.58 commands per cycle
+    // (handbook cdc.md, measured), and a stall here sits BEHIND the
+    // scheduler's fire where the arbiter's JEDEC counters cannot see it, so
+    // the stream drains compressed (the TASK-007 class). 32 for any crossing
+    // build; the formal LINERATE task on mc_dfi_cdc proves 8 already streams,
+    // 32 is margin. (pumice BUG-033, 2026-11-07, cleared this FIFO as the
+    // cause but found the hazard.)
+    localparam int DFI_CMD_FIFO_EFF = (!DFI_CDC_EN || (DFI_CMD_FIFO_DEPTH >= 32))
+                                    ? DFI_CMD_FIFO_DEPTH : 32;
 
     mc_dfi_2p1_plane #(
         .NUM_RANKS       (NUM_RANKS),
@@ -1131,7 +1141,7 @@ module granite_core
         .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
         .RD_FIFO_DEPTH   (DFI_RD_FIFO_EFF),
         .WD_FIFO_DEPTH   (DFI_WD_FIFO_EFF),
-        .CMD_FIFO_DEPTH  (DFI_CMD_FIFO_DEPTH),
+        .CMD_FIFO_DEPTH  (DFI_CMD_FIFO_EFF),
         .DFI_CDC_EN      (DFI_CDC_EN),
         .CMD_FALLTHRU    (GRANITE_DFI_CMD_FALLTHRU),
         .CMD_HISTORY_EN  (0),

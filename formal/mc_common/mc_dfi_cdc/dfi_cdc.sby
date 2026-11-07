@@ -1,6 +1,7 @@
 [tasks]
 prove
 cover
+linerate
 
 [options]
 # The properties are single-domain statements about the logic around the FIFOs
@@ -10,14 +11,21 @@ prove: mode bmc
 prove: depth 20
 cover: mode cover
 cover: depth 20
+# pumice BUG-033: a 24-command burst at one per cycle never stalls the command FIFO write side.
+# Run at the plane's default CMD_DEPTH 8: it PASSES there (and at 32), so the 8-deep FIFO was not
+# that bug's stall; the depth is proved to stream, not assumed. Depth 40 ran >1 h in the solver.
+linerate: mode bmc
+linerate: depth 24
 
 [engines]
 prove: smtbmc bitwuzla
 cover: smtbmc bitwuzla
+linerate: smtbmc bitwuzla
 
 [script]
 read_verilog -formal cdc_flat.v
 read -formal -sv formal_dfi_cdc.sv
+linerate: chparam -set LINERATE 1 -set CMD_DEPTH 8 formal_dfi_cdc
 prep -top formal_dfi_cdc
 
 [files]

@@ -1,0 +1,51 @@
+columns: {'cs': 'w_dfi_cs_n[1:0]', 'ras': 'w_dfi_ras_n[1:0]', 'cas': 'w_dfi_cas_n[1:0]', 'we': 'w_dfi_we_n[1:0]', 'bank': 'w_dfi_bank[5:0]', 'addr': 'w_dfi_address[25:0]', 'en': 'w_dfi_rddata_en[1:0]', 'vld': 'w_dfi_rddata_valid[1:0]', 'rd': 'w_dfi_rddata[63:0]', 'trig': 'TRIGGER', 'dbgv': 'u_harness/w_rd_dbg_valid', 'dbgm': 'u_harness/w_rd_dbg_mismatch', 'dbga': 'u_harness/w_rd_dbg_actual[63:0]', 'dbge': 'u_harness/w_rd_dbg_expected[63:0]', 'tok': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_cmd_delay.r_tok_shift_reg_n_0_[5:0]', 'rfc': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rfc_cnt[3:0]', 'grant': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_grant', 'pv': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_pick_valid', 'doact': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_do_act', 'dopre': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_do_pre', 'rdiss': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_issue', 'op': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_op[3:0]', 'pend': None, 'pull': None, 'tokc': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/r_tok_cnt[4:0]', 'idle': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_cmd_delay.g_fast.r_idle[7:0]', 'fast': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_cmd_delay.g_fast.r_fast_reg_n_0', 'pfifo': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/u_cmd_fifo/counter_bin_curr[3:0]', 'rdout': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_dfi_plane/u_rd/r_outstanding[5:0]', 'cdcrd': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_dfi_plane/u_cdc/g_async.u_cmd_fifo/rd_ptr_gray_cross_inst/r_q_array[1]_4[5:0]', 'cdcwr': 'u_harness/u_dut/u_ctrl/u_core/u_core/u_dfi_plane/u_cdc/g_async.u_cmd_fifo/wr_ptr_gray_cross_inst/r_q_array[1]_6[5:0]', 'f_cs': None, 'f_ras': None, 'f_cas': None, 'f_we': None, 'c_cs': None, 'c_ras': None, 'c_cas': None, 'd_cs': None, 'd_ras': None, 'd_cas': None}
+samples 2048, trigger at 1024
+  -64 RD      b1 a0006c en=3 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=0 rdout=5 cdcrd=16 cdcwr=10
+  -63 RD      b1 a00070 en=3 vld=3 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=0 rdout=6 cdcrd=12 cdcwr=10
+  -62 RD      b1 a00074 en=3 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=0 rdout=6 cdcrd=13 cdcwr=10
+  -61 RD      b1 a00078 en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=1 rdiss=0 op=6 tokc=0 idle=0 fast=1 pfifo=0 rdout=7 cdcrd=11 cdcwr=10
+  -60 --      b0 a00000 en=3 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=1 rdout=7 cdcrd=10 cdcwr=10
+  -59 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=1 dopre=0 rdiss=0 op=1 tokc=0 idle=0 fast=1 pfifo=1 rdout=7 cdcrd=10 cdcwr=10
+  -58 --      b0 a00000 en=0 vld=3 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=2 rdout=7 cdcrd=10 cdcwr=30
+  -57 --      b0 a00000 en=0 vld=3 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=2 rdout=6 cdcrd=10 cdcwr=30
+  -56 --      b0 a00000 en=0 vld=3 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=3 rdout=5 cdcrd=10 cdcwr=31
+  -55 RD      b1 a0007c en=0 vld=3 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=4 rdout=5 cdcrd=10 cdcwr=31
+  -54 --      b0 a00000 en=3 vld=3 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=5 rdout=4 cdcrd=30 cdcwr=33
+  -53 PRE     b1 a00000 en=0 vld=3 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=6 rdout=3 cdcrd=30 cdcwr=32
+  -52 --      b0 a00000 en=0 vld=3 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=1 rdiss=0 op=6 tokc=0 idle=0 fast=1 pfifo=7 rdout=2 cdcrd=31 cdcwr=36
+  -51 ACT     b1 a00001 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=8 rdout=1 cdcrd=31 cdcwr=37
+  -50 RD      b1 a00060 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=1 dopre=0 rdiss=0 op=1 tokc=0 idle=0 fast=1 pfifo=9 rdout=2 cdcrd=33 cdcwr=35
+  -49 RD      b1 a00064 en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=1 rdiss=0 op=6 tokc=0 idle=0 fast=1 pfifo=a rdout=3 cdcrd=32 cdcwr=34
+  -48 RD      b1 a00068 en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=1 rdiss=0 op=6 tokc=0 idle=0 fast=1 pfifo=b rdout=4 cdcrd=36 cdcwr=3c
+  -47 RD      b1 a0006c en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=1 rdiss=0 op=6 tokc=0 idle=0 fast=1 pfifo=c rdout=5 cdcrd=37 cdcwr=3d
+  -46 RD      b1 a00070 en=3 vld=3 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=1 rdiss=0 op=6 tokc=0 idle=0 fast=1 pfifo=d rdout=6 cdcrd=35 cdcwr=3f
+  -45 PRE     b0 a00000 en=3 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=e rdout=5 cdcrd=34 cdcwr=3e
+  -44 RD      b1 a00078 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=e rdout=6 cdcrd=3c cdcwr=3a
+  -43 ACT     b0 a00003 en=3 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=e rdout=6 cdcrd=3d cdcwr=3b
+  -42 PRE     b2 a00000 en=0 vld=0 tok=0 rfc=0 grant=1 pv=1 doact=0 dopre=0 rdiss=0 op=8 tokc=0 idle=0 fast=1 pfifo=e rdout=6 cdcrd=3f cdcwr=3b
+  -41 PRE     b4 a00000 en=0 vld=3 tok=0 rfc=7 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=6 cdcrd=3e cdcwr=3b
+  -40 PRE     b1 a00000 en=0 vld=3 tok=0 rfc=6 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=5 cdcrd=3a cdcwr=3b
+  -39 --      b0 a00000 en=0 vld=3 tok=0 rfc=5 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=4 cdcrd=3b cdcwr=39
+  -38 --      b0 a00000 en=0 vld=3 tok=0 rfc=4 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=3 cdcrd=3b cdcwr=39
+  -37 --      b0 a00000 en=0 vld=3 tok=0 rfc=3 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=2 cdcrd=3b cdcwr=39
+  -36 PRE     b0 a00000 en=0 vld=0 tok=0 rfc=2 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=1 cdcrd=3b cdcwr=39
+  -35 --      b0 a00000 en=0 vld=3 tok=0 rfc=1 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=1 cdcrd=39 cdcwr=39
+  -34 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=0 cdcrd=39 cdcwr=39
+  -33 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=0 cdcrd=39 cdcwr=39
+  -32 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=0 doact=0 dopre=0 rdiss=0 op=0 tokc=0 idle=0 fast=1 pfifo=f rdout=0 cdcrd=39 cdcwr=39
+  -31 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=1 dopre=0 rdiss=0 op=1 tokc=0 idle=0 fast=1 pfifo=f rdout=0 cdcrd=39 cdcwr=39
+  -30 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=1 dopre=0 rdiss=0 op=1 tokc=0 idle=0 fast=1 pfifo=0 rdout=0 cdcrd=39 cdcwr=39
+  -29 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=1 dopre=0 rdiss=0 op=1 tokc=0 idle=0 fast=1 pfifo=0 rdout=0 cdcrd=39 cdcwr=39 DBG act=a3316fab659ba8ee exp=a3316fab659ba8ee
+  -28 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=1 rdout=0 cdcrd=39 cdcwr=38 DBG act=2e64e120e8ce2665 exp=2e64e120e8ce2665
+  -27 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=2 rdout=0 cdcrd=39 cdcwr=38 DBG act=b99a72bc7f30b5f9 exp=b99a72bc7f30b5f9
+  -26 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=3 rdout=0 cdcrd=39 cdcwr=28 DBG act=34cffc37f2653b72 exp=34cffc37f2653b72
+  -25 REF     b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=4 rdout=0 cdcrd=39 cdcwr=29 DBG act=9667558550cd92c0 exp=9667558550cd92c0
+  -24 --      b0 a00000 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=5 rdout=0 cdcrd=38 cdcwr=2b
+  -23 ACT     b1 a00001 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=6 rdout=0 cdcrd=38 cdcwr=2a
+  -22 ACT     b0 a00003 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=7 rdout=0 cdcrd=28 cdcwr=2e
+  -21 RD      b1 a00074 en=0 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=1 dopre=0 rdiss=0 op=1 tokc=0 idle=0 fast=1 pfifo=8 rdout=1 cdcrd=29 cdcwr=2f
+  -20 RD      b1 a0007c en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=9 rdout=2 cdcrd=2b cdcwr=2d
+  -19 RD      b0 a00220 en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=a rdout=3 cdcrd=2a cdcwr=2c
+  -18 RD      b0 a00224 en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=b rdout=4 cdcrd=2e cdcwr=24
+  -17 RD      b0 a00228 en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=c rdout=5 cdcrd=2f cdcwr=25
+  -16 RD      b0 a0022c en=3 vld=0 tok=0 rfc=0 grant=0 pv=1 doact=0 dopre=0 rdiss=1 op=2 tokc=0 idle=0 fast=1 pfifo=d rdout=6 cdcrd=2d cdcwr=27

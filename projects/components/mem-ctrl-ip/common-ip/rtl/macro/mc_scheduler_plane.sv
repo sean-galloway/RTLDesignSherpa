@@ -1087,6 +1087,7 @@ module mc_scheduler_plane
 
     logic w_cmd_rd_valid, w_cmd_pop;
     dram_op_e w_rd_op;
+    logic [$clog2(CMD_FIFO_DEPTH+1)-1:0] w_cmd_fifo_count;   // entries, for the token-balance check below
     gaxi_fifo_sync #(.DATA_WIDTH(CMD_W), .DEPTH(CMD_FIFO_DEPTH)) u_cmd_fifo (
         .axi_aclk   (aclk),
         .axi_aresetn(aresetn),
@@ -1094,7 +1095,7 @@ module mc_scheduler_plane
         .wr_ready   (a_cmd_ready),
         .wr_data    (w_cmd_wr_data),
         .rd_ready   (w_cmd_pop),
-        .count      (),
+        .count      (w_cmd_fifo_count),
         .rd_valid   (w_cmd_rd_valid),
         .rd_data    (w_cmd_rd_data)
     );
@@ -1120,6 +1121,7 @@ module mc_scheduler_plane
     // never sets and the stream is the uniform-delay stream.
     localparam int TOKW = $clog2(CMD_FIFO_DEPTH + 1);
     logic            w_cmd_push, w_tok_mature, w_fast_now, w_tok_in;
+    logic [1:0]      w_tok_matured;   // tokens maturing THIS cycle: 0, 1 or 2 (see g_cmd_delay)
     logic [TOKW-1:0] r_tok_cnt;
     assign w_cmd_push = w_push_valid && a_cmd_ready;
     generate if (CMD_DELAY > 0) begin : g_cmd_delay
@@ -1130,7 +1132,17 @@ module mc_scheduler_plane
             else if (CMD_DELAY > 1)     r_tok_shift <= {r_tok_shift[CMD_DELAY-2:0], w_tok_in};
             else                        r_tok_shift <= CMD_DELAY'(w_tok_in);
         )
-        assign w_tok_mature = r_tok_shift[CMD_DELAY-1] || (w_cmd_push && w_fast_now);
+        // Two tokens can mature in ONE cycle: the shift's output (a slow push
+        // from CMD_DELAY cycles ago) and a fast push now. They were ORed here,
+        // and the lost token left one command in the FIFO with no token for
+        // the rest of the run: every command after it was released only by
+        // the NEXT command's push, so a REF with nothing behind it waited for
+        // the ACT that followed and the two left one cycle apart (pumice
+        // BUG-033, 2026-11-07: board ILA, r_tok_cnt reading 0 through whole
+        // bursts where a healthy run reads 1). Count them separately; the
+        // consumer takes at most one per cycle through r_tok_cnt.
+        assign w_tok_mature  = r_tok_shift[CMD_DELAY-1] || (w_cmd_push && w_fast_now);
+        assign w_tok_matured = 2'(r_tok_shift[CMD_DELAY-1]) + 2'(w_cmd_push && w_fast_now);
 
         if (FAST_RD_RELEASE) begin : g_fast
             // S_MAX + CMD_DELAY from the (static, host-written) timing CSRs,
@@ -1173,7 +1185,14 @@ module mc_scheduler_plane
                     r_idle <= w_line_empty ? ((r_idle == '1) ? r_idle : r_idle + 17'd1) : '0;
                     if (!fast_rd_en_i || (w_cmd_push && is_write_op(w_push_op)))
                         r_fast <= 1'b0;
-                    else if (init_done && (r_idle >= r_smax)) r_fast <= 1'b1;
+                    // SET only on an idle cycle. r_idle crossing r_smax says
+                    // the line WAS empty for r_smax cycles; a push in this very
+                    // cycle is a slow push whose token enters the shift, and
+                    // fast mode one cycle later would put that slow token in
+                    // flight beside fast pushes -- the state "the shift is
+                    // empty in fast mode" above assumes away, and the one that
+                    // let the ORed maturity drop a token (pumice BUG-033).
+                    else if (init_done && (r_idle >= r_smax) && w_line_empty) r_fast <= 1'b1;
                 end
             )
         end else begin : g_no_fast
@@ -1183,17 +1202,40 @@ module mc_scheduler_plane
     end else begin : g_cmd_nodelay
         assign w_fast_now   = 1'b0;
         wire _unused_fast = &{1'b0, fast_rd_en_i};
-        assign w_tok_in     = 1'b0;
-        assign w_tok_mature = w_cmd_push;
+        assign w_tok_in      = 1'b0;
+        assign w_tok_mature  = w_cmd_push;
+        assign w_tok_matured = 2'(w_cmd_push);
     end endgenerate
 
     assign cmd_valid_o = w_cmd_rd_valid && ((r_tok_cnt != '0) || w_tok_mature);
     assign w_cmd_pop   = cmd_valid_o && cmd_ready_i;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) r_tok_cnt <= '0;
-        else r_tok_cnt <= r_tok_cnt + (w_tok_mature ? TOKW'(1) : TOKW'(0))
+        else r_tok_cnt <= r_tok_cnt + TOKW'(w_tok_matured)
                                     - (w_cmd_pop    ? TOKW'(1) : TOKW'(0));
     )
+
+    // Token balance: every entry in the FIFO owns exactly one token, pending
+    // in r_tok_cnt or travelling in the shift. An entry without a token is the
+    // pumice BUG-033 orphan (released only by the NEXT push's token, so every
+    // command leaves a push late and a REF waits for the ACT behind it). The
+    // count is sim-visible like the DFI planes' hold counters; a non-zero
+    // total is an accounting defect, whatever the data check says.
+`ifdef VERILATOR
+    logic [31:0] r_tok_orphan_cycles;
+    logic [TOKW-1:0] w_tok_pending;
+    generate if (CMD_DELAY > 0) begin : g_tok_bal
+        assign w_tok_pending = r_tok_cnt + TOKW'($countones(g_cmd_delay.r_tok_shift));
+    end else begin : g_tok_bal_nodelay
+        assign w_tok_pending = r_tok_cnt;
+    end endgenerate
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_tok_orphan_cycles <= '0;
+        else if (TOKW'(w_cmd_fifo_count) != w_tok_pending) r_tok_orphan_cycles <= r_tok_orphan_cycles + 1;
+    )
+    final $display("MC_SCHEDULER_PLANE: command FIFO entries != pending release tokens for %0d cycles (0 = balanced)",
+                   r_tok_orphan_cycles);
+`endif
 
     assign {cmd_ap_o, cmd_col_o, cmd_row_o, cmd_bg_o, cmd_bank_o, cmd_rank_o, w_maint_extra_out, w_rd_op} = w_cmd_rd_data[CMD_W1-1:0];
     assign cmd_op_o    = w_rd_op;

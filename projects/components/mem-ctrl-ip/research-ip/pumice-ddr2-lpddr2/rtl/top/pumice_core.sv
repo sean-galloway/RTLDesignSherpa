@@ -72,6 +72,16 @@ module pumice_core
     parameter bit WR_MERGE_EN = 1'b1, // write combining in the wr CAM: two partial writes to one DRAM burst commit once (pumice TASK-060)
     parameter bit RD_MERGE_EN = 1'b1, // read combining in the rd CAM: two reads of one unissued DRAM burst issue once, the ring returns it twice (pumice TASK-060)
     parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
+    // DFI command CDC FIFO depth (mc_dfi_cdc CMD_DEPTH). It sits DOWNSTREAM
+    // of the scheduler's fire, so a stall on its write side would be
+    // invisible to the arbiter's JEDEC counters and would compress the
+    // in-order stream behind it (the TASK-007 class). Suspected for pumice
+    // BUG-033 (2026-11-07) and cleared: the formal LINERATE task proves the
+    // plane default of 8 streams a burst at one command per cycle, and the
+    // board failed identically at 32. Kept at 32 as margin for the real
+    // two-clock crossing; the write-side stall counter in mc_dfi_cdc is the
+    // check that it never fills.
+    parameter int DFI_CMD_FIFO_DEPTH = 32,
     parameter bit FAST_RD_RELEASE = 1'b1, // build the mc_scheduler_plane fast release (commands skip the CMD_DELAY write-data lead while no write is in the line); runtime enable SCHED_POLICY.fast_rd_release, reset OFF for pumice BUG-033
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
     // DUAL_ISSUE (TASK-047): build the scheduler's row lane -- a demand ACT /
@@ -1021,6 +1031,7 @@ module pumice_core
         // (that is the point), so the wrdata CDC must hold CMD_DELAY/BURST_WORDS
         // + 2 bursts without stalling the CAM drain -- or the lag comes back.
         .WD_FIFO_DEPTH   (32),
+        .CMD_FIFO_DEPTH  (DFI_CMD_FIFO_DEPTH),
         .DFI_CDC_EN      (DFI_CDC_EN),
         .CMD_HISTORY_EN  (CMD_HISTORY_EN),
         .HIST_T_RFC      (HIST_T_RFC_CORE),

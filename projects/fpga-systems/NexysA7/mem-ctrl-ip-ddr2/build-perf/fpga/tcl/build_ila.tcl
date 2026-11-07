@@ -82,7 +82,17 @@ connect_debug_port u_ila_0/clk [get_nets $dbg_clk]
 # this for the scheduler plane's fast-release state.
 if {[info exists ::env(ILA_EXTRA_NETS)] && $::env(ILA_EXTRA_NETS) ne ""} {
     foreach pat $::env(ILA_EXTRA_NETS) {
-        set extra [get_nets -quiet -hier -filter "NAME =~ $pat"]
+        # A pattern with no wildcard is an EXACT net name (NAME ==): a glob
+        # through =~ treats [k] as a character class, and `*r_rfc_cnt_reg*`
+        # on 2026-11-07 matched the CSR field's fan-in copies
+        # (r_rfc_cnt_reg[15]_0 = TIMINGS_RFC_REFI.tRFC) and LUT outputs
+        # (r_grant_reg_0), not the registers. The register Q nets carry the
+        # plain RTL names (.../r_rfc_cnt[3], .../r_grant); name them exactly.
+        if {[string first "*" $pat] < 0 && [string first "?" $pat] < 0} {
+            set extra [get_nets -quiet -hier -filter "NAME == $pat"]
+        } else {
+            set extra [get_nets -quiet -hier -filter "NAME =~ $pat"]
+        }
         if {[llength $extra] == 0} {
             puts "ILA_EXTRA_NETS: no net matches $pat (absorbed or renamed) -- skipped"
         } else {
