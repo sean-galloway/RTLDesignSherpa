@@ -689,6 +689,21 @@ module mc_cmd_arbiter
     logic [15:0] r_rfc_cnt;
     logic        w_rfc_busy;
     assign w_rfc_busy = (r_rfc_cnt != 16'd0);
+    // A granted REF / REFpb sitting in the output register (pumice BUG-033,
+    // 2026-11-07). It fires this cycle at the earliest and r_rfc_cnt loads the
+    // cycle AFTER the fire, so w_rfc_busy is still 0 in the fire cycle. The
+    // pick chain shielded that cycle only through refresh_req_i: the refresh
+    // branch picks nothing while r_grant is set. A pull-in request is a
+    // function of idle (mc_xddr2_refresh_ctrl w_req), so it drops the cycle
+    // demand returns -- exactly when an ACT becomes pickable -- and the ACT
+    // picked in the REF's fire cycle left one cycle behind it. Board ILA
+    // (Nexys A7, 50 MHz, fast release on): REF, then ACT bank7 two DFI cycles
+    // later, tRFC 7; the DRAM dropped the ACT and the bank's reads returned an
+    // undriven bus. The in-flight grant gates the ACT the way the loaded
+    // counter will from the next cycle on; the same hole for a ZQCS is
+    // closed in the pick chain's tZQCS branch.
+    logic        w_ref_inflight;
+    assign w_ref_inflight = r_pick_valid && r_grant;
 
     // ---- pipeline: register the bank-timer fan-in at the arbiter input ------
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                r_bank_act_ready, r_bank_rdwr_ready;
@@ -1215,7 +1230,7 @@ module mc_cmd_arbiter
     // cmd_ready_i -- registers and an input, never the combinational pick, so
     // this cannot form a loop.
     logic w_act_gate_live;
-    assign w_act_gate_live = !w_rfc_busy && tfaw_ok_i[RK0] && trrd_ok_i[RK0] && w_trrd_ls_ok;
+    assign w_act_gate_live = !w_rfc_busy && !w_ref_inflight && tfaw_ok_i[RK0] && trrd_ok_i[RK0] && w_trrd_ls_ok;
 
     logic w_rd_turn_live, w_wr_turn_live;
     assign w_rd_turn_live = twtr_ok_i && !w_rd_turn_block
@@ -1616,8 +1631,11 @@ module mc_cmd_arbiter
                 w_valid = 1'b1; w_op = init_cmd_op_i;
                 w_bank = init_cmd_bank_i; w_row = init_cmd_row_i;
             end
-        end else if (HAS_ZQ && w_zq_busy) begin
-            // tZQCS window: DRAM calibrating, no command may issue.
+        end else if (HAS_ZQ && (w_zq_busy || (r_pick_valid && r_zq_grant))) begin
+            // tZQCS window: DRAM calibrating, no command may issue. The
+            // granted ZQCS in the output register counts as the window too:
+            // r_zqcs_cnt loads the cycle after it fires (pumice BUG-033's
+            // shape, on the calibration path).
             w_valid = 1'b0;
         end else if (refresh_req_i || refresh_drain_i) begin
             if (refresh_kind_i) begin

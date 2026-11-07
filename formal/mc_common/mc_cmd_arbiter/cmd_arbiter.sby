@@ -35,6 +35,8 @@ read -formal -sv formal_cmd_arbiter.sv
 # re-checks the rank-global windows live), so the assertions are armed for
 # EVERY task now -- a regression re-opens BUG-021 on any of them.
 chparam -set ISSUE019 1 formal_cmd_arbiter
+# pumice BUG-033: the tRFC spacing assertion, armed for every task the same way
+chparam -set BUG033 1 formal_cmd_arbiter
 # TASK-047: the row lane built, its enable free (dual / dual_cover)
 dual: chparam -set DUAL 1 formal_cmd_arbiter
 dual_cover: chparam -set DUAL 1 formal_cmd_arbiter

@@ -33,7 +33,7 @@ summary: RTL rules with the failures that taught them.
 - [[select-on-function-call]] - `f(x)[0]` is not IEEE 1800: Verilator takes it silently, Vivado stops (axi_stress_mst, 2026-10-19)
 - [[area-measure-by-hierarchy]] - after every synthesis pass, the hierarchy report and the worst path pick the next edit; five passes of axi_monitor_lite
 - [[always-comb-block-fusion]] - a block is one scheduling node; mixing independent signals invents dependencies and fakes combinational loops
-- [[global-windows-revalidate-at-issue]] - a window that is not a per-resource property (tRRD, tFAW, tZQCS) must be re-checked in the gate that lets the command FIRE, not only where it is selected; three bugs in one block from this (pumice BUG-021, scoria BUG-001/002)
+- [[global-windows-revalidate-at-issue]] - a window that is not a per-resource property (tRRD, tFAW, tZQCS) must be re-checked in the gate that lets the command FIRE, not only where it is selected, and the gate OWNS the window from the fire cycle, not from the cycle its counter loads; four bugs in one block from this (pumice BUG-021, scoria BUG-001/002, pumice BUG-033)
 - [[registered-status-outputs]] - a registered readiness/status flag must sample the NEXT state; sampling `r_state == X` publishes it a cycle late and every consumer then compensates (pumice ISSUE-018)
 - [[naming-and-style]] - module/signal conventions, headers
 - [[signal-prefixes]] - r_ = flopped, w_ = combinational; what it promises and where it lies

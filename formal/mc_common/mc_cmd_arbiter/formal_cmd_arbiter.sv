@@ -61,7 +61,15 @@ module formal_cmd_arbiter #(
     // DUAL: build the arbiter's TASK-047 row lane, its runtime enable free.
     // The rank-global windows are then checked over BOTH lanes' ACTs, plus the
     // lane contract (never the main lane's bank, never beside a main-lane row).
-    parameter int DUAL = 0
+    parameter int DUAL = 0,
+    // BUG033 arms the tRFC spacing assertion (pumice BUG-033, 2026-11-07): no
+    // ACT within t_rfc of a fired REF. The board ILA showed an ACT two DFI
+    // cycles behind a pulled-in REF: the recovery counter loads the cycle
+    // AFTER the REF fires and the refresh branch shielded that cycle only
+    // while refresh_req_i stayed high -- a pull-in request drops when demand
+    // returns, so an ACT picked in the REF's fire cycle saw rfc_busy=0. A
+    // parameter like ISSUE019, so the pre-fix RTL can be run bare.
+    parameter int BUG033 = 0
 ) (
     input logic aclk,
     input logic aresetn
@@ -97,8 +105,15 @@ module formal_cmd_arbiter #(
     (* anyseq *) reg [RW-1:0]   init_cmd_row_i;
     (* anyseq *) reg            refresh_req_i, refresh_drain_i, refresh_kind_i;
     (* anyseq *) reg [BKW-1:0]  refresh_bank_i;
-    (* anyseq *) reg [15:0]     t_rfc_i;
-    (* anyseq *) reg [7:0]      t_rfc_pb_i;
+    // tRFC / tRFCpb are CSRs: constant. t_rfc bounded so the window closes
+    // inside the bmc depth and an ACT after it is reachable (cover below);
+    // t_rfc_pb = 0 makes REFpb use t_rfc too, so one window covers both kinds.
+    (* anyconst *) reg [15:0]   t_rfc_i;
+    (* anyconst *) reg [7:0]    t_rfc_pb_i;
+    always @(*) begin
+        assume (t_rfc_i >= 16'd2 && t_rfc_i <= 16'd8);
+        assume (t_rfc_pb_i == 8'd0);
+    end
     (* anyseq *) reg [NR*NB-1:0] bank_act_ready_i, bank_rdwr_ready_i, bank_pre_ready_i;
     (* anyseq *) reg [NR*NB-1:0] bank_act_ready_la_i, bank_rdwr_ready_la_i, bank_pre_ready_la_i;
     (* anyseq *) reg [NR*NB-1:0] bank_row_active_i;
@@ -286,6 +301,20 @@ module formal_cmd_arbiter #(
         end
     end
 
+    // tRFC history: the wrapper times the REF itself. refresh_grant_o is the
+    // arbiter's fire strobe for a granted REF / REFpb (w_fire_out && r_grant),
+    // the same edge r_rfc_cnt loads on.
+    reg [AW-1:0] age_ref;
+    reg          seen_ref;
+    always @(posedge aclk) begin
+        if (!aresetn) begin
+            age_ref <= 0; seen_ref <= 1'b0;
+        end else begin
+            if (refresh_grant_o) begin age_ref <= 1; seen_ref <= 1'b1; end
+            else if (age_ref != {AW{1'b1}}) age_ref <= age_ref + 1'b1;
+        end
+    end
+
     // =====================================================================
     // THE ISSUE-019 PROPERTIES
     // =====================================================================
@@ -300,6 +329,13 @@ module formal_cmd_arbiter #(
         // oldest of those four must have left the window.
         if (ISSUE019 != 0 && any_act && n_act >= 3'd4)
             a_tfaw_window: assert (faw_age[3] >= {2'b0, t_faw});
+
+        // tRFC (BUG-033): no ACT, either lane, inside t_rfc of a fired REF.
+        // age_ref is 1 in the cycle after the grant, so an ACT firing in the
+        // grant cycle itself is caught by the grant strobe, the one after by
+        // age 1 < t_rfc.
+        if (BUG033 != 0 && any_act)
+            a_trfc_spacing: assert (!refresh_grant_o && (!seen_ref || age_ref >= t_rfc_i[AW-1:0]));
 
         // one DRAM command per cycle per lane
         a_single_issue: assert ($countones({evt_act_o, evt_rd_o, evt_wr_o, evt_pre_o}) <= 1);
@@ -326,6 +362,12 @@ module formal_cmd_arbiter #(
         c_fifth_act:  cover (evt_act_o && n_act >= 3'd4);
         c_act_diff_bank: cover (evt_act_o && seen_act && age_act < 10'd6);
         c_col:        cover (evt_rd_o || evt_wr_o);
+        // the tRFC assertion must be able to bind: a REF fires, and an ACT
+        // follows it as soon as the design allows. That is t_rfc + 3: the
+        // counter clears at t_rfc, the STAGE-1b pre-pick register sees it a
+        // cycle later, the pick a cycle after that, the fire one more.
+        c_ref:          cover (refresh_grant_o);
+        c_ref_then_act: cover (any_act && seen_ref && age_ref <= t_rfc_i[AW-1:0] + 10'd3);
         // the lane must actually fire for its asserts to mean anything
         if (DUAL != 0) begin
             c_row2_act_beside_col: cover (row2_act_o && (evt_rd_o || evt_wr_o));
