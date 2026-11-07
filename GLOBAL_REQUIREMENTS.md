@@ -551,9 +551,11 @@ this rule -- the twenty commits before it was written carried zero trailers
 -- but the rule itself was recorded nowhere in the repo, so every session
 rediscovered the conflict. It is written down here to stop that.
 
-**Not enforced by tooling.** No commit-msg hook exists; `bin/hooks/pre-commit`
-checks task IDs, declaration order, protocol families, scenario verdicts, doc
-examples and .sv parse. This one is on the author.
+**Enforced since 2026-11-07** by `bin/check_commit_messages.py`, run from
+`bin/hooks/commit-msg` (installed by `make setup-hooks`) and by the
+`commit-messages` CI job on every commit a push or PR adds. Also banned:
+`Assisted-by:` and `Generated-by:`, from any model or harness. Historical
+commits are not rewritten.
 
 Rationale and the history: `vault/handbook/authoring/commit-messages.md`.
 

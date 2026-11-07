@@ -224,3 +224,43 @@ jobs:
 
       - name: Formal flat source checker has teeth (planted hand-list fails)
         run: python3 -m pytest bin/tests/test_check_formal_flat_sources.py -q
+
+  # GLOBAL_REQUIREMENTS 6.1: no attribution trailer in any commit message.
+  # Until 2026-11-07 nothing checked this -- the pre-commit hook never sees the
+  # message -- and 445 commits since 2026-08-31 carried one. bin/hooks/commit-msg
+  # stops it locally; this job catches --no-verify and clones without hooks.
+  # It checks ONLY the commits this push or PR adds, never history.
+  commit-messages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: No attribution trailer in the commits being added
+        env:
+          EVENT: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            range="$PR_BASE..$PR_HEAD"
+          elif [ "$EVENT" = "push" ] && [ -n "$PUSH_BEFORE" ] \
+               && ! echo "$PUSH_BEFORE" | grep -qE '^0+$' \
+               && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            range="$PUSH_BEFORE..$GITHUB_SHA"
+          else
+            # new branch, force-push past an unknown base, or manual dispatch:
+            # check the tip commit alone rather than all of history
+            range="$GITHUB_SHA~1..$GITHUB_SHA"
+          fi
+          echo "Checking $range"
+          python3 bin/check_commit_messages.py --range "$range"
+
+      - name: Commit-message checker has teeth (each trailer shape fails)
+        run: python3 -m pytest bin/tests/test_check_commit_messages.py -q

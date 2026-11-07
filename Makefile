@@ -5,7 +5,7 @@
 # Bootstrap (no env_python needed):
 #   make setup          - Full setup from scratch (apt + venv + formal tools)
 #   make setup-no-sudo  - Setup without apt (venv + formal tools only)
-#   make setup-hooks    - Install git hooks (task IDs, decl order, test/DUT family, filelists)
+#   make setup-hooks    - Install git hooks (task IDs, decl order, test/DUT family, filelists, commit-msg trailers)
 #   make install        - Create venv and install Python dependencies only
 #   make doctor         - Check that all required tools are available
 #   make count          - LOC / file counts for RTL, tests, framework
@@ -101,7 +101,7 @@ setup-no-sudo:
 	@bash bin/setup_from_scratch.sh --skip-apt
 
 .PHONY: setup-hooks
-setup-hooks: ## Install git hooks (task IDs, decl order, test/DUT family, filelists)
+setup-hooks: ## Install git hooks (task IDs, decl order, test/DUT family, filelists, commit-msg trailers)
 	@echo "================================================================================"
 	@echo "Installing git hooks"
 	@echo "================================================================================"

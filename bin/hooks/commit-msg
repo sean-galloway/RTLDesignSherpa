@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# The repository's commit-msg hook: rejects attribution trailers
+# (Co-authored-by, Assisted-by, Claude-Session, "Generated with ...").
+# GLOBAL_REQUIREMENTS.md 6.1; why: vault/handbook/authoring/commit-messages.md.
+#
+# This is NOT a second pre-commit hook. git runs pre-commit before the message
+# exists, so the message can only be checked here. All other checks still
+# belong in bin/hooks/pre-commit.
+#
+# Installed with `make setup-hooks` (symlinks every file in bin/hooks/).
+# CI runs the same checker over every pushed commit, so --no-verify does not
+# get a trailer onto main.
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PY=$(command -v python3.12 || command -v python3.11 || command -v python3)
+exec "$PY" "$REPO_ROOT/bin/check_commit_messages.py" --file "$1"

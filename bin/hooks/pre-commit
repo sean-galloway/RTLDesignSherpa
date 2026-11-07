@@ -10,7 +10,9 @@
 # filelist checks did not run locally at all. Nobody noticed, because CI still
 # ran them -- the local check was silently gone, not visibly broken.
 #
-# So: add new checks HERE. Do not add another hook file.
+# So: add new checks HERE. Do not add another pre-commit file. (The sibling
+# bin/hooks/commit-msg is a different git hook: it checks the MESSAGE, which
+# does not exist yet when this hook runs.)
 #
 # Install (git does not track .git/hooks, so it is per clone):
 #     make setup-hooks
