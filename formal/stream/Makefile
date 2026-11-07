@@ -24,7 +24,6 @@ SHELL := /bin/bash
 MODULES := \
 	axi_read_engine \
 	axi_write_engine \
-	cmdrsp_router \
 	datapath_rd_test \
 	datapath_wr_test \
 	descriptor_engine \

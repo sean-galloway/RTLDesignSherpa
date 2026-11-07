@@ -120,7 +120,7 @@ does not exist.
 - [x] Create formal/stream/Makefile for STREAM proofs -- EXISTS since 2026-09-18
       (`formal/stream/Makefile`, alongside six proof directories).
 - [x] TASK-090: the four axi4 *_mon_cg proofs -- CLOSED 2026-09-11, all four
-      written, proved and mutation-tested. See `vault/tracking/rtl/amba/closed.md`;
+      written, proved and mutation-tested. Now amba TASK-027 (`vault/tracking/rtl/amba/task/closed/TASK-027.md`);
       `FORMAL_PRIORITY.md` records the same.
 - [x] TASK-091: apb4/apb5_master_cg wake-latency property -- CLOSED 2026-09-11.
       A HARNESS bug: the property checked one clock too early against two
@@ -227,6 +227,10 @@ re-run in the SAME commit.
 ---
 
 ## Non-Passing Modules
+
+_History from 2026-08. Everything below in this section was resolved by the
+2026-09-11 measured run (0 FAIL, 0 ERROR; see "Measured status"). Kept for the
+findings and diagnoses it records, not as open work._
 
 ### Run list for a machine WITH the toolchain (added 2026-08-08)
 
@@ -633,13 +637,27 @@ apbx_xbar_wrap_3x3, apbx_xbar_wrap_4x4
 
 ## Remaining Work
 
-### Actionable Fixes (3 items)
+**All of it is done -- re-verified 2026-11-07 against the tree.** Kept as the
+record of what was outstanding in 2026-08. Nothing here is open, and no
+tracking area is created for it (see TODO above):
+
+- The three "actionable fixes" pass: `counter_freq_invariant`, `icg` and
+  `axi_split_combi` all have prove + cover tasks, and the 2026-09-11 run
+  reports 0 FAIL / 0 ERROR across amba, cdc and common.
+- The 19 "add cover tasks" modules all carry a `cover` task in their `.sby`
+  today (the 4 common, 3 amba and 2 math modules by name; the stream engines,
+  schedulers and datapaths across `formal/stream/*`). `fifo_sync_multi_sigmap`
+  has no proof directory of its own.
+- `formal/stream/Makefile` listed `cmdrsp_router`, a proof deleted with its
+  module in 45fa4972e (2026-09-23); removed from the list 2026-11-07.
+
+### Actionable Fixes (3 items) -- DONE
 
 1. **counter_freq_invariant** -- Fix yosys SV syntax error at line 150 (add sv2v preprocessing)
 2. **icg** -- Fix cover point cp_enabled (increase cover depth or relax assumptions)
 3. **axi_split_combi** -- Fix 4 cover points (increase cover depth from 1)
 
-### Add Cover Tasks (19 modules)
+### Add Cover Tasks (19 modules) -- DONE
 
 Many modules only have prove tasks. Adding cover tasks would improve confidence:
 - 4 common modules (cam_tag, counter, counter_bin, fifo_sync_multi_sigmap)

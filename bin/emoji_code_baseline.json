@@ -1,6 +1,5 @@
 {
   "projects/components/dma-ip/rapids/PRD.md": 18,
-  "projects/components/dma-ip/rapids/TASKS.md": 16,
   "projects/components/dma-ip/rapids/bin/dma_model/README.md": 1,
   "projects/components/dma-ip/rapids/bin/dma_model/bin/analytical/current_design.py": 5,
   "projects/components/dma-ip/rapids/bin/dma_model/bin/analytical/sram_visualizations.py": 4,
@@ -34,7 +33,6 @@
   "projects/components/dma-ip/stream/CLAUDE.md": 73,
   "projects/components/dma-ip/stream/PRD.md": 38,
   "projects/components/dma-ip/stream/README.md": 16,
-  "projects/components/dma-ip/stream/TASKS.md": 32,
   "projects/components/dma-ip/stream/docs/convert_mermaid_to_png.py": 2,
   "projects/components/dma-ip/stream/docs/stream_mas/ch04_registers/REGISTER_MAP_AUDIT.md": 32,
   "projects/components/dma-ip/stream/dv/tbclasses/datapath_rd_test_tb.py": 6,

@@ -333,3 +333,21 @@ hand-derived. Counts: 15 bug, 9 issue, 12 task -- 36 items, not the 35 the first
 `PUMICE-KMAP` is the only ID in this area whose suffix is a word rather than a
 number, and a `PUMICE-\\d+` parser skipped it silently. A peer session's
 independent count caught it.
+
+## 2026-11-07: the last beside-code task files
+
+Three files beside code still held work items; each was classified against the
+tree, folded in, and deleted. Their legacy IDs collide with the lanes' own, so
+cite the new ID.
+
+| Area | Legacy ID | New location | New ID |
+|---|---|---|---|
+| projects/components/dma-ip/stream | `TASK-101` (stream/TASKS.md) | task/closed | `TASK-022` |
+| projects/components/dma-ip/stream | `TASK-001`..`TASK-003` (stream/TASKS.md milestones) | task/closed | `TASK-023` |
+| projects/components/dma-ip/rapids | `TASK-001` (rapids/TASKS.md) | bug/closed | `BUG-018` |
+| projects/components/dma-ip/rapids | `TASK-003` (rapids/TASKS.md) | task/closed | `TASK-042` |
+| projects/components/dma-ip/rapids | `TASK-011` (rapids/TASKS.md) | task/closed | `TASK-040` |
+| projects/components/dma-ip/rapids | `TASK-012` (rapids/TASKS.md) | task/closed | `TASK-041` |
+| projects/components/dma-ip/rapids | `TASK-002`, `TASK-004`..`TASK-009` (rapids/TASKS.md) | task/dropped | `TASK-044` |
+| projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display | CDC_DEMO_TODO.md section 5 build plan | task/closed | `TASK-001` |
+| projects/fpga-systems/NexysA7/misc-ip/cdc_counter_display | CDC_DEMO_TODO.md unbuilt parts | task/open | `TASK-002`..`TASK-005` |
