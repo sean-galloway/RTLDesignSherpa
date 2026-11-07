@@ -37,6 +37,7 @@ from CocoTBFramework.components.dfi.dram_state import (
 )
 from CocoTBFramework.components.dfi.jedec_timings import builtin_timings
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 # REG_LEVEL SELECTS THE DEPTH. This test grades on basic / medium / full, but
 # the regression speaks GATE / FUNC / FULL, and the conftest stamp used to hand
@@ -953,6 +954,64 @@ async def cocotb_test_pumice_core_merge_ids(dut):
     assert wm == 0, f"{wm} write(s) merged across two AXI ids"
     assert rm == 0, f"{rm} read(s) merged across two AXI ids"
     dut._log.info("PASS: combiners merge within an id and never across ids")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_b_stall(dut):
+    """memory-controllers BUG-001: a host that stalls BREADY must lose no B.
+
+    The intake's B FIFO is 4 deep and, before the fix, the storage plane's
+    wr_done had no ready: a completion into a full FIFO was dropped and the
+    master waited forever. The master here accepts one B every B_STALL cycles
+    while 24 writes stream in, so completions pile up past four; every AW must
+    still get its B. The peak of outstanding Bs is the vacuity guard."""
+    await _bring_up(dut, page_policy=0)
+    b_stall = int(os.environ.get("B_STALL", "40"))
+    bfm = _BFM['b']
+    bfm.wr.b_channel.randomizer = FlexRandomizer({'ready_delay': ([(b_stall, b_stall)], [1])})
+    stat = {}
+
+    async def _track():
+        aw = b = 0
+        while True:
+            await RisingEdge(dut.aclk)
+            if int(dut.s_axi_awvalid.value) and int(dut.s_axi_awready.value):
+                aw += 1
+            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+                b += 1
+            stat["aw"], stat["b"] = aw, b
+            stat["max_pending"] = max(stat.get("max_pending", 0), aw - b)
+    cocotb.start_soon(_track())
+    b_ids = []
+    bfm.wr.b_channel.add_callback(lambda pkt: b_ids.append(int(getattr(pkt, 'id', 0))))
+
+    rng = random.Random(int(os.environ.get("SEED", "3")))
+    n = 24
+    reqs = [(_mkaddr(k % NUM_BANKS, 2 + (k // NUM_BANKS), 0),
+             [rng.randrange(1 << DW) for _ in range(BL_WORDS)]) for k in range(n)]
+    ids = [k % 16 for k in range(n)]
+    try:
+        await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: ids[k]), 2000, "us")
+    except Exception as e:   # cocotb's SimTimeoutError
+        raise AssertionError(
+            f"BUG-001: only {stat.get('b', 0)} of {n} B responses arrived with BREADY stalled "
+            f"{b_stall} cycles per B (AW accepted {stat.get('aw', 0)}, peak pending "
+            f"{stat.get('max_pending', 0)}): the controller dropped B responses ({e!r})")
+    await ClockCycles(dut.aclk, 50)
+    dut._log.info("BSTALL: %d AW, %d B, peak outstanding Bs %d", stat["aw"], stat["b"], stat["max_pending"])
+    assert stat["aw"] == n and stat["b"] == n, \
+        f"{stat['b']} B responses for {stat['aw']} accepted AWs ({n} issued)"
+    assert sorted(b_ids) == sorted(ids), f"B ids {sorted(b_ids)} != AW ids {sorted(ids)}"
+    assert stat["max_pending"] > 4, \
+        (f"vacuity: at most {stat['max_pending']} Bs were ever outstanding; the 4-deep "
+         f"intake B FIFO was never pressed (raise B_STALL)")
+    # the data must still be right: read everything back against the golden model
+    got = await bfm.read_many([a for a, _ in reqs], axid_fn=lambda k: ids[k])
+    want = dict(reqs)
+    assert len(got) == n, f"{len(got)} of {n} reads returned"
+    for a, beats in got:
+        assert beats[:BL_WORDS] == want[a], f"read @ {a:#x} returned {beats[:BL_WORDS]}, want {want[a]}"
+    dut._log.info("PASS: %d/%d Bs with up to %d outstanding; data intact", stat["b"], n, stat["max_pending"])
 
 
 # ---------------------------------------------------------------------------
@@ -2355,6 +2414,7 @@ def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_clos
 def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")
 def test_pumice_core_merge_ids(request): _run(request, "cocotb_test_pumice_core_merge_ids")
+def test_pumice_core_b_stall(request): _run(request, "cocotb_test_pumice_core_b_stall")
 def test_pumice_core_perf_read_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_read_ceiling")
 def test_pumice_core_perf_intake_admit_rate(request):

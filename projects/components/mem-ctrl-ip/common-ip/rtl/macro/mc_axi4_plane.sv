@@ -138,8 +138,10 @@ module mc_axi4_plane #(
     output logic [SW-1:0]       wd_strb_o,
     output logic                wd_last_o,
 
-    // commit-done notification from storage WR CAM -> WR intake
+    // commit-done notification from storage WR CAM -> WR intake; ready is
+    // the intake's B FIFO room (memory-controllers BUG-001)
     input  logic                wr_done_valid_i,
+    output logic                wr_done_ready_o,
     input  logic [IW-1:0]       wr_done_id_i,
 
     //=========================================================================
@@ -483,6 +485,7 @@ module mc_axi4_plane #(
         .wstrb_o        (wd_strb_o),
         .wlast_o        (wd_last_o),
         .wr_done_valid_i(wr_done_valid_i),
+        .wr_done_ready_o(wr_done_ready_o),
         .wr_done_id_i   (wr_done_id_i),
         .wr_done_resp_i (2'b00),
         .busy_o         (w_wri_busy),

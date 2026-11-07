@@ -68,8 +68,9 @@ module mc_storage_plane #(
     input  logic [SW-1:0]       wd_strb_i,
     input  logic                wd_last_i,
 
-    // commit-done notification back to the WR intake
+    // commit-done notification back to the WR intake (ready = B FIFO room)
     output logic                wr_done_valid_o,
+    input  logic                wr_done_ready_i,
     output logic [IW-1:0]       wr_done_id_o,
     output logic [31:0]         stat_merge_o,      // write merges performed (free-running)
     output logic [31:0]         stat_rd_merge_o,   // read merges performed (free-running)
@@ -267,6 +268,7 @@ module mc_storage_plane #(
         .cm_rd_strb_o       (wr_cm_rd_strb_o),
         .cm_rd_last_o       (wr_cm_rd_last_o),
         .commit_done_valid_o(wr_done_valid_o),
+        .commit_done_ready_i(wr_done_ready_i),
         .commit_done_id_o   (wr_done_id_o),
         .stat_merge_o       (stat_merge_o),
         .busy_o             (w_wrc_busy)

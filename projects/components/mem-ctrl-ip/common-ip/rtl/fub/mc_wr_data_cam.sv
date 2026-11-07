@@ -164,6 +164,7 @@ module mc_wr_data_cam #(
 
     // Commit-done strobe (on evict) -> drives wr_intake B response
     output logic                          commit_done_valid_o,
+    input  logic                          commit_done_ready_i,
     output logic [IW-1:0]                 commit_done_id_o,
     // write-combining telemetry (free-running): merges performed
     output logic [31:0]                   stat_merge_o,
@@ -358,7 +359,19 @@ module mc_wr_data_cam #(
             if (r_valid[j] && !yg[j] && (r_id[j] == ins_id_i)) w_mg_idclash = 1'b1;
     end
     assign w_mg_hit = w_mg_found && !w_mg_idclash && w_sn_idle;
-    assign ins_ready_o   = (w_have_free || w_mg_hit) && w_fq_wr_ready && !w_fb_alloc;
+    // Outstanding-B bound (memory-controllers BUG-001): every admitted host
+    // burst owes exactly one B, released to the intake only on its ready. The
+    // bound is applied HERE, at admission, never at the drain: a drain that
+    // waits for B room leaves a committed WRITE at the DFI head without its
+    // data, and the PRE/ACT behind it then collapse their JEDEC spacing at the
+    // DRAM (tRP violation under a stalled BREADY, 2026-11-06). With the done
+    // queue sized to the bound it can never fill, so the drain never waits.
+    localparam int DONE_Q_DEPTH = 4 * NUM_ENTRIES;
+    localparam int BOW = $clog2(DONE_Q_DEPTH + 1);
+    logic [BOW-1:0] r_b_outst;
+    logic           w_b_room, w_b_owed, w_b_pop;
+    assign w_b_room    = (r_b_outst != BOW'(DONE_Q_DEPTH));
+    assign ins_ready_o = (w_have_free || w_mg_hit) && w_fq_wr_ready && !w_fb_alloc && w_b_room;
     assign w_fq_wr_valid = ins_valid_i && ins_ready_o;
     assign w_fq_wr_data  = {w_mg_hit, ins_bank_i, ins_row_i, ins_col_i, ins_id_i, ins_qos_i,
                             (w_mg_hit ? PTRW'(0) : w_free_slot)};
@@ -787,23 +800,74 @@ module mc_wr_data_cam #(
     logic [IW-1:0]  w_dn_id, w_dn_mgid;
     logic           r_dn_second;
     assign w_dn_push = w_cm_fire && w_dn_would_push;
-    gaxi_fifo_sync #(.DATA_WIDTH(1 + 2*IW), .DEPTH(4)) u_done_q (
+    gaxi_fifo_sync #(.DATA_WIDTH(1 + 2*IW), .DEPTH(DONE_Q_DEPTH)) u_done_q (
         .axi_aclk   (aclk),
         .axi_aresetn(aresetn),
         .wr_valid   (w_dn_push),
         .wr_ready   (w_dn_wr_ready),
         .wr_data    ({w_hd_mgv, w_hd_mgid, w_hd_id}),
-        .rd_ready   (commit_done_valid_o && (!w_dn_mgv || r_dn_second)),
+        .rd_ready   (w_b_pop && (!w_dn_mgv || r_dn_second)),
         .count      (),
         .rd_valid   (w_dn_rd_valid),
         .rd_data    ({w_dn_mgv, w_dn_mgid, w_dn_id})
     );
     assign commit_done_valid_o = w_dn_rd_valid;
     assign commit_done_id_o    = r_dn_second ? w_dn_mgid : w_dn_id;
+    // one B owed per admitted HOST burst (a chopped burst's subs share one)
+    assign w_b_owed = w_ins_fire && (!ins_agg_i || ins_last_i);
+    assign w_b_pop  = commit_done_valid_o && commit_done_ready_i;
     assign busy_o = w_old_found || w_sq_rd_valid || w_dq_rd_valid || w_fq_rd_valid
                     || w_hd_vld || r_if_valid || w_dn_rd_valid;
 
     // ---- sequential --------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Reset-free tag storage (memory-controllers MC-005, 2026-11-06).
+    // These arrays were never reset -- each is written once at admit / fill /
+    // skid push and read only through a slot that r_valid / r_pv / r_sk_cnt
+    // says is live -- but they sat inside the async-reset process below, and
+    // Vivado refuses RAM inference for any array written in a process with an
+    // async reset in its sensitivity list (Synth 8-4767: every one of them was
+    // dissolved into flops plus an 8:1 read mux on the 10-27 pumice build).
+    // Same write conditions as before, in their own clock-only processes.
+    // -------------------------------------------------------------------------
+    always_ff @(posedge aclk) begin
+        if (w_ins_alloc || w_fb_alloc) begin
+            r_bank [w_free_slot] <= w_fb_alloc ? w_fq_bank : ins_bank_i;
+            r_row  [w_free_slot] <= w_fb_alloc ? w_fq_row  : ins_row_i;
+            r_col  [w_free_slot] <= w_fb_alloc ? w_fq_col  : ins_col_i;
+            r_id   [w_free_slot] <= w_fb_alloc ? w_fq_id   : ins_id_i;
+            r_qos  [w_free_slot] <= w_fb_alloc ? w_fq_qos  : ins_qos_i;
+            r_age  [w_free_slot] <= r_age_ctr;
+            r_agg  [w_free_slot] <= w_fb_alloc ? 1'b0 : ins_agg_i;
+            r_last [w_free_slot] <= w_fb_alloc ? 1'b1 : ins_last_i;
+        end
+    end
+
+    always_ff @(posedge aclk) begin
+        // first beat of a non-merge fill: the entry takes its SRAM slot
+        if (w_wd_fire && w_fill_first && !w_fill_merge_now)
+            r_ptr[w_fill_eslot] <= w_slot_free;
+        // last beat of a merge fill: the entry records the merged write's id
+        if (w_wd_fire && wd_last_i && w_fill_merge)
+            r_mgid[w_fill_eslot] <= w_fq_id;
+    end
+
+    always_ff @(posedge aclk) begin
+        // the captured in-flight beat lands in the skid FIFO tail
+        if (r_if_valid) begin
+            r_sk_data [r_sk_wr] <= r_rd_q;
+            r_sk_iscm [r_sk_wr] <= r_if_iscm;
+            r_sk_slot [r_sk_wr] <= r_if_slot;
+            r_sk_blast[r_sk_wr] <= r_if_blast;
+            r_sk_agg  [r_sk_wr] <= r_if_agg;
+            r_sk_slast[r_sk_wr] <= r_if_slast;
+            r_sk_id   [r_sk_wr] <= r_if_id;
+            r_sk_mgv  [r_sk_wr] <= r_if_mgv;
+            r_sk_mgid [r_sk_wr] <= r_if_mgid;
+            r_sk_strb [r_sk_wr] <= r_if_strb;
+        end
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_age_ctr   <= '0;
@@ -819,6 +883,7 @@ module mc_wr_data_cam #(
             r_if_valid  <= 1'b0;
             r_sn_wait   <= 5'd0;
             r_dn_second <= 1'b0;
+            r_b_outst   <= '0;
             r_fill_merge <= 1'b0;
             r_fill_eslot <= '0;
             stat_merge_o <= 32'h0;
@@ -848,15 +913,7 @@ module mc_wr_data_cam #(
                 // its own entry at its first data beat (never both in one cycle:
                 // ins_ready_o is held off while w_fb_alloc)
                 r_valid[w_free_slot] <= 1'b1;
-                r_bank [w_free_slot] <= w_fb_alloc ? w_fq_bank : ins_bank_i;
-                r_row  [w_free_slot] <= w_fb_alloc ? w_fq_row  : ins_row_i;
-                r_col  [w_free_slot] <= w_fb_alloc ? w_fq_col  : ins_col_i;
-                r_id   [w_free_slot] <= w_fb_alloc ? w_fq_id   : ins_id_i;
-                r_qos  [w_free_slot] <= w_fb_alloc ? w_fq_qos  : ins_qos_i;
-                r_age  [w_free_slot] <= r_age_ctr;
                 r_fdone[w_free_slot] <= 1'b0;
-                r_agg  [w_free_slot] <= w_fb_alloc ? 1'b0 : ins_agg_i;
-                r_last [w_free_slot] <= w_fb_alloc ? 1'b1 : ins_last_i;
                 r_mgv  [w_free_slot] <= 1'b0;
                 r_mgfill[w_free_slot] <= 1'b0;
                 // age matrix: the new slot is the YOUNGEST -> older than nobody,
@@ -875,7 +932,6 @@ module mc_wr_data_cam #(
                     r_fill_merge <= w_fill_merge_now;
                     r_fill_eslot <= w_fill_eslot;
                     if (!w_fill_merge_now) begin
-                        r_ptr[w_fill_eslot]  <= w_slot_free;
                         r_pv [w_fill_eslot]  <= 1'b1;
                         r_sram_occ[w_slot_free] <= 1'b1;
                     end else begin
@@ -892,14 +948,14 @@ module mc_wr_data_cam #(
                     if (w_fill_merge) begin
                         r_mgfill[w_fill_eslot] <= 1'b0;
                         r_mgv   [w_fill_eslot] <= 1'b1;
-                        r_mgid  [w_fill_eslot] <= w_fq_id;
                         stat_merge_o <= stat_merge_o + 32'h1;
                     end
                 end
             end
             // done queue: {id} then {mgid}
-            if (commit_done_valid_o)
+            if (w_b_pop)
                 r_dn_second <= w_dn_mgv && !r_dn_second;
+            r_b_outst <= r_b_outst + (w_b_owed ? BOW'(1) : BOW'(0)) - (w_b_pop ? BOW'(1) : BOW'(0));
 
             // ---- 2-deep prefetch skid pipeline --------------------------------
             // Stage 1 (issue): pick a beat, issue the BRAM read, latch its tag as
@@ -934,16 +990,6 @@ module mc_wr_data_cam #(
 
             // push the captured in-flight beat into the skid FIFO tail
             if (r_if_valid) begin
-                r_sk_data [r_sk_wr] <= r_rd_q;
-                r_sk_iscm [r_sk_wr] <= r_if_iscm;
-                r_sk_slot [r_sk_wr] <= r_if_slot;
-                r_sk_blast[r_sk_wr] <= r_if_blast;
-                r_sk_agg  [r_sk_wr] <= r_if_agg;
-                r_sk_slast[r_sk_wr] <= r_if_slast;
-                r_sk_id   [r_sk_wr] <= r_if_id;
-                r_sk_mgv  [r_sk_wr] <= r_if_mgv;
-                r_sk_mgid [r_sk_wr] <= r_if_mgid;
-                r_sk_strb [r_sk_wr] <= r_if_strb;
                 r_sk_wr             <= r_sk_wr + 1'b1;
             end
             if (w_pop) r_sk_rd <= r_sk_rd + 1'b1;

@@ -88,6 +88,7 @@ module mc_xddr2_entry_store
     // WR done back to mc_axi4_plane (B response trigger)
     //=========================================================================
     output logic                wr_done_valid_o,
+    input  logic                wr_done_ready_i,
     output logic [IW-1:0]       wr_done_id_o,
 
     //=========================================================================
@@ -376,7 +377,9 @@ module mc_xddr2_entry_store
     assign w_hd_slast = r_sk_slast[r_sk_rd];
     assign w_hd_id    = r_sk_id   [r_sk_rd];
 
-    assign wr_cm_rd_valid_o = w_hd_vld;
+    // The beat that strobes the B (host-burst last) waits for the intake's B
+    // FIFO to have room (memory-controllers BUG-001); other beats never wait.
+    assign wr_cm_rd_valid_o = w_hd_vld && (!(w_hd_blast && w_hd_slast) || wr_done_ready_i);
     assign wr_cm_rd_data_o  = w_hd_data[DW-1:0];
     assign wr_cm_rd_strb_o  = w_hd_data[SRW-1:DW];
     assign wr_cm_rd_last_o  = w_hd_blast;

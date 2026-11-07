@@ -463,6 +463,7 @@ module scoria_core
     logic                wd_valid, wd_ready, wd_last;
     logic [DW-1:0]       wd_data;       logic [SW-1:0]        wd_strb;
     logic                wr_done_valid; logic [IW-1:0]        wr_done_id;
+    logic                wr_done_ready;
 
     logic                snarf_probe_valid, snarf_hit, snarf_accept;
     logic [BKW-1:0]      snarf_bank;    logic [ROW_WIDTH-1:0] snarf_row;
@@ -569,6 +570,7 @@ module scoria_core
         .wd_strb_o          (wd_strb),
         .wd_last_o          (wd_last),
         .wr_done_valid_i    (wr_done_valid),
+        .wr_done_ready_o    (wr_done_ready),
         .wr_done_id_i       (wr_done_id),
         // storage seam (snarf)
         .snarf_probe_valid_o(snarf_probe_valid),
@@ -646,6 +648,7 @@ module scoria_core
         .wd_strb_i          (wd_strb),
         .wd_last_i          (wd_last),
         .wr_done_valid_o    (wr_done_valid),
+        .wr_done_ready_i    (wr_done_ready),
         .wr_done_id_o       (wr_done_id),
         .stat_merge_o       (),   // write-merge counter (pumice TASK-060): not observed here
         .stat_rd_merge_o    (),   // read-merge counter (pumice TASK-060): not observed here

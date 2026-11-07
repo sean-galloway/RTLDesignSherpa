@@ -12,16 +12,19 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+None.
+
+## Closed
+
 - **ISSUE-001** — same-id writes to different banks can return their B responses
-  out of AXI order: B leaves in drain (commit) order, and the FR-FCFS pick can
-  commit a younger same-id write to another bank first. Found by reading the
-  store during the TASK-006 one-id merge work, 2026-11-03; not reproduced.
-  [open/ISSUE-001.md](open/ISSUE-001.md).
+  out of AXI order. Found by reading the store 2026-11-03; REPRODUCED 2026-11-05
+  by the directed B-order test and re-filed as [BUG-001](../bug/closed/BUG-001.md).
+  Closed 2026-11-06. [closed/ISSUE-001.md](closed/ISSUE-001.md).

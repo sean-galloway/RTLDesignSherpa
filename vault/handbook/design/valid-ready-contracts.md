@@ -213,3 +213,28 @@ summary: Stability rules; observers gate commands only, never responses.
 
 Related: [[streaming-no-fsm]], [[no-assertions-in-rtl]], [[randomization]].
 
+
+## A completion strobe with no ready is a drop; back-pressure it at admission, never at the drain (2026-11-06)
+
+`mc_wr_intake` pushed the store's `wr_done` strobe into a 4-deep B FIFO whose
+`wr_ready` was wired to nothing; `gaxi_fifo_sync` writes only on
+`valid && ready`, so the fifth completion while the host held `bready` low was
+dropped and the master waited for a B that never came (memory-controllers
+BUG-001). Every char engine and BFM keeps `bready` high, so no test had pressed
+it. Two rules:
+
+- An internal valid with no ready is a contract that says "the consumer is
+  always ready". Write that down as a sizing invariant the structure enforces
+  (depth >= every source of the strobe) or give the strobe a ready. A FIFO's
+  unconnected `wr_ready` is the tell.
+- Where the ready lands matters. The first fix held the store's DRAIN while the
+  B path was full, and pumice's command-history checker caught a tRP violation
+  at once: a drain that waits leaves a committed WRITE at the DFI head without
+  its data, and the PRE/ACT queued behind it collapse their JEDEC spacing at
+  the DRAM. Completion back-pressure belongs at ADMISSION: count what is owed
+  at the point it is incurred (an admitted host burst owes one B) and hold the
+  input there, so everything already committed drains unconditionally. The
+  pumice CAM bounds outstanding Bs at `ins_ready_o` with a queue sized to the
+  bound; granite's store takes a release-queue entry at AW admit and the queue
+  pops on the intake's ready. Same shape as [[per-bank-queues-admit-from-the-pool]]:
+  the condition is applied where the request enters, never where it leaves.

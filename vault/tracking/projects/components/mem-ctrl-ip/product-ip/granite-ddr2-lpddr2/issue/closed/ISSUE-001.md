@@ -5,7 +5,8 @@
 
 **Priority:** P2 -- an AXI ordering rule, invisible to any master that only counts
 OKAY Bs, but a producer/consumer master that reads after its B can see stale data.
-**Status:** OPEN 2026-11-03, not reproduced.
+**Status:** closed 2026-11-06 -- REPRODUCED 2026-11-05 and re-filed as granite
+[BUG-001](../../bug/closed/BUG-001.md); fixed 2026-11-06, closed 2026-11-07.
 **Owner:** TBD
 
 ## What the code does
@@ -39,3 +40,13 @@ the BFM checks same-id B order or just counts.
 - **Bug, fixed in the pick:** same rule as a mask on the pick's write candidates.
 - **No action:** if granite's contract is documented as "masters use distinct ids
   for writes that may reorder" -- not the case today; the HAS says nothing.
+
+## Closed 2026-11-06: reproduced, re-filed as granite BUG-001
+
+The directed test `test_granite_core_b_order` (backtoback and constrained cells,
+board scheduler CSRs, one id, W1 row-miss then W2 page-hit on another bank)
+showed B out of AW order in 8 / 12 and 4 / 12 trials, with B order matching the
+DRAM drain order in every different-id trial. That is the mechanism above,
+observed. The fix options and the recommended AW-order B release queue are in
+granite BUG-001, which also closes memory-controllers BUG-001 (the intake's B
+FIFO has no `wr_done` backpressure).

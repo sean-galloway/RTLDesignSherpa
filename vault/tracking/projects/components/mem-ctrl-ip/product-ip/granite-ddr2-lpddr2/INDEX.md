@@ -17,7 +17,7 @@ construction.
 | Lane | For | Next ID |
 |---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | `TASK-010` |
-| [bug/](bug/INDEX.md) | defects with a reproduction | `BUG-001` |
+| [bug/](bug/INDEX.md) | defects with a reproduction | `BUG-002` |
 | [issue/](issue/INDEX.md) | undiagnosed problems | `ISSUE-002` |
 
 ## Open shortlist
@@ -27,5 +27,7 @@ No task open or active. TASK-003 (100 MHz, ahead of LiteDRAM) and TASK-007
 TASK-002, TASK-006 and TASK-008 are closed. Two deferred: TASK-004 (timing
 margin levers), TASK-009 (1:4 board first DQ word). TASK-005 (half-width
 aggregator) dropped 2026-11-03: the store combiner does its job.
-One open issue: ISSUE-001 (same-id write B order across banks, found by
-reading the store; not reproduced). See [issue/INDEX.md](issue/INDEX.md). See [task/INDEX.md](task/INDEX.md).
+No bug open or active: BUG-001 (same-id write B order across banks; was
+ISSUE-001, reproduced 2026-11-05) was fixed 2026-11-06 by the AW-order B release
+queue and closed 2026-11-07. No open issue. See
+[bug/INDEX.md](bug/INDEX.md), [issue/INDEX.md](issue/INDEX.md), [task/INDEX.md](task/INDEX.md).

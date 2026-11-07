@@ -147,6 +147,10 @@ module mc_wr_intake #(
     // Write completion from downstream commit -> B (commit-driven)
     //=========================================================================
     input  logic                     wr_done_valid_i,
+    // Back-pressure for wr_done: low while the B FIFO is full or an error B
+    // takes the push this cycle. Without it a done into a full FIFO was
+    // dropped and the host never saw that B (memory-controllers BUG-001).
+    output logic                     wr_done_ready_o,
     input  logic [IW-1:0]            wr_done_id_i,
     input  logic [1:0]               wr_done_resp_i,
 
@@ -440,9 +444,10 @@ module mc_wr_intake #(
     logic            w_b_rd_valid, w_b_rd_ready;
     logic [B_W-1:0]  w_b_rd_data;
 
-    // err B takes priority; a good-burst wr_done should not coincide with a
-    // ragged aw pop for the same slot (asserted below).
-    assign w_b_wr_valid = w_err_b_fire || wr_done_valid_i;
+    // err B takes priority; a wr_done in the same cycle waits (its ready is
+    // low), as it does while the FIFO is full.
+    assign w_b_wr_valid    = w_err_b_fire || wr_done_valid_i;
+    assign wr_done_ready_o = w_b_wr_ready && !w_err_b_fire;
     assign w_b_wr_data  = w_err_b_fire ? {RESP_SLVERR, w_head_id}
                                        : {wr_done_resp_i, wr_done_id_i};
 
@@ -472,8 +477,6 @@ module mc_wr_intake #(
             if ((RAGGED_ASSERT != 0) && w_awm_wr_valid && w_awm_wr_ready && w_aw_err)
                 $error("mc_wr_intake: ragged burst awlen+1=%0d AXI_BEATS_PER_BURST=%0d (must satisfy awlen+1 == AXI_BEATS_PER_BURST)",
                        fub_awlen + 8'd1, AXI_BEATS_PER_BURST);
-            if (w_err_b_fire && wr_done_valid_i)
-                $error("mc_wr_intake: B push collision (err + wr_done same cycle)");
         end
     end
     // synthesis translate_on

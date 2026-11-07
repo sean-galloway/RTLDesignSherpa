@@ -31,6 +31,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 _FILELIST = ("projects/components/mem-ctrl-ip/product-ip/granite-ddr2-lpddr2/"
              "rtl/filelists/top/granite.f")
@@ -901,6 +902,349 @@ def test_granite_core_page_mode(request, page_mode, stim):
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_granite_core_page_mode",
+        sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
+        compile_args=["+define+USE_ASYNC_RESET", "--assert"],
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")
+
+
+# ----------------------------------------------------------------------------
+# granite ISSUE-001: same-id write B responses in AW order
+# ----------------------------------------------------------------------------
+_BANK_A_BASE = 0x4000      # bank 2 (bank_lsb 10: bank = addr[15:13], row = addr >> 16)
+_BANK_B_BASE = 0x6000      # bank 3
+_ROW_STRIDE = 0x10000      # +1 row, same bank (measured: see cocotb_test_granite_core_page_mode)
+
+
+def _board_sched_csrs(dut):
+    """The granite CSR resets the board runs with (regs/granite_csr.rdl):
+    PAGE_POLICY_CFG.policy_mode 4 (hybrid), PAGE_TIMEOUT_CFG.tr_init 2,
+    SCHED_POLICY all 0 (build default order, no QoS, age inert),
+    SCHED_WR_WM high 2 / low 1, wr_batch_max = GRANITE_DIR_BATCH_MAX 255."""
+    dut.page_mode_i.value = 4
+    dut.page_tr_init_i.value = 2
+    dut.sched_order_mode_i.value = 0
+    dut.sched_row_sel_i.value = 0
+    dut.sched_col_sel_i.value = 0
+    dut.sched_access_pref_i.value = 0
+    dut.sched_wr_high_wm_i.value = 2
+    dut.sched_wr_batch_max_i.value = 255
+    dut.sched_wr_low_wm_i.value = 1
+    dut.sched_prio_sub_i.value = 0
+    dut.sched_qos_en_i.value = 0
+    dut.sched_age_thresh_i.value = 0
+
+
+async def _dfi_wr_burst_monitor(dut, cyc, bursts):
+    """Passive: every BL_WORDS-word write burst on the DFI write bus, with
+    the dfi_clk cycle its first word appeared. Drain order == this order."""
+    cur, t0 = [], 0
+    while True:
+        await RisingEdge(dut.dfi_clk)
+        if int(dut.dfi_wrdata_en_o.value) != 0:
+            if not cur:
+                t0 = cyc[0]
+            cur.append(int(dut.dfi_wrdata_o.value))
+            if len(cur) == BL_WORDS:
+                bursts.append((t0, tuple(cur)))
+                cur = []
+
+
+@cocotb.test(timeout_time=40000, timeout_unit="us")
+async def cocotb_test_granite_core_b_order(dut):
+    """granite BUG-001 (was ISSUE-001): AXI requires B responses of ONE id in AW order.
+
+    granite produces a write's B when its slot DRAINS (mc_bank_fifo_store
+    wr_done_*), slots drain in commit order (u_wr_drain_q fed by wr_commit_*),
+    and the pick commits FR-FCFS across banks with no id compare. So:
+
+        blockers (id 7): N writes to bank A, alternating rows (each a row miss)
+        [opener  (id 6): one write to bank B row R  -- the W2_HIT variant]
+        W1       (id X): bank A, another row, queued behind the blockers
+        W2       (id X or Y): bank B (row R: a page hit behind the opener)
+
+    Each trial runs twice:
+      * DIFFERENT ids (X=3, Y=4) -- the vacuity guard: the DFI write-burst
+        monitor must see W2 DRAIN before W1 in at least one trial, or the
+        scenario never inverts commit order and a same-id pass proves nothing.
+        Since the fix (granite BUG-001) the store releases EVERY B in AW order,
+        so B(3) must precede B(4) here even when the drain inverted.
+      * SAME id (X=Y=3) -- the AXI rule. A B carries no address, but AXI says
+        the FIRST id-3 B acknowledges W1. A B leaves when its write DRAINS the
+        store, which is a fixed lead ahead of the write's burst on the DFI bus
+        (command delay + CDC + write latency); the different-id phase measures
+        that lead for W1 and W2 (their ids are unique there). The first id-3 B
+        may therefore lead W1's DFI burst by at most that lead: before the fix
+        B left in drain order, so W2 draining first put the first id-3 B a
+        whole blocker-run ahead of W1's data.
+
+    The sweep: N in {1, 2, 4} x W2 page hit/miss x 2 reps, CSRs at the board
+    resets; the pytest cells pace the AW channel backtoback / constrained. Fails if ANY same-id trial drains (=Bs) out of AW order, or if NO
+    different-id trial inverts (the scenario would then prove nothing)."""
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
+    _idle(dut)
+    _board_sched_csrs(dut)
+    dut.aresetn.value = 0
+    dut.dfi_rstn.value = 0
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    dut.dfi_rstn.value = 1
+    for _ in range(6):
+        await RisingEdge(dut.aclk)
+    bfm = _init_masters(dut)
+    # W stays back to back: a write commits only once its data is in, so a
+    # paced W channel fills W1 long before W2 and the bank-A queue drains
+    # first -- measured: W on `constrained` inverted 0/12 different-id
+    # trials (vacuous). The AW channel carries the gap setting instead.
+    aw_profile = os.environ.get("AW_PROFILE", "backtoback")
+    bfm.set_profile("backtoback", channels=["w", "b"])
+    bfm.set_profile(aw_profile, channels=["aw"])
+    captured = []
+    cocotb.start_soon(_dfi_model(dut, captured))
+
+    cyc = [0]
+
+    async def _count():
+        while True:
+            await RisingEdge(dut.dfi_clk)
+            cyc[0] += 1
+    cocotb.start_soon(_count())
+    b_log = []                       # (dfi cycle, bid) in B-handshake order
+    bfm.wr.b_channel.add_callback(lambda pkt: b_log.append((cyc[0], int(getattr(pkt, 'id', 0)))))
+    bursts = []
+    cocotb.start_soon(_dfi_wr_burst_monitor(dut, cyc, bursts))
+
+    for _ in range(400):
+        await RisingEdge(dut.aclk)
+        if int(dut.init_done_o.value):
+            break
+    assert int(dut.init_done_o.value) == 1, "init never completed"
+    for _ in range(20):
+        await RisingEdge(dut.dfi_clk)
+
+    rng = random.Random(int(os.environ.get("SEED", "1")))
+    burst_bytes = BL_WORDS * (DW // 8)
+    trial_cfgs = [(n, hit, rep) for rep in range(2) for n in (1, 2, 4) for hit in (0, 1)]
+    vac_inv, vac_total = 0, 0
+    same_inv = []
+    lead_max = 0                     # max (DFI burst cycle - B cycle) seen for W1/W2, diff phase
+    row_base = 1
+    for t, (n_blk, w2_hit, rep) in enumerate(trial_cfgs):
+        for phase in ("diff", "same"):
+            id1, id2 = (3, 4) if phase == "diff" else (3, 3)
+            rb = row_base
+            row_base += n_blk + 3
+            reqs, ids, names = [], [], []
+
+            def add(addr, axid, name):
+                reqs.append((addr, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
+                ids.append(axid)
+                names.append(name)
+            if w2_hit:
+                add(_BANK_B_BASE + rb * _ROW_STRIDE, 6, "open_B")
+            for k in range(n_blk):
+                add(_BANK_A_BASE + (rb + 1 + (k % 2)) * _ROW_STRIDE, 7, f"blk{k}_A")
+            add(_BANK_A_BASE + rb * _ROW_STRIDE, id1, "W1_A")
+            add(_BANK_B_BASE + rb * _ROW_STRIDE + (burst_bytes if w2_hit else 0), id2, "W2_B")
+            i_w1, i_w2 = len(reqs) - 2, len(reqs) - 1
+
+            b_log.clear()
+            bursts.clear()
+            captured.clear()
+            await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: ids[k]),
+                               _PHASE_TIMEOUT_US, "us")
+            for _ in range(2000):
+                await RisingEdge(dut.dfi_clk)
+                if len(bursts) >= len(reqs):
+                    break
+            for _ in range(60):
+                await RisingEdge(dut.dfi_clk)
+            assert len(bursts) == len(reqs), \
+                f"trial {t} {phase}: {len(bursts)} DFI write bursts for {len(reqs)} writes"
+            by_data = {tuple(d): i for i, (_, d) in enumerate(reqs)}
+            drain = [by_data[d] for _, d in bursts]
+            t_dfi = {by_data[d]: tc for tc, d in bursts}
+            assert sorted(drain) == list(range(len(reqs))), \
+                f"trial {t} {phase}: DFI bursts are not the host's writes"
+            w2_first = drain.index(i_w2) < drain.index(i_w1)
+            dut._log.info(
+                "BORDER trial %d N=%d w2_hit=%d rep=%d %s: AW %s | ids %s | drain %s | "
+                "B (cyc,id) %s | DFI cyc W1=%d W2=%d", t, n_blk, w2_hit, rep, phase,
+                names, ids, [names[i] for i in drain], b_log, t_dfi[i_w1], t_dfi[i_w2])
+            if phase == "diff":
+                vac_total += 1
+                vac_inv += int(w2_first)          # the DRAIN inverted: the scenario bites
+                b_ids = [b for _, b in b_log]
+                b_w2_first = b_ids.index(id2) < b_ids.index(id1)
+                # Bs leave in AW order whatever the drain did (granite BUG-001 fix)
+                assert not b_w2_first, \
+                    (f"trial {t}: B(id {id2}, W2) left before B(id {id1}, W1) although W1's AW "
+                     f"came first (drain W2 first={w2_first})")
+                t_b = {b: tc for tc, b in b_log}
+                lead_max = max(lead_max, t_dfi[i_w1] - t_b[id1], t_dfi[i_w2] - t_b[id2])
+            else:
+                b3 = [tc for tc, b in b_log if b == 3]
+                # the first id-3 B acknowledges W1 (AXI); it may lead W1's DFI burst
+                # by the measured drain-to-DFI lead and no more
+                if b3 and b3[0] < t_dfi[i_w1] - lead_max - 2:
+                    same_inv.append(
+                        f"trial {t} (N={n_blk}, w2_hit={w2_hit}): AW W1(bank 2 row {rb}) then "
+                        f"W2(bank 3 row {rb}), both id 3; drain W2 first={w2_first}; first id-3 B "
+                        f"at dfi cyc {b3[0]}, W1 data on DFI at {t_dfi[i_w1]} (W2 at {t_dfi[i_w2]}), "
+                        f"lead bound {lead_max}")
+    _assert_no_held_write(dut)
+    dut._log.info("BORDER summary: drain inverted in %d/%d different-id trials; same-id B "
+                  "ahead of its write in %d/%d trials (B-to-DFI lead bound %d)",
+                  vac_inv, vac_total, len(same_inv), len(trial_cfgs), lead_max)
+    assert vac_inv > 0, \
+        (f"vacuity: no different-id trial of {vac_total} drained W2 before W1 -- the "
+         f"scenario never inverts commit order, so a same-id pass would prove nothing")
+    assert not same_inv, \
+        ("granite BUG-001: a same-id B left ahead of its own write in "
+         f"{len(same_inv)}/{len(trial_cfgs)} trials:\n  " + "\n  ".join(same_inv))
+    dut._log.info("PASS: Bs in AW order on every trial; the drain inverted in %d/%d",
+                  vac_inv, vac_total)
+
+
+async def _axi_b_pending_tracker(dut, stat):
+    """Passive: AW and B handshakes on the host port, the peak of their
+    difference, and the cycles the intake's B FIFO was FULL -- the condition
+    under which, before the fix, a store done was dropped on the floor."""
+    aw, b, full = 0, 0, 0
+    fifo_ready = dut.u_axi_plane.u_wr_intake.w_b_wr_ready
+    while True:
+        await RisingEdge(dut.aclk)
+        if int(dut.s_axi_awvalid.value) and int(dut.s_axi_awready.value):
+            aw += 1
+        if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+            b += 1
+        if int(fifo_ready.value) == 0:
+            full += 1
+        stat["aw"], stat["b"], stat["fifo_full_cycles"] = aw, b, full
+        stat["max_pending"] = max(stat.get("max_pending", 0), aw - b)
+
+
+@cocotb.test(timeout_time=40000, timeout_unit="us")
+async def cocotb_test_granite_core_b_stall(dut):
+    """memory-controllers BUG-001: a host that stalls BREADY must lose no B.
+
+    The intake's B FIFO is 4 deep and, before the fix, the store's wr_done had
+    no ready: the fifth completion into a full FIFO was dropped and the master
+    waited forever. Here the master accepts each B only after a long ready
+    delay while N writes stream in, so completions pile up well past four;
+    every AW must still get its B (the engine runner returns only when they
+    all have). The peak of outstanding Bs is the vacuity guard: it must exceed
+    the FIFO depth, or the test never reached the hole."""
+    cocotb.start_soon(Clock(dut.aclk, _ACLK_NS, units='ns').start())
+    cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
+    _idle(dut)
+    _board_sched_csrs(dut)
+    dut.aresetn.value = 0
+    dut.dfi_rstn.value = 0
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    dut.aresetn.value = 1
+    dut.dfi_rstn.value = 1
+    for _ in range(6):
+        await RisingEdge(dut.aclk)
+    bfm = _init_masters(dut)
+    bfm.set_profile("backtoback", channels=["aw", "w"])
+    # one B accepted every B_STALL cycles: with 24 writes in flight the
+    # controller must hold far more than the intake FIFO's 4
+    b_stall = int(os.environ.get("B_STALL", "40"))
+    bfm.wr.b_channel.randomizer = FlexRandomizer({'ready_delay': ([(b_stall, b_stall)], [1])})
+    captured = []
+    cocotb.start_soon(_dfi_model(dut, captured))
+    stat = {}
+    cocotb.start_soon(_axi_b_pending_tracker(dut, stat))
+    b_ids = []
+    bfm.wr.b_channel.add_callback(lambda pkt: b_ids.append(int(getattr(pkt, 'id', 0))))
+
+    for _ in range(400):
+        await RisingEdge(dut.aclk)
+        if int(dut.init_done_o.value):
+            break
+    assert int(dut.init_done_o.value) == 1, "init never completed"
+    for _ in range(20):
+        await RisingEdge(dut.dfi_clk)
+
+    rng = random.Random(int(os.environ.get("SEED", "1")))
+    n = 24
+    # bank k % 8 (addr[15:13]), row k // 8: every bank busy, each write its own row
+    reqs = [(((k % 8) << 13) | ((k // 8) * _ROW_STRIDE),
+             [rng.randrange(1 << DW) for _ in range(BL_WORDS)]) for k in range(n)]
+    ids = [k % 16 for k in range(n)]
+    try:
+        await with_timeout(bfm.write_many(reqs, axid_fn=lambda k: ids[k]),
+                           4 * _PHASE_TIMEOUT_US, "us")
+    except SimTimeoutError:
+        raise AssertionError(
+            f"BUG-001: only {stat.get('b', 0)} of {n} B responses arrived with BREADY stalled "
+            f"{b_stall} cycles per B (AW accepted {stat.get('aw', 0)}, peak pending "
+            f"{stat.get('max_pending', 0)}): the controller dropped B responses")
+    for _ in range(50):
+        await RisingEdge(dut.aclk)
+    held = int(dut.u_dfi_plane.u_cmd.r_wr_held_cnt.value)
+    dut._log.info("BSTALL: %d AW, %d B, peak outstanding Bs %d, intake B FIFO full %d cycles, "
+                  "WRITE held at the DFI head %d cycles, ids %s", stat["aw"], stat["b"],
+                  stat["max_pending"], stat["fifo_full_cycles"], held, b_ids)
+    assert stat["aw"] == n and stat["b"] == n, \
+        f"{stat['b']} B responses for {stat['aw']} accepted AWs ({n} issued)"
+    assert sorted(b_ids) == sorted(ids), f"B ids {sorted(b_ids)} != AW ids {sorted(ids)}"
+    assert stat["fifo_full_cycles"] > 0, \
+        ("vacuity: the intake's 4-deep B FIFO never filled, so the dropped-done hole was "
+         f"never reached (peak outstanding {stat['max_pending']}; raise B_STALL)")
+    # the dense 24-write stream is also what showed the CDC write-data FIFO at its
+    # full-depth equilibrium (granite_core DFI_WD_FIFO_EFF): the contract holds here
+    _assert_no_held_write(dut)
+    dut._log.info("PASS: %d/%d Bs with up to %d outstanding", stat["b"], n, stat["max_pending"])
+
+
+@pytest.mark.parametrize("aw_profile", ["backtoback", "constrained"])
+def test_granite_core_b_order(request, aw_profile):
+    """granite ISSUE-001: same-id write Bs in AW order across banks (FUNC level)."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "granite_core"
+    test_name = f"cocotb_test_granite_core_b_order_{aw_profile}"
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    params = dict(_core_params())
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+                 "COCOTB_LOG_LEVEL": "INFO", "AW_PROFILE": aw_profile,
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env("func")}
+    extra_env.update(params)
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module, testcase="cocotb_test_granite_core_b_order",
+        sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
+        compile_args=["+define+USE_ASYNC_RESET", "--assert"],
+        waves=bool(int(os.environ.get("WAVES", "0"))),
+        plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
+        keep_files=True, timescale="1ns/1ps")
+
+
+def test_granite_core_b_stall(request):
+    """memory-controllers BUG-001: no B is lost when the host stalls BREADY (FUNC level)."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "granite_core"
+    test_name = "cocotb_test_granite_core_b_stall"
+    verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    params = dict(_core_params())
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+                 "COCOTB_LOG_LEVEL": "INFO",
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                 **level_env("func")}
+    extra_env.update(params)
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module, testcase="cocotb_test_granite_core_b_stall",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert"],
         waves=bool(int(os.environ.get("WAVES", "0"))),
