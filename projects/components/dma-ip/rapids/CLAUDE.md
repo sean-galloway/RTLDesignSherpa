@@ -272,7 +272,7 @@ scheduler groups; history in
 2. **Use explicit signal_map**: Bypass pattern matching with manual signal mapping
 3. **Test at higher level**: Where internal signals aren't visible (e.g., rapids_top)
 
-**Complete Guide:** `bin/SIGNAL_NAMING_AUDIT.md`
+**Complete Guide:** `vault/handbook/dv/signal-naming-audit.md`
 
 ---
 

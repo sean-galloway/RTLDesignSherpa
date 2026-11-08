@@ -4,7 +4,7 @@ This directory holds the Mermaid sources (`.mmd`) for the STREAM MAS figures
 together with the PNGs rendered from them. Each source and its PNG sit side by
 side. Chapters reference the `.png`. Why it is PNG and not SVG, and the rest of
 the pipeline, are covered in `vault/handbook/authoring/doc-pipeline.md` and
-`bin/DOC_GENERATION.md`.
+`vault/handbook/authoring/doc-generation.md`.
 
 ## Files
 

@@ -23,10 +23,12 @@ the failure that taught it.
   second copy is how documentation rots - the copy nobody edits is the one the
   next session reads. Point at the handbook note instead.
   **The one exception (Sean, 2026-09-25): TOOL MECHANICS may live beside the
-  tool, with the rationale in the handbook.** `bin/DOC_GENERATION.md`,
-  `bin/SIGNAL_CONTRACTS_KMAPS.md` and `bin/SIGNAL_NAMING_AUDIT.md` stay where
-  they are, and [[doc-pipeline]] and [[signal-contracts-and-kmaps]] keep
-  pointing outward at them. The test is whether the file carries *mechanics a
+  tool, with the rationale in the handbook.** `bin/SIGNAL_CONTRACTS_KMAPS.md`
+  is the standing case, and [[signal-contracts-and-kmaps]] points outward at
+  it. The pipeline and signal-naming-audit guides were moved into the
+  handbook on 2026-11-07 ([[doc-generation]], [[signal-naming-audit]]): an
+  agent that has to know a tool exists, where it lives and that a guide sits
+  beside it before it can follow the guide usually never finds it. The test is whether the file carries *mechanics a
   reader of that directory needs* -- the 6-step stand-up, the styles YAML, the
   flags -- or *method that applies everywhere*, which still belongs in the
   handbook. The same test applies to a subsystem CLAUDE.md: area-specific
@@ -318,7 +320,7 @@ Both match the pattern `desc_*valid` → Factory finds BOTH signals → Initiali
 3. Fix any naming conflicts (rename internal signals)
 4. Write testbench using factory pattern matching
 
-**Complete Guide:** `bin/SIGNAL_NAMING_AUDIT.md`
+**Complete Guide:** `vault/handbook/dv/signal-naming-audit.md`
 
 ### Writing RTL
 
@@ -465,6 +467,8 @@ demand rather than every session; invoke it before writing or changing a test.
   described flat `open.md`/`active.md` tracker pages and said to update a
   `TASKS.md`; the flat pages were all migrated to task/bug/issue lanes (one
   file per item, `git mv` between state directories) on 2026-09-27. Both now
-  point at the lanes and the `tasks` skill.
+  point at the lanes and the `tasks` skill. Same day: `bin/DOC_GENERATION.md`
+  and `bin/SIGNAL_NAMING_AUDIT.md` moved into the handbook; the tool-mechanics
+  exception now covers `bin/SIGNAL_CONTRACTS_KMAPS.md` only.
 
 **Maintained By:** RTL Design Sherpa Project

@@ -3,7 +3,7 @@
 Current flags: `python3 bin/md_to_docx.py --help`. That is the only source that
 cannot drift, and it is why this file is a pointer.
 Pipeline mechanics (document unit, index, styles, generate script):
-**`bin/DOC_GENERATION.md`**.
+**[`vault/handbook/authoring/doc-generation.md`](../vault/handbook/authoring/doc-generation.md)**.
 Decisions and traps (`--style` picks the engine, PNG never SVG, captions drive
 LoF/LoT/LoW): **`vault/handbook/authoring/doc-pipeline.md`**.
 

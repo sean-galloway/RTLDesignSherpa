@@ -2,7 +2,7 @@
 
 Toolchain setup, and the gotchas that actually bite here:
 **`vault/handbook/authoring/doc-pipeline.md`**.
-Pipeline mechanics: **`bin/DOC_GENERATION.md`**.
+Pipeline mechanics: **[`vault/handbook/authoring/doc-generation.md`](../vault/handbook/authoring/doc-generation.md)**.
 Current flags: `python3 bin/md_to_docx.py --help`.
 
 This file carried a generic walkthrough -- install Python, make a venv, install

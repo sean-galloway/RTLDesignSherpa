@@ -47,7 +47,7 @@ tracker. Nothing here is a second copy of either.
 | Coverage | [coverage](../../vault/handbook/dv/coverage.md) |
 | Filelists (every `.f` in a `filelists/` dir; the registry) | [filelists](../../vault/handbook/design/filelists.md), `bin/filelists.toml` |
 | Where a document belongs | [doc-placement](../../vault/handbook/authoring/doc-placement.md) |
-| HAS/MAS spec standards and the PDF pipeline | [spec-doc-standards](../../vault/handbook/authoring/spec-doc-standards.md), `bin/DOC_GENERATION.md` |
+| HAS/MAS spec standards and the PDF pipeline | [spec-doc-standards](../../vault/handbook/authoring/spec-doc-standards.md), [doc-generation](../../vault/handbook/authoring/doc-generation.md) |
 | Generated RTL: regenerate everything, never hand-edit | [generated-rtl-discipline](../../vault/handbook/design/generated-rtl-discipline.md); `/CLAUDE.md` Rule #0 |
 | Reader-facing component pages | [docs/markdown/projects/index.md](../../docs/markdown/projects/index.md) |
 

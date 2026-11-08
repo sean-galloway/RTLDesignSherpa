@@ -117,7 +117,7 @@ Specs live WITH their components, not here:
   WAVES), [running-regressions](../vault/handbook/dv/running-regressions.md)
   (always the Makefile targets, never bare pytest),
   [seeds-and-determinism](../vault/handbook/dv/seeds-and-determinism.md)
-- **[/bin/DOC_GENERATION.md](../bin/DOC_GENERATION.md)** - the doc pipeline:
+- **[vault/handbook/authoring/doc-generation.md](../vault/handbook/authoring/doc-generation.md)** - the doc pipeline:
   md_to_docx (--style required), book indexes, PDF generation
 - **[kimi_humanization_style_guide.md](kimi_humanization_style_guide.md)** -
   voice guide for the external doc-review humanization pass

@@ -126,7 +126,7 @@ binding for new chapters and for edits to existing ones.
   silently breaks book generation. This was the whole point of the retired
   `projects/components/DOCUMENTATION_STANDARDS.md` (tooling TASK-004,
   2026-09-28); the flags and styles-YAML mechanics it also carried live in
-  `bin/DOC_GENERATION.md`.
+  `vault/handbook/authoring/doc-generation.md`.
 - No emoji anywhere in spec sources (breaks the LaTeX path).
 
 ## Voice

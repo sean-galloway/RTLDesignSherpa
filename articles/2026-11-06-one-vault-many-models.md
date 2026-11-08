@@ -5,13 +5,21 @@ summary: RTL Design Sherpa keeps its method, its work items and its per-area con
 tags: ai, llm, documentation, workflow, rtl
 ---
 
-Four different models write code in this repository: Claude, Kimi, Qwen and Nemotron. They aren't interchangeable, and I don't use them that way. Each one gets the jobs it's good at. Claude runs most of the day-to-day RTL, testbench and formal work. Kimi has built whole blocks of its own (a mesh-router cell, an fp32 square root and divider, a riscv-formal proof flow) and also runs the documentation review rounds. Qwen and Nemotron run locally on my own hardware, with their own lanes of work.
+For a long time, everything this repo knew that wasn't code lived in Markdown files scattered all over the tree. Each process doc lived where its tool lived: the doc-generation process sat beside the doc generator in `bin/`, the signal-naming audit's guide sat beside the audit script, and so on through the tree. There was a `TASKS.md` beside one component and a `TODO.md` beside another. Each subsystem had its own `CLAUDE.md`, restating the same rules with small differences.
 
-None of them remembers anything between sessions. Each one starts cold, and each one will happily invent a convention if nobody hands it the real one. So the question I kept running into wasn't "which model is best?" It was "how do I get four forgetful collaborators to do things the same way, every time?"
+That layout makes sense to a person who already knows the repo. An agent has to know three things before it can follow a single process: that the tool exists, where it lives, and that a process file sits next to it. Miss any one of those and the doc might as well not exist.
+
+That cost me something every session, even back when Claude was the only model I used. Claude doesn't remember anything from one session to the next, so every single time I had to point it at the tools and their process docs by hand. Run the regression this way. Put the testbench there. Here's where the tasks are. If I forgot, it guessed, and it guessed differently each time.
+
+I'd heard about Obsidian, where a vault is just a folder of Markdown notes tied together with `[[wikilinks]]` and index pages. I took the ideas I needed from it: atomic notes with one topic each, wikilinks between them, and index pages for navigation. Then I adapted them to work in VS Code, where I already spend the day. Nothing in the vault requires Obsidian. The notes are plain Markdown, a link is just text a model can grep, and the checks run as scripts from the pre-commit hook. Obsidian can open the folder, but you don't need it.
+
+Then the number of models grew. Four different models now write code in this repository: Claude, Kimi, Qwen and Nemotron. They aren't interchangeable, and I don't use them that way. Each one gets the jobs it's good at. Claude runs most of the day-to-day RTL, testbench and formal work. Kimi has built whole blocks of its own (a mesh-router cell, an fp32 square root and divider, a riscv-formal proof flow) and also runs the documentation review rounds. Qwen and Nemotron run locally on my own hardware, with their own lanes of work.
+
+None of them remembers anything between sessions either. It's the problem I had with Claude alone, four times over. Each one starts cold, and each one will happily invent a convention if nobody hands it the real one. So the question I kept running into wasn't "which model is best?" It was "how do I get four forgetful collaborators to do things the same way, every time?"
 
 ![Four coding agents, Claude, Kimi, Qwen and Nemotron, feeding one vault with handbook, tracking and project drawers](assets/one-vault-many-models/vault_hero.png)
 
-My answer is a directory called `vault/`. It holds everything the repo knows that isn't code: how we do things, what's in flight, and why a particular block looks the way it does. It's plain Markdown, it opens as an Obsidian vault, and it's the one place every model is pointed at.
+My answer is a directory called `vault/`. It holds everything the repo knows that isn't code: how we do things, what's in flight, and why a particular block looks the way it does. It's plain Markdown that reads fine in VS Code, and it's the one place every model is pointed at.
 
 ## Three areas, three questions
 
@@ -52,7 +60,7 @@ The same split applies to the five agent roles in `.claude/agents/`. The stub ca
 
 Why the fuss? Because **a second copy is how documentation rots.** The copy nobody edits is the one the next session reads. If the regression rule lives in the handbook and also in a skill, someone fixes one, and six weeks later Claude follows the stale one with total confidence. One copy, many pointers. That's the whole trick.
 
-The one exception is tool mechanics. A file like `bin/DOC_GENERATION.md` can sit beside the tool because it carries the flags and the stand-up steps a reader of that directory needs. The *why* still lives in the handbook.
+That includes the guides that used to sit beside their tools. The doc-pipeline how-to and the signal-naming audit guide now live in the handbook, as `authoring/doc-generation.md` and `dv/signal-naming-audit.md`. A guide in `bin/` only helps an agent that already knows to look in `bin/`.
 
 ## Tracking: area, lane, state
 

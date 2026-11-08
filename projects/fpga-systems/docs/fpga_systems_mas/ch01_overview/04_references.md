@@ -15,7 +15,7 @@
 | `make/fpga_flow.mk` | The make targets discovered from the filename prefixes |
 | `vault/handbook/dv/registers-by-name.md` | Method: never address a register by offset |
 | `vault/handbook/dv/running-regressions.md` | Method: clean builds, and why a fast pass is fiction |
-| `bin/DOC_GENERATION.md` | How this book becomes a PDF |
+| `vault/handbook/authoring/doc-generation.md` | How this book becomes a PDF |
 | `bin/TBClasses/harness/` | The simulation-side transport spine the bridge plugs into |
 
 The handbook is the authority on method. This book is the authority on the

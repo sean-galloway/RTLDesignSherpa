@@ -10,6 +10,7 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[running-regressions]] - ALWAYS clean-all first; the Makefile targets, the levels; a cocotb bump runs the `val/` matrix AND every `cocotb._bridge` (UART-equivalence) suite
 - [[rds-dv-axes]] - BFM / sequence / randomization are ORTHOGONAL; where the RDS-DV docs live
 - [[bfm-usage]] - use RDS-DV BFMs, never re-roll; the factory map + trap list
+- [[signal-naming-audit]] - run `bin/audit_signal_naming_conflicts.py` before a TB: internal signals that match an AXI factory prefix break binding
 - [[randomization]] - the 19 FlexConfigGen profiles; random traffic does NOT prove fairness; choices drawn from one linear hash with XOR keys are correlated
 - [[arbiter-compliance-model]] - it advances during REPLAY, not live; the three
   defects that made a correct arbiter look broken; never quiet it by name

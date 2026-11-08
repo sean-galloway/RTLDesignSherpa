@@ -5,7 +5,7 @@ summary: How Markdown becomes a deliverable - md_to_docx --style, caption-encode
 
 # Doc pipeline
 
-Canonical how-to: `bin/DOC_GENERATION.md`. This note carries the decisions and
+Canonical how-to: [[doc-generation]]. This note carries the decisions and
 traps; the mechanics live there.
 
 ## --style picks the engine

@@ -8,6 +8,7 @@ summary: Documentation practice - external review rounds, voice, and the generat
 - [[kimi-review-rounds]] - external doc QC and humanization; the five rules
 - [[humanization-voice]] - the persona pass; what it may and may not change
 - [[doc-pipeline]] - md_to_docx --style, caption-encoded lists, RTL PDF books
+- [[doc-generation]] - the pipeline mechanics: 6-step document-unit stand-up, styles YAML, caption encoding, mmdc traps
 - [[doc-placement]] - what kind of doc lives where; a beside-code README is a
   link, not a second copy; methodology never in the RTL tree
 - [[spec-doc-standards]] - HAS/MAS book formatting: section page breaks,

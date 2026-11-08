@@ -54,7 +54,7 @@ gen_index() {
 # Lists (LoF/LoT/LoW) are OPT-IN PER BOOK. The flags only insert the list
 # section -- entries come from caption encoding in the Markdown
 # ("### Figure C.N:", "#### Waveform C.N:", and a Pandoc ": Caption" line after
-# a table; see bin/DOC_GENERATION.md). A book whose sources lack that encoding
+# a table; see vault/handbook/authoring/doc-generation.md). A book whose sources lack that encoding
 # would render an EMPTY list, so only pass the flag where the captions exist.
 build_book() {
   local title="$1" subtitle="$2" index="$3" name="$4"; shift 4

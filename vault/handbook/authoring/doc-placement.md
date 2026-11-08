@@ -25,12 +25,14 @@ the next session reads. This note is the authority on where each kind goes.
 1. **Methodology never lives in the RTL tree -- but tool mechanics may live
    beside the tool** (Sean, 2026-09-25, resolving a TBD parked since the Kimi
    migration). Rationale goes to the handbook; the mechanics a reader of that
-   directory needs may stay next to it. `bin/DOC_GENERATION.md` (356 lines the
-   handbook genuinely lacks: the 6-step stand-up, document-unit anatomy,
-   `<doc>_index.md` semantics, styles YAML), `bin/SIGNAL_CONTRACTS_KMAPS.md`
-   and `bin/SIGNAL_NAMING_AUDIT.md` are the standing cases, and this note plus
-   [[signal-contracts-and-kmaps]] deliberately defer outward at them. That
-   deferral is now a documented split rather than an inconsistency to fix.
+   directory needs may stay next to it. `bin/SIGNAL_CONTRACTS_KMAPS.md` is
+   the standing case, and [[signal-contracts-and-kmaps]] deliberately defers
+   outward at it. *Narrowed 2026-11-07 (Sean): the two other standing cases,
+   `bin/DOC_GENERATION.md` and `bin/SIGNAL_NAMING_AUDIT.md`, moved into the
+   handbook as [[doc-generation]] and [[signal-naming-audit]]. A guide beside
+   its tool is found only by an agent that already knows the tool exists, where
+   it lives, and that a guide sits next to it; in practice it was pointed at by
+   hand every session.*
    The rest of the original rule still holds: A style guide, a how-to, a
    canonical process doc beside code is misplaced. It goes to `vault/handbook/`.
    *Case (2026-07-24): a 17 KB `DOCUMENTATION_STYLE_GUIDE.md` sat in

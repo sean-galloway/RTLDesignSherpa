@@ -288,7 +288,7 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 |---|---|---|
 | RTL generators | Codegen for math circuits + floating-point modules | [`bin/rtl_generators/`](bin/rtl_generators/) |
 | `md_to_docx.py` | Markdown → DOCX/PDF with corporate styles | [`bin/md_to_docx.py`](bin/md_to_docx.py) |
-| `audit_signal_naming_conflicts.py` | Detect AXI-factory pattern collisions before TB write | [`bin/audit_signal_naming_conflicts.py`](bin/audit_signal_naming_conflicts.py) ([guide](bin/SIGNAL_NAMING_AUDIT.md)) |
+| `audit_signal_naming_conflicts.py` | Detect AXI-factory pattern collisions before TB write | [`bin/audit_signal_naming_conflicts.py`](bin/audit_signal_naming_conflicts.py) ([guide](vault/handbook/dv/signal-naming-audit.md)) |
 | `vivado_timing_failures.py` | Per-violation Vivado timing parser | [`bin/vivado_timing_failures.py`](bin/vivado_timing_failures.py) |
 | Misc scripts | Build/regen helpers, codemaps, doc generators | [bin/](bin/) · [tools/](tools/) · [scripts/](scripts/) |
 

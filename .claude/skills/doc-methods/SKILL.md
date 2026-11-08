@@ -6,7 +6,7 @@ description: The Sherpa documentation pipeline - md_to_docx with --style, LoF/Lo
 # doc-methods
 
 READ FIRST: vault/handbook/INDEX.md (the handbook is the repo's memory; this skill is the
-signpost). Canonical pipeline how-to: bin/DOC_GENERATION.md. md_to_docx needs --style; LoF/LoT/LoW live in captions; no emojis in pipeline docs.
+signpost). Canonical pipeline how-to: vault/handbook/authoring/doc-generation.md. md_to_docx needs --style; LoF/LoT/LoW live in captions; no emojis in pipeline docs.
 
 The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,
