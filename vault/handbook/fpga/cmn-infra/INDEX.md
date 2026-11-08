@@ -32,6 +32,9 @@ the [FPGA area](../INDEX.md) "Boards / components").
   discovers by; why paths anchor instead of counting levels
 - [[timing-closure]] - the triage order when timing fails
 - [[timing-triage-tool]] - bin/vivado_timing_failures.py (bucketizes fails)
+- [[board-vs-rtl]] - a sweep delta is a design delta only after a from-reset
+  run matches the RTL cosim (CRC and fill count); leftover cache state and a
+  timing-marginal build both move counts with the data still correct
 
 ## Board handling
 - [[boards]] - the projects/fpga-systems/bin/boards registry: JTAG serials, UART chips, the

@@ -285,14 +285,19 @@ async def smoke_test(dut):
         await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 31) | (idx & 0xFF))
 
     # Both injectors target the same 4 KB region
-    mask = 0x0000_0FFF
+    # env overrides reproduce a board perf-sweep config in simulation (mask =
+    # working set, base1 = the second injector's base; MASK=0xFFFF
+    # BASE1=0x40000 is disjoint64k_we64) so a board tally can be checked
+    # against the RTL from reset
+    mask = int(os.environ.get('JET_SMOKE_MASK', '0xFFF'), 0)
     base = 0x0000_0000
+    base1 = int(os.environ.get('JET_SMOKE_BASE1', '0'), 0)
     count = int(os.environ.get('JET_SMOKE_COUNT', '200'))
 
-    for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
-                          (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
+    for ci_base, seed, ci_addr_base in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678, base),
+                                  (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF, base1)]:
         await tb.write32(ci_base + CI_SEED, seed)
-        await tb.write32(ci_base + CI_ADDR_BASE, base)
+        await tb.write32(ci_base + CI_ADDR_BASE, ci_addr_base)
         await tb.write32(ci_base + CI_ADDR_MASK, mask)
         await tb.write32(ci_base + CI_TRANS_COUNT, count)
         ctrl = (64 << 8) | 0x00

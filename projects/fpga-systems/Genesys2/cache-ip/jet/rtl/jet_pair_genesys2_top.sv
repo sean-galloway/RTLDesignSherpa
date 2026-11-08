@@ -13,10 +13,9 @@
 
 module jet_pair_genesys2_top #(
     // Harness clock = VCO_MHZ / CLKOUT0_DIVIDE, VCO = 200 MHz sysclk * MULT_F.
-    // 1350 / 22.5 = 60 MHz.  (100 MHz = 1350/13.5 needs the v3 lookup
-    // pipeline -- see jet ISSUE-001.)
+    // 1350 / 13.5 = 100 MHz (ISSUE-001 v3 lookup pipeline timing target).
     parameter int  VCO_MHZ        = 1350,
-    parameter real CLKOUT0_DIVIDE = 22.5,
+    parameter real CLKOUT0_DIVIDE = 13.5,
     parameter int  UART_BAUD      = 115_200,
     // jet geometry (pair-rig FULL)
     parameter int ADDR_WIDTH     = l1_pkg::AMBER_ADDR_WIDTH,
