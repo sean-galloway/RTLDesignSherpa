@@ -9,7 +9,7 @@
 **Priority:** P1 -- it is the structural reason pumice holds only 50 MHz, granite
 sits at 0.004-0.021 ns of margin at 100 MHz, and the A7 is 95% slice-full with 2 of
 135 BRAM tiles in use.
-**Status:** open 2026-11-07 -- every row is now a task: MC-004 (row 1) and MC-005
+**Status:** open 2026-11-07 (evening: rows 3, 9, 12, 13, 16 and the request half of 11 closed by e1ebaacf7 / 9e0f923b3; row 14 step (a) in; the pumice sys75 FPGA-SKU build closes timing, WNS +0.021, 0 failing endpoints) -- every row is now a task: MC-004 (row 1) and MC-005
 (row 2b) active since 11-06; MC-006..MC-010 filed 2026-11-07 for the rest, after
 the owner's "try to knock out all of these; pumice at 75 MHz with all of the FPGA
 optimizations". The issue closes when the table is empty and the pumice sys75
@@ -70,20 +70,20 @@ Each item below becomes a task when picked; the owner chooses the order.
 | 1 | two-register `gaxi_skid_buffer`, no data reset, no shift | ~3k LUT chip-wide | low | **MC-004**, active 2026-11-06 |
 | 2 | bank queues as one RAM64M per direction + 3-entry head shift registers | ~1,300 LUT, fixes granite's worst-path tail | medium |  **MC-010**, filed 2026-11-07 |
 | 2b | every storage array out of `ALWAYS_FF_RST` into a reset-free block with a small valid vector | hundreds of LUT, thousands of FF to LUTRAM | low | **MC-005**, active 2026-11-06 |
-| 3 | merge off on the FPGA SKU; adjacent-pair coalesce at the intake if the half-width cell matters | granite ~1,420 LUT; pumice +473 LUT and its 75 MHz failure | low |  **MC-006**, filed 2026-11-07 |
+| 3 | merge off on the FPGA SKU; adjacent-pair coalesce at the intake if the half-width cell matters | granite ~1,420 LUT; pumice +473 LUT and its 75 MHz failure | low | **MC-006** done 2026-11-07 (e1ebaacf7: `WR_MERGE_EN`/`RD_MERGE_EN` off on the FPGA SKU; no intake coalesce yet) |
 | 4 | ring shadow readiness evaluated at fetch; drop `r_src` reset value; delete dead `r_resp` | 150-250 LUT, 384 async-set flops | low |  **MC-008**, filed 2026-11-07 |
 | 5 | slot payload in reset-free LUTRAM; row carried in the queue entry | ~300 LUT, ~600 FF | medium |  **MC-008**, filed 2026-11-07 |
 | 6 | hoist CSR-derived timer constants out of the 8 bank timers | 150-200 LUT; off granite's worst path | low |  **MC-007**, filed 2026-11-07 |
 | 7 | SRL delay lines (or 5->3 counters) in bank timers; SRL window for tFAW | 250-400 LUT | medium |  **MC-007**, filed 2026-11-07 |
 | 8 | FAST_RD_RELEASE `S_MAX` as a CSR or serial scan | ~180 LUT, 98 FF | low |  **MC-007**, filed 2026-11-07 |
-| 9 | snarf: delete, or register `snarf_hit_o` | 150-250 LUT, all rd_cam failing endpoints | low |  **MC-006**, filed 2026-11-07 |
+| 9 | snarf: delete, or register `snarf_hit_o` | 150-250 LUT, all rd_cam failing endpoints | low | **MC-006** done 2026-11-07 (e1ebaacf7: `HAS_SNARF=0` on the FPGA SKU) |
 | 10 | CAM ages as 8-bit prescaled counters | ~380 LUT, ~290 FF | low |  **MC-008**, filed 2026-11-07 |
-| 11 | register `timeout_pre_req`; FIFO flags from registered pointers | timing | low |  **MC-007**, filed 2026-11-07 |
-| 12 | `NARROW_EN=0` on the board netlist, or register the AW/AR rewrite | 250-350 LUT avoided | low |  **MC-006**, filed 2026-11-07 |
-| 13 | address mapper: constant `bank_lsb` on the board or registered mask decode | 100-200 LUT | low |  **MC-006**, filed 2026-11-07 |
-| 14 | pumice arbiter: register the 1b shadows; hit/sibling flags into the CAM; pick modes build-time | ~2k of 3,426 LUT; the clock blocker | high |  **MC-009**, filed 2026-11-07 |
+| 11 | register `timeout_pre_req`; FIFO flags from registered pointers | timing | low | **MC-007** request half done 2026-11-07 (9e0f923b3: `timeout_pre_req` registered); FIFO flags pending |
+| 12 | `NARROW_EN=0` on the board netlist, or register the AW/AR rewrite | 250-350 LUT avoided | low | **MC-006** done 2026-11-07 (e1ebaacf7: `NARROW_EN=0` on the FPGA SKU) |
+| 13 | address mapper: constant `bank_lsb` on the board or registered mask decode | 100-200 LUT | low | **MC-006** done 2026-11-07 (e1ebaacf7: one-hot constant slices, CSR stays live; formal family 4) |
+| 14 | pumice arbiter: register the 1b shadows; hit/sibling flags into the CAM; pick modes build-time | ~2k of 3,426 LUT; the clock blocker | high | **MC-009** step (a) done 2026-11-07 (9e0f923b3: 1b terms out of the classify cone); (b), (c) open |
 | 15 | mc_bank_pick 16->8 rotor restructure, A/B on the proxy families | 150-250 LUT | high |  **MC-010**, filed 2026-11-07 |
-| 16 | N=8 as the CAM backend's macro default | avoids 20k LUT at N=16 | none |  **MC-006**, filed 2026-11-07 |
+| 16 | N=8 as the CAM backend's macro default | avoids 20k LUT at N=16 | none | **MC-006** done 2026-11-07 (e1ebaacf7: char macro default 8) |
 
 ## Defects found by the same reading, filed separately
 

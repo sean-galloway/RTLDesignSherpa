@@ -211,6 +211,28 @@ Mutating the flattened `*_flat.v` rather than the RTL keeps the source clean
 while iterating, and the harness rebuild is skipped -- but restore it and
 re-prove before believing the green.
 
+*Second case (memory-controllers MC-009, 2026-11-07): the pumice arbiter's
+STAGE-1b same-cycle guard terms were moved out of the classify cone and
+re-applied one cycle later from the pre-pick register. All five
+`mc_cmd_arbiter` tasks passed before and after -- and they also passed with
+the new exclusion DELETED outright. The harness asserted tRRD / tFAW / tRFC
+spacing and single-issue, and modelled no CAM: the scheduling vectors were
+free inputs, so the solver could re-offer an issued slot forever and the
+arbiter re-issuing it broke nothing the harness knew about. The property the
+change protects -- a slot is not issued twice while the CAM has not yet
+dropped it -- was simply absent. Added as a contract pair: the CAM's side as
+an ASSUMPTION (an issued slot leaves the schedulable set the cycle after and
+stays out for a 3-cycle hold), the arbiter's side as the ASSERTION
+(`a_no_double_issue` / `a_no_double_commit`), plus a cover that the hold
+expires and the slot re-issues. The deleted-exclusion arbiter now fails
+`a_no_double_commit` at step 7. Only then was formal a gate for the change.*
+
+Before calling a proof the gate for a change, delete the mechanism the change
+replaces and watch the proof fail. If it does not, the harness does not assert
+the property that mechanism exists for; write that property first (usually as
+the neighbour's contract assumed plus the DUT's side asserted), and keep the
+mutated flat around so the new property can be checked against it.
+
 ## The direct-SV flow is the fragile one; sv2v is the front end (2026-09-11)
 
 A formal task here reads its RTL one of two ways: **direct**, where the `.sby`

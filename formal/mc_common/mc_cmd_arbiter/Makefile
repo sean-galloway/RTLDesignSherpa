@@ -21,7 +21,7 @@ COMB_STAR := sed -E '/(posedge|negedge)/!s/^([[:space:]]*)always @\(.*\) begin$$
 FLAT_POST       := $(COMB_STAR)
 include $(REPO_ROOT)/make/formal_flat.mk
 
-.PHONY: prove issue019 cover all clean
+.PHONY: dual_cover prove issue019 cover all clean
 # `issue019` was the held-red reproduction for pumice BUG-021 (the tRRD/tFAW
 # fire-stage gap). The gap is fixed -- w_out_safe re-checks the rank-global
 # windows live at the fire -- and the .sby now arms the ISSUE019 assertions for
@@ -38,6 +38,9 @@ cover: arb_flat.v
 	sby -f cmd_arbiter.sby cover
 
 # TASK-047 row lane (DUAL_ISSUE): bmc + cover with the lane built
+dual_cover: arb_flat.v
+	sby -f cmd_arbiter.sby dual_cover
+
 dual: arb_flat.v
 	sby -f cmd_arbiter.sby dual dual_cover
 
