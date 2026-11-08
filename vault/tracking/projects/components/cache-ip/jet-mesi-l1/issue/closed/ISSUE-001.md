@@ -1,7 +1,7 @@
 # ISSUE-001: cpu_req→snoop-accept combinational chain fails 90 MHz timing on Kintex-7
 
 **Priority:** P2 (performance/closure limitation, not a functional defect)
-**Status:** ACTIVE (2026-11-03)
+**Status:** CLOSED 2026-11-08 (superseded by jet v3 + the FPGA review; 100 MHz met)
 **Filed:** 2026-11-02, from the first jet Genesys2 build (T13 step 1).
 
 ## Observation
@@ -106,3 +106,22 @@ v2 work, deliberately not bolted onto T13.
 
 - `projects/fpga-systems/Genesys2/cache-ip/jet/build-bringup/fpga/reports/timing_summary.txt`
   (Design Timing Summary + worst-path list; committed build-bringup collateral).
+
+## Closure (2026-11-08)
+
+The cone this issue describes no longer exists. jet v3 moved classify a
+cycle after accept (the lookup-stage split named above as the remaining cut),
+and the 2026-11-06..08 FPGA microarchitecture review (cache-ip/common-ip
+TASK-001) replaced the dissolved tag array, the LUTRAM data array and the
+flop payload stores with RAMs and gave the reset synchronizer a replicable
+output flop. Final jet bin 10 on the Genesys2 pair rig at **100 MHz**:
+WNS +0.517 ns, 0 failing endpoints, 21,700 LUT / 24,440 FF (from 108,429 /
+61,600 at the 60 MHz bring-up). Worst path is now r_lk_addr -> data-array
+address, 18 logic levels, no longer a snoop-accept chain. Formal on the
+final RTL: safety PASS depth 64, liveness PASS depth 176, covers reached.
+From-reset board run == the 20k Verilator cosim (CRCs 0x6c206c22 /
+0x84d28860).
+
+What survives of the original concern is a latency cost, not a timing one:
+resident hit latency went 3 -> 6 cycles (v3 +2, sync-read data array +1).
+That is jet-mesi-l1 TASK-003.

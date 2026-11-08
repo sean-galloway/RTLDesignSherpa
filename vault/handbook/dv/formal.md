@@ -524,6 +524,17 @@ inverted property, which must FAIL). Not every proof yields: amber
 `amber_control` (depth 126) stalls near step 45 on yices and abc bmc3
 too, and `abc pdr` (run with the task in `mode prove`) found no proof in 2 h.*
 
+*Re-measured 2026-11-08 on the post-FPGA-review `amber_control` model (same
+flat the depth-126 BMC runs): `abc pdr` in `mode prove` reached frame 28
+and was still there at a 50-min timeout (frame 28 alone took 25 min);
+`aiger suprove` printed nothing in 50 min. The jet `jet_control` model
+behaves the same way: pdr at frame 27 when its 50-min timeout hit,
+suprove silent for 50 min. On this
+model family the unbounded engines in the suite do not beat boolector BMC;
+the untried candidate is rIC3 (HWMCC'24/'25 bit-level gold), which this
+sby already drives as `aiger rIC3` once the binary is on PATH or `RIC3`
+points at it.*
+
 *Later that day, riscv-formal on kestrel: removing the register file's reset
 (an unconstrained initial array) left z3 on `liveness` (depth 30) for over
 30 min where the whole 42-check suite had taken 8; `solver bitwuzla` in

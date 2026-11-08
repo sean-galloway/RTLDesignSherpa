@@ -13,8 +13,8 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -26,13 +26,14 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Active
 
-- **ISSUE-001** ([page](active/ISSUE-001.md)) — cpu_req→snoop-accept
+(none)
+
+## Closed
+
+- **ISSUE-001** ([page](closed/ISSUE-001.md)) — cpu_req→snoop-accept
   combinational chain (31 levels) fails 90 MHz timing on Kintex-7; jet rig
   reclocks to 60 MHz; pipelining the snoop-accept path is jet v2 work.
   Active 2026-11-03: cone mapped on the routed checkpoint (35 levels, the
   entire top-20 critical list), `coh_req` sideband registered at the
   jet_coh_core boundary.
-
-## Closed
-
-(none)
+  **Closed 2026-11-08:** superseded by jet v3 + the FPGA review; bin 10 closes 100 MHz at WNS +0.517, 21.7k LUT. Residual latency cost is TASK-003.
