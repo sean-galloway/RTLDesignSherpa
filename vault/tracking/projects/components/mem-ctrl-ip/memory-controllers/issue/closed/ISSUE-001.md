@@ -9,7 +9,7 @@
 **Priority:** P1 -- it is the structural reason pumice holds only 50 MHz, granite
 sits at 0.004-0.021 ns of margin at 100 MHz, and the A7 is 95% slice-full with 2 of
 135 BRAM tiles in use.
-**Status:** open 2026-11-08 03:00 -- 12 of 17 rows done or closed on measurement (1, 2, 2b, 3, 4, 6, 8, 9, 10, 11, 12, 13, 16 with MC-004/005 active), 4 deferred with the number that says why (5, 7, 14b, 15); pumice closes 75 MHz on the FPGA SKU (+0.230 / 38,970 LUT) and runs on the board at 75 MHz, granite sys100 is at 0.000 ns. (2026-11-07 evening: rows 3, 9, 12, 13, 16 and the request half of 11 closed by e1ebaacf7 / 9e0f923b3; row 14 step (a) in; the pumice sys75 FPGA-SKU build closes timing, WNS +0.021, 0 failing endpoints) -- every row is now a task: MC-004 (row 1) and MC-005
+**Status:** CLOSED 2026-11-08 03:05 -- resolved into MC-004..MC-010 (five closed, MC-009 deferred for step (b), MC-004/MC-005 carry their own remaining phases); 12 of 17 rows done or closed on measurement (1, 2, 2b, 3, 4, 6, 8, 9, 10, 11, 12, 13, 16 with MC-004/005 active), 4 deferred with the number that says why (5, 7, 14b, 15); pumice closes 75 MHz on the FPGA SKU (+0.230 / 38,970 LUT) and runs on the board at 75 MHz, granite sys100 is at 0.000 ns. (2026-11-07 evening: rows 3, 9, 12, 13, 16 and the request half of 11 closed by e1ebaacf7 / 9e0f923b3; row 14 step (a) in; the pumice sys75 FPGA-SKU build closes timing, WNS +0.021, 0 failing endpoints) -- every row is now a task: MC-004 (row 1) and MC-005
 (row 2b) active since 11-06; MC-006..MC-010 filed 2026-11-07 for the rest, after
 the owner's "try to knock out all of these; pumice at 75 MHz with all of the FPGA
 optimizations". The issue closes when the table is empty and the pumice sys75

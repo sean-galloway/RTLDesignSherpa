@@ -15,18 +15,21 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 0 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-001** — the pumice/granite microarchitecture is ASIC-shaped for an
-  FPGA target: CAM lookup as the default, per-cycle recompute of storable facts,
-  16 replicated FIFO controllers, storage arrays dissolved to flops by the async
-  reset, same-cycle cross-plane cones, ASIC arithmetic, features the board cannot
-  show a benefit for. pumice_core is 2.06x granite_core and holds only 50 MHz.
-  Deep dive with measured costs and a ranked rework list. Owner direction
-  2026-11-05. [open/ISSUE-001.md](open/ISSUE-001.md).
+(none)
+
+## Closed
+
+- **ISSUE-001** -- the pumice/granite microarchitecture was ASIC-shaped for an
+  FPGA target. Closed 2026-11-08: 12 of 17 resolution rows done (MC-004..MC-010,
+  e1ebaacf7 .. a4e9c03f1), 4 deferred with the measurement that says why
+  (5, 7, 14b, 15). pumice closes 75 MHz on the FPGA SKU (38,970 LUT, +0.230)
+  and runs the board at 75 MHz; granite closes its 75 MHz board point and sits
+  on the noise floor at the 100 MHz push profile.

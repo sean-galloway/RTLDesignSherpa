@@ -4,34 +4,17 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
-| [active/](active/) | 4 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 2 | in progress right now |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-- **MC-007** -- scheduler plane mechanical rows: hoist bank-timer CSR
-  constants, SRL delay lines, `S_MAX` as a CSR, registered `timeout_pre`
-  (ISSUE-001 rows 6, 7, 8, 11). Filed 2026-11-07.
-- **MC-008** -- CAM and ring rows: 8-bit prescaled ages, slot payload in
-  LUTRAM, ring shadow readiness at fetch (ISSUE-001 rows 4, 5, 10). Filed
-  2026-11-07.
-- **MC-010** -- granite: bank queues as one RAM64M per direction,
-  `mc_bank_pick` 16->8 rotor (ISSUE-001 rows 2, 15). Filed 2026-11-07.
+(none)
 
 ## Active
-
-- **MC-009** -- pumice arbiter: the same-cycle STAGE-1b terms are out of the
-  classify guards and applied at STAGE-1b from the pre-pick register (step
-  a, written 2026-11-07; formal + suites + sys75 A/B pending). Steps (b)
-  hit/sibling flags into the CAM and (c) build-time pick modes follow.
-
-- **MC-006** -- pumice FPGA SKU build knobs: merge / snarf / narrow pack
-  parameters plumbed board and sim (`PUMICE_FPGA_SKU`, `CHAR_FPGA_SKU`),
-  `bank_lsb` mapper to one-hot constant slices (formal family 4), char macro
-  CAM depth default 8. Routed sys75 A/B in flight. Active 2026-11-07.
 
 - **MC-004** -- two-register `gaxi_skid_buffer`, no data reset, no shift
   (ISSUE-001 row 1; ~3k LUT chip-wide). Started 2026-11-06.
@@ -39,8 +22,27 @@
   `always_ff` with the live state kept in the reset block (ISSUE-001 row 2b;
   35 / 30 arrays dissolved to flops today). Started 2026-11-06.
 
+## Deferred
+
+- **MC-009** -- pumice arbiter: steps (a) and (c) done (the STAGE-1b
+  selection out of the classify cone; build-time pick modes). Step (b), hit /
+  sibling flags in the CAM, parked until the research configuration has to
+  close 75 MHz on the board. Deferred 2026-11-08.
+
 ## Closed
 
+- **MC-006** -- pumice FPGA SKU build knobs (merge, snarf, narrow pack off;
+  mapper one-hot; CAM default 8). Closed 2026-11-08: the SKU closes sys75 at
+  +0.230 / 38,970 LUT and runs `windows` on the board at 75 MHz 4 / 4.
+- **MC-007** -- timer / plane mechanical rows: `S_MAX` serial scan, timeout
+  request registered, timer CSR loads hoisted. Closed 2026-11-08; row 7 (SRL
+  delay lines) deferred on measurement.
+- **MC-008** -- ring shadow readiness at fetch, `r_src` reset-free; the ring
+  proof's undriven merge ports fixed. Closed 2026-11-08; row 10 closed on the
+  SKU (age logic has no reader), row 5 deferred (area only).
+- **MC-010** -- granite bank queues as `mc_bank_queue` (shift-register head,
+  LUTRAM tail) when HAS_AGE = 0, proved equivalent to the age FIFO. Closed
+  2026-11-08; row 15 (pick rotor) deferred on measurement.
 - **MC-003** — granite's per-bank in-order scheduler core: shipped as
   `mc_bank_pick` over the age-FIFO store (granite TASK-002), BANK_PICK the
   granite default; pumice closes at 75 MHz and granite at 100 MHz with the
