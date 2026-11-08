@@ -540,21 +540,44 @@ module mc_page_policy
     // ---- background close request ------------------------------------------
     // Lowest-priority: pick the lowest-numbered expired open bank. The arbiter
     // gates on pre_ready/guards; we just name the bank.
+    //
+    // REGISTERED since 2026-11-07 (memory-controllers MC-007, ISSUE-001 row
+    // 11). The request used to leave this block combinationally, so the
+    // expiry vector, the live demand veto and the 8-way priority encode all
+    // sat inside the arbiter's pick comb in front of its output register. A
+    // background close is a background request: one cycle of lag changes
+    // nothing it is allowed to do, because the arbiter re-checks the named
+    // bank against its registered row image, pre_ready and the fired-guard
+    // vector in the cycle it picks, and the fire stage is the JEDEC
+    // authority. A demand that arrives in the lag cycle costs at most one
+    // avoidable close -- the same cost the one-cycle-late re-warm above
+    // already accepts.
+    logic           w_to_req;
+    logic [BKW-1:0] w_to_bank;
     always_comb begin
-        timeout_pre_req_o  = 1'b0;
-        timeout_pre_bank_o = '0;
+        w_to_req  = 1'b0;
+        w_to_bank = '0;
         if (w_timeout_on) begin
             for (int b = NUM_BANKS - 1; b >= 0; b--) begin
                 // live veto as well: the re-warm above lands a cycle later;
                 // and never a bank the predictor marked keep-open
                 if (r_expired[b] && bank_row_active_i[b] && !open_row_demand_i[b]
                     && !r_keep_open[b]) begin
-                    timeout_pre_req_o  = 1'b1;
-                    timeout_pre_bank_o = BKW'(b);
+                    w_to_req  = 1'b1;
+                    w_to_bank = BKW'(b);
                 end
             end
         end
     end
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            timeout_pre_req_o  <= 1'b0;
+            timeout_pre_bank_o <= '0;
+        end else begin
+            timeout_pre_req_o  <= w_to_req;
+            timeout_pre_bank_o <= w_to_bank;
+        end
+    )
 
     // ---- telemetry ----------------------------------------------------------
     // Miss vs empty: a wrong-row (conflict) PRE marks its bank; the next ACT

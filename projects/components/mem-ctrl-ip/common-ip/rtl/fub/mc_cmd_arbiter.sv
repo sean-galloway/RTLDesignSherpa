@@ -450,11 +450,8 @@ module mc_cmd_arbiter
 
     // Pre-pick forward-guard
     logic w_prepick_col, w_prepick_preact;
-    assign w_prepick_col    = w_sel_rd_col_f || w_sel_wr_col_f
-                            || rd_col_f || wr_col_f;
-    assign w_prepick_preact = w_sel_rd_act_f || w_sel_wr_act_f
-                            || w_sel_rd_pre_f || w_sel_wr_pre_f
-                            || rd_act_f || wr_act_f || rd_pre_f || wr_pre_f;
+    assign w_prepick_col    = rd_col_f || wr_col_f;
+    assign w_prepick_preact = rd_act_f || wr_act_f || rd_pre_f || wr_pre_f;
 
     // Forward-masks covering the extra output-register cycle
     logic w_inflight_col, w_inflight_preact;
@@ -514,7 +511,7 @@ module mc_cmd_arbiter
     end
 
     logic [NUM_BANKS-1:0] w_prepick_guard;
-    assign w_prepick_guard = w_if_preact_sel | w_if_preact_pre;
+    assign w_prepick_guard = w_if_preact_pre;            // registered shadow only (MC-009)
 
     // ---- TASK-044 forward paths -------------------------------------------
     // r_actsh_*  : the ACT fired LAST cycle (bank one-hot + its row). The
@@ -554,19 +551,22 @@ module mc_cmd_arbiter
     // (w2_act_pick) guards its bank the same way; r_actg0/1 take its fire.
     assign w2_act_out  = (r2_valid && !r2_pre) ? (NUM_BANKS'(1) << r2_bank) : '0;
     assign w2_pre_out  = (r2_valid &&  r2_pre) ? (NUM_BANKS'(1) << r2_bank) : '0;
-    assign w_act_guard = w_if_act_sel | w_if_act_pre | w_act_out | w_act_pick | r_actg0 | r_actg1
+    // MC-009 (2026-11-07): the same-cycle STAGE-1b term (w_if_act_sel) is no
+    // longer in any classify guard. It is applied one cycle later, at
+    // STAGE-1b itself, from the pre-pick register -- see the 1b exclusion
+    // block below. Same for w_prepick_guard, w_col_inflight_guard, the
+    // per-entry inflight masks and the forward tCCD flag.
+    assign w_act_guard = w_if_act_pre | w_act_out | w_act_pick | r_actg0 | r_actg1
                        | w2_act_out | w2_act_pick;
 
     logic [NUM_BANKS-1:0] w_col_inflight_guard;
-    assign w_col_inflight_guard = w_if_col_sel | w_if_col_pre;
+    assign w_col_inflight_guard = w_if_col_pre;          // registered shadow only (MC-009)
 
     // Per-entry double-issue mask
     logic [NUM_ENTRIES-1:0] w_rd_col_inflight_ent, w_wr_col_inflight_ent;
     always_comb begin
         w_rd_col_inflight_ent = '0;
         w_wr_col_inflight_ent = '0;
-        if (w_sel_rd_col_f) w_rd_col_inflight_ent[w_sel_rd_col_s] = 1'b1;
-        if (w_sel_wr_col_f) w_wr_col_inflight_ent[w_sel_wr_col_s] = 1'b1;
         if (rd_col_f)       w_rd_col_inflight_ent[rd_col_s]       = 1'b1;
         if (wr_col_f)       w_wr_col_inflight_ent[wr_col_s]       = 1'b1;
         if (r_pick_valid && r_do_rd) w_rd_col_inflight_ent[r_issue_slot]  = 1'b1;
@@ -584,13 +584,46 @@ module mc_cmd_arbiter
                                | (w_inflight_col ? (NUM_BANKS'(1) << r_bank) : '0);
 
     // ---- FORWARD tCCD (column spacing at classify time) --------------------
+    // MC-009: driven from the pre-pick register (a column selected LAST
+    // cycle), not from this cycle's 1b selection. The old form blocked the
+    // classify in the selection cycle t and then for r_tccd_fwd > 1 from
+    // t_ccd-1 at t+1, i.e. cycles t .. t+t_ccd-2, so the next column entered
+    // the snapshot at t+t_ccd-1 and was selected at t+t_ccd. The same
+    // spacing now: STAGE-1b refuses every column at t+1 (w_tccd_1b_block,
+    // the pre-pick holds a column), the classify is blocked at t+1 by the
+    // register when t_ccd > 2, and the counter loads t_ccd-2 at t+2 so
+    // r_tccd_fwd > 1 holds for t+2 .. t+t_ccd-2 exactly as before. At
+    // t_ccd = 2 (the board) nothing is blocked beyond the 1b cycle. The
+    // fire stage (w_tccd_ls_ok, tccd_ok) remains the JEDEC authority.
+    //
+    // Two different questions, two different terms. "Is a column in the
+    // pre-pick?" pairs with the SNAPSHOT: the pre-pick and the STAGE-1a
+    // registers advance together, so while the pre-pick holds a column the
+    // snapshot beside it is the one classified in that column's selection
+    // cycle, which the old form left column-free; the 1b block mirrors that
+    // and holds for as long as the pair holds (w_tccd_1b_block). "Was a
+    // column selected LAST cycle?" is the edge the classify block and the
+    // counter load key on (w_col_sel_last): the old w_col_sel_now fired once
+    // per selection, and a pre-pick HELD under w_out_ready = 0 (an ACT
+    // waiting for tRP at the fire stage, every access in static_close) is
+    // not a new selection. Keying them on the held flag re-blocked the
+    // classify and reloaded the counter on the release cycle, one lost
+    // column per hold, and static_close's unbroken W run fell 128 -> 112
+    // of 768 beats in the paging sweep (bisected 2026-11-07).
     logic [7:0] r_tccd_fwd;
-    logic       w_col_sel_now, w_tccd_fwd_ok;
-    assign w_col_sel_now = w_sel_rd_col_f || w_sel_wr_col_f;
-    assign w_tccd_fwd_ok = (r_tccd_fwd <= 8'd1) && !(w_col_sel_now && (t_ccd_i > 8'd1));
+    logic       r_pp_adv;                 // the pre-pick register advanced at the last edge
+    logic       w_col_in_prepick, w_col_sel_last, w_tccd_fwd_ok, w_tccd_1b_block;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_pp_adv <= 1'b0;
+        else                        r_pp_adv <= w_out_ready;
+    )
+    assign w_col_in_prepick = rd_col_f || wr_col_f;
+    assign w_col_sel_last   = r_pp_adv && w_col_in_prepick;
+    assign w_tccd_1b_block  = w_col_in_prepick && (t_ccd_i > 8'd1);
+    assign w_tccd_fwd_ok    = (r_tccd_fwd <= 8'd1) && !(w_col_sel_last && (t_ccd_i > 8'd2));
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn))      r_tccd_fwd <= '0;
-        else if (w_col_sel_now)          r_tccd_fwd <= (t_ccd_i > 8'd1) ? (t_ccd_i - 8'd1) : 8'd0;
+        else if (w_col_sel_last)         r_tccd_fwd <= (t_ccd_i > 8'd2) ? (t_ccd_i - 8'd2) : 8'd0;
         else if (r_tccd_fwd != 8'd0)     r_tccd_fwd <= r_tccd_fwd - 8'd1;
     )
     logic [NUM_BANKS-1:0] w_guarded;
@@ -638,8 +671,11 @@ module mc_cmd_arbiter
     // before the refresh branch ever lets a demand class through. The ACT
     // shadows and every fired/in-flight guard are kept.
     logic [NUM_BANKS-1:0] w_guarded_drain;
+    // The drain guard KEEPS the same-cycle 1b terms (MC-009 left it alone):
+    // it sits in the pick comb, not in the classify cone, and a drain PRE
+    // beside a same-bank ACT or column selected this cycle is what it stops.
     assign w_guarded_drain = r_guard0 | r_guard1 | w_if_act_sel | w_if_act_pre
-                           | w_col_inflight_guard | w_if_preact_out | w_if_col_out;
+                           | w_if_col_sel | w_if_col_pre | w_if_preact_out | w_if_col_out;
 
     // in-flight ACT/PRE bank guard for the COLUMN masks
     logic [NUM_BANKS-1:0] w_preact_bank_guard;
@@ -1237,17 +1273,70 @@ module mc_cmd_arbiter
                          && !(w_fire_out && r_do_wr);
     assign w_wr_turn_live = trtw_ok_i && !w_wr_turn_block
                          && !(w_fire_out && r_do_rd);
+    // STAGE-1b EXCLUSION FROM THE PRE-PICK REGISTER (memory-controllers
+    // MC-009, ISSUE-001 row 14, 2026-11-07). Until today the classify
+    // guards carried this cycle's 1b selection (w_if_*_sel, the w_sel_*
+    // entries, w_col_sel_now): the arg_sel cone fed straight back into the
+    // masks the STAGE-1a flops capture, and r_rd_pop -> arg_sel -> shadow ->
+    // classify -> r_wr_col_q was the worst path of every pumice build since
+    // 10-27 (~20 LUT levels; -5.0 ns at 75 MHz on 2026-11-07). The classify
+    // now sees only registered shadows (pre-pick, output register, fired
+    // history), so the snapshot taken at t may still hold what 1b selected
+    // at t; the pre-pick register holds exactly that selection at t+1, and
+    // the exclusions below remove it from the t+1 candidate masks instead,
+    // term for term:
+    //   * the selected column ENTRY (the per-entry double-issue mask);
+    //   * ACT candidates in a bank whose ACT is in the pre-pick (w_act_guard's
+    //     w_if_act_sel);
+    //   * PRE candidates in a bank with an ACT, PRE or column in the
+    //     pre-pick (w_guarded's w_if_preact_sel | w_if_col_sel);
+    //   * column candidates in a bank with an ACT or PRE in the pre-pick
+    //     (w_preact_bank_guard's w_if_preact_sel), or with a column in the
+    //     pre-pick when the bank is in auto-precharge (w_col_inflight_bank's
+    //     w_if_col_sel under f_ap, read from the same r_ap_snap);
+    //   * every column while a column sits in the pre-pick and t_ccd > 1
+    //     (the forward tCCD block, see w_tccd_1b_block).
+    // The classify at t had already excluded sel(t-1) through the registered
+    // shadows, so the two cycles tile with no gap and no double count; the
+    // formal arbiter proof (tRRD / tFAW / tRFC / double issue) is the gate.
+    // The compares are per entry against the pre-pick's bank registers --
+    // NUM_ENTRIES x BKW bits, one level -- on the 1b -> pre-pick hop, which
+    // had slack.
+    logic [NUM_ENTRIES-1:0] w_rd_x_act, w_rd_x_pre, w_rd_x_col;
+    logic [NUM_ENTRIES-1:0] w_wr_x_act, w_wr_x_pre, w_wr_x_col;
+    always_comb begin
+        for (int j = 0; j < NUM_ENTRIES; j++) begin
+            automatic logic [BKW-1:0] rb = f_bank(rd_sch_bank_i, PTRW'(j));
+            automatic logic [BKW-1:0] wb = f_bank(wr_sch_bank_i, PTRW'(j));
+            // an ACT / PRE / column to this entry's bank sits in the pre-pick
+            automatic logic rd_act_b = (rd_act_f && (rb == rd_act_bank)) || (wr_act_f && (rb == wr_act_bank));
+            automatic logic rd_pre_b = (rd_pre_f && (rb == rd_pre_bank)) || (wr_pre_f && (rb == wr_pre_bank));
+            automatic logic rd_col_b = (rd_col_f && (rb == rd_col_bank)) || (wr_col_f && (rb == wr_col_bank));
+            automatic logic wr_act_b = (rd_act_f && (wb == rd_act_bank)) || (wr_act_f && (wb == wr_act_bank));
+            automatic logic wr_pre_b = (rd_pre_f && (wb == rd_pre_bank)) || (wr_pre_f && (wb == wr_pre_bank));
+            automatic logic wr_col_b = (rd_col_f && (wb == rd_col_bank)) || (wr_col_f && (wb == wr_col_bank));
+            w_rd_x_act[j] = rd_act_b;
+            w_wr_x_act[j] = wr_act_b;
+            w_rd_x_pre[j] = rd_act_b || rd_pre_b || rd_col_b;
+            w_wr_x_pre[j] = wr_act_b || wr_pre_b || wr_col_b;
+            w_rd_x_col[j] = rd_act_b || rd_pre_b || (rd_col_b && r_ap_snap[rb]) || w_tccd_1b_block
+                          || (rd_col_f && (rd_col_s == PTRW'(j)));
+            w_wr_x_col[j] = wr_act_b || wr_pre_b || (wr_col_b && r_ap_snap[wb]) || w_tccd_1b_block
+                          || (wr_col_f && (wr_col_s == PTRW'(j)));
+        end
+    end
+
     always_comb begin
         {w_sel_rd_col_f, w_sel_rd_col_s} =
-            arg_sel(r_col_sel, r_rd_col_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
+            arg_sel(r_col_sel, r_rd_col_q & rd_sch_valid_i & ~w_rd_x_col, r_rd_older, r_rd_pop);
         {w_sel_wr_col_f, w_sel_wr_col_s} =
-            arg_sel(r_col_sel, r_wr_col_q & wr_sch_valid_i, r_wr_older, r_wr_pop);
+            arg_sel(r_col_sel, r_wr_col_q & wr_sch_valid_i & ~w_wr_x_col, r_wr_older, r_wr_pop);
         {w_sel_rd_act_f, w_sel_rd_act_s} =
-            arg_sel(r_row_sel, r_rd_act_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
+            arg_sel(r_row_sel, r_rd_act_q & rd_sch_valid_i & ~w_rd_x_act, r_rd_older, r_rd_pop);
         {w_sel_wr_act_f, w_sel_wr_act_s} =
-            arg_sel(r_row_sel, r_wr_act_q & wr_sch_valid_i, r_wr_older, r_wr_pop);
-        {w_sel_rd_pre_f, w_sel_rd_pre_s} = arg_oldest(r_rd_pre_q & rd_sch_valid_i, r_rd_older);
-        {w_sel_wr_pre_f, w_sel_wr_pre_s} = arg_oldest(r_wr_pre_q & wr_sch_valid_i, r_wr_older);
+            arg_sel(r_row_sel, r_wr_act_q & wr_sch_valid_i & ~w_wr_x_act, r_wr_older, r_wr_pop);
+        {w_sel_rd_pre_f, w_sel_rd_pre_s} = arg_oldest(r_rd_pre_q & rd_sch_valid_i & ~w_rd_x_pre, r_rd_older);
+        {w_sel_wr_pre_f, w_sel_wr_pre_s} = arg_oldest(r_wr_pre_q & wr_sch_valid_i & ~w_wr_x_pre, r_wr_older);
         if (!w_act_gate_live) begin
             w_sel_rd_act_f = 1'b0;
             w_sel_wr_act_f = 1'b0;

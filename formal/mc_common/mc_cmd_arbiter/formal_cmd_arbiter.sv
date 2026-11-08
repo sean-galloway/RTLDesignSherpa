@@ -353,6 +353,60 @@ module formal_cmd_arbiter #(
     end
 
     // =====================================================================
+    // DOUBLE ISSUE (memory-controllers MC-009, 2026-11-07). The scheduling
+    // vectors above are free, so without a CAM model the arbiter could be
+    // handed the same schedulable slot forever and "re-issue" it legally.
+    // What the real CAMs do: a slot that issues (rd) or commits (wr) leaves
+    // the schedulable set the cycle after, and stays out for at least the
+    // few cycles it takes to drain and be re-allocated. Model exactly that
+    // (a 3-cycle hold is the shortest the CAMs can do) and assert that the
+    // arbiter itself never issues a slot inside that hold: in the window
+    // before sch_valid has dropped, only the arbiter's own forward guards --
+    // the per-entry inflight masks at classify and, since MC-009, the
+    // STAGE-1b exclusion from the pre-pick register -- stand between a
+    // snapshot that still carries the slot and a second issue of it. With
+    // the 1b exclusion removed this fails at the first column re-pick.
+    localparam int F_HOLD = 3;
+    reg [1:0] f_rd_hold [NE];
+    reg [1:0] f_wr_hold [NE];
+    reg [NE-1:0] f_rd_busy, f_wr_busy;
+    integer hi;
+    always @(*) begin
+        for (hi = 0; hi < NE; hi = hi + 1) begin
+            f_rd_busy[hi] = (f_rd_hold[hi] != 2'd0);
+            f_wr_busy[hi] = (f_wr_hold[hi] != 2'd0);
+        end
+    end
+    always @(posedge aclk) begin
+        for (hi = 0; hi < NE; hi = hi + 1) begin
+            if (!aresetn) begin
+                f_rd_hold[hi] <= 2'd0; f_wr_hold[hi] <= 2'd0;
+            end else begin
+                if (rd_issue_valid_o && rd_issue_slot_o == hi[PTRW-1:0]) f_rd_hold[hi] <= 2'(F_HOLD);
+                else if (f_rd_hold[hi] != 2'd0)                           f_rd_hold[hi] <= f_rd_hold[hi] - 2'd1;
+                if (wr_commit_valid_o && wr_commit_slot_o == hi[PTRW-1:0]) f_wr_hold[hi] <= 2'(F_HOLD);
+                else if (f_wr_hold[hi] != 2'd0)                            f_wr_hold[hi] <= f_wr_hold[hi] - 2'd1;
+            end
+        end
+    end
+    // the CAM side of the contract, assumed: a held slot is not schedulable
+    always @(*) if (aresetn) begin
+        assume ((rd_sch_valid_i & f_rd_busy) == '0);
+        assume ((wr_sch_valid_i & f_wr_busy) == '0);
+    end
+    // the arbiter side, asserted: a held slot is never issued / committed again
+    always @(posedge aclk) if (f_past_valid >= 2) begin
+        a_no_double_issue:  assert (!(rd_issue_valid_o  && f_rd_busy[rd_issue_slot_o]));
+        a_no_double_commit: assert (!(wr_commit_valid_o && f_wr_busy[wr_commit_slot_o]));
+    end
+    always @(posedge aclk) begin
+        // the hold must be able to expire and the slot issue again, or the
+        // assertions above are about an environment that never re-offers one
+        c_reissue_after_hold: cover (rd_issue_valid_o && $past(f_rd_busy[rd_issue_slot_o], 2) && !f_rd_busy[rd_issue_slot_o]);
+        c_two_rd_issues:      cover (rd_issue_valid_o && $past(rd_issue_valid_o, 2));
+    end
+
+    // =====================================================================
     // COVER -- a pass is worthless if ACTs never happen
     // =====================================================================
     always @(posedge aclk) if (aresetn) begin
