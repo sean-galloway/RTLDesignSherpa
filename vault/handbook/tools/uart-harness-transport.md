@@ -1,4 +1,11 @@
+---
+title: "TBClasses.harness — reusable UART-AXIL characterization harness transport"
+summary: Moved from bin/TBClasses/harness/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # TBClasses.harness — reusable UART-AXIL characterization harness transport
+
+Source: `bin/TBClasses/harness/` ("this directory" below means that directory).
 
 The NexysA7 characterization flows (`ddr2-characterization`, `stream_characterization`,
 `cdc_counter_display`, …) all share the same spine:
@@ -12,7 +19,7 @@ spine is common**, and lives here so one host program can run byte-for-byte
 identically against the FPGA (pyserial) **or** a cocotb simulation — no forked
 "vaguely similar" code.
 
-> **Agents / methodology:** see [CLAUDE.md](CLAUDE.md) for the equivalence
+> **Agents / methodology:** see [CLAUDE.md](../../../bin/TBClasses/harness/CLAUDE.md) for the equivalence
 > principle, the recommended build order, and the non-obvious traps
 > (cocotb.function vs a pump, match-the-FPGA-config, sticky-error vs soft_reset,
 > digital-only reproduction). Read it before wiring a new flow.

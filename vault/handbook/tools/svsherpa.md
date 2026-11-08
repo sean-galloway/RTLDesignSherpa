@@ -1,9 +1,11 @@
-<!--
-SPDX-License-Identifier: MIT
-SPDX-FileCopyrightText: 2024-2025 sean galloway
--->
+---
+title: "svsherpa"
+summary: Moved from bin/svsherpa/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
 
 # svsherpa
+
+Source: `bin/svsherpa/` ("this directory" below means that directory).
 
 Synthesizable SystemVerilog, written in Python.
 

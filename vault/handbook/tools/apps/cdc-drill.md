@@ -1,4 +1,11 @@
+---
+title: "CDC Drill"
+summary: Moved from bin/apps/cdc_drill/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # CDC Drill
+
+Source: `bin/apps/cdc_drill/` ("this directory" below means that directory).
 
 A standalone, gamified clock-domain-crossing drill app in the style of
 `bin/apps/ddr_drills` and `bin/apps/fifo_depth`.

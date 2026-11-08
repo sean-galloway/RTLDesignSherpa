@@ -33,8 +33,8 @@ the next session reads. This note is the authority on where each kind goes.
    knows the tool exists, where it lives and that a guide sits next to it, so
    it was pointed at by hand every session. Retired; the three moved to
    [[doc-generation]], [[signal-naming-audit]] and the mechanics section of
-   [[signal-contracts-and-kmaps]]. Other guides still beside tools are listed
-   in tooling TASK-033.*
+   [[signal-contracts-and-kmaps]]. The other guides under `bin/` followed the
+   same day (tooling TASK-033); they are indexed under `tools/`.*
    *Case (2026-07-24): a 17 KB `DOCUMENTATION_STYLE_GUIDE.md` sat in
    `rtl/common/`; moved to [[module-doc-template]].*
 

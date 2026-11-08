@@ -1,4 +1,11 @@
+---
+title: "FIFO Flags Calculator"
+summary: Moved from bin/apps/fifo_flags/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # FIFO Flags Calculator
+
+Source: `bin/apps/fifo_flags/` ("this directory" below means that directory).
 
 A standalone drill app that teaches how to set almost-full and almost-empty
 thresholds in an asynchronous FIFO, and why the thresholds depend on clock
@@ -16,9 +23,8 @@ bin/apps/fifo_flags/
 ├── js/
 │   ├── model.js   # pure threshold logic, node-testable
 │   └── app.js     # DOM glue
-├── test/
-│   └── run_tests.js
-└── README.md
+└── test/
+    └── run_tests.js
 ```
 
 ## Model

@@ -42,7 +42,7 @@
 | amber HAS | [amber HAS](../../../../amber-mesi-l1/docs/amber_has/amber_has_index.md) | inherited architecture, interfaces, parameters, and integration rules |
 | onyx PRD | [onyx PRD](../../../../onyx-ace-ccu/PRD.md) | onyx D7 defines the ACE-shaped snoop port; onyx D2 defines the coherent-transaction subset |
 | AMBA ACE Interface Definition | [AMBA ACE Interface Definition](../../../../References/AMBA_ACE_Interface_Definition.md) | in-repo ACE contract, verified against IHI 0022H |
-| cache simulator | [cache simulator](../../../../../../../bin/apps/cache_sim/README.md) | golden parity model; jet extends it to predict concurrency numbers |
+| cache simulator | [cache simulator](../../../../../../../vault/handbook/tools/apps/cache-sim.md) | golden parity model; jet extends it to predict concurrency numbers |
 | Global Requirements | [Global Requirements](../../../../../../../GLOBAL_REQUIREMENTS.md) | reset macros, array syntax, no bespoke SRAM, filelist registry |
 | Chinnakonda, *Designing a Multiprocessor Cache Subsystem* | local Calibre conversion, outside the repo: `/mnt/data/github/calibre/books/designing-a-multiprocessor-cache-subsystem/index.md` | background for open decisions: §7.8 forward-progress guarantees, §8.2 deadlocks, §8.3 starvation, §10.8 snoop snarfing, §10.10 outstanding sizing, §13.4 prefetch training |
 

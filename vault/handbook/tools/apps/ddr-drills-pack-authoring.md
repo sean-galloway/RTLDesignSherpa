@@ -1,7 +1,14 @@
+---
+title: "Authoring a Content Pack"
+summary: Moved from bin/apps/ddr_drills/notes/pack-authoring.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # Authoring a Content Pack
 
+Source: `bin/apps/ddr_drills/` ("this directory" below means that directory).
+
 How to add a memory technology to ddr_drills. Mechanics (the 6-step
-checklist) are in `../README.md`; this file is the CONTENT contract -
+checklist) are in [[ddr-drills]]; this file is the CONTENT contract -
 what makes a pack correct, complete and consistent with the others.
 
 ## The schema
@@ -66,7 +73,7 @@ enforces the content floors (see below) in CI.
   their books' gap sheets. Whatever the choice, turnaround params
   (tWTR/tRTW) must cover WR->RD and RD->WR.
 - Record every symbol, its scope pattern, value basis and spec reference
-  in `notes/timing-tables.md` - that worksheet is the cross-check against
+  in [[ddr-drills-timing-tables]] - that worksheet is the cross-check against
   the spec, per pack.
 
 ## commandDocs authoring

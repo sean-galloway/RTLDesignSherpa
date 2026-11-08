@@ -14,7 +14,7 @@
 // reference panel (all pack timingParams grouped by chapter) toggles open
 // mid-question without affecting scoring.
 //
-// Scope model (documented in notes/design.md):
+// Scope model (documented in vault/handbook/tools/apps/ddr-drills-design.md):
 //   same_bank   same bank number AND same SID
 //   same_group  different banks, one bank group (BG topologies only)
 //   diff_group  banks in different bank groups (BG topologies only)
@@ -25,7 +25,7 @@
 // or diff_sid (different groups/stacks are by construction different banks
 // -- the one-way subsumption that lets a flat-tech rule port to a BG tech).
 // same_bank does NOT subsume into same_group: packs list both scopes
-// explicitly (see notes/timing-tables.md).
+// explicitly (see vault/handbook/tools/apps/ddr-drills-timing-tables.md).
 var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
            ((typeof window !== 'undefined' ? window : globalThis).DDRD = {});
 

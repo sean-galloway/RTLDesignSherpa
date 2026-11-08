@@ -1,4 +1,11 @@
+---
+title: "Timing Tables - Pack Authoring Worksheet"
+summary: Moved from bin/apps/ddr_drills/notes/timing-tables.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # Timing Tables - Pack Authoring Worksheet
+
+Source: `bin/apps/ddr_drills/` ("this directory" below means that directory).
 
 Per-tech timing parameters as encoded in `packs/<tech>.js`, with the JEDEC
 references they were transcribed from. The condensed study-note books
@@ -13,7 +20,7 @@ commands, so they document the parameter without generating questions.
 
 Cross-book symbol rule: tRTW appears in every pack even where the spec
 leaves the read-to-write rule unnamed (DDR2, LPDDR2) - see
-`../notes/design.md` and the books' Chapter 6.
+[[ddr-drills-design]] and the books' Chapter 6.
 
 ## HBM4 (packs/hbm4.js, JESD270-4A)
 

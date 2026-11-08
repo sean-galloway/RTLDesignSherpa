@@ -98,7 +98,7 @@ Rules:
 - Speed bins: the app's drill model is cycle-structural, so each pack records ONE
   representative bin (the pack's `note`/`name` already carry the bin identity). The exact
   bin and its citation go in `bin`/`source`.
-- Pack-authoring checklist (`bin/apps/ddr_drills/README.md`, `notes/pack-authoring.md`)
+- Pack-authoring checklist (`vault/handbook/tools/apps/ddr-drills.md`, `vault/handbook/tools/apps/ddr-drills-pack-authoring.md`)
   gains a step 7: timingNs.
 - All 11 packs authored this batch, transcribed from the MemorySpecs tree.
 

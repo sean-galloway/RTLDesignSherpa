@@ -1,7 +1,7 @@
 # TASK-033: triage the guides still sitting beside their tools
 
 **Priority:** P3
-**Status:** OPEN (2026-11-07)
+**Status:** CLOSED (2026-11-07)
 **Owner:** tooling
 **Filed:** 2026-11-07, when the tool-mechanics exception was retired
 
@@ -40,3 +40,20 @@ Confirm both readings during the triage rather than assuming them.
 Each candidate is either moved into the handbook (and indexed, with every
 reference repointed) or reduced to a pointer file of the
 `bin/md_to_docx_usage.md` shape, or recorded here as staying, with the reason.
+
+## Resolution (2026-11-07)
+
+Closed the same day, all candidates at once (Sean: they belong in the vault).
+
+- Moved to the handbook, with `Source:` lines naming the tool directory and
+  relative links rewritten: bf16 README -> `tools/bf16-generators`, svsherpa
+  README -> `tools/svsherpa`, harness README -> `tools/uart-harness-transport`,
+  apb4_monitor readme -> `dv/apb4-monitor-tests`, every `bin/apps/*/README.md`
+  -> `tools/apps/<app>`, and the three ddr_drills notes ->
+  `tools/apps/ddr-drills-{design,pack-authoring,timing-tables}`.
+- New handbook area `tools/` with its own INDEX, linked from the handbook root.
+- Deleted the two pointer files, `bin/HEADER_TOOL_USAGE.md` (`--help` carries
+  it) and `bin/review/README.md` (the handbook note carries it).
+- Repointed: seven cache-ip HAS/MAS pages (cache_sim), four ddr_drills JS
+  comments, and the 2026-10-03 ddr-drills spec.
+- `bin/review/*_BRIEF.md` stay: they are prompts the review tools send.

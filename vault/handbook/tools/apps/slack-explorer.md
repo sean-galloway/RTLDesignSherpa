@@ -1,4 +1,11 @@
+---
+title: "Slack Explorer"
+summary: Moved from bin/apps/slack_explorer/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # Slack Explorer
+
+Source: `bin/apps/slack_explorer/` ("this directory" below means that directory).
 
 A standalone, file://-friendly drill app for exploring setup/hold slack and
 pipelining tradeoffs.

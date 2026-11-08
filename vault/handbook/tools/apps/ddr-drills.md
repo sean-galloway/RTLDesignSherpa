@@ -1,4 +1,11 @@
+---
+title: "DDR Drills"
+summary: Moved from bin/apps/ddr_drills/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # DDR Drills
+
+Source: `bin/apps/ddr_drills/` ("this directory" below means that directory).
 
 A zero-build, zero-dependency web app for training memory-controller
 intuition: knowledge quizzes, timing-parameter drills, bank-state
@@ -8,7 +15,7 @@ content pack.
 
 This file is MECHANICS ONLY. The decision record (why script tags, why
 annotations are commands, the exact engine semantics) lives in
-`notes/design.md`.
+[[ddr-drills-design]].
 
 ## Open the app
 
@@ -57,8 +64,6 @@ js/sandbox.js     mode 4 UI (live scheduling sandbox)
 js/app.js         shell: hash router, pack picker, tab switching
 packs/            one content pack per technology (hbm4, ddr2, lpddr2)
 test/             zero-dependency node harness and suites
-notes/            design.md decision record, pack-authoring.md content
-                  contract, timing-tables.md per-pack spec cross-check
 ```
 
 ## Self-test in a browser
@@ -79,7 +84,7 @@ step: repo Settings -> Pages -> Source = "GitHub Actions".
 
 Three packs ship today (`packs/hbm4.js`, `packs/ddr2.js`,
 `packs/lpddr2.js`); the content contract for writing a new one is
-`notes/pack-authoring.md`. Mechanics:
+[[ddr-drills-pack-authoring]]. Mechanics:
 
 1. Create `packs/<tech>.js` as an IIFE that ends in
    `DDRD.registerPack({...})`.

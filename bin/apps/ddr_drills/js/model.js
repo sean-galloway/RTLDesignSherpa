@@ -123,7 +123,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   // threaded through the schedulers; schedulers clone it and never mutate
   // the caller's array. With SID topologies the drill model indexes bank
   // state by bank number alone; SID generators never reuse a bank number
-  // across SIDs (recorded in notes/design.md).
+  // across SIDs (recorded in vault/handbook/tools/apps/ddr-drills-design.md).
 
   function make_bank_state(topo) {
     var state = [];

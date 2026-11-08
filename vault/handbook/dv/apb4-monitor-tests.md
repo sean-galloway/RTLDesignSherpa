@@ -1,4 +1,11 @@
+---
+title: "APB Monitor Test Structure"
+summary: Moved from bin/TBClasses/apb4_monitor/apb4_monitor_readme.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # APB Monitor Test Structure
+
+Source: `bin/TBClasses/apb4_monitor/` ("this directory" below means that directory).
 
 This document describes the focused test structure for APB monitor validation.
 

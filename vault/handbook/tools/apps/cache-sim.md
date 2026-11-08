@@ -1,4 +1,11 @@
+---
+title: "Cache Associativity Simulator"
+summary: Moved from bin/apps/cache_sim/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # Cache Associativity Simulator
+
+Source: `bin/apps/cache_sim/` ("this directory" below means that directory).
 
 A standalone, trace-driven cache simulator for exploring set count, way count,
 block size, and replacement policy.  Written in vanilla HTML5/CSS/ES5-ish
@@ -13,7 +20,6 @@ bin/apps/cache_sim/
   js/model.js         -- pure simulation model (no DOM)
   js/app.js           -- DOM glue, generators, and guided example
   test/run_tests.js   -- zero-dependency TAP-ish node test runner
-  README.md           -- this file
 ```
 
 ## Model API

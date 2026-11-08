@@ -33,7 +33,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   }
 
   // validatePack(pack) -> {ok, errors[]}
-  // Enforces the pack registration schema (see notes/design.md). Structural
+  // Enforces the pack registration schema (see vault/handbook/tools/apps/ddr-drills-design.md). Structural
   // checks only; content correctness (JEDEC citations) is an authoring
   // concern, not a registry concern.
   function validatePack(pack) {

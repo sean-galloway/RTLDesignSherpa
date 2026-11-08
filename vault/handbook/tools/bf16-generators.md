@@ -1,4 +1,11 @@
+---
+title: "BF16 RTL Generators"
+summary: Moved from bin/rtl_generators/bf16/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # BF16 RTL Generators
+
+Source: `bin/rtl_generators/bf16/` ("this directory" below means that directory).
 
 RTL generators for BF16 (Brain Float 16) arithmetic modules optimized for AI/ML accelerators.
 
@@ -352,7 +359,6 @@ If this goes negative, the product is effectively zero. The FMA handles this by 
 ```
 bin/rtl_generators/bf16/
 ├── __init__.py              # Package exports
-├── README.md                # This file
 ├── rtl_header.py            # Standard RTL header generator
 ├── generate_all.py          # Master generation script
 ├── han_carlson_adder.py     # Han-Carlson prefix adder generator

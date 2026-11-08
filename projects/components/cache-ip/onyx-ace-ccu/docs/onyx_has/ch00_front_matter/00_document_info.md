@@ -47,7 +47,7 @@
 | jet PRD | [../../../../jet-mesi-l1/PRD.md](../../../../jet-mesi-l1/PRD.md) | future onyx-rig consumer; onyx must not pre-decide jet's J-rows |
 | culsans | `pulp-platform/culsans` — `rtl/src/ace_ccu_top.sv` | worked example of a snoop-based ACE CCU |
 | gem5 Ruby protocols | [../../../../References/gem5-ruby-protocols/README.md](../../../../References/gem5-ruby-protocols/README.md) | golden-model source for the Python reference model |
-| cache simulator | [../../../../../../../bin/apps/cache_sim/README.md](../../../../../../../bin/apps/cache_sim/README.md) | golden parity model for hit-rate cross-checks |
+| cache simulator | [../../../../../../../vault/handbook/tools/apps/cache-sim.md](../../../../../../../vault/handbook/tools/apps/cache-sim.md) | golden parity model for hit-rate cross-checks |
 | Global Requirements | [../../../../../../../GLOBAL_REQUIREMENTS.md](../../../../../../../GLOBAL_REQUIREMENTS.md) | reset macros, array syntax, no bespoke SRAM, filelist registry |
 | Chinnakonda, *Designing a Multiprocessor Cache Subsystem* | local Calibre conversion, outside the repo: `/mnt/data/github/calibre/books/designing-a-multiprocessor-cache-subsystem/index.md` | background and candidate invariants |
 

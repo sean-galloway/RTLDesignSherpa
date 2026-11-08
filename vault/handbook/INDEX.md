@@ -22,6 +22,7 @@ and rationale) > code comments. On conflict, the requirement wins.
   path (yosys/slang, ORFS, OpenSTA) and how to read its numbers
 - [authoring/](authoring/INDEX.md) - documentation practice: review rounds,
   voice, generation pipeline
+- [tools/](tools/INDEX.md) - guides for the repo's own tools and bin/apps
 - [agents/](agents/INDEX.md) - the five repo-resident agent roles: loadout,
   write scope, and what ends the task
 

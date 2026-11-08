@@ -191,7 +191,7 @@ var DDRD = (typeof window !== 'undefined' ? window : globalThis).DDRD ||
   // command carries auto-precharge, so the bank ends idle. RDA/WRA are
   // column commands for turnaround purposes (RDA = read op, WRA = write
   // op); close-page uses the default turnaround labels (no opts param per
-  // the engine contract -- recorded in notes/design.md).
+  // the engine contract -- recorded in vault/handbook/tools/apps/ddr-drills-design.md).
   function schedule_close_page(reqs, bankState, topo) {
     var state = DDRD.clone_bank_state(bankState);
     var em = make_emitter(turnaround_labels(null));

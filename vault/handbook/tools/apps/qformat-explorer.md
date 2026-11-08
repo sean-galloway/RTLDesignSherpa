@@ -1,4 +1,11 @@
+---
+title: "Q-Format Explorer"
+summary: Moved from bin/apps/qformat_explorer/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # Q-Format Explorer
+
+Source: `bin/apps/qformat_explorer/` ("this directory" below means that directory).
 
 A standalone, file://-friendly drill app for exploring signed fixed-point
 Qm.n representation.

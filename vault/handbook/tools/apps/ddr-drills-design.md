@@ -1,7 +1,14 @@
+---
+title: "DDR Drills - Design Record"
+summary: Moved from bin/apps/ddr_drills/notes/design.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # DDR Drills - Design Record
 
+Source: `bin/apps/ddr_drills/` ("this directory" below means that directory).
+
 Why the app is built the way it is. Mechanics (how to open it, run tests,
-add a pack) live in `../README.md`; this file records decisions and the
+add a pack) live in [[ddr-drills]]; this file records decisions and the
 reasoning behind them, newest context first per topic.
 
 ## 1. Script tags, not ES modules

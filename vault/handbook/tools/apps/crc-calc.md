@@ -1,4 +1,11 @@
+---
+title: "CRC Calculator"
+summary: Moved from bin/apps/crc_calc/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # CRC Calculator
+
+Source: `bin/apps/crc_calc/` ("this directory" below means that directory).
 
 A standalone drill app that teaches how a parameterized CRC engine works
 and why the same polynomial can produce very different intermediate
@@ -16,9 +23,8 @@ bin/apps/crc_calc/
 ├── js/
 │   ├── model.js   # pure CRC engine, node-testable
 │   └── app.js     # DOM glue
-├── test/
-│   └── run_tests.js
-└── README.md
+└── test/
+    └── run_tests.js
 ```
 
 ## Model

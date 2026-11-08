@@ -1,4 +1,11 @@
+---
+title: "Metastability MTBF Calculator"
+summary: Moved from bin/apps/mtbf_calc/README.md on 2026-11-07, when tool guides left bin/ for the handbook.
+---
+
 # Metastability MTBF Calculator
+
+Source: `bin/apps/mtbf_calc/` ("this directory" below means that directory).
 
 A standalone drill app that teaches why a two-flop synchronizer is not
 always enough at high clock frequencies.
@@ -15,9 +22,8 @@ bin/apps/mtbf_calc/
 ├── js/
 │   ├── model.js   # pure calculation logic, node-testable
 │   └── app.js     # DOM glue
-├── test/
-│   └── run_tests.js
-└── README.md
+└── test/
+    └── run_tests.js
 ```
 
 ## Model
