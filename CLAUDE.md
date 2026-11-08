@@ -22,17 +22,15 @@ the failure that taught it.
   that one file needs, and no canonical process document outside the repo. A
   second copy is how documentation rots - the copy nobody edits is the one the
   next session reads. Point at the handbook note instead.
-  **The one exception (Sean, 2026-09-25): TOOL MECHANICS may live beside the
-  tool, with the rationale in the handbook.** `bin/SIGNAL_CONTRACTS_KMAPS.md`
-  is the standing case, and [[signal-contracts-and-kmaps]] points outward at
-  it. The pipeline and signal-naming-audit guides were moved into the
-  handbook on 2026-11-07 ([[doc-generation]], [[signal-naming-audit]]): an
-  agent that has to know a tool exists, where it lives and that a guide sits
-  beside it before it can follow the guide usually never finds it. The test is whether the file carries *mechanics a
-  reader of that directory needs* -- the 6-step stand-up, the styles YAML, the
-  flags -- or *method that applies everywhere*, which still belongs in the
-  handbook. The same test applies to a subsystem CLAUDE.md: area-specific
-  mechanics stay, restated general method goes.
+  **Tool mechanics go in the handbook too (Sean, 2026-11-07).** The
+  2026-09-25 exception that let a tool's guide sit beside the tool is
+  retired: an agent has to know the tool exists, where it lives and that a
+  guide sits next to it before it can follow the guide, and in practice it
+  was pointed at by hand every session. The three standing cases moved:
+  [[doc-generation]], [[signal-naming-audit]], and the mechanics section of
+  [[signal-contracts-and-kmaps]]. Beside a tool, at most a short pointer file
+  (`--help` for flags, a link to the note). A subsystem CLAUDE.md still keeps
+  its area facts; restated general method goes.
 - /GLOBAL_REQUIREMENTS.md remains the enforcement authority and wins on conflict.
 - When you learn a durable lesson, add it to the relevant handbook note -
   that is where future sessions will look. If no note fits, create one and
@@ -467,8 +465,9 @@ demand rather than every session; invoke it before writing or changing a test.
   described flat `open.md`/`active.md` tracker pages and said to update a
   `TASKS.md`; the flat pages were all migrated to task/bug/issue lanes (one
   file per item, `git mv` between state directories) on 2026-09-27. Both now
-  point at the lanes and the `tasks` skill. Same day: `bin/DOC_GENERATION.md`
-  and `bin/SIGNAL_NAMING_AUDIT.md` moved into the handbook; the tool-mechanics
-  exception now covers `bin/SIGNAL_CONTRACTS_KMAPS.md` only.
+  point at the lanes and the `tasks` skill. Same day: the tool-mechanics
+  exception was retired and its three guides (`bin/DOC_GENERATION.md`,
+  `bin/SIGNAL_NAMING_AUDIT.md`, `bin/SIGNAL_CONTRACTS_KMAPS.md`) moved into
+  the handbook.
 
 **Maintained By:** RTL Design Sherpa Project

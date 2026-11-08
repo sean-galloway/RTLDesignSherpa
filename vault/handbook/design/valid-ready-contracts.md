@@ -67,7 +67,7 @@ summary: Stability rules; observers gate commands only, never responses.
   ([[observers-do-not-drive]] is a different defect in the same family:
   both come from a monitor's bookkeeping being derived rather than recorded).
 - Drain/pop strobes coupling two blocks deserve K-maps
-  (bin/SIGNAL_CONTRACTS_KMAPS.md): the stream WLAST/drain term
+  ([[signal-contracts-and-kmaps]]): the stream WLAST/drain term
   (`axi_wr_sram_drain = m_axi_wvalid && m_axi_wready`) fixed a real
   lost-WLAST deadlock.
 - **Sideband sampled across a registered decision is a different beat than

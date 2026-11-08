@@ -22,19 +22,19 @@ the next session reads. This note is the authority on where each kind goes.
 
 ## The rules, and the case each came from
 
-1. **Methodology never lives in the RTL tree -- but tool mechanics may live
-   beside the tool** (Sean, 2026-09-25, resolving a TBD parked since the Kimi
-   migration). Rationale goes to the handbook; the mechanics a reader of that
-   directory needs may stay next to it. `bin/SIGNAL_CONTRACTS_KMAPS.md` is
-   the standing case, and [[signal-contracts-and-kmaps]] deliberately defers
-   outward at it. *Narrowed 2026-11-07 (Sean): the two other standing cases,
-   `bin/DOC_GENERATION.md` and `bin/SIGNAL_NAMING_AUDIT.md`, moved into the
-   handbook as [[doc-generation]] and [[signal-naming-audit]]. A guide beside
-   its tool is found only by an agent that already knows the tool exists, where
-   it lives, and that a guide sits next to it; in practice it was pointed at by
-   hand every session.*
-   The rest of the original rule still holds: A style guide, a how-to, a
-   canonical process doc beside code is misplaced. It goes to `vault/handbook/`.
+1. **Methodology never lives beside the code, and neither do tool
+   mechanics** (Sean, 2026-11-07). A style guide, a how-to, a tool guide or a
+   canonical process doc beside code is misplaced. It goes to
+   `vault/handbook/`. Beside a tool, at most a short pointer file: `--help`
+   for flags, a link to the note (`bin/md_to_docx_usage.md` is the shape).
+   *Case (2026-11-07): a 2026-09-25 exception let tool mechanics stay beside
+   the tool, with three standing cases in `bin/`. It failed for the reason the
+   rule exists: a guide beside its tool is found only by an agent that already
+   knows the tool exists, where it lives and that a guide sits next to it, so
+   it was pointed at by hand every session. Retired; the three moved to
+   [[doc-generation]], [[signal-naming-audit]] and the mechanics section of
+   [[signal-contracts-and-kmaps]]. Other guides still beside tools are listed
+   in tooling TASK-033.*
    *Case (2026-07-24): a 17 KB `DOCUMENTATION_STYLE_GUIDE.md` sat in
    `rtl/common/`; moved to [[module-doc-template]].*
 

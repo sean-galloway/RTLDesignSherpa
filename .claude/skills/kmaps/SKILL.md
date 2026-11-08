@@ -6,7 +6,7 @@ description: Signal-contracts + K-map workbooks (xlsx) for a component - contrac
 # kmaps
 
 READ FIRST: vault/handbook/design/signal-contracts-and-kmaps.md (the handbook is the repo's memory; this skill is the
-signpost). Maps are COMPUTED from mirrored RTL with a citation-drift check. Methodology: bin/SIGNAL_CONTRACTS_KMAPS.md.
+signpost). Maps are COMPUTED from mirrored RTL with a citation-drift check.
 
 The handbook root is vault/handbook/INDEX.md - design/, dv/, fpga/ areas,
 atomic notes, wikilinked. When you learn a durable lesson in this domain,

@@ -10,7 +10,8 @@ maintain a `*_signal_contracts.xlsx`: contract sheets per interface
 (signal / width / dir / driver / legal behavior / invariant / bug history)
 and Karnaugh maps for the key combinational decisions.
 
-- Methodology (canonical): bin/SIGNAL_CONTRACTS_KMAPS.md.
+- Mechanics (sheets, gates, imports, running): "Building a workbook" below.
+  It was `bin/SIGNAL_CONTRACTS_KMAPS.md` until 2026-11-07.
 - Placement (ONE per block, in the component's docs/): the generator lives at
   `projects/components/<component>/docs/gen_signal_contracts_kmaps.py` (pumice's is
   `docs/gen_pumice_signal_contracts.py`, one workbook for the whole block) and emits
@@ -49,6 +50,63 @@ and Karnaugh maps for the key combinational decisions.
   `DEPENDS ONLY ON: not stated` and `VERDICT: NOT CHECKED` on every map --
   which is pumice TASK-029. One implementation exists; the CONTENT gaps are
   per component (pumice: 17 maps; stream: 26 of 37 still NOT CHECKED).
+
+## Building a workbook
+
+Moved here from `bin/SIGNAL_CONTRACTS_KMAPS.md` on 2026-11-07, so the method
+and its mechanics are one note an agent can find without first knowing to
+look in `bin/`.
+
+**Two kinds of sheet.**
+
+1. **CONTRACT sheets**, one table per interface group (an AXI master, the CSR
+   bus, the monbus output). Columns: Signal / Width / Dir / Driver /
+   Legal-Correct behavior / invariant / bug history. The behavior column is
+   the contract: when the signal may assert, what it must hold across, what a
+   violation means downstream. Every row must be checkable against the RTL,
+   no aspirational prose. A row covering logic that once had a real bug
+   carries the fix reference (commit or known_issues file); those rows are the
+   ones a future reader needs most.
+2. **DECISION sheets**, one per important combinational decision, in the
+   three-part contract-table form below (term list, invariants, table). Each
+   carries an inspection-check note saying what a healthy result looks like
+   ("rows 4-7 must all be ILLEGAL(I1); a legal row there means the stale-view
+   guard was dropped"), so a bad future edit is visible on sight.
+
+**Two gates, both mandatory.**
+
+- **Citation registry.** Every quoted expression is registered with its
+  file:line and grepped on every run; the generator exits nonzero if the RTL
+  drifted from the quote. When it fails, update the mirror AND the quote
+  together, re-run, and diff the table: a changed row is a changed behavior,
+  which is the review you wanted.
+- **Idempotence.** Two runs give byte-stable sheet content. Invariants are
+  evaluated too: a row an invariant calls impossible is checked unreachable,
+  so a WRONG invariant fails the run instead of silently deleting a case.
+
+**Factoring.** An expression with more than ~6 inputs is factored the way the
+RTL factors it, and the sub-terms are mapped separately, rather than
+exploding the table.
+
+**The imports.** `bin/` is on PYTHONPATH via `env_python`:
+
+    from kmaps.citations import verify_citations      # the citation gate
+    from kmaps.minimize   import qm_minimize, sop_str # Quine-McCluskey
+    from kmaps.styles     import GREEN, DCFILL, ...   # cell styles
+    from kmaps.writer     import KmapWriter, new_kmap_sheet, contract_sheet
+
+`verify_citations(cites, repo)` takes the registry and repo root as
+arguments, because both are per component. Never copy the writer or the
+minimiser into a generator.
+
+**Running.**
+
+    source env_python
+    python3 projects/components/<comp>/docs/gen_signal_contracts_kmaps.py
+    python3 projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/gen_pumice_signal_contracts.py
+
+Nonzero exit = citation drift: the RTL moved under a quote. Fix the mirror and
+the quote together; never suppress the check.
 
 ## The required artifact is a CONTRACT TABLE, not a grid
 

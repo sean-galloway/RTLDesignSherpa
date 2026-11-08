@@ -16,8 +16,8 @@
 #               builders, and its own output path. Those are the parts that
 #               describe a specific block and must not be centralised.
 #
-# Canonical methodology: bin/SIGNAL_CONTRACTS_KMAPS.md
-# Rationale + the required three-part form: vault/handbook/design/signal-contracts-and-kmaps.md
+# Method, mechanics and the required three-part form:
+#   vault/handbook/design/signal-contracts-and-kmaps.md
 """Shared signal-contract / K-map emitter machinery."""
 
 from .citations import verify_citations

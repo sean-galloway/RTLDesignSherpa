@@ -60,7 +60,7 @@ The same split applies to the five agent roles in `.claude/agents/`. The stub ca
 
 Why the fuss? Because **a second copy is how documentation rots.** The copy nobody edits is the one the next session reads. If the regression rule lives in the handbook and also in a skill, someone fixes one, and six weeks later Claude follows the stale one with total confidence. One copy, many pointers. That's the whole trick.
 
-That includes the guides that used to sit beside their tools. The doc-pipeline how-to and the signal-naming audit guide now live in the handbook, as `authoring/doc-generation.md` and `dv/signal-naming-audit.md`. A guide in `bin/` only helps an agent that already knows to look in `bin/`.
+That includes the guides that used to sit beside their tools. For a while the repo allowed one exception: a tool's mechanics (its flags, its stand-up steps) could stay next to the tool. It didn't hold up. A guide in `bin/` only helps an agent that already knows to look in `bin/`, so the exception is gone, and the doc-pipeline, signal-naming-audit and K-map guides now live in the handbook. Beside a tool there's at most a short pointer to the note.
 
 ## Tracking: area, lane, state
 
