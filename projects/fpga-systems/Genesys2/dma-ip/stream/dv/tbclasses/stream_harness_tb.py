@@ -43,7 +43,7 @@ from CocoTBFramework.components.uart import UARTMaster, UARTMonitor  # noqa: F40
 # UARTMaster/UARTMonitor pair and presents it as a ByteChannel;
 # UARTAxiBridge(channel=...) speaks the W/R ASCII protocol over it -- the SAME
 # object the board's host programs drive through a serial port. See
-# bin/TBClasses/harness/CLAUDE.md: "Don't hand-roll W/R formatting in a
+# vault/handbook/tools/uart-harness-equivalence.md: "Don't hand-roll W/R formatting in a
 # sim-only bridge -- reuse UARTAxiBridge via channel injection, or the byte
 # streams drift." This tb did exactly that for four campaigns; see
 # [[uart-harness]] in the vault for what it cost.

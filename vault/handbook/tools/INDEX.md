@@ -12,6 +12,7 @@ Every guide for a tool under `bin/` lives here, not beside the tool
 - [[svsherpa]] - synthesizable SystemVerilog written in Python: a thin emitter, not an elaboration framework
 - [[bf16-generators]] - the BF16 arithmetic RTL generators under `bin/rtl_generators/bf16/`
 - [[uart-harness-transport]] - `TBClasses.harness`: the shared UART-AXIL transport one host program runs against sim and board; method is [[uart-harness]]
+- [[uart-harness-equivalence]] - making the host program identical against sim and board: build order, cocotb.function vs a pump, sticky errors
 - [[doc-generation]] and [[signal-contracts-and-kmaps]] live under authoring/ and design/
 
 ## Apps (`bin/apps/`)

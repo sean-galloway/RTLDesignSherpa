@@ -1,4 +1,11 @@
+---
+title: UART harness equivalence
+summary: How to make one host program run byte-for-byte identically against the FPGA and a cocotb sim through TBClasses.harness - build order and the traps. Moved from bin/TBClasses/harness/CLAUDE.md 2026-11-07.
+---
+
 # CLAUDE.md — UART-AXIL characterization harness methodology
+
+Source: `bin/TBClasses/harness/`. Transport reference: [[uart-harness-transport]]; method: [[uart-harness]].
 
 Agent guidance for `TBClasses.harness`: how to make one host program run
 byte-for-byte identically against an FPGA **and** a cocotb sim, and the
