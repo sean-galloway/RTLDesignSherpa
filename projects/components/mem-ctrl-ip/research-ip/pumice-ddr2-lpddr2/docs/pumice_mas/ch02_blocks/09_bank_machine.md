@@ -114,8 +114,17 @@ for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
 
         mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH)) u_bt (
             .clk(aclk), .rst_n(aresetn),
-            .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i),
-            .t_rc_i(t_rc_i), .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i),
+            // CSR-derived loads and flags, computed ONCE in mc_bank_timers for
+            // every bank and registered (MC-007 row 6, 2026-11-08): the
+            // counter loads f_ld(t, LD), the auto-precharge reload, the
+            // "t <= 1" / "t <= LA + 1" flags and the f_ld(t, 1) waits
+            .ld_rcd_i(r_ld_rcd), .ld_ras_i(r_ld_ras), .ld_rc_i(r_ld_rc),
+            .ld_rp_i(r_ld_rp), .ld_rp1_i(r_ld_rp1), .ld_rtp_i(r_ld_rtp), .ld_wr_i(r_ld_wr),
+            .t_rp_i(r_t_rp),
+            .rtp_le1_i(r_rtp_le1), .wr_le1_i(r_wr_le1),
+            .rcd_la_i(r_rcd_la), .ras_la_i(r_ras_la), .rc_la_i(r_rc_la),
+            .rp_la_i(r_rp_la), .rtp_la_i(r_rtp_la), .wr_la_i(r_wr_la),
+            .rtp_w1_i(r_rtp_w1), .wr_w1_i(r_wr_w1), .ras_w1_i(r_ras_w1),
             .set_act_i(evt_act_i && w_sel),
             .set_rd_i (evt_rd_i  && w_sel),
             .set_wr_i (evt_wr_i  && w_sel),
@@ -134,6 +143,12 @@ for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
     end
 end
 ```
+
+Since 2026-11-08 (memory-controllers MC-007 row 6) the aggregator also owns
+the CSR arithmetic: it derives the counter loads and the effective-view flags
+from the six saturated timing CSRs once, registers them, and hands the same
+values to every timer, where each timer used to redo the subtractions and
+compares on the live CSR every cycle. The timers only count.
 
 The per-(rank, bank) readiness outputs are 2-D-packed arrays
 (`logic [NUM_RANKS-1:0][NUM_BANKS-1:0]`) consumed directly by

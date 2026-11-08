@@ -63,13 +63,34 @@ module mc_bank_timer
     input  logic                 clk,
     input  logic                 rst_n,
 
-    // JEDEC timing config (controller cycles; command-relative)
-    input  logic [TW-1:0]        t_rcd_i,
-    input  logic [TW-1:0]        t_rp_i,
-    input  logic [TW-1:0]        t_ras_i,
-    input  logic [TW-1:0]        t_rc_i,
-    input  logic [TW-1:0]        t_wr_i,    // WR cmd -> earliest PRE (incl WL+BL/2)
-    input  logic [TW-1:0]        t_rtp_i,   // RD cmd -> earliest PRE
+    // JEDEC timing config, PRE-DERIVED by the parent (mc_bank_timers) from the
+    // CSRs once for all banks (memory-controllers MC-007, ISSUE-001 row 6,
+    // 2026-11-07). Until then each of the eight timers redid the same
+    // subtractions and compares on the live CSR every cycle: the counter
+    // loads f_ld(t, LD) = max(t - LD, 0), the auto-precharge reload
+    // f_ld(t_rp, 1), the "t <= 1" and "t <= LA + 1" effective-view flags and
+    // the f_ld(t, 1) waits. The parent registers them; the CSRs are static
+    // during traffic, so the one-cycle lag at programming time is invisible.
+    // The formal harness computes the same values from its free timings.
+    input  logic [TW-1:0]        ld_rcd_i,   // f_ld(t_rcd, LD)
+    input  logic [TW-1:0]        ld_ras_i,   // f_ld(t_ras, LD)
+    input  logic [TW-1:0]        ld_rc_i,    // f_ld(t_rc,  LD)
+    input  logic [TW-1:0]        ld_rp_i,    // f_ld(t_rp,  LD)   explicit PRE
+    input  logic [TW-1:0]        ld_rp1_i,   // f_ld(t_rp,  1)    auto-precharge self-close
+    input  logic [TW-1:0]        ld_rtp_i,   // f_ld(t_rtp, LD)   RD -> earliest PRE
+    input  logic [TW-1:0]        ld_wr_i,    // f_ld(t_wr,  LD)   WR -> earliest PRE (incl WL+BL/2)
+    input  logic [TW-1:0]        t_rp_i,     // tRP itself (the lookahead sum)
+    input  logic                 rtp_le1_i,  // t_rtp <= 1
+    input  logic                 wr_le1_i,   // t_wr  <= 1
+    input  logic                 rcd_la_i,   // t_rcd <= LA + 1
+    input  logic                 ras_la_i,   // t_ras <= LA + 1
+    input  logic                 rc_la_i,    // t_rc  <= LA + 1
+    input  logic                 rp_la_i,    // t_rp  <= LA + 1
+    input  logic                 rtp_la_i,   // t_rtp <= LA + 1
+    input  logic                 wr_la_i,    // t_wr  <= LA + 1
+    input  logic [TW-1:0]        rtp_w1_i,   // f_ld(t_rtp, 1)
+    input  logic [TW-1:0]        wr_w1_i,    // f_ld(t_wr,  1)
+    input  logic [TW-1:0]        ras_w1_i,   // f_ld(t_ras, 1)
 
     // preset strobes from the scheduler (this bank only; parent gates by bank)
     input  logic                 set_act_i,
@@ -165,8 +186,8 @@ module mc_bank_timer
     assign w_ras_z    = (r_ras == '0) && !w_pend_act;
     assign w_rc_z     = (r_rc  == '0) && !w_pend_act;
     assign w_rp_z     = (r_rp  == '0) && !w_pend_pre;
-    assign w_preblk_z = w_pend_rd ? (t_rtp_i <= TW'(1))
-                      : w_pend_wr ? (t_wr_i  <= TW'(1))
+    assign w_preblk_z = w_pend_rd ? rtp_le1_i
+                      : w_pend_wr ? wr_le1_i
                       :             (r_preblk == '0);
 
     // auto-precharge fires once the read/write recovery (preblk) AND tRAS elapse.
@@ -185,25 +206,25 @@ module mc_bank_timer
             // t would enforce t+1 (one cycle conservative per transition,
             // which is what made the col_major bubble 9 against a 6-cycle
             // floor; MC-003 2026-10-17).
-            if (w_ld_act)          r_rcd <= f_ld(t_rcd_i, LD);
+            if (w_ld_act)          r_rcd <= ld_rcd_i;
             else if (r_rcd != '0)  r_rcd <= r_rcd - 1'b1;
 
-            if (w_ld_act)          r_ras <= f_ld(t_ras_i, LD);
+            if (w_ld_act)          r_ras <= ld_ras_i;
             else if (r_ras != '0)  r_ras <= r_ras - 1'b1;
 
-            if (w_ld_act)          r_rc  <= f_ld(t_rc_i, LD);
+            if (w_ld_act)          r_rc  <= ld_rc_i;
             else if (r_rc  != '0)  r_rc  <= r_rc - 1'b1;
 
             // tRP: reload on the auto-PRE fire (live, D = 1) or the explicit
             // PRE strobe, else count down. The self-close is the later of the
             // two when both land in one cycle, so it wins (conservative).
-            if (w_ap_fire)         r_rp <= f_ld(t_rp_i, 1);
-            else if (w_ld_pre)     r_rp <= f_ld(t_rp_i, LD);
+            if (w_ap_fire)         r_rp <= ld_rp1_i;
+            else if (w_ld_pre)     r_rp <= ld_rp_i;
             else if (r_rp != '0)   r_rp <= r_rp - 1'b1;
 
             // preblk: reload on RD (tRTP) / WR (tWR), else count down
-            if (w_ld_rd)               r_preblk <= f_ld(t_rtp_i, LD);
-            else if (w_ld_wr)          r_preblk <= f_ld(t_wr_i, LD);
+            if (w_ld_rd)               r_preblk <= ld_rtp_i;
+            else if (w_ld_wr)          r_preblk <= ld_wr_i;
             else if (r_preblk != '0)   r_preblk <= r_preblk - 1'b1;
 
             // row-open + auto-precharge bit (ACT > explicit PRE > auto-PRE).
@@ -269,18 +290,18 @@ module mc_bank_timer
     // C + t, which is t - 1 cycles from now: "within LA" is t <= LA + 1,
     // and the self-close wait is t - 1. Live these terms are the plain reads.
     logic w_rcd_la, w_ras_la, w_rc_la, w_rp_la, w_preblk_la;
-    assign w_rcd_la    = w_pend_act ? (t_rcd_i <= TW'(LA + 1)) : (r_rcd <= TW'(LA));
-    assign w_ras_la    = w_pend_act ? (t_ras_i <= TW'(LA + 1)) : (r_ras <= TW'(LA));
-    assign w_rc_la     = w_pend_act ? (t_rc_i  <= TW'(LA + 1)) : (r_rc  <= TW'(LA));
-    assign w_rp_la     = w_pend_pre ? (t_rp_i  <= TW'(LA + 1)) : (r_rp  <= TW'(LA));
-    assign w_preblk_la = w_pend_rd  ? (t_rtp_i <= TW'(LA + 1))
-                       : w_pend_wr  ? (t_wr_i  <= TW'(LA + 1))
+    assign w_rcd_la    = w_pend_act ? rcd_la_i : (r_rcd <= TW'(LA));
+    assign w_ras_la    = w_pend_act ? ras_la_i : (r_ras <= TW'(LA));
+    assign w_rc_la     = w_pend_act ? rc_la_i  : (r_rc  <= TW'(LA));
+    assign w_rp_la     = w_pend_pre ? rp_la_i  : (r_rp  <= TW'(LA));
+    assign w_preblk_la = w_pend_rd  ? rtp_la_i
+                       : w_pend_wr  ? wr_la_i
                        :              (r_preblk <= TW'(LA));
     logic [TW-1:0] w_preblk_wait, w_ras_wait;   // cycles until each reaches zero
-    assign w_preblk_wait = w_pend_rd ? f_ld(t_rtp_i, 1)
-                         : w_pend_wr ? f_ld(t_wr_i, 1)
+    assign w_preblk_wait = w_pend_rd ? rtp_w1_i
+                         : w_pend_wr ? wr_w1_i
                          :             r_preblk;
-    assign w_ras_wait    = w_pend_act ? f_ld(t_ras_i, 1) : r_ras;
+    assign w_ras_wait    = w_pend_act ? ras_w1_i : r_ras;
     logic [TW:0]   w_ap_wait;       // cycles until the self-close fires
     logic [TW+1:0] w_ap_act_in;     // ... plus tRP: cycles until ACT is safe
     logic          w_ap_act_la;

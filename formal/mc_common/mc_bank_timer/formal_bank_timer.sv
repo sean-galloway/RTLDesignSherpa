@@ -91,10 +91,27 @@ module formal_bank_timer #(
     wire [ROW_WIDTH-1:0] open_row;
     wire [2:0]  state;   // bank_state_e, flattened by sv2v
 
+    // The CSR-derived loads and flags the parent (mc_bank_timers) hands the
+    // timer since MC-007 row 6, computed here from the free timings exactly as
+    // the parent does (LD = 1: SET_LAG is 0 in this proof).
+    function automatic [TW-1:0] f_ld(input [TW-1:0] t, input integer d);
+        f_ld = (t <= d) ? {TW{1'b0}} : (t - d[TW-1:0]);
+    endfunction
+    wire [TW-1:0] ld_rcd = f_ld(t_rcd, 1), ld_ras = f_ld(t_ras, 1), ld_rc = f_ld(t_rc, 1);
+    wire [TW-1:0] ld_rp  = f_ld(t_rp, 1),  ld_rp1 = f_ld(t_rp, 1);
+    wire [TW-1:0] ld_rtp = f_ld(t_rtp, 1), ld_wr = f_ld(t_wr, 1);
+    wire [TW-1:0] rtp_w1 = f_ld(t_rtp, 1), wr_w1 = f_ld(t_wr, 1), ras_w1 = f_ld(t_ras, 1);
+    wire rtp_le1 = (t_rtp <= 1), wr_le1 = (t_wr <= 1);
+    wire rcd_la = (t_rcd <= LA + 1), ras_la = (t_ras <= LA + 1), rc_la = (t_rc <= LA + 1);
+    wire rp_la  = (t_rp  <= LA + 1), rtp_la = (t_rtp <= LA + 1), wr_la = (t_wr <= LA + 1);
+
     mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(LA)) dut (
         .clk(clk), .rst_n(rst_n),
-        .t_rcd_i(t_rcd), .t_rp_i(t_rp), .t_ras_i(t_ras),
-        .t_rc_i(t_rc), .t_wr_i(t_wr), .t_rtp_i(t_rtp),
+        .ld_rcd_i(ld_rcd), .ld_ras_i(ld_ras), .ld_rc_i(ld_rc), .ld_rp_i(ld_rp), .ld_rp1_i(ld_rp1),
+        .ld_rtp_i(ld_rtp), .ld_wr_i(ld_wr), .t_rp_i(t_rp),
+        .rtp_le1_i(rtp_le1), .wr_le1_i(wr_le1),
+        .rcd_la_i(rcd_la), .ras_la_i(ras_la), .rc_la_i(rc_la), .rp_la_i(rp_la), .rtp_la_i(rtp_la), .wr_la_i(wr_la),
+        .rtp_w1_i(rtp_w1), .wr_w1_i(wr_w1), .ras_w1_i(ras_w1),
         .set_act_i(set_act), .set_rd_i(set_rd), .set_wr_i(set_wr),
         .set_pre_i(set_pre), .set_ap_i(set_ap), .row_i(row),
         .safe_act_o(safe_act), .safe_rd_o(safe_rd), .safe_wr_o(safe_wr),

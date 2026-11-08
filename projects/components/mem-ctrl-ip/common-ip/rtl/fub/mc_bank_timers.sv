@@ -104,6 +104,48 @@ module mc_bank_timers
     assign w_t_wr  = sat_tw(t_wr_i);
     assign w_t_rtp = sat_tw(t_rtp_i);
 
+    // ---- CSR-derived constants, computed ONCE for every bank (MC-007 row 6) ----
+    // f_ld(t, d) = max(t - d, 0): the counter load that makes "safe at count
+    // == 0" land exactly at C + t (see mc_bank_timer). LD is 1 live and 2 with
+    // the registered event strobe (EVT_REG / SET_LAG). Registered because the
+    // CSRs are static during traffic; the lag at programming time is one cycle.
+    localparam int LD = EVT_REG ? 2 : 1;
+    localparam int LA = BANK_LA;
+    function automatic logic [TW-1:0] f_ld(input logic [TW-1:0] t, input int d);
+        return (t <= TW'(d)) ? '0 : (t - TW'(d));
+    endfunction
+    logic [TW-1:0] r_ld_rcd, r_ld_ras, r_ld_rc, r_ld_rp, r_ld_rp1, r_ld_rtp, r_ld_wr;
+    logic [TW-1:0] r_rtp_w1, r_wr_w1, r_ras_w1, r_t_rp;
+    logic          r_rtp_le1, r_wr_le1, r_rcd_la, r_ras_la, r_rc_la, r_rp_la, r_rtp_la, r_wr_la;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_ld_rcd <= '0; r_ld_ras <= '0; r_ld_rc <= '0; r_ld_rp <= '0; r_ld_rp1 <= '0;
+            r_ld_rtp <= '0; r_ld_wr <= '0; r_rtp_w1 <= '0; r_wr_w1 <= '0; r_ras_w1 <= '0; r_t_rp <= '0;
+            r_rtp_le1 <= 1'b1; r_wr_le1 <= 1'b1;
+            r_rcd_la <= 1'b1; r_ras_la <= 1'b1; r_rc_la <= 1'b1; r_rp_la <= 1'b1; r_rtp_la <= 1'b1; r_wr_la <= 1'b1;
+        end else begin
+            r_ld_rcd  <= f_ld(w_t_rcd, LD);
+            r_ld_ras  <= f_ld(w_t_ras, LD);
+            r_ld_rc   <= f_ld(w_t_rc,  LD);
+            r_ld_rp   <= f_ld(w_t_rp,  LD);
+            r_ld_rp1  <= f_ld(w_t_rp,  1);
+            r_ld_rtp  <= f_ld(w_t_rtp, LD);
+            r_ld_wr   <= f_ld(w_t_wr,  LD);
+            r_rtp_w1  <= f_ld(w_t_rtp, 1);
+            r_wr_w1   <= f_ld(w_t_wr,  1);
+            r_ras_w1  <= f_ld(w_t_ras, 1);
+            r_t_rp    <= w_t_rp;
+            r_rtp_le1 <= (w_t_rtp <= TW'(1));
+            r_wr_le1  <= (w_t_wr  <= TW'(1));
+            r_rcd_la  <= (w_t_rcd <= TW'(LA + 1));
+            r_ras_la  <= (w_t_ras <= TW'(LA + 1));
+            r_rc_la   <= (w_t_rc  <= TW'(LA + 1));
+            r_rp_la   <= (w_t_rp  <= TW'(LA + 1));
+            r_rtp_la  <= (w_t_rtp <= TW'(LA + 1));
+            r_wr_la   <= (w_t_wr  <= TW'(LA + 1));
+        end
+    )
+
     for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
         for (genvar b = 0; b < NUM_BANKS; b++) begin : g_bank
             // route the scheduler's command event to THIS bank only
@@ -115,12 +157,25 @@ module mc_bank_timers
                             .SET_LAG(EVT_REG)) u_bt (
                 .clk             (aclk),
                 .rst_n           (aresetn),
-                .t_rcd_i         (w_t_rcd),
-                .t_rp_i          (w_t_rp),
-                .t_ras_i         (w_t_ras),
-                .t_rc_i          (w_t_rc),
-                .t_wr_i          (w_t_wr),
-                .t_rtp_i         (w_t_rtp),
+                .ld_rcd_i        (r_ld_rcd),
+                .ld_ras_i        (r_ld_ras),
+                .ld_rc_i         (r_ld_rc),
+                .ld_rp_i         (r_ld_rp),
+                .ld_rp1_i        (r_ld_rp1),
+                .ld_rtp_i        (r_ld_rtp),
+                .ld_wr_i         (r_ld_wr),
+                .t_rp_i          (r_t_rp),
+                .rtp_le1_i       (r_rtp_le1),
+                .wr_le1_i        (r_wr_le1),
+                .rcd_la_i        (r_rcd_la),
+                .ras_la_i        (r_ras_la),
+                .rc_la_i         (r_rc_la),
+                .rp_la_i         (r_rp_la),
+                .rtp_la_i        (r_rtp_la),
+                .wr_la_i         (r_wr_la),
+                .rtp_w1_i        (r_rtp_w1),
+                .wr_w1_i         (r_wr_w1),
+                .ras_w1_i        (r_ras_w1),
                 .set_act_i       ((evt_act_i && w_sel) || (evt2_act_i && w_sel2)),
                 .set_rd_i        (evt_rd_i  && w_sel),
                 .set_wr_i        (evt_wr_i  && w_sel),
