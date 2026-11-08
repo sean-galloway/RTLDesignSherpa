@@ -161,6 +161,12 @@ lappend current_defines "DDR2_CHAR_SYNTH"
 # GRANITE_HEAD2_EN=0 is the one-record-per-bank variant. Unset =
 # the shipped build. (The 2026-10-23 B/C builds set these in the environment
 # before this block existed and came out byte-identical to the default.)
+# GRANITE_FPGA_SKU=1: the board SKU (store combiner and narrow pack off; see
+# granite_char_top.sv). A flag, not a value.
+if {[info exists ::env(GRANITE_FPGA_SKU)] && $::env(GRANITE_FPGA_SKU) ne "" && $::env(GRANITE_FPGA_SKU) ne "0"} {
+    lappend current_defines "GRANITE_FPGA_SKU"
+    puts "verilog_define: GRANITE_FPGA_SKU (board SKU: STORE_MERGE_EN=0, NARROW_EN=0)"
+}
 foreach knob {GRANITE_FIXED_TIMINGS GRANITE_STORE_BACKEND GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN GRANITE_DFI_CDC_EN GRANITE_HAS_SNARF GRANITE_INTAKE_FIFO_DEPTH GRANITE_AXI_SKID_DEPTH GRANITE_SHARED_ADDR_MAP GRANITE_HAS_PAGE_POLICY GRANITE_DFI_CMD_FIFO_DEPTH GRANITE_DFI_WD_FIFO_DEPTH GRANITE_DFI_RD_FIFO_DEPTH GRANITE_BANK_TW GRANITE_BANK_CAP_MIXED GRANITE_HAS_AGE GRANITE_PP_TIMEOUT_CLOSE GRANITE_STORE_MERGE_EN GRANITE_HAS_MON} {
     if {[info exists ::env($knob)] && $::env($knob) ne ""} {
         lappend current_defines "$knob=$::env($knob)"

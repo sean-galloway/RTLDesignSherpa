@@ -1,0 +1,4 @@
+slack_ns,levels,startpoint,endpoint
+-0.013,11,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_spec_taken_reg/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_pick_cls_reg[0]/D
+-0.012,11,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[1].u_bt/r_rc_reg[1]/C,u_harness/u_dut/u_ctrl/u_core/u_axi_plane/u_rd_ring/u_issue_q/fifo_control_inst/wr_full_reg/D
+-0.006,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_hold_reg/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_stale_spec_reg[13]/D

@@ -55,6 +55,7 @@ module granite_char_macro
     parameter int BANK_CAP_MIXED    = 6,    // FIFO store per-bank cap while the other direction holds entries (0 = off)
     parameter bit HAS_AGE           = 1'b0, // store age promotion (CSR age_thresh -> aged-first pick); 0 compiles the ages out (pumice TASK-059)
     parameter bit STORE_MERGE_EN    = 1'b1, // FIFO-store combining (granite TASK-006, default ON); 0 = none
+    parameter bit NARROW_EN         = 1'b1, // 0 on the FPGA SKU (GRANITE_FPGA_SKU)
     parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
     parameter bit HAS_MON           = 1'b0, // Ocelus plane in the controller (granite TASK-008); its packet writer lands on a write-ack sink here
     parameter int MON_ACLK_MHZ      = 100,  // mc_clk in MHz: scales the plane's microsecond timeout tick
@@ -421,6 +422,7 @@ module granite_char_macro
         .BANK_CAP_MIXED    (BANK_CAP_MIXED),
         .HAS_AGE           (HAS_AGE),
         .STORE_MERGE_EN    (STORE_MERGE_EN),
+        .NARROW_EN         (NARROW_EN),
         .PP_TIMEOUT_CLOSE  (PP_TIMEOUT_CLOSE),
         .HAS_MON           (HAS_MON),
         .MON_ACLK_MHZ      (MON_ACLK_MHZ),

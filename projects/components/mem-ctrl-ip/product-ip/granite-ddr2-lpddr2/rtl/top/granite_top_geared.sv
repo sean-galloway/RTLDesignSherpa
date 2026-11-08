@@ -58,6 +58,7 @@ module granite_top_geared
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter bit BANK_EVT_REG      = 1'b1, // bank timer counters load one register after the pick's fire strobe (TASK-003 100 MHz; readiness exact); 0 = the live load
     parameter bit STORE_MERGE_EN    = 1'b1, // FIFO-store combining (TASK-006, default ON); 0 = none
+    parameter bit NARROW_EN         = 1'b1, // 0 on the FPGA SKU (GRANITE_FPGA_SKU)
     // Ocelus observability (mc_ocelus_plane in the core; MON_* CSRs at 0x200)
     parameter bit          HAS_MON        = 1'b0,
     parameter int          MON_ACLK_MHZ   = 100,
@@ -479,6 +480,7 @@ module granite_top_geared
         .BANK_TW           (BANK_TW),
         .BANK_EVT_REG      (BANK_EVT_REG),
         .STORE_MERGE_EN    (STORE_MERGE_EN),
+        .NARROW_EN         (NARROW_EN),
         .HAS_MON           (HAS_MON),
         .MON_ACLK_MHZ      (MON_ACLK_MHZ),
         .MON_UNIT_ID       (MON_UNIT_ID),

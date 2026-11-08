@@ -108,3 +108,15 @@ flops selected, the CAL_CTRL pulses excluded). First measurement: the pumice
 sys75 research configuration moves from -2.487 ns / 1,375 failing endpoints
 to -1.665 / 1,255 with no RTL change; its worst path is now the read
 intake's order-FIFO pointer into the arbiter's classify gate, a live flag.
+
+## Postscript 2 (2026-11-08 06:25): granite FPGA SKU
+
+Row 3 for granite: `GRANITE_FPGA_SKU` (store combiner off, narrow pack off)
+takes granite from 37,900 to 35,712 LUT at sys100 (WNS -0.159 / 35 -> -0.013
+/ 3, the pick loop either way) and closes the 75 MHz board point at +0.750
+with 35,423 LUT. On why the sys100 research build moved from -0.023 to -0.159
+under the false-path constraint alone: identical RTL, the same cone with the
+same 12 logic levels, 0.13 ns more route -- the placer landed the pick region
+differently once the CSR paths left its objective. That profile has now
+produced +0.003, 0.000, -0.023, -0.159 and -0.013 on five builds; it is a
+placement coin flip until row 15 shortens the loop.

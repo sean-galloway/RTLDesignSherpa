@@ -69,6 +69,7 @@ module granite_char_harness
     parameter int BANK_CAP_MIXED    = 6,    // FIFO store per-bank cap while the other direction holds entries (0 = off)
     parameter bit HAS_AGE           = 1'b0, // store age promotion (CSR age_thresh -> aged-first pick); 0 compiles the ages out (pumice TASK-059)
     parameter bit STORE_MERGE_EN    = 1'b1, // FIFO-store combining (granite TASK-006, default ON); 0 = none
+    parameter bit NARROW_EN         = 1'b1, // 0 on the FPGA SKU (GRANITE_FPGA_SKU)
     parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
     parameter bit HAS_MON           = 1'b0, // Ocelus plane in the controller (granite TASK-008); packets go to the macro's write-ack sink
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
@@ -594,6 +595,7 @@ module granite_char_harness
         .BANK_CAP_MIXED    (BANK_CAP_MIXED),
         .HAS_AGE           (HAS_AGE),
         .STORE_MERGE_EN    (STORE_MERGE_EN),
+        .NARROW_EN         (NARROW_EN),
         .PP_TIMEOUT_CLOSE  (PP_TIMEOUT_CLOSE),
         .HAS_MON           (HAS_MON),
         .MON_ACLK_MHZ      (FPGA_CLK_HZ / 1_000_000),
