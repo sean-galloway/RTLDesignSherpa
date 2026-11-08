@@ -1,0 +1,35 @@
+[tasks]
+prove
+peek3
+small
+cover
+
+[options]
+# DEPTH 8: a full queue is 8 pushes, a drain 8 pops; 24 steps see fill, drain and
+# a refill with the memory pointers wrapped once.
+prove: mode bmc
+prove: depth 24
+peek3: mode bmc
+peek3: depth 24
+# DEPTH 3 / PEEK 2: the shift register IS the queue (granite_top_geared n1)
+small: mode bmc
+small: depth 16
+cover: mode cover
+cover: depth 24
+
+[engines]
+prove: smtbmc bitwuzla
+peek3: smtbmc bitwuzla
+small: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal bank_queue_flat.v
+read -formal -sv formal_bank_queue.sv
+peek3: chparam -set PEEK 3 formal_bank_queue
+small: chparam -set DEPTH 3 -set PEEK 2 formal_bank_queue
+prep -top formal_bank_queue
+
+[files]
+formal_bank_queue.sv
+bank_queue_flat.v

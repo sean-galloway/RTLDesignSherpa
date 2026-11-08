@@ -1126,7 +1126,17 @@ module mc_bank_fifo_store
         else                                     w_new_age = w_pool_young + 1'b1;
     end
 
-    generate for (genvar b = 0; b < NUM_BANKS; b++) begin : g_q
+    // The queues. With the pool age (HAS_AGE) each is a gaxi_age_fifo_sync: a
+    // FIFO controller per queue, an age column, and the head and two peeks
+    // read through asynchronous muxes on the entry memory. Without it (the
+    // board), mc_bank_queue: the head and the PEEK entries behind it are a
+    // shift register of flops, the rest a reset-free LUTRAM touched once per
+    // push and once per pop, valids are compares on one registered count --
+    // the FPGA shape of ISSUE-001 row 2 (memory-controllers MC-010,
+    // 2026-11-08). Same handshakes, same observable timing;
+    // formal/mc_common/mc_bank_queue proves the two agree output for output.
+    generate if (HAS_AGE) begin : g_q_age
+    for (genvar b = 0; b < NUM_BANKS; b++) begin : g_q
         gaxi_age_fifo_sync #(
             .DATA_WIDTH (QDW),
             .AGE_WIDTH  (AGEW),
@@ -1175,6 +1185,52 @@ module mc_bank_fifo_store
             .pk_data       (w_rqf_pk_data[b]),
             .pk_age_thresh (w_rqf_pk_thr[b])
         );
+    end
+    end else begin : g_q_fifo
+    for (genvar b = 0; b < NUM_BANKS; b++) begin : g_q
+        mc_bank_queue #(
+            .DATA_WIDTH (QDW),
+            .DEPTH      (QDF),
+            .PEEK       (QPK)
+        ) u_wq (
+            .axi_aclk      (aclk),
+            .axi_aresetn   (aresetn),
+            .wr_valid      (w_wq_push[b]),
+            .wr_ready      (w_wq_wr_ready[b]),
+            .wr_data       ({w_wq_sp_new, w_wr_free_slot}),
+            .rd_ready      (w_wq_fpop[b]),
+            .count         (),
+            .rd_valid      (w_wqf_rd_valid[b]),
+            .rd_data       (w_wqf_rd_data[b]),
+            .pk_valid      (w_wqf_pk_vld[b]),
+            .pk_data       (w_wqf_pk_data[b])
+        );
+        mc_bank_queue #(
+            .DATA_WIDTH (QDW),
+            .DEPTH      (QDF),
+            .PEEK       (QPK)
+        ) u_rq (
+            .axi_aclk      (aclk),
+            .axi_aresetn   (aresetn),
+            .wr_valid      (w_rq_push[b]),
+            .wr_ready      (w_rq_wr_ready[b]),
+            .wr_data       ({w_rq_sp_new, w_rd_free_slot}),
+            .rd_ready      (w_rq_fpop[b]),
+            .count         (),
+            .rd_valid      (w_rqf_rd_valid[b]),
+            .rd_data       (w_rqf_rd_data[b]),
+            .pk_valid      (w_rqf_pk_vld[b]),
+            .pk_data       (w_rqf_pk_data[b])
+        );
+        // no age column: no entry ever reaches the pool-age threshold
+        assign w_wqf_thr[b] = 1'b0;
+        assign w_rqf_thr[b] = 1'b0;
+        for (genvar k = 0; k < QPK; k++) begin : g_thr
+            assign w_wqf_pk_thr[b][k] = 1'b0;
+            assign w_rqf_pk_thr[b][k] = 1'b0;
+        end
+        wire _unused_age = &{1'b0, w_age_dec, w_new_age};
+    end
     end endgenerate
     // Logical view (POP_REG): while a pop is pending the FIFO head is that
     // entry, already gone, so every position reads one further back. Live
