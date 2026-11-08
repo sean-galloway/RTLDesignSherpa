@@ -111,6 +111,10 @@ module l1_coh_core
     parameter int AXI_USER_WIDTH = 1,
     parameter bit USE_MONITOR    = 1'b1,
     parameter bit PF_GUARD       = 1'b0,
+    // data array read latency: 1 = registered read (block RAM on the FPGA
+    // target; l1_control presents addresses a cycle ahead), 0 = the
+    // original combinational read (distributed RAM)
+    parameter bit DATA_SYNC_READ = 1'b1,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH
@@ -281,7 +285,8 @@ module l1_coh_core
 
     logic                                  ctrl_victim_load;
     logic [ADDR_WIDTH-1:0]                 ctrl_victim_addr_in;
-    logic [LINE_BYTES*8-1:0]               ctrl_victim_data_in;
+    logic [BEAT_INDEX_WIDTH-1:0]           ctrl_victim_beat_idx;
+    logic [BUS_WIDTH-1:0]                  ctrl_victim_beat_data;
 
     logic                                  ctrl_fill_start;
     logic [ADDR_WIDTH-1:0]                 ctrl_fill_addr;
@@ -302,7 +307,8 @@ module l1_coh_core
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
         .BUS_WIDTH  (BUS_WIDTH),
-        .PF_GUARD   (PF_GUARD)
+        .PF_GUARD   (PF_GUARD),
+        .DATA_SYNC_READ (DATA_SYNC_READ)
     ) u_control (
         .clk                     (clk),
         .rst_n                   (rst_n),
@@ -342,7 +348,8 @@ module l1_coh_core
         .ctrl_repl_hit_way       (ctrl_repl_hit_way),
         .ctrl_victim_load        (ctrl_victim_load),
         .ctrl_victim_addr_in     (ctrl_victim_addr_in),
-        .ctrl_victim_data_in     (ctrl_victim_data_in),
+        .ctrl_victim_beat_idx    (ctrl_victim_beat_idx),
+        .ctrl_victim_beat_data   (ctrl_victim_beat_data),
         .ctrl_fill_start         (ctrl_fill_start),
         .ctrl_fill_addr          (ctrl_fill_addr),
         .ctrl_req_class          (ctrl_req_class),
@@ -434,7 +441,8 @@ module l1_coh_core
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
-        .BUS_WIDTH  (BUS_WIDTH)
+        .BUS_WIDTH  (BUS_WIDTH),
+        .SYNC_READ  (DATA_SYNC_READ)
     ) u_data (
         .clk           (clk),
         .a_addr        (ctrl_data_a_addr),
@@ -528,7 +536,8 @@ module l1_coh_core
         .rst_n            (rst_n),
         .drain_start      (ctrl_drain_start),
         .victim_addr      (ctrl_victim_addr_in),
-        .victim_data      (ctrl_victim_data_in),
+        .victim_beat_idx  (ctrl_victim_beat_idx),
+        .victim_beat_data (ctrl_victim_beat_data),
         .drain_done       (ctrl_drain_done),
         .fub_axi_awid     (fub_axi_awid),
         .fub_axi_awaddr   (fub_axi_awaddr),

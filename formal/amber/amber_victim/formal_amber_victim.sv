@@ -21,7 +21,6 @@ module formal_amber_victim (
     // free environment inputs
     input  logic        victim_load,
     input  logic [31:0] victim_addr_in,
-    input  logic [511:0] victim_data_in,
     input  logic        victim_clear
 );
 
@@ -33,7 +32,6 @@ module formal_amber_victim (
     logic                      victim_empty;
     logic                      victim_valid;
     logic [ADDR_WIDTH-1:0]     victim_addr;
-    logic [LINE_WIDTH-1:0]     victim_data;
 
     l1_victim #(
         .ADDR_WIDTH (ADDR_WIDTH),
@@ -45,13 +43,11 @@ module formal_amber_victim (
         .rst_n          (rst_n),
         .victim_load    (victim_load),
         .victim_addr_in (victim_addr_in),
-        .victim_data_in (victim_data_in),
         .victim_clear   (victim_clear),
         .victim_busy    (victim_busy),
         .victim_empty   (victim_empty),
         .victim_valid   (victim_valid),
-        .victim_addr    (victim_addr),
-        .victim_data    (victim_data)
+        .victim_addr    (victim_addr)
     );
 
     // =========================================================================
@@ -71,13 +67,11 @@ module formal_amber_victim (
     // =========================================================================
     reg                      f_loaded_q;
     reg [ADDR_WIDTH-1:0]     f_addr_q;
-    reg [LINE_WIDTH-1:0]     f_data_q;
 
     always @(posedge clk) begin
         if (!rst_n) begin
             f_loaded_q <= 1'b0;
             f_addr_q   <= '0;
-            f_data_q   <= '0;
         end else if (victim_clear) begin
             // mirror the RTL priority: clear wins over a coincident load
             f_loaded_q <= 1'b0;
@@ -85,7 +79,6 @@ module formal_amber_victim (
             // mirror the guard: only a load accepted while empty lands
             f_loaded_q <= 1'b1;
             f_addr_q   <= victim_addr_in;
-            f_data_q   <= victim_data_in;
         end
     end
 
@@ -100,8 +93,7 @@ module formal_amber_victim (
         if (rst_n && f_past_valid > 0 && $past(rst_n)
             && $past(victim_load) && $past(victim_valid) && !$past(victim_clear))
             ap_never_loaded_busy: assert (victim_valid
-                && (victim_addr == $past(victim_addr))
-                && (victim_data == $past(victim_data)));
+                && (victim_addr == $past(victim_addr)));
     end
 
     // V2 handoff payload: once loaded, the buffer holds exactly the staged
@@ -109,7 +101,7 @@ module formal_amber_victim (
     always @(posedge clk) begin
         if (rst_n)
             ap_payload_stable: assert (!victim_valid
-                || ((victim_addr == f_addr_q) && (victim_data == f_data_q)));
+                || (victim_addr == f_addr_q));
     end
 
     // V3 occupancy: valid from the accepted load until the clear (drain-done
@@ -127,8 +119,7 @@ module formal_amber_victim (
             // (a coincident clear wins, so it is excluded)
             if ($past(victim_load) && !$past(victim_valid) && !$past(victim_clear))
                 ap_load_lands: assert (victim_valid
-                    && (victim_addr == $past(victim_addr_in))
-                    && (victim_data == $past(victim_data_in)));
+                    && (victim_addr == $past(victim_addr_in)));
             // valid survives until the clear arrives
             if ($past(victim_valid) && !$past(victim_clear))
                 ap_holds_until_clear: assert (victim_valid);

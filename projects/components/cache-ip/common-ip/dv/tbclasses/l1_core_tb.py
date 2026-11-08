@@ -673,7 +673,7 @@ class L1CoreTB(TBBase):
                     int(self._core_tap.u_repl.repl_victim_way.value))
         vline = self.tags.get((set_idx, way))
         vstate = self.slot_state.get((set_idx, way), 'I')
-        dut_ts = int(self._core_tap.u_tag.mem[way * self.SETS + set_idx].value)
+        dut_ts = int(self._core_tap.u_tag.g_way[way].mem[set_idx].value)
         dut_tag, dut_state = dut_ts >> 3, self._decode3(dut_ts & 7)
         # NB: the model's tags map (set, way) -> LINE NUMBER; the array
         # word is {tag, state} with tag = line >> SET_BITS

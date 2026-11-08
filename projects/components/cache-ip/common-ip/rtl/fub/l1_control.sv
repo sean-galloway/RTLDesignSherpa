@@ -146,6 +146,16 @@ module l1_control
     // response. Standalone benches (direct l1_control instantiation, no
     // fabric) keep the classic always-answer-from-armed-fill behavior.
     parameter bit PF_GUARD   = 1'b0,
+    // Data-array read latency the controller is wired to (l1_data_array
+    // SYNC_READ). 0: combinational read, the port address is the word
+    // consumed this cycle. 1: registered read, the address must lead the
+    // consumer by one cycle -- the controller presents the beat the NEXT
+    // cycle consumes (hit data during LOOKUP, gather beat k+1 during
+    // gather beat k, the post-handshake snoop beat) and gates the
+    // pending-fill snoop bypass on a one-cycle-delayed beat-valid so a
+    // beat landing at the same edge as its read is re-read before it
+    // streams. Cycle behaviour is otherwise identical.
+    parameter bit DATA_SYNC_READ = 1'b0,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH - LINE_OFFSET_WIDTH,
@@ -209,11 +219,15 @@ module l1_control
     output logic [WAY_INDEX_WIDTH-1:0]  ctrl_repl_hit_way,
 
     // depth-1 victim buffer leaf (l1_victim, MAS ch02_blocks/05):
-    // the load strobe + staged payload in; the buffer fields are consumed
-    // internally (snoop bypass match + CD source) and observed by the TB
+    // the load strobe + staged address in; the buffer fields are consumed
+    // internally (snoop bypass match + CD source) and observed by the TB.
+    // The victim LINE is a beat-addressed store here (victim_line_mem):
+    // the drain presents ctrl_victim_beat_idx and reads the word back the
+    // same cycle; no line-wide payload bus leaves this module.
     output logic                        ctrl_victim_load,
     output logic [ADDR_WIDTH-1:0]       ctrl_victim_addr_in,
-    output logic [LINE_BYTES*8-1:0]     ctrl_victim_data_in,
+    input  logic [BEAT_INDEX_WIDTH-1:0] ctrl_victim_beat_idx,
+    output logic [BUS_WIDTH-1:0]        ctrl_victim_beat_data,
 
     // fill / drain partners
     output logic                        ctrl_fill_start,
@@ -303,7 +317,16 @@ module l1_control
     logic [WAY_INDEX_WIDTH-1:0] victim_way_q;
     logic [TAG_WIDTH-1:0]       victim_tag_q;
     logic [2:0]                 victim_state_q;
-    logic [LINE_BYTES*8-1:0]    victim_line_q;
+    // the gathered victim line, one word per beat (a small distributed
+    // RAM: written by the gather, read by beat by the drain and the snoop
+    // CD bypass -- never as a whole line)
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`elsif SYNTH_PRAGMA
+    /* synthesis ramstyle = "MLAB" */
+`endif
+    logic [BUS_WIDTH-1:0]       victim_line_mem [FILL_BEATS];
+    logic [BUS_WIDTH-1:0]       victim_sn_word;   // the bypass's current CD beat
     logic [BEAT_INDEX_WIDTH:0]  mv_cnt_q;
 
     // transaction-completion handshake flags (start pulses are one cycle;
@@ -484,8 +507,9 @@ module l1_control
     logic                      victim_busy_unused, victim_empty_unused;
     logic                      victim_valid;
     logic [ADDR_WIDTH-1:0]     victim_buf_addr;
-    logic [LINE_BYTES*8-1:0]   victim_buf_data;
 
+    // address + valid only; the line is victim_line_mem (one copy, read
+    // by beat) -- FPGA review 2026-11-07
     l1_victim #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
@@ -496,14 +520,17 @@ module l1_control
         .rst_n          (rst_n),
         .victim_load    (ctrl_victim_load),
         .victim_addr_in (ctrl_victim_addr_in),
-        .victim_data_in (ctrl_victim_data_in),
         .victim_clear   (ctrl_drain_done),
         .victim_busy    (victim_busy_unused),
         .victim_empty   (victim_empty_unused),
         .victim_valid   (victim_valid),
-        .victim_addr    (victim_buf_addr),
-        .victim_data    (victim_buf_data)
+        .victim_addr    (victim_buf_addr)
     );
+
+    // beat reads of the victim line: the drain's word (its beat index
+    // arrives through ctrl_victim_beat_idx) and the snoop bypass's word
+    assign ctrl_victim_beat_data = victim_line_mem[ctrl_victim_beat_idx];
+    assign victim_sn_word        = victim_line_mem[sn_beat_q];
 
     // ------------------------------------------------------------------
     // Snoop port-B lookup (combinational, grant cycle) and reference
@@ -679,8 +706,20 @@ module l1_control
     // CD beat channel + service completion
     logic sn_beat_gated, sn_complete;
 
+    // DATA_SYNC_READ: a fill beat landing at edge e collides with the
+    // registered port-B read of the same beat at e (read-before-write ->
+    // old word), so the beat streams one cycle later, after a clean
+    // re-read. The delayed valid is exactly that cycle.
+    logic [FILL_BEATS-1:0] pf_data_valid_d1;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) pf_data_valid_d1 <= '0;
+        else                      pf_data_valid_d1 <= pf_data_valid;
+    )
+    wire [FILL_BEATS-1:0] pf_data_valid_rd =
+        DATA_SYNC_READ ? pf_data_valid_d1 : pf_data_valid;
+
     assign sn_beat_gated = sn_dt_q
-                           && (sn_pf_q ? pf_data_valid[32'(sn_beat_q)]
+                           && (sn_pf_q ? pf_data_valid_rd[32'(sn_beat_q)]
                                        : 1'b1);
     assign sn_complete   = sn_dt_q
                            ? (sn_beat_gated && ctrl_cdready
@@ -771,7 +810,6 @@ module l1_control
             victim_way_q   <= '0;
             victim_tag_q   <= '0;
             victim_state_q <= AMBER_STATE_I;
-            victim_line_q  <= '0;
             mv_cnt_q       <= '0;
             fill_seen_q    <= 1'b0;
             fill_done_q    <= 1'b0;
@@ -892,11 +930,8 @@ module l1_control
                             ctrl_tag_a_tag_state[32'(ctrl_repl_way)]
                                                 [TAG_STATE_WIDTH-1 -: TAG_WIDTH];
                         victim_state_q <= mv_victim_state;
-                        victim_line_q[0 +: BUS_WIDTH] <= ctrl_data_a_rdata;
                         mv_cnt_q       <= mv_cnt_q + 1'b1;
                     end else if (mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS)) begin
-                        victim_line_q[32'(mv_cnt_q) * BUS_WIDTH +: BUS_WIDTH]
-                            <= ctrl_data_a_rdata;
                         mv_cnt_q <= mv_cnt_q + 1'b1;
                     end else begin
                         mv_cnt_q <= '0;
@@ -930,6 +965,26 @@ module l1_control
     )
 
     // ------------------------------------------------------------------
+    // Victim line payload (the ONE copy of the dirty victim line). Gathered
+    // a beat per MISS_VICTIM cycle from data-array port A; held unchanged
+    // from the gather-complete strobe through the drain's last W beat
+    // (single-outstanding miss flow: MISS_VICTIM -> MISS_DRAIN -> MISS_FILL,
+    // and a snoop detour never writes it). Qualified by mv_cnt_q /
+    // victim_valid, so it carries no reset: a payload register under the
+    // async reset macro cannot be a RAM and costs a recovery-timed reset
+    // net on the FPGA for no functional gain (GLOBAL_REQUIREMENTS 1.4
+    // shape; FPGA review 2026-11-07). The drain and the snoop CD bypass
+    // both read it by beat (ctrl_victim_beat_data / victim_sn_word), so
+    // the store is one word per beat and maps to distributed RAM.
+    // ------------------------------------------------------------------
+    always_ff @(posedge clk) begin
+        if (state_q == OH_MISS_VICTIM
+            && mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS)) begin
+            victim_line_mem[mv_cnt_q[BEAT_INDEX_WIDTH-1:0]] <= ctrl_data_a_rdata;
+        end
+    end
+
+    // ------------------------------------------------------------------
     // Outputs
     // ------------------------------------------------------------------
     always_comb begin
@@ -953,6 +1008,16 @@ module l1_control
         // fill way -- the fill's beats -- an installed hit its own way)
         ctrl_data_b_addr = {sn_set_q, sn_beat_q};
         ctrl_data_b_way  = sn_pf_q ? victim_way_q : sn_hit_way_q;
+        if (DATA_SYNC_READ) begin
+            // registered read: present the beat the NEXT cycle streams --
+            // beat 0 of the granted line at the grant, the post-handshake
+            // beat during the stream (held while the beat is gated)
+            if (snoop_gnt)
+                ctrl_data_b_addr = {sn_set_grant, {BEAT_INDEX_WIDTH{1'b0}}};
+            else if (state_q == OH_SNOOP && sn_beat_gated && ctrl_cdready)
+                ctrl_data_b_addr = {sn_set_q,
+                                    BEAT_INDEX_WIDTH'(sn_beat_q + 1'b1)};
+        end
 
         // replacement
         ctrl_repl_req     = 1'b0;
@@ -965,7 +1030,6 @@ module l1_control
         ctrl_victim_load    = 1'b0;
         ctrl_victim_addr_in = {victim_tag_q, req_set,
                                {LINE_OFFSET_WIDTH{1'b0}}};
-        ctrl_victim_data_in = victim_line_q;
         ctrl_fill_start     = 1'b0;
         ctrl_fill_addr      = req_line_base;
         ctrl_drain_start    = 1'b0;
@@ -978,10 +1042,7 @@ module l1_control
         // ch02/05 bypass -- the line is owned there while the drain is
         // outstanding); every other transfer reads the data array on
         // port B
-        ctrl_cddata  = sn_victim_q
-                       ? victim_buf_data[32'(sn_beat_q) * BUS_WIDTH
-                                         +: BUS_WIDTH]
-                       : ctrl_data_b_rdata;
+        ctrl_cddata  = sn_victim_q ? victim_sn_word : ctrl_data_b_rdata;
         ctrl_cdlast  = 1'b0;
         ctrl_cdvalid = 1'b0;
 
@@ -994,6 +1055,14 @@ module l1_control
                 ctrl_tag_a_wr_way_onehot = {WAYS{1'b1}};
                 ctrl_tag_a_wr_set        = init_cnt_q;
                 ctrl_tag_a_wr_tag_state  = { {TAG_WIDTH{1'b0}}, AMBER_STATE_I };
+            end
+            OH_LOOKUP: begin
+                // registered array read: a miss gathers from beat 0 next
+                // cycle, so beat 0's address is presented here; the hit
+                // path keeps the default {req_set, req_beat} already
+                // presented, read at this edge, consumed in HIT_RD
+                if (DATA_SYNC_READ && state_d == OH_MISS_VICTIM)
+                    ctrl_data_a_addr = {req_set, {BEAT_INDEX_WIDTH{1'b0}}};
             end
             OH_HIT_WR: begin
                 // byte-merge write; promote E->M (M keeps its tag entry).
@@ -1020,6 +1089,14 @@ module l1_control
                 end else begin
                     ctrl_victim_load = 1'b1;
                 end
+                // registered array read: the address leads the capture by
+                // one cycle -- beat 0 was presented during LOOKUP, so
+                // gather cycle k presents beat k+1 (the way select is
+                // after the register and keeps its cycle)
+                if (DATA_SYNC_READ
+                    && mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS))
+                    ctrl_data_a_addr = {req_set,
+                                        BEAT_INDEX_WIDTH'(mv_cnt_q + 1'b1)};
             end
             OH_MISS_FILL: begin
                 ctrl_fill_start = !fill_seen_q;

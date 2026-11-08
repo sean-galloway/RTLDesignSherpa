@@ -38,6 +38,9 @@ class L1DataArrayTB(TBBase):
         self.WAYS = self.convert_to_int(os.environ.get('WAYS', '4'))
         self.LINE_BYTES = self.convert_to_int(os.environ.get('LINE_BYTES', '64'))
         self.BUS_WIDTH = self.convert_to_int(os.environ.get('BUS_WIDTH', '64'))
+        # SYNC_READ=1: *_rdata is the word at the address presented the
+        # previous cycle (block-RAM shape); the read check waits one edge
+        self.SYNC_READ = self.convert_to_int(os.environ.get('SYNC_READ', '0'))
         self.SET_INDEX_WIDTH = (self.SETS - 1).bit_length()
         self.FILL_BEATS = self.LINE_BYTES // (self.BUS_WIDTH // 8)
         self.BEAT_INDEX_WIDTH = (self.FILL_BEATS - 1).bit_length()
@@ -47,7 +50,8 @@ class L1DataArrayTB(TBBase):
         self.model = {}
         self.log.info(f"L1DataArrayTB sets={self.SETS} ways={self.WAYS} "
                       f"line_bytes={self.LINE_BYTES} bus_width={self.BUS_WIDTH} "
-                      f"fill_beats={self.FILL_BEATS} level={self.TEST_LEVEL} "
+                      f"fill_beats={self.FILL_BEATS} sync_read={self.SYNC_READ} "
+                      f"level={self.TEST_LEVEL} "
                       f"seed={self.SEED}")
 
     # -- the three mandatory methods; clock but no reset port ----------------
@@ -101,6 +105,8 @@ class L1DataArrayTB(TBBase):
         self.dut.a_way.value = way
         self.dut.b_addr.value = self._addr(set_idx, beat)
         self.dut.b_way.value = way
+        if self.SYNC_READ:
+            await RisingEdge(self.dut.clk)
         await Timer(1, units='ns')
         exp = self.model[(way, set_idx, beat)]
         self._score(f"a_rdata[way={way}][set={set_idx}][beat={beat}]",

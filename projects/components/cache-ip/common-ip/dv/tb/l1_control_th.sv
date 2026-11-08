@@ -96,7 +96,8 @@ module l1_control_th
     output logic                      drain_start,
     output logic                      victim_load,
     output logic [ADDR_WIDTH-1:0]     victim_addr,
-    output logic [LINE_BYTES*8-1:0]   victim_data,
+    input  logic [$clog2(LINE_BYTES/(BUS_WIDTH/8))-1:0] victim_beat_idx,  // the victim line is read by beat
+    output logic [BUS_WIDTH-1:0]      victim_beat_data,
 
     // fill-beat datapath: the stub writes received beats into the data
     // array and strobes the beat index to control (pf_data_valid update,
@@ -217,7 +218,8 @@ module l1_control_th
         .ctrl_repl_hit_way       (ctrl_repl_hit_way),
         .ctrl_victim_load        (victim_load),
         .ctrl_victim_addr_in     (victim_addr),
-        .ctrl_victim_data_in     (victim_data),
+        .ctrl_victim_beat_idx    (victim_beat_idx),
+        .ctrl_victim_beat_data   (victim_beat_data),
         .ctrl_fill_start         (fill_start),
         .ctrl_fill_addr          (fill_addr),
         .ctrl_req_class          (fill_req_class),

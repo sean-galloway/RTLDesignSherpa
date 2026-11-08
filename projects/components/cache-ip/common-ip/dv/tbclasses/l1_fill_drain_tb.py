@@ -18,7 +18,7 @@ Levels (TEST_LEVEL):
            no AR at all), DrainBurstWaveform
   func  -- + ReadUniqueData, RBackpressureIntegrity, WBackpressurePayloadHold
            (+AW/AR payload-hold laws), BResponseDelay, SingleOutstanding
-           streams, WritebackRoundTrip, DrainLatchesPayload
+           streams, WritebackRoundTrip, DrainLatchesAddress
   full  -- + FillRandomSoak / DrainRandomSoak: SEED-pinned randomized
            concurrent streams (independent AXI channels, disjoint address
            ranges) with mid-stream responder-profile switches and a final
@@ -429,8 +429,11 @@ class L1FillDrainTB(TBBase):
         await self._negedge_settled()
         d.drain_start.value = 0
         if not hold_payload:
+            # the address registers at drain_start; the DATA pins are the
+            # integration's gather register and hold for the whole drain
+            # window by contract (l1_drain carries no second copy of the
+            # line), so only the address is corrupted here
             d.victim_addr.value = 0
-            d.victim_data.value = 0
         return pos
 
     # ------------------------------------------------------------------
@@ -697,9 +700,13 @@ class L1FillDrainTB(TBBase):
         await self.do_fill(addr, ACE_READ_SHARED, 'rt:fill', exp_line=line)
         self.log.info("WritebackRoundTrip directed done")
 
-    async def _drain_latches_payload(self):
-        # DrainLatchesPayload (func): the payload registers at drain_start;
-        # corrupting the pins right after the start must not change AW/W
+    async def _drain_latches_address(self):
+        # DrainLatchesAddress (func): the address registers at drain_start;
+        # corrupting the address pin right after the start must not change
+        # AW. The data pins are held (see _launch_drain): the drain reads
+        # victim_data live, and the control FSM holds it stable by
+        # construction -- that contract is covered by the control-side
+        # tests (WritebackRoundTrip, l1_control / l1_core drains).
         addr = 0x0001_4000
         seed = random.randrange(2 ** 31)
         line = self._line_bytes(addr, seed)
@@ -709,15 +716,15 @@ class L1FillDrainTB(TBBase):
         sl = self._slice(pos, done_cyc)
         fub_aw = [p for _, k, p in sl if k == 'fub_aw']
         fub_w = [p for _, k, p in sl if k == 'fub_w']
-        self._score("latch: AW addr is the pre-corruption payload",
+        self._score("latch: AW addr is the pre-corruption address",
                     fub_aw[0]['addr'] if fub_aw else None, addr)
         for i, p in enumerate(fub_w):
-            self._score(f"latch: W beat{i} is the pre-corruption payload",
+            self._score(f"latch: W beat{i} is the held payload",
                         p['data'], self._beat(line, i))
-        self._score("latch: memory holds the pre-corruption payload",
+        self._score("latch: memory holds the payload at the latched address",
                     self._model_line(addr), line)
         self.drains += 1
-        self.log.info("DrainLatchesPayload directed done")
+        self.log.info("DrainLatchesAddress directed done")
 
     # ------------------------------------------------------------------
     # FULL soak: concurrent randomized fill + drain streams
@@ -775,8 +782,8 @@ class L1FillDrainTB(TBBase):
             self.scenarios['SingleOutstanding'] = True
             await self._writeback_round_trip()
             self.scenarios['WritebackRoundTrip'] = True
-            await self._drain_latches_payload()
-            self.scenarios['DrainLatchesPayload'] = True
+            await self._drain_latches_address()
+            self.scenarios['DrainLatchesAddress'] = True
 
         if self.TEST_LEVEL == 'full':
             # concurrent engines on disjoint address ranges; the shared

@@ -30,15 +30,25 @@
 //   stays inside one cycle.
 //
 //   Address into the storage is the set index; ways are decoded on writes
-//   by wr_way_onehot. The flat storage index is way * SETS + set.
+//   by wr_way_onehot. Each way is its own SETS-deep array inside a
+//   generate loop (g_way[w].mem), so every storage process has exactly
+//   one write address per cycle.
 //
 //   The storage is NOT a shared sdpram_core instance: sdpram_core is a
 //   FUB/AXI burst slave (rtl/amba/shared), the wrong shape for a
-//   multi-way parallel lookup. The inferred distributed-RAM array below
-//   is the same idiom the house FIFOs use internally, with the
+//   multi-way parallel lookup. The inferred distributed-RAM arrays below
+//   are the same idiom the house FIFOs use internally, with the
 //   GLOBAL_REQUIREMENTS 1.2 attributes. Combinational read maps to LUT
-//   RAM; per-way physical banking (MAS) is a synthesis-time consequence
-//   of the flat index, not a generate structure.
+//   RAM.
+//
+//   FPGA note (2026-11-07): the previous flat `mem [SETS * WAYS]` with a
+//   per-way write loop in one process gave Vivado several write addresses
+//   per process, so it dissolved the array into flops: 11,264 FF plus
+//   ~23k LUT of 128:1 read muxes per core on the Kintex-7 pair rig. The
+//   per-way generate synthesizes the same contents to 184 LUT + 608
+//   LUTRAM primitives and no flops (measured out of context, 128x4x22).
+//   Same ports, same cycle behaviour. See
+//   vault/handbook/design/sram-and-memories.md.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -133,30 +143,30 @@ module l1_tag_array
             $error("l1_tag_array: ADDR_WIDTH too small for SETS/LINE_BYTES");
     end
 
-    // Per-way storage, flattened to one dimension (GLOBAL_REQUIREMENTS
-    // 1.3); index way * SETS + set. Combinational read => distributed RAM.
+    // Per-way storage: one SETS-deep array per way (GLOBAL_REQUIREMENTS
+    // 1.3 array syntax), one write address per process, combinational
+    // read => distributed RAM. Logical layout is unchanged from the old
+    // flat index way * SETS + set.
+    generate
+        for (genvar w = 0; w < WAYS; w++) begin : g_way
 `ifdef XILINX
-    (* ram_style = "distributed" *)
+            (* ram_style = "distributed" *)
 `elsif SYNTH_PRAGMA
-    /* synthesis ramstyle = "MLAB" */
+            /* synthesis ramstyle = "MLAB" */
 `endif
-    logic [TAG_STATE_WIDTH-1:0] mem [SETS * WAYS];
+            logic [TAG_STATE_WIDTH-1:0] mem [SETS];
 
-    always_ff @(posedge clk) begin
-        if (wr_en) begin
-            for (int w = 0; w < WAYS; w++) begin
-                if (wr_way_onehot[w]) begin
-                    mem[w * SETS + 32'(wr_set)] <= wr_tag_state;
+            always_ff @(posedge clk) begin
+                if (wr_en && wr_way_onehot[w]) begin
+                    mem[wr_set] <= wr_tag_state;
                 end
             end
-        end
-    end
 
-    always_comb begin
-        for (int w = 0; w < WAYS; w++) begin
-            a_tag_state[w] = mem[w * SETS + 32'(a_set)];
-            b_tag_state[w] = mem[w * SETS + 32'(b_set)];
+            always_comb begin
+                a_tag_state[w] = mem[a_set];
+                b_tag_state[w] = mem[b_set];
+            end
         end
-    end
+    endgenerate
 
 endmodule : l1_tag_array

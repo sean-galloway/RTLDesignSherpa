@@ -47,8 +47,10 @@ async def cocotb_test_l1_data_array(dut):
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
+@pytest.mark.parametrize("sync_read", [0, 1])
 @pytest.mark.parametrize("sets,ways,line_bytes,bus_width", GEOMS)
-def test_l1_data_array(request, sets, ways, line_bytes, bus_width, test_level):
+def test_l1_data_array(request, sets, ways, line_bytes, bus_width, sync_read,
+                       test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_common': 'projects/components/cache-ip/common-ip/rtl/fub',
@@ -57,16 +59,19 @@ def test_l1_data_array(request, sets, ways, line_bytes, bus_width, test_level):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=f'{FILELIST_DIR}/l1_data_array.f')
 
-    test_name_plus_params = f"test_{dut_name}_s{TBBase.format_dec(sets, 3)}w{ways}b{bus_width}_{test_level}"
+    test_name_plus_params = (f"test_{dut_name}_s{TBBase.format_dec(sets, 3)}w{ways}"
+                             f"b{bus_width}{'_sync' if sync_read else ''}_{test_level}")
     os.makedirs(log_dir, exist_ok=True)   # clean-all removes logs/
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     rtl_parameters = {'SETS': str(sets), 'WAYS': str(ways),
-                      'LINE_BYTES': str(line_bytes), 'BUS_WIDTH': str(bus_width)}
+                      'LINE_BYTES': str(line_bytes), 'BUS_WIDTH': str(bus_width),
+                      'SYNC_READ': str(sync_read)}
     extra_env = level_env(test_level, SETS=sets, WAYS=ways, LINE_BYTES=line_bytes,
-                          BUS_WIDTH=bus_width, DUT=dut_name, LOG_PATH=log_path,
+                          BUS_WIDTH=bus_width, SYNC_READ=sync_read,
+                          DUT=dut_name, LOG_PATH=log_path,
                           COCOTB_LOG_LEVEL='INFO')
 
     compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"] if enable_waves else []

@@ -95,7 +95,8 @@ module l1_monlite_th
     output logic                      drain_start,
     output logic                      victim_load,
     output logic [ADDR_WIDTH-1:0]     victim_addr,
-    output logic [LINE_BYTES*8-1:0]   victim_data,
+    input  logic [$clog2(LINE_BYTES/(BUS_WIDTH/8))-1:0] victim_beat_idx,
+    output logic [BUS_WIDTH-1:0]      victim_beat_data,
 
     // fill-beat datapath (TB stub writes received beats into the data array)
     input  logic                       fillbeat_wr_en,
@@ -185,7 +186,8 @@ module l1_monlite_th
         .drain_start       (drain_start),
         .victim_load       (victim_load),
         .victim_addr       (victim_addr),
-        .victim_data       (victim_data),
+        .victim_beat_idx   (victim_beat_idx),
+        .victim_beat_data  (victim_beat_data),
         .fillbeat_wr_en    (fillbeat_wr_en),
         .fillbeat_wr_addr  (fillbeat_wr_addr),
         .fillbeat_wr_way   (fillbeat_wr_way),

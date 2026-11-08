@@ -58,7 +58,6 @@ class L1VictimTB(TBBase):
         self.dut.victim_load.value = 0
         self.dut.victim_clear.value = 0
         self.dut.victim_addr_in.value = 0
-        self.dut.victim_data_in.value = 0
         await self.assert_reset()
         await self.wait_clocks('clk', 3)
         await self.deassert_reset()
@@ -83,7 +82,6 @@ class L1VictimTB(TBBase):
         self.dut.victim_load.value = 1 if load else 0
         self.dut.victim_clear.value = 1 if clear else 0
         self.dut.victim_addr_in.value = addr
-        self.dut.victim_data_in.value = data
         await RisingEdge(self.dut.clk)
         # model: clear wins; a load while busy is ignored (depth-1 safety net)
         if clear:
@@ -102,8 +100,6 @@ class L1VictimTB(TBBase):
         if self.m_valid:
             self._score(f"{tag} victim_addr", int(self.dut.victim_addr.value),
                         self.m_addr)
-            self._score(f"{tag} victim_data", int(self.dut.victim_data.value),
-                        self.m_data)
         self.dut.victim_load.value = 0
         self.dut.victim_clear.value = 0
 
@@ -121,7 +117,6 @@ class L1VictimTB(TBBase):
         self._score("reset victim_busy", int(self.dut.victim_busy.value), 0)
         self._score("reset victim_empty", int(self.dut.victim_empty.value), 1)
         self._score("reset victim_addr", int(self.dut.victim_addr.value), 0)
-        self._score("reset victim_data", int(self.dut.victim_data.value), 0)
 
         # Directed: load arms valid + payload the next cycle.
         addr, data = self._rand_addr(), self._rand_data()

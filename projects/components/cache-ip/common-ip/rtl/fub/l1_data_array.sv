@@ -97,6 +97,16 @@ module l1_data_array
     parameter int WAYS       = AMBER_WAYS,
     parameter int LINE_BYTES = AMBER_LINE_BYTES,
     parameter int BUS_WIDTH  = AMBER_BUS_WIDTH,
+    // 0: combinational read (distributed RAM; the original contract).
+    // 1: registered read -- *_rdata is the word at the address presented
+    //    the PREVIOUS cycle; the way select stays after the register so
+    //    *_way may arrive with the data. This is the block-RAM shape: on
+    //    the Kintex-7 pair rig the combinational form is 16k LUTRAM +
+    //    8.7k F7/F8 muxes per core, the registered form 16 RAMB36 +
+    //    ~140 LUT (FPGA review 2026-11-07). Read-before-write: a read of
+    //    the address written at the same edge returns the OLD word; the
+    //    controller never consumes that word (l1_control DATA_SYNC_READ).
+    parameter bit SYNC_READ  = 1'b0,
     localparam int STRB_W          = BUS_WIDTH / 8,
     localparam int FILL_BEATS      = LINE_BYTES / STRB_W,
     localparam int SET_INDEX_WIDTH = $clog2(SETS),
@@ -143,9 +153,11 @@ module l1_data_array
     // per process; the one-hot way select picks the array, and the byte
     // enables pick the lanes within the beat.  This is the same logical
     // layout as the old flat index (way * (SETS * FILL_BEATS) + {set,beat}).
-    // The combinational read maps to distributed RAM, matching the cache
-    // single-cycle hit path; the restructure avoids the "multiple writes in
-    // one process" pattern that made Vivado dissolve the flat array.
+    // SYNC_READ=0: the combinational read maps to distributed RAM.
+    // SYNC_READ=1: the registered read maps to block RAM (two copies, one
+    // per read port). Either way the restructure avoids the "multiple
+    // writes in one process" pattern that made Vivado dissolve the flat
+    // array.
     logic [BUS_WIDTH-1:0] a_rdata_per_way [WAYS];
     logic [BUS_WIDTH-1:0] b_rdata_per_way [WAYS];
 
@@ -168,9 +180,16 @@ module l1_data_array
                 end
             end
 
-            always_comb begin
-                a_rdata_per_way[w] = mem[a_addr];
-                b_rdata_per_way[w] = mem[b_addr];
+            if (SYNC_READ) begin : g_sync
+                always_ff @(posedge clk) begin
+                    a_rdata_per_way[w] <= mem[a_addr];
+                    b_rdata_per_way[w] <= mem[b_addr];
+                end
+            end else begin : g_comb
+                always_comb begin
+                    a_rdata_per_way[w] = mem[a_addr];
+                    b_rdata_per_way[w] = mem[b_addr];
+                end
             end
         end
     endgenerate

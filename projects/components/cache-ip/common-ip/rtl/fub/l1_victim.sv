@@ -92,6 +92,11 @@ module l1_victim
     parameter int SETS       = AMBER_SETS,
     parameter int LINE_BYTES = AMBER_LINE_BYTES,
     parameter int BUS_WIDTH  = AMBER_BUS_WIDTH,
+    // The buffer holds the victim's ADDRESS and valid only.  The line
+    // payload lives in the integration's beat-addressed victim store (a
+    // small RAM in l1_control, read by beat by the drain and the snoop CD
+    // bypass); a line-wide copy here was 512 flops per core for nothing
+    // (FPGA review 2026-11-07).
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int STRB_W            = BUS_WIDTH / 8,
     localparam int FILL_BEATS        = LINE_BYTES / STRB_W,
@@ -104,7 +109,6 @@ module l1_victim
     // gather-complete strobe, DECISION D-5)
     input  logic                      victim_load,
     input  logic [ADDR_WIDTH-1:0]     victim_addr_in,
-    input  logic [LINE_WIDTH-1:0]     victim_data_in,
 
     // clear: the write-back completed (ctrl_drain_done)
     input  logic                      victim_clear,
@@ -113,8 +117,7 @@ module l1_victim
     output logic                      victim_busy,
     output logic                      victim_empty,
     output logic                      victim_valid,
-    output logic [ADDR_WIDTH-1:0]     victim_addr,
-    output logic [LINE_WIDTH-1:0]     victim_data
+    output logic [ADDR_WIDTH-1:0]     victim_addr
 );
 
     // ------------------------------------------------------------------
@@ -136,30 +139,28 @@ module l1_victim
     // ------------------------------------------------------------------
     logic                    victim_valid_q;
     logic [ADDR_WIDTH-1:0]   victim_addr_q;
-    logic [LINE_WIDTH-1:0]   victim_data_q;
+
+    // the !victim_valid_q guard is the depth-1 safety net: a load
+    // requested while busy is ignored, never overwriting a victim whose
+    // write-back is still in flight (MAS ch02_blocks/05). The control FSM
+    // never requests it.
+    wire w_load = victim_load && !victim_valid_q && !victim_clear;
 
     assign victim_valid = victim_valid_q;
     assign victim_busy  = victim_valid_q;
     assign victim_empty = !victim_valid_q;
     assign victim_addr  = victim_addr_q;
-    assign victim_data  = victim_data_q;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             victim_valid_q <= 1'b0;
             victim_addr_q  <= '0;
-            victim_data_q  <= '0;
         end else begin
             if (victim_clear) begin
                 victim_valid_q <= 1'b0;
-            end else if (victim_load && !victim_valid_q) begin
-                // the !victim_valid_q guard is the depth-1 safety net: a
-                // load requested while busy is ignored, never overwriting
-                // a victim whose write-back is still in flight (MAS
-                // ch02_blocks/05). The control FSM never requests it.
+            end else if (w_load) begin
                 victim_valid_q <= 1'b1;
                 victim_addr_q  <= victim_addr_in;
-                victim_data_q  <= victim_data_in;
             end
         end
     )

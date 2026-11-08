@@ -392,7 +392,7 @@ class L1ControlTB(TBBase):
             if int(d.victim_load.value):
                 self.events.append((self.cyc, 'victim_load', {
                     'addr': int(d.victim_addr.value),
-                    'data': int(d.victim_data.value),
+                    'data': await self._victim_line(),
                 }))
             if int(d.repl_req.value):
                 self.events.append((self.cyc, 'repl_req', {
@@ -481,7 +481,7 @@ class L1ControlTB(TBBase):
             await self._negedge_settled()
             got_vld = int(leaf.victim_valid.value)
             got_addr = int(leaf.victim_addr.value)
-            got_data = int(leaf.victim_data.value)
+            got_data = await self._victim_line()
             self._score('victim inv: busy == valid',
                         int(leaf.victim_busy.value), got_vld)
             self._score('victim inv: empty == !valid',
@@ -496,11 +496,25 @@ class L1ControlTB(TBBase):
                 self._score('victim inv: never load while busy', got_vld, 0)
                 exp_vld = 1
                 exp_addr = int(d.victim_addr.value)
-                exp_data = int(d.victim_data.value)
+                exp_data = await self._victim_line()
             elif int(d.drain_done.value):
                 # the clear lands at the upcoming edge: valid must still be
                 # set NOW (held through the drain-done cycle) and drop next
                 exp_vld = 0
+
+    async def _victim_line(self):
+        """The staged victim line, assembled from the control's
+        beat-addressed store (u_control.victim_line_mem -- a small RAM;
+        nothing exports the line whole any more).  Read-only hierarchical
+        peek, like the tag-array peeks; works in every harness, including
+        the ones whose drain owns the beat-index port."""
+        mem = self.dut.u_control.victim_line_mem
+        bw = len(mem[0])
+        n = self.LINE_BYTES * 8 // bw
+        val = 0
+        for b in range(n):
+            val |= int(mem[b].value) << (b * bw)
+        return val
 
     async def _victim_way_tracker(self):
         """The fill stub needs the install way; it observes the same repl
@@ -1815,7 +1829,7 @@ class L1ControlTB(TBBase):
         self._score("vbh: addr is the victim line base",
                     int(leaf.victim_addr.value), exp_addr)
         self._score("vbh: data is the staged line",
-                    int(leaf.victim_data.value), exp_data)
+                    await self._victim_line(), exp_data)
         # window endpoint: held through drain_done, clear the next cycle
         saw_done = False
         for _ in range(self.RSP_TIMEOUT_CYCLES):
@@ -1825,7 +1839,7 @@ class L1ControlTB(TBBase):
                             int(leaf.victim_valid.value), 1)
                 self._score("vbh: addr held", int(leaf.victim_addr.value),
                             exp_addr)
-                self._score("vbh: data held", int(leaf.victim_data.value),
+                self._score("vbh: data held", await self._victim_line(),
                             exp_data)
                 if int(d.drain_done.value):
                     saw_done = True

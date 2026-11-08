@@ -25,8 +25,10 @@
 // Module: l1_repl
 //==============================================================================
 // Description:
-//   Policy state is per-set control state (not SRAM), so it carries a
-//   reset and initializes to a deterministic permutation / zero state.
+//   Policy state is per-set control state. It initializes to a
+//   deterministic permutation / zero state; the LRU store keeps its
+//   words in a reset-free RAM and tracks initialization per set (see
+//   gen_lru), the other policies carry a reset on the state itself.
 //   The victim way is combinational on the current policy state; updates
 //   are synchronous on repl_hit or repl_update (mutually exclusive in the
 //   blocking pipeline -- a cycle is a hit service or a miss install, never
@@ -153,35 +155,68 @@ module l1_repl
     // =========================================================================
     if (REPL_POLICY == int'(AMBER_REPL_LRU)) begin : gen_lru
 
-        logic [RANK_WIDTH-1:0] rank [SETS * WAYS];
+        // Per-set rank word {rank[WAYS-1], ..., rank[0]}, RANK_WIDTH bits
+        // per way. An access reads one word and writes one word, so the
+        // store is a SETS-deep distributed RAM with a single write address
+        // per process and no reset (GLOBAL_REQUIREMENTS 1.4). The reset
+        // permutation rank[w] = w is substituted by rank_vld: one flop per
+        // set, cleared by reset, set on the set's first access.
+        //
+        // FPGA note (2026-11-07): the previous `rank [SETS * WAYS]` array
+        // under the reset macro was 1,024 flops + ~400 LUT per core on the
+        // Kintex-7 pair rig (Vivado cannot infer RAM through an async
+        // reset). This form is SETS flops + a handful of LUTRAM. Same
+        // victim sequence, same ports.
+        localparam int RANK_WORD_W = WAYS * RANK_WIDTH;
 
-        wire [RANK_WIDTH-1:0] old_rank =
-            rank[32'(repl_set) * WAYS + 32'(repl_hit_way)];
+        logic [RANK_WORD_W-1:0] rank_init;
+        always_comb begin
+            rank_init = '0;
+            for (int w = 0; w < WAYS; w++)
+                rank_init[w * RANK_WIDTH +: RANK_WIDTH] = RANK_WIDTH'(w);
+        end
+
+`ifdef XILINX
+        (* ram_style = "distributed" *)
+`elsif SYNTH_PRAGMA
+        /* synthesis ramstyle = "MLAB" */
+`endif
+        logic [RANK_WORD_W-1:0] rank_mem [SETS];
+        logic [SETS-1:0]        rank_vld;
+
+        wire  [RANK_WORD_W-1:0] rank_cur =
+            rank_vld[repl_set] ? rank_mem[repl_set] : rank_init;
+        wire  [RANK_WIDTH-1:0]  old_rank =
+            rank_cur[32'(repl_hit_way) * RANK_WIDTH +: RANK_WIDTH];
+        logic [RANK_WORD_W-1:0] rank_nxt;
 
         always_comb begin
             repl_victim_way = '0;
             for (int w = 0; w < WAYS; w++) begin
-                if (rank[32'(repl_set) * WAYS + w] == RANK_WIDTH'(WAYS - 1))
+                if (rank_cur[w * RANK_WIDTH +: RANK_WIDTH] == RANK_WIDTH'(WAYS - 1))
                     repl_victim_way = WAY_INDEX_WIDTH'(w);
             end
         end
 
-        `ALWAYS_FF_RST(clk, rst_n,
-            if (`RST_ASSERTED(rst_n)) begin
-                for (int s = 0; s < SETS; s++) begin
-                    for (int w = 0; w < WAYS; w++) begin
-                        rank[s * WAYS + w] <= RANK_WIDTH'(w);
-                    end
-                end
-            end else if (w_access) begin
-                for (int w = 0; w < WAYS; w++) begin
-                    if (WAY_INDEX_WIDTH'(w) == repl_hit_way)
-                        rank[32'(repl_set) * WAYS + w] <= '0;
-                    else if (rank[32'(repl_set) * WAYS + w] < old_rank)
-                        rank[32'(repl_set) * WAYS + w] <=
-                            rank[32'(repl_set) * WAYS + w] + 1'b1;
-                end
+        // touched way -> MRU (0); ways more recent than it age by one
+        always_comb begin
+            rank_nxt = rank_cur;
+            for (int w = 0; w < WAYS; w++) begin
+                if (WAY_INDEX_WIDTH'(w) == repl_hit_way)
+                    rank_nxt[w * RANK_WIDTH +: RANK_WIDTH] = '0;
+                else if (rank_cur[w * RANK_WIDTH +: RANK_WIDTH] < old_rank)
+                    rank_nxt[w * RANK_WIDTH +: RANK_WIDTH] =
+                        rank_cur[w * RANK_WIDTH +: RANK_WIDTH] + 1'b1;
             end
+        end
+
+        always_ff @(posedge clk) begin
+            if (w_access) rank_mem[repl_set] <= rank_nxt;
+        end
+
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) rank_vld <= '0;
+            else if (w_access)        rank_vld[repl_set] <= 1'b1;
         )
 
     // =========================================================================

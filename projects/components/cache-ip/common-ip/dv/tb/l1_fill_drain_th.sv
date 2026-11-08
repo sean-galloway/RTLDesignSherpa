@@ -278,6 +278,7 @@ module l1_fill_drain_th
     logic [3:0]            drain_awregion;
     logic [0:0]            drain_awuser;
     logic                  drain_awvalid;
+    logic [BEAT_INDEX_WIDTH-1:0] drain_beat_idx;   // the drain reads the TB's line by beat
     logic                  drain_awready;
     logic [BUS_WIDTH-1:0]  drain_wdata;
     logic [STRB_W-1:0]     drain_wstrb;
@@ -301,7 +302,8 @@ module l1_fill_drain_th
         .rst_n            (rst_n),
         .drain_start      (drain_start),
         .victim_addr      (victim_addr),
-        .victim_data      (victim_data),
+        .victim_beat_idx  (drain_beat_idx),
+        .victim_beat_data (victim_data[32'(drain_beat_idx) * BUS_WIDTH +: BUS_WIDTH]),
         .drain_done       (drain_done),
         .fub_axi_awid     (drain_awid),
         .fub_axi_awaddr   (drain_awaddr),

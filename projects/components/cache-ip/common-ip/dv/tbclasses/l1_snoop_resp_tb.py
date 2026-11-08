@@ -331,7 +331,7 @@ class L1SnoopRespTB(L1ControlTB):
             if int(d.victim_load.value):
                 self.events.append((self.cyc, 'victim_load', {
                     'addr': int(d.victim_addr.value),
-                    'data': int(d.victim_data.value),
+                    'data': await self._victim_line(),
                 }))
             if int(d.repl_req.value):
                 self.events.append((self.cyc, 'repl_req', {

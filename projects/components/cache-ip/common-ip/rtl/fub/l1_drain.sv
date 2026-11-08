@@ -122,11 +122,14 @@ module l1_drain
     input  logic clk,
     input  logic rst_n,
 
-    // l1_control handshake + staged victim payload (MAS ch02_blocks/06;
-    // the payload pins model ctrl_victim_addr_in / ctrl_victim_data_in)
+    // l1_control handshake + staged victim payload (MAS ch02_blocks/06).
+    // The payload is read BY BEAT: the drain presents the beat index and
+    // the integration's victim store (a small RAM) returns that word the
+    // same cycle; no line-wide payload bus (FPGA review 2026-11-07).
     input  logic                    drain_start,
     input  logic [ADDR_WIDTH-1:0]   victim_addr,
-    input  logic [LINE_WIDTH-1:0]   victim_data,
+    output logic [BEAT_INDEX_WIDTH-1:0] victim_beat_idx,
+    input  logic [BUS_WIDTH-1:0]    victim_beat_data,
     output logic                    drain_done,
 
     // fub_axi upstream side of axi4_master_wr (DECISION D3)
@@ -182,7 +185,6 @@ module l1_drain
 
     logic [2:0]            state_q, state_d;
     logic [ADDR_WIDTH-1:0] addr_q;
-    logic [LINE_WIDTH-1:0] data_q;
     logic [BEAT_INDEX_WIDTH-1:0] beat_cnt_q;
 
     // ------------------------------------------------------------------
@@ -216,13 +218,11 @@ module l1_drain
         if (`RST_ASSERTED(rst_n)) begin
             state_q    <= D_IDLE;
             addr_q     <= '0;
-            data_q     <= '0;
             beat_cnt_q <= '0;
         end else begin
             state_q <= state_d;
             if (state_q == D_IDLE && drain_start) begin
                 addr_q     <= victim_addr;
-                data_q     <= victim_data;
                 beat_cnt_q <= '0;
             end else if (state_q == D_W && fub_axi_wvalid && fub_axi_wready
                          && !fub_axi_wlast) begin
@@ -248,10 +248,17 @@ module l1_drain
     assign fub_axi_awuser   = '0;
     assign fub_axi_awvalid  = (state_q == D_AW);
 
-    // W channel: victim beats forwarded directly (D-6); payload from the
-    // latched line register, so it holds under responder backpressure
-    assign fub_axi_wdata    = data_q[32'(beat_cnt_q) * BUS_WIDTH
-                                     +: BUS_WIDTH];
+    // W channel: victim beats forwarded directly (D-6) from the victim_data
+    // pins. The integration (l1_control's gather register, held for the
+    // whole drain window because the miss flow is single-outstanding)
+    // keeps the line stable from drain_start through the last W beat, so
+    // the drain carries no second 512-bit copy of it.
+    //
+    // FPGA note (2026-11-07): the latched copy this replaces was 512
+    // flops per core plus the enable fan-out; the line already lives in
+    // l1_control (victim_line_q) for the same window.
+    assign victim_beat_idx  = beat_cnt_q;
+    assign fub_axi_wdata    = victim_beat_data;
     assign fub_axi_wstrb    = {STRB_W{1'b1}};
     assign fub_axi_wlast    = (beat_cnt_q == BEAT_INDEX_WIDTH'(FILL_BEATS - 1));
     assign fub_axi_wuser    = '0;
