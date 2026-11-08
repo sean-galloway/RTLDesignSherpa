@@ -6,7 +6,11 @@
 # sub-blocks control instantiates) + l1_control. The tag/data/repl arrays
 # stay outside: the wrapper models the tag store abstractly and frees the
 # rest (see formal_amber_control.sv).
-# Geometry: the tiny formal configuration SETS=16 / WAYS=2 / 64B / 64b.
+# Geometry: the tiny formal configuration SETS=16 / WAYS=2 / 64B / 64b,
+# DATA_SYNC_READ=1 (the amber l1_coh_core configuration: block-RAM data
+# array, port-A address leads the gather by one cycle). The data port is
+# free in the wrapper, so the sync-read timing is covered by the S8
+# victim-CD check against the staged line, not by a data-value claim.
 # Regenerate the flat file whenever the RTL changes.
 
 REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
@@ -23,7 +27,7 @@ FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
 # specialize_params pins the tiny formal geometry AND deletes the parameter
 # declarations, so the DUT is parameterless and yosys's expose applies
 # (bind silently never fires in this yosys build).
-FLAT_POST       := python3 ../specialize_params.py - /dev/stdout --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 --param LINE_BYTES=64 --param BUS_WIDTH=64 --param PF_GUARD=0 --module l1_control
+FLAT_POST       := python3 ../specialize_params.py - /dev/stdout --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 --param LINE_BYTES=64 --param BUS_WIDTH=64 --param PF_GUARD=0 --param DATA_SYNC_READ=1 --module l1_control
 include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove prove-live cover all clean

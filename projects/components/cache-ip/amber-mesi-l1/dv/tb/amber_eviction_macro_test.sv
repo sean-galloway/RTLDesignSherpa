@@ -187,7 +187,7 @@ module amber_eviction_macro_test
     output logic                      drain_done,
     output logic                      victim_load,
     output logic [ADDR_WIDTH-1:0]     victim_addr,
-    output logic [LINE_BYTES*8-1:0]   victim_data,
+    output logic [BUS_WIDTH-1:0]      victim_beat_data,   // the drain's current victim word
 
     // tag-array port B: TB backdoor read, muxed against control's snoop
     // lookup (control wins while ctrl_tag_b_req is high)
@@ -231,6 +231,8 @@ module amber_eviction_macro_test
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_way;
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_hit_way;
     logic                                  ctrl_snoop_safe_nc;
+
+    logic [$clog2(LINE_BYTES/(BUS_WIDTH/8))-1:0] victim_beat_idx;
 
     l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
@@ -278,7 +280,8 @@ module amber_eviction_macro_test
         .ctrl_repl_hit_way       (ctrl_repl_hit_way),
         .ctrl_victim_load        (victim_load),
         .ctrl_victim_addr_in     (victim_addr),
-        .ctrl_victim_data_in     (victim_data),
+        .ctrl_victim_beat_idx    (victim_beat_idx),
+        .ctrl_victim_beat_data   (victim_beat_data),
         .ctrl_fill_start         (fill_start),
         .ctrl_fill_addr          (fill_addr),
         .ctrl_req_class          (fill_req_class),
@@ -342,7 +345,8 @@ module amber_eviction_macro_test
         .rst_n            (rst_n),
         .drain_start      (drain_start),
         .victim_addr      (victim_addr),
-        .victim_data      (victim_data),
+        .victim_beat_idx  (victim_beat_idx),
+        .victim_beat_data (victim_beat_data),
         .drain_done       (drain_done),
         .fub_axi_awid     (drain_awid),
         .fub_axi_awaddr   (drain_awaddr),

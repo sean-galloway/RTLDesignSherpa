@@ -91,13 +91,11 @@ module l1_victim (
 	rst_n,
 	victim_load,
 	victim_addr_in,
-	victim_data_in,
 	victim_clear,
 	victim_busy,
 	victim_empty,
 	victim_valid,
-	victim_addr,
-	victim_data
+	victim_addr
 );
 	localparam signed [31:0] l1_pkg_AMBER_ADDR_WIDTH = 32;
 	parameter signed [31:0] ADDR_WIDTH = l1_pkg_AMBER_ADDR_WIDTH;
@@ -115,43 +113,38 @@ module l1_victim (
 	input wire rst_n;
 	input wire victim_load;
 	input wire [ADDR_WIDTH - 1:0] victim_addr_in;
-	input wire [LINE_WIDTH - 1:0] victim_data_in;
 	input wire victim_clear;
 	output wire victim_busy;
 	output wire victim_empty;
 	output wire victim_valid;
 	output wire [ADDR_WIDTH - 1:0] victim_addr;
-	output wire [LINE_WIDTH - 1:0] victim_data;
 	initial begin
 		if ((SETS & (SETS - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:125:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: SETS must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:128:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: SETS must be a power of two");
 		if ((LINE_BYTES & (LINE_BYTES - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:127:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:130:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:129:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:132:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
 		if ((BUS_WIDTH % 8) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:131:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: BUS_WIDTH must be a multiple of 8");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:134:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: BUS_WIDTH must be a multiple of 8");
 	end
 	reg victim_valid_q;
 	reg [ADDR_WIDTH - 1:0] victim_addr_q;
-	reg [LINE_WIDTH - 1:0] victim_data_q;
+	wire w_load = (victim_load && !victim_valid_q) && !victim_clear;
 	assign victim_valid = victim_valid_q;
 	assign victim_busy = victim_valid_q;
 	assign victim_empty = !victim_valid_q;
 	assign victim_addr = victim_addr_q;
-	assign victim_data = victim_data_q;
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			victim_valid_q <= 1'b0;
 			victim_addr_q <= 1'sb0;
-			victim_data_q <= 1'sb0;
 		end
 		else if (victim_clear)
 			victim_valid_q <= 1'b0;
-		else if (victim_load && !victim_valid_q) begin
+		else if (w_load) begin
 			victim_valid_q <= 1'b1;
 			victim_addr_q <= victim_addr_in;
-			victim_data_q <= victim_data_in;
 		end
 endmodule
 module l1_control (
@@ -193,7 +186,8 @@ module l1_control (
 	ctrl_repl_hit_way,
 	ctrl_victim_load,
 	ctrl_victim_addr_in,
-	ctrl_victim_data_in,
+	ctrl_victim_beat_idx,
+	ctrl_victim_beat_data,
 	ctrl_fill_start,
 	ctrl_fill_addr,
 	ctrl_req_class,
@@ -272,7 +266,8 @@ module l1_control (
 	output reg [WAY_INDEX_WIDTH - 1:0] ctrl_repl_hit_way;
 	output reg ctrl_victim_load;
 	output reg [32 - 1:0] ctrl_victim_addr_in;
-	output reg [(64 * 8) - 1:0] ctrl_victim_data_in;
+	input wire [BEAT_INDEX_WIDTH - 1:0] ctrl_victim_beat_idx;
+	output wire [64 - 1:0] ctrl_victim_beat_data;
 	output reg ctrl_fill_start;
 	output reg [32 - 1:0] ctrl_fill_addr;
 	output wire [2:0] ctrl_req_class;
@@ -299,15 +294,15 @@ module l1_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:257:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:271:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:259:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:273:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:261:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:275:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:263:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:277:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:265:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:279:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
 	end
 	localparam signed [31:0] CTRL_BITS = 12;
 	localparam [11:0] OH_IDLE = 12'b000000000001;
@@ -335,7 +330,8 @@ module l1_control (
 	reg [WAY_INDEX_WIDTH - 1:0] victim_way_q;
 	reg [TAG_WIDTH - 1:0] victim_tag_q;
 	reg [2:0] victim_state_q;
-	reg [(64 * 8) - 1:0] victim_line_q;
+	reg [64 - 1:0] victim_line_mem [0:FILL_BEATS - 1];
+	wire [64 - 1:0] victim_sn_word;
 	reg [BEAT_INDEX_WIDTH:0] mv_cnt_q;
 	reg fill_seen_q;
 	reg fill_done_q;
@@ -459,7 +455,6 @@ module l1_control (
 	wire victim_empty_unused;
 	wire victim_valid;
 	wire [32 - 1:0] victim_buf_addr;
-	wire [(64 * 8) - 1:0] victim_buf_data;
 	l1_victim #(
 		.ADDR_WIDTH(32),
 		.SETS(16),
@@ -470,14 +465,14 @@ module l1_control (
 		.rst_n(rst_n),
 		.victim_load(ctrl_victim_load),
 		.victim_addr_in(ctrl_victim_addr_in),
-		.victim_data_in(ctrl_victim_data_in),
 		.victim_clear(ctrl_drain_done),
 		.victim_busy(victim_busy_unused),
 		.victim_empty(victim_empty_unused),
 		.victim_valid(victim_valid),
-		.victim_addr(victim_buf_addr),
-		.victim_data(victim_buf_data)
+		.victim_addr(victim_buf_addr)
 	);
+	assign ctrl_victim_beat_data = victim_line_mem[ctrl_victim_beat_idx];
+	assign victim_sn_word = victim_line_mem[sn_beat_q];
 	reg sn_hit_any;
 	reg [WAY_INDEX_WIDTH - 1:0] sn_hit_way;
 	reg [2:0] sn_hit_state;
@@ -633,7 +628,14 @@ module l1_control (
 	assign sn_wr_tag = ((((sn_hit_any_q && !sn_pf_q) && !sn_stale_q) && !sn_victim_q) && !sn_upgr_line_q) && (w_sn_nxt != sn_hit_state_q);
 	wire sn_beat_gated;
 	wire sn_complete;
-	assign sn_beat_gated = sn_dt_q && (sn_pf_q ? pf_data_valid[sv2v_cast_32(sn_beat_q)] : 1'b1);
+	reg [FILL_BEATS - 1:0] pf_data_valid_d1;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			pf_data_valid_d1 <= 1'sb0;
+		else
+			pf_data_valid_d1 <= pf_data_valid;
+	wire [FILL_BEATS - 1:0] pf_data_valid_rd = (1 ? pf_data_valid_d1 : pf_data_valid);
+	assign sn_beat_gated = sn_dt_q && (sn_pf_q ? pf_data_valid_rd[sv2v_cast_32(sn_beat_q)] : 1'b1);
 	function automatic signed [BEAT_INDEX_WIDTH - 1:0] sv2v_cast_9FF7F_signed;
 		input reg signed [BEAT_INDEX_WIDTH - 1:0] inp;
 		sv2v_cast_9FF7F_signed = inp;
@@ -726,7 +728,6 @@ module l1_control (
 			victim_way_q <= 1'sb0;
 			victim_tag_q <= 1'sb0;
 			victim_state_q <= 3'b000;
-			victim_line_q <= 1'sb0;
 			mv_cnt_q <= 1'sb0;
 			fill_seen_q <= 1'b0;
 			fill_done_q <= 1'b0;
@@ -828,13 +829,10 @@ module l1_control (
 						victim_way_q <= ctrl_repl_way;
 						victim_tag_q <= ctrl_tag_a_tag_state[(sv2v_cast_32(ctrl_repl_way) * TAG_STATE_WIDTH) + (TAG_STATE_WIDTH - 1)-:TAG_WIDTH];
 						victim_state_q <= mv_victim_state;
-						victim_line_q[0+:64] <= ctrl_data_a_rdata;
 						mv_cnt_q <= mv_cnt_q + 1'b1;
 					end
-					else if (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)) begin
-						victim_line_q[sv2v_cast_32(mv_cnt_q) * 64+:64] <= ctrl_data_a_rdata;
+					else if (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS))
 						mv_cnt_q <= mv_cnt_q + 1'b1;
-					end
 					else
 						mv_cnt_q <= 1'sb0;
 				OH_MISS_FILL: begin
@@ -856,6 +854,13 @@ module l1_control (
 					;
 			endcase
 		end
+	always @(posedge clk)
+		if ((state_q == OH_MISS_VICTIM) && (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)))
+			victim_line_mem[mv_cnt_q[BEAT_INDEX_WIDTH - 1:0]] <= ctrl_data_a_rdata;
+	function automatic [BEAT_INDEX_WIDTH - 1:0] sv2v_cast_9FF7F;
+		input reg [BEAT_INDEX_WIDTH - 1:0] inp;
+		sv2v_cast_9FF7F = inp;
+	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -873,6 +878,12 @@ module l1_control (
 		ctrl_data_a_wr_be = req_be_q;
 		ctrl_data_b_addr = {sn_set_q, sn_beat_q};
 		ctrl_data_b_way = (sn_pf_q ? victim_way_q : sn_hit_way_q);
+		if (1) begin
+			if (snoop_gnt)
+				ctrl_data_b_addr = {sn_set_grant, {BEAT_INDEX_WIDTH {1'b0}}};
+			else if (((state_q == OH_SNOOP) && sn_beat_gated) && ctrl_cdready)
+				ctrl_data_b_addr = {sn_set_q, sv2v_cast_9FF7F(sn_beat_q + 1'b1)};
+		end
 		ctrl_repl_req = 1'b0;
 		ctrl_repl_set = req_set;
 		ctrl_repl_hit = 1'b0;
@@ -880,12 +891,11 @@ module l1_control (
 		ctrl_repl_hit_way = hit_way_q;
 		ctrl_victim_load = 1'b0;
 		ctrl_victim_addr_in = {victim_tag_q, req_set, {LINE_OFFSET_WIDTH {1'b0}}};
-		ctrl_victim_data_in = victim_line_q;
 		ctrl_fill_start = 1'b0;
 		ctrl_fill_addr = req_line_base;
 		ctrl_drain_start = 1'b0;
 		ctrl_crresp = l1_pkg_amber_snoop_crresp((state_q == 12'b010000000000 ? sn_ref_q : sn_ref_grant), (state_q == 12'b010000000000 ? sn_type_q : ctrl_snoop_type));
-		ctrl_cddata = (sn_victim_q ? victim_buf_data[sv2v_cast_32(sn_beat_q) * 64+:64] : ctrl_data_b_rdata);
+		ctrl_cddata = (sn_victim_q ? victim_sn_word : ctrl_data_b_rdata);
 		ctrl_cdlast = 1'b0;
 		ctrl_cdvalid = 1'b0;
 		(* full_case, parallel_case *)
@@ -896,6 +906,9 @@ module l1_control (
 				ctrl_tag_a_wr_set = init_cnt_q;
 				ctrl_tag_a_wr_tag_state = {{TAG_WIDTH {1'b0}}, 3'b000};
 			end
+			OH_LOOKUP:
+				if (1 && (state_d == OH_MISS_VICTIM))
+					ctrl_data_a_addr = {req_set, {BEAT_INDEX_WIDTH {1'b0}}};
 			OH_HIT_WR: begin
 				ctrl_data_a_wr_en = 1'b1;
 				ctrl_tag_a_wr_en = hit_state_q != 3'b011;
@@ -904,7 +917,7 @@ module l1_control (
 				ctrl_repl_hit = 1'b1;
 			end
 			OH_HIT_RD: ctrl_repl_hit = 1'b1;
-			OH_MISS_VICTIM:
+			OH_MISS_VICTIM: begin
 				if (mv_cnt_q == {(BEAT_INDEX_WIDTH >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - BEAT_INDEX_WIDTH) {1'sb0}}) begin
 					ctrl_repl_req = 1'b1;
 					ctrl_data_a_addr = {req_set, {BEAT_INDEX_WIDTH {1'b0}}};
@@ -916,6 +929,9 @@ module l1_control (
 				end
 				else
 					ctrl_victim_load = 1'b1;
+				if (1 && (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)))
+					ctrl_data_a_addr = {req_set, sv2v_cast_9FF7F(mv_cnt_q + 1'b1)};
+			end
 			OH_MISS_FILL: ctrl_fill_start = !fill_seen_q;
 			OH_MISS_DRAIN: ctrl_drain_start = !drain_seen_q;
 			OH_FILL_WRITE: begin

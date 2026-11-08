@@ -102,7 +102,7 @@ module formal_amber_control (
     logic [WAY_INDEX_WIDTH-1:0]            ctrl_repl_hit_way;
     logic                                  ctrl_victim_load;
     logic [ADDR_WIDTH-1:0]                 ctrl_victim_addr_in;
-    logic [LINE_BYTES*8-1:0]               ctrl_victim_data_in;
+    logic [BUS_WIDTH-1:0]                  ctrl_victim_beat_data;  // the victim line is read by beat (free index: the drain is modeled, not instantiated)
     logic                                  ctrl_fill_start;
     logic [ADDR_WIDTH-1:0]                 ctrl_fill_addr;
     logic [2:0]                            ctrl_req_class;
@@ -171,7 +171,7 @@ module formal_amber_control (
     logic [2-1:0]      obs_victim_way_onehot;
     logic obs_victim_valid;
     logic [32-1:0]     obs_victim_buf_addr;
-    logic [(64*8)-1:0] obs_victim_buf_data;
+    logic [64-1:0]     obs_victim_sn_word;
     logic [4-1:0]      obs_sn_set_q;
     logic [22-1:0]     obs_sn_hit_tag_q;
     logic [1-1:0]      obs_sn_hit_way_q;
@@ -254,7 +254,8 @@ module formal_amber_control (
         .ctrl_repl_hit_way       (ctrl_repl_hit_way),
         .ctrl_victim_load        (ctrl_victim_load),
         .ctrl_victim_addr_in     (ctrl_victim_addr_in),
-        .ctrl_victim_data_in     (ctrl_victim_data_in),
+        .ctrl_victim_beat_idx    (3'd0),
+        .ctrl_victim_beat_data   (ctrl_victim_beat_data),
         .ctrl_fill_start         (ctrl_fill_start),
         .ctrl_fill_addr          (ctrl_fill_addr),
         .ctrl_req_class          (ctrl_req_class),
@@ -291,7 +292,7 @@ module formal_amber_control (
         .victim_way_onehot        (obs_victim_way_onehot),
         .victim_valid             (obs_victim_valid),
         .victim_buf_addr          (obs_victim_buf_addr),
-        .victim_buf_data          (obs_victim_buf_data),
+        .victim_sn_word           (obs_victim_sn_word),
         .sn_set_q                 (obs_sn_set_q),
         .sn_hit_tag_q             (obs_sn_hit_tag_q),
         .sn_hit_way_q             (obs_sn_hit_way_q),
@@ -439,7 +440,7 @@ module formal_amber_control (
         .victim_way_onehot        (obs_victim_way_onehot),
         .victim_valid             (obs_victim_valid),
         .victim_buf_addr          (obs_victim_buf_addr),
-        .victim_buf_data          (obs_victim_buf_data),
+        .victim_sn_word           (obs_victim_sn_word),
         .sn_set_q                 (obs_sn_set_q),
         .sn_hit_tag_q             (obs_sn_hit_tag_q),
         .sn_hit_way_q             (obs_sn_hit_way_q),
@@ -547,7 +548,7 @@ module amber_control_props (
     input  logic [1:0]  victim_way_onehot,
     input  logic        victim_valid,
     input  logic [31:0] victim_buf_addr,
-    input  logic [511:0] victim_buf_data,
+    input  logic [63:0]  victim_sn_word,
     input  logic [3:0]  sn_set_q,
     input  logic [21:0] sn_hit_tag_q,
     input  logic        sn_hit_way_q,
@@ -907,7 +908,7 @@ module amber_control_props (
     always @(posedge clk) begin
         if (rst_n)
             ap_victim_cd_data: assert (!(ctrl_state == CS_SNOOP && sn_victim_q)
-                || (ctrl_cddata == victim_buf_data[sn_beat_q*64 +: 64]));
+                || (ctrl_cddata == victim_sn_word));
     end
 
     // S9 write hit: byte merge into the request beat, promote E->M (M keeps

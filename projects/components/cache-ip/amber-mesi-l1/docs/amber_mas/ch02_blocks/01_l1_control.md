@@ -90,13 +90,13 @@ On the cycle after request acceptance, `l1_control` drives `ctrl_tag_a_set`; the
 
 ### Stage 2: Hit or miss decision
 
-- **Hit:** transition to `CTRL_HIT_RD` or `CTRL_HIT_WR`. The data array is accessed in the same cycle as the state check (the set/way was already decoded from the lookup).
+- **Hit:** transition to `CTRL_HIT_RD` or `CTRL_HIT_WR`. The data array address for the hit beat is presented during `CTRL_LOOKUP`; with the registered data array (`DATA_SYNC_READ = 1`, the core default) the word arrives in the hit state, one cycle after its address, which is when it is consumed. With the combinational array the same address returns the word in the lookup cycle and the hit state simply re-reads it.
 - **Miss:** transition to `CTRL_MISS_VICTIM`.
 
 ### Stage 3: Miss handling
 
-1. `CTRL_MISS_VICTIM`: read the victim tag/state from the tag array and, if dirty, copy the victim line data from `l1_data_array` port A into `l1_victim`.
-2. `CTRL_MISS_DRAIN`: if the victim is M, launch `l1_drain` with the address and data from `l1_victim`. Wait for the drain-done handshake.
+1. `CTRL_MISS_VICTIM`: read the victim tag/state from the tag array and, if dirty, gather the victim line from `l1_data_array` port A one beat per cycle into `victim_line_mem` (a beat-addressed store inside `l1_control`; `l1_victim` keeps only the address and the valid). Under `DATA_SYNC_READ` the gather presents beat k+1's address while it writes beat k.
+2. `CTRL_MISS_DRAIN`: if the victim is M, launch `l1_drain` with the address from `l1_victim`; the engine reads the data beat by beat (`ctrl_victim_beat_idx` → `ctrl_victim_beat_data`). Wait for the drain-done handshake.
 3. `CTRL_MISS_FILL`: launch `l1_fill` with the missing line address. The pending-fill bypass register is loaded now.
 4. `CTRL_FILL_WRITE`: on `fill_done`, write the fill data into `l1_data_array` port A and install the tag + new state in `l1_tag_array` port A.
 5. `CTRL_REPLAY`: re-assert `req_valid` to the hit path using the original latched request; the next cycle is `CTRL_LOOKUP` again and the line is present.
@@ -182,4 +182,4 @@ The sheet is marked **PROPOSED** because it is a micro-architecture decision own
 
 ---
 
-**Last Updated:** 2026-10-07 (Task 4: snoop service + bypass integration)
+**Last Updated:** 2026-11-07 (Task 4: snoop service + bypass integration)

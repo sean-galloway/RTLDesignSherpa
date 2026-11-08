@@ -68,13 +68,16 @@
 
 ### Purpose
 
-`l1_drain` takes a dirty line from `l1_victim` and issues a whole-line write-back burst to the memory-side write master.
+`l1_drain` takes the dirty victim's address from `l1_victim` and its data, one beat at a time, from the controller's beat-addressed victim store, and issues a whole-line write-back burst to the memory-side write master. The engine owns the beat index: it presents `victim_beat_idx` (its W beat counter) and drives `fub_axi_wdata` straight from `victim_beat_data`, so no line-wide payload bus exists between the store and the engine (FPGA review 2026-11-07; the store stays a RAM).
 
 ### Interface
 
 | Signal | Direction | Meaning |
 |--------|-----------|---------|
 | `drain_start` | input from `l1_control` | Launch drain from `l1_victim`. |
+| `victim_addr` | input | Line address (AW). |
+| `victim_beat_idx` | output | Beat the engine wants on `victim_beat_data` this cycle (= its W beat counter). |
+| `victim_beat_data` | input | That beat's word, from `l1_control.victim_line_mem` (amber) or the WB buffer's head slot (jet). |
 | `drain_done` | output to `l1_control` | B response received. |
 | `drain_beat_ready` | input from memory master | W-channel ready. |
 | `drain_beat_valid` | output | W-channel valid. |
@@ -102,4 +105,4 @@ For `amber_ace_top`, dirty evictions are issued as `WriteBack` transactions. `am
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-11-07

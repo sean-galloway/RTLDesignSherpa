@@ -42,8 +42,10 @@ TEST_PREFIX = 'amber_top_reset_sync'
 GEOM = dict(SETS=4, WAYS=2, LINE_BYTES=32, BUS_WIDTH=32, REPL_POLICY=0,
             USE_MONITOR=0)
 # Measured pre-fix completion = 4 cycles (SETS=4 walk + registered exit).
-# The internal reset_sync (N=3) adds exactly 3. Bound = measured + N.
-MIN_INIT_COMPLETE_CYCLES = 7
+# The internal reset_sync (N=3) adds exactly 3, and its REPLICATED_OUT
+# output stage (2026-11-07, the CLR fan-out item of the FPGA review) one
+# more. Bound = measured + N + 1.
+MIN_INIT_COMPLETE_CYCLES = 8
 
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")

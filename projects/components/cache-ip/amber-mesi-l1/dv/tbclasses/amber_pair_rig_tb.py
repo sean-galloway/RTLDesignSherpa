@@ -791,7 +791,7 @@ class AmberPairRigTB(TBBase):
                     int(a.u_coh.u_repl.repl_victim_way.value))
         vline = cm.tags.get((set_idx, way))
         vstate = cm.slot_state.get((set_idx, way), 'I')
-        dut_ts = int(a.u_coh.u_tag.mem[way * self.SETS + set_idx].value)
+        dut_ts = int(a.u_coh.u_tag.g_way[way].mem[set_idx].value)
         dut_tag, dut_state = dut_ts >> 3, self._decode3(dut_ts & 7)
         exp_tag = (vline >> self.SET_BITS) if vline is not None else 0
         self._score(f"{txn['label']}: victim slot parity",
@@ -1245,8 +1245,7 @@ class AmberPairRigTB(TBBase):
         # never installs E -- the documented Table 3.0 reachability gap)
         way = cm0.hit_way(cm0.set_of(line), line)
         set_idx = cm0.set_of(line)
-        tag_word = self.dut.u_amber0.u_coh.u_tag.mem[way * self.SETS
-                                                              + set_idx]
+        tag_word = self.dut.u_amber0.u_coh.u_tag.g_way[way].mem[set_idx]
         tag_word.value = ((line >> self.SET_BITS) << 3) | 2   # 2 = E
         cm0.slot_state[(set_idx, way)] = 'E'
         # cache1 misses the line: fabric READ_SHARED snoop hits E

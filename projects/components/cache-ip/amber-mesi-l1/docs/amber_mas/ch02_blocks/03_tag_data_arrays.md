@@ -38,16 +38,24 @@ FIFOs and `sdpram_core` use internally, with the GLOBAL_REQUIREMENTS 1.2
 synthesis attributes. They are **not** `sdpram_core` instances: `sdpram_core`
 (`rtl/amba/shared`) is a FUB/AXI burst *slave*, the wrong shape for a
 multi-way parallel tag lookup or single-beat random data readout. Each array
-has one synchronous write port (one-hot way select) and two combinational
-lookup ports: port A serves CPU/fill traffic and port B serves snoop traffic,
-matching the port assignment below. Combinational read keeps the hit/miss
-decision and the snoop CRRESP path inside one cycle; it maps to distributed
-RAM (tags) / block RAM (data) rather than a wrapped burst slave.
+has one synchronous write port (one-hot way select) and two read ports:
+port A serves CPU/fill traffic and port B serves snoop traffic, matching the
+port assignment below. The **tag** array reads combinationally, which keeps
+the hit/miss decision and the snoop CRRESP decode inside one cycle; it maps
+to distributed RAM. The **data** array's read latency is a parameter
+(`SYNC_READ`, below): the cores set it to the registered read, which is
+what block RAM provides.
 
-The one-write / two-read shape exceeds a single physical 2-port BRAM; per-way
-flat storage (`way * SETS + set` for tags, `way * (SETS*FILL_BEATS) + {set,
-beat}` for data) lets synthesis bank per way at the default geometry. That is
-the HAS F8 dual-port decision implemented at L1-array granularity.
+The one-write / two-read shape exceeds a single physical 2-port BRAM. The
+storage is one array **per way** (`mem[SETS]` for tags, `mem[SETS*FILL_BEATS]`
+for data, inside a `generate` loop) rather than one flat array indexed
+`way * SETS + set`: a flat array written at several addresses in one process
+is not a RAM to Vivado and dissolves into flops (handbook
+`design/sram-and-memories.md`, "Several write addresses in one process also
+dissolve the array" — the per-way form was the 23k-LUT / 11k-FF per-core
+finding of the FPGA review, 2026-11-06). Per way, synthesis banks each array
+on its own. That is the HAS F8 dual-port decision implemented at L1-array
+granularity.
 
 ---
 
@@ -55,7 +63,7 @@ the HAS F8 dual-port decision implemented at L1-array granularity.
 
 ### Tag + state packing
 
-Each way has its own `sdpram_core` instance, or the ways are banked into one instance per way depending on the synthesis attributes allowed by `GLOBAL_REQUIREMENTS.md`. The data width of each instance is:
+Each way has its own `mem[SETS]` array (one `always_ff` write process per way, combinational read). The word width is:
 
 ```systemverilog
 TAG_STATE_WIDTH = TAG_WIDTH + 3
@@ -83,7 +91,7 @@ The address into the tag array is the set index:
 tag_addr = req_addr[SET_INDEX_WIDTH + OFFSET_WIDTH - 1 : OFFSET_WIDTH]
 ```
 
-Way selection is done by instantiating one `sdpram_core` per way and decoding the way index on writes. On reads, all ways return their tag+state in parallel and a comparator determines the hit way.
+Way selection is the per-way array: the one-hot `wr_way_onehot` decodes the write, and on reads all ways return their tag+state in parallel and a comparator determines the hit way.
 
 ### Banking
 
@@ -95,7 +103,7 @@ For timing closure at larger geometries, each way is a separate physical memory 
 
 ### Organization
 
-The data array stores cache-line data. A line is `LINE_BYTES*8` bits wide and is split into `FILL_BEATS = LINE_BYTES / (BUS_WIDTH/8)` beats. Each way has its own `sdpram_core` instance, or one instance per way, with:
+The data array stores cache-line data. A line is `LINE_BYTES*8` bits wide and is split into `FILL_BEATS = LINE_BYTES / (BUS_WIDTH/8)` beats. Each way has its own `mem` array with:
 
 ```systemverilog
 DATA_MEM_DEPTH = SETS * FILL_BEATS
@@ -108,8 +116,17 @@ The address is `{set_index, beat_index}`.
 
 | Port | Traffic | Operations |
 |------|---------|------------|
-| A | CPU / fill | Read data on hit or replay; write fill beats. |
-| B | Snoop | Read whole line for snoop data transfer. |
+| A | CPU / fill | Read one beat on hit or replay; write fill beats; victim gather (one beat per cycle). |
+| B | Snoop | Read the matching way one beat at a time for the snoop data transfer. |
+
+### Read latency (`SYNC_READ`)
+
+| `SYNC_READ` | Read port | Mapping | Who uses it |
+|---|---|---|---|
+| 0 | combinational: `*_rdata` is the word at the address presented this cycle | distributed RAM (16k LUT at the default geometry) | unit benches, the `formal/` flats |
+| 1 | registered: `*_rdata` is the word at the address presented **last** cycle; the way select is applied in the data cycle | block RAM (16 RAMB36 per core) | `l1_coh_core` / `jet_coh_core` (`DATA_SYNC_READ = 1`), hence every top and the boards |
+
+With the registered read the controller presents each address one cycle before it consumes the word: the hit beat during `CTRL_LOOKUP`, gather beat k+1 while it writes gather beat k into the victim store, the snoop's beat 0 in the grant cycle and beat k+1 on each CD handshake. A fill beat landing at the same edge as the registered read of that beat returns the pre-write word (read-before-write), so the pending-fill bypass streams a beat only from the cycle after its landing (`pf_data_valid_d1`). Cycle behaviour is otherwise identical to the combinational build; the DV runs both. The rule and the failure that taught it: handbook `design/sram-and-memories.md`, "A cache data array belongs in block RAM: the read address leads by a cycle".
 
 ### Write masking
 
@@ -117,7 +134,7 @@ The address is `{set_index, beat_index}`.
 
 ### Snoop data readout
 
-A snoop that requires data transfer reads the matching way from port B beat-by-beat. `l1_control` drives `b_addr = {snoop_set, beat}`, increments the beat counter each cycle until the line is complete, and supplies the hit way on `b_way` (from the tag compare on port B). The data is forwarded to `l1_snoop_resp` for CD transmission.
+A snoop that requires data transfer reads the matching way from port B beat-by-beat. `l1_control` drives `b_addr = {snoop_set, beat}`, increments the beat counter on each accepted CD beat until the line is complete, and supplies the hit way on `b_way` (from the tag compare on port B). The data is forwarded to `l1_snoop_resp` for CD transmission. Under `SYNC_READ` the address leads: beat 0 is presented in the grant cycle and the port's word is always the current beat during the stream (a stalled beat re-presents itself).
 
 ---
 
@@ -133,4 +150,4 @@ are Invalid after reset.
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-11-07

@@ -231,7 +231,10 @@ module amber_ace_top
         .KEEP_ATTRS    (1'b1),
         .IN_ACTIVE_LOW (1'b1),
         .OUT_ACTIVE_LOW(1'b1),
-        .ASYNC_ASSERT  (1'b1)
+        .ASYNC_ASSERT  (1'b1),
+        // replicable output stage: the pinned chain MSB must not be the one
+        // flop driving every CLR pin of the core (FPGA review 2026-11-07)
+        .REPLICATED_OUT(1'b1)
     ) u_reset_sync (
         .clk        (aclk),
         .rst_n      (aresetn),
