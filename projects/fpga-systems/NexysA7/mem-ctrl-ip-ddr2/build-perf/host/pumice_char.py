@@ -437,9 +437,11 @@ class ControllerConfig:
     dual_issue:    bool = os.environ.get("TEST_DUAL_ISSUE", "0") != "0"
     row_phase:     int = int(os.environ.get("TEST_ROW_PHASE", "1"))
     row_phase_set: bool = "TEST_ROW_PHASE" in os.environ
-    # pumice BUG-033: TEST_FAST_RD=1 sets SCHED_POLICY.fast_rd_release (resets
-    # off). Unset, the field is not written (only pumice's CSR map has it).
-    fast_rd:       bool = os.environ.get("TEST_FAST_RD", "0") != "0"
+    # SCHED_POLICY.fast_rd_release. Reset ON since 2026-11-07 (pumice BUG-033
+    # fixed, e91fb524e); TEST_FAST_RD=0 forces it OFF for an A/B, anything
+    # else leaves it on. Written explicitly either way so the run's state does
+    # not depend on the register's reset value.
+    fast_rd:       bool = os.environ.get("TEST_FAST_RD", "1") != "0"
     # JEDEC DDR2 timings (MC cycles) derived from the part + the MC clock.
     # Until 2026-09-08 nothing programmed TIMINGS_*, so every board number was
     # taken on the RDL resets (tRCD/tRP 15 cycles, tCCD 4 = 8 CK, tREFI 1950
@@ -564,7 +566,7 @@ class ControllerConfig:
             access_pref=self.access_pref if self.access_pref is not None else 0,
             qos_en=bool(self.qos_en) if self.qos_en is not None else False,
             dual_issue=True if self.dual_issue else None,
-            fast_rd_release=True if self.fast_rd else None)
+            fast_rd_release=bool(self.fast_rd))
 
 
 # Presets. Every knob here is a CSR the CURRENT controller reads (2026-09-09

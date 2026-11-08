@@ -355,6 +355,18 @@ module ddr2_char_top #(
 `ifdef PUMICE_DUAL_ISSUE
         .DUAL_ISSUE      (1'b1),
 `endif
+        // FPGA SKU (memory-controllers MC-006, ISSUE-001 rows 3, 9, 12):
+        // `PUMICE_FPGA_SKU (create_project.tcl env PUMICE_FPGA_SKU=1) builds
+        // the board without the write/read combiners (TASK-060), the snarf
+        // read-your-write forward and the narrow-transfer pack -- the three
+        // same-cycle cones the 75 MHz review put at the top of the pumice
+        // failing-endpoint census. Unset, the research configuration builds.
+`ifdef PUMICE_FPGA_SKU
+        .WR_MERGE_EN     (1'b0),
+        .RD_MERGE_EN     (1'b0),
+        .HAS_SNARF       (1'b0),
+        .NARROW_EN       (1'b0),
+`endif
 `ifdef PUMICE_SYS_100
         .FPGA_CLK_HZ     (100_000_000)  // sys = 100 MHz -> UART baud divisor (timing build)
 `elsif PUMICE_SYS_50

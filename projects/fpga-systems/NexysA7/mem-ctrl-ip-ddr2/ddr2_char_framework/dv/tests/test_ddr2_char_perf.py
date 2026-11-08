@@ -1022,6 +1022,9 @@ def test_ddr2_char_perf(request):
               # TEST_CLOSE_ON_DRAIN=0/1 overrides pumice's close-on-drain (TASK-044 A/B); unset = the RTL default
               **({"CLOSE_ON_DRAIN": os.environ["TEST_CLOSE_ON_DRAIN"]} if os.environ.get("TEST_CLOSE_ON_DRAIN") else {}),
               **({"DUAL_ISSUE": "1"} if os.environ.get("TEST_DUAL", "0") == "1" else {}),
+              # CHAR_FPGA_SKU=1: the board's FPGA SKU (MC-006): combiners, snarf, narrow pack off
+              **({"WR_MERGE_EN": "0", "RD_MERGE_EN": "0", "HAS_SNARF": "0", "NARROW_EN": "0"}
+                 if os.environ.get("CHAR_FPGA_SKU", "0") == "1" else {}),
               # injectors per direction: the macro default (4) unless the run
               # asks for more (eight per direction is the owner's load point)
               "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0))),

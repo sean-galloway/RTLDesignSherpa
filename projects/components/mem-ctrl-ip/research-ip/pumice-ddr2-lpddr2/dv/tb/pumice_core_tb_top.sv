@@ -35,6 +35,11 @@ module pumice_core_tb_top
     parameter int SCHED_CORE     = 0,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
     parameter bit CLOSE_ON_DRAIN = 1'b1, // -G from DV: pumice close-on-drain A/B (TASK-044)
     parameter bit DUAL_ISSUE     = 1'b0, // -G from DV: build the row lane (TASK-047)
+    // -G from DV (PUMICE_FPGA_SKU=1): the board SKU's build knobs, all off there (memory-controllers MC-006)
+    parameter bit WR_MERGE_EN    = 1'b1,
+    parameter bit RD_MERGE_EN    = 1'b1,
+    parameter bit HAS_SNARF      = 1'b1,
+    parameter bit NARROW_EN      = 1'b1,
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,
@@ -184,7 +189,11 @@ module pumice_core_tb_top
         .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .DRAM_BL(DRAM_BL), .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
         .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS), .RD_RET_DEPTH(RD_RET_DEPTH),
         .CMD_HISTORY_EN(CMD_HISTORY_EN), .SCHED_CORE(SCHED_CORE), .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
-        .DUAL_ISSUE(DUAL_ISSUE)
+        .DUAL_ISSUE(DUAL_ISSUE),
+        .WR_MERGE_EN   (WR_MERGE_EN),
+        .RD_MERGE_EN   (RD_MERGE_EN),
+        .HAS_SNARF     (HAS_SNARF),
+        .NARROW_EN     (NARROW_EN)
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(memtype_i), .page_policy_i(page_policy_i),

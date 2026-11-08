@@ -34,5 +34,33 @@ shows.
    on every `always_comb` cell); a single line in the tens of percent is
    this pattern or a priority chain.
 
+## The second case: a variable shift by a quasi-static CSR (MC-006, 2026-11-07)
+
+The same shape hides in `w_word >> csr` and `w_word & ((1 << csr) - 1)`.
+`mc_addr_mapper` extracted bank, bank-group and the two column halves from
+the live AW/AR address with four 32-bit shifts and two masks whose amount
+was `bank_lsb`, an ADDR_MAP CSR field software writes once per run. The
+synthesizer cannot know the CSR is static; it built the full 5-6 level
+shifter cones on the address path, in both intakes, and timed them at the
+clock (ISSUE-001 row 13 of the FPGA microarchitecture review).
+
+The fix is the mux form again, with the CSR on the select side: for each
+legal `bank_lsb` value k (there are `COL_WIDTH + 1`), write the field
+extraction with k as a constant -- pure wiring -- and AND each result with
+`w_sel[k] = (bank_lsb == k)`, then OR across k. The decode of the CSR is one
+level on a static net; the address side is one AND-OR level per output bit.
+Row and rank turned out never to have depended on `bank_lsb` at all (they
+sit above the whole rearranged field), so those shifts were already
+constants the tool had folded. The equivalence to the shift expression is
+proved in `formal/mc_common/mc_addr_mapper` (family 4, `a_ref_*`, with the
+old arithmetic written out as the reference); a one-bit slice mutation at
+k=2 fails it.
+
+The general rule: when a shift or mask amount comes from a configuration
+register, enumerate the legal amounts and select between constant forms.
+If the amount can take more values than a one-hot select pays for, register
+the decoded masks and shift amounts off the CSR instead, so the data path
+sees registered constants rather than a live barrel shifter.
+
 Related: [[area-measure-by-hierarchy]] (how the attribution is taken),
 [[per-bank-queues-admit-from-the-pool]] (the slot fields this looks up).

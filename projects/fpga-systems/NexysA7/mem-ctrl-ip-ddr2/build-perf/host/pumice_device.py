@@ -564,12 +564,24 @@ class Pumice(Device):
         # builds; needs DFI_PHASE.row_phase off both column phases).
         if dual_issue is not None:
             kw["dual_issue"] = 1 if dual_issue else 0
-        # pumice BUG-033: commands skip the CMD_DELAY lead after an idle line
-        # (FAST_RD_RELEASE builds). Resets off; on corrupts board reads.
-        if fast_rd_release is not None:
+        # Fast read release (FAST_RD_RELEASE builds): commands skip the
+        # CMD_DELAY lead after an idle line. Resets ON since 2026-11-07
+        # (pumice BUG-033 fixed). pumice's CSR has the field; granite ties the
+        # enable high in RTL and has no field, so the write is skipped there
+        # rather than raising KeyError on a shared host (the char harness runs
+        # one ControllerConfig against both maps).
+        if fast_rd_release is not None and self._has_field("SCHED_POLICY", "fast_rd_release"):
             kw["fast_rd_release"] = 1 if fast_rd_release else 0
         if kw:
             self._wr("SCHED_POLICY", **kw)
+
+    def _has_field(self, reg: str, name: str) -> bool:
+        """True if this controller's register map has reg.name."""
+        try:
+            self.regs._field_lo_width(reg, name)
+            return True
+        except (KeyError, AttributeError, ValueError):
+            return False
 
     # ----- status -----------------------------------------------------------
     def init_done(self) -> bool:

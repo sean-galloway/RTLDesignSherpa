@@ -55,6 +55,19 @@ module ddr2_char_macro
     // the scheduler-side checker is structurally blind.
     parameter int CMD_HISTORY_EN  = 0,
     parameter int SCHED_CORE      = 0,    // pumice pick core (mc_common_pkg MC_SCHED_*): 1 = BANK_PICK, 0 = FRFCFS
+    // This macro ties dfi_clk to mc_clk (one clock), so the DFI plane builds
+    // its synchronous form: no Gray-pointer crossing, no synchroniser latency
+    // on the command, write-data and read-return paths. The async form
+    // (DFI_CDC_EN = 1) ran here from 10-24 to 2026-11-07 because this
+    // parameter was never passed down -- granite's macro had it from the
+    // start. 7 cycles scheduler-to-pins became ~3.
+    parameter bit DFI_CDC_EN      = 1'b0,
+    // FPGA SKU knobs (memory-controllers MC-006): the board top sets all four
+    // off under PUMICE_FPGA_SKU; the sim TB keeps the research defaults.
+    parameter bit WR_MERGE_EN     = 1'b1,
+    parameter bit RD_MERGE_EN     = 1'b1,
+    parameter bit HAS_SNARF       = 1'b1,
+    parameter bit NARROW_EN       = 1'b1,
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // pumice: last same-row column carries auto-precharge (TASK-044; 0 = the BUG-027-era A/B)
     parameter bit DUAL_ISSUE      = 1'b0, // pumice: build the scheduler's row lane (TASK-047); runtime SCHED_POLICY.dual_issue
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
@@ -89,8 +102,13 @@ module ddr2_char_macro
     parameter int COL_WIDTH        = 10,
 
     // ---- Controller depths ----
-    parameter int WR_CAM_DEPTH     = 16,
-    parameter int RD_CAM_DEPTH     = 16,
+    // N=8 is the board point and, since 2026-11-07, the default here too
+    // (memory-controllers MC-006, ISSUE-001 row 16): the FPGA review measured
+    // the CAM backend at N=16 as ~20k LUT more than at N=8 for no bandwidth
+    // the Nexys A7 can show, and a default of 16 was the trap for any build
+    // that forgot to pass the depth. The harness passes 8 explicitly as well.
+    parameter int WR_CAM_DEPTH     = 8,
+    parameter int RD_CAM_DEPTH     = 8,
     // Reads in flight (pumice_rd_return_ring ticket space). The sustained read
     // rate cannot exceed RD_RET_DEPTH / (alloc-to-R-drain latency), so on a
     // board with a long PHY read latency this is a direct bandwidth knob. It
@@ -515,6 +533,11 @@ module ddr2_char_macro
     pumice_top_geared #(
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
         .SCHED_CORE       (SCHED_CORE),
+        .DFI_CDC_EN       (DFI_CDC_EN),
+        .WR_MERGE_EN      (WR_MERGE_EN),
+        .RD_MERGE_EN      (RD_MERGE_EN),
+        .HAS_SNARF        (HAS_SNARF),
+        .NARROW_EN        (NARROW_EN),
         .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
         .DUAL_ISSUE       (DUAL_ISSUE),
         .HAS_LPDDR2       (HAS_LPDDR2),

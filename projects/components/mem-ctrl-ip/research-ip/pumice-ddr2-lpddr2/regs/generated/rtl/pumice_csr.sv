@@ -2424,7 +2424,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_POLICY.fast_rd_release.value <= 1'h0;
+            field_storage.SCHED_POLICY.fast_rd_release.value <= 1'h1;
         end else begin
             if(field_combo.SCHED_POLICY.fast_rd_release.load_next) begin
                 field_storage.SCHED_POLICY.fast_rd_release.value <= field_combo.SCHED_POLICY.fast_rd_release.next;

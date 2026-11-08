@@ -170,7 +170,7 @@ FIELDS = {
     "REF_TIMING_PB.trfc_pb": dict(ships=0x00, note="per-bank tRFC; unused while REF_CTRL.mode=0"),
 
     "SCHED_POLICY.dual_issue": dict(ships=0x0, note="TASK-047 row lane OFF; only a DUAL_ISSUE build has the lane, and it is deferred on ISSUE-027"),
-    "SCHED_POLICY.fast_rd_release": dict(ships=0x0, note="fast read release OFF: pumice BUG-033, board read corruption with it on"),
+    "SCHED_POLICY.fast_rd_release": dict(ships=0x1, note="fast read release ON again (2026-11-07): BUG-033 was a lost release token in the scheduler plane (e91fb524e), 24 interleaved board runs clean since; the bit is 6 cycles of read latency"),
     "SCHED_POLICY.order_mode": dict(ships=0x0, note="FR-FCFS. TASK-002 measured reordering worth 3.9x, so this is the shipping choice"),
     "SCHED_POLICY.prio_sub": dict(ships=0x0, note="no sub-priority within a pick"),
     "SCHED_POLICY.row_sel": dict(ships=0x0, note="default row selector"),

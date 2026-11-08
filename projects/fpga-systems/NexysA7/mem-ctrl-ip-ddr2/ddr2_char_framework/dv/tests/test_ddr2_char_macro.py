@@ -437,7 +437,7 @@ async def cocotb_test_ddr2_char_macro(dut):
         )
 
         BURST = BURST_LEN_MULTIPLE   # one full DFI BL8 transaction
-        N = 17  # past RD_CAM_DEPTH=16 — exercises slot reuse
+        N = 17  # past RD_CAM_DEPTH (8 since 2026-11-07, 16 before) — exercises slot reuse
         BASE = 0x0001_0000
         BYTES_PER_BEAT = 8
         STRIDE = BURST * BYTES_PER_BEAT
@@ -776,7 +776,7 @@ async def cocotb_test_ddr2_char_macro(dut):
         tb.log.info("pacing_sweep_b2b: wr_gap=%d rd_gap=%d", wr_gap, rd_gap)
 
         BURST = BURST_LEN_MULTIPLE   # one full DFI BL8 transaction
-        N = 17  # past RD_CAM_DEPTH=16 — exercises slot reuse + same-id
+        N = 17  # past RD_CAM_DEPTH (8 since 2026-11-07, 16 before) — exercises slot reuse + same-id
         BASE = 0x0001_0000
         BYTES_PER_BEAT = 8
         STRIDE = BURST * BYTES_PER_BEAT

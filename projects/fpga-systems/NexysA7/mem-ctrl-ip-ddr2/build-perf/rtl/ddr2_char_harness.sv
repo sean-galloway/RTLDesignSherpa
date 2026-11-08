@@ -36,6 +36,13 @@ module ddr2_char_harness
     parameter int SCHED_CORE      = 0,    // pumice pick core: 1 = BANK_PICK, 0 = FRFCFS
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // pumice: last same-row column carries auto-precharge (TASK-044; 0 = the BUG-027-era A/B)
     parameter bit DUAL_ISSUE      = 1'b0, // pumice: build the scheduler's row lane (TASK-047)
+    // pumice FPGA SKU knobs (memory-controllers MC-006): combiners, snarf
+    // forward, narrow pack. Default on (research configuration); the board
+    // top sets all four off under PUMICE_FPGA_SKU, the sim under CHAR_FPGA_SKU.
+    parameter bit WR_MERGE_EN     = 1'b1,
+    parameter bit RD_MERGE_EN     = 1'b1,
+    parameter bit HAS_SNARF       = 1'b1,
+    parameter bit NARROW_EN       = 1'b1,
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter int NUM_GEN         = 4,    // injectors per direction in char_gen_unit (<= NUM_BANKS); the top sets it (CHAR_NUM_GEN build knob, TASK-043)
     parameter int HIST_T_RFC_CORE = 0,
@@ -715,6 +722,10 @@ module ddr2_char_harness
         .SCHED_CORE       (SCHED_CORE),
         .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
         .DUAL_ISSUE       (DUAL_ISSUE),
+        .WR_MERGE_EN      (WR_MERGE_EN),
+        .RD_MERGE_EN      (RD_MERGE_EN),
+        .HAS_SNARF        (HAS_SNARF),
+        .NARROW_EN        (NARROW_EN),
         .HAS_LPDDR2       (HAS_LPDDR2),
         .NUM_GEN          (NUM_GEN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),

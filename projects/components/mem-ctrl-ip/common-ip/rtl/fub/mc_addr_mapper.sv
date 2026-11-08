@@ -102,27 +102,60 @@ module mc_addr_mapper
     logic [5:0] w_blsb;
     always_comb w_blsb = ({1'b0, bank_lsb_i} > 6'(CW)) ? 6'(CW) : {1'b0, bank_lsb_i};
 
-    // Variable-base field extraction (barrel shifts / masks, 32b intermediates).
-    // BGW is 0 for generations 2/3, making these lines bit-identical to the
-    // pre-extraction rocks; for HAS_BG the bank group sits directly above bank.
-    logic [31:0] w_col_lo, w_col_hi, w_row32, w_rank32, w_bank32, w_bg32;
-    assign w_col_lo = w_word & ((32'd1 << w_blsb) - 32'd1);                          // low col bits below bank
-    assign w_bank32 = (w_word >> w_blsb) & ((32'd1 << BW) - 32'd1);                  // BW bits at bank_lsb
-    assign w_bg32   = HAS_BG ? ((w_word >> (w_blsb + 6'(BW))) & ((32'd1 << BGW) - 32'd1)) : 32'd0;
-    assign w_col_hi = (w_word >> (w_blsb + 6'(BW) + 6'(BGW))) & ((32'd1 << (6'(CW) - w_blsb)) - 32'd1);
-    assign w_row32  = (w_word >> (6'(CW) + 6'(BW) + 6'(BGW))) & ((32'd1 << RW) - 32'd1);
+    // Field extraction WITHOUT barrel shifters (memory-controllers MC-006,
+    // ISSUE-001 row 13). Row and rank sit above the whole {col, bank, bg}
+    // field, so their slices never depended on bank_lsb and are constant
+    // shifts. Column and bank (and bg) do move with bank_lsb, and until
+    // 2026-11-07 each was a 32-bit variable shift against a variable mask on
+    // the live AW/AR address: four 5-6 level mux cones per intake, timed at
+    // the full clock, for a CSR that software writes once per run. Each is
+    // now a constant slice per legal bank_lsb position (CW+1 of them),
+    // selected by a one-hot decode of the clamped CSR: one decode level on
+    // the quasi-static side and one AND-OR level per output bit on the
+    // address side. Bit-identical to the shift form for every bank_lsb in
+    // [0, COL_WIDTH]; formal/mc_common/mc_addr_mapper a_ref_* proves it
+    // against the old expression.
+    logic [31:0] w_row32, w_rank32;
+    assign w_row32  = (w_word >> (CW + BW + BGW)) & ((32'd1 << RW) - 32'd1);
     assign w_rank32 = (NUM_RANKS > 1)
-                    ? ((w_word >> (6'(CW) + 6'(BW) + 6'(BGW) + 6'(RW))) & ((32'd1 << KW) - 32'd1))
+                    ? ((w_word >> (CW + BW + BGW + RW)) & ((32'd1 << KW) - 32'd1))
                     : 32'd0;
 
-    // Reassemble the (split) column: low bits = col_lo, high bits = col_hi.
+    logic [CW:0]   w_sel;                 // one-hot: w_sel[k] <=> clamped bank_lsb == k
+    logic [CW-1:0] w_col_at  [CW+1];      // the column as laid out for bank_lsb == k, gated by w_sel[k]
+    logic [BW-1:0] w_bank_at [CW+1];
+    logic [31:0]   w_bg_at   [CW+1];      // 32b so BGW == 0 (no bank groups) stays well-formed
+    for (genvar k = 0; k <= CW; k++) begin : g_pos
+        // bank_lsb == k lays the word out as
+        //   [ col_lo(k) | bank(BW) | bg(BGW) | col_hi(CW-k) | row(RW) | rank(KW) ]
+        // and every shift and mask below is a constant: pure wiring.
+        logic [31:0] w_col_lo_k, w_bank_k, w_bg_k, w_col_hi_k;
+        assign w_col_lo_k = w_word & ((32'd1 << k) - 32'd1);
+        assign w_bank_k   = (w_word >> k) & ((32'd1 << BW) - 32'd1);
+        assign w_bg_k     = HAS_BG ? ((w_word >> (k + BW)) & ((32'd1 << BGW) - 32'd1)) : 32'd0;
+        assign w_col_hi_k = (w_word >> (k + BW + BGW)) & ((32'd1 << (CW - k)) - 32'd1);
+        assign w_sel[k]     = (w_blsb == 6'(k));
+        assign w_col_at[k]  = w_sel[k] ? CW'(w_col_lo_k | (w_col_hi_k << k)) : '0;
+        assign w_bank_at[k] = w_sel[k] ? BW'(w_bank_k) : '0;
+        assign w_bg_at[k]   = w_sel[k] ? w_bg_k : 32'd0;
+    end
+
     logic [CW-1:0] w_col;
-    assign w_col = CW'(w_col_lo | (w_col_hi << w_blsb));
+    logic [BW-1:0] w_bank_raw, w_bank_hashed, w_bank;
+    logic [31:0]   w_bg32;
+    always_comb begin
+        w_col      = '0;
+        w_bank_raw = '0;
+        w_bg32     = '0;
+        for (int k = 0; k <= CW; k++) begin
+            w_col      |= w_col_at[k];
+            w_bank_raw |= w_bank_at[k];
+            w_bg32     |= w_bg_at[k];
+        end
+    end
 
     logic [RW-1:0]  w_row;
-    logic [BW-1:0]  w_bank_raw, w_bank_hashed, w_bank;
-    assign w_row      = RW'(w_row32);
-    assign w_bank_raw = BW'(w_bank32);
+    assign w_row = RW'(w_row32);
 
     // Bank XOR-hash: bank[i] ^= row[i] ^ row[i+BW] ^ seed[i] (mid slice clamped so
     // it never runs past ROW_WIDTH). Identical fold to the legacy XOR_HASH scheme.

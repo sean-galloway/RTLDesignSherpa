@@ -690,8 +690,8 @@ addrmap pumice_csr {
 
         field {
             sw = rw; hw = r;
-            desc = "Fast read release (mc_scheduler_plane FAST_RD_RELEASE): after the command line has been idle for CMD_DELAY plus the largest programmed timing, commands skip the CMD_DELAY write-data lead until the next WRITE, which takes the full delay again. 0 = the uniform delay. Reset OFF: pumice BUG-033, board read data corruption (windows random_bl8, about 1 run in 3 at 50 MHz) with it on. Takes effect only on a FAST_RD_RELEASE build; safe to change at any time (clearing only returns the stream to the uniform delay).";
-        } fast_rd_release[13:13] = 1'b0;
+            desc = "Fast read release (mc_scheduler_plane FAST_RD_RELEASE): after the command line has been idle for CMD_DELAY plus the largest programmed timing, commands skip the CMD_DELAY write-data lead until the next WRITE, which takes the full delay again. 0 = the uniform delay. Reset ON (2026-11-07): it was reset OFF from 2026-11-04 as the pumice BUG-033 workaround (board read corruption about 1 run in 3 at 50 MHz); the cause was a lost release token in the scheduler plane, fixed e91fb524e, 16 / 16 interleaved board runs clean, 6 cycles less read latency with the bit on. Takes effect only on a FAST_RD_RELEASE build; safe to change at any time (clearing only returns the stream to the uniform delay).";
+        } fast_rd_release[13:13] = 1'b1;
         field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_14[15:14] = 2'h0;
 
         field {

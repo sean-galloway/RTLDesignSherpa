@@ -32,6 +32,11 @@ module ddr2_char_uart_tb_top
     parameter int SCHED_CORE      = 0,    // -G from DV: pumice pick core, 1 = BANK_PICK, 0 = FRFCFS
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // -G from DV: pumice close-on-drain A/B (TASK-044)
     parameter bit DUAL_ISSUE      = 1'b0, // -G from DV: pumice scheduler row lane (TASK-047)
+    // -G from DV (CHAR_FPGA_SKU=1): pumice FPGA SKU knobs, all off on the board SKU (MC-006)
+    parameter bit WR_MERGE_EN     = 1'b1,
+    parameter bit RD_MERGE_EN     = 1'b1,
+    parameter bit HAS_SNARF       = 1'b1,
+    parameter bit NARROW_EN       = 1'b1,
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,
@@ -145,6 +150,10 @@ module ddr2_char_uart_tb_top
         .SCHED_CORE       (SCHED_CORE),
         .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
         .DUAL_ISSUE       (DUAL_ISSUE),
+        .WR_MERGE_EN      (WR_MERGE_EN),
+        .RD_MERGE_EN      (RD_MERGE_EN),
+        .HAS_SNARF        (HAS_SNARF),
+        .NARROW_EN        (NARROW_EN),
         .NUM_GEN          (NUM_GEN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),

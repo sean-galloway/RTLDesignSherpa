@@ -208,6 +208,13 @@ if {[info exists ::env(PUMICE_DUAL_ISSUE)] && $::env(PUMICE_DUAL_ISSUE) eq "1"} 
     lappend current_defines "PUMICE_DUAL_ISSUE"
     set _freq_note "$_freq_note, DUAL_ISSUE=1"
 }
+# PUMICE_FPGA_SKU=1: build the board without the write/read combiners, the
+# snarf forward and the narrow pack (memory-controllers MC-006, ISSUE-001
+# rows 3, 9, 12). Unset, the research configuration builds.
+if {[info exists ::env(PUMICE_FPGA_SKU)] && $::env(PUMICE_FPGA_SKU) eq "1"} {
+    lappend current_defines "PUMICE_FPGA_SKU"
+    set _freq_note "$_freq_note, FPGA_SKU (merge/snarf/narrow off)"
+}
 # Say it loudly and unconditionally. "Which clock is this .bit" must never be
 # inferred from a board log two hundred lines in.
 puts "=============================================================="

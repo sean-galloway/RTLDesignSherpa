@@ -831,7 +831,7 @@ request. All hw-readable so they drive the controller core.</p>
 |  10 |    RSVD_10    |   r  | 0x0 |  — |
 |  11 |     qos_en    |  rw  | 0x0 |  — |
 |  12 |   dual_issue  |  rw  | 0x0 |  — |
-|  13 |fast_rd_release|  rw  | 0x0 |  — |
+|  13 |fast_rd_release|  rw  | 0x1 |  — |
 |15:14|   RSVD_15_14  |   r  | 0x0 |  — |
 |23:16|   age_thresh  |  rw  | 0x0 |  — |
 |31:24|   RSVD_31_24  |   r  | 0x0 |  — |
@@ -870,7 +870,7 @@ request. All hw-readable so they drive the controller core.</p>
 
 #### fast_rd_release field
 
-<p>Fast read release (mc_scheduler_plane FAST_RD_RELEASE): after the command line has been idle for CMD_DELAY plus the largest programmed timing, commands skip the CMD_DELAY write-data lead until the next WRITE, which takes the full delay again. 0 = the uniform delay. Reset OFF: pumice BUG-033, board read data corruption (windows random_bl8, about 1 run in 3 at 50 MHz) with it on. Takes effect only on a FAST_RD_RELEASE build; safe to change at any time (clearing only returns the stream to the uniform delay).</p>
+<p>Fast read release (mc_scheduler_plane FAST_RD_RELEASE): after the command line has been idle for CMD_DELAY plus the largest programmed timing, commands skip the CMD_DELAY write-data lead until the next WRITE, which takes the full delay again. 0 = the uniform delay. Reset ON (2026-11-07): it was reset OFF from 2026-11-04 as the pumice BUG-033 workaround (board read corruption about 1 run in 3 at 50 MHz); the cause was a lost release token in the scheduler plane, fixed e91fb524e, 16 / 16 interleaved board runs clean, 6 cycles less read latency with the bit on. Takes effect only on a FAST_RD_RELEASE build; safe to change at any time (clearing only returns the stream to the uniform delay).</p>
 
 #### RSVD_15_14 field
 

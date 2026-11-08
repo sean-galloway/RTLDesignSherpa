@@ -19,6 +19,7 @@ import os
 import sys
 import random
 
+import pytest
 import cocotb
 from cocotb.clock import Clock
 from cocotb.utils import get_sim_time
@@ -2356,7 +2357,11 @@ def _run(request, testcase, params_over=None, enhanced=False):
                  if os.environ.get("PUMICE_CLOSE_ON_DRAIN") else {}),
               # PUMICE_DUAL=1 builds the TASK-047 row lane and runs every cell
               # with it on (bring-up drives dual_issue_en_i / row_phase_i)
-              **({"DUAL_ISSUE": "1"} if dual else {})}
+              **({"DUAL_ISSUE": "1"} if dual else {}),
+              # PUMICE_FPGA_SKU=1 runs every cell in the board's FPGA SKU
+              # (memory-controllers MC-006): combiners, snarf, narrow pack off.
+              **({"WR_MERGE_EN": "0", "RD_MERGE_EN": "0", "HAS_SNARF": "0", "NARROW_EN": "0"}
+                 if os.environ.get("PUMICE_FPGA_SKU", "0") == "1" else {})}
     if params_over:
         params.update(params_over)
     tag = testcase + sfx
@@ -2419,7 +2424,13 @@ def test_pumice_core_refresh_collide(request):
 def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_close")
 def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")
-def test_pumice_core_merge_ids(request): _run(request, "cocotb_test_pumice_core_merge_ids")
+def test_pumice_core_merge_ids(request):
+    # The cell asserts that same-id pairs DO merge. PUMICE_FPGA_SKU=1 builds
+    # the board SKU with WR_MERGE_EN = RD_MERGE_EN = 0 (memory-controllers
+    # MC-006), where zero merges is the specification, not a failure.
+    if os.environ.get("PUMICE_FPGA_SKU", "0") == "1":
+        pytest.skip("write/read combining is off on the FPGA SKU (PUMICE_FPGA_SKU=1)")
+    _run(request, "cocotb_test_pumice_core_merge_ids")
 def test_pumice_core_b_stall(request): _run(request, "cocotb_test_pumice_core_b_stall")
 def test_pumice_core_perf_read_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_read_ceiling")

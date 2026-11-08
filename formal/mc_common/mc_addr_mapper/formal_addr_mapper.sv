@@ -183,6 +183,36 @@ module formal_addr_mapper #(
     end
 
     // =====================================================================
+    // FAMILY 4 -- the one-hot slice form equals the barrel-shift expression.
+    // =====================================================================
+    // On 2026-11-07 (memory-controllers MC-006, ISSUE-001 row 13) the mapper's
+    // four variable shifts on the live address became CW+1 constant slices
+    // selected by a one-hot decode of bank_lsb. This is the arithmetic the RTL
+    // carried before, written out here as the reference, so a slice that is
+    // off by a bit for one bank_lsb value shows up as a counterexample rather
+    // than as a wrong bank on the board. Bank only with the hash off (the
+    // hash sits downstream of the slice and is covered by a_injective).
+    wire [31:0] ref_word  = {{(32-WW){1'b0}}, word_a};
+    wire [5:0]  ref_blsb  = {1'b0, blsb};                    // assumed <= CW above
+    wire [31:0] ref_col_lo = ref_word & ((32'd1 << ref_blsb) - 32'd1);
+    wire [31:0] ref_bank   = (ref_word >> ref_blsb) & ((32'd1 << BW) - 32'd1);
+    wire [31:0] ref_col_hi = (ref_word >> (ref_blsb + 6'(BW))) & ((32'd1 << (6'(CW) - ref_blsb)) - 32'd1);
+    wire [CW-1:0] ref_col  = ref_col_lo[CW-1:0] | (ref_col_hi[CW-1:0] << ref_blsb);
+    // the clamp instance: an unconstrained bank_lsb, clamped the way the RTL does
+    wire [5:0]  ref_blsb2  = ({1'b0, blsb2} > 6'(CW)) ? 6'(CW) : {1'b0, blsb2};
+    wire [31:0] ref2_col_lo = ref_word & ((32'd1 << ref_blsb2) - 32'd1);
+    wire [31:0] ref2_bank   = (ref_word >> ref_blsb2) & ((32'd1 << BW) - 32'd1);
+    wire [31:0] ref2_col_hi = (ref_word >> (ref_blsb2 + 6'(BW))) & ((32'd1 << (6'(CW) - ref_blsb2)) - 32'd1);
+    wire [CW-1:0] ref2_col  = ref2_col_lo[CW-1:0] | (ref2_col_hi[CW-1:0] << ref_blsb2);
+
+    always @(posedge clk) begin
+        a_ref_col:  assert (col_a == ref_col);
+        if (!hash_en) a_ref_bank: assert (bank_a == ref_bank[BW-1:0]);
+        a_ref_col_clamped:  assert (col_c == ref2_col);
+        if (!hash_en) a_ref_bank_clamped: assert (bank_c == ref2_bank[BW-1:0]);
+    end
+
+    // =====================================================================
     // COVER -- the interesting configurations are reachable.
     // =====================================================================
     always @(posedge clk) begin

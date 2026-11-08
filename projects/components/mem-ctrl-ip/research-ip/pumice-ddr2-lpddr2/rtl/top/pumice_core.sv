@@ -70,6 +70,15 @@ module pumice_core
     // mem-ctrl recovery Phase 3 report 5.10).
     parameter bit HAS_LPDDR2 = 1'b1,
     parameter bit WR_MERGE_EN = 1'b1, // write combining in the wr CAM: two partial writes to one DRAM burst commit once (pumice TASK-060)
+    // FPGA SKU knobs (memory-controllers MC-006, ISSUE-001 rows 3, 9, 12): the
+    // snarf read-your-write forward and the narrow-transfer pack are AXI4
+    // latency / generality features the DDR2 board never exercises; both sit
+    // on the same-cycle cones the 75 MHz review named (snarf = the rd_cam
+    // failing set, narrow = the AW/AR rewrite through the host edge). Default
+    // on so the research configuration is unchanged; the board build turns
+    // them off with PUMICE_FPGA_SKU.
+    parameter bit HAS_SNARF   = 1'b1,
+    parameter bit NARROW_EN   = 1'b1,
     parameter bit RD_MERGE_EN = 1'b1, // read combining in the rd CAM: two reads of one unissued DRAM burst issue once, the ring returns it twice (pumice TASK-060)
     parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
     // DFI command CDC FIFO depth (mc_dfi_cdc CMD_DEPTH). It sits DOWNSTREAM
@@ -82,7 +91,7 @@ module pumice_core
     // two-clock crossing; the write-side stall counter in mc_dfi_cdc is the
     // check that it never fills.
     parameter int DFI_CMD_FIFO_DEPTH = 32,
-    parameter bit FAST_RD_RELEASE = 1'b1, // build the mc_scheduler_plane fast release (commands skip the CMD_DELAY write-data lead while no write is in the line); runtime enable SCHED_POLICY.fast_rd_release, reset OFF for pumice BUG-033
+    parameter bit FAST_RD_RELEASE = 1'b1, // build the mc_scheduler_plane fast release (commands skip the CMD_DELAY write-data lead while no write is in the line); runtime enable SCHED_POLICY.fast_rd_release (reset ON since 2026-11-07; it was reset OFF 11-04..11-07 as the pumice BUG-033 workaround)
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
     // DUAL_ISSUE (TASK-047): build the scheduler's row lane -- a demand ACT /
     // PRE in the same DFI word as a column, on DFI_PHASE.row_phase. Runtime
@@ -501,7 +510,9 @@ module pumice_core
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
-        .AGE_WIDTH        (AGE_WIDTH)
+        .AGE_WIDTH        (AGE_WIDTH),
+        .HAS_SNARF        (HAS_SNARF),
+        .NARROW_EN        (NARROW_EN)
     ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),

@@ -1,20 +1,37 @@
 # memory-controllers — task lane
 
-**Next ID: MC-006** — never recycle a number.
+**Next ID: MC-011** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 2 | in progress right now |
+| [open/](open/) | 3 | accepted, not started |
+| [active/](active/) | 4 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-(none)
+- **MC-007** -- scheduler plane mechanical rows: hoist bank-timer CSR
+  constants, SRL delay lines, `S_MAX` as a CSR, registered `timeout_pre`
+  (ISSUE-001 rows 6, 7, 8, 11). Filed 2026-11-07.
+- **MC-008** -- CAM and ring rows: 8-bit prescaled ages, slot payload in
+  LUTRAM, ring shadow readiness at fetch (ISSUE-001 rows 4, 5, 10). Filed
+  2026-11-07.
+- **MC-010** -- granite: bank queues as one RAM64M per direction,
+  `mc_bank_pick` 16->8 rotor (ISSUE-001 rows 2, 15). Filed 2026-11-07.
 
 ## Active
+
+- **MC-009** -- pumice arbiter: the same-cycle STAGE-1b terms are out of the
+  classify guards and applied at STAGE-1b from the pre-pick register (step
+  a, written 2026-11-07; formal + suites + sys75 A/B pending). Steps (b)
+  hit/sibling flags into the CAM and (c) build-time pick modes follow.
+
+- **MC-006** -- pumice FPGA SKU build knobs: merge / snarf / narrow pack
+  parameters plumbed board and sim (`PUMICE_FPGA_SKU`, `CHAR_FPGA_SKU`),
+  `bank_lsb` mapper to one-hot constant slices (formal family 4), char macro
+  CAM depth default 8. Routed sys75 A/B in flight. Active 2026-11-07.
 
 - **MC-004** -- two-register `gaxi_skid_buffer`, no data reset, no shift
   (ISSUE-001 row 1; ~3k LUT chip-wide). Started 2026-11-06.

@@ -39,6 +39,12 @@ module pumice_top
     parameter bit FAST_RD_RELEASE = 1'b1, // build the fast release (pumice_core); runtime enable SCHED_POLICY.fast_rd_release, reset OFF for pumice BUG-033
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
+    // FPGA SKU knobs (pumice_core; memory-controllers MC-006): combiners,
+    // snarf and the narrow pack, all default on (research configuration).
+    parameter bit WR_MERGE_EN    = 1'b1,
+    parameter bit RD_MERGE_EN    = 1'b1,
+    parameter bit HAS_SNARF      = 1'b1,
+    parameter bit NARROW_EN      = 1'b1,
     parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
     parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
     parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output
@@ -342,6 +348,10 @@ module pumice_top
         .FAST_RD_RELEASE  (FAST_RD_RELEASE),
         .HAS_LPDDR2       (HAS_LPDDR2),
         .DFI_CDC_EN       (DFI_CDC_EN),
+        .WR_MERGE_EN      (WR_MERGE_EN),
+        .RD_MERGE_EN      (RD_MERGE_EN),
+        .HAS_SNARF        (HAS_SNARF),
+        .NARROW_EN        (NARROW_EN),
         .HAS_MON           (HAS_MON),
         .MON_ACLK_MHZ      (MON_ACLK_MHZ),
         .MON_UNIT_ID       (MON_UNIT_ID),
