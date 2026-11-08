@@ -36,7 +36,10 @@ area's counts went wrong on 2026-09-27.
 
 ## What is actually open
 
-**Bug lane: empty.** BUG-022 (the `ADDR_MAP.bank_lsb` documented bound)
+**Bug lane: empty again (2026-11-07).** BUG-033, the board read corruption
+under the fast read release, closed today: a lost release token in the
+scheduler plane (`e91fb524e`), 16 / 16 interleaved board runs clean on the
+fixed bitstream. Before it, BUG-022 (the `ADDR_MAP.bank_lsb` documented bound)
 was fixed 2026-10-03 alongside BUG-021; every written copy of the wrong
 bound is corrected and the right one is guarded by
 `test_addr_mapper.py::minimum_bank_lsb_is_measured`.

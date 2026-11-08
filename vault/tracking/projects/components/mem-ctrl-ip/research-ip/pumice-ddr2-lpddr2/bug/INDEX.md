@@ -13,8 +13,8 @@ exactly one state by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 29 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 30 | done (kept for history) |
 | [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,18 +24,20 @@ None.
 
 ## Active
 
-- **BUG-033** — reads return wrong data with `FAST_RD_RELEASE` on: board
-  `windows` random_bl8 fails ~1 run in 3 at 50 MHz. ROOT CAUSE 2026-11-07 (ILA
-  with the arbiter's registers probed): the arbiter spaces REF and the next ACT
-  correctly; the DFI command CDC FIFO (`mc_dfi_cdc`, depth 8) stalls the 8th
-  back-to-back command on async pointer lag and the stream behind it drains
-  compressed, so the pair reaches the DRAM 2 cycles apart. Fix: pumice
-  `DFI_CMD_FIFO_DEPTH = 32` + a stall counter in the CDC; the arbiter tRFC hole
-  closed the same day (`f2f7b15ff`) was real but not this. Board validation on
-  the fixed bitstream pending. [active/BUG-033.md](active/BUG-033.md).
-
+None.
 ## Closed
 
+- **BUG-033** — CLOSED 2026-11-07: board reads corrupted ~1 run in 3 with
+  `FAST_RD_RELEASE` on. Root cause `e91fb524e`: the scheduler plane's
+  fast-release token accounting ORed two token sources that can mature in
+  one cycle; the lost token left a command in the output FIFO with no token
+  and every command then left only on the next push, so a REF waited for the
+  ACT behind it (REF/ACT 1 apart at the DRAM, tRFC 7). Found with the
+  arbiter's and the plane's registers on the board ILA. Fixed sys50
+  bitstream: 16 / 16 interleaved runs clean (8 bit on, 8 off) where every
+  earlier build failed by bit-on run 5. Two hazards closed on the way
+  (arbiter tRFC seam `f2f7b15ff`, CDC command depth) were not the cause.
+  [closed/BUG-033.md](closed/BUG-033.md).
 - **BUG-030** — CLOSED 2026-11-02: the idle-timeout close that collapsed
   multi-thread streaming to 307 / 354 MB/s. Fixed 488a9654c (mistake
   predictor, open-row-demand veto, fire-side policy feed, exported timeout
