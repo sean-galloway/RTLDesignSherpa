@@ -223,6 +223,18 @@ class JetControlTB(TBBase):
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
+    async def _wb_drain_line(self):
+        """The WB head's line, read by beat through the harness's
+        wb_drain_beat_idx_i / wb_drain_beat_data_o (beat-addressed RAM)."""
+        d = self.dut
+        n = self.LINE_BYTES * 8 // self.BUS_WIDTH
+        val = 0
+        for b in range(n):
+            d.wb_drain_beat_idx_i.value = b
+            await Timer(1, units='ps')
+            val |= int(d.wb_drain_beat_data_o.value) << (b * self.BUS_WIDTH)
+        return val
+
     def _score(self, what, got, exp):
         self.checks += 1
         if got != exp:
@@ -556,7 +568,7 @@ class JetControlTB(TBBase):
                                 int(d.wb_drain_addr_o.value),
                                 exp_line << self.OFFSET_BITS)
                     self._score("drain: head data",
-                                int(d.wb_drain_data_o.value), exp_data)
+                                await self._wb_drain_line(), exp_data)
                 countdown = self.drain_latency
             elif countdown >= 0 and self.wb_expect:
                 # address held until BRESP (Chinnakonda 10.10.1)
@@ -979,6 +991,10 @@ class JetControlTB(TBBase):
     # ------------------------------------------------------------------
     async def _req(self, addr, we, be, wdata, label='', exp_stall=None,
                    max_stall_cycles=400):
+        """v3 lookup pipeline: phase 1 waits for the structural capture
+        (lkup_ready_o), phase 2 for the class pulse one cycle later at the
+        earliest (the classify runs on the captured register; its stall is
+        reported on lkup_stall_o while the occupant holds)."""
         d = self.dut
         line = self._line_of(addr)
         set_idx = self._set_of_line(line)
@@ -991,22 +1007,42 @@ class JetControlTB(TBBase):
         d.lkup_wdata_i.value = wdata
         stalls = 0
         yields = 0
+        # phase 1: capture (the rsp_seq tag is allocated here)
+        cap_tag = None
         for _ in range(self.REQ_TIMEOUT * 4):
             await self._settle()
+            if int(d.lkup_stall_o.value):
+                stalls += 1
+                if exp_stall is not None:
+                    self._score(f"{label} stall reason",
+                                int(d.lkup_stall_reason_o.value), exp_stall)
             if int(d.lkup_ready_o.value):
-                rec = self._accept(addr, we, be, wdata, label, stalls, yields)
-                await RisingEdge(d.clk)
-                d.lkup_valid_i.value = 0
-                # record the deposit only after the accept posedge: on the
-                # rsp_seq recirculation corner the release of the tag's old
-                # record lands on the same edge and must be popped first
+                cap_tag = self.next_tag
+                self.next_tag = (self.next_tag + 1) % self.RSP_DEPTH
+                break
+            await self._drive_pt()
+        else:
+            raise RuntimeError(f"{label}: request timeout (capture)")
+        await RisingEdge(d.clk)
+        d.lkup_valid_i.value = 0
+        # phase 2: the classify fires >= 1 cycle after the capture
+        for _ in range(self.REQ_TIMEOUT * 4):
+            await self._drive_pt()
+            await self._settle()
+            cls = {'hit': int(d.lkup_hit_o.value),
+                   'merge': int(d.lkup_merge_o.value),
+                   'alloc': int(d.lkup_miss_alloc_o.value),
+                   'upgrade': int(d.lkup_upgrade_o.value)}
+            if any(cls.values()):
+                rec = self._accept(addr, we, be, wdata, label, stalls,
+                                   yields, tag=cap_tag)
+                rec['line'] = line
+                rec['set'] = set_idx
+                rec['beat'] = beat
                 if rec['deposit'] is not None:
                     self._score(f"{label} no double deposit",
                                 rec['tag'] in self.deposits, False)
                     self.deposits[rec['tag']] = rec['deposit']
-                rec['line'] = line
-                rec['set'] = set_idx
-                rec['beat'] = beat
                 rec['srv_wait'] = await self._await_serve(rec, label)
                 return rec
             if int(d.lkup_stall_o.value):
@@ -1014,24 +1050,14 @@ class JetControlTB(TBBase):
                 if exp_stall is not None:
                     self._score(f"{label} stall reason",
                                 int(d.lkup_stall_reason_o.value), exp_stall)
-            # (a non-stall wait cycle is an internal hold: the fill launch
-            # register draining, a commit phase owning the deposit/data/tag
-            # port for a cycle -- all bounded)
-            if int(d.lkup_wr_yield_o.value):
-                yields += 1
-                self._score(f"{label} yield implies W port busy",
-                            int(d.fill_beat_valid_i.value)
-                            | int(d.ctrl_dat_wr_en_o.value), 1)
-                self._score(f"{label} yield: no accepted write",
-                            int(d.lkup_ready_o.value), 0)
-            if stalls + yields > max_stall_cycles:
-                raise RuntimeError(f"{label}: request never accepted "
-                                   f"(stalls={stalls} yields={yields})")
-            await self._drive_pt()
-        raise RuntimeError(f"{label}: request timeout")
+        raise RuntimeError(f"{label}: request never classified")
 
-    def _accept(self, addr, we, be, wdata, label, stalls, yields):
-        """Score every accept-cycle observable; update the models."""
+    def _accept(self, addr, we, be, wdata, label, stalls, yields, tag=None):
+        """Score every classify-cycle observable; update the models.
+
+        v3: `tag` is the rsp_seq tag allocated at the CAPTURE (the caller
+        advanced next_tag then); the class pulses fire at the classify,
+        one cycle later at the earliest."""
         d = self.dut
         line = self._line_of(addr)
         set_idx = self._set_of_line(line)
@@ -1042,8 +1068,7 @@ class JetControlTB(TBBase):
                'upgrade': int(d.lkup_upgrade_o.value)}
         self._score(f"{label} exactly one class",
                     sum(cls.values()), 1)
-        tag = self.next_tag
-        self.next_tag = (self.next_tag + 1) % self.RSP_DEPTH
+        assert tag is not None
         rec = {'tag': tag, 'cls': cls, 'stalls': stalls, 'yields': yields,
                'we': we, 'be': be, 'wdata': wdata, 'deposit': None}
 
@@ -2168,12 +2193,12 @@ class JetControlTB(TBBase):
         await self._settle()
         self._score("prio: CPU held through the effect cycle",
                     int(d.lkup_ready_o.value), 0)
-        # then the CPU hit is accepted
+        # then the CPU hit is captured (v3: the classify fires a cycle
+        # later, the deposit a cycle after that)
         await self._drive_pt()
         await self._settle()
         self._score("prio: CPU accepted after the service",
                     int(d.lkup_ready_o.value), 1)
-        self._score("prio: accepted class hit", int(d.lkup_hit_o.value), 1)
         # the _accept bookkeeping inline (the snoop touched no CPU state)
         tag = self.next_tag
         self.next_tag = (self.next_tag + 1) % self.RSP_DEPTH
@@ -2181,7 +2206,11 @@ class JetControlTB(TBBase):
         exp_data = self._beat_of(self.array_data[(24, way_a)], 2)
         await RisingEdge(d.clk)
         d.lkup_valid_i.value = 0
-        # the serve pend deposits the cycle after the accept (ISSUE-001 v2)
+        # classify cycle
+        await self._drive_pt()
+        await self._settle()
+        self._score("prio: accepted class hit", int(d.lkup_hit_o.value), 1)
+        # serve cycle (the v2 pend deposits here)
         await self._drive_pt()
         await self._settle()
         self._score("prio: hit deposit tag", int(d.cpl_tag_o.value), tag)

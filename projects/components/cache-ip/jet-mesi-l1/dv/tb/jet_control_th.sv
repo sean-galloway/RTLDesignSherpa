@@ -134,7 +134,8 @@ module jet_control_th
     output logic                        drain_start_o,
     output logic                        wb_drain_valid_o,
     output logic [ADDR_WIDTH-1:0]       wb_drain_addr_o,
-    output logic [LINE_BITS-1:0]        wb_drain_data_o,
+    input  logic [$clog2(LINE_BYTES/(BUS_WIDTH/8))-1:0] wb_drain_beat_idx_i,  // the drain payload is read by beat
+    output logic [BUS_WIDTH-1:0]        wb_drain_beat_data_o,
 
     // snoop responder (l1_snoop_resp core-facing contract, TB-driven;
     // sn_want_i is the snoop-pending line -- the transport raises it with
@@ -296,7 +297,11 @@ module jet_control_th
     logic                       wb_full;
     logic                       wb_drain_valid;
     logic                       wb_sn_hit;
-    logic [LINE_BITS-1:0]       wb_sn_data;
+    logic [$clog2(VICTIM_DEPTH) > 0 ? $clog2(VICTIM_DEPTH)-1 : 0:0] wb_sn_match_idx;
+    logic                       ctrl_wb_sn_lock;
+    logic [$clog2(VICTIM_DEPTH) > 0 ? $clog2(VICTIM_DEPTH)-1 : 0:0] ctrl_wb_sn_rd_slot;
+    logic [$clog2(LINE_BYTES/(BUS_WIDTH/8))-1:0] ctrl_wb_sn_rd_beat;
+    logic [BUS_WIDTH-1:0]       wb_sn_rd_data;
     logic                       wb_sn_bresp_cycle;
     logic [WB_W:0]              wb_occupancy_nc;
     // rsp_seq: control <-> sequencer
@@ -425,7 +430,11 @@ module jet_control_th
         .wb_sn_line_o            (ctrl_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
         .wb_sn_eff_o             (ctrl_wb_sn_eff),
-        .wb_sn_data_i            (wb_sn_data),
+        .wb_sn_match_idx_i       (wb_sn_match_idx),
+        .wb_sn_lock_o            (ctrl_wb_sn_lock),
+        .wb_sn_rd_slot_o         (ctrl_wb_sn_rd_slot),
+        .wb_sn_rd_beat_o         (ctrl_wb_sn_rd_beat),
+        .wb_sn_rd_data_i         (wb_sn_rd_data),
         .wb_sn_bresp_cycle_i     (wb_sn_bresp_cycle),
         .wb_drain_valid_i        (wb_drain_valid),
         .drain_start_o           (drain_start_o),
@@ -554,11 +563,16 @@ module jet_control_th
         .wb_full_o       (wb_full),
         .drain_valid_o   (wb_drain_valid),
         .drain_addr_o    (wb_drain_addr_o),
-        .drain_data_o    (wb_drain_data_o),
+        .drain_beat_idx_i (wb_drain_beat_idx_i),
+        .drain_beat_data_o(wb_drain_beat_data_o),
         .drain_done_i    (drain_done_i),
         .sn_line_i       (ctrl_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
-        .sn_data_o       (wb_sn_data),
+        .sn_match_idx_o  (wb_sn_match_idx),
+        .sn_lock_i       (ctrl_wb_sn_lock),
+        .sn_rd_slot_i    (ctrl_wb_sn_rd_slot),
+        .sn_rd_beat_i    (ctrl_wb_sn_rd_beat),
+        .sn_rd_data_o    (wb_sn_rd_data),
         .sn_bresp_cycle_o(wb_sn_bresp_cycle),
         .sn_eff_i        (ctrl_wb_sn_eff),
         .wb_occupancy_o  (wb_occupancy_nc)

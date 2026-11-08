@@ -140,6 +140,10 @@ module jet_coh_core
     parameter bit USE_MONITOR    = 1'b1,
     parameter int MSHR_COUNT     = jet_pkg::MSHR_COUNT,
     parameter int VICTIM_DEPTH   = jet_pkg::VICTIM_DEPTH,
+    // Data array in block RAM (registered read, one-cycle address lead in
+    // jet_control) -- the FPGA default; 0 keeps the combinational LUTRAM
+    // read for a comparison build.
+    parameter bit DATA_SYNC_READ = 1'b1,
     localparam int SET_W       = $clog2(SETS),
     localparam int OFF_W       = $clog2(LINE_BYTES),
     localparam int TAG_W       = ADDR_WIDTH - SET_W - OFF_W,
@@ -412,11 +416,16 @@ module jet_coh_core
     logic [LINE_W-1:0]          ctrl_wb_sn_line;
     logic                       wb_sn_hit;
     logic [1:0]                 ctrl_wb_sn_eff;
-    logic [LINE_BITS-1:0]       wb_sn_data;
+    logic [WB_W-1:0]            wb_sn_match_idx;
+    logic                       ctrl_wb_sn_lock;
+    logic [WB_W-1:0]            ctrl_wb_sn_rd_slot;
+    logic [BEAT_W-1:0]          ctrl_wb_sn_rd_beat;
+    logic [BUS_WIDTH-1:0]       wb_sn_rd_data;
     logic                       wb_sn_bresp_cycle;
     logic                       wb_drain_valid;
     logic [ADDR_WIDTH-1:0]      wb_drain_addr;
-    logic [LINE_BITS-1:0]       wb_drain_data;
+    logic [BEAT_W-1:0]          wb_drain_beat_idx;
+    logic [BUS_WIDTH-1:0]       wb_drain_beat_data;
     logic [$clog2(VICTIM_DEPTH+1)-1:0] wb_occupancy;
     logic                       ctrl_drain_start;
     logic                       eng_drain_done;
@@ -555,7 +564,8 @@ module jet_coh_core
         .LINE_BYTES   (LINE_BYTES),
         .BUS_WIDTH    (BUS_WIDTH),
         .MSHR_COUNT   (MSHR_COUNT),
-        .VICTIM_DEPTH (VICTIM_DEPTH)
+        .VICTIM_DEPTH (VICTIM_DEPTH),
+        .DATA_SYNC_READ (DATA_SYNC_READ)
     ) u_control (
         .clk                     (aclk),
         .rst_n                   (aresetn),
@@ -645,7 +655,11 @@ module jet_coh_core
         .wb_sn_line_o            (ctrl_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
         .wb_sn_eff_o             (ctrl_wb_sn_eff),
-        .wb_sn_data_i            (wb_sn_data),
+        .wb_sn_match_idx_i       (wb_sn_match_idx),
+        .wb_sn_lock_o            (ctrl_wb_sn_lock),
+        .wb_sn_rd_slot_o         (ctrl_wb_sn_rd_slot),
+        .wb_sn_rd_beat_o         (ctrl_wb_sn_rd_beat),
+        .wb_sn_rd_data_i         (wb_sn_rd_data),
         .wb_sn_bresp_cycle_i     (wb_sn_bresp_cycle),
         .wb_drain_valid_i        (wb_drain_valid),
         .drain_start_o           (ctrl_drain_start),
@@ -775,11 +789,16 @@ module jet_coh_core
         .wb_full_o       (wb_full),
         .drain_valid_o   (wb_drain_valid),
         .drain_addr_o    (wb_drain_addr),
-        .drain_data_o    (wb_drain_data),
+        .drain_beat_idx_i (wb_drain_beat_idx),
+        .drain_beat_data_o(wb_drain_beat_data),
         .drain_done_i    (eng_drain_done),
         .sn_line_i       (ctrl_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
-        .sn_data_o       (wb_sn_data),
+        .sn_match_idx_o  (wb_sn_match_idx),
+        .sn_lock_i       (ctrl_wb_sn_lock),
+        .sn_rd_slot_i    (ctrl_wb_sn_rd_slot),
+        .sn_rd_beat_i    (ctrl_wb_sn_rd_beat),
+        .sn_rd_data_o    (wb_sn_rd_data),
         .sn_bresp_cycle_o(wb_sn_bresp_cycle),
         .sn_eff_i        (ctrl_wb_sn_eff),
         .wb_occupancy_o  (wb_occupancy)
@@ -809,7 +828,8 @@ module jet_coh_core
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
-        .BUS_WIDTH  (BUS_WIDTH)
+        .BUS_WIDTH  (BUS_WIDTH),
+        .SYNC_READ  (DATA_SYNC_READ)
     ) u_data (
         .clk           (aclk),
         .a_addr        (ctrl_dat_a_addr),
@@ -901,7 +921,8 @@ module jet_coh_core
         .rst_n            (aresetn),
         .drain_start      (ctrl_drain_start),
         .victim_addr      (wb_drain_addr),
-        .victim_data      (wb_drain_data),
+        .victim_beat_idx  (wb_drain_beat_idx),
+        .victim_beat_data (wb_drain_beat_data),
         .drain_done       (eng_drain_done),
         .fub_axi_awid     (fub_axi_awid),
         .fub_axi_awaddr   (fub_axi_awaddr),

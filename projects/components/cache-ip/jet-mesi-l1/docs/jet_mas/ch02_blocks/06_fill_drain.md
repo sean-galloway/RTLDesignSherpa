@@ -23,8 +23,12 @@
 
 # Fill and Drain Engines
 
-**Status:** planned contract. Both engines are the unchanged amber FUBs;
-this chapter records how jet drives them differently, not new engines.
+**Status:** landed. Both engines are the shared common-ip FUBs; this
+chapter records how jet drives them differently, not new engines. One
+shared-engine change came out of the FPGA review (2026-11-07): `l1_drain`'s
+victim port is beat-serial (`victim_beat_idx` out, `victim_beat_data` in)
+rather than a line-wide `victim_data` bus, so that the store behind it can be
+a RAM in both cores.
 
 ## `l1_fill` under MSHRs
 
@@ -53,7 +57,10 @@ this chapter records how jet drives them differently, not new engines.
 ## `l1_drain` under the WB buffer
 
 - The engine pulls the oldest valid WB entry whenever the AXI4 write
-  channel is free: AW, W beats from the entry, BRESP retires it.
+  channel is free: AW from `drain_addr_o`, then for each W beat it presents
+  `victim_beat_idx` (its beat counter) to the buffer's `drain_beat_idx_i` and
+  drives WDATA from `drain_beat_data_o` the same cycle; BRESP retires the
+  entry. No line-wide copy of the entry exists anywhere on this path.
 - Drains never wait on fills (independent channels, per the ACE-style
   two-channel rule — Chinnakonda §10.10) and never wait on snoops (snoops
   snarf from the buffer).

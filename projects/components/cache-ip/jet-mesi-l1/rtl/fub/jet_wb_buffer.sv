@@ -124,16 +124,29 @@ module jet_wb_buffer
     output logic [SLOT_W-1:0]        cap_slot_o,
     output logic                     wb_full_o,
 
-    // Drain side: l1_victim-shaped head of the FIFO
+    // Drain side: l1_victim-shaped head of the FIFO.  The payload is read
+    // BY BEAT: the drain presents its beat index and gets that word of
+    // the head entry the same cycle (the store is a small RAM, never a
+    // line-wide bus -- FPGA review 2026-11-07).
     output logic                     drain_valid_o,
     output logic [ADDR_WIDTH-1:0]    drain_addr_o,
-    output logic [LINE_WIDTH-1:0]    drain_data_o,
+    input  logic [BEAT_W-1:0]        drain_beat_idx_i,
+    output logic [BUS_WIDTH-1:0]     drain_beat_data_o,
     input  logic                     drain_done_i,
 
-    // Snarf: snoop service from the WB buffer
+    // Snarf: snoop service from the WB buffer.  The CAM reports the hit
+    // and its slot; the CD stream then reads that slot by beat through
+    // sn_rd_slot_i / sn_rd_beat_i.  sn_lock_i (with sn_rd_slot_i) pins
+    // the slot's words while a stream is in flight: the entry may have
+    // retired on its BRESP mid-stream, and a new capture must not reuse
+    // the slot until the stream has read its last beat.
     input  logic [LINE_W-1:0]        sn_line_i,
     output logic                     sn_hit_o,
-    output logic [LINE_WIDTH-1:0]    sn_data_o,
+    output logic [SLOT_W-1:0]        sn_match_idx_o,
+    input  logic                     sn_lock_i,
+    input  logic [SLOT_W-1:0]        sn_rd_slot_i,
+    input  logic [BEAT_W-1:0]        sn_rd_beat_i,
+    output logic [BUS_WIDTH-1:0]     sn_rd_data_o,
     output logic                     sn_bresp_cycle_o,
     input  logic [1:0]               sn_eff_i,
 
@@ -171,7 +184,14 @@ module jet_wb_buffer
     logic [VICTIM_DEPTH-1:0]       r_valid;
     logic [VICTIM_DEPTH-1:0]       r_allocated;
     logic [LINE_W-1:0]             r_line      [VICTIM_DEPTH];
-    logic [LINE_WIDTH-1:0]         r_data      [VICTIM_DEPTH];
+    // line payload: one word per (slot, beat) -- a distributed RAM with
+    // one beat write port and two beat read ports (drain, snoop stream)
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`elsif SYNTH_PRAGMA
+    /* synthesis ramstyle = "MLAB" */
+`endif
+    logic [BUS_WIDTH-1:0]          r_data      [VICTIM_DEPTH * FILL_BEATS];
     logic [BEAT_W-1:0]             r_beats_rcvd[VICTIM_DEPTH];
     logic [1:0]                    r_eff       [VICTIM_DEPTH];
 
@@ -187,8 +207,12 @@ module jet_wb_buffer
     // Free / full status (combinational)
     // ------------------------------------------------------------------
     logic w_any_free;
+    logic w_tail_locked;
 
-    assign w_any_free = ~(&r_allocated);
+    // the tail slot may have retired (BRESP) while a snoop stream still
+    // reads its words: it is not reusable until the stream's lock drops
+    assign w_tail_locked = sn_lock_i & (sn_rd_slot_i == r_tail);
+    assign w_any_free = ~(&r_allocated) & ~w_tail_locked;
     assign wb_full_o  = ~w_any_free;
     assign cap_gnt_o  = cap_i & (r_open | w_any_free);
     assign cap_slot_o = r_open ? r_open_slot : r_tail;
@@ -201,7 +225,7 @@ module jet_wb_buffer
     assign w_head_idx   = r_head;
     assign drain_valid_o = r_valid[w_head_idx];
     assign drain_addr_o  = ADDR_WIDTH'({r_line[w_head_idx], {OFFSET_W{1'b0}}});
-    assign drain_data_o  = r_data[w_head_idx];
+    assign drain_beat_data_o = r_data[{w_head_idx, drain_beat_idx_i}];
 
     // ------------------------------------------------------------------
     // Snarf CAM (combinational): search from head to tail, oldest first
@@ -223,7 +247,8 @@ module jet_wb_buffer
     end
 
     assign sn_hit_o         = w_sn_match;
-    assign sn_data_o        = r_data[w_sn_match_idx];
+    assign sn_match_idx_o   = w_sn_match_idx;
+    assign sn_rd_data_o     = r_data[{sn_rd_slot_i, sn_rd_beat_i}];
     assign sn_bresp_cycle_o = w_sn_match & drain_done_i
                               & (w_sn_match_idx == w_head_idx);
 
@@ -250,7 +275,6 @@ module jet_wb_buffer
             r_open_slot  <= '0;
             for (int s = 0; s < VICTIM_DEPTH; s++) begin
                 r_line[s]       <= '0;
-                r_data[s]       <= '0;
                 r_beats_rcvd[s] <= '0;
                 r_eff[s]        <= '0;
             end
@@ -275,8 +299,7 @@ module jet_wb_buffer
             if (r_open && cap_beat_i) begin
                 logic [BEAT_W-1:0] b;
                 b = r_beats_rcvd[r_open_slot];
-                r_data[r_open_slot][32'(b) * BUS_WIDTH +: BUS_WIDTH]
-                    <= cap_beat_data_i;
+                // (the beat itself lands in the reset-free payload block)
                 r_beats_rcvd[r_open_slot] <= b + 1'b1;
                 if (b == BEAT_W'(FILL_BEATS - 1)) begin
                     r_valid[r_open_slot] <= 1'b1;
@@ -299,6 +322,21 @@ module jet_wb_buffer
             end
         end
     )
+
+    // ------------------------------------------------------------------
+    // Payload store: no reset (GLOBAL_REQUIREMENTS 1.4 shape).  Every word
+    // is qualified by r_valid / r_beats_rcvd, which ARE reset, so a reset
+    // value is never observed.  Beat-addressed so it maps to distributed
+    // RAM: the whole-line version was VICTIM_DEPTH x LINE_WIDTH flops plus
+    // a line-wide read mux, and its async clear was the reset
+    // synchronizer's worst recovery path on Kintex-7 (jet bin 5/6, FPGA
+    // review 2026-11-07).
+    // ------------------------------------------------------------------
+    always_ff @(posedge clk) begin
+        if (r_open && cap_beat_i) begin
+            r_data[{r_open_slot, r_beats_rcvd[r_open_slot]}] <= cap_beat_data_i;
+        end
+    end
 
     // ------------------------------------------------------------------
     // Simulation-only contract checks

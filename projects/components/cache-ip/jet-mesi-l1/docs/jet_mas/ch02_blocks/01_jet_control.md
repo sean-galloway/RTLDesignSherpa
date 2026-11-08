@@ -294,12 +294,18 @@ Where the contract text was silent, the landing pinned:
   FILL_BEATS plus any in-flight snoop stream).  Snoop acceptance never
   gates on WB occupancy, fill state, or drain state
   (`snoop_never_waits_on_wb_full`).
-- **A WB snarf snapshots the whole line at the grant** — the entry may
-  retire mid-stream in its BRESP cycle (the ships-in-the-night corner);
-  the stream serves the snapshot.  An array/MSHR stream reads the data
-  array on port B (the fill's claimed way for a pending fill), pausing
-  the victim capture (jet_wb_buffer tolerates the pause; bounded by the
-  service length).
+- **A WB snarf latches the matched slot at the grant and locks it** —
+  the entry may retire mid-stream in its BRESP cycle (the
+  ships-in-the-night corner), so `wb_sn_lock_o` holds the slot against
+  reuse until the stream ends while each CD beat is read from the WB
+  store by `(slot, beat)` (`wb_sn_rd_slot_o / wb_sn_rd_beat_o` →
+  `wb_sn_rd_data_i`).  The original landing copied the whole line into a
+  snapshot register at the grant; a line-wide read of beat-written
+  storage forces that store into flops, so the snapshot went in the FPGA
+  review (2026-11-07; ch02/03 "How the stream reads the entry").  An
+  array/MSHR stream reads the data array on port B (the fill's claimed
+  way for a pending fill), pausing the victim capture (jet_wb_buffer
+  tolerates the pause; bounded by the service length).
 - **pend_eff I-sticks lives in the sn_eff drive**: the record port write
   is unconditional in jet_mshr, so the priority (an armed invalidate
   dominates a later downgrade) is resolved here via a per-entry shadow
@@ -332,6 +338,64 @@ Where the contract text was silent, the landing pinned:
   demote is the defensive contract, pinned by `KilledUpgrade` in the
   core TB.
 
+
+## v3 implementation notes (lookup pipeline and FPGA review, as landed 2026-11-07)
+
+The lookup stage became a two-step **capture / classify** pipe over the one
+tag read port: a request is captured (`r_lk_valid`) with a registered
+snapshot of its set's per-way `{tag, state}` (`r_lk_tagstate`), and the
+classify runs against that snapshot in a later cycle.  The FPGA review of
+the same week moved the data array to a registered read and the payload
+stores to RAMs.  Where the text above was silent, the landing pinned:
+
+- **The classify reads only the snapshot.**  Every term the classify
+  derives from the tag array — the hit way, the victim's state and tag,
+  the E→M promotion — comes from `r_lk_tagstate`, never from the live
+  `tag_a_tag_state_i` port.  The port A address is the captured request's
+  set while a capture waits (`tag_a_set_o = r_lk_valid & ~w_cls_advance ?
+  w_req_set : w_live_set`), and a tag write to that set while the
+  snapshot is held marks it dirty and replays the read (`r_lk_dirty`).  The
+  bug that fixed this rule: the victim state/tag were read from the live
+  port while it carried the *occupant's* set, so a miss could "hit" the
+  wrong set's way.  Handbook: `design/decision-stage-reads-the-snapshot.md`.
+- **The snoop grant does not wait for an empty lookup pipe.**  `sn_safe_o`
+  is the init walk, the service FSM, the commit window (`w_any_done`), a
+  victim capture or its last in-flight word (`w_cap_active`), the CU grant
+  cycle, and a pended write hit (`r_srv_vld & r_srv_we`) — every one
+  resolved by a local event.  The earlier `& ~r_lk_valid` term deadlocked
+  the pair rig (SEED 27994): the occupant was a true miss **held** on the
+  fill-launch register, the launch waited on the fill engine, whose AR the
+  fabric would not accept while it sat in F_RESP waiting for this core's
+  snoop response.  A captured-not-classified request stays correct without
+  the term: the classify holds in the grant cycle and through the service
+  (`w_cls_advance` requires `SN_IDLE & ~w_sn_gnt`), and a service tag write
+  to its set dirties the snapshot (above); the MSHR CAM, WB CAM, claim count
+  and victim way are live lookups, never snapshotted.  Handbook:
+  `design/holds-that-wait-on-the-fabric.md`.
+- **Registered data-array read (`DATA_SYNC_READ`, the core default).**  Read
+  data lands one cycle after its address and the way select is applied in
+  the data cycle.  The ports are shared, so each consumer presents its
+  address a cycle ahead and **fires only when the address presented last
+  cycle was its own**: the serve record on port A (`r_pa_srv_d1`, which also
+  requires the record not to have reloaded), the commit's read-capture slot
+  (`r_cmt_rd_d1` / `r_cmt_rd_k_d1`), the victim capture on port B
+  (`r_cap_d1`, folded into `w_cap_active` so the snoop-safe rule and the WB
+  race cover the last in-flight word), and the snoop stream (beat 0's
+  address leads in the grant cycle, `w_sn_portb_pre`; each accepted beat
+  presents the next).  The capture never presents in a cycle the snoop owns,
+  so two consumers' words never share a data cycle.  With
+  `DATA_SYNC_READ=0` every qualifier is constant and the cycle behaviour is
+  the original; the unit benches and the `formal/` flats run that build,
+  the cores and the boards run the registered one.  Handbook:
+  `design/sram-and-memories.md`, "The shared-port variant".
+- **Payload stores are beat-addressed RAMs, not line registers.**  The WB
+  buffer's line words, the response ring's words and amber's victim line
+  are read one beat at a time by consumers that are beat-serial anyway
+  (`l1_drain`'s W counter, the snoop CD stream); none of them is reset
+  (each word is qualified by a reset valid bit).  Jet on the Genesys2 went
+  from 108k to 22k LUT and 62k to 24k FF across the review's bins; the
+  remaining structural path is the reset synchronizer's output net
+  (ch01/03).
 
 ## W-port arbitration
 

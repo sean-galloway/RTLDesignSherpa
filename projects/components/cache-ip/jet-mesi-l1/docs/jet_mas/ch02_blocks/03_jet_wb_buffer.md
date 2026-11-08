@@ -36,8 +36,8 @@ they were evicted for.
 | `valid` | captured, not yet BRESP-retired |
 | `line` | victim line address (the snoop-compare key) |
 | `state` | M (only dirty victims are captured) |
-| `data` | the full line, read from the data array at capture |
-| `beats_sent` | drain progress |
+| `data` | the line, **one word per (slot, beat)** in a beat-addressed store shared by all entries (`r_data[VICTIM_DEPTH*FILL_BEATS]`, distributed RAM, no reset) |
+| `beats_rcvd` | capture progress (the slot closes when the line is complete) |
 
 ## Lifecycle
 
@@ -62,6 +62,31 @@ already took the data; the drain completes the memory update). This closes
 the ships-in-the-night corner (§10.12.2): a pre-BRESP WriteBack plus a
 clean-invalidating snoop to the same line is answered from the buffer,
 never "not present".
+
+**How the stream reads the entry (FPGA review 2026-11-07).** The CAM's
+matched slot (`sn_match_idx_o`) is latched by `jet_control` at the grant;
+each CD beat is then read from the store by `(sn_rd_slot_i, sn_rd_beat_i)`
+on `sn_rd_data_o`. The entry may retire on its BRESP mid-stream, so while
+the stream runs `jet_control` holds `sn_lock_i` and the buffer **does not
+reuse the retired slot**: a locked tail slot is not free (`w_any_free`
+excludes it, so `cap_gnt_o` and `wb_full_o` honour the lock), and the
+words stay in place until the stream ends. The earlier contract copied the
+whole line into a snapshot register at the grant; a line-wide read port on
+beat-written storage forces the store into flops (and, under the reset
+macro, onto the reset net), which was the second-largest flop block of the
+core on the Genesys2. Handbook: `design/sram-and-memories.md`, "A line-wide
+read interface forces a flop array: read payload by beat".
+
+## Storage and ports
+
+| Port group | Shape | Notes |
+|---|---|---|
+| capture `cap_i / cap_beat_i / cap_beat_data_i` → `cap_gnt_o / cap_slot_o` | one beat per cycle into `r_data[{open_slot, beats_rcvd}]` | the only write port |
+| drain `drain_valid_o / drain_addr_o`, `drain_beat_idx_i` → `drain_beat_data_o`, `drain_done_i` | head slot; `l1_drain` presents its W beat index and takes the word the same cycle | the l1_victim-shaped head, now beat-serial |
+| snarf `sn_line_i` → `sn_hit_o / sn_match_idx_o`; `sn_lock_i / sn_rd_slot_i / sn_rd_beat_i` → `sn_rd_data_o`; `sn_bresp_cycle_o`, `sn_eff_i` | CAM on `line`, then a beat read of the matched slot | the lock pins the slot against reuse |
+
+`r_valid`, `r_allocated`, `r_line`, `r_beats_rcvd`, `r_eff` and the pointers are
+reset; `r_data` is not — every word is qualified by its slot's valid bit.
 
 ## Congestion rule (J6)
 

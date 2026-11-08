@@ -36,10 +36,13 @@ FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
 # concurrent-assertion form, so the prep strips them (they are sim-only by
 # construction; the wrapper re-proves the load-bearing ones formally).
 FLAT_PREP       := /pragma translate_off/,/pragma translate_on/d
+# DATA_SYNC_READ=0: the proofs run the combinational-read data port (the
+# wrapper frees the data arrays; the block-RAM lead/qualifier logic is
+# covered by the jet_core/pair-rig sims and the harness cosim).
 # specialize_params pins the tiny formal geometry AND deletes the parameter
 # declarations, so the DUT is parameterless and yosys's expose applies
 # (bind silently never fires in this yosys build -- amber Task 13 finding).
-FLAT_POST       := python3 $(REPO_ROOT)/formal/amber/specialize_params.py - /dev/stdout --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 --param LINE_BYTES=64 --param BUS_WIDTH=64 --param MSHR_COUNT=2 --param VICTIM_DEPTH=2 --module jet_control
+FLAT_POST       := python3 $(REPO_ROOT)/formal/amber/specialize_params.py - /dev/stdout --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 --param LINE_BYTES=64 --param BUS_WIDTH=64 --param MSHR_COUNT=2 --param VICTIM_DEPTH=2 --param DATA_SYNC_READ=0 --module jet_control
 include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove prove-live cover all clean

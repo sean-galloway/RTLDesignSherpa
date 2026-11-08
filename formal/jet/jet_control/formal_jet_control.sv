@@ -249,7 +249,11 @@ module formal_jet_control (
     logic        wb_full;
     logic        wb_drain_valid;
     logic        wb_sn_hit;
-    logic [511:0] wb_sn_data;
+    logic        wb_sn_match_idx;
+    logic        wb_sn_lock;
+    logic        wb_sn_rd_slot;
+    logic [2:0]  wb_sn_rd_beat;
+    logic [63:0] wb_sn_rd_data;
     logic        wb_sn_bresp_cycle;
 
     logic        seq_tag_gnt;
@@ -378,7 +382,11 @@ module formal_jet_control (
         .wb_sn_line_o            (dut_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
         .wb_sn_eff_o             (dut_wb_sn_eff),
-        .wb_sn_data_i            (wb_sn_data),
+        .wb_sn_match_idx_i       (wb_sn_match_idx),
+        .wb_sn_lock_o            (wb_sn_lock),
+        .wb_sn_rd_slot_o         (wb_sn_rd_slot),
+        .wb_sn_rd_beat_o         (wb_sn_rd_beat),
+        .wb_sn_rd_data_i         (wb_sn_rd_data),
         .wb_sn_bresp_cycle_i     (wb_sn_bresp_cycle),
         .wb_drain_valid_i        (wb_drain_valid),
         .drain_start_o           (dut_drain_start),
@@ -525,11 +533,16 @@ module formal_jet_control (
         .wb_full_o       (wb_full),
         .drain_valid_o   (wb_drain_valid),
         .drain_addr_o    (),
-        .drain_data_o    (),
+        .drain_beat_idx_i (3'd0),
+        .drain_beat_data_o(),
         .drain_done_i    (drain_done),
         .sn_line_i       (dut_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
-        .sn_data_o       (wb_sn_data),
+        .sn_match_idx_o  (wb_sn_match_idx),
+        .sn_lock_i       (wb_sn_lock),
+        .sn_rd_slot_i    (wb_sn_rd_slot),
+        .sn_rd_beat_i    (wb_sn_rd_beat),
+        .sn_rd_data_o    (wb_sn_rd_data),
         .sn_bresp_cycle_o(wb_sn_bresp_cycle),
         .sn_eff_i        (dut_wb_sn_eff),
         .wb_occupancy_o  ()
@@ -800,7 +813,8 @@ module formal_jet_control (
 
     wire f_xsrc_wb    = wb_sn_hit;
     wire f_xsrc_mshr  = ~wb_sn_hit & mshr_sn_match & ~obs_mshr_pre_ar;
-    wire f_xsrc_array = ~wb_sn_hit & ~f_xsrc_mshr & f_thit & ~f_tclaimed;
+    wire f_xsrc_array = ~wb_sn_hit & ~f_xsrc_mshr & f_thit & ~f_tclaimed
+                        & ~obs_mshr_pre_ar;
     wire [2:0] f_xref = f_xsrc_wb    ? ST_M
                         : f_xsrc_mshr  ? (mshr_sn_install ? ST_M : ST_S)
                         : f_xsrc_array ? f_tstate

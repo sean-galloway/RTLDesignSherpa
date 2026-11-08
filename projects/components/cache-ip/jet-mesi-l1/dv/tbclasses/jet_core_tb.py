@@ -181,7 +181,8 @@ class JetCoreTB(L1ControlTB):
         self.PRELOAD_LINES = 1 << 17
 
         # event-stream model state
-        self.pw = {}               # line -> [(beat, be, wdata)] accepted
+        self.way_data = {}         # (set, way) -> bytearray resident content
+        self.pending_slot = None   # alloc-causing requester slot
         self.entries = {}          # line -> entry dict (pending fills)
         self.entry_by_idx = {}     # mshr idx -> line
         self.unlaunched = deque()  # alloc order (launch order == alloc)
@@ -192,11 +193,17 @@ class JetCoreTB(L1ControlTB):
                      'killed': False}
         self.wb = {}               # line -> content bytes (capture snapshot)
         self.wb_order = deque()    # WB drain order (oldest first)
+        # opt-in event trace (JET_TRACE=1): the last events before a data
+        # mismatch, dumped once by _trace_dump
+        self._trace_on = bool(int(os.environ.get('JET_TRACE', '0')))
+        self._trace = deque(maxlen=4000)
+        self._trace_dumped = False
         self.draining = None
         self.committing = None     # the launch_q head under C_INSTALL+
 
         # response bookkeeping (issue order in, release order out)
         self.rspq = deque()
+        self._cap_q = deque()  # v3: captured-not-yet-classified requests
         self.n_rsp = 0
 
         # snoop scoring: grant observations + expected effect tag writes
@@ -250,26 +257,94 @@ class JetCoreTB(L1ControlTB):
         return bytes(self.memory_model.read(self._base_of(line),
                                             self.LINE_BYTES))
 
-    def _content(self, line):
-        """Expected cache-resident line content: the memory image plus the
-        byte-enable merges of every write accepted while the line has been
-        resident (fill data is raw memory; writes merge at their hit /
-        at the fill's commit, always in accept order)."""
-        data = bytearray(self._mem_line(line))
-        for beat, be, wdata in self.pw.get(line, []):
-            lo = beat * self.STRB_W
-            for i in range(self.STRB_W):
-                if be & (1 << i):
-                    data[lo + i] = (wdata >> (8 * i)) & 0xFF
-        return bytes(data)
+    def _content(self, set_idx, way, line=None):
+        """Expected cache-resident content of one physical way.  The fill
+        source plus every write merge accepted while that way held the line.
+        Per-way isolation matters when a stale duplicate tag lives on a
+        claimed victim way: hits to the live copy must not corrupt the
+        victim way's capture-time content."""
+        if line is None:
+            line = self.tags.get((set_idx, way))
+        if (set_idx, way) in self.way_data:
+            return bytes(self.way_data[(set_idx, way)])
+        if line is not None:
+            return self._mem_line(line)
+        return bytes(self.LINE_BYTES)
+
+    def _merge_into_way(self, set_idx, way, beat, be, wdata):
+        """Merge a CPU write into the content of a specific physical way,
+        seeding from the memory model on first touch."""
+        if (set_idx, way) not in self.way_data:
+            line = self.tags.get((set_idx, way))
+            self.way_data[(set_idx, way)] = bytearray(
+                self._mem_line(line) if line is not None
+                else self.LINE_BYTES)
+        lo = beat * self.STRB_W
+        for i in range(self.STRB_W):
+            if be & (1 << i):
+                self.way_data[(set_idx, way)][lo + i] = \
+                    (wdata >> (8 * i)) & 0xFF
 
     def _claimed(self, set_idx, way):
         """A live MSHR entry claims (set, way): a tag hit there is the
-        doomed victim's stale tag (the Invalid row, amber's rule)."""
+        doomed victim's stale tag (the Invalid row, amber's rule).  The
+        claim stays live from the alloc until the commit's retire clears
+        the tag; a fill_done entry has not yet installed its tag."""
         for e in self.entries.values():
             if e['set'] == set_idx and e['way'] == way:
                 return True
         return False
+
+    def _hit_way(self, set_idx, line):
+        # Mirror the RTL's w_hit_claimed suppression: a live MSHR entry's
+        # claim on (set, way) makes the tag stale, so the hit is not served.
+        for w in range(self.WAYS):
+            if (self.tags.get((set_idx, w)) == line
+                    and self.slot_state.get((set_idx, w), 'I') != 'I'
+                    and not self._claimed(set_idx, w)):
+                return w
+        return None
+
+    def _installed_state(self, line):
+        set_idx = self._set_of_line(line)
+        for w in range(self.WAYS):
+            if (self.tags.get((set_idx, w)) == line
+                    and self.slot_state.get((set_idx, w), 'I') != 'I'
+                    and not self._claimed(set_idx, w)):
+                return self.slot_state[(set_idx, w)]
+        return 'I'
+
+    def _tag_snapshot_from_rtl(self, uc, set_idx):
+        """Read the RTL's captured tag snapshot (r_lk_tagstate) in the
+        classify cycle.  v3: this is exactly the view the RTL used for the
+        classify, so it is immune to the model's manual tag-tracking drift.
+        (Not the capture cycle: the register loads at that cycle's END and
+        reloads on a tag-dirty replay.)"""
+        tags = {}
+        state = {}
+        raw = int(uc.r_lk_tagstate.value)
+        tsw = self.ADDR_WIDTH - self.SET_BITS - self.OFFSET_BITS + 3
+        for w in range(self.WAYS):
+            tw = (raw >> (w * tsw)) & ((1 << tsw) - 1)
+            tag = tw >> 3
+            st = tw & 0x7
+            line = (tag << self.SET_BITS) | set_idx
+            tags[w] = line if st in (AMBER_STATE_S, AMBER_STATE_E,
+                                     AMBER_STATE_M) else None
+            state[w] = {AMBER_STATE_I: 'I', AMBER_STATE_S: 'S',
+                        AMBER_STATE_E: 'E', AMBER_STATE_M: 'M'}.get(st, 'I')
+        return {'tags': tags, 'state': state}
+
+    def _hit_way_from_snapshot(self, set_idx, line, snap):
+        # Combine the captured tag snapshot with the CURRENT claim state:
+        # the RTL's w_hit_claimed is evaluated at classify time from the
+        # live claim scoreboard, not from the snapshot.
+        for w in range(self.WAYS):
+            if (snap['tags'].get(w) == line
+                    and snap['state'].get(w, 'I') != 'I'
+                    and not self._claimed(set_idx, w)):
+                return w
+        return None
 
     def _rand_addr(self):
         line = random.randrange(self.SPAN)
@@ -401,6 +476,29 @@ class JetCoreTB(L1ControlTB):
     # snoop grant -- the alloc-first rule; fill beats register at the
     # cycle's end, so a grant sees only prior beats -- PF_GUARD)
     # ------------------------------------------------------------------
+    def _tr(self, kind, **kv):
+        if self._trace_on:
+            self._trace.append((self.cyc, kind, kv))
+
+    def _trace_dump(self, why, set_idx=None):
+        if not self._trace_on or self._trace_dumped:
+            return
+        self._trace_dumped = True
+        last_cyc = self._trace[-1][0] if self._trace else 0
+        self.log.error(f"TRACE ({why}) -- set {set_idx} events + last 40 cycles:")
+        for cyc, kind, kv in self._trace:
+            if set_idx is not None and cyc < last_cyc - 40:
+                ln = kv.get('line', kv.get('srv_line'))
+                st = kv.get('set')
+                if st is None and ln is not None and isinstance(ln, int) \
+                        and ln >= 0:
+                    st = ln & self.SET_MASK
+                if st != set_idx:
+                    continue
+            self.log.error(f"  @{cyc} {kind} " + " ".join(
+                f"{k}={v:#x}" if isinstance(v, int) else f"{k}={v}"
+                for k, v in kv.items()))
+
     async def _monitor(self):
         d = self.dut
         u = d.u_top
@@ -413,52 +511,105 @@ class JetCoreTB(L1ControlTB):
 
             init = int(u.init_busy.value)
 
-            # 1. lookup-stage accept (lkup_valid & lkup_ready): the seq
-            #    tag is granted here, so the issue order IS this order.
-            #    (The GAXI handshake upstream only admits the request
-            #    into the skid.)  Expected response + pending-write
-            #    record + LRU hit update + upgrade-launch mark.
+            # 1a. lookup-stage capture (lkup_valid & lkup_ready): the seq
+            #     tag is granted here, so the issue order IS this order.
+            #     v3: the class pulses (and every model update keyed to
+            #     them) fire one cycle later at the classify -- queue the
+            #     raw request here, pop it on the class pulse below.
             if int(uc.lkup_valid_i.value) and int(uc.lkup_ready_o.value):
                 addr = int(uc.lkup_addr_i.value)
-                we = int(uc.lkup_we_i.value)
-                be = int(uc.lkup_be_i.value)
-                wdata = int(uc.lkup_wdata_i.value)
                 line = self._line_of(addr)
-                beat = (addr >> (self.STRB_W.bit_length() - 1)) \
+                set_idx = self._set_of_line(line)
+                beat = (int(uc.lkup_addr_i.value)
+                        >> (self.STRB_W.bit_length() - 1)) \
                     & (self.FILL_BEATS - 1)
+                self._cap_q.append({'line': line, 'beat': beat,
+                                    'we': int(uc.lkup_we_i.value),
+                                    'be': int(uc.lkup_be_i.value),
+                                    'wdata': int(uc.lkup_wdata_i.value),
+                                    'cyc': self.cyc})
+                self._tr('capture', line=line, beat=beat,
+                         we=int(uc.lkup_we_i.value),
+                         tag=int(u.u_cpu.u_rsp.tag_o.value),
+                         ncap=len(self._cap_q))
+
+            # 1b. classify pulse: the capture's class fires now
+            cls_hit   = int(uc.lkup_hit_o.value)
+            cls_upgr  = int(uc.lkup_upgrade_o.value)
+            cls_merge = int(uc.lkup_merge_o.value)
+            cls_alloc = int(uc.lkup_miss_alloc_o.value)
+            if cls_hit or cls_upgr or cls_merge or cls_alloc:
+                rq = self._cap_q.popleft()
+                line, beat = rq['line'], rq['beat']
+                we, be, wdata = rq['we'], rq['be'], rq['wdata']
+                set_idx = self._set_of_line(line)
+                # the RTL's snapshot register holds THIS request's view only
+                # now: it loads at the end of the capture cycle and reloads
+                # on a tag-dirty replay, so the classify cycle is the one
+                # cycle where it is the view the class was decided on
+                snap = self._tag_snapshot_from_rtl(uc, set_idx)
                 # accept class (the cache_sim parity TB consumes the log;
                 # the classes are mutually exclusive by construction)
-                if int(uc.lkup_hit_o.value):
+                if cls_hit:
                     self.accept_log.append('hit')
-                elif int(uc.lkup_upgrade_o.value):
+                elif cls_upgr:
                     self.accept_log.append('upgr')
-                elif int(uc.lkup_merge_o.value):
+                elif cls_merge:
                     self.accept_log.append('merge')
                     self.merge_count += 1
                 else:
                     self.accept_log.append('alloc')
+
+                # Resolve the way from the captured RTL snapshot for hit/
+                # upgrade; merges/allocs target a not-yet-installed fill.
+                if cls_hit or cls_upgr:
+                    way = self._hit_way_from_snapshot(set_idx, line, snap)
+                else:
+                    way = None
+
                 if we:
-                    self.pw.setdefault(line, []).append((beat, be, wdata))
+                    # Resident-line writes merge into the physical way that
+                    # served the hit/upgr.  Merge/alloc writes ride the fill
+                    # slot list and merge at the commit, not here.
+                    if cls_hit or cls_upgr:
+                        self._merge_into_way(set_idx, way, beat, be, wdata)
                     exp = wdata
                 else:
-                    exp = self._beat_of_line(self._content(line), beat)
+                    if cls_hit:
+                        exp = self._beat_of_line(
+                            self._content(set_idx, way, line), beat)
+                    else:
+                        exp = self._beat_of_line(self._mem_line(line), beat)
                 self.rspq.append({'line': line, 'we': we, 'exp': exp,
                                   'cyc': self.cyc})
+                self._tr('class', cls=self.accept_log[-1], line=line,
+                         beat=beat, we=we, way=way if way is not None else -1,
+                         exp=exp, nrspq=len(self.rspq),
+                         snap=' '.join(str(t) for t in snap))
+                # Merge/alloc slots ride the in-flight entry to the commit.
+                slot = {'we': we, 'beat': beat, 'be': be, 'wdata': wdata,
+                        'rsp': None}
+                if cls_merge:
+                    e = self.entries.get(line)
+                    if e is not None:
+                        e['slots'].append(slot)
+                elif cls_alloc:
+                    self.pending_slot = slot
                 # policy hit update (repl_hit fires at hit/upgrade
                 # accepts; only LRU's state moves on a hit -- the
                 # FIFO/RANDOM branches of l1_repl ignore repl_hit)
                 if self._hit_updates_repl and int(uc.repl_hit_o.value):
-                    self.lru.update(self._set_of_line(line),
+                    self.lru.update(set_idx,
                                     int(uc.repl_hit_way_o.value))
-                if int(uc.lkup_upgrade_o.value):
+                if cls_upgr:
                     self.upgr = {'valid': True, 'line': line,
-                                 'set': self._set_of_line(line),
-                                 'way': self._hit_way(
-                                     self._set_of_line(line), line),
+                                 'set': set_idx, 'way': way,
                                  'killed': False}
 
-            # 2. MSHR alloc (before the snoop resolution: alloc-first
-            #    same-cycle visibility)
+            # 2. MSHR alloc -- AFTER the classify pulse (v3: the alloc
+            #    strobe fires in the classify cycle, and the requester slot
+            #    it consumes is staged by that pulse) and BEFORE the snoop
+            #    resolution (alloc-first same-cycle visibility)
             if int(uc.mshr_alloc_o.value) and int(uc.mshr_alloc_gnt_i.value):
                 self._mon_alloc(uc)
 
@@ -476,6 +627,12 @@ class JetCoreTB(L1ControlTB):
                 for item in self.launch_q:
                     if not item['done'] and item['kind'] == 'entry':
                         item['e']['ar'] = True
+                        # fabric resolution: the fill's data source is the
+                        # memory image at the read's issue (the fabric stub
+                        # serves the AR from the memory model), merged with
+                        # the requester slots at the commit
+                        if item['e']['src'] is None:
+                            item['e']['src'] = self._mem_line(item['e']['line'])
                         break
 
             # 4. fill beats (registered into beats_rcvd at the cycle's
@@ -490,6 +647,9 @@ class JetCoreTB(L1ControlTB):
                     e = self.entries[line]
                     e['beats'].add(num)
                     got = int(u.u_coh.u_fill.fill_beat_data.value)
+                    self._tr('fill_beat', line=line, idx=idx, num=num,
+                             set=int(u.u_coh.r_flight_set.value),
+                             way=int(u.u_coh.r_flight_way.value), data=got)
                     self._score(f"fill beat data line={line:#x} b{num}",
                                 got, self._beat_of_line(
                                     self._mem_line(line), num))
@@ -535,14 +695,20 @@ class JetCoreTB(L1ControlTB):
 
             # 8. drains: head identity at the start, payload audit at done
             if int(uc.drain_start_o.value):
+                self._tr('drain_start',
+                         addr=int(u.u_coh.u_wb.drain_addr_o.value),
+                         wb_order=' '.join(f"{l:#x}" for l in self.wb_order))
                 if not self.wb_order:
                     self._score("drain_start with empty WB model", 1, 0)
+                    self._trace_dump("drain_start empty")
                 else:
                     self.draining = self.wb_order[0]
                     self._score("drain addr is the oldest WB line",
                                 int(u.u_coh.u_wb.drain_addr_o.value),
                                 self._base_of(self.draining))
             if int(uc.drain_done_i.value):
+                self._tr('drain_done', draining=self.draining
+                         if self.draining is not None else -1)
                 if self.draining is None:
                     self._score("drain_done with no drain in flight", 1, 0)
                 else:
@@ -550,9 +716,12 @@ class JetCoreTB(L1ControlTB):
                     # the W beats landed in the MemoryModel before the
                     # BRESP that produced this drain_done: the writeback
                     # payload round-trips through the real write path
+                    # (a line missing from the model is itself the
+                    # mismatch -- score it, never raise mid-monitor)
                     self._score(f"drain payload line={line:#x}",
-                                self._mem_line(line), self.wb[line])
-                    del self.wb[line]
+                                self._mem_line(line),
+                                self.wb.get(line, b''))
+                    self.wb.pop(line, None)
                     self.wb_order.popleft()
                     self.draining = None
 
@@ -560,6 +729,7 @@ class JetCoreTB(L1ControlTB):
             if int(uc.mshr_retire_o.value):
                 idx = int(uc.mshr_retire_idx_o.value)
                 line = self.entry_by_idx.pop(idx, None)
+                self._tr('retire', idx=idx, line=line if line is not None else -1)
                 if line is None:
                     self._score("retire of an unknown entry", idx, None)
                 else:
@@ -573,15 +743,47 @@ class JetCoreTB(L1ControlTB):
                                 line, e['line'])
                 self.committing = None
 
+            # 9a. data-array writes (trace only): fill beats and control
+            if self._trace_on and int(u.u_coh.dat_wr_en.value):
+                self._tr('datwr', addr=int(u.u_coh.dat_wr_addr.value),
+                         set=int(u.u_coh.dat_wr_addr.value) >> (self.FILL_BEATS.bit_length() - 1),
+                         way_oh=int(u.u_coh.dat_wr_way_onehot.value),
+                         be=int(u.u_coh.dat_wr_be.value),
+                         fill=int(u.u_coh.eng_fill_beat_valid.value),
+                         data=int(u.u_coh.dat_wr_wdata.value))
+
+            # 9b. completion deposits into the response ring (trace only)
+            if self._trace_on and int(uc.cpl_valid_o.value):
+                self._tr('deposit', tag=int(uc.cpl_tag_o.value),
+                         data=int(uc.cpl_data_o.value),
+                         cmt=int(uc.w_cmt_cpl.value),
+                         cstate=int(uc.r_cmt_state.value),
+                         srv_vld=int(uc.r_srv_vld.value),
+                         srv_we=int(uc.r_srv_we.value),
+                         srv_line=int(uc.r_srv_line.value),
+                         srv_beat=int(uc.r_srv_beat.value),
+                         srv_way=int(uc.r_srv_way.value),
+                         dat_addr=int(uc.dat_a_addr_o.value),
+                         dat_way=int(uc.dat_a_way_o.value),
+                         cmt_datrd=int(uc.w_cmt_datrd.value))
+
             # 10. response release: pop the issue-order head (J4)
             if int(d.cpu_rsp_rd_valid.value) and int(d.cpu_rsp_rd_ready.value):
                 got = int(d.cpu_rsp_rd_data.value)
+                self._tr('release', data=got,
+                         rel_tag=int(u.u_cpu.u_rsp.r_rel_tag.value),
+                         head=(f"{self.rspq[0]['line']:#x}/we{self.rspq[0]['we']}"
+                               f"/exp{self.rspq[0]['exp']:#x}"
+                               if self.rspq else 'EMPTY'))
                 if not self.rspq:
                     self._score("unsolicited response", got, None)
                 else:
                     req = self.rspq.popleft()
                     self._score(f"rsp data line={req['line']:#x} "
                                 f"we={req['we']}", got, req['exp'])
+                    if got != req['exp']:
+                        self._trace_dump(f"rsp line={req['line']:#x}",
+                                         req['line'] & self.SET_MASK)
                 self.n_rsp += 1
 
             # 11. Task-12 grid instrumentation: occupancy/corner/stall
@@ -618,6 +820,8 @@ class JetCoreTB(L1ControlTB):
         way = int(uc.mshr_alloc_victim_way_o.value)
         wb_valid = int(uc.mshr_alloc_wb_valid_o.value)
         idx = int(uc.mshr_alloc_idx_i.value)
+        self._tr('alloc', line=line, set=set_idx, idx=idx, way=way,
+                 wb_valid=wb_valid, cls=cls)
 
         # victim-way parity with the repl engine, then the update-at-alloc
         self._score(f"alloc victim way line={line:#x}", way,
@@ -636,13 +840,19 @@ class JetCoreTB(L1ControlTB):
             self._score(f"alloc wb_valid line={line:#x}", wb_valid,
                         1 if vstate == 'M' else 0)
             if vstate == 'M':
-                self.wb[vline] = self._content(vline)
+                self.wb[vline] = self._content(set_idx, way, vline)
                 self.wb_order.append(vline)
-            self.pw.pop(vline, None)
+            self.way_data.pop((set_idx, way), None)
 
+        slot = self.pending_slot
+        self.pending_slot = None
+        if slot is None:
+            self._score(f"alloc: no pending requester slot", 1, 0)
+            slot = {'we': 0, 'beat': 0, 'be': 0, 'wdata': 0, 'rsp': None}
         e = {'line': line, 'set': set_idx, 'cls': cls, 'way': way,
              'idx': idx, 'pend': None, 'beats': set(), 'done': False,
-             'pd': False, 'ar': False, 'alloc_cyc': self.cyc,
+             'pd': False, 'ar': False, 'src': None,
+             'slots': [slot], 'alloc_cyc': self.cyc,
              'launch_cyc': None}
         self.entries[line] = e
         self.entry_by_idx[idx] = line
@@ -650,6 +860,9 @@ class JetCoreTB(L1ControlTB):
 
     def _mon_fill_done(self, uc):
         pd = int(uc.fill_pass_dirty_i.value)
+        self._tr('fill_done', pd=pd, launch_q=' '.join(
+            f"{c['e']['line']:#x}{'*' if c['done'] else ''}"
+            if c['kind'] == 'entry' else 'cu' for c in self.launch_q))
         # the oldest un-done launch completes (in-order, single read ID)
         for c in self.launch_q:
             if not c['done']:
@@ -662,6 +875,10 @@ class JetCoreTB(L1ControlTB):
 
     def _mon_tag_wr(self, uc, init):
         way_oh = int(uc.tag_a_wr_way_onehot_o.value)
+        self._tr('tagwr', set=int(uc.tag_a_wr_set_o.value), way_oh=way_oh,
+                 ts=int(uc.tag_a_wr_tag_state_o.value),
+                 cmt=int(uc.r_cmt_state.value), sn=int(uc.r_sn_state.value),
+                 init=init)
         way = way_oh.bit_length() - 1
         set_idx = int(uc.tag_a_wr_set_o.value)
         ts = int(uc.tag_a_wr_tag_state_o.value)
@@ -701,6 +918,21 @@ class JetCoreTB(L1ControlTB):
             self.tags[(e['set'], e['way'])] = e['line']
             self.slot_state[(e['set'], e['way'])] = (
                 'S' if exp_state == AMBER_STATE_S else 'M')
+            # the merged fill data is now the resident content of the
+            # install way
+            if e['src'] is None:
+                self._score(f"commit line={e['line']:#x}: no data "
+                            f"source bound (fabric resolution missing)",
+                            1, 0)
+                e['src'] = self._mem_line(e['line'])
+            data = bytearray(e['src'])
+            for slot in e['slots']:
+                if slot['we']:
+                    lo = slot['beat'] * self.STRB_W
+                    for i in range(self.STRB_W):
+                        if slot['be'] & (1 << i):
+                            data[lo + i] = (slot['wdata'] >> (8 * i)) & 0xFF
+            self.way_data[(e['set'], e['way'])] = data
             self.committing = e
         elif cmt == C_PEND:
             e = self.committing
@@ -713,7 +945,7 @@ class JetCoreTB(L1ControlTB):
             self.slot_state[(e['set'], e['way'])] = exp
             if exp == 'I':
                 # the killed fill: merged write data never lands
-                self.pw.pop(e['line'], None)
+                self.way_data.pop((e['set'], e['way']), None)
         elif cmt == C_CU_INSTALL:
             u = self.upgr
             if not u['valid']:
@@ -731,7 +963,7 @@ class JetCoreTB(L1ControlTB):
             self.slot_state[(u['set'], way)] = (
                 'I' if u['killed'] else 'M')
             if u['killed']:
-                self.pw.pop(u['line'], None)
+                self.way_data.pop((u['set'], way), None)
             self.upgr = {'valid': False, 'line': None, 'set': 0, 'way': 0,
                          'killed': False}
             if self.launch_q and self.launch_q[0]['kind'] == 'cu':
@@ -753,7 +985,7 @@ class JetCoreTB(L1ControlTB):
                         state, STATE_CODE[exp['next']])
             self.slot_state[(exp['set'], way)] = exp['next']
             if exp['next'] == 'I':
-                self.pw.pop(exp['line'], None)
+                self.way_data.pop((exp['set'], way), None)
         else:
             self._score("unattributed tag write "
                         f"(line={line:#x} state={state})", 1, 0)
@@ -824,7 +1056,8 @@ class JetCoreTB(L1ControlTB):
                 ref = self.slot_state.get((set_idx, way), 'I')
             res = oracle_step(ref, name)
             if (res.crresp >> CRRESP_DT) & 1:
-                cd = self._content(line)
+                cd = self._content(set_idx, way, line) if way is not None \
+                    else self._mem_line(line)
             if ref != 'I' and res.next_state != ref:
                 self.exp_sn_tagwr.append({
                     'line': line, 'set': set_idx, 'way': way,
@@ -1168,13 +1401,18 @@ class JetCoreTB(L1ControlTB):
             label='vc:stall_miss'))
         # the window runs until the miss's ALLOC is observed (the lookup
         # accept -- the GAXI skid may absorb the request earlier, so the
-        # send task completing is not the accept)
+        # send task completing is not the accept).  v3: stalls are reported
+        # on the captured lookup register (r_lk_valid), not the interface
+        # valid, and the request line is r_lk_addr.
         for _ in range(self.RSP_TIMEOUT_CYCLES):
             await self._negedge_settled()
-            if int(uc.lkup_stall_o.value) and int(uc.lkup_valid_i.value):
-                self._score("vc: stall reason is set_oversubscribed",
-                            int(uc.lkup_stall_reason_o.value),
-                            STALL_SET_OVERSUB)
+            stall = int(uc.lkup_stall_o.value)
+            reason = int(uc.lkup_stall_reason_o.value)
+            captured = int(uc.r_lk_valid.value)
+            captured_line = self._line_of(
+                int(uc.r_lk_addr.value)) if captured else None
+            if stall and captured and captured_line == line_b \
+                    and reason == STALL_SET_OVERSUB:
                 # the sole-cause proof: every other contributor to the
                 # classify is provably absent, so the stall IS
                 # w_victim_claimed
@@ -1243,11 +1481,9 @@ class JetCoreTB(L1ControlTB):
         self._scenario('KilledUpgrade')
 
     def _slot_state_of(self, line):
-        set_idx = self._set_of_line(line)
-        for w in range(self.WAYS):
-            if self.tags.get((set_idx, w)) == line:
-                return self.slot_state.get((set_idx, w), 'I')
-        return 'I'
+        # Use the claim-aware installed-state helper so post-snoop checks
+        # do not see a stale resident copy on a claimed way.
+        return self._installed_state(line)
 
     async def _s_illegal_state(self):
         """Sticky CTRL_ERROR (MAS ch02/01): corrupt the commit FSM state
@@ -1282,7 +1518,7 @@ class JetCoreTB(L1ControlTB):
         side survives (it is the DRAM)."""
         self.tags = {}
         self.slot_state = {}
-        self.pw = {}
+        self.way_data = {}
         self.entries = {}
         self.entry_by_idx = {}
         self.unlaunched = deque()
@@ -1293,6 +1529,7 @@ class JetCoreTB(L1ControlTB):
         self.wb_order = deque()
         self.draining = None
         self.committing = None
+        self.pending_slot = None
         self.rspq = deque()
         self.exp_sn_tagwr = deque()
         self.lru = make_repl_model(self.REPL_POLICY, self.SETS, self.WAYS)
@@ -1688,6 +1925,8 @@ class JetCoreTB(L1ControlTB):
     # ------------------------------------------------------------------
     async def _quiesce(self):
         await self._await_all_responses('final')
+        if int(os.environ.get('JET_TRACE_DUMP_END', '0')):
+            self._trace_dump('end of test')
         # let the last eviction's drain / commit retire land (the response
         # releases ahead of the WB drain completing)
         for _ in range(self.RSP_TIMEOUT_CYCLES):

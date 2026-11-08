@@ -246,8 +246,21 @@ module jet_mshr
     logic [1:0]             r_pend_eff   [MSHR_COUNT];
     logic [SEQ_W-1:0]       r_seq        [MSHR_COUNT];
 
-    // Per-set victim-claim counters (set oversubscription).
-    logic [CLAIM_W-1:0]     r_set_claims [SETS];
+    // Per-set victim claims (set oversubscription), derived from the live
+    // entries: an entry claims its set from the alloc grant to its retire,
+    // which is exactly the r_valid window, so the count of live entries
+    // whose line maps to alloc_set_i IS the set's claim count. FPGA
+    // review 2026-11-07 (jet item 7): the SETS x CLAIM_W counter bank this
+    // replaces was 384 FF + ~540 LUT per core for information the
+    // scoreboard already holds; this is MSHR_COUNT set compares.
+    logic [MW:0]            w_set_claims;
+    always_comb begin
+        w_set_claims = '0;
+        for (int e = 0; e < MSHR_COUNT; e++) begin
+            if (r_valid[e] && (r_line[e][SET_W-1:0] == alloc_set_i))
+                w_set_claims = w_set_claims + 1'b1;
+        end
+    end
 
     // =========================================================================
     // Alloc: first free entry (lowest index), combinational grant.
@@ -267,7 +280,7 @@ module jet_mshr
     end
 
     assign full_o      = ~w_any_free;
-    assign set_full_o  = (r_set_claims[alloc_set_i] == CLAIM_W'(WAYS));
+    assign set_full_o  = (w_set_claims >= (MW+1)'(WAYS));
     assign alloc_gnt_o = alloc_i & w_any_free & ~set_full_o;
     assign alloc_idx_o = w_free_sel;
 
@@ -450,24 +463,8 @@ module jet_mshr
     // (guarded on the entry being live), and a same-cycle pair to one set
     // nets -- the counter holds.
     // =========================================================================
-    wire [SET_W-1:0] w_retire_set = r_line[retire_idx_i][SET_W-1:0];
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            for (int s = 0; s < SETS; s++) begin
-                r_set_claims[s] <= '0;
-            end
-        end else begin
-            for (int s = 0; s < SETS; s++) begin
-                case ({alloc_gnt_o & (alloc_set_i == SET_W'(s)),
-                       w_retire_live & (w_retire_set == SET_W'(s))})
-                    2'b10:   r_set_claims[s] <= r_set_claims[s] + 1'b1;
-                    2'b01:   r_set_claims[s] <= r_set_claims[s] - 1'b1;
-                    default: ;  // 00: no event; 11: alloc+retire net to hold
-                endcase
-            end
-        end
-    )
+    // (set-claim counters removed: see w_set_claims above)
 
     // =========================================================================
     // Simulation-only contract checks (Task 5 integration hardening)

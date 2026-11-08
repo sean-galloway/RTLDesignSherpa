@@ -156,7 +156,18 @@ module jet_mshr (
 	reg [7:0] r_beats_rcvd [0:MSHR_COUNT - 1];
 	reg [1:0] r_pend_eff [0:MSHR_COUNT - 1];
 	reg [SEQ_W - 1:0] r_seq [0:MSHR_COUNT - 1];
-	reg [CLAIM_W - 1:0] r_set_claims [0:SETS - 1];
+	reg [MW:0] w_set_claims;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_set_claims = 1'sb0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] e;
+			for (e = 0; e < MSHR_COUNT; e = e + 1)
+				if (r_valid[e] && (r_line[e][SET_W - 1:0] == alloc_set_i))
+					w_set_claims = w_set_claims + 1'b1;
+		end
+	end
 	reg w_any_free;
 	reg [MW - 1:0] w_free_sel;
 	function automatic signed [MW - 1:0] sv2v_cast_73DDD_signed;
@@ -168,7 +179,7 @@ module jet_mshr (
 			;
 		w_any_free = 1'b0;
 		w_free_sel = 1'sb0;
-		begin : sv2v_autoblock_1
+		begin : sv2v_autoblock_2
 			reg signed [31:0] e;
 			for (e = MSHR_COUNT - 1; e >= 0; e = e - 1)
 				if (!r_valid[e]) begin
@@ -178,11 +189,11 @@ module jet_mshr (
 		end
 	end
 	assign full_o = ~w_any_free;
-	function automatic signed [CLAIM_W - 1:0] sv2v_cast_699E0_signed;
-		input reg signed [CLAIM_W - 1:0] inp;
-		sv2v_cast_699E0_signed = inp;
+	function automatic signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] sv2v_cast_5C329_signed;
+		input reg signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] inp;
+		sv2v_cast_5C329_signed = inp;
 	endfunction
-	assign set_full_o = r_set_claims[alloc_set_i] == sv2v_cast_699E0_signed(WAYS);
+	assign set_full_o = w_set_claims >= sv2v_cast_5C329_signed(WAYS);
 	assign alloc_gnt_o = (alloc_i & w_any_free) & ~set_full_o;
 	assign alloc_idx_o = w_free_sel;
 	reg [MSHR_COUNT - 1:0] w_lkup_hits;
@@ -190,7 +201,7 @@ module jet_mshr (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_2
+		begin : sv2v_autoblock_3
 			reg signed [31:0] e;
 			for (e = 0; e < MSHR_COUNT; e = e + 1)
 				begin
@@ -206,7 +217,7 @@ module jet_mshr (
 			;
 		lkup_match_o = 1'b0;
 		lkup_match_idx_o = 1'sb0;
-		begin : sv2v_autoblock_3
+		begin : sv2v_autoblock_4
 			reg signed [31:0] e;
 			for (e = MSHR_COUNT - 1; e >= 0; e = e - 1)
 				if (w_lkup_hits[e]) begin
@@ -225,7 +236,7 @@ module jet_mshr (
 		if (_sv2v_0)
 			;
 		lkup_reg_match_idx_o = 1'sb0;
-		begin : sv2v_autoblock_4
+		begin : sv2v_autoblock_5
 			reg signed [31:0] e;
 			for (e = MSHR_COUNT - 1; e >= 0; e = e - 1)
 				if (w_lkup_hits[e])
@@ -238,7 +249,7 @@ module jet_mshr (
 			;
 		sn_match_o = 1'b0;
 		sn_match_idx_o = 1'sb0;
-		begin : sv2v_autoblock_5
+		begin : sv2v_autoblock_6
 			reg signed [31:0] e;
 			for (e = MSHR_COUNT - 1; e >= 0; e = e - 1)
 				if (w_sn_hits[e]) begin
@@ -266,7 +277,7 @@ module jet_mshr (
 		cpl_merge_count_o = r_merge_count[cpl_idx_i];
 		cpl_wb_slot_o = r_wb_slot[cpl_idx_i];
 		cpl_wb_valid_o = r_wb_valid[cpl_idx_i];
-		begin : sv2v_autoblock_6
+		begin : sv2v_autoblock_7
 			reg signed [31:0] k;
 			for (k = 0; k < MSHR_COUNT; k = k + 1)
 				cpl_merge_seqs_o[k * SEQ_W+:SEQ_W] = r_merge[(sv2v_cast_32(cpl_idx_i) * MSHR_COUNT) + k];
@@ -280,7 +291,7 @@ module jet_mshr (
 		if (_sv2v_0)
 			;
 		occupancy_o = 1'sb0;
-		begin : sv2v_autoblock_7
+		begin : sv2v_autoblock_8
 			reg signed [31:0] e;
 			for (e = 0; e < MSHR_COUNT; e = e + 1)
 				occupancy_o = occupancy_o + sv2v_cast_5C329(r_valid[e]);
@@ -290,10 +301,6 @@ module jet_mshr (
 	assign alloc_o = alloc_gnt_o;
 	assign alloc_set_o = alloc_set_i;
 	assign alloc_cls_o = alloc_cls_i;
-	function automatic signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] sv2v_cast_5C329_signed;
-		input reg signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] inp;
-		sv2v_cast_5C329_signed = inp;
-	endfunction
 	assign merge_o = merge_i & (r_merge_count[merge_idx_i] < sv2v_cast_5C329_signed(MSHR_COUNT));
 	assign merge_idx_o = merge_idx_i;
 	assign merge_depth_o = r_merge_count[merge_idx_i] + 1'b1;
@@ -302,7 +309,7 @@ module jet_mshr (
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_valid <= 1'sb0;
-			begin : sv2v_autoblock_8
+			begin : sv2v_autoblock_9
 				reg signed [31:0] e;
 				for (e = 0; e < MSHR_COUNT; e = e + 1)
 					begin
@@ -318,7 +325,7 @@ module jet_mshr (
 						r_seq[e] <= 1'sb0;
 					end
 			end
-			begin : sv2v_autoblock_9
+			begin : sv2v_autoblock_10
 				reg signed [31:0] k;
 				for (k = 0; k < (MSHR_COUNT * MSHR_COUNT); k = k + 1)
 					r_merge[k] <= 1'sb0;
@@ -350,27 +357,6 @@ module jet_mshr (
 				r_seq[w_free_sel] <= alloc_seq_i;
 			end
 		end
-	wire [SET_W - 1:0] w_retire_set = r_line[retire_idx_i][SET_W - 1:0];
-	function automatic signed [SET_W - 1:0] sv2v_cast_DCA8A_signed;
-		input reg signed [SET_W - 1:0] inp;
-		sv2v_cast_DCA8A_signed = inp;
-	endfunction
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n) begin : sv2v_autoblock_10
-			reg signed [31:0] s;
-			for (s = 0; s < SETS; s = s + 1)
-				r_set_claims[s] <= 1'sb0;
-		end
-		else begin : sv2v_autoblock_11
-			reg signed [31:0] s;
-			for (s = 0; s < SETS; s = s + 1)
-				case ({alloc_gnt_o & (alloc_set_i == sv2v_cast_DCA8A_signed(s)), w_retire_live & (w_retire_set == sv2v_cast_DCA8A_signed(s))})
-					2'b10: r_set_claims[s] <= r_set_claims[s] + 1'b1;
-					2'b01: r_set_claims[s] <= r_set_claims[s] - 1'b1;
-					default:
-						;
-				endcase
-		end
 	initial _sv2v_0 = 0;
 endmodule
 module jet_wb_buffer (
@@ -385,11 +371,16 @@ module jet_wb_buffer (
 	wb_full_o,
 	drain_valid_o,
 	drain_addr_o,
-	drain_data_o,
+	drain_beat_idx_i,
+	drain_beat_data_o,
 	drain_done_i,
 	sn_line_i,
 	sn_hit_o,
-	sn_data_o,
+	sn_match_idx_o,
+	sn_lock_i,
+	sn_rd_slot_i,
+	sn_rd_beat_i,
+	sn_rd_data_o,
 	sn_bresp_cycle_o,
 	sn_eff_i,
 	wb_occupancy_o
@@ -422,30 +413,35 @@ module jet_wb_buffer (
 	output wire wb_full_o;
 	output wire drain_valid_o;
 	output wire [ADDR_WIDTH - 1:0] drain_addr_o;
-	output wire [LINE_WIDTH - 1:0] drain_data_o;
+	input wire [BEAT_W - 1:0] drain_beat_idx_i;
+	output wire [BUS_WIDTH - 1:0] drain_beat_data_o;
 	input wire drain_done_i;
 	input wire [LINE_W - 1:0] sn_line_i;
 	output wire sn_hit_o;
-	output wire [LINE_WIDTH - 1:0] sn_data_o;
+	output wire [SLOT_W - 1:0] sn_match_idx_o;
+	input wire sn_lock_i;
+	input wire [SLOT_W - 1:0] sn_rd_slot_i;
+	input wire [BEAT_W - 1:0] sn_rd_beat_i;
+	output wire [BUS_WIDTH - 1:0] sn_rd_data_o;
 	output wire sn_bresp_cycle_o;
 	input wire [1:0] sn_eff_i;
 	output reg [OCC_W - 1:0] wb_occupancy_o;
 	initial if ((LINE_W + OFFSET_W) != ADDR_WIDTH)
-		$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:149:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: LINE_W + $clog2(LINE_BYTES) must equal ADDR_WIDTH");
+		$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:162:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: LINE_W + $clog2(LINE_BYTES) must equal ADDR_WIDTH");
 	initial begin
 		if ((VICTIM_DEPTH < 1) || (VICTIM_DEPTH > 4))
-			$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:159:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: VICTIM_DEPTH must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:172:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: VICTIM_DEPTH must be in 1..4 (J5)");
 		if ((LINE_BYTES & (LINE_BYTES - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:161:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: LINE_BYTES must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:174:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: LINE_BYTES must be a power of two");
 		if ((BUS_WIDTH % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:163:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: BUS_WIDTH must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:176:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: BUS_WIDTH must be a multiple of 8");
 		if (FILL_BEATS < 2)
-			$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:165:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: LINE_BYTES / BUS_WIDTH*8 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_wb_buffer.sv:178:13 - jet_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_wb_buffer: LINE_BYTES / BUS_WIDTH*8 must be >= 2");
 	end
 	reg [VICTIM_DEPTH - 1:0] r_valid;
 	reg [VICTIM_DEPTH - 1:0] r_allocated;
 	reg [LINE_W - 1:0] r_line [0:VICTIM_DEPTH - 1];
-	reg [LINE_WIDTH - 1:0] r_data [0:VICTIM_DEPTH - 1];
+	reg [BUS_WIDTH - 1:0] r_data [0:(VICTIM_DEPTH * FILL_BEATS) - 1];
 	reg [BEAT_W - 1:0] r_beats_rcvd [0:VICTIM_DEPTH - 1];
 	reg [1:0] r_eff [0:VICTIM_DEPTH - 1];
 	reg [SLOT_W - 1:0] r_head;
@@ -453,7 +449,9 @@ module jet_wb_buffer (
 	reg [SLOT_W - 1:0] r_open_slot;
 	reg r_open;
 	wire w_any_free;
-	assign w_any_free = ~(&r_allocated);
+	wire w_tail_locked;
+	assign w_tail_locked = sn_lock_i & (sn_rd_slot_i == r_tail);
+	assign w_any_free = ~(&r_allocated) & ~w_tail_locked;
 	assign wb_full_o = ~w_any_free;
 	assign cap_gnt_o = cap_i & (r_open | w_any_free);
 	assign cap_slot_o = (r_open ? r_open_slot : r_tail);
@@ -465,7 +463,7 @@ module jet_wb_buffer (
 		sv2v_cast_A5DC5 = inp;
 	endfunction
 	assign drain_addr_o = sv2v_cast_A5DC5({r_line[w_head_idx], {OFFSET_W {1'b0}}});
-	assign drain_data_o = r_data[w_head_idx];
+	assign drain_beat_data_o = r_data[{w_head_idx, drain_beat_idx_i}];
 	reg [SLOT_W - 1:0] w_sn_match_idx;
 	reg w_sn_match;
 	function automatic signed [SLOT_W - 1:0] sv2v_cast_7C1AF_signed;
@@ -495,7 +493,8 @@ module jet_wb_buffer (
 		end
 	end
 	assign sn_hit_o = w_sn_match;
-	assign sn_data_o = r_data[w_sn_match_idx];
+	assign sn_match_idx_o = w_sn_match_idx;
+	assign sn_rd_data_o = r_data[{sn_rd_slot_i, sn_rd_beat_i}];
 	assign sn_bresp_cycle_o = (w_sn_match & drain_done_i) & (w_sn_match_idx == w_head_idx);
 	function automatic [OCC_W - 1:0] sv2v_cast_8F697;
 		input reg [OCC_W - 1:0] inp;
@@ -511,10 +510,6 @@ module jet_wb_buffer (
 				wb_occupancy_o = wb_occupancy_o + sv2v_cast_8F697(r_valid[s]);
 		end
 	end
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
 	function automatic signed [BEAT_W - 1:0] sv2v_cast_6E789_signed;
 		input reg signed [BEAT_W - 1:0] inp;
 		sv2v_cast_6E789_signed = inp;
@@ -532,7 +527,6 @@ module jet_wb_buffer (
 				for (s = 0; s < VICTIM_DEPTH; s = s + 1)
 					begin
 						r_line[s] <= 1'sb0;
-						r_data[s] <= 1'sb0;
 						r_beats_rcvd[s] <= 1'sb0;
 						r_eff[s] <= 1'sb0;
 					end
@@ -552,7 +546,6 @@ module jet_wb_buffer (
 			if (r_open && cap_beat_i) begin : sv2v_autoblock_5
 				reg [BEAT_W - 1:0] b;
 				b = r_beats_rcvd[r_open_slot];
-				r_data[r_open_slot][sv2v_cast_32(b) * BUS_WIDTH+:BUS_WIDTH] <= cap_beat_data_i;
 				r_beats_rcvd[r_open_slot] <= b + 1'b1;
 				if (b == sv2v_cast_6E789_signed(FILL_BEATS - 1)) begin
 					r_valid[r_open_slot] <= 1'b1;
@@ -567,6 +560,9 @@ module jet_wb_buffer (
 				r_head <= sv2v_cast_7C1AF_signed((sv2v_cast_32_signed(r_head) + 1) % VICTIM_DEPTH);
 			end
 		end
+	always @(posedge clk)
+		if (r_open && cap_beat_i)
+			r_data[{r_open_slot, r_beats_rcvd[r_open_slot]}] <= cap_beat_data_i;
 	initial _sv2v_0 = 0;
 endmodule
 module jet_rsp_seq (
@@ -636,11 +632,6 @@ module jet_rsp_seq (
 			r_alloc_tag <= 1'sb0;
 			r_rel_tag <= 1'sb0;
 			r_occupancy <= 1'sb0;
-			begin : sv2v_autoblock_1
-				reg signed [31:0] s;
-				for (s = 0; s < RSP_DEPTH; s = s + 1)
-					r_data[s] <= 1'sb0;
-			end
 		end
 		else begin
 			if (w_release) begin
@@ -650,10 +641,8 @@ module jet_rsp_seq (
 				else
 					r_rel_tag <= r_rel_tag + 1'b1;
 			end
-			if (cpl_i) begin
+			if (cpl_i)
 				r_valid[cpl_tag_i] <= 1'b1;
-				r_data[cpl_tag_i] <= cpl_data_i;
-			end
 			if (tag_req_i && tag_gnt_o) begin
 				if (r_alloc_tag == sv2v_cast_A6A5F_signed(RSP_DEPTH - 1))
 					r_alloc_tag <= 1'sb0;
@@ -662,6 +651,9 @@ module jet_rsp_seq (
 			end
 			r_occupancy <= (r_occupancy + sv2v_cast_8F697(tag_req_i & tag_gnt_o)) - sv2v_cast_8F697(w_release);
 		end
+	always @(posedge clk)
+		if (cpl_i)
+			r_data[cpl_tag_i] <= cpl_data_i;
 endmodule
 module jet_control (
 	clk,
@@ -750,7 +742,11 @@ module jet_control (
 	wb_sn_line_o,
 	wb_sn_hit_i,
 	wb_sn_eff_o,
-	wb_sn_data_i,
+	wb_sn_match_idx_i,
+	wb_sn_lock_o,
+	wb_sn_rd_slot_o,
+	wb_sn_rd_beat_o,
+	wb_sn_rd_data_i,
 	wb_sn_bresp_cycle_i,
 	wb_drain_valid_i,
 	drain_start_o,
@@ -850,8 +846,8 @@ module jet_control (
 	output wire [MEM_ADDR_W - 1:0] dat_a_wr_addr_o;
 	output wire [64 - 1:0] dat_a_wr_wdata_o;
 	output wire [STRB_W - 1:0] dat_a_wr_be_o;
-	output wire [MEM_ADDR_W - 1:0] dat_b_addr_o;
-	output wire [WAY_W - 1:0] dat_b_way_o;
+	output reg [MEM_ADDR_W - 1:0] dat_b_addr_o;
+	output reg [WAY_W - 1:0] dat_b_way_o;
 	input wire [64 - 1:0] dat_b_rdata_i;
 	output wire repl_req_o;
 	output wire [SET_W - 1:0] repl_set_o;
@@ -899,7 +895,11 @@ module jet_control (
 	output wire [LINE_W - 1:0] wb_sn_line_o;
 	input wire wb_sn_hit_i;
 	output wire [1:0] wb_sn_eff_o;
-	input wire [LINE_BITS - 1:0] wb_sn_data_i;
+	input wire [WB_W - 1:0] wb_sn_match_idx_i;
+	output wire wb_sn_lock_o;
+	output wire [WB_W - 1:0] wb_sn_rd_slot_o;
+	output wire [BEAT_W - 1:0] wb_sn_rd_beat_o;
+	input wire [64 - 1:0] wb_sn_rd_data_i;
 	input wire wb_sn_bresp_cycle_i;
 	input wire wb_drain_valid_i;
 	output wire drain_start_o;
@@ -941,19 +941,19 @@ module jet_control (
 	output wire ctrl_error_o;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:431:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:446:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:433:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:448:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:435:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:450:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:437:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:452:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:439:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:454:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be >= 2");
 		if ((2 < 2) || (2 > 16))
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:441:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 2..16 (J1)");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:456:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 2..16 (J1)");
 		if ((2 < 1) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:443:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:458:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 1..4 (J5)");
 	end
 	localparam [2:0] STALL_NONE = 3'd0;
 	localparam [2:0] STALL_MSHR_FULL = 3'd1;
@@ -988,6 +988,13 @@ module jet_control (
 	reg [WAY_W - 1:0] r_cap_way;
 	reg [LINE_W - 1:0] r_cap_line;
 	reg [BEAT_W - 1:0] r_cap_beat;
+	reg r_cap_d1;
+	wire w_cap_active;
+	wire w_cap_adr;
+	wire w_sn_portb_pre;
+	reg r_pa_srv_d1;
+	reg r_cmt_rd_d1;
+	reg [MW - 1:0] r_cmt_rd_k_d1;
 	reg r_fill_pend;
 	reg [32 - 1:0] r_fill_addr;
 	reg [1:0] r_fill_cls;
@@ -1043,16 +1050,30 @@ module jet_control (
 	reg [2:0] r_sn_ref;
 	reg [2:0] r_sn_nxt;
 	reg [BEAT_W - 1:0] r_sn_beat;
-	reg [LINE_BITS - 1:0] r_sn_wb_data;
+	reg [WB_W - 1:0] r_sn_wbslot;
 	reg [1:0] r_sn_pend [0:2 - 1];
+	reg r_lk_valid;
+	reg [32 - 1:0] r_lk_addr;
+	reg r_lk_we;
+	reg [STRB_W - 1:0] r_lk_be;
+	reg [64 - 1:0] r_lk_wdata;
+	reg [SEQ_W - 1:0] r_lk_seq;
+	reg [(2 * TSW) - 1:0] r_lk_tagstate;
+	reg r_lk_dirty;
+	wire w_lk_capture;
+	wire w_cls_advance;
+	wire w_cls_fire;
+	wire w_pipe_room;
 	wire [TAG_W - 1:0] w_req_tag;
 	wire [SET_W - 1:0] w_req_set;
 	wire [BEAT_W - 1:0] w_req_beat;
 	wire [LINE_W - 1:0] w_req_line;
-	assign w_req_tag = lkup_addr_i[32 - 1-:TAG_W];
-	assign w_req_set = lkup_addr_i[OFF_W+:SET_W];
-	assign w_req_beat = lkup_addr_i[OFF_W - 1-:BEAT_W];
-	assign w_req_line = lkup_addr_i[32 - 1:OFF_W];
+	wire [SET_W - 1:0] w_live_set;
+	assign w_live_set = lkup_addr_i[OFF_W+:SET_W];
+	assign w_req_tag = r_lk_addr[32 - 1-:TAG_W];
+	assign w_req_set = r_lk_addr[OFF_W+:SET_W];
+	assign w_req_beat = r_lk_addr[OFF_W - 1-:BEAT_W];
+	assign w_req_line = r_lk_addr[32 - 1:OFF_W];
 	reg w_hit;
 	reg [WAY_W - 1:0] w_hit_way;
 	reg [2:0] w_hit_state;
@@ -1071,10 +1092,10 @@ module jet_control (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] w;
 			for (w = 0; w < 2; w = w + 1)
-				if ((!w_hit && (tag_a_tag_state_i[(w * TSW) + (TSW - 1)-:TAG_W] == w_req_tag)) && (((tag_a_tag_state_i[(w * TSW) + 2-:3] == 3'b001) || (tag_a_tag_state_i[(w * TSW) + 2-:3] == 3'b010)) || (tag_a_tag_state_i[(w * TSW) + 2-:3] == 3'b011))) begin
+				if ((!w_hit && (r_lk_tagstate[(w * TSW) + (TSW - 1)-:TAG_W] == w_req_tag)) && (((r_lk_tagstate[(w * TSW) + 2-:3] == 3'b001) || (r_lk_tagstate[(w * TSW) + 2-:3] == 3'b010)) || (r_lk_tagstate[(w * TSW) + 2-:3] == 3'b011))) begin
 					w_hit = 1'b1;
 					w_hit_way = sv2v_cast_19C97_signed(w);
-					w_hit_state = tag_a_tag_state_i[(w * TSW) + 2-:3];
+					w_hit_state = r_lk_tagstate[(w * TSW) + 2-:3];
 				end
 		end
 	end
@@ -1113,17 +1134,17 @@ module jet_control (
 	wire w_upgr_victim_block;
 	wire w_upgr_line_stall;
 	assign w_serve_hit = w_hit & ~w_hit_claimed;
-	assign w_hit_rd = w_serve_hit & ~lkup_we_i;
-	assign w_hit_wr = (w_serve_hit & lkup_we_i) & (w_hit_state != 3'b001);
-	assign w_hit_upgr = (w_serve_hit & lkup_we_i) & (w_hit_state == 3'b001);
-	assign w_xclass = (mshr_lkup_reg_match_i & lkup_we_i) & (mshr_lkup_reg_match_cls_i == 2'b00);
+	assign w_hit_rd = w_serve_hit & ~r_lk_we;
+	assign w_hit_wr = (w_serve_hit & r_lk_we) & (w_hit_state != 3'b001);
+	assign w_hit_upgr = (w_serve_hit & r_lk_we) & (w_hit_state == 3'b001);
+	assign w_xclass = (mshr_lkup_reg_match_i & r_lk_we) & (mshr_lkup_reg_match_cls_i == 2'b00);
 	function automatic signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] sv2v_cast_5C329_signed;
 		input reg signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] inp;
 		sv2v_cast_5C329_signed = inp;
 	endfunction
 	assign w_merge_room = mshr_cpl_merge_count_i < sv2v_cast_5C329_signed(2);
-	assign w_victim_state = tag_a_tag_state_i[(repl_victim_way_i * TSW) + 2-:3];
-	assign w_victim_tag = tag_a_tag_state_i[(repl_victim_way_i * TSW) + (TSW - 1)-:TAG_W];
+	assign w_victim_state = r_lk_tagstate[(repl_victim_way_i * TSW) + 2-:3];
+	assign w_victim_tag = r_lk_tagstate[(repl_victim_way_i * TSW) + (TSW - 1)-:TAG_W];
 	assign w_victim_dirty = w_victim_state == 3'b011;
 	always @(*) begin
 		if (_sv2v_0)
@@ -1136,8 +1157,8 @@ module jet_control (
 					w_victim_claimed = 1'b1;
 		end
 	end
-	assign w_wb_race = wb_sn_hit_i | (r_cap_busy & (r_cap_line == w_req_line));
-	assign w_wb_block = w_victim_dirty & (wb_full_i | r_cap_busy);
+	assign w_wb_race = wb_sn_hit_i | (w_cap_active & (r_cap_line == w_req_line));
+	assign w_wb_block = w_victim_dirty & (wb_full_i | w_cap_active);
 	assign w_upgr_victim_block = (r_upgr_valid & (r_upgr_set == w_req_set)) & (r_upgr_way == repl_victim_way_i);
 	assign w_upgr_line_stall = (w_serve_hit & r_upgr_valid) & (r_upgr_line == w_req_line);
 	reg r_srv_vld;
@@ -1221,7 +1242,7 @@ module jet_control (
 	assign w_launch_idx = (r_fill_pend ? r_fill_idx : mshr_alloc_idx_i);
 	assign w_mshr_pre_ar = mshr_sn_match_i & (((fill_start_o & (fill_cls_o != 2'b10)) & (mshr_sn_match_idx_i == w_launch_idx)) | ((((r_fq_undone != {(FQ_W >= 0 ? FQ_W + 1 : 1 - FQ_W) {1'sb0}}) & ~r_ar_done) & (r_fq_cls[r_fq_done_ptr] != 2'b10)) & (mshr_sn_match_idx_i == r_fq_idx[r_fq_done_ptr])));
 	assign w_src_mshr = (~w_src_wb & mshr_sn_match_i) & ~w_mshr_pre_ar;
-	assign w_src_array = ((~w_src_wb & ~w_src_mshr) & w_sn_thit) & ~w_sn_tclaimed;
+	assign w_src_array = (((~w_src_wb & ~w_src_mshr) & ~w_mshr_pre_ar) & w_sn_thit) & ~w_sn_tclaimed;
 	assign w_sn_src = (w_src_wb ? SRC_WB : (w_src_mshr ? SRC_MSHR : (w_src_array ? SRC_ARRAY : SRC_NONE)));
 	assign w_sn_ref = (w_src_wb ? 3'b011 : (w_src_mshr ? (mshr_sn_install_i ? 3'b011 : 3'b001) : (w_src_array ? w_sn_tstate : 3'b000)));
 	wire [2:0] w_sn_eff_ref;
@@ -1318,7 +1339,7 @@ module jet_control (
 	assign sn_crresp_o = w_sn_crresp;
 	assign w_any_done = r_fq_cnt != r_fq_undone;
 	assign w_cu_completing = fill_done_i & (r_fq_cls[r_fq_done_ptr] == 2'b10);
-	assign sn_safe_o = ((((~r_init_busy & (r_sn_state == SN_IDLE)) & ~w_any_done) & ~r_cap_busy) & ~w_cu_completing) & ~(r_srv_vld & r_srv_we);
+	assign sn_safe_o = ((((~r_init_busy & (r_sn_state == SN_IDLE)) & ~w_any_done) & ~w_cap_active) & ~w_cu_completing) & ~(r_srv_vld & r_srv_we);
 	assign w_sn_gnt = sn_req_i & sn_safe_o;
 	assign sn_ready_o = w_sn_gnt;
 	assign w_sn_block_cpu = (w_sn_gnt | (r_sn_state != SN_IDLE)) | sn_want_i;
@@ -1328,6 +1349,9 @@ module jet_control (
 	assign mshr_sn_eff_o = (((r_sn_state == SN_EFFECT) & (r_sn_src == SRC_MSHR)) & (r_sn_nxt != r_sn_ref)) & (r_sn_pend[r_sn_idx] != 2'b10);
 	assign mshr_sn_eff_idx_o = r_sn_idx;
 	assign mshr_sn_eff_value_o = w_sn_eff_new;
+	assign wb_sn_lock_o = (r_sn_state == SN_DATA) & (r_sn_src == SRC_WB);
+	assign wb_sn_rd_slot_o = r_sn_wbslot;
+	assign wb_sn_rd_beat_o = r_sn_beat;
 	assign wb_sn_eff_o = (((r_sn_state == SN_EFFECT) & (r_sn_src == SRC_WB)) & (r_sn_nxt != r_sn_ref) ? w_sn_eff_new : 2'b00);
 	assign w_sn_tagwr = ((r_sn_state == SN_EFFECT) & (r_sn_src == SRC_ARRAY)) & (r_sn_nxt != r_sn_ref);
 	assign sn_cdvalid_o = r_sn_state == SN_DATA;
@@ -1336,11 +1360,7 @@ module jet_control (
 		sv2v_cast_6E789_signed = inp;
 	endfunction
 	assign sn_cdlast_o = (r_sn_state == SN_DATA) & (r_sn_beat == sv2v_cast_6E789_signed(FILL_BEATS - 1));
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
-	assign sn_cddata_o = (r_sn_src == SRC_WB ? r_sn_wb_data[sv2v_cast_32(r_sn_beat) * 64+:64] : dat_b_rdata_i);
+	assign sn_cddata_o = (r_sn_src == SRC_WB ? wb_sn_rd_data_i : dat_b_rdata_i);
 	assign w_sn_portb = (r_sn_state == SN_DATA) & (r_sn_src != SRC_WB);
 	always @(*) begin
 		if (_sv2v_0)
@@ -1376,6 +1396,10 @@ module jet_control (
 	assign w_fq_head_done = (r_fq_cnt != {(FQ_W >= 0 ? FQ_W + 1 : 1 - FQ_W) {1'sb0}}) & r_fq_done[r_fq_head];
 	assign w_cmt_snap = ((r_cmt_state == C_IDLE) & w_fq_head_done) & (r_fq_cls[r_fq_head] != 2'b10);
 	assign w_slot_done = r_cmt_k == r_cmt_count;
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
 	assign w_slot_we = r_req_we[(sv2v_cast_32(r_cmt_idx) * 2) + sv2v_cast_32(r_cmt_k[MW - 1:0])];
 	assign w_slot_beat = r_req_beat[(sv2v_cast_32(r_cmt_idx) * 2) + sv2v_cast_32(r_cmt_k[MW - 1:0])];
 	assign w_slot_be = r_req_be[(sv2v_cast_32(r_cmt_idx) * 2) + sv2v_cast_32(r_cmt_k[MW - 1:0])];
@@ -1403,7 +1427,7 @@ module jet_control (
 	end
 	assign w_cmt_cpl_tag = (r_cmt_state == C_CU_DEPOSIT ? r_upgr_seq : r_cmt_seqs[r_cmt_k[MW - 1:0]]);
 	assign w_cmt_cpl_data = (r_cmt_state == C_CU_DEPOSIT ? r_upgr_wdata : (w_slot_we ? w_slot_wdata : r_cmt_rdata[r_cmt_k[MW - 1:0]]));
-	assign w_srv_fire_rd = ((r_srv_vld & ~r_srv_we) & ~w_cmt_cpl) & ~w_cmt_datrd;
+	assign w_srv_fire_rd = (((r_srv_vld & ~r_srv_we) & ~w_cmt_cpl) & ~w_cmt_datrd) & (~0 | r_pa_srv_d1);
 	assign w_srv_fire_wr = ((((r_srv_vld & r_srv_we) & ~w_cmt_cpl) & ~fill_beat_valid_i) & ~w_cmt_datwr) & ~(r_srv_e2m & (w_cmt_tagwr | w_sn_tagwr));
 	assign w_srv_fire = w_srv_fire_rd | w_srv_fire_wr;
 	reg w_acceptable;
@@ -1415,7 +1439,7 @@ module jet_control (
 		w_acceptable = 1'b0;
 		w_stall = 1'b0;
 		w_reason = STALL_NONE;
-		if ((lkup_valid_i && !r_init_busy) && !w_sn_block_cpu) begin
+		if (r_lk_valid && (r_sn_state == SN_IDLE)) begin
 			if (w_upgr_line_stall) begin
 				w_stall = 1'b1;
 				w_reason = STALL_XCLASS;
@@ -1484,12 +1508,16 @@ module jet_control (
 	wire w_accept_upgr;
 	wire w_accept_merge;
 	wire w_accept_alloc;
-	assign tag_req_o = ((lkup_valid_i & ~r_init_busy) & w_acceptable) & ~r_ctrl_err;
-	assign w_accept = tag_req_o & tag_gnt_i;
-	assign lkup_ready_o = w_accept;
-	assign lkup_stall_o = ((lkup_valid_i & ~r_init_busy) & ~w_accept) & (w_stall | (w_acceptable & ~tag_gnt_i));
-	assign lkup_stall_reason_o = (w_stall ? w_reason : (((lkup_valid_i & ~r_init_busy) & w_acceptable) & ~tag_gnt_i ? STALL_TAG_FULL : STALL_NONE));
+	assign w_pipe_room = ~r_lk_valid | w_cls_advance;
+	assign tag_req_o = (((lkup_valid_i & ~r_init_busy) & w_pipe_room) & ~r_ctrl_err) & ~w_sn_block_cpu;
+	assign w_lk_capture = tag_req_o & tag_gnt_i;
+	assign lkup_ready_o = w_lk_capture;
+	assign w_cls_advance = (((r_lk_valid & ~r_lk_dirty) & w_acceptable) & (r_sn_state == SN_IDLE)) & ~w_sn_gnt;
+	assign w_cls_fire = w_cls_advance;
+	assign lkup_stall_o = ((r_lk_valid & w_stall) & (r_sn_state == SN_IDLE)) | (tag_req_o & ~tag_gnt_i);
+	assign lkup_stall_reason_o = (r_lk_valid & w_stall ? w_reason : STALL_TAG_FULL);
 	assign lkup_wr_yield_o = ((r_srv_vld & r_srv_we) & ~w_srv_fire_wr) & (fill_beat_valid_i | w_cmt_datwr);
+	assign w_accept = w_cls_fire;
 	assign w_accept_rd = w_accept & w_hit_rd;
 	assign w_accept_wr = w_accept & w_hit_wr;
 	assign w_accept_upgr = w_accept & w_hit_upgr;
@@ -1499,9 +1527,38 @@ module jet_control (
 	assign lkup_merge_o = w_accept_merge;
 	assign lkup_miss_alloc_o = w_accept_alloc;
 	assign lkup_upgrade_o = w_accept_upgr;
-	assign cap_busy_o = r_cap_busy;
+	assign cap_busy_o = w_cap_active;
 	assign init_busy_o = r_init_busy;
 	assign ctrl_error_o = r_ctrl_err;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_lk_valid <= 1'b0;
+			r_lk_addr <= 1'sb0;
+			r_lk_we <= 1'b0;
+			r_lk_be <= 1'sb0;
+			r_lk_wdata <= 1'sb0;
+			r_lk_seq <= 1'sb0;
+			r_lk_tagstate <= 1'sb0;
+			r_lk_dirty <= 1'b0;
+		end
+		else begin
+			r_lk_valid <= w_lk_capture | (r_lk_valid & ~w_cls_advance);
+			if (w_lk_capture) begin
+				r_lk_addr <= lkup_addr_i;
+				r_lk_we <= lkup_we_i;
+				r_lk_be <= lkup_be_i;
+				r_lk_wdata <= lkup_wdata_i;
+				r_lk_seq <= tag_i;
+			end
+			if (w_lk_capture | (r_lk_valid & r_lk_dirty))
+				r_lk_tagstate <= tag_a_tag_state_i;
+			if (w_lk_capture)
+				r_lk_dirty <= tag_a_wr_en_o & (tag_a_wr_set_o == w_live_set);
+			else if (r_lk_valid)
+				r_lk_dirty <= tag_a_wr_en_o & (tag_a_wr_set_o == w_req_set);
+			else
+				r_lk_dirty <= 1'b0;
+		end
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_srv_vld <= 1'b0;
@@ -1521,15 +1578,15 @@ module jet_control (
 			r_srv_vld <= (w_accept_rd | w_accept_wr) | (r_srv_vld & ~w_srv_fire);
 			if (w_accept_rd | w_accept_wr) begin
 				r_srv_we <= w_accept_wr;
-				r_srv_seq <= tag_i;
+				r_srv_seq <= r_lk_seq;
 				r_srv_line <= w_req_line;
 				r_srv_set <= w_req_set;
 				r_srv_beat <= w_req_beat;
 				r_srv_atag <= w_req_tag;
 				r_srv_way <= w_hit_way;
 				r_srv_way_onehot <= w_hit_way_onehot;
-				r_srv_wdata <= lkup_wdata_i;
-				r_srv_be <= lkup_be_i;
+				r_srv_wdata <= r_lk_wdata;
+				r_srv_be <= r_lk_be;
 				r_srv_e2m <= w_accept_wr & (w_hit_state == 3'b010);
 			end
 		end
@@ -1538,7 +1595,7 @@ module jet_control (
 	wire [1:0] w_launch_cls;
 	assign w_launch = w_accept_alloc | w_accept_upgr;
 	assign w_launch_addr = {w_req_line, {OFF_W {1'b0}}};
-	assign w_launch_cls = (w_accept_upgr ? 2'b10 : (lkup_we_i ? 2'b01 : 2'b00));
+	assign w_launch_cls = (w_accept_upgr ? 2'b10 : (r_lk_we ? 2'b01 : 2'b00));
 	assign fill_start_o = r_fill_pend | w_launch;
 	assign fill_addr_o = (r_fill_pend ? r_fill_addr : w_launch_addr);
 	assign fill_cls_o = (r_fill_pend ? r_fill_cls : w_launch_cls);
@@ -1547,20 +1604,43 @@ module jet_control (
 	assign cpl_valid_o = w_cmt_cpl | w_srv_fire;
 	assign cpl_tag_o = (w_cmt_cpl ? w_cmt_cpl_tag : r_srv_seq);
 	assign cpl_data_o = (w_cmt_cpl ? w_cmt_cpl_data : (r_srv_we ? r_srv_wdata : dat_a_rdata_i));
-	assign tag_a_set_o = (r_init_busy ? r_init_cnt : w_req_set);
+	assign tag_a_set_o = (r_init_busy ? r_init_cnt : (r_lk_valid & ~w_cls_advance ? w_req_set : w_live_set));
 	assign tag_a_wr_en_o = (((r_init_busy & ~(!rst_n)) | w_cmt_tagwr) | w_sn_tagwr) | (w_srv_fire_wr & r_srv_e2m);
 	assign tag_a_wr_way_onehot_o = (r_init_busy ? {2 {1'b1}} : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? w_upgr_way_onehot : w_cmt_way_onehot) : (w_sn_tagwr ? w_sn_way_onehot : r_srv_way_onehot)));
 	assign tag_a_wr_set_o = (r_init_busy ? r_init_cnt : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? r_upgr_set : w_cmt_set) : (w_sn_tagwr ? r_sn_set : r_srv_set)));
 	assign tag_a_wr_tag_state_o = (r_init_busy ? {{TAG_W {1'b0}}, 3'b000} : (r_cmt_state == C_INSTALL ? {w_cmt_tag, w_install_state} : (r_cmt_state == C_PEND ? {w_cmt_tag, (r_cmt_pend == 2'b10 ? 3'b000 : 3'b001)} : (r_cmt_state == C_CU_INSTALL ? {w_upgr_tag, (r_upgr_killed ? 3'b000 : 3'b011)} : (w_sn_tagwr ? {r_sn_tag, r_sn_nxt} : {r_srv_atag, 3'b011})))));
 	assign dat_a_addr_o = (w_cmt_datrd ? {w_cmt_set, w_slot_beat} : {r_srv_set, r_srv_beat});
-	assign dat_a_way_o = (w_cmt_datrd ? r_cmt_way : r_srv_way);
+	assign dat_a_way_o = (0 & r_cmt_rd_d1 ? r_cmt_way : (w_cmt_datrd ? r_cmt_way : r_srv_way));
 	assign dat_a_wr_en_o = w_srv_fire_wr | w_cmt_datwr;
 	assign dat_a_wr_way_onehot_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? w_upgr_way_onehot : w_cmt_way_onehot) : r_srv_way_onehot);
 	assign dat_a_wr_addr_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? {r_upgr_set, r_upgr_beat} : {w_cmt_set, w_slot_beat}) : {r_srv_set, r_srv_beat});
 	assign dat_a_wr_wdata_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? r_upgr_wdata : w_slot_wdata) : r_srv_wdata);
 	assign dat_a_wr_be_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? r_upgr_be : w_slot_be) : r_srv_be);
-	assign dat_b_addr_o = (w_sn_portb ? {r_sn_set, r_sn_beat} : {r_cap_set, r_cap_beat});
-	assign dat_b_way_o = (w_sn_portb ? r_sn_way : r_cap_way);
+	localparam signed [31:0] l1_pkg_AMBER_CRRESP_DT = 0;
+	assign w_sn_portb_pre = ((0 & w_sn_gnt) & ~w_src_wb) & w_sn_crresp[l1_pkg_AMBER_CRRESP_DT];
+	assign w_cap_adr = (r_cap_busy & ~w_sn_portb) & ~w_sn_portb_pre;
+	assign w_cap_active = r_cap_busy | (0 & r_cap_d1);
+	function automatic [BEAT_W - 1:0] sv2v_cast_6E789;
+		input reg [BEAT_W - 1:0] inp;
+		sv2v_cast_6E789 = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (0) begin
+			if (w_sn_portb_pre)
+				dat_b_addr_o = {w_sn_set, sv2v_cast_6E789_signed(0)};
+			else if (w_sn_portb)
+				dat_b_addr_o = {r_sn_set, (sn_cdready_i ? sv2v_cast_6E789(r_sn_beat + 1'b1) : r_sn_beat)};
+			else
+				dat_b_addr_o = {r_cap_set, r_cap_beat};
+			dat_b_way_o = (r_cap_d1 ? r_cap_way : (w_sn_portb ? r_sn_way : r_cap_way));
+		end
+		else begin
+			dat_b_addr_o = (w_sn_portb ? {r_sn_set, r_sn_beat} : {r_cap_set, r_cap_beat});
+			dat_b_way_o = (w_sn_portb ? r_sn_way : r_cap_way);
+		end
+	end
 	assign repl_req_o = w_accept_alloc;
 	assign repl_set_o = w_req_set;
 	assign repl_hit_o = (w_accept_rd | w_accept_wr) | w_accept_upgr;
@@ -1569,29 +1649,28 @@ module jet_control (
 	assign mshr_alloc_o = w_accept_alloc;
 	assign mshr_alloc_line_o = w_req_line;
 	assign mshr_alloc_set_o = w_req_set;
-	assign mshr_alloc_cls_o = (lkup_we_i ? 2'b01 : 2'b00);
-	assign mshr_alloc_install_o = lkup_we_i;
+	assign mshr_alloc_cls_o = (r_lk_we ? 2'b01 : 2'b00);
+	assign mshr_alloc_install_o = r_lk_we;
 	assign mshr_alloc_victim_way_o = repl_victim_way_i;
 	assign mshr_alloc_wb_slot_o = wb_cap_slot_i;
 	assign mshr_alloc_wb_valid_o = w_victim_dirty;
-	assign mshr_alloc_seq_o = tag_i;
+	assign mshr_alloc_seq_o = r_lk_seq;
 	assign mshr_lkup_line_o = w_req_line;
 	assign mshr_cpl_idx_o = (w_cmt_snap ? r_fq_idx[r_fq_head] : mshr_lkup_reg_match_idx_i);
 	assign mshr_merge_o = w_accept_merge;
 	assign mshr_merge_idx_o = mshr_lkup_reg_match_idx_i;
-	assign mshr_merge_seq_o = tag_i;
+	assign mshr_merge_seq_o = r_lk_seq;
 	assign mshr_beat_o = fill_beat_valid_i;
 	assign mshr_beat_idx_o = fill_beat_idx_i;
 	assign mshr_beat_num_o = fill_beat_num_i;
 	assign mshr_retire_o = w_cmt_retire;
 	assign mshr_retire_idx_o = r_cmt_idx;
 	assign cmt_busy_o = (r_cmt_state != C_IDLE) | w_fq_head_done;
-	assign wb_cap_o = (w_accept_alloc & w_victim_dirty) | r_cap_busy;
-	assign wb_cap_line_o = (r_cap_busy ? r_cap_line : {w_victim_tag, w_req_set});
-	assign wb_cap_beat_o = r_cap_busy & ~w_sn_portb;
+	assign wb_cap_o = (w_accept_alloc & w_victim_dirty) | w_cap_active;
+	assign wb_cap_line_o = (w_cap_active ? r_cap_line : {w_victim_tag, w_req_set});
+	assign wb_cap_beat_o = (0 ? r_cap_d1 : w_cap_adr);
 	assign wb_cap_beat_data_o = dat_b_rdata_i;
 	assign drain_start_o = wb_drain_valid_i & ~r_drain_busy;
-	localparam signed [31:0] l1_pkg_AMBER_CRRESP_DT = 0;
 	function automatic signed [SET_W - 1:0] sv2v_cast_DCA8A_signed;
 		input reg signed [SET_W - 1:0] inp;
 		sv2v_cast_DCA8A_signed = inp;
@@ -1646,13 +1725,13 @@ module jet_control (
 			r_sn_set <= 1'sb0;
 			r_sn_tag <= 1'sb0;
 			r_sn_src <= SRC_NONE;
+			r_sn_wbslot <= 1'sb0;
 			r_sn_allb <= 1'b0;
 			r_sn_way <= 1'sb0;
 			r_sn_idx <= 1'sb0;
 			r_sn_ref <= 1'sb0;
 			r_sn_nxt <= 1'sb0;
 			r_sn_beat <= 1'sb0;
-			r_sn_wb_data <= 1'sb0;
 			begin : sv2v_autoblock_9
 				reg signed [31:0] e;
 				for (e = 0; e < 2; e = e + 1)
@@ -1660,7 +1739,6 @@ module jet_control (
 						r_claim_set[e] <= 1'sb0;
 						r_claim_way[e] <= 1'sb0;
 						r_cmt_seqs[e] <= 1'sb0;
-						r_cmt_rdata[e] <= 1'sb0;
 						r_sn_pend[e] <= 2'b00;
 					end
 			end
@@ -1672,16 +1750,6 @@ module jet_control (
 						r_fq_cls[q] <= 1'sb0;
 						r_fq_pd[q] <= 1'b0;
 						r_fq_done[q] <= 1'b0;
-					end
-			end
-			begin : sv2v_autoblock_11
-				reg signed [31:0] k;
-				for (k = 0; k < (2 * 2); k = k + 1)
-					begin
-						r_req_we[k] <= 1'b0;
-						r_req_beat[k] <= 1'sb0;
-						r_req_be[k] <= 1'sb0;
-						r_req_wdata[k] <= 1'sb0;
 					end
 			end
 		end
@@ -1699,7 +1767,7 @@ module jet_control (
 				r_cap_line <= {w_victim_tag, w_req_set};
 				r_cap_beat <= 1'sb0;
 			end
-			else if (r_cap_busy & ~w_sn_portb) begin
+			else if (w_cap_adr) begin
 				if (r_cap_beat == sv2v_cast_6E789_signed(FILL_BEATS - 1)) begin
 					r_cap_busy <= 1'b0;
 					r_cap_beat <= 1'sb0;
@@ -1728,10 +1796,10 @@ module jet_control (
 				r_upgr_line <= w_req_line;
 				r_upgr_set <= w_req_set;
 				r_upgr_way <= w_hit_way;
-				r_upgr_seq <= tag_i;
+				r_upgr_seq <= r_lk_seq;
 				r_upgr_beat <= w_req_beat;
-				r_upgr_be <= lkup_be_i;
-				r_upgr_wdata <= lkup_wdata_i;
+				r_upgr_be <= r_lk_be;
+				r_upgr_wdata <= r_lk_wdata;
 				r_upgr_killed <= 1'b0;
 			end
 			else if (r_cmt_state == C_CU_DEPOSIT) begin
@@ -1750,18 +1818,6 @@ module jet_control (
 			if (w_cmt_retire) begin
 				r_claim_vld[r_cmt_idx] <= 1'b0;
 				r_efill_done[r_cmt_idx] <= 1'b0;
-			end
-			if (w_accept_alloc) begin
-				r_req_we[sv2v_cast_32(mshr_alloc_idx_i) * 2] <= lkup_we_i;
-				r_req_beat[sv2v_cast_32(mshr_alloc_idx_i) * 2] <= w_req_beat;
-				r_req_be[sv2v_cast_32(mshr_alloc_idx_i) * 2] <= lkup_be_i;
-				r_req_wdata[sv2v_cast_32(mshr_alloc_idx_i) * 2] <= lkup_wdata_i;
-			end
-			if (w_accept_merge) begin
-				r_req_we[(sv2v_cast_32(mshr_lkup_reg_match_idx_i) * 2) + sv2v_cast_32(mshr_cpl_merge_count_i[MW - 1:0])] <= lkup_we_i;
-				r_req_beat[(sv2v_cast_32(mshr_lkup_reg_match_idx_i) * 2) + sv2v_cast_32(mshr_cpl_merge_count_i[MW - 1:0])] <= w_req_beat;
-				r_req_be[(sv2v_cast_32(mshr_lkup_reg_match_idx_i) * 2) + sv2v_cast_32(mshr_cpl_merge_count_i[MW - 1:0])] <= lkup_be_i;
-				r_req_wdata[(sv2v_cast_32(mshr_lkup_reg_match_idx_i) * 2) + sv2v_cast_32(mshr_cpl_merge_count_i[MW - 1:0])] <= lkup_wdata_i;
 			end
 			if (w_fq_push) begin
 				r_fq_idx[r_fq_tail] <= (r_fill_pend ? r_fill_idx : mshr_alloc_idx_i);
@@ -1805,14 +1861,13 @@ module jet_control (
 				r_sn_set <= w_sn_set;
 				r_sn_tag <= w_sn_tag;
 				r_sn_src <= w_sn_src;
+				r_sn_wbslot <= wb_sn_match_idx_i;
 				r_sn_allb <= &mshr_sn_beats_rcvd_i;
 				r_sn_way <= (w_src_mshr ? r_claim_way[mshr_sn_match_idx_i] : w_sn_tway);
 				r_sn_idx <= mshr_sn_match_idx_i;
 				r_sn_ref <= w_sn_ref;
 				r_sn_nxt <= w_sn_nxt;
 				r_sn_beat <= 1'sb0;
-				if (w_src_wb)
-					r_sn_wb_data <= wb_sn_data_i;
 				if (w_sn_crresp[l1_pkg_AMBER_CRRESP_DT])
 					r_sn_state <= SN_DATA;
 				else if (w_sn_eff_needed)
@@ -1847,7 +1902,7 @@ module jet_control (
 							r_cmt_pend <= mshr_cpl_pend_eff_i;
 							r_cmt_count <= mshr_cpl_merge_count_i;
 							r_cmt_way <= r_claim_way[r_fq_idx[r_fq_head]];
-							begin : sv2v_autoblock_12
+							begin : sv2v_autoblock_11
 								reg signed [31:0] k;
 								for (k = 0; k < 2; k = k + 1)
 									r_cmt_seqs[k] <= mshr_cpl_merge_seqs_i[k * SEQ_W+:SEQ_W];
@@ -1862,10 +1917,8 @@ module jet_control (
 						if (!fill_beat_valid_i)
 							r_cmt_k <= r_cmt_k + 1'b1;
 					end
-					else begin
-						r_cmt_rdata[r_cmt_k[MW - 1:0]] <= dat_a_rdata_i;
+					else
 						r_cmt_k <= r_cmt_k + 1'b1;
-					end
 				C_INSTALL: begin
 					r_cmt_k <= 1'sb0;
 					if (r_cmt_pend != 2'b00)
@@ -1888,5 +1941,42 @@ module jet_control (
 				default: r_cmt_state <= C_IDLE;
 			endcase
 		end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_cap_d1 <= 1'b0;
+			r_pa_srv_d1 <= 1'b0;
+			r_cmt_rd_d1 <= 1'b0;
+			r_cmt_rd_k_d1 <= 1'sb0;
+		end
+		else begin
+			r_cap_d1 <= 0 & w_cap_adr;
+			r_pa_srv_d1 <= (((0 & r_srv_vld) & ~r_srv_we) & ~w_cmt_datrd) & ~w_srv_fire;
+			r_cmt_rd_d1 <= 0 & w_cmt_datrd;
+			r_cmt_rd_k_d1 <= r_cmt_k[MW - 1:0];
+		end
+	wire w_req_st_we = w_accept_alloc | w_accept_merge;
+	reg [31:0] w_req_st_idx;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (w_accept_alloc)
+			w_req_st_idx = sv2v_cast_32(mshr_alloc_idx_i) * 2;
+		else
+			w_req_st_idx = (sv2v_cast_32(mshr_lkup_reg_match_idx_i) * 2) + sv2v_cast_32(mshr_cpl_merge_count_i[MW - 1:0]);
+	end
+	always @(posedge clk) begin
+		if (w_req_st_we) begin
+			r_req_we[w_req_st_idx] <= r_lk_we;
+			r_req_beat[w_req_st_idx] <= w_req_beat;
+			r_req_be[w_req_st_idx] <= r_lk_be;
+			r_req_wdata[w_req_st_idx] <= r_lk_wdata;
+		end
+		if (0) begin
+			if (r_cmt_rd_d1)
+				r_cmt_rdata[r_cmt_rd_k_d1] <= dat_a_rdata_i;
+		end
+		else if (((r_cmt_state == C_MERGE) && !w_slot_done) && !w_slot_we)
+			r_cmt_rdata[r_cmt_k[MW - 1:0]] <= dat_a_rdata_i;
+	end
 	initial _sv2v_0 = 0;
 endmodule

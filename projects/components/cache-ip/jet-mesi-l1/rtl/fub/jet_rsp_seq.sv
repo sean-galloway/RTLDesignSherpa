@@ -128,6 +128,17 @@ module jet_rsp_seq
     // Entry storage: one completion record per tag.
     // ------------------------------------------------------------------
     logic [RSP_DEPTH-1:0]       r_valid;
+    // completion payload: one word per tag, written by the deposit and read
+    // at the release pointer -- a distributed RAM, no reset (every word is
+    // qualified by r_valid, which IS reset; GLOBAL_REQUIREMENTS 1.4 shape).
+    // The async-cleared version was the reset synchronizer's worst recovery
+    // path once the larger stores were gone (jet bin 7, FPGA review
+    // 2026-11-07).
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`elsif SYNTH_PRAGMA
+    /* synthesis ramstyle = "MLAB" */
+`endif
     logic [BUS_WIDTH-1:0]       r_data  [RSP_DEPTH];
 
     // ------------------------------------------------------------------
@@ -161,9 +172,6 @@ module jet_rsp_seq
             r_alloc_tag <= '0;
             r_rel_tag   <= '0;
             r_occupancy <= '0;
-            for (int s = 0; s < RSP_DEPTH; s++) begin
-                r_data[s] <= '0;
-            end
         end else begin
             // Release: advance the pointer and free the slot.  Ordered
             // BEFORE the deposit so a same-cycle deposit to the re-granted
@@ -187,7 +195,7 @@ module jet_rsp_seq
             // deposited head never releases).
             if (cpl_i) begin
                 r_valid[cpl_tag_i] <= 1'b1;
-                r_data[cpl_tag_i]  <= cpl_data_i;
+                // (the word lands in the reset-free payload block below)
             end
 
             // Tag alloc: advance the alloc pointer on a grant.
@@ -214,5 +222,12 @@ module jet_rsp_seq
         else $error("jet_rsp_seq: cpl_tag_i out of range (%0d >= %0d)",
                     cpl_tag_i, RSP_DEPTH);
     // pragma translate_on
+
+    // payload store (see the declaration): deposit writes the tag's word
+    always_ff @(posedge clk) begin
+        if (cpl_i) begin
+            r_data[cpl_tag_i] <= cpl_data_i;
+        end
+    end
 
 endmodule : jet_rsp_seq

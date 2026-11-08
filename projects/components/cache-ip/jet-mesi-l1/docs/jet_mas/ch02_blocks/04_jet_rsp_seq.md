@@ -47,6 +47,20 @@ store is a small FIFO of per-tag completion records, depth
 the implementation keeps a CAM-free ring: completion records write at the
 tag's slot, release reads at the release pointer).
 
+## Storage
+
+The per-tag completion record is two things: a `r_valid` bit per tag (reset,
+cleared at the release) and the response word `r_data[RSP_DEPTH]`. The word
+store carries **no reset** and is written only by the deposit
+(`r_data[cpl_tag] <= cpl_data`); every read of it is qualified by the tag's
+valid bit, so an unreset word is never observable. That is the
+GLOBAL_REQUIREMENTS 1.4 shape and it lets the store be a distributed RAM;
+the async-cleared version was, once the larger stores had moved to RAM, the
+reset synchronizer's worst recovery path on the Genesys2 (jet bin 7, FPGA
+review 2026-11-07). Sequentially the block orders release before deposit
+(ch02/01, Task 5 notes): a tag freed and re-granted in one cycle may be
+deposited to in that same cycle.
+
 ## Backpressure
 
 `rsp_ready` low holds the release pointer; completed responses accumulate

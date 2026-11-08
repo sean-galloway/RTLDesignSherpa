@@ -165,10 +165,10 @@ class Side:
         self.tb = tb
         self.tags = {}           # (set, way) -> line (installed view)
         self.slot_state = {}     # (set, way) -> 'I'/'S'/'E'/'M'
-        self.cache_data = {}     # line -> bytearray (resident content:
-                                 # fill source + merges; independent of
-                                 # the memory model -- a poisoned memory
-                                 # must not corrupt it)
+        self.cache_data = {}     # (set, way) -> bytearray (resident
+                                 # content: fill source + merges; per-way
+                                 # so a stale duplicate tag on a claimed
+                                 # victim way cannot be poisoned)
         self.entries = {}        # line -> entry dict (pending fills)
         self.entry_by_idx = {}   # mshr idx -> line
         self.unlaunched = deque()   # alloc order (launch order == alloc)
@@ -187,6 +187,9 @@ class Side:
         self.lru = make_repl_model(tb.REPL_POLICY, tb.SETS, tb.WAYS)
         self.exp_sn_tagwr = deque()
         self.rspq = deque()      # issue-order expected responses
+        self.cap_q = deque()     # v3: raw request captured at the interface;
+                                 # popped on the classify pulse (r_lk_addr may
+                                 # already hold the NEXT request)
         self.pending_slot = None  # the alloc-causing request's slot
         # stats
         self.txns = 0
@@ -329,9 +332,14 @@ class JetPairRigTB(TBBase):
         return int.from_bytes(bytes(line_data[lo:lo + self.STRB_W]), 'little')
 
     def _hit_way(self, side, set_idx, line):
+        # skip ways claimed by a live MSHR entry: the RTL suppresses those
+        # hits via w_hit_claimed (the doomed victim's stale tag), and the
+        # model must mirror that suppression or it sees a resident copy that
+        # the RTL does not serve.
         for w in range(self.WAYS):
             if (side.tags.get((set_idx, w)) == line
-                    and side.slot_state.get((set_idx, w), 'I') != 'I'):
+                    and side.slot_state.get((set_idx, w), 'I') != 'I'
+                    and not self._claimed(side, set_idx, w)):
                 return w
         return None
 
@@ -339,15 +347,75 @@ class JetPairRigTB(TBBase):
         s = self._set_of_line(line)
         for w in range(self.WAYS):
             if (side.tags.get((s, w)) == line
-                    and side.slot_state.get((s, w), 'I') != 'I'):
+                    and side.slot_state.get((s, w), 'I') != 'I'
+                    and not self._claimed(side, s, w)):
                 return side.slot_state[(s, w)]
         return 'I'
 
+    def _tag_snapshot_from_rtl(self, uc, set_idx):
+        """Read the RTL's captured tag snapshot (r_lk_tagstate) at the
+        classify cycle.  v3: this is exactly the view the RTL used for the
+        classify, so it is immune to the model's manual tag-tracking drift."""
+        tags = {}
+        state = {}
+        raw = int(uc.r_lk_tagstate.value)
+        tsw = self.ADDR_WIDTH - self.SET_BITS - self.OFFSET_BITS + 3
+        for w in range(self.WAYS):
+            tw = (raw >> (w * tsw)) & ((1 << tsw) - 1)
+            tag = tw >> 3
+            st = tw & 0x7
+            line = (tag << self.SET_BITS) | set_idx
+            tags[w] = line if st in (AMBER_STATE_S, AMBER_STATE_E,
+                                     AMBER_STATE_M) else None
+            state[w] = {AMBER_STATE_I: 'I', AMBER_STATE_S: 'S',
+                        AMBER_STATE_E: 'E', AMBER_STATE_M: 'M'}.get(st, 'I')
+        return {'tags': tags, 'state': state}
+
+    def _hit_way_from_snapshot(self, side, set_idx, line, snap):
+        # Combine the captured tag snapshot with the CURRENT claim state:
+        # the RTL's w_hit_claimed is evaluated at classify time from the
+        # live claim scoreboard, not from the snapshot.
+        for w in range(self.WAYS):
+            if (snap['tags'].get(w) == line
+                    and snap['state'].get(w, 'I') != 'I'
+                    and not self._claimed(side, set_idx, w)):
+                return w
+        return None
+
+    def _way_content(self, side, set_idx, way, line=None):
+        """Content of one physical way.  Tracked independently of the memory
+        model so that a stale duplicate tag on a claimed victim way cannot
+        be poisoned by writes that hit the live copy."""
+        if line is None:
+            line = side.tags.get((set_idx, way))
+        if (set_idx, way) in side.cache_data:
+            return bytes(side.cache_data[(set_idx, way)])
+        if line is not None:
+            return self._mem_line(line)
+        return bytes(self.LINE_BYTES)
+
+    def _content_line(self, side, line):
+        """Content of the (unclaimed) resident way holding `line`."""
+        set_idx = self._set_of_line(line)
+        way = self._hit_way(side, set_idx, line)
+        if way is None:
+            return self._mem_line(line)
+        return self._way_content(side, set_idx, way, line)
+
     def _content(self, side, line):
-        """The cache-resident line content: tracked independently of the
-        memory model (the fill source + every merge, in order).  Only
-        meaningful for a resident (or WB-held) line."""
-        return bytes(side.cache_data.get(line, self._mem_line(line)))
+        """Legacy line-keyed content accessor (directed scenarios).
+        Delegates to the claim-aware per-way lookup."""
+        return self._content_line(side, line)
+
+    def _merge_into_way(self, side, set_idx, way, beat, be, wdata):
+        """Merge a CPU write into the content of a specific physical way,
+        seeding from the memory model on first touch."""
+        if (set_idx, way) not in side.cache_data:
+            line = side.tags.get((set_idx, way))
+            side.cache_data[(set_idx, way)] = bytearray(
+                self._mem_line(line) if line is not None
+                else self.LINE_BYTES)
+        self._merge_into(side.cache_data[(set_idx, way)], beat, be, wdata)
 
     def _merge_into(self, data, beat, be, wdata):
         lo = beat * self.STRB_W
@@ -357,7 +425,9 @@ class JetPairRigTB(TBBase):
 
     def _claimed(self, side, set_idx, way):
         """A live MSHR entry claims (set, way): a tag hit there is the
-        doomed victim's stale tag (the Invalid row, amber's rule)."""
+        doomed victim's stale tag (the Invalid row, amber's rule).  The
+        claim stays live from the alloc until the commit's retire clears
+        the tag; a fill_done entry has not yet installed its tag."""
         for e in side.entries.values():
             if e['set'] == set_idx and e['way'] == way:
                 return True
@@ -471,13 +541,28 @@ class JetPairRigTB(TBBase):
                     self._on_coh_req(c, int(a.coh_req_addr.value),
                                      int(a.coh_req_type.value))
 
-                # 1. lookup-stage accept
-                if int(uc.lkup_valid_i.value) and int(uc.lkup_ready_o.value):
+                # 1. lookup-stage classify (v3: the class pulses fire one
+                #    cycle after the interface capture; the request fields
+                #    come from the cap_q populated at the prior accept).
+                if int(uc.lkup_hit_o.value) or int(uc.lkup_merge_o.value) \
+                        or int(uc.lkup_miss_alloc_o.value) \
+                        or int(uc.lkup_upgrade_o.value):
                     self._mon_accept(c, uc)
 
                 # 2. MSHR alloc (before the snoop resolution: alloc-first)
                 if int(uc.mshr_alloc_o.value) and int(uc.mshr_alloc_gnt_i.value):
                     self._mon_alloc(c, uc)
+
+                # 1b. capture the raw request at the interface accept; push
+                #     AFTER the classify so a same-cycle capture does not
+                #     overtake the already-queued request being classified.
+                if int(uc.lkup_valid_i.value) and int(uc.lkup_ready_o.value):
+                    side.cap_q.append({
+                        'addr': int(uc.lkup_addr_i.value),
+                        'we': int(uc.lkup_we_i.value),
+                        'be': int(uc.lkup_be_i.value),
+                        'wdata': int(uc.lkup_wdata_i.value),
+                    })
 
                 # 3. snoop grant: oracle resolution in the RTL's match order
                 if int(a.u_fab.u_snoop.ctrl_snoop_req.value) \
@@ -543,45 +628,56 @@ class JetPairRigTB(TBBase):
     # per-cache monitor handlers
     # ------------------------------------------------------------------
     def _mon_accept(self, c, uc):
+        """Classify-cycle accept handling (v3: pops the request captured at
+        the interface accept, because r_lk_addr may already hold the NEXT
+        request when the classify pulse fires)."""
         side = self.sides[c]
-        addr = int(uc.lkup_addr_i.value)
-        we = int(uc.lkup_we_i.value)
-        be = int(uc.lkup_be_i.value)
-        wdata = int(uc.lkup_wdata_i.value)
+        if not side.cap_q:
+            self._score(f"accept{c}: classify pulse with empty cap_q", 1, 0)
+            rq = {'addr': 0, 'we': 0, 'be': 0, 'wdata': 0}
+        else:
+            rq = side.cap_q.popleft()
+        addr = rq['addr']
+        we = rq['we']
+        be = rq['be']
+        wdata = rq['wdata']
         line = self._line_of(addr)
         beat = (addr >> (self.STRB_W.bit_length() - 1)) & (self.FILL_BEATS - 1)
         set_idx = self._set_of_line(line)
-
+        # v3: use the RTL's own captured tag snapshot; the model's manual
+        # tag tracking can run one cycle ahead of the array.
+        snap = self._tag_snapshot_from_rtl(uc, set_idx)
         rsp = {'line': line, 'we': we, 'exp': None, 'ready': False}
         side.rspq.append(rsp)
         side.txns += 1
 
         if int(uc.lkup_hit_o.value):
             # hit: the data is captured at the accept
-            way = self._hit_way(side, set_idx, line)
+            way = self._hit_way_from_snapshot(side, set_idx, line, snap)
             if we:
                 rsp['exp'] = wdata
                 rsp['ready'] = True
                 if self._hit_updates_repl and int(uc.repl_hit_o.value):
                     side.lru.update(set_idx, int(uc.repl_hit_way_o.value))
-                st = side.slot_state.get((set_idx, way), 'I') \
+                st = snap['state'].get(way, 'I') \
                     if way is not None else 'I'
                 if st == 'E':
                     # the E->M promotion tag write lands this cycle
                     side.promo = (line, set_idx, way)
-                # the write merges into the array at the accept
-                self._merge_into(side.cache_data[line], beat, be, wdata)
+                # the write merges into the specific way that served the hit
+                self._merge_into_way(side, set_idx, way, beat, be, wdata)
             else:
-                rsp['exp'] = self._beat_of_line(self._content(side, line),
-                                                beat)
+                rsp['exp'] = self._beat_of_line(
+                    self._way_content(side, set_idx, way, line), beat)
                 rsp['ready'] = True
                 if self._hit_updates_repl and int(uc.repl_hit_o.value):
                     side.lru.update(set_idx, int(uc.repl_hit_way_o.value))
         elif int(uc.lkup_upgrade_o.value):
             # S->M upgrade: the write is held in the tracker (it merges
             # only at the CU commit); the response echoes
+            upgr_way = self._hit_way_from_snapshot(side, set_idx, line, snap)
             side.upgr = {'valid': True, 'line': line, 'set': set_idx,
-                         'way': self._hit_way(side, set_idx, line),
+                         'way': upgr_way,
                          'beat': beat, 'be': be, 'wdata': wdata,
                          'killed': False}
             rsp['exp'] = wdata
@@ -634,9 +730,9 @@ class JetPairRigTB(TBBase):
             self._score(f"alloc{c} wb_valid line={line:#x}", wb_valid,
                         1 if vstate == 'M' else 0)
             if vstate == 'M':
-                side.wb[vline] = self._content(side, vline)
+                side.wb[vline] = self._way_content(side, set_idx, way, vline)
                 side.wb_order.append(vline)
-            side.cache_data.pop(vline, None)
+            side.cache_data.pop((set_idx, way), None)
 
         slot = side.pending_slot
         side.pending_slot = None
@@ -728,7 +824,8 @@ class JetPairRigTB(TBBase):
                 ref = side.slot_state.get((set_idx, way), 'I')
             res = oracle_step(ref, name)
             if (res.crresp >> CRRESP_DT) & 1:
-                cd = self._content(side, line)
+                cd = self._way_content(side, set_idx, way, line) \
+                    if way is not None else self._mem_line(line)
             if ref != 'I' and res.next_state != ref:
                 side.exp_sn_tagwr.append({
                     'line': line, 'set': set_idx, 'way': way,
@@ -869,8 +966,9 @@ class JetPairRigTB(TBBase):
                     rsp = slot['rsp']
                     rsp['exp'] = self._beat_of_line(data, slot['beat'])
                     rsp['ready'] = True
-            # the merged content is now the resident content
-            side.cache_data[e['line']] = data
+            # the merged content is now the resident content of the
+            # install way
+            side.cache_data[(e['set'], e['way'])] = data
             # consume the fabric transaction this fill rode on
             self._take_ft(c, e['line'])
             side.committing = e
@@ -890,7 +988,7 @@ class JetPairRigTB(TBBase):
             side.slot_state[(e['set'], e['way'])] = exp
             if exp == 'I':
                 # the killed fill: merged write data never lands
-                side.cache_data.pop(e['line'], None)
+                side.cache_data.pop((e['set'], e['way']), None)
         elif cmt == C_CU_INSTALL:
             u = side.upgr
             if not u['valid']:
@@ -910,10 +1008,13 @@ class JetPairRigTB(TBBase):
             if u['killed']:
                 # the held write's data drops with the invalidated line
                 # (the fabric-contract demote corner)
-                side.cache_data.pop(u['line'], None)
+                side.cache_data.pop((u['set'], way), None)
             else:
                 # the held write merged at the CU commit
-                self._merge_into(side.cache_data[u['line']],
+                if (u['set'], way) not in side.cache_data:
+                    side.cache_data[(u['set'], way)] = bytearray(
+                        self._mem_line(u['line']))
+                self._merge_into(side.cache_data[(u['set'], way)],
                                  u['beat'], u['be'], u['wdata'])
             side.upgr = {'valid': False, 'line': None, 'set': 0, 'way': 0,
                          'killed': False}
@@ -942,7 +1043,7 @@ class JetPairRigTB(TBBase):
                 # S, or the fabric-contract M-kill corner) drops the
                 # resident content; a forwarded line's content moved to
                 # the memory model at the resolution
-                side.cache_data.pop(exp['line'], None)
+                side.cache_data.pop((exp['set'], way), None)
         elif side.promo is not None:
             # the E->M promotion at a write hit
             pline, pset, pway = side.promo
@@ -1230,6 +1331,35 @@ class JetPairRigTB(TBBase):
                 f"c1entries {list(self.sides[1].entries.keys())} "
                 f"c0wb {list(self.sides[0].wb.keys())} "
                 f"c1wb {list(self.sides[1].wb.keys())}")
+            # the snoop-safe terms of both cores + the fabric's grant
+            for c in (0, 1):
+                uc = self._jet(c).u_coh.u_control
+                self.log.info(
+                    f"HANG core{c}: lk_valid {int(uc.r_lk_valid.value)} "
+                    f"stall {int(uc.lkup_stall_o.value)} "
+                    f"reason {int(uc.lkup_stall_reason_o.value)} "
+                    f"sn_state {int(uc.r_sn_state.value)} "
+                    f"sn_req {int(uc.sn_req_i.value)} "
+                    f"sn_want {int(uc.sn_want_i.value)} "
+                    f"sn_safe {int(uc.sn_safe_o.value)} "
+                    f"any_done {int(uc.w_any_done.value)} "
+                    f"cap_active {int(uc.w_cap_active.value)} "
+                    f"srv_vld {int(uc.r_srv_vld.value)} "
+                    f"srv_we {int(uc.r_srv_we.value)} "
+                    f"cmt_state {int(uc.r_cmt_state.value)} "
+                    f"fq_cnt {int(uc.r_fq_cnt.value)} "
+                    f"fq_undone {int(uc.r_fq_undone.value)} "
+                    f"fill_pend {int(uc.r_fill_pend.value)} "
+                    f"fill_start {int(uc.fill_start_o.value)} "
+                    f"fill_accept {int(uc.fill_accept_i.value)} "
+                    f"eng_busy {int(self._jet(c).u_coh.r_eng_busy.value)} "
+                    f"ar_done {int(uc.r_ar_done.value)}")
+            self.log.info(
+                f"HANG fabric: grant_q {int(f.grant_q.value)} "
+                f"peer_safe {int(f.peer_safe.value)} "
+                f"pend_cnt0 {int(f.pend_cnt_q[0].value)} "
+                f"pend_cnt1 {int(f.pend_cnt_q[1].value)} "
+                f"s0cr {int(d.s0_crvalid.value)} s1cr {int(d.s1_crvalid.value)}")
         raise RuntimeError(
             f"{label}: response {n} on cache{c} timeout; "
             f"ctrl_state={int(self._jet(c).ctrl_state.value):#x} "
@@ -1402,7 +1532,7 @@ class JetPairRigTB(TBBase):
         # path never installs E -- the documented reachability gap)
         set_idx = self._set_of_line(line)
         way = self._hit_way(s0, set_idx, line)
-        tag_word = self.dut.u_jet0.u_coh.u_tag.mem[way * self.SETS + set_idx]
+        tag_word = self.dut.u_jet0.u_coh.u_tag.g_way[way].mem[set_idx]
         tag_word.value = ((line >> self.SET_BITS) << 3) | 2   # 2 = E
         s0.slot_state[(set_idx, way)] = 'E'
         # cache1 misses the line: fabric READ_SHARED snoop hits E

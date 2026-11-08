@@ -77,8 +77,19 @@ remains pinned at the unit level, Tasks 6–7).
 ## Ordering and progress rules
 
 1. **A snoop never stalls behind a fill or a drain** (Chinnakonda §7.8).
-   AC acceptance is gated only by snoop-service occupancy, and snoops
-   arbitrate ahead of new CPU accepts (J6).  The arbitration starts at
+   AC acceptance is gated only by the bounded, locally-resolved terms of
+   `sn_safe_o` (service occupancy, the init walk, a victim capture in
+   flight, the commit window, a pended write hit), and snoops arbitrate
+   ahead of new CPU accepts (J6). **It never waits for the lookup pipe to
+   empty** (v3, 2026-11-07): the pipe's occupant may be a true miss held on
+   the fill-launch register behind a fill whose AR the fabric will not
+   accept until *this* snoop is answered — a hold that waits on the fabric
+   is not bounded, and the `~r_lk_valid` term deadlocked the pair rig
+   (SEED 27994). A captured-not-classified request is instead kept
+   correct by the snapshot discipline in ch02/01 (the classify holds
+   through the grant and the service; a service tag write to its set marks
+   the snapshot dirty and replays the read). Handbook:
+   `design/holds-that-wait-on-the-fabric.md`.  The arbitration starts at
    *pend*, not at grant (Task 11): a waiting snoop throttles new CPU
    accepts, so the outstanding fills drain and the safe window opens —
    the snoop wait is bounded by the pipe drain (fills × commit length +

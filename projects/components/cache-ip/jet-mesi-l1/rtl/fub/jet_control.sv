@@ -237,6 +237,13 @@ module jet_control
     parameter int BUS_WIDTH    = AMBER_BUS_WIDTH,
     parameter int MSHR_COUNT   = jet_pkg::MSHR_COUNT,
     parameter int VICTIM_DEPTH = jet_pkg::VICTIM_DEPTH,
+    // DATA_SYNC_READ=1: the data array's read ports are registered (block
+    // RAM); read data lands one cycle after the address.  Every port
+    // consumer presents its address a cycle ahead and fires only when the
+    // address presented LAST cycle was its own (ports are shared), so a
+    // response is never built from another consumer's word.  The way
+    // select is applied in the data cycle (l1_data_array SYNC_READ).
+    parameter bit DATA_SYNC_READ = 1'b0,
     localparam int SET_W      = $clog2(SETS),
     localparam int OFF_W      = $clog2(LINE_BYTES),
     localparam int TAG_W      = ADDR_WIDTH - SET_W - OFF_W,
@@ -359,7 +366,15 @@ module jet_control
     output logic [LINE_W-1:0]           wb_sn_line_o,
     input  logic                        wb_sn_hit_i,
     output logic [1:0]                  wb_sn_eff_o,
-    input  logic [LINE_BITS-1:0]        wb_sn_data_i,
+    // snarf stream: the CAM's slot is latched at the grant; the CD beats
+    // are read from the WB store by beat (slot, beat) while wb_sn_lock_o
+    // pins that slot against reuse (the entry may retire on its BRESP
+    // mid-stream) -- no line-wide snapshot (FPGA review 2026-11-07)
+    input  logic [WB_W-1:0]             wb_sn_match_idx_i,
+    output logic                        wb_sn_lock_o,
+    output logic [WB_W-1:0]             wb_sn_rd_slot_o,
+    output logic [BEAT_W-1:0]           wb_sn_rd_beat_o,
+    input  logic [BUS_WIDTH-1:0]        wb_sn_rd_data_i,
     input  logic                        wb_sn_bresp_cycle_i,
     input  logic                        wb_drain_valid_i,
     output logic                        drain_start_o,
@@ -498,6 +513,15 @@ module jet_control
     logic [WAY_W-1:0]        r_cap_way;
     logic [LINE_W-1:0]       r_cap_line;
     logic [BEAT_W-1:0]       r_cap_beat;
+    // DATA_SYNC_READ pipeline qualifiers (all constant 0 when the read is
+    // combinational):
+    logic                    r_cap_d1;      // a capture read was presented last cycle (its word is on port B now)
+    logic                    w_cap_active;  // capture busy OR its last word still in flight
+    logic                    w_cap_adr;     // the capture owns port B's address this cycle
+    logic                    w_sn_portb_pre;// the snoop takes port B's address in its grant cycle (beat 0 lead)
+    logic                    r_pa_srv_d1;   // port A's address last cycle was the (unchanged) serve record's
+    logic                    r_cmt_rd_d1;   // a commit read slot was presented last cycle
+    logic [MW-1:0]           r_cmt_rd_k_d1; // ... for this cursor position
     // fill launch hold (one launch awaits fill_accept_i at a time)
     logic                    r_fill_pend;
     logic [ADDR_WIDTH-1:0]   r_fill_addr;
@@ -551,9 +575,26 @@ module jet_control
     logic                    r_fq_done [FQ_DEPTH];
     // requester sideband: per entry, per merge-list slot, the data the
     // commit needs -- the D-4 store payload for writes, the beat for reads
+    // Written once per cycle (alloc and merge are exclusive), read once per
+    // cycle by the commit cursor: a distributed RAM, no reset (payload is
+    // qualified by the entry's merge count). FPGA review 2026-11-07: as
+    // flops under the reset macro this was MSHR_COUNT^2 x 76 bits of FDCE
+    // per core (2k+ kept at 8 entries) plus the enable fan-out.
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`endif
     logic                    r_req_we    [MSHR_COUNT * MSHR_COUNT];
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`endif
     logic [BEAT_W-1:0]       r_req_beat  [MSHR_COUNT * MSHR_COUNT];
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`endif
     logic [STRB_W-1:0]       r_req_be    [MSHR_COUNT * MSHR_COUNT];
+`ifdef XILINX
+    (* ram_style = "distributed" *)
+`endif
     logic [BUS_WIDTH-1:0]    r_req_wdata [MSHR_COUNT * MSHR_COUNT];
     // commit pipeline registers (the entry snapshot + walk state)
     logic [3:0]              r_cmt_state;
@@ -566,6 +607,8 @@ module jet_control
     logic [MW:0]             r_cmt_count;
     logic [SEQ_W-1:0]        r_cmt_seqs [MSHR_COUNT];
     logic [MW:0]             r_cmt_k;
+    // read-slot response beats, captured at the cursor and replayed at the
+    // cursor: payload store, no reset
     logic [BUS_WIDTH-1:0]    r_cmt_rdata [MSHR_COUNT];
     // snoop service (MAS ch02_blocks/05): grant-cycle context + stream
     logic [1:0]              r_sn_state;
@@ -579,10 +622,51 @@ module jet_control
     logic [2:0]              r_sn_ref;
     logic [2:0]              r_sn_nxt;
     logic [BEAT_W-1:0]       r_sn_beat;
-    logic [LINE_BITS-1:0]    r_sn_wb_data;  // WB snarf snapshot (BRESP race)
+    logic [WB_W-1:0]         r_sn_wbslot;   // WB slot the snarf stream reads
     // pend_eff I-sticks shadow: the recorded effect per entry (invalidate
     // dominates a later downgrade; the MSHR write port is unconditional)
     logic [1:0]              r_sn_pend [MSHR_COUNT];
+
+    // ------------------------------------------------------------------
+    // Lookup pipeline stage (ISSUE-001 v3, 2026-11-04): the request is
+    // captured into registers at the interface accept, and the classify
+    // runs the NEXT cycle from those registers.  The tag read is the one
+    // input that must lead by a cycle: port A reads the live request's set
+    // during the capture cycle and the way/state snapshot is captured with
+    // the request.  The MSHR CAM and the replacement victim proposal are
+    // NOT snapshotted -- their lookup inputs (mshr_lkup_line_o, repl_set_o)
+    // are driven from the registered address, so they compare live register
+    // state during the classify cycle.
+    //
+    //   * lkup_ready_o is structural: the interface accepts whenever the
+    //     classify register is empty or advancing this cycle.  The rsp_seq
+    //     tag is allocated at the capture (request order = tag order).
+    //   * Tag-dirty replay: any tag-port-A write to the captured set
+    //     between the capture and the classify (commit install, pend E->M,
+    //     snoop effect) makes the snapshot stale; the classify holds and
+    //     re-reads (w_req_set) until a clean snapshot lands.  Bounded: tag
+    //     writes to one set are bounded by outstanding fills + snoop rate.
+    //   * Snoop interlock: sn_safe_o requires an EMPTY pipe (a captured
+    //     request must classify against post-snoop state), and a WAITING
+    //     snoop blocks new captures (J6 fairness) but never the classify
+    //     advance of an already-captured request -- gating both directions
+    //     on the same condition would deadlock.  An ACTIVE snoop service
+    //     (r_sn_state != SN_IDLE) does hold the classify (the service owns
+    //     the tag effects; its tag write also dirties the snapshot).
+    // ------------------------------------------------------------------
+    logic                    r_lk_valid;
+    logic [ADDR_WIDTH-1:0]   r_lk_addr;
+    logic                    r_lk_we;
+    logic [STRB_W-1:0]       r_lk_be;
+    logic [BUS_WIDTH-1:0]    r_lk_wdata;
+    logic [SEQ_W-1:0]        r_lk_seq;
+    logic [WAYS-1:0][TSW-1:0] r_lk_tagstate;
+    logic                    r_lk_dirty;
+
+    logic w_lk_capture;
+    logic w_cls_advance;
+    logic w_cls_fire;
+    logic w_pipe_room;
 
     // ------------------------------------------------------------------
     // Request address decode
@@ -592,10 +676,15 @@ module jet_control
     logic [BEAT_W-1:0]  w_req_beat;
     logic [LINE_W-1:0]  w_req_line;
 
-    assign w_req_tag  = lkup_addr_i[ADDR_WIDTH-1 -: TAG_W];
-    assign w_req_set  = lkup_addr_i[OFF_W +: SET_W];
-    assign w_req_beat = lkup_addr_i[OFF_W-1 -: BEAT_W];
-    assign w_req_line = lkup_addr_i[ADDR_WIDTH-1:OFF_W];
+    // live decode of the INTERFACE request (capture-cycle tag read address)
+    logic [SET_W-1:0]   w_live_set;
+
+    assign w_live_set = lkup_addr_i[OFF_W +: SET_W];
+
+    assign w_req_tag  = r_lk_addr[ADDR_WIDTH-1 -: TAG_W];
+    assign w_req_set  = r_lk_addr[OFF_W +: SET_W];
+    assign w_req_beat = r_lk_addr[OFF_W-1 -: BEAT_W];
+    assign w_req_line = r_lk_addr[ADDR_WIDTH-1:OFF_W];
 
     // ------------------------------------------------------------------
     // Tag hit decode (the amber LOOKUP compare: S/E/M only; reserved
@@ -613,13 +702,13 @@ module jet_control
         w_hit_state = AMBER_STATE_I;
         for (int w = 0; w < WAYS; w++) begin
             if (!w_hit
-                && (tag_a_tag_state_i[w][TSW-1 -: TAG_W] == w_req_tag)
-                && (tag_a_tag_state_i[w][2:0] == AMBER_STATE_S
-                    || tag_a_tag_state_i[w][2:0] == AMBER_STATE_E
-                    || tag_a_tag_state_i[w][2:0] == AMBER_STATE_M)) begin
+                && (r_lk_tagstate[w][TSW-1 -: TAG_W] == w_req_tag)
+                && (r_lk_tagstate[w][2:0] == AMBER_STATE_S
+                    || r_lk_tagstate[w][2:0] == AMBER_STATE_E
+                    || r_lk_tagstate[w][2:0] == AMBER_STATE_M)) begin
                 w_hit       = 1'b1;
                 w_hit_way   = WAY_W'(w);
-                w_hit_state = tag_a_tag_state_i[w][2:0];
+                w_hit_state = r_lk_tagstate[w][2:0];
             end
         end
     end
@@ -662,21 +751,30 @@ module jet_control
     logic           w_upgr_line_stall;
 
     assign w_serve_hit = w_hit & ~w_hit_claimed;
-    assign w_hit_rd    = w_serve_hit & ~lkup_we_i;
-    assign w_hit_wr    = w_serve_hit & lkup_we_i
+    assign w_hit_rd    = w_serve_hit & ~r_lk_we;
+    assign w_hit_wr    = w_serve_hit & r_lk_we
                          & (w_hit_state != AMBER_STATE_S);
-    assign w_hit_upgr  = w_serve_hit & lkup_we_i
+    assign w_hit_upgr  = w_serve_hit & r_lk_we
                          & (w_hit_state == AMBER_STATE_S);
 
     // J3: a read joins any outstanding fill; a write joins only an RU
     // fill; a write behind an RNSD fill is the cross-class wait (the only
     // incompatible combination, so it is also the merge gate's complement).
-    assign w_xclass       = mshr_lkup_reg_match_i & lkup_we_i
+    assign w_xclass       = mshr_lkup_reg_match_i & r_lk_we
                             & (mshr_lkup_reg_match_cls_i == JET_CLS_RNSD);
     assign w_merge_room   = (mshr_cpl_merge_count_i < (MW+1)'(MSHR_COUNT));
 
-    assign w_victim_state = tag_a_tag_state_i[repl_victim_way_i][2:0];
-    assign w_victim_tag   = tag_a_tag_state_i[repl_victim_way_i][TSW-1 -: TAG_W];
+    // The victim's state/tag come from the request's SNAPSHOT, not the
+    // live port-A read.  The snapshot equals the array whenever the
+    // classify can advance (a write to the set marks it dirty and replays
+    // the read first), and the live port is NOT ours in the advance cycle:
+    // a back-to-back capture (w_pipe_room via w_cls_advance) owns port A
+    // for the next request's snapshot.  Reading the live port here forced
+    // tag_a_set_o onto the occupant's set in that cycle, so the incoming
+    // request snapshotted the WRONG set and a same-tag line in the
+    // occupant's set classified as a hit (jet_core func, 2026-11-07).
+    assign w_victim_state = r_lk_tagstate[repl_victim_way_i][2:0];
+    assign w_victim_tag   = r_lk_tagstate[repl_victim_way_i][TSW-1 -: TAG_W];
     assign w_victim_dirty = (w_victim_state == AMBER_STATE_M);
 
     // Claim-aware victim check: the proposed victim way must not be
@@ -699,11 +797,11 @@ module jet_control
     // mid-capture) -- its refetch must wait for the writeback (the
     // address is held until BRESP, Chinnakonda 10.10.1).
     assign w_wb_race = wb_sn_hit_i
-                       | (r_cap_busy & (r_cap_line == w_req_line));
+                       | (w_cap_active & (r_cap_line == w_req_line));
 
     // WB-full stalls ONLY dirty-victim misses (J6); a busy capture stream
     // is the same one-slot-at-a-time resource.
-    assign w_wb_block = w_victim_dirty & (wb_full_i | r_cap_busy);
+    assign w_wb_block = w_victim_dirty & (wb_full_i | w_cap_active);
 
     // The in-flight upgrade's way is claimed (its commit installs M
     // there); the set-claim accounting counts it.
@@ -872,8 +970,13 @@ module jet_control
               & (r_fq_cls[r_fq_done_ptr] != JET_CLS_CU)
               & (mshr_sn_match_idx_i == r_fq_idx[r_fq_done_ptr])));
     assign w_src_mshr  = ~w_src_wb & mshr_sn_match_i & ~w_mshr_pre_ar;
-    assign w_src_array = ~w_src_wb & ~w_src_mshr & w_sn_thit
-                         & ~w_sn_tclaimed;
+    // A pre-AR pending fill to the snoop line supersedes the array: the
+    // tag still shows the old (doomed) copy, but the line is being re-
+    // fetched and the old data must not answer.  Without this mask the
+    // match order would fall through to SRC_ARRAY and answer from the
+    // stale tag (Issue-001 v3 find).
+    assign w_src_array = ~w_src_wb & ~w_src_mshr & ~w_mshr_pre_ar
+                         & w_sn_thit & ~w_sn_tclaimed;
     assign w_sn_src    = w_src_wb    ? SRC_WB
                          : w_src_mshr  ? SRC_MSHR
                          : w_src_array ? SRC_ARRAY
@@ -924,12 +1027,24 @@ module jet_control
     assign w_cu_completing = fill_done_i
                              & (r_fq_cls[r_fq_done_ptr] == JET_CLS_CU);
     assign sn_safe_o  = ~r_init_busy & (r_sn_state == SN_IDLE)
-                        & ~w_any_done & ~r_cap_busy & ~w_cu_completing
+                        & ~w_any_done & ~w_cap_active & ~w_cu_completing
                         // a pended write hit's array/tag write has not
                         // landed: a snoop answered now could read the
                         // pre-write data.  Address-agnostic (the safe
                         // window rule); bounded by the pend drain.
                         & ~(r_srv_vld & r_srv_we);
+    // v3 (2026-11-07): the grant does NOT wait for an empty lookup pipe.
+    // The old `~r_lk_valid` term deadlocked (pair-rig SEED 27994): the
+    // occupant was a true miss HELD on the fill-launch register, the
+    // launch waited on the fill engine, whose AR the fabric would not
+    // accept while it sat in F_RESP waiting for THIS core's snoop response
+    // -- a wait the "bounded classify stall" argument never covered.  A
+    // captured-not-classified lookup still runs against post-snoop state
+    // without it: the classify holds in the grant cycle (w_cls_advance &
+    // ~w_sn_gnt) and through the service (r_sn_state != SN_IDLE); a
+    // service tag write to the request's set marks the snapshot dirty and
+    // replays the tag read; the MSHR CAM, WB CAM, claim count and victim
+    // way are live lookups, never snapshotted.
     assign w_sn_gnt   = sn_req_i & sn_safe_o;
     assign sn_ready_o = w_sn_gnt;
 
@@ -987,6 +1102,9 @@ module jet_control
     // reused slot is impossible: CPU accepts (hence new captures) are
     // suppressed for the whole service, and a line occupies at most one
     // WB slot at a time (the lookup drain-race stall).
+    assign wb_sn_lock_o    = (r_sn_state == SN_DATA) & (r_sn_src == SRC_WB);
+    assign wb_sn_rd_slot_o = r_sn_wbslot;
+    assign wb_sn_rd_beat_o = r_sn_beat;
     assign wb_sn_eff_o         = ((r_sn_state == SN_EFFECT)
                                   & (r_sn_src == SRC_WB)
                                   & (r_sn_nxt != r_sn_ref))
@@ -1003,8 +1121,7 @@ module jet_control
     assign sn_cdlast_o  = (r_sn_state == SN_DATA)
                           & (r_sn_beat == BEAT_W'(FILL_BEATS - 1));
     assign sn_cddata_o  = (r_sn_src == SRC_WB)
-                          ? r_sn_wb_data[32'(r_sn_beat) * BUS_WIDTH
-                                         +: BUS_WIDTH]
+                          ? wb_sn_rd_data_i
                           : dat_b_rdata_i;
     assign w_sn_portb   = (r_sn_state == SN_DATA) & (r_sn_src != SRC_WB);
 
@@ -1113,7 +1230,10 @@ module jet_control
     // section -- sn_safe_o below gates on r_srv_vld.)
     // ------------------------------------------------------------------
     assign w_srv_fire_rd = r_srv_vld & ~r_srv_we
-                           & ~w_cmt_cpl & ~w_cmt_datrd;
+                           & ~w_cmt_cpl & ~w_cmt_datrd
+                           // sync read: the word on port A is the serve's
+                           // only if port A carried its address last cycle
+                           & (~DATA_SYNC_READ | r_pa_srv_d1);
     assign w_srv_fire_wr = r_srv_vld & r_srv_we
                            & ~w_cmt_cpl & ~fill_beat_valid_i & ~w_cmt_datwr
                            & ~(r_srv_e2m & (w_cmt_tagwr | w_sn_tagwr));
@@ -1130,7 +1250,11 @@ module jet_control
         w_acceptable = 1'b0;
         w_stall      = 1'b0;
         w_reason     = STALL_NONE;
-        if (lkup_valid_i && !r_init_busy && !w_sn_block_cpu) begin
+        // the classify runs on the lookup pipeline register, one cycle
+        // after the interface accept (v3); it holds during an ACTIVE
+        // snoop service (the service owns the tag effects -- a WAITING
+        // snoop must NOT hold it or sn_safe's ~r_lk_valid deadlocks)
+        if (r_lk_valid && (r_sn_state == SN_IDLE)) begin
             if (w_upgr_line_stall) begin
                 // any access to the in-flight upgrade's line waits for
                 // the CU commit (the held write merges only there)
@@ -1210,7 +1334,11 @@ module jet_control
     end
 
     // ------------------------------------------------------------------
-    // Accept and per-class accept decodes
+    // Lookup pipeline capture (v3): the interface accept is structural --
+    // the request lands in the lookup register whenever the classify stage
+    // has room, and the rsp_seq tag is allocated there.  The classify
+    // (w_acceptable above) runs one cycle later on the captured registers;
+    // its effects fire in the classify cycle (w_cls_fire).
     // ------------------------------------------------------------------
     logic w_accept;
     logic w_accept_rd;
@@ -1219,22 +1347,39 @@ module jet_control
     logic w_accept_merge;
     logic w_accept_alloc;
 
-    assign tag_req_o     = lkup_valid_i & ~r_init_busy & w_acceptable
-                           & ~r_ctrl_err;
-    assign w_accept      = tag_req_o & tag_gnt_i;
-    assign lkup_ready_o  = w_accept;
+    assign w_pipe_room   = ~r_lk_valid | w_cls_advance;
+    assign tag_req_o     = lkup_valid_i & ~r_init_busy & w_pipe_room
+                           & ~r_ctrl_err & ~w_sn_block_cpu;
+    assign w_lk_capture  = tag_req_o & tag_gnt_i;
+    assign lkup_ready_o  = w_lk_capture;
 
-    assign lkup_stall_o  = lkup_valid_i & ~r_init_busy & ~w_accept
-                           & (w_stall | (w_acceptable & ~tag_gnt_i));
-    assign lkup_stall_reason_o = w_stall ? w_reason
-            : (lkup_valid_i & ~r_init_busy & w_acceptable & ~tag_gnt_i)
-              ? STALL_TAG_FULL : STALL_NONE;
+    // the classify retires the occupant when it can execute and the
+    // snapshot is clean (a dirty snapshot replays the tag read first)
+    assign w_cls_advance = r_lk_valid & ~r_lk_dirty & w_acceptable
+                           & (r_sn_state == SN_IDLE)
+                           // never in a snoop's grant cycle: its resolution
+                           // must not race a classify firing on the
+                           // pre-snoop snapshot (write-hit serve load vs.
+                           // the CD stream, alloc vs. the MSHR CAM)
+                           & ~w_sn_gnt;
+    assign w_cls_fire    = w_cls_advance;
+
+    // stall reporting: the classify-stage occupant's stall is the event,
+    // visible whether or not a new request waits at the interface (v3 --
+    // the request was already captured when its stall condition is known).
+    // A capture blocked by a full response ring reports TAG_FULL as before.
+    assign lkup_stall_o  = (r_lk_valid & w_stall & (r_sn_state == SN_IDLE))
+                           | (tag_req_o & ~tag_gnt_i);
+    assign lkup_stall_reason_o = (r_lk_valid & w_stall) ? w_reason
+                                 : STALL_TAG_FULL;
+
     // lkup_wr_yield_o keeps its pre-pend meaning ("a write hit is waiting
     // on the W port behind fill beats / a commit merge"), now observed at
     // the serve pend instead of the accept (ISSUE-001 v2).
     assign lkup_wr_yield_o   = r_srv_vld & r_srv_we & ~w_srv_fire_wr
                                & (fill_beat_valid_i | w_cmt_datwr);
 
+    assign w_accept       = w_cls_fire;
     assign w_accept_rd    = w_accept & w_hit_rd;
     assign w_accept_wr    = w_accept & w_hit_wr;
     assign w_accept_upgr  = w_accept & w_hit_upgr;
@@ -1245,9 +1390,47 @@ module jet_control
     assign lkup_merge_o      = w_accept_merge;
     assign lkup_miss_alloc_o = w_accept_alloc;
     assign lkup_upgrade_o    = w_accept_upgr;
-    assign cap_busy_o        = r_cap_busy;
+    assign cap_busy_o        = w_cap_active;
     assign init_busy_o       = r_init_busy;
     assign ctrl_error_o      = r_ctrl_err;
+
+    // capture register + tag snapshot + dirty tracking
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_lk_valid    <= 1'b0;
+            r_lk_addr     <= '0;
+            r_lk_we       <= 1'b0;
+            r_lk_be       <= '0;
+            r_lk_wdata    <= '0;
+            r_lk_seq      <= '0;
+            r_lk_tagstate <= '0;
+            r_lk_dirty    <= 1'b0;
+        end else begin
+            r_lk_valid <= w_lk_capture | (r_lk_valid & ~w_cls_advance);
+            if (w_lk_capture) begin
+                r_lk_addr  <= lkup_addr_i;
+                r_lk_we    <= lkup_we_i;
+                r_lk_be    <= lkup_be_i;
+                r_lk_wdata <= lkup_wdata_i;
+                r_lk_seq   <= tag_i;
+            end
+            // the tag snapshot: at the capture edge it holds the live read
+            // of the request's set; a dirty mark replays the read (port A
+            // sits on w_req_set while the pipe is occupied)
+            if (w_lk_capture | (r_lk_valid & r_lk_dirty)) begin
+                r_lk_tagstate <= tag_a_tag_state_i;
+            end
+            if (w_lk_capture) begin
+                // a tag write landing on the capture edge is not in the
+                // snapshot
+                r_lk_dirty <= tag_a_wr_en_o & (tag_a_wr_set_o == w_live_set);
+            end else if (r_lk_valid) begin
+                r_lk_dirty <= tag_a_wr_en_o & (tag_a_wr_set_o == w_req_set);
+            end else begin
+                r_lk_dirty <= 1'b0;
+            end
+        end
+    )
 
     // ------------------------------------------------------------------
     // Hit-serve pend capture: a hit accept loads the serve record; the
@@ -1273,15 +1456,15 @@ module jet_control
             r_srv_vld <= (w_accept_rd | w_accept_wr) | (r_srv_vld & ~w_srv_fire);
             if (w_accept_rd | w_accept_wr) begin
                 r_srv_we         <= w_accept_wr;
-                r_srv_seq        <= tag_i;
+                r_srv_seq        <= r_lk_seq;
                 r_srv_line       <= w_req_line;
                 r_srv_set        <= w_req_set;
                 r_srv_beat       <= w_req_beat;
                 r_srv_atag       <= w_req_tag;
                 r_srv_way        <= w_hit_way;
                 r_srv_way_onehot <= w_hit_way_onehot;
-                r_srv_wdata      <= lkup_wdata_i;
-                r_srv_be         <= lkup_be_i;
+                r_srv_wdata      <= r_lk_wdata;
+                r_srv_be         <= r_lk_be;
                 r_srv_e2m        <= w_accept_wr & (w_hit_state == AMBER_STATE_E);
             end
         end
@@ -1300,7 +1483,7 @@ module jet_control
     assign w_launch      = w_accept_alloc | w_accept_upgr;
     assign w_launch_addr = {w_req_line, {OFF_W{1'b0}}};
     assign w_launch_cls  = w_accept_upgr ? JET_CLS_CU
-                           : lkup_we_i   ? JET_CLS_RU
+                           : r_lk_we     ? JET_CLS_RU
                            :               JET_CLS_RNSD;
 
     assign fill_start_o = r_fill_pend | w_launch;
@@ -1322,7 +1505,18 @@ module jet_control
     // ------------------------------------------------------------------
     // Array port A
     // ------------------------------------------------------------------
-    assign tag_a_set_o = r_init_busy ? r_init_cnt : w_req_set;
+    // tag port-A read address: the LIVE interface address whenever a
+    // capture can land this cycle (pipe empty, or the occupant advancing
+    // -- w_pipe_room), so the snapshot is the request's own set; the
+    // captured set only while the occupant is held (the dirty-replay
+    // re-read).  The classify itself reads no live tag state (victim
+    // state/tag come from the snapshot above), so the advance cycle has
+    // exactly one port-A consumer.  w_cls_advance depends on registered
+    // state and the MSHR/repl lookups keyed by r_lk_addr, never on
+    // tag_a_tag_state_i, so this is loop-free.
+    assign tag_a_set_o = r_init_busy ? r_init_cnt
+                         : (r_lk_valid & ~w_cls_advance) ? w_req_set
+                                                         : w_live_set;
     assign tag_a_wr_en_o = (r_init_busy & ~`RST_ASSERTED(rst_n))
                            | w_cmt_tagwr
                            | w_sn_tagwr
@@ -1361,7 +1555,12 @@ module jet_control
 
     assign dat_a_addr_o         = w_cmt_datrd ? {w_cmt_set, w_slot_beat}
                                               : {r_srv_set, r_srv_beat};
-    assign dat_a_way_o          = w_cmt_datrd ? r_cmt_way : r_srv_way;
+    // sync read: a commit read slot's word lands the cycle after its
+    // address, and the way select applies in that data cycle -- hold the
+    // commit's way while its word is in flight (the serve read cannot
+    // fire in that cycle: it needs port A's address last cycle)
+    assign dat_a_way_o          = (DATA_SYNC_READ & r_cmt_rd_d1) ? r_cmt_way
+                                : w_cmt_datrd ? r_cmt_way : r_srv_way;
     assign dat_a_wr_en_o        = w_srv_fire_wr | w_cmt_datwr;
     assign dat_a_wr_way_onehot_o = w_cmt_datwr
                                    ? ((r_cmt_state == C_CU_MERGE)
@@ -1388,9 +1587,37 @@ module jet_control
     // stream pauses for it (jet_wb_buffer tolerates capture pauses; the
     // snoop service is bounded, so the pause is bounded).
     // ------------------------------------------------------------------
-    assign dat_b_addr_o = w_sn_portb ? {r_sn_set, r_sn_beat}
-                                     : {r_cap_set, r_cap_beat};
-    assign dat_b_way_o  = w_sn_portb ? r_sn_way : r_cap_way;
+    // Sync read (DATA_SYNC_READ): the snoop's beat-0 address leads in the
+    // grant cycle and each accepted beat presents the next one (a stalled
+    // beat re-presents itself, so the port's word is always the current
+    // beat during SN_DATA); the capture presents its beat and consumes
+    // the word a cycle later (r_cap_d1), keeping its way selected in that
+    // data cycle.  The capture never presents in a cycle the snoop owns,
+    // so the two words never share a data cycle.
+    assign w_sn_portb_pre = DATA_SYNC_READ & w_sn_gnt & ~w_src_wb
+                            & w_sn_crresp[AMBER_CRRESP_DT];
+    assign w_cap_adr      = r_cap_busy & ~w_sn_portb & ~w_sn_portb_pre;
+    assign w_cap_active   = r_cap_busy | (DATA_SYNC_READ & r_cap_d1);
+
+    always_comb begin
+        if (DATA_SYNC_READ) begin
+            if (w_sn_portb_pre) begin
+                dat_b_addr_o = {w_sn_set, BEAT_W'(0)};
+            end else if (w_sn_portb) begin
+                dat_b_addr_o = {r_sn_set, sn_cdready_i ? BEAT_W'(r_sn_beat + 1'b1)
+                                                       : r_sn_beat};
+            end else begin
+                dat_b_addr_o = {r_cap_set, r_cap_beat};
+            end
+            // the way is applied in the DATA cycle
+            dat_b_way_o = r_cap_d1 ? r_cap_way
+                        : w_sn_portb ? r_sn_way : r_cap_way;
+        end else begin
+            dat_b_addr_o = w_sn_portb ? {r_sn_set, r_sn_beat}
+                                      : {r_cap_set, r_cap_beat};
+            dat_b_way_o  = w_sn_portb ? r_sn_way : r_cap_way;
+        end
+    end
 
     // ------------------------------------------------------------------
     // Replacement engine: the victim way is claimed AND the policy
@@ -1410,18 +1637,18 @@ module jet_control
     assign mshr_alloc_o            = w_accept_alloc;
     assign mshr_alloc_line_o       = w_req_line;
     assign mshr_alloc_set_o        = w_req_set;
-    assign mshr_alloc_cls_o        = lkup_we_i ? JET_CLS_RU : JET_CLS_RNSD;
-    assign mshr_alloc_install_o    = lkup_we_i;
+    assign mshr_alloc_cls_o        = r_lk_we ? JET_CLS_RU : JET_CLS_RNSD;
+    assign mshr_alloc_install_o    = r_lk_we;
     assign mshr_alloc_victim_way_o = repl_victim_way_i;
     assign mshr_alloc_wb_slot_o    = wb_cap_slot_i;
     assign mshr_alloc_wb_valid_o   = w_victim_dirty;
-    assign mshr_alloc_seq_o        = tag_i;
+    assign mshr_alloc_seq_o        = r_lk_seq;
     assign mshr_lkup_line_o        = w_req_line;
     assign mshr_cpl_idx_o          = w_cmt_snap ? r_fq_idx[r_fq_head]
                                                 : mshr_lkup_reg_match_idx_i;
     assign mshr_merge_o            = w_accept_merge;
     assign mshr_merge_idx_o        = mshr_lkup_reg_match_idx_i;
-    assign mshr_merge_seq_o        = tag_i;
+    assign mshr_merge_seq_o        = r_lk_seq;
     assign mshr_beat_o             = fill_beat_valid_i;
     assign mshr_beat_idx_o         = fill_beat_idx_i;
     assign mshr_beat_num_o         = fill_beat_num_i;
@@ -1434,10 +1661,11 @@ module jet_control
     // stream owns port B) + the snarf probe (the snoop line during a
     // grant/service, the lookup line for the drain-race check otherwise)
     // ------------------------------------------------------------------
-    assign wb_cap_o          = (w_accept_alloc & w_victim_dirty) | r_cap_busy;
-    assign wb_cap_line_o     = r_cap_busy ? r_cap_line
-                                          : {w_victim_tag, w_req_set};
-    assign wb_cap_beat_o     = r_cap_busy & ~w_sn_portb;
+    assign wb_cap_o          = (w_accept_alloc & w_victim_dirty) | w_cap_active;
+    assign wb_cap_line_o     = w_cap_active ? r_cap_line
+                                            : {w_victim_tag, w_req_set};
+    // sync read: the beat strobe follows its address by one cycle
+    assign wb_cap_beat_o     = DATA_SYNC_READ ? r_cap_d1 : w_cap_adr;
     assign wb_cap_beat_data_o = dat_b_rdata_i;
 
     // Drain arbiter: present drain_start when the head is valid and
@@ -1493,18 +1721,17 @@ module jet_control
             r_sn_set     <= '0;
             r_sn_tag     <= '0;
             r_sn_src     <= SRC_NONE;
+            r_sn_wbslot  <= '0;
             r_sn_allb    <= 1'b0;
             r_sn_way     <= '0;
             r_sn_idx     <= '0;
             r_sn_ref     <= '0;
             r_sn_nxt     <= '0;
             r_sn_beat    <= '0;
-            r_sn_wb_data <= '0;
             for (int e = 0; e < MSHR_COUNT; e++) begin
                 r_claim_set[e] <= '0;
                 r_claim_way[e] <= '0;
                 r_cmt_seqs[e]  <= '0;
-                r_cmt_rdata[e] <= '0;
                 r_sn_pend[e]   <= JET_PEND_NONE;
             end
             for (int q = 0; q < FQ_DEPTH; q++) begin
@@ -1512,12 +1739,6 @@ module jet_control
                 r_fq_cls[q]  <= '0;
                 r_fq_pd[q]   <= 1'b0;
                 r_fq_done[q] <= 1'b0;
-            end
-            for (int k = 0; k < MSHR_COUNT * MSHR_COUNT; k++) begin
-                r_req_we[k]    <= 1'b0;
-                r_req_beat[k]  <= '0;
-                r_req_be[k]    <= '0;
-                r_req_wdata[k] <= '0;
             end
         end else begin
             // D-3 init walk: one set per cycle
@@ -1538,7 +1759,7 @@ module jet_control
                 r_cap_way  <= repl_victim_way_i;
                 r_cap_line <= {w_victim_tag, w_req_set};
                 r_cap_beat <= '0;
-            end else if (r_cap_busy & ~w_sn_portb) begin
+            end else if (w_cap_adr) begin
                 if (r_cap_beat == BEAT_W'(FILL_BEATS - 1)) begin
                     r_cap_busy <= 1'b0;
                     r_cap_beat <= '0;
@@ -1579,10 +1800,10 @@ module jet_control
                 r_upgr_line  <= w_req_line;
                 r_upgr_set   <= w_req_set;
                 r_upgr_way   <= w_hit_way;
-                r_upgr_seq   <= tag_i;
+                r_upgr_seq   <= r_lk_seq;
                 r_upgr_beat  <= w_req_beat;
-                r_upgr_be    <= lkup_be_i;
-                r_upgr_wdata <= lkup_wdata_i;
+                r_upgr_be    <= r_lk_be;
+                r_upgr_wdata <= r_lk_wdata;
                 r_upgr_killed <= 1'b0;
             end else if (r_cmt_state == C_CU_DEPOSIT) begin
                 r_upgr_valid  <= 1'b0;
@@ -1617,24 +1838,9 @@ module jet_control
                 r_claim_vld[r_cmt_idx]  <= 1'b0;
                 r_efill_done[r_cmt_idx] <= 1'b0;
             end
-            // requester sideband: slot 0 at the alloc, the append slot
+            // requester sideband (r_req_*): written in the reset-free
+            // payload block below -- slot 0 at the alloc, the append slot
             // (the pre-append merge count) at a merge
-            if (w_accept_alloc) begin
-                r_req_we[32'(mshr_alloc_idx_i) * MSHR_COUNT]    <= lkup_we_i;
-                r_req_beat[32'(mshr_alloc_idx_i) * MSHR_COUNT]  <= w_req_beat;
-                r_req_be[32'(mshr_alloc_idx_i) * MSHR_COUNT]    <= lkup_be_i;
-                r_req_wdata[32'(mshr_alloc_idx_i) * MSHR_COUNT] <= lkup_wdata_i;
-            end
-            if (w_accept_merge) begin
-                r_req_we[32'(mshr_lkup_reg_match_idx_i) * MSHR_COUNT
-                         + 32'(mshr_cpl_merge_count_i[MW-1:0])]    <= lkup_we_i;
-                r_req_beat[32'(mshr_lkup_reg_match_idx_i) * MSHR_COUNT
-                           + 32'(mshr_cpl_merge_count_i[MW-1:0])]  <= w_req_beat;
-                r_req_be[32'(mshr_lkup_reg_match_idx_i) * MSHR_COUNT
-                         + 32'(mshr_cpl_merge_count_i[MW-1:0])]    <= lkup_be_i;
-                r_req_wdata[32'(mshr_lkup_reg_match_idx_i) * MSHR_COUNT
-                            + 32'(mshr_cpl_merge_count_i[MW-1:0])] <= lkup_wdata_i;
-            end
             // fill-completion queue: push at the launch accept, mark done
             // at fill_done_i (oldest un-done, in order), pop at the
             // commit's retire (or the CU deposit)
@@ -1687,6 +1893,7 @@ module jet_control
                 r_sn_set  <= w_sn_set;
                 r_sn_tag  <= w_sn_tag;
                 r_sn_src  <= w_sn_src;
+                r_sn_wbslot <= wb_sn_match_idx_i;
                 r_sn_allb <= &mshr_sn_beats_rcvd_i;
                 r_sn_way  <= w_src_mshr ? r_claim_way[mshr_sn_match_idx_i]
                                         : w_sn_tway;
@@ -1694,9 +1901,9 @@ module jet_control
                 r_sn_ref  <= w_sn_ref;
                 r_sn_nxt  <= w_sn_nxt;
                 r_sn_beat <= '0;
-                if (w_src_wb) begin
-                    r_sn_wb_data <= wb_sn_data_i;
-                end
+                // (a WB snarf streams from the WB store by beat; the slot
+                // is latched here and locked for the stream's duration
+                // the reset-free payload block below)
                 if (w_sn_crresp[AMBER_CRRESP_DT]) begin
                     r_sn_state <= SN_DATA;
                 end else if (w_sn_eff_needed) begin
@@ -1765,7 +1972,7 @@ module jet_control
                         end
                         // fill beats own the W port: hold the cursor
                     end else begin
-                        r_cmt_rdata[r_cmt_k[MW-1:0]] <= dat_a_rdata_i;
+                        // (the beat lands in r_cmt_rdata in the payload block)
                         r_cmt_k <= r_cmt_k + 1'b1;
                     end
                 end
@@ -1817,6 +2024,67 @@ module jet_control
             endcase
         end
     )
+
+    // ------------------------------------------------------------------
+    // DATA_SYNC_READ qualifiers: who owned each read port's address last
+    // cycle.  r_pa_srv_d1 also requires the serve record not to have
+    // reloaded (a reload only happens in a fire cycle).
+    // ------------------------------------------------------------------
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_cap_d1      <= 1'b0;
+            r_pa_srv_d1   <= 1'b0;
+            r_cmt_rd_d1   <= 1'b0;
+            r_cmt_rd_k_d1 <= '0;
+        end else begin
+            r_cap_d1      <= DATA_SYNC_READ & w_cap_adr;
+            r_pa_srv_d1   <= DATA_SYNC_READ & r_srv_vld & ~r_srv_we
+                             & ~w_cmt_datrd & ~w_srv_fire;
+            r_cmt_rd_d1   <= DATA_SYNC_READ & w_cmt_datrd;
+            r_cmt_rd_k_d1 <= r_cmt_k[MW-1:0];
+        end
+    )
+
+    // ------------------------------------------------------------------
+    // Payload stores: no reset (GLOBAL_REQUIREMENTS 1.4 shape). Each word
+    // is qualified by control state that IS reset -- the entry's merge
+    // count for r_req_*, the commit cursor for r_cmt_rdata, r_sn_src for
+    // the snarf snapshot -- so a reset value would never be observed, and
+    // the async reset only stops Vivado inferring RAM (FPGA review
+    // 2026-11-07, jet item 5).
+    // ------------------------------------------------------------------
+    // one write port: the alloc writes slot 0 of the new entry, the merge
+    // writes the append slot of the matched entry (never both in a cycle)
+    wire         w_req_st_we = w_accept_alloc | w_accept_merge;
+    logic [31:0] w_req_st_idx;
+    always_comb begin
+        if (w_accept_alloc)
+            w_req_st_idx = 32'(mshr_alloc_idx_i) * MSHR_COUNT;
+        else
+            w_req_st_idx = 32'(mshr_lkup_reg_match_idx_i) * MSHR_COUNT
+                           + 32'(mshr_cpl_merge_count_i[MW-1:0]);
+    end
+
+    always_ff @(posedge clk) begin
+        if (w_req_st_we) begin
+            r_req_we[w_req_st_idx]    <= r_lk_we;
+            r_req_beat[w_req_st_idx]  <= w_req_beat;
+            r_req_be[w_req_st_idx]    <= r_lk_be;
+            r_req_wdata[w_req_st_idx] <= r_lk_wdata;
+        end
+        // read slot: the response beat lands at the cursor (same predicate
+        // as the cursor advance in C_MERGE above)
+        if (DATA_SYNC_READ) begin
+            // sync read: the slot's word lands the cycle after its address
+            if (r_cmt_rd_d1)
+                r_cmt_rdata[r_cmt_rd_k_d1] <= dat_a_rdata_i;
+        end else begin
+            if (r_cmt_state == C_MERGE && !w_slot_done && !w_slot_we)
+                r_cmt_rdata[r_cmt_k[MW-1:0]] <= dat_a_rdata_i;
+        end
+        // WB snarf: snapshot the whole line at the grant (the entry may
+        // retire mid-stream in its BRESP cycle)
+    end
 
     // ------------------------------------------------------------------
     // Simulation-only contract checks

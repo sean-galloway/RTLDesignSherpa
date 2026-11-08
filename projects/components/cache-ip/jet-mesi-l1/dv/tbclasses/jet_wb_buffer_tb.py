@@ -141,6 +141,10 @@ class JetWbBufferTB(TBBase):
         await self.start_clock('clk', freq=period_ns, units='ns')
         self._drive_idle()
         self.dut.sn_line_i.value = 0
+        self.dut.sn_lock_i.value = 0
+        self.dut.sn_rd_slot_i.value = 0
+        self.dut.sn_rd_beat_i.value = 0
+        self.dut.drain_beat_idx_i.value = 0
         await self.assert_reset()
         await self.wait_clocks('clk', 3)
         await self.deassert_reset()
@@ -162,6 +166,29 @@ class JetWbBufferTB(TBBase):
         d.drain_done_i.value = 0
         d.sn_line_i.value = 0
         d.sn_eff_i.value = 0
+
+    async def _drain_line(self):
+        """The head entry's line, read by beat through drain_beat_idx_i /
+        drain_beat_data_o (the payload is a beat-addressed RAM now)."""
+        d = self.dut
+        val = 0
+        for b in range(self.model.FILL_BEATS):
+            d.drain_beat_idx_i.value = b
+            await Timer(1, unit='ps')
+            val |= int(d.drain_beat_data_o.value) << (b * self.model.BUS_WIDTH)
+        return val
+
+    async def _sn_line(self):
+        """The snarf-matched entry's line: slot from sn_match_idx_o, words
+        by beat through sn_rd_slot_i / sn_rd_beat_i / sn_rd_data_o."""
+        d = self.dut
+        d.sn_rd_slot_i.value = int(d.sn_match_idx_o.value)
+        val = 0
+        for b in range(self.model.FILL_BEATS):
+            d.sn_rd_beat_i.value = b
+            await Timer(1, unit='ps')
+            val |= int(d.sn_rd_data_o.value) << (b * self.model.BUS_WIDTH)
+        return val
 
     async def _settle(self):
         await Timer(1, unit='ns')
@@ -207,8 +234,8 @@ class JetWbBufferTB(TBBase):
         if entry is not None:
             self._score(f"{note} drain_addr_o",
                         int(self.dut.drain_addr_o.value), self._mkaddr(entry['line']))
-            self._score(f"{note} drain_data_o",
-                        int(self.dut.drain_data_o.value), entry['data'])
+            self._score(f"{note} drain_data (by beat)",
+                        await self._drain_line(), entry['data'])
 
     async def _check_snarf(self, line, note, expect_match):
         d = self.dut
@@ -218,8 +245,8 @@ class JetWbBufferTB(TBBase):
         exp_hit = 1 if (entry is not None and expect_match) else 0
         self._score(f"{note} sn_hit_o", int(d.sn_hit_o.value), exp_hit)
         if entry is not None and expect_match:
-            self._score(f"{note} sn_data_o",
-                        int(d.sn_data_o.value), entry['data'])
+            self._score(f"{note} sn_data (by beat)",
+                        await self._sn_line(), entry['data'])
 
     # -- operations ---------------------------------------------------------
     async def _do_capture(self, tag, beats=None, note=""):
@@ -395,7 +422,7 @@ class JetWbBufferTB(TBBase):
         d.drain_done_i.value = 1
         await self._settle()
         self._score("bresp_cycle sn_hit_o", int(d.sn_hit_o.value), 1)
-        self._score("bresp_cycle sn_data_o", int(d.sn_data_o.value),
+        self._score("bresp_cycle sn_data (by beat)", await self._sn_line(),
                     self._mkline_data(tag))
         self._score("bresp_cycle sn_bresp_cycle_o",
                     int(d.sn_bresp_cycle_o.value), 1)

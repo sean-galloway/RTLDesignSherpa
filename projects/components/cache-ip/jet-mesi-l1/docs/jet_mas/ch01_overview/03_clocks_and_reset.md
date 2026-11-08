@@ -31,9 +31,24 @@ fabric runs elsewhere.
 
 ## Reset rules
 
-- All flops use `ALWAYS_FF_RST` (active-low async assert), per
+- `jet_top` / `jet_ace_top` run the `aresetn` pin through the house
+  `reset_sync` (N=3, `ASYNC_REG`, `REPLICATED_OUT=1`) before any internal
+  block sees it, as amber does; the release the core sees is synchronous,
+  N+1 = 4 cycles after the pin. `REPLICATED_OUT` adds the one output flop
+  the FPGA tools may replicate: the synchronizer's output is a single net on
+  every async-reset flop's CLR pin, and on the Genesys2 that net (about 24k
+  endpoints) was jet's worst setup path once the payload stores were RAMs
+  (handbook `design/reset-and-clocking.md`, 2026-11-07).
+- All **control** flops use `ALWAYS_FF_RST` (active-low async assert), per
   GLOBAL_REQUIREMENTS Category 1.1; `reset_n` inside, `aresetn` at the AMBA
   pins.
+- **Payload stores carry no reset** (GLOBAL_REQUIREMENTS 1.4): the tag and
+  data arrays, the WB buffer's line words (`jet_wb_buffer.r_data`), the
+  response sequencer's word ring (`jet_rsp_seq.r_data`) and the
+  `DATA_SYNC_READ` read-data registers. Each is qualified by a reset valid
+  bit or pointer, so an unreset word is never observable; under the reset
+  macro none of them could be a RAM and each would be one more pin on the
+  reset net above.
 - **The MSHR valid bits and WB-buffer valid bits reset to empty.** Unlike
   the tag/data arrays (whose contents are undefined until written, with
   invalid state emerging from the uninitialized tag encodings per amber),
