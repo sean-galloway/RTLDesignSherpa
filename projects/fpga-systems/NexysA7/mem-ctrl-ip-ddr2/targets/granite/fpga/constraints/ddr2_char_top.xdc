@@ -296,6 +296,39 @@ set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
+
+##==============================================================================
+## Configuration CSRs are FALSE PATHS (owner, 2026-11-08: "all of the configs
+## to the ddr2 logic are false paths").
+##
+## The host programs the controller's configuration registers -- JEDEC timings,
+## DFI phase and PHY timing, scheduler and page-policy knobs, the address map,
+## refresh and calibration intervals, the monitor's thresholds, routes and
+## address windows -- before traffic and never during it. Timing their fan-out
+## into the controller at the system clock buys nothing and has cost margin
+## twice (the tCCD field into the arbiter's column pick, the tRTP field into
+## the bank-timer fold at the head of granite's worst paths), and it tempts
+## engineering around them in RTL. They are declared false from the PeakRDL
+## field storage; the paths stay functionally what they are.
+##
+## NOT in the list, deliberately: CTRL (init start, soft reset: live pulses),
+## CAL_CTRL (calibration kick), MON_CTRL (enables that also clear tables),
+## MON_WATERMARK (flush pulses), and every status / statistics register.
+## A field that software toggles while traffic runs must be timed.
+##==============================================================================
+set_false_path -from [get_cells -hierarchical -regexp \
+    {.*u_csr/field_storage_reg\[(TIMINGS_[A-Z_0-9]+|DFI_PHASE|PHY_TIMING|SCHED_TUNING|REFRESH_TUNING|ADDR_MAP|INIT_TUNING|INIT_TIMING[01]|CAL_ZQ_INTERVAL|CAL_ZQ_TIMING|CAL_TRAIN_TIMING|SCHED_POLICY|SCHED_WR_WM|PAGE_POLICY_CFG|PAGE_TIMEOUT_CFG|REF_CTRL|REF_TIMING_PB|MR[0-3]|LP_MR[123]_OP|MON_LATENCY_THRESH|MON_ROUTE|MON_CORE_EV|MON_BASE_ADDR|MON_LIMIT_ADDR|MON_ERR_BASE_ADDR|MON_ERR_LIMIT_ADDR)\].*}]
+
+## The harness CSR's own configuration into the controller and the PHY: the
+## controller cfg word (memory variant, PHY write latency, read-data enable,
+## in-order reads), the capability masks, DFI tuning (cmd_delay and the PHY
+## read window), the response-delay knobs, the timer's expected beat count and
+## the histogram select. Written before a run; static during it. The PHY CSR
+## write path (r_phy_csr_*) is a pulse-and-data handshake and stays timed, as
+## do the clear / freeze / soft-reset pulses.
+set_false_path -from [get_cells -hierarchical -regexp \
+    {.*u_harness_csr/r_(ctrlr_cfg|ctrlr_cap|dfi_tuning|rd_resp_delay_cyc|wr_resp_delay_cyc|timer_expected_beats|obs_hist_sel)_reg.*}]
+
 ##==============================================================================
 ## End of ddr2_char_top.xdc
 ##==============================================================================

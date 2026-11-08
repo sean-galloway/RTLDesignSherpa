@@ -1,0 +1,8 @@
+# Failing-endpoint count per parent instance (descending) — post-route
+# count  parent_instance
+     8  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[1].u_rq/r_tail_reg_0_7_0_3
+     8  u_harness/u_dut/u_ctrl/u_core/u_dfi_plane/u_cdc/g_sync.u_cmd_fifo/gen_auto.mem_reg_0_3_6_11
+     6  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store
+     5  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick
+     4  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[5].u_rq
+     4  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[0].u_rq

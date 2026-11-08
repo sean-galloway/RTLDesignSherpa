@@ -96,3 +96,15 @@ Also noted, not filed: `mc_dfi_cdc`'s same-clock branch samples across its two
 named clock ports with no elaboration check (`:357-364`); `r_rd_q` driven from two
 `always_ff` blocks in the store (`:848, :853`); `mc_head_rec_t` carries 32
 constant-zero bits and an 8-bit slot for a 3-bit value.
+
+## Postscript (2026-11-08 05:30)
+
+After closure the owner stated the rule the review's rows 6, 11 and 13
+should have been read through: every configuration CSR path into the
+controller is a false path. Both board XDCs now carry it (whitelisted
+PeakRDL field storage plus the harness CSR's static words; control pulses,
+enables and status stay timed), validated on a routed checkpoint (489 + 166
+flops selected, the CAL_CTRL pulses excluded). First measurement: the pumice
+sys75 research configuration moves from -2.487 ns / 1,375 failing endpoints
+to -1.665 / 1,255 with no RTL change; its worst path is now the read
+intake's order-FIFO pointer into the arbiter's classify gate, a live flag.

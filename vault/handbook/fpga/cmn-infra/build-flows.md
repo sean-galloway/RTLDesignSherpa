@@ -304,3 +304,29 @@ A simulation loads the same exemption file
 multi-driver to a log line nobody reads. Checked both ways: the pre-fix combo
 TB exits 1 with it, the fixed TB 0; stream_regs with the exemption 0, without
 it 1 (51 hits).
+
+## Configuration CSRs are false paths (owner, 2026-11-08)
+
+"All of the configs to the ddr2 logic are false paths." The host programs
+the controller's configuration -- JEDEC timings, DFI phase, PHY timing,
+scheduler and page-policy knobs, address map, refresh and calibration
+intervals, the monitor's thresholds and windows -- before traffic and never
+during it. Timing their fan-out at the system clock buys nothing, and it
+cost margin twice on 2026-11-07: the tCCD field into the arbiter's column
+pick was on the pumice sys75 worst-path list, and the tRTP field into the
+bank-timer fold headed three of granite's five worst paths. Both were then
+"fixed" in RTL (flops in the arbiter, the loads hoisted and registered in
+`mc_bank_timers`) -- correct hardware, wrong tool. The constraint is the
+tool: `set_false_path -from` the PeakRDL `field_storage_reg[<REG>]` cells of
+the configuration registers, and the harness CSR's static configuration
+words, in `build-perf/fpga/constraints/ddr2_char_top.xdc` and the granite
+twin. The whitelist lives in the XDC beside the exclusions: CTRL (init start
+and soft reset are pulses), CAL_CTRL (a kick), MON_CTRL (enables that clear
+tables when written), MON_WATERMARK (flush pulses) and every status and
+statistics register stay timed. A field software toggles while traffic runs
+is not configuration.
+
+Two rules follow. A worst path that starts at a CSR field is a missing
+constraint, not an RTL task. A new configuration register goes into the
+XDC list in the same commit that adds it, or its first appearance will be
+as a failing endpoint.

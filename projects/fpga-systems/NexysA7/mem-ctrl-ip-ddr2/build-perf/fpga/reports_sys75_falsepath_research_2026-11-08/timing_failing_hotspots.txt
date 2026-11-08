@@ -1,0 +1,18 @@
+# Failing-endpoint count per parent instance (descending) — post-route
+# count  parent_instance
+   832  u_harness/u_dut/u_ctrl/u_core/u_core/u_axi_plane/u_rd_ring
+   205  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam
+   135  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_rd_cam
+    24  u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter
+     8  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/u_fill_q/gen_auto.mem_reg_0_7_36_41
+     8  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/u_fill_q/gen_auto.mem_reg_0_7_24_29
+     6  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/r_strb_reg_0_7_1_1
+     6  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/r_strb_reg_0_7_2_2
+     6  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/r_strb_reg_0_7_0_0
+     6  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/r_strb_reg_0_7_3_3
+     4  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/r_strb_reg_0_7_6_6
+     4  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/r_strb_reg_0_7_4_4
+     4  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/r_strb_reg_0_7_5_5
+     4  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/r_strb_reg_0_7_7_7
+     2  u_harness/u_dut/u_ctrl/u_core/u_core/u_store_plane/u_wr_cam/u_fill_q/fifo_control_inst
+     1  u_harness/u_dut/u_ctrl/u_core/u_core/u_axi_plane/u_rd_intake/u_slave_rd/i_ar_channel
