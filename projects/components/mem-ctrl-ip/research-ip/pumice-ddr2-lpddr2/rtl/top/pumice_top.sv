@@ -45,6 +45,7 @@ module pumice_top
     parameter bit RD_MERGE_EN    = 1'b1,
     parameter bit HAS_SNARF      = 1'b1,
     parameter bit NARROW_EN      = 1'b1,
+    parameter bit RUNTIME_PICK_MODES = 1'b1,
     parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
     parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
     parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output
@@ -352,6 +353,7 @@ module pumice_top
         .RD_MERGE_EN      (RD_MERGE_EN),
         .HAS_SNARF        (HAS_SNARF),
         .NARROW_EN        (NARROW_EN),
+        .RUNTIME_PICK_MODES(RUNTIME_PICK_MODES),
         .HAS_MON           (HAS_MON),
         .MON_ACLK_MHZ      (MON_ACLK_MHZ),
         .MON_UNIT_ID       (MON_UNIT_ID),

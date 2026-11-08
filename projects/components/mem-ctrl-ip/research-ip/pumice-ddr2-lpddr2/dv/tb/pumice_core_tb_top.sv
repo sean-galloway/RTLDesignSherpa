@@ -40,6 +40,7 @@ module pumice_core_tb_top
     parameter bit RD_MERGE_EN    = 1'b1,
     parameter bit HAS_SNARF      = 1'b1,
     parameter bit NARROW_EN      = 1'b1,
+    parameter bit RUNTIME_PICK_MODES = 1'b1,
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,
@@ -193,7 +194,8 @@ module pumice_core_tb_top
         .WR_MERGE_EN   (WR_MERGE_EN),
         .RD_MERGE_EN   (RD_MERGE_EN),
         .HAS_SNARF     (HAS_SNARF),
-        .NARROW_EN     (NARROW_EN)
+        .NARROW_EN     (NARROW_EN),
+        .RUNTIME_PICK_MODES(RUNTIME_PICK_MODES)
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(memtype_i), .page_policy_i(page_policy_i),

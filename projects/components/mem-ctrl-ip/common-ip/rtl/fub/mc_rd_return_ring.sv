@@ -230,7 +230,15 @@ module mc_rd_return_ring #(
     assign w_dr_fire     = drain_valid_o && drain_ready_i;
     assign w_ft_take     = w_ft && drain_ready_i;
 
-    assign w_fptr_ready = (r_focc != '0) && r_ready[r_fptr];
+    // A shadow is ready when its SOURCE is complete -- evaluated here, at the
+    // fetch pointer, instead of by marking every shadow of a returning ticket
+    // in the fill (memory-controllers MC-008, ISSUE-001 row 4, 2026-11-07):
+    // one DEPTH:1 lookup through r_src in place of DEPTH compare-and-set
+    // terms every return cycle. Sound because the source's r_ready is cleared
+    // only by a re-allocation, and the tail is pinned while any shadow still
+    // points at the source.
+    assign w_fptr_ready = (r_focc != '0)
+                       && (r_shadow[r_fptr] ? r_ready[r_src[r_fptr]] : r_ready[r_fptr]);
     assign w_room       = (r_credits != 2'd0) || w_dr_fire;
     assign w_fetch      = w_room && w_fptr_ready;
 
@@ -287,19 +295,16 @@ module mc_rd_return_ring #(
                 r_ready [i] <= 1'b0;
                 r_resp  [i] <= 2'b00;
                 r_shadow[i] <= 1'b0;
-                r_src   [i] <= TW'(i);
             end
         end else begin
-            // return-fill: mark the slot complete on the last beat, and every
-            // shadow of it with it (a shadow is allocated before its source
-            // issues, so it is registered long before this return)
+            // return-fill: mark the slot complete on the last beat. A shadow
+            // of it reads the source's readiness at fetch time (w_fptr_ready),
+            // so nothing is marked here on its behalf.
             if (w_ret_fire) begin
                 if (dfi_ret_last_i) begin
                     r_ready[w_iq_rd_ticket] <= 1'b1;
                     r_resp [w_iq_rd_ticket] <= dfi_ret_resp_i;
                     r_ret_beat <= '0;
-                    for (int i = 0; i < DEPTH; i++)
-                        if (r_shadow[i] && (r_src[i] == w_iq_rd_ticket)) r_ready[i] <= 1'b1;
                 end else begin
                     r_ret_beat <= r_ret_beat + 1'b1;
                 end
@@ -311,16 +316,12 @@ module mc_rd_return_ring #(
             if (w_alloc) begin
                 r_ready [r_tail] <= 1'b0;
                 r_shadow[r_tail] <= MERGE_MARK_REG ? 1'b0 : alloc_merge_i;
-                r_src   [r_tail] <= (!MERGE_MARK_REG && alloc_merge_i) ? alloc_src_i : r_tail;
                 r_tail           <= r_tail + 1'b1;
             end
             // MERGE_MARK_REG: last cycle's merged allocation becomes a shadow
-            // now; a return of its source in this very cycle readies it too.
+            // now (its readiness is its source's, read at fetch).
             if (MERGE_MARK_REG && r_mk_vld) begin
                 r_shadow[r_mk_ticket] <= 1'b1;
-                r_src   [r_mk_ticket] <= r_mk_src;
-                if (w_ret_fire && dfi_ret_last_i && (w_iq_rd_ticket == r_mk_src))
-                    r_ready[r_mk_ticket] <= 1'b1;
             end
             r_mk_vld    <= MERGE_MARK_REG && w_alloc && alloc_merge_i;
             r_mk_ticket <= r_tail;
@@ -360,6 +361,16 @@ module mc_rd_return_ring #(
             r_occ <= r_occ + (w_alloc ? OCW'(1) : OCW'(0)) - (w_free ? OCW'(1) : OCW'(0));
         end
     )
+
+    // r_src: the source slot a shadow drains. Reset-free (MC-005's rule): it
+    // is read only for an allocated slot -- at fetch through r_fptr, in the
+    // tail-pin loop under r_shadow -- and every allocation writes it first, so
+    // the reset value TW'(i) it used to carry was never observed. DEPTH x TW
+    // flops without the async clear can pack as LUTRAM.
+    always_ff @(posedge aclk) begin
+        if (w_alloc)                  r_src[r_tail]      <= (!MERGE_MARK_REG && alloc_merge_i) ? alloc_src_i : r_tail;
+        if (MERGE_MARK_REG && r_mk_vld) r_src[r_mk_ticket] <= r_mk_src;
+    end
 
     // -------------------------------------------------------------------------
     // Data storage: reset-free clocked process so Vivado maps it to Block RAM.

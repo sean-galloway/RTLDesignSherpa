@@ -77,6 +77,7 @@ module pumice_top_geared
     parameter bit RD_MERGE_EN    = 1'b1,
     parameter bit HAS_SNARF      = 1'b1,
     parameter bit NARROW_EN      = 1'b1,
+    parameter bit RUNTIME_PICK_MODES = 1'b1,
     // Ocelus observability (passed to pumice_top; MON_* CSRs at 0x200)
     parameter bit          HAS_MON        = 1'b0,
     parameter int          MON_ACLK_MHZ   = 100,
@@ -384,6 +385,7 @@ module pumice_top_geared
         .RD_MERGE_EN      (RD_MERGE_EN),
         .HAS_SNARF        (HAS_SNARF),
         .NARROW_EN        (NARROW_EN),
+        .RUNTIME_PICK_MODES(RUNTIME_PICK_MODES),
         .HAS_MON          (HAS_MON),
         .MON_ACLK_MHZ     (MON_ACLK_MHZ),
         .MON_UNIT_ID      (MON_UNIT_ID),

@@ -99,12 +99,26 @@ module formal_rd_return_ring #(
     reg [BCW-1:0] f_rbeat;
     wire dfi_ret_last_i = (f_rbeat == BCW'(BEATS-1));
 
+    // READ COMBINING IS OFF IN THIS PROOF. The ring gained alloc_merge_i /
+    // alloc_src_i with pumice TASK-060 (a merged read is a SHADOW of an
+    // older ticket, and the tail is PINNED while a shadow points at it), and
+    // the harness left both ports unconnected -- which yosys reads as free
+    // inputs. The solver duly allocated a shadow of the tail and
+    // a_ready_is_notfull ("ready iff not full") failed at step 4, on the
+    // committed RTL, unnoticed until the MC-008 row-4 rewrite re-ran the
+    // proof (2026-11-07). Every property below is the no-merge contract;
+    // the shadow/pin behaviour is covered by the model-driven unit test
+    // (test_mc_rd_return_ring: shadow and random cells). Tie the ports.
+    wire          alloc_merge_i = 1'b0;
+    wire [TW-1:0] alloc_src_i   = {TW{1'b0}};
+
     mc_rd_return_ring #(
         .DEPTH(DEPTH), .AXI_DATA_WIDTH(DW), .AXI_BEATS_PER_BURST(BEATS)
     ) dut (
         .aclk(aclk), .aresetn(aresetn),
         .alloc_valid_i(alloc_valid_i), .alloc_ready_o(alloc_ready_o),
         .alloc_ticket_o(alloc_ticket_o),
+        .alloc_merge_i(alloc_merge_i), .alloc_src_i(alloc_src_i),
         .issue_valid_i(issue_valid_i), .issue_ready_o(issue_ready_o),
         .issue_ticket_i(issue_ticket_i),
         .dfi_ret_valid_i(dfi_ret_valid_i), .dfi_ret_ready_o(dfi_ret_ready_o),

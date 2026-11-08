@@ -1,0 +1,98 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Tue Oct 13 05:56:46 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 4 -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/targets/granite/fpga/reports/utilization_hier.txt
+| Design       : granite_char_top
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-------------------------------------+----------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+|               Instance              |                 Module                 | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
++-------------------------------------+----------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+| granite_char_top                    |                                  (top) |      30446 |      28328 |    2118 |    0 | 28109 |      1 |      0 |         16 |
+|   (granite_char_top)                |                                  (top) |          6 |          6 |       0 |    0 |     2 |      0 |      0 |          0 |
+|   u_a7ddrphy                        |                               a7ddrphy |        420 |        420 |       0 |    0 |   509 |      0 |      0 |          0 |
+|   u_harness                         |                   granite_char_harness |      30021 |      27903 |    2118 |    0 | 27598 |      1 |      0 |         16 |
+|     (u_harness)                     |                   granite_char_harness |         67 |         67 |       0 |    0 |   367 |      0 |      0 |          0 |
+|     u_bridge                        |                  bridge_ddr2_char_axil |       3106 |       2954 |     152 |    0 |  2947 |      0 |      0 |          0 |
+|       u_chargen_apb_adapter         |                    chargen_apb_adapter |        760 |        690 |      70 |    0 |   816 |      0 |      0 |          0 |
+|         u_chargen_apb_apb_converter |                   axi4_to_apb4_shim_88 |        747 |        677 |      70 |    0 |   796 |      0 |      0 |          0 |
+|       u_ddr2_apb_adapter            |                       ddr2_apb_adapter |        712 |        642 |      70 |    0 |   812 |      0 |      0 |          0 |
+|         u_ddr2_apb_apb_converter    |                   axi4_to_apb4_shim_54 |        699 |        629 |      70 |    0 |   792 |      0 |      0 |          0 |
+|       u_host_adapter                |                           host_adapter |       1093 |       1093 |       0 |    0 |   889 |      0 |      0 |          0 |
+|         (u_host_adapter)            |                           host_adapter |         16 |         16 |       0 |    0 |   263 |      0 |      0 |          0 |
+|         u_rd_conv_64b               |             axil_to_axi4_wide_align_rd |        186 |        186 |       0 |    0 |   126 |      0 |      0 |          0 |
+|         u_timing_wrapper_rd         |                          axi4_slave_rd |        267 |        267 |       0 |    0 |   146 |      0 |      0 |          0 |
+|         u_timing_wrapper_wr         |                          axi4_slave_wr |        545 |        545 |       0 |    0 |   224 |      0 |      0 |          0 |
+|         u_wr_conv_64b               |             axil_to_axi4_wide_align_wr |         81 |         81 |       0 |    0 |   130 |      0 |      0 |          0 |
+|       u_obs_apb_adapter             |                        obs_apb_adapter |        175 |        163 |      12 |    0 |   158 |      0 |      0 |          0 |
+|         u_obs_apb_apb_converter     |                      axi4_to_apb4_shim |        161 |        149 |      12 |    0 |   138 |      0 |      0 |          0 |
+|       u_xbar                        |             bridge_ddr2_char_axil_xbar |        112 |        112 |       0 |    0 |    84 |      0 |      0 |          0 |
+|     u_debug_sram                    |                 sdpram_slave_axil_axil |       1281 |        577 |     704 |    0 |   600 |      0 |      0 |          0 |
+|       u_axil_rd                     |                         axil4_slave_rd |        151 |        151 |       0 |    0 |   284 |      0 |      0 |          0 |
+|         i_r_channel                 |      gaxi_skid_buffer__parameterized15 |        142 |        142 |       0 |    0 |   262 |      0 |      0 |          0 |
+|       u_axil_wr                     |                         axil4_slave_wr |         94 |         94 |       0 |    0 |   166 |      0 |      0 |          0 |
+|         i_w_channel                 |      gaxi_skid_buffer__parameterized14 |         78 |         78 |       0 |    0 |   138 |      0 |      0 |          0 |
+|       u_core                        |                            sdpram_core |       1036 |        332 |     704 |    0 |   150 |      0 |      0 |          0 |
+|         (u_core)                    |                            sdpram_core |        908 |        220 |     688 |    0 |   132 |      0 |      0 |          0 |
+|     u_dfi_cmd_delay                 |                          dfi_cmd_delay |         80 |         80 |       0 |    0 |   320 |      0 |      0 |          0 |
+|     u_dfi_mon_ram                   | sdpram_slave_axil_axil__parameterized0 |       1185 |        457 |     728 |    0 |   390 |      0 |      0 |          0 |
+|       u_axil_rd                     |         axil4_slave_rd__parameterized0 |        135 |        135 |       0 |    0 |   162 |      0 |      0 |          0 |
+|         i_r_channel                 |    gaxi_skid_buffer__parameterized2_17 |        127 |        127 |       0 |    0 |   134 |      0 |      0 |          0 |
+|       u_axil_wr                     |         axil4_slave_wr__parameterized0 |         26 |         26 |       0 |    0 |   106 |      0 |      0 |          0 |
+|         i_w_channel                 |   gaxi_skid_buffer__parameterized12_15 |          9 |          9 |       0 |    0 |    72 |      0 |      0 |          0 |
+|       u_core                        |            sdpram_core__parameterized0 |       1024 |        296 |     728 |    0 |   122 |      0 |      0 |          0 |
+|         (u_core)                    |            sdpram_core__parameterized0 |        931 |        227 |     704 |    0 |   104 |      0 |      0 |          0 |
+|     u_dfi_rddata_delay              |                       dfi_rddata_delay |        256 |        256 |       0 |    0 |   960 |      0 |      0 |          0 |
+|     u_dut                           |                     granite_char_macro |      22657 |      22123 |     534 |    0 | 20807 |      1 |      0 |         16 |
+|       (u_dut)                       |                     granite_char_macro |          0 |          0 |       0 |    0 |     0 |      0 |      0 |          0 |
+|       u_csr_shim                    |                        apb4_to_peakrdl |       1060 |       1002 |      58 |    0 |   343 |      0 |      0 |          0 |
+|         u_apb_cdc                   |                     apb4_slave_cdc_255 |        238 |        180 |      58 |    0 |   259 |      0 |      0 |          0 |
+|         u_cpuif                     |                  peakrdl_to_cmdrsp_256 |        824 |        824 |       0 |    0 |    84 |      0 |      0 |          0 |
+|       u_ctrl                        |                     granite_top_geared |       3666 |       3248 |     418 |    0 |  3655 |      1 |      0 |          0 |
+|         u_core                      |                           granite_core |       3465 |       3047 |     418 |    0 |  3150 |      1 |      0 |          0 |
+|         u_csr                       |                            granite_csr |        204 |        204 |       0 |    0 |   505 |      0 |      0 |          0 |
+|       u_engines                     |                      char_engine_block |      17931 |      17873 |      58 |    0 | 16809 |      0 |      0 |         16 |
+|         u_skid_w                    |      gaxi_skid_buffer__parameterized19 |        210 |        210 |       0 |    0 |   270 |      0 |      0 |          0 |
+|         u_chargen_regs              |                           chargen_regs |        295 |        295 |       0 |    0 |  2856 |      0 |      0 |          0 |
+|         u_chargen_shim              |                    apb4_to_peakrdl_122 |       5241 |       5183 |      58 |    0 |   368 |      0 |      0 |          0 |
+|         u_gen_unit                  |                          char_gen_unit |       9616 |       9616 |       0 |    0 |  8588 |      0 |      0 |         16 |
+|         u_hist_rd                   |  axi_perf_latency_hist__parameterized0 |       1055 |       1055 |       0 |    0 |  2275 |      0 |      0 |          0 |
+|         u_hist_wr                   |                  axi_perf_latency_hist |        679 |        679 |       0 |    0 |  1722 |      0 |      0 |          0 |
+|         u_meter_rd                  |                          axi_bus_meter |        128 |        128 |       0 |    0 |   128 |      0 |      0 |          0 |
+|         u_meter_wr                  |                      axi_bus_meter_123 |        128 |        128 |       0 |    0 |   128 |      0 |      0 |          0 |
+|         u_skid_ar                   |      gaxi_skid_buffer__parameterized18 |         95 |         95 |       0 |    0 |    86 |      0 |      0 |          0 |
+|         u_skid_aw                   |  gaxi_skid_buffer__parameterized18_124 |        104 |        104 |       0 |    0 |    92 |      0 |      0 |          0 |
+|         u_skid_r                    |      gaxi_skid_buffer__parameterized21 |        364 |        364 |       0 |    0 |   278 |      0 |      0 |          0 |
+|     u_harness_csr                   |                            harness_csr |        859 |        859 |       0 |    0 |   480 |      0 |      0 |          0 |
+|       (u_harness_csr)               |                            harness_csr |        193 |        193 |       0 |    0 |   281 |      0 |      0 |          0 |
+|       u_skid_ar                     |                     gaxi_skid_buffer_1 |        513 |        513 |       0 |    0 |    29 |      0 |      0 |          0 |
+|       u_skid_r                      |      gaxi_skid_buffer__parameterized13 |         75 |         75 |       0 |    0 |    70 |      0 |      0 |          0 |
+|       u_skid_w                      |      gaxi_skid_buffer__parameterized12 |         43 |         43 |       0 |    0 |    70 |      0 |      0 |          0 |
+|     u_led_status_driver             |                      led_status_driver |         37 |         37 |       0 |    0 |    77 |      0 |      0 |          0 |
+|     u_uart                          |                       uart_axil_bridge |        478 |        478 |       0 |    0 |   633 |      0 |      0 |          0 |
+|       (u_uart)                      |                       uart_axil_bridge |         55 |         55 |       0 |    0 |   153 |      0 |      0 |          0 |
+|       u_axil_rd_timing              |                        axil4_master_rd |        168 |        168 |       0 |    0 |   212 |      0 |      0 |          0 |
+|         ar_channel                  |                     gaxi_skid_buffer_0 |         43 |         43 |       0 |    0 |    70 |      0 |      0 |          0 |
+|         r_channel                   |       gaxi_skid_buffer__parameterized2 |        125 |        125 |       0 |    0 |   142 |      0 |      0 |          0 |
+|       u_axil_wr_timing              |                        axil4_master_wr |        141 |        141 |       0 |    0 |   218 |      0 |      0 |          0 |
+|         aw_channel                  |                       gaxi_skid_buffer |         42 |         42 |       0 |    0 |    70 |      0 |      0 |          0 |
+|         w_channel                   |       gaxi_skid_buffer__parameterized0 |         81 |         81 |       0 |    0 |   138 |      0 |      0 |          0 |
+|       u_uart_rx                     |                                uart_rx |         69 |         69 |       0 |    0 |    27 |      0 |      0 |          0 |
++-------------------------------------+----------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

@@ -79,6 +79,7 @@ module pumice_core
     // them off with PUMICE_FPGA_SKU.
     parameter bit HAS_SNARF   = 1'b1,
     parameter bit NARROW_EN   = 1'b1,
+    parameter bit RUNTIME_PICK_MODES = 1'b1, // 0 on the FPGA SKU: the SCHED_POLICY pick knobs fold to their reset values (MC-009 c)
     parameter bit RD_MERGE_EN = 1'b1, // read combining in the rd CAM: two reads of one unissued DRAM burst issue once, the ring returns it twice (pumice TASK-060)
     parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
     // DFI command CDC FIFO depth (mc_dfi_cdc CMD_DEPTH). It sits DOWNSTREAM
@@ -801,7 +802,8 @@ module pumice_core
         .CLOSE_ON_DRAIN    (CLOSE_ON_DRAIN),
         .FAST_RD_RELEASE   (FAST_RD_RELEASE),
         .DUAL_ISSUE        (DUAL_ISSUE),
-        .SCHED_CORE        (SCHED_CORE)
+        .SCHED_CORE        (SCHED_CORE),
+        .RUNTIME_PICK_MODES(RUNTIME_PICK_MODES)
     ) u_sched_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),

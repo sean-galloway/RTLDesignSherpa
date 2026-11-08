@@ -2360,7 +2360,7 @@ def _run(request, testcase, params_over=None, enhanced=False):
               **({"DUAL_ISSUE": "1"} if dual else {}),
               # PUMICE_FPGA_SKU=1 runs every cell in the board's FPGA SKU
               # (memory-controllers MC-006): combiners, snarf, narrow pack off.
-              **({"WR_MERGE_EN": "0", "RD_MERGE_EN": "0", "HAS_SNARF": "0", "NARROW_EN": "0"}
+              **({"WR_MERGE_EN": "0", "RD_MERGE_EN": "0", "HAS_SNARF": "0", "NARROW_EN": "0", "RUNTIME_PICK_MODES": "0"}
                  if os.environ.get("PUMICE_FPGA_SKU", "0") == "1" else {})}
     if params_over:
         params.update(params_over)
@@ -2405,8 +2405,20 @@ _FRFCFS = {"SCHED_CORE": "0"}
 
 
 def test_pumice_core_sched_order(request):
+    # Sweeps the SCHED_POLICY pick knobs through the arbiter's CSR inputs.
+    # PUMICE_FPGA_SKU=1 builds RUNTIME_PICK_MODES=0 (memory-controllers
+    # MC-009 step c): the knobs are constants there and the inputs are
+    # ignored by design, so the sweep has nothing to measure.
+    if os.environ.get("PUMICE_FPGA_SKU", "0") == "1":
+        pytest.skip("pick modes are build-time constants on the FPGA SKU (RUNTIME_PICK_MODES=0)")
     _run(request, "cocotb_test_pumice_core_sched_order", params_over=_FRFCFS, enhanced=True)
 def test_pumice_core_sched_order_base(request):
+    # Sweeps the SCHED_POLICY pick knobs through the arbiter's CSR inputs.
+    # PUMICE_FPGA_SKU=1 builds RUNTIME_PICK_MODES=0 (memory-controllers
+    # MC-009 step c): the knobs are constants there and the inputs are
+    # ignored by design, so the sweep has nothing to measure.
+    if os.environ.get("PUMICE_FPGA_SKU", "0") == "1":
+        pytest.skip("pick modes are build-time constants on the FPGA SKU (RUNTIME_PICK_MODES=0)")
     # BASE build (no PUMICE_ENHANCED): in_order is per-channel FIFO and
     # age_threshold uses the CAMs' registered flags (2026-09-09). Same
     # parked-victim sweep, so the base bitstream's order modes are covered.
@@ -2445,6 +2457,12 @@ def test_pumice_core_perf_refresh_bubbles(request):
 def test_pumice_core_perf_paging_sweep(request):
     _run(request, "cocotb_test_pumice_core_perf_paging_sweep")
 def test_pumice_core_perf_paging_sched_cross(request):
+    # Sweeps the SCHED_POLICY pick knobs through the arbiter's CSR inputs.
+    # PUMICE_FPGA_SKU=1 builds RUNTIME_PICK_MODES=0 (memory-controllers
+    # MC-009 step c): the knobs are constants there and the inputs are
+    # ignored by design, so the sweep has nothing to measure.
+    if os.environ.get("PUMICE_FPGA_SKU", "0") == "1":
+        pytest.skip("pick modes are build-time constants on the FPGA SKU (RUNTIME_PICK_MODES=0)")
     _run(request, "cocotb_test_pumice_core_perf_paging_sched_cross", params_over=_FRFCFS, enhanced=True)
 
 # ---------------------------------------------------------------------------

@@ -89,6 +89,14 @@ module mc_cmd_arbiter
     // path places it on its own phase. Build gate; dual_issue_en_i is the
     // runtime enable. 0 = single issue, the lane is constant-0 and trims away.
     // Single-rank, NUM_BG == 1 only (the L/S windows are not lane-aware).
+    // RUNTIME_PICK_MODES = 0 (the FPGA SKU, memory-controllers MC-009 step c,
+    // ISSUE-001 row 14): the SCHED_POLICY pick knobs -- order_mode, row_sel,
+    // col_sel, access_pref, prio_sub, qos_en -- become their reset values
+    // inside the arbiter and the CSR inputs are ignored, so the ORDER_MODE
+    // overlay, the QoS top filter, the population-weighted selectors and the
+    // sub-priority rotation fold out of the netlist. The research build
+    // (default 1) keeps every one of them live.
+    parameter bit RUNTIME_PICK_MODES = 1'b1,
     parameter bit DUAL_ISSUE = 1'b0,
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
@@ -263,6 +271,16 @@ module mc_cmd_arbiter
     output logic [31:0]               stall_noreq_o,
     output logic [31:0]               stall_zq_o
 );
+
+    // ---- effective pick knobs: the CSR inputs, or constants on the FPGA SKU ----
+    logic [1:0] w_order_mode, w_row_sel, w_col_sel, w_access_pref, w_prio_sub;
+    logic       w_qos_en;
+    assign w_order_mode  = RUNTIME_PICK_MODES ? sched_order_mode_i  : 2'd0;   // FR-FCFS
+    assign w_row_sel     = RUNTIME_PICK_MODES ? sched_row_sel_i     : 2'd0;
+    assign w_col_sel     = RUNTIME_PICK_MODES ? sched_col_sel_i     : 2'd0;
+    assign w_access_pref = RUNTIME_PICK_MODES ? sched_access_pref_i : 2'd0;
+    assign w_prio_sub    = RUNTIME_PICK_MODES ? sched_prio_sub_i    : 2'd0;
+    assign w_qos_en      = RUNTIME_PICK_MODES ? sched_qos_en_i      : 1'b0;
 
     localparam int RK0 = 0;   // v1 single-rank pick
 
@@ -559,7 +577,7 @@ module mc_cmd_arbiter
     // Classify-time ACT gate, retained ONLY under row_first (access_pref == 2).
     // See the ISSUE-002 rationale in the classify block below.
     logic w_act_classify_gate;
-    assign w_act_classify_gate = (sched_access_pref_i == 2'd2)
+    assign w_act_classify_gate = (w_access_pref == 2'd2)
                                ? (tfaw_ok_i[RK0] && trrd_ok_i[RK0]) : 1'b1;
 
     logic [NUM_BANKS-1:0] w_col_inflight_bank;
@@ -1049,7 +1067,7 @@ module mc_cmd_arbiter
     always_comb begin
         rd_col_me = rd_col_m; rd_act_me = rd_act_m; rd_pre_me = rd_pre_m;
         wr_col_me = wr_col_m; wr_act_me = wr_act_m; wr_pre_me = wr_pre_m;
-        if (sched_order_mode_i == ORDER_IN_ORDER) begin
+        if (w_order_mode == ORDER_IN_ORDER) begin
             rd_col_me &= w_rd_head; rd_act_me &= w_rd_head; rd_pre_me &= w_rd_head;
             wr_col_me &= w_wr_head; wr_act_me &= w_wr_head; wr_pre_me &= w_wr_head;
             if (SUPPORT_GLOBAL_ORDER) begin
@@ -1059,7 +1077,7 @@ module mc_cmd_arbiter
                     rd_col_me = '0; rd_act_me = '0; rd_pre_me = '0;
                 end
             end
-        end else if (sched_order_mode_i == ORDER_AGE_THR && w_boost_any) begin
+        end else if (w_order_mode == ORDER_AGE_THR && w_boost_any) begin
             rd_col_me &= rd_sch_age_exceed_i; rd_act_me &= rd_sch_age_exceed_i;
             rd_pre_me &= rd_sch_age_exceed_i;
             wr_col_me &= wr_sch_age_exceed_i; wr_act_me &= wr_sch_age_exceed_i;
@@ -1154,7 +1172,7 @@ module mc_cmd_arbiter
     // compare-select levels). It was a serial `if (q > best) best = q` walk,
     // one compare-select per entry -- 16 in series at NUM_ENTRIES = 16, at the
     // END of the classify -> STAGE-1a cone, so it was most of the arbiter's
-    // critical path whether or not QoS was enabled (sched_qos_en_i is runtime):
+    // critical path whether or not QoS was enabled (w_qos_en is runtime):
     // ASAP7 2.15 of 3.27 ns, and the last ~15 LUT levels of the 27-level
     // Vivado path that missed 50 MHz (pumice ISSUE-027). Masked-out entries
     // enter the tree as 0, which is what the walk's initial best did.
@@ -1179,12 +1197,12 @@ module mc_cmd_arbiter
     logic [NUM_ENTRIES-1:0] rd_col_q, rd_act_q, rd_pre_q;
     logic [NUM_ENTRIES-1:0] wr_col_q, wr_act_q, wr_pre_q;
     always_comb begin
-        rd_col_q = sched_qos_en_i ? qos_top(rd_col_me, rd_sch_qos_i) : rd_col_me;
-        rd_act_q = sched_qos_en_i ? qos_top(rd_act_me, rd_sch_qos_i) : rd_act_me;
-        rd_pre_q = sched_qos_en_i ? qos_top(rd_pre_me, rd_sch_qos_i) : rd_pre_me;
-        wr_col_q = sched_qos_en_i ? qos_top(wr_col_me, wr_sch_qos_i) : wr_col_me;
-        wr_act_q = sched_qos_en_i ? qos_top(wr_act_me, wr_sch_qos_i) : wr_act_me;
-        wr_pre_q = sched_qos_en_i ? qos_top(wr_pre_me, wr_sch_qos_i) : wr_pre_me;
+        rd_col_q = w_qos_en ? qos_top(rd_col_me, rd_sch_qos_i) : rd_col_me;
+        rd_act_q = w_qos_en ? qos_top(rd_act_me, rd_sch_qos_i) : rd_act_me;
+        rd_pre_q = w_qos_en ? qos_top(rd_pre_me, rd_sch_qos_i) : rd_pre_me;
+        wr_col_q = w_qos_en ? qos_top(wr_col_me, wr_sch_qos_i) : wr_col_me;
+        wr_act_q = w_qos_en ? qos_top(wr_act_me, wr_sch_qos_i) : wr_act_me;
+        wr_pre_q = w_qos_en ? qos_top(wr_pre_me, wr_sch_qos_i) : wr_pre_me;
     end
 
     // ---- STAGE 1a ----------------------------------------------------------
@@ -1211,7 +1229,7 @@ module mc_cmd_arbiter
             r_rd_col_q <= rd_col_q; r_rd_act_q <= rd_act_q; r_rd_pre_q <= rd_pre_q;
             r_wr_col_q <= wr_col_q; r_wr_act_q <= wr_act_q; r_wr_pre_q <= wr_pre_q;
             r_rd_older <= rd_sch_older_i; r_wr_older <= wr_sch_older_i;
-            r_col_sel  <= sched_col_sel_i; r_row_sel <= sched_row_sel_i;
+            r_col_sel  <= w_col_sel; r_row_sel <= w_row_sel;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_rd_pop[i]  <= rd_pop[i];  r_wr_pop[i]  <= wr_pop[i];
                 r_rd_xpop[i] <= rd_xpop[i]; r_wr_xpop[i] <= wr_xpop[i];
@@ -1543,17 +1561,17 @@ module mc_cmd_arbiter
     // Per-class "write goes first" decision
     logic w_col_wrf, w_act_wrf, w_pre_wrf;
     always_comb begin
-        automatic logic rr = (sched_prio_sub_i == 2'd1) && r_dir_rr;
+        automatic logic rr = (w_prio_sub == 2'd1) && r_dir_rr;
         w_col_wrf = r_wr_drain || rr
-                  || ((sched_prio_sub_i == 2'd3)
+                  || ((w_prio_sub == 2'd3)
                       && wr_sch_age_exceed_i[wr_col_s]
                       && !rd_sch_age_exceed_i[rd_col_s]);
         w_act_wrf = r_wr_drain || rr
-                  || ((sched_prio_sub_i == 2'd3)
+                  || ((w_prio_sub == 2'd3)
                       && wr_sch_age_exceed_i[wr_act_s]
                       && !rd_sch_age_exceed_i[rd_act_s]);
         w_pre_wrf = r_wr_drain || rr
-                  || ((sched_prio_sub_i == 2'd3)
+                  || ((w_prio_sub == 2'd3)
                       && wr_sch_age_exceed_i[wr_pre_s]
                       && !rd_sch_age_exceed_i[rd_pre_s]);
     end
@@ -1598,7 +1616,7 @@ module mc_cmd_arbiter
         w_c_col = rd_col_f || wr_col_f;
         w_c_act = (rd_act_f || wr_act_f) && w_act_gate_live;
         w_c_pre = rd_pre_f || wr_pre_f;
-        unique case (sched_access_pref_i)
+        unique case (w_access_pref)
             2'd1:    w_pick_class = w_c_col ? CL_COL
                                   : w_c_act ? CL_ACT
                                   : w_c_pre ? CL_PRE : CL_NONE;

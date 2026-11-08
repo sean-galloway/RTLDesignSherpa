@@ -58,6 +58,7 @@ module mc_scheduler_plane
     // the DFI command path puts it on its own phase. dual_issue_en_i is the
     // runtime enable. 0 = single issue, bit-identical.
     parameter bit DUAL_ISSUE     = 1'b0,
+    parameter bit RUNTIME_PICK_MODES = 1'b1, // 0 on the FPGA SKU: SCHED_POLICY pick knobs are constants (MC-009 c)
     // Pick core: MC_SCHED_BANK_PICK = mc_bank_pick, the family core on the
     // per-bank head-record contract (wr/rd_head*_i); MC_SCHED_FRFCFS =
     // mc_cmd_arbiter, the research core on the per-entry vectors (*_sch_*_i).
@@ -923,7 +924,8 @@ module mc_scheduler_plane
         .HAS_ZQ      (HAS_ZQ),
         .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH),
         .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
-        .DUAL_ISSUE  (DUAL_ISSUE)
+        .DUAL_ISSUE  (DUAL_ISSUE),
+        .RUNTIME_PICK_MODES(RUNTIME_PICK_MODES)
     ) u_arbiter (
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -1146,35 +1148,38 @@ module mc_scheduler_plane
 
         if (FAST_RD_RELEASE) begin : g_fast
             // S_MAX + CMD_DELAY from the (static, host-written) timing CSRs,
-            // in two registered stages (groups of four, then the four group
-            // maxima): the one-cycle 16-input tree was a 17-level CSR path at
-            // 100 MHz. The values do not change during traffic, so the lag is
-            // invisible; r_smax resets to all-ones (never fast) until settled.
+            // by a SERIAL SCAN (memory-controllers MC-007, ISSUE-001 row 8,
+            // 2026-11-07): one CSR per cycle through a 16:1 mux and one
+            // compare, the pass result latched every 16 cycles. The earlier
+            // form was a two-stage 16-input max tree (~180 LUT / 98 FF) for
+            // a value that never changes during traffic; before that, a
+            // one-cycle tree was a 17-level CSR path at 100 MHz. The lag
+            // (at most 32 cycles after a CSR write) is invisible: r_gm resets
+            // to all-ones (never fast) until the first pass completes.
             logic [15:0] w_tv [16];
-            logic [15:0] r_gmax [4];
+            logic [3:0]  r_scan_idx;
+            logic [15:0] r_scan_max, r_gm;
             logic [16:0] r_smax, r_idle;
             logic        r_fast, w_line_empty;
             assign w_tv = '{t_rfc_i, 16'(t_rcd_i), 16'(t_rp_i), 16'(t_ras_i),
                             16'(t_rc_i), 16'(t_wr_i), 16'(t_rtp_i), 16'(t_faw_i),
                             16'(t_rrd_i), 16'(t_wtr_i), 16'(t_rtw_i), 16'(t_ccd_i),
                             16'(t_ccd_l_i), 16'(t_ccd_s_i), 16'(t_rrd_l_i), 16'(t_rrd_s_i)};
+            logic [15:0] w_scan_cur, w_scan_nxt;
+            assign w_scan_cur = w_tv[r_scan_idx];
+            assign w_scan_nxt = (r_scan_idx == 4'd0) ? w_scan_cur
+                              : ((w_scan_cur > r_scan_max) ? w_scan_cur : r_scan_max);
             `ALWAYS_FF_RST(aclk, aresetn,
                 if (`RST_ASSERTED(aresetn)) begin
-                    for (int g = 0; g < 4; g++) r_gmax[g] <= '1;
+                    r_scan_idx <= '0; r_scan_max <= '0; r_gm <= '1;
                 end else begin
-                    for (int g = 0; g < 4; g++) begin
-                        logic [15:0] m;
-                        m = w_tv[4*g];
-                        for (int k = 1; k < 4; k++) if (w_tv[4*g+k] > m) m = w_tv[4*g+k];
-                        r_gmax[g] <= m;
-                    end
+                    r_scan_idx <= r_scan_idx + 4'd1;
+                    r_scan_max <= w_scan_nxt;
+                    if (r_scan_idx == 4'd15) r_gm <= w_scan_nxt;
                 end
             )
             logic [15:0] w_gm;
-            always_comb begin
-                w_gm = r_gmax[0];
-                for (int g = 1; g < 4; g++) if (r_gmax[g] > w_gm) w_gm = r_gmax[g];
-            end
+            assign w_gm = r_gm;
             assign w_line_empty = !w_cmd_push && !w_cmd_rd_valid && (r_tok_shift == '0);
             assign w_fast_now   = r_fast && !(w_cmd_push && is_write_op(w_push_op));
             `ALWAYS_FF_RST(aclk, aresetn,

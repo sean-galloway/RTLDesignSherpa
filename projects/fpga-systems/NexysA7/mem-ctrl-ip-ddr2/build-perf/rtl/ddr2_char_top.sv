@@ -366,6 +366,7 @@ module ddr2_char_top #(
         .RD_MERGE_EN     (1'b0),
         .HAS_SNARF       (1'b0),
         .NARROW_EN       (1'b0),
+        .RUNTIME_PICK_MODES(1'b0),
 `endif
 `ifdef PUMICE_SYS_100
         .FPGA_CLK_HZ     (100_000_000)  // sys = 100 MHz -> UART baud divisor (timing build)
