@@ -463,30 +463,19 @@ module mc_cmd_arbiter
     // IN-FLIGHT SHADOW -- what has this arbiter already committed that the
     // bank timers have not been told about yet?
     // =====================================================================
-    logic [NUM_BANKS-1:0] w_if_preact_sel, w_if_preact_pre, w_if_preact_out;
-    logic [NUM_BANKS-1:0] w_if_col_sel,    w_if_col_pre,    w_if_col_out;
-    // ACT-only halves of the two shadow vectors above, for the refresh/ZQ
-    // DRAIN-PRE guard (w_guarded_drain below).
-    logic [NUM_BANKS-1:0] w_if_act_sel,    w_if_act_pre;
+    // Since MC-009 (2026-11-07) every shadow here is REGISTERED: the pre-pick
+    // (_pre) and the output register (_out). The same-cycle STAGE-1b
+    // selection is applied at STAGE-1b itself, never fed back into this
+    // cycle's classify or pick (see the 1b exclusion block).
+    logic [NUM_BANKS-1:0] w_if_preact_pre, w_if_preact_out;
+    logic [NUM_BANKS-1:0] w_if_col_pre,    w_if_col_out;
+    // ACT-only half of the pre-pick shadow, for the refresh/ZQ DRAIN-PRE
+    // guard (w_guarded_drain below).
+    logic [NUM_BANKS-1:0] w_if_act_pre;
     always_comb begin
-        w_if_act_sel = '0;
-        if (w_sel_rd_act_f)
-            w_if_act_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_act_s));
-        if (w_sel_wr_act_f)
-            w_if_act_sel |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_act_s));
         w_if_act_pre = '0;
         if (rd_act_f) w_if_act_pre |= (NUM_BANKS'(1) << rd_act_bank);
         if (wr_act_f) w_if_act_pre |= (NUM_BANKS'(1) << wr_act_bank);
-
-        w_if_preact_sel = '0;
-        if (w_sel_rd_act_f)
-            w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_act_s));
-        if (w_sel_wr_act_f)
-            w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_act_s));
-        if (w_sel_rd_pre_f)
-            w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_pre_s));
-        if (w_sel_wr_pre_f)
-            w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_pre_s));
 
         w_if_preact_pre = '0;
         if (rd_act_f) w_if_preact_pre |= (NUM_BANKS'(1) << rd_act_bank);
@@ -496,12 +485,6 @@ module mc_cmd_arbiter
 
         w_if_preact_out = (r_pick_valid && (r_do_act || r_do_pre)) ? (NUM_BANKS'(1) << r_bank) : '0;
         if (r2_valid) w_if_preact_out |= (NUM_BANKS'(1) << r2_bank);
-
-        w_if_col_sel = '0;
-        if (w_sel_rd_col_f)
-            w_if_col_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_col_s));
-        if (w_sel_wr_col_f)
-            w_if_col_sel |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_col_s));
 
         w_if_col_pre = '0;
         if (rd_col_f) w_if_col_pre |= (NUM_BANKS'(1) << rd_col_bank);
@@ -610,20 +593,30 @@ module mc_cmd_arbiter
     // classify and reloaded the counter on the release cycle, one lost
     // column per hold, and static_close's unbroken W run fell 128 -> 112
     // of 768 beats in the paging sweep (bisected 2026-11-07).
-    logic [7:0] r_tccd_fwd;
+    // The three t_ccd_i terms are decoded once into flops: the CSR is
+    // host-written and static during traffic, and the live compare sat on
+    // the sys75 worst-path list (field_storage[tCCD] -> wr_col_ap_reg).
+    logic [7:0] r_tccd_fwd, r_tccd_ld;
+    logic       r_tccd_gt1, r_tccd_gt2;
     logic       r_pp_adv;                 // the pre-pick register advanced at the last edge
     logic       w_col_in_prepick, w_col_sel_last, w_tccd_fwd_ok, w_tccd_1b_block;
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_pp_adv <= 1'b0;
-        else                        r_pp_adv <= w_out_ready;
+        if (`RST_ASSERTED(aresetn)) begin
+            r_pp_adv <= 1'b0; r_tccd_gt1 <= 1'b0; r_tccd_gt2 <= 1'b0; r_tccd_ld <= '0;
+        end else begin
+            r_pp_adv   <= w_out_ready;
+            r_tccd_gt1 <= (t_ccd_i > 8'd1);
+            r_tccd_gt2 <= (t_ccd_i > 8'd2);
+            r_tccd_ld  <= (t_ccd_i > 8'd2) ? (t_ccd_i - 8'd2) : 8'd0;
+        end
     )
     assign w_col_in_prepick = rd_col_f || wr_col_f;
     assign w_col_sel_last   = r_pp_adv && w_col_in_prepick;
-    assign w_tccd_1b_block  = w_col_in_prepick && (t_ccd_i > 8'd1);
-    assign w_tccd_fwd_ok    = (r_tccd_fwd <= 8'd1) && !(w_col_sel_last && (t_ccd_i > 8'd2));
+    assign w_tccd_1b_block  = w_col_in_prepick && r_tccd_gt1;
+    assign w_tccd_fwd_ok    = (r_tccd_fwd <= 8'd1) && !(w_col_sel_last && r_tccd_gt2);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn))      r_tccd_fwd <= '0;
-        else if (w_col_sel_last)         r_tccd_fwd <= (t_ccd_i > 8'd2) ? (t_ccd_i - 8'd2) : 8'd0;
+        else if (w_col_sel_last)         r_tccd_fwd <= r_tccd_ld;
         else if (r_tccd_fwd != 8'd0)     r_tccd_fwd <= r_tccd_fwd - 8'd1;
     )
     logic [NUM_BANKS-1:0] w_guarded;
@@ -641,11 +634,12 @@ module mc_cmd_arbiter
     // would, at worst, meet a closed row at its fire stage and be rejected
     // there (w_col_row_ok / pre_ready) -- a lost slot, not a hazard, and the
     // page policy's open-row-demand veto already refuses such a bank a cycle
-    // earlier. The refresh / ZQ drain guards keep the full vector.
-    // (w_col_inflight_guard is w_if_col_sel | w_if_col_pre -- the 1b column
-    // selection again; the registered half, w_if_col_pre, is what belongs
-    // here. With the full guard the default build of the TASK-049 text missed
-    // by 0.118 ns on the same path through the column select.)
+    // earlier. (Historical: until MC-009, 2026-11-07, w_guarded and the
+    // drain guard still carried the same-cycle 1b terms and this was the one
+    // guard without them; since MC-009 every guard in the arbiter is built
+    // from registered shadows and the 1b selection is applied at 1b itself,
+    // so w_guarded_to and w_guarded now differ only by the pre-pick's demand
+    // PRE shadow, which w_guarded keeps.)
     logic [NUM_BANKS-1:0] w_guarded_to;
     assign w_guarded_to = r_guard0 | r_guard1 | w_if_preact_pre | w_if_col_pre
                         | w_if_preact_out | w_if_col_out;
@@ -671,11 +665,22 @@ module mc_cmd_arbiter
     // before the refresh branch ever lets a demand class through. The ACT
     // shadows and every fired/in-flight guard are kept.
     logic [NUM_BANKS-1:0] w_guarded_drain;
-    // The drain guard KEEPS the same-cycle 1b terms (MC-009 left it alone):
-    // it sits in the pick comb, not in the classify cone, and a drain PRE
-    // beside a same-bank ACT or column selected this cycle is what it stops.
-    assign w_guarded_drain = r_guard0 | r_guard1 | w_if_act_sel | w_if_act_pre
-                           | w_if_col_sel | w_if_col_pre | w_if_preact_out | w_if_col_out;
+    // Registered shadows only (MC-009 step a, second cut, 2026-11-07). The
+    // first cut left the same-cycle 1b terms (w_if_act_sel, w_if_col_sel)
+    // here because this guard sits in the pick comb, not the classify cone;
+    // with the classify cone fixed, r_rd_pop -> arg_sel -> this guard ->
+    // w_rfsh_pre_found -> r_bank became the worst path of the sys75 FPGA-SKU
+    // build (+0.010 ns). Dropping them is safe for the same reason it was
+    // for w_guarded_to: a drain PRE picked beside a same-bank ACT or column
+    // selected this cycle leaves that candidate in the pre-pick behind a
+    // refresh request that shadows every demand class; by the time demand
+    // resumes the ACT holds for tRP / tRFC at the fire stage, and a column
+    // to the closed row has re-classified (the row image drops within three
+    // cycles of the PRE fire, tRFC is far longer) or is rejected by
+    // w_col_row_ok. The formal double-issue family and the refresh model
+    // are the gate.
+    assign w_guarded_drain = r_guard0 | r_guard1 | w_if_act_pre | w_if_col_pre
+                           | w_if_preact_out | w_if_col_out;
 
     // in-flight ACT/PRE bank guard for the COLUMN masks
     logic [NUM_BANKS-1:0] w_preact_bank_guard;
