@@ -44,6 +44,9 @@ class ResetSyncTB(TBBase):
 
         # Get test parameters
         self.N = self.convert_to_int(os.environ.get('PARAM_N', '3'))
+        # REPLICATED_OUT adds one output flop: deassert latency is N+1 clocks.
+        self.REP = self.convert_to_int(os.environ.get('PARAM_REPLICATED_OUT', '0'))
+        self.LAT = self.N + self.REP
 
         # Per-test depth. REG_LEVEL picks how many parameter combinations run;
         # TEST_LEVEL decides how hard each one works. This TB had no depth
@@ -54,7 +57,8 @@ class ResetSyncTB(TBBase):
         self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
 
 
-        self.log.info(f"Reset Sync TB initialized with N={self.N}")
+        self.log.info(f"Reset Sync TB initialized with N={self.N} "
+                      f"REPLICATED_OUT={self.REP} (deassert latency {self.LAT})")
 
     # ---- contract lifecycle (/GLOBAL_REQUIREMENTS.md 2.2) ----------------
     # Mandatory on every TB. This class inherited TBBase's stubs, which
@@ -81,7 +85,7 @@ class ResetSyncTB(TBBase):
         await RisingEdge(self.dut.clk)
         self.dut.rst_n.value = 1
         # Wait for synchronization
-        for _ in range(self.N + 2):
+        for _ in range(self.LAT + 2):
             await RisingEdge(self.dut.clk)
 
     async def test_basic_sync(self):
@@ -102,10 +106,10 @@ class ResetSyncTB(TBBase):
         await Timer(1, units='ns')  # Allow combinational output to settle
 
         # sync_rst_n should still be 0 (not synchronized yet)
-        assert self.dut.sync_rst_n.value == 0, f"sync_rst_n should remain 0 for {self.N} clocks"
+        assert self.dut.sync_rst_n.value == 0, f"sync_rst_n should remain 0 for {self.LAT} clocks"
 
         # Wait N-1 more clock cycles for synchronization (already waited 1 above)
-        for i in range(self.N - 1):
+        for i in range(self.LAT - 1):
             await RisingEdge(self.dut.clk)
             await Timer(1, units='ns')  # Allow combinational output to settle
 
@@ -114,17 +118,17 @@ class ResetSyncTB(TBBase):
             self.log.debug(f"  After edge {i+2}, sync_rst_n = {current_val}")
 
             # Should still be 0 until the last cycle
-            if i < self.N - 2:
-                assert self.dut.sync_rst_n.value == 0, f"sync_rst_n should be 0 at cycle {i+1}/{self.N}"
+            if i < self.LAT - 2:
+                assert self.dut.sync_rst_n.value == 0, f"sync_rst_n should be 0 at cycle {i+1}/{self.LAT}"
 
         # After N total clocks (1 above + N-1 in loop), wait one more edge for the last stage to propagate
         await RisingEdge(self.dut.clk)
         await Timer(1, units='ns')  # Allow combinational output to settle
 
         current_val = int(self.dut.sync_rst_n.value)
-        self.log.debug(f"  After final edge (total {self.N+1}), sync_rst_n = {current_val}")
+        self.log.debug(f"  After final edge (total {self.LAT+1}), sync_rst_n = {current_val}")
 
-        assert self.dut.sync_rst_n.value == 1, f"sync_rst_n should be 1 after {self.N+1} total clock edges"
+        assert self.dut.sync_rst_n.value == 1, f"sync_rst_n should be 1 after {self.LAT+1} total clock edges"
 
         self.log.info("Basic synchronization: PASSED")
         return True
@@ -135,7 +139,7 @@ class ResetSyncTB(TBBase):
 
         # Start with reset deasserted and synchronized
         self.dut.rst_n.value = 1
-        for _ in range(self.N + 2):
+        for _ in range(self.LAT + 2):
             await RisingEdge(self.dut.clk)
         await Timer(1, units='ns')  # Allow combinational output to settle
         assert self.dut.sync_rst_n.value == 1, "Setup: sync_rst_n should be 1"
@@ -164,7 +168,7 @@ class ResetSyncTB(TBBase):
 
             # Deassert and wait for sync
             self.dut.rst_n.value = 1
-            for _ in range(self.N + 1):
+            for _ in range(self.LAT + 1):
                 await RisingEdge(self.dut.clk)
             await Timer(1, units='ns')  # Allow combinational output to settle
             assert self.dut.sync_rst_n.value == 1, f"Cycle {cycle}: sync_rst_n should be 1 after sync"
@@ -184,7 +188,7 @@ class ResetSyncTB(TBBase):
 
         # Get to synchronized state
         self.dut.rst_n.value = 1
-        for _ in range(self.N + 2):
+        for _ in range(self.LAT + 2):
             await RisingEdge(self.dut.clk)
         await Timer(1, units='ns')  # Allow combinational output to settle
         assert self.dut.sync_rst_n.value == 1
@@ -197,10 +201,10 @@ class ResetSyncTB(TBBase):
 
         # The glitch should propagate immediately due to async reset
         # but recovery should take N clocks
-        for i in range(self.N):
+        for i in range(self.LAT):
             await RisingEdge(self.dut.clk)
             await Timer(1, units='ns')  # Allow combinational output to settle
-            if i < self.N - 1:
+            if i < self.LAT - 1:
                 # Should still be recovering
                 current_val = int(self.dut.sync_rst_n.value)
                 self.log.info(f"  Glitch recovery cycle {i}: sync_rst_n={current_val}")
@@ -216,7 +220,7 @@ class ResetSyncTB(TBBase):
     async def run_all_tests(self):
         """Run comprehensive reset_sync test suite"""
         self.log.info("="*80)
-        self.log.info(f"RESET_SYNC COMPREHENSIVE TEST SUITE (N={self.N})")
+        self.log.info(f"RESET_SYNC COMPREHENSIVE TEST SUITE (N={self.LAT})")
         self.log.info("="*80)
 
         results = {}

@@ -43,6 +43,7 @@ The `reset_sync` module is a parameterized reset synchronizer with asynchronous 
 | IN_ACTIVE_LOW | bit | 1'b1 | Polarity of the `rst_n` input. 1 = active-low (default), 0 = active-high. |
 | OUT_ACTIVE_LOW | bit | 1'b1 | Polarity of the `sync_rst_n` output. 1 = active-low (default), 0 = active-high. |
 | ASYNC_ASSERT | bit | 1'b1 | 1 = asynchronous assert with synchronous deassert (FPGA best practice). 0 = fully synchronous style, where assertion is also clocked. |
+| REPLICATED_OUT | bit | 1'b0 | Add one output flop, in the output polarity and outside the `ASYNC_REG` group, carrying a `max_fanout` hint so the FPGA tools may replicate it toward the reset loads. Deassert latency becomes N+1. Set it at a top whose synchronizer resets a whole domain (see "The output net is a timing path"). |
 
 : reset_sync parameters
 
@@ -148,13 +149,47 @@ end
 ```
 
 The MSB of the chain is the active-high synchronized reset; the output stage
-applies the requested polarity.
+applies the requested polarity. With `REPLICATED_OUT = 1` that polarity is
+applied one flop earlier and the output is the flop:
+
+```systemverilog
+(* max_fanout = 512 *) logic r_out = OUT_ASSERTED;   // power-on asserted
+always_ff @(posedge clk or posedge rst_in_h) begin
+    if (rst_in_h) r_out <= OUT_ASSERTED;
+    else          r_out <= OUT_ACTIVE_LOW ? ~w_sync_rst_h : w_sync_rst_h;
+end
+assign sync_rst_n = r_out;
+```
+
+The stage asserts the way the chain does. At the input's release its D input is
+still the asserted value for N more cycles, so a marginal CLR release on one
+replica cannot produce a wrong output -- the same argument that covers stage 0
+of the chain.
 
 The RTL body is written out four times inside a `generate`, once per combination
 of `ASYNC_ASSERT` and `KEEP_ATTRS`, because the vendor attributes have to be
 attached at the declaration. All four variants are logically identical apart
 from the attributes and the sensitivity list. Yes, it's repetitive. That's the
 attribute syntax's fault, not the author's.
+
+### The output net is a timing path
+
+Every async-reset flop in the domain hangs its CLR pin on `sync_rst_n`, and the
+deassert edge of that net is checked for recovery/removal against the clock. On
+a small design nobody notices. On the jet L1 pair rig (Genesys2, Kintex-7, 100
+MHz) the chain's MSB drove about 24k CLR pins once the payload stores had moved
+into RAM, and that one net was the worst setup path of the whole design (slack
+0.139 ns, route-dominated). The tools could not help: the chain carries
+`ASYNC_REG` and `syn_preserve`, so neither synthesis nor `phys_opt_design` will
+replicate its last flop. `REPLICATED_OUT` adds the flop they are allowed to
+copy -- and, as it turned out, allowed to place: on jet the single un-pinned
+output flop moved the recovery path from 0.139 ns to 1.446 ns of slack without
+any replication, because the preserved stage behind an inverter had been
+placed for the chain, not for its 24k loads. Use it at a component top that
+resets a whole domain; leave it off where
+a leaf instantiates the synchronizer for a handful of flops (the extra cycle of
+deassert latency buys nothing there). The handbook note is
+`vault/handbook/design/reset-and-clocking.md`.
 
 ## Timing Characteristics
 
@@ -194,7 +229,9 @@ Remember the chain holds the active-high form, so 111 is "asserted".
 : reset_sync state sequence for N=3 at default polarities
 
 The output releases on the third clock edge after `rst_n` goes high — those N
-cycles are the metastability margin the chain exists to buy you.
+cycles are the metastability margin the chain exists to buy you. With
+`REPLICATED_OUT = 1` add one edge: the output flop samples the cleared MSB on
+the fourth.
 
 ## Usage Examples
 
@@ -217,7 +254,9 @@ input. Rationale:
   separately**, with CDC-FIFO side resets synchronized in their own clock.
 
 The reference idiom lives in `cache-ip/amber-mesi-l1/rtl/top/amber_top.sv`
-(`u_reset_sync`, net `w_aresetn`). Swept 2026-10-14: rapids, bch,
+(`u_reset_sync`, net `w_aresetn`; since 2026-11-07 with `REPLICATED_OUT=1`,
+as are `amber_ace_top`, `jet_top` and `jet_ace_top` -- a top that resets a
+whole domain is exactly the case the replicable stage exists for). Swept 2026-10-14: rapids, bch,
 reed-solomon, andesite, scoria, kestrel, and the user-facing wrappers of
 utility-ip (all protocol converters, `error_injector`, `axi4_slave_rom`;
 internal `*_rd`/`*_wr`/`*_core`/upsize-dnsize/UART leaves excluded, as are

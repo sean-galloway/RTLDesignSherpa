@@ -1,20 +1,30 @@
 [tasks]
 prove
 cover
+prove_rep
+cover_rep
 
 [options]
 prove: mode bmc
 prove: depth 15
 cover: mode cover
 cover: depth 15
+prove_rep: mode bmc
+prove_rep: depth 15
+cover_rep: mode cover
+cover_rep: depth 15
 
 [engines]
 prove: smtbmc z3
 cover: smtbmc z3
+prove_rep: smtbmc z3
+cover_rep: smtbmc z3
 
 [script]
 read -formal -sv reset_sync.sv
 read -formal -sv formal_reset_sync.sv
+prove_rep: chparam -set REPLICATED_OUT 1 formal_reset_sync
+cover_rep: chparam -set REPLICATED_OUT 1 formal_reset_sync
 prep -top formal_reset_sync
 
 [files]

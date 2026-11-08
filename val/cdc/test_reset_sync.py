@@ -46,26 +46,32 @@ def generate_test_params():
     """Generate test parameter combinations"""
     # Test with different synchronization depths
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    # (N, name, REPLICATED_OUT).  The replicated output stage is a second
+    # parameter axis: its OFF state is every classic cell, its ON state the
+    # *_rep cells (deassert latency N+1) -- both states need their own run.
     all_configs = [
-        (2, 'min'),      # Minimum practical depth
-        (3, 'typical'),  # Standard depth
-        (4, 'safe'),     # Conservative depth
-        (5, 'max'),      # Maximum tested depth
+        (2, 'min', 0),          # Minimum practical depth
+        (3, 'typical', 0),      # Standard depth
+        (4, 'safe', 0),         # Conservative depth
+        (5, 'max', 0),          # Maximum tested depth
+        (3, 'typical_rep', 1),  # Standard depth + replicable output stage
+        (2, 'min_rep', 1),
     ]
     if reg_level == 'GATE':
-        return [all_configs[1]]
+        return [all_configs[1], all_configs[4]]
     if reg_level == 'FULL':
         return all_configs
-    return [all_configs[1], all_configs[2]]
+    return [all_configs[1], all_configs[2], all_configs[4]]
 
-@pytest.mark.parametrize("n, test_mode", generate_test_params())
-def test_reset_sync(n, test_mode):
+@pytest.mark.parametrize("n, test_mode, rep", generate_test_params())
+def test_reset_sync(n, test_mode, rep):
     """
     Reset synchronizer test runner
 
     Args:
         n: Number of synchronization stages
         test_mode: Test configuration name
+        rep: REPLICATED_OUT (0/1) -- the replicable output flop
     """
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cdc': 'rtl/cdc'})
@@ -96,6 +102,7 @@ def test_reset_sync(n, test_mode):
 
     rtl_parameters = {
         'N': str(n),
+        'REPLICATED_OUT': str(rep),
     }
 
     extra_env = {
@@ -105,13 +112,14 @@ def test_reset_sync(n, test_mode):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'PARAM_N': str(n),
+        'PARAM_REPLICATED_OUT': str(rep),
     }
     extra_env.update(wave_cfg['extra_env'])
 
     sim_args = list(wave_cfg['sim_args'])
 
     print(f"\n{'='*80}")
-    print(f"Reset Sync Test: {test_mode} (N={n})")
+    print(f"Reset Sync Test: {test_mode} (N={n}, REPLICATED_OUT={rep})")
     print(f"{'='*80}")
 
     extra_args = list(wave_cfg['extra_args']) + [

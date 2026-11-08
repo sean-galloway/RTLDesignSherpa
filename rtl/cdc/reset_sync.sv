@@ -79,6 +79,17 @@
 //       1 = Asynchronous assert, synchronous deassert (FPGA default)
 //       0 = Fully synchronous assert/deassert (ASIC optional)
 //
+//   REPLICATED_OUT:
+//     Description: Add one output flop (in the output polarity, outside the
+//                  ASYNC_REG group, max_fanout hint) that the FPGA tools may
+//                  replicate toward the reset loads. Use at a top that
+//                  resets a whole domain of async-reset flops: the pinned
+//                  chain MSB is otherwise one flop driving every CLR pin and
+//                  that net becomes the worst recovery path (jet, Genesys2,
+//                  2026-11-07). Deassert latency becomes N+1.
+//     Type: bit
+//     Default: 0
+//
 //------------------------------------------------------------------------------
 // Ports:
 //------------------------------------------------------------------------------
@@ -94,8 +105,8 @@
 // Timing (FPGA default - ASYNC_ASSERT=1):
 //------------------------------------------------------------------------------
 //   Reset Assert:    Asynchronous (immediate)
-//   Reset Deassert:  Synchronous, N-cycle latency
-//   Latency:         N clock cycles for deassertion
+//   Reset Deassert:  Synchronous, N-cycle latency (N+1 with REPLICATED_OUT)
+//   Latency:         N clock cycles for deassertion (N+1 with REPLICATED_OUT)
 //   MTBF:            Exponentially increases with N (3 → 10^12+ hours typical)
 //
 //------------------------------------------------------------------------------
@@ -234,7 +245,9 @@ module reset_sync #(
     parameter bit IN_ACTIVE_LOW   = 1'b1,  // rst_n is active-low by default
     parameter bit OUT_ACTIVE_LOW  = 1'b1,  // sync output is active-low by default
     // Style control
-    parameter bit ASYNC_ASSERT    = 1'b1   // 1: async-assert/sync-deassert (FPGA best practice)
+    parameter bit ASYNC_ASSERT    = 1'b1,  // 1: async-assert/sync-deassert (FPGA best practice)
+    // Fan-out control: add a replicable output flop (deassert latency N+1)
+    parameter bit REPLICATED_OUT  = 1'b0
 ) (
     input  logic clk,
     input  logic rst_n,          // async reset IN (name kept for compatibility)
@@ -250,6 +263,9 @@ module reset_sync #(
 
     // Normalize input to active-HIGH async reset
     wire rst_in_h = IN_ACTIVE_LOW ? ~rst_n : rst_n;
+
+    // Active-HIGH internal form of the synchronized reset (the chain's MSB)
+    logic w_sync_rst_h;
 
     // Synchronizer chain
     // Attributes help tools recognize CDC flops and avoid SRL extraction
@@ -284,11 +300,7 @@ module reset_sync #(
                 end
 
                 // Active-HIGH internal form (asserted when MSB is 1)
-                wire sync_rst_h = r_sync_reg[N-1];
-                // Drive requested output polarity without changing port name
-                always_comb begin
-                    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
-                end
+                assign w_sync_rst_h = r_sync_reg[N-1];
             end else begin : g_plain
                 // The initialiser is the FPGA power-on value: the chain must come
                 // up asserted on a device that has no reset before the first clock.
@@ -304,10 +316,7 @@ module reset_sync #(
                     else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
                 end
 
-                wire sync_rst_h = r_sync_reg[N-1];
-                always_comb begin
-                    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
-                end
+                assign w_sync_rst_h = r_sync_reg[N-1];
             end
         end else begin : g_sync_only
             // Purely synchronous reset style (rarely used for initial assert)
@@ -328,10 +337,7 @@ module reset_sync #(
                     else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
                 end
 
-                wire sync_rst_h = r_sync_reg[N-1];
-                always_comb begin
-                    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
-                end
+                assign w_sync_rst_h = r_sync_reg[N-1];
             end else begin : g_plain
                 // The initialiser is the FPGA power-on value: the chain must come
                 // up asserted on a device that has no reset before the first clock.
@@ -347,10 +353,57 @@ module reset_sync #(
                     else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
                 end
 
-                wire sync_rst_h = r_sync_reg[N-1];
-                always_comb begin
-                    sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
+                assign w_sync_rst_h = r_sync_reg[N-1];
+            end
+        end
+    endgenerate
+
+    // -----------------------------
+    // Output stage
+    // -----------------------------
+    // REPLICATED_OUT=0: the chain's MSB drives the output through the
+    // polarity mux; deassert latency N.
+    //
+    // REPLICATED_OUT=1: one more flop, in the OUTPUT polarity, outside the
+    // ASYNC_REG group and carrying a max_fanout hint, so the FPGA tools may
+    // replicate it toward its loads.  The chain's MSB is pinned (ASYNC_REG,
+    // syn_preserve) and the tools will not copy it, so without this stage a
+    // single flop drives every reset pin of the domain and that net is the
+    // recovery-timed path of the whole design once the big payload stores
+    // are RAMs (jet on the Genesys2: ~24k CLR pins, WNS 0.139 ns, FPGA
+    // review 2026-11-07).  Deassert latency becomes N+1.  The stage asserts
+    // the way the chain does (asynchronously under ASYNC_ASSERT): at the
+    // input's release its D is still the asserted value for N cycles, so a
+    // marginal CLR release cannot produce a wrong output -- the same
+    // argument that covers stage 0 of the chain.
+    generate
+        if (REPLICATED_OUT) begin : g_rep_out
+            localparam logic OUT_ASSERTED = OUT_ACTIVE_LOW ? 1'b0 : 1'b1;
+            wire w_out_next = OUT_ACTIVE_LOW ? ~w_sync_rst_h : w_sync_rst_h;
+            // Power-on asserted, like the chain (PROCASSINIT waiver as above).
+            // The attribute is unconditional: Vivado reads it, every other
+            // tool ignores an attribute it does not know (the board flow
+            // defines no XILINX macro, so an `ifdef here would be dead).
+            (* max_fanout = 512 *)
+            /* verilator lint_off PROCASSINIT */
+            logic r_out = OUT_ASSERTED;
+            /* verilator lint_on PROCASSINIT */
+            if (ASYNC_ASSERT) begin : g_async
+                always_ff @(posedge clk or posedge rst_in_h) begin
+                    if (rst_in_h) r_out <= OUT_ASSERTED;
+                    else          r_out <= w_out_next;
                 end
+            end else begin : g_sync
+                always_ff @(posedge clk) begin
+                    if (rst_in_h) r_out <= OUT_ASSERTED;
+                    else          r_out <= w_out_next;
+                end
+            end
+            assign sync_rst_n = r_out;
+        end else begin : g_comb_out
+            // Drive requested output polarity without changing port name
+            always_comb begin
+                sync_rst_n = OUT_ACTIVE_LOW ? ~w_sync_rst_h : w_sync_rst_h;
             end
         end
     endgenerate
@@ -364,10 +417,12 @@ module reset_sync #(
     endproperty
     assert property (p_assert_holds);
 
-    // Deassert no earlier than N cycles after input deassert
+    // Deassert no earlier than N (+1 with REPLICATED_OUT) cycles after
+    // input deassert
+    localparam int DEASSERT_LAT = N + (REPLICATED_OUT ? 1 : 0);
     property p_deassert_after_N;
         @(posedge clk) disable iff (rst_in_h)
-            $fell(rst_in_h) |-> (sync_rst_h_int)[*N-1] ##1 !sync_rst_h_int;
+            $fell(rst_in_h) |-> (sync_rst_h_int)[*DEASSERT_LAT-1] ##1 !sync_rst_h_int;
     endproperty
     assert property (p_deassert_after_N);
 `endif
