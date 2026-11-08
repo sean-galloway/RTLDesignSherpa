@@ -211,9 +211,16 @@ if {[info exists ::env(PUMICE_DUAL_ISSUE)] && $::env(PUMICE_DUAL_ISSUE) eq "1"} 
 # PUMICE_FPGA_SKU=1: build the board without the write/read combiners, the
 # snarf forward and the narrow pack (memory-controllers MC-006, ISSUE-001
 # rows 3, 9, 12). Unset, the research configuration builds.
-if {[info exists ::env(PUMICE_FPGA_SKU)] && $::env(PUMICE_FPGA_SKU) eq "1"} {
-    lappend current_defines "PUMICE_FPGA_SKU"
-    set _freq_note "$_freq_note, FPGA_SKU (merge/snarf/narrow off)"
+# THE FPGA SKU IS THE CONFIGURATION (owner, 2026-11-08). The RTL defaults are
+# the SKU; PUMICE_RESEARCH_CFG=1 builds the research configuration (combiners,
+# snarf, narrow pack, runtime pick modes on). PUMICE_FPGA_SKU is accepted for
+# old scripts and does nothing.
+if {[info exists ::env(PUMICE_RESEARCH_CFG)] && $::env(PUMICE_RESEARCH_CFG) ne "" && $::env(PUMICE_RESEARCH_CFG) ne "0"} {
+    lappend current_defines "PUMICE_RESEARCH_CFG"
+    puts "verilog_define: PUMICE_RESEARCH_CFG (research configuration; the default is the FPGA SKU)"
+}
+if {[info exists ::env(PUMICE_FPGA_SKU)] && $::env(PUMICE_FPGA_SKU) ne ""} {
+    puts "PUMICE_FPGA_SKU is the default since 2026-11-08; the env knob does nothing"
 }
 # Say it loudly and unconditionally. "Which clock is this .bit" must never be
 # inferred from a board log two hundred lines in.

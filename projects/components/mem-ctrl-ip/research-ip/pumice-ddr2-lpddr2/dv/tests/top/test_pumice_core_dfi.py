@@ -2358,10 +2358,11 @@ def _run(request, testcase, params_over=None, enhanced=False):
               # PUMICE_DUAL=1 builds the TASK-047 row lane and runs every cell
               # with it on (bring-up drives dual_issue_en_i / row_phase_i)
               **({"DUAL_ISSUE": "1"} if dual else {}),
-              # PUMICE_FPGA_SKU=1 runs every cell in the board's FPGA SKU
-              # (memory-controllers MC-006): combiners, snarf, narrow pack off.
-              **({"WR_MERGE_EN": "0", "RD_MERGE_EN": "0", "HAS_SNARF": "0", "NARROW_EN": "0", "RUNTIME_PICK_MODES": "0"}
-                 if os.environ.get("PUMICE_FPGA_SKU", "0") == "1" else {})}
+              # The RTL defaults are the FPGA SKU (combiners, snarf, narrow pack,
+              # runtime pick modes off) since 2026-11-08. PUMICE_RESEARCH_CFG=1
+              # runs every cell in the research configuration instead.
+              **({"WR_MERGE_EN": "1", "RD_MERGE_EN": "1", "HAS_SNARF": "1", "NARROW_EN": "1", "RUNTIME_PICK_MODES": "1"}
+                 if os.environ.get("PUMICE_RESEARCH_CFG", "0") == "1" else {})}
     if params_over:
         params.update(params_over)
     tag = testcase + sfx
@@ -2406,19 +2407,19 @@ _FRFCFS = {"SCHED_CORE": "0"}
 
 def test_pumice_core_sched_order(request):
     # Sweeps the SCHED_POLICY pick knobs through the arbiter's CSR inputs.
-    # PUMICE_FPGA_SKU=1 builds RUNTIME_PICK_MODES=0 (memory-controllers
-    # MC-009 step c): the knobs are constants there and the inputs are
-    # ignored by design, so the sweep has nothing to measure.
-    if os.environ.get("PUMICE_FPGA_SKU", "0") == "1":
-        pytest.skip("pick modes are build-time constants on the FPGA SKU (RUNTIME_PICK_MODES=0)")
+    # The FPGA SKU (the default) builds RUNTIME_PICK_MODES=0: the knobs are
+    # constants and the inputs are ignored by design, so the sweep only
+    # measures something in the research configuration.
+    if os.environ.get("PUMICE_RESEARCH_CFG", "0") != "1":
+        pytest.skip("needs the research configuration (PUMICE_RESEARCH_CFG=1): pick modes are constants on the FPGA SKU, the default")
     _run(request, "cocotb_test_pumice_core_sched_order", params_over=_FRFCFS, enhanced=True)
 def test_pumice_core_sched_order_base(request):
     # Sweeps the SCHED_POLICY pick knobs through the arbiter's CSR inputs.
-    # PUMICE_FPGA_SKU=1 builds RUNTIME_PICK_MODES=0 (memory-controllers
-    # MC-009 step c): the knobs are constants there and the inputs are
-    # ignored by design, so the sweep has nothing to measure.
-    if os.environ.get("PUMICE_FPGA_SKU", "0") == "1":
-        pytest.skip("pick modes are build-time constants on the FPGA SKU (RUNTIME_PICK_MODES=0)")
+    # The FPGA SKU (the default) builds RUNTIME_PICK_MODES=0: the knobs are
+    # constants and the inputs are ignored by design, so the sweep only
+    # measures something in the research configuration.
+    if os.environ.get("PUMICE_RESEARCH_CFG", "0") != "1":
+        pytest.skip("needs the research configuration (PUMICE_RESEARCH_CFG=1): pick modes are constants on the FPGA SKU, the default")
     # BASE build (no PUMICE_ENHANCED): in_order is per-channel FIFO and
     # age_threshold uses the CAMs' registered flags (2026-09-09). Same
     # parked-victim sweep, so the base bitstream's order modes are covered.
@@ -2437,11 +2438,11 @@ def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_clos
 def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")
 def test_pumice_core_merge_ids(request):
-    # The cell asserts that same-id pairs DO merge. PUMICE_FPGA_SKU=1 builds
-    # the board SKU with WR_MERGE_EN = RD_MERGE_EN = 0 (memory-controllers
-    # MC-006), where zero merges is the specification, not a failure.
-    if os.environ.get("PUMICE_FPGA_SKU", "0") == "1":
-        pytest.skip("write/read combining is off on the FPGA SKU (PUMICE_FPGA_SKU=1)")
+    # The cell asserts that same-id pairs DO merge. The FPGA SKU (the default)
+    # builds WR_MERGE_EN = RD_MERGE_EN = 0, where zero merges is the
+    # specification; the cell runs in the research configuration.
+    if os.environ.get("PUMICE_RESEARCH_CFG", "0") != "1":
+        pytest.skip("needs the research configuration (PUMICE_RESEARCH_CFG=1): combining is off on the FPGA SKU, the default")
     _run(request, "cocotb_test_pumice_core_merge_ids")
 def test_pumice_core_b_stall(request): _run(request, "cocotb_test_pumice_core_b_stall")
 def test_pumice_core_perf_read_ceiling(request):
@@ -2458,11 +2459,11 @@ def test_pumice_core_perf_paging_sweep(request):
     _run(request, "cocotb_test_pumice_core_perf_paging_sweep")
 def test_pumice_core_perf_paging_sched_cross(request):
     # Sweeps the SCHED_POLICY pick knobs through the arbiter's CSR inputs.
-    # PUMICE_FPGA_SKU=1 builds RUNTIME_PICK_MODES=0 (memory-controllers
-    # MC-009 step c): the knobs are constants there and the inputs are
-    # ignored by design, so the sweep has nothing to measure.
-    if os.environ.get("PUMICE_FPGA_SKU", "0") == "1":
-        pytest.skip("pick modes are build-time constants on the FPGA SKU (RUNTIME_PICK_MODES=0)")
+    # The FPGA SKU (the default) builds RUNTIME_PICK_MODES=0: the knobs are
+    # constants and the inputs are ignored by design, so the sweep only
+    # measures something in the research configuration.
+    if os.environ.get("PUMICE_RESEARCH_CFG", "0") != "1":
+        pytest.skip("needs the research configuration (PUMICE_RESEARCH_CFG=1): pick modes are constants on the FPGA SKU, the default")
     _run(request, "cocotb_test_pumice_core_perf_paging_sched_cross", params_over=_FRFCFS, enhanced=True)
 
 # ---------------------------------------------------------------------------

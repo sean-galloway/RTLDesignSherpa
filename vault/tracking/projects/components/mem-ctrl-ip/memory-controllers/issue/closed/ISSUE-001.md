@@ -120,3 +120,15 @@ same 12 logic levels, 0.13 ns more route -- the placer landed the pick region
 differently once the CSR paths left its objective. That profile has now
 produced +0.003, 0.000, -0.023, -0.159 and -0.013 on five builds; it is a
 placement coin flip until row 15 shortens the loop.
+
+## Postscript 3 (2026-11-08 07:50): the FPGA SKU is the configuration
+
+Owner: "keep historical data for granite and pumice. however, we need to
+converge on the fpga sku from here on out." Every top-level default is now
+the SKU (pumice: combiners, snarf, narrow pack, runtime pick modes off;
+granite: store combiner and narrow pack off); the research configuration is
+the opt-in (`PUMICE_RESEARCH_CFG` / `GRANITE_RESEARCH_CFG` on the board and
+in simulation, `CHAR_RESEARCH_CFG` for the char framework). The default
+board builds reproduce the SKU builds byte for byte: pumice sys75 38,986 LUT
+/ +0.164, granite sys75 35,423 LUT / +0.750. Every dated `reports_*`
+directory from the research configuration stays committed as the history.

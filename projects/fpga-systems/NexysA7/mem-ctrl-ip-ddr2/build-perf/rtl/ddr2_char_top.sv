@@ -356,17 +356,19 @@ module ddr2_char_top #(
         .DUAL_ISSUE      (1'b1),
 `endif
         // FPGA SKU (memory-controllers MC-006, ISSUE-001 rows 3, 9, 12):
-        // `PUMICE_FPGA_SKU (create_project.tcl env PUMICE_FPGA_SKU=1) builds
-        // the board without the write/read combiners (TASK-060), the snarf
-        // read-your-write forward and the narrow-transfer pack -- the three
-        // same-cycle cones the 75 MHz review put at the top of the pumice
-        // failing-endpoint census. Unset, the research configuration builds.
-`ifdef PUMICE_FPGA_SKU
-        .WR_MERGE_EN     (1'b0),
-        .RD_MERGE_EN     (1'b0),
-        .HAS_SNARF       (1'b0),
-        .NARROW_EN       (1'b0),
-        .RUNTIME_PICK_MODES(1'b0),
+        // THE FPGA SKU IS THE CONFIGURATION (owner, 2026-11-08: "we need to
+        // converge on the fpga sku from here on out"). The macro's defaults are
+        // the SKU -- combiners, snarf, narrow pack and runtime pick modes off --
+        // so this top passes nothing for it. PUMICE_RESEARCH_CFG
+        // (create_project.tcl env PUMICE_RESEARCH_CFG=1) builds the research
+        // configuration with all of them on; the dated reports_* directories
+        // keep both histories. PUMICE_FPGA_SKU=1 is accepted and does nothing.
+`ifdef PUMICE_RESEARCH_CFG
+        .WR_MERGE_EN     (1'b1),
+        .RD_MERGE_EN     (1'b1),
+        .HAS_SNARF       (1'b1),
+        .NARROW_EN       (1'b1),
+        .RUNTIME_PICK_MODES(1'b1),
 `endif
 `ifdef PUMICE_SYS_100
         .FPGA_CLK_HZ     (100_000_000)  // sys = 100 MHz -> UART baud divisor (timing build)

@@ -69,7 +69,7 @@ module pumice_core
     // branches tie the LPDDR2 machinery off (231 LUT / 518 FF on the board,
     // mem-ctrl recovery Phase 3 report 5.10).
     parameter bit HAS_LPDDR2 = 1'b1,
-    parameter bit WR_MERGE_EN = 1'b1, // write combining in the wr CAM: two partial writes to one DRAM burst commit once (pumice TASK-060)
+    parameter bit WR_MERGE_EN = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1) // write combining in the wr CAM: two partial writes to one DRAM burst commit once (pumice TASK-060)
     // FPGA SKU knobs (memory-controllers MC-006, ISSUE-001 rows 3, 9, 12): the
     // snarf read-your-write forward and the narrow-transfer pack are AXI4
     // latency / generality features the DDR2 board never exercises; both sit
@@ -77,10 +77,10 @@ module pumice_core
     // failing set, narrow = the AW/AR rewrite through the host edge). Default
     // on so the research configuration is unchanged; the board build turns
     // them off with PUMICE_FPGA_SKU.
-    parameter bit HAS_SNARF   = 1'b1,
-    parameter bit NARROW_EN   = 1'b1,
-    parameter bit RUNTIME_PICK_MODES = 1'b1, // 0 on the FPGA SKU: the SCHED_POLICY pick knobs fold to their reset values (MC-009 c)
-    parameter bit RD_MERGE_EN = 1'b1, // read combining in the rd CAM: two reads of one unissued DRAM burst issue once, the ring returns it twice (pumice TASK-060)
+    parameter bit HAS_SNARF   = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit NARROW_EN   = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RUNTIME_PICK_MODES = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1) // 0 on the FPGA SKU: the SCHED_POLICY pick knobs fold to their reset values (MC-009 c)
+    parameter bit RD_MERGE_EN = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1) // read combining in the rd CAM: two reads of one unissued DRAM burst issue once, the ring returns it twice (pumice TASK-060)
     parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
     // DFI command CDC FIFO depth (mc_dfi_cdc CMD_DEPTH). It sits DOWNSTREAM
     // of the scheduler's fire, so a stall on its write side would be

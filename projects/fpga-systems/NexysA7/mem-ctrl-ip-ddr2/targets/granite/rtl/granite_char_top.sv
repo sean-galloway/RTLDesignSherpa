@@ -311,16 +311,17 @@ module granite_char_top #(
 `ifdef GRANITE_HAS_AGE
         .HAS_AGE            (`GRANITE_HAS_AGE),
 `endif
-        // GRANITE_FPGA_SKU (create_project.tcl env GRANITE_FPGA_SKU=1): the board
-        // SKU -- the FIFO-store combiner off (the review priced it at ~1,420 LUT
-        // and a cross-plane same-cycle cone; the board never shows a benefit)
-        // and the narrow-transfer pack off (the board never issues a narrow
-        // burst). Snarf and the pool age are already 0 in granite's defaults.
-        // Owner, 2026-11-08: "why doesn't granite have an fpga sku". Wins over
-        // the per-knob GRANITE_STORE_MERGE_EN define.
-`ifdef GRANITE_FPGA_SKU
-        .STORE_MERGE_EN     (1'b0),
-        .NARROW_EN          (1'b0),
+        // THE FPGA SKU IS THE CONFIGURATION (owner, 2026-11-08): the macro's
+        // defaults are the SKU -- the FIFO-store combiner off (~1,420 LUT and a
+        // cross-plane cone the board never shows a benefit for), the narrow
+        // pack off (the board never issues a narrow burst); snarf and the pool
+        // age were already 0. GRANITE_RESEARCH_CFG (create_project.tcl env
+        // GRANITE_RESEARCH_CFG=1) builds the research configuration with both
+        // on; it wins over the per-knob GRANITE_STORE_MERGE_EN define.
+        // GRANITE_FPGA_SKU=1 is accepted and does nothing.
+`ifdef GRANITE_RESEARCH_CFG
+        .STORE_MERGE_EN     (1'b1),
+        .NARROW_EN          (1'b1),
 `elsif GRANITE_STORE_MERGE_EN
         .STORE_MERGE_EN     (`GRANITE_STORE_MERGE_EN),
 `endif

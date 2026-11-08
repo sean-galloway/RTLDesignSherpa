@@ -1,10 +1,10 @@
 # memory-controllers — task lane
 
-**Next ID: MC-011** — never recycle a number.
+**Next ID: MC-012** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 2 | in progress right now |
 | [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -12,7 +12,10 @@
 
 ## Open
 
-(none)
+- **MC-011** -- timing is predictable or it is not closed: the 0.2 ns
+  clock-uncertainty budget in both board XDCs, the three-directive placement
+  sweep, and structural margin for pumice's fire-stage readiness cone and
+  granite's bank-pick select loop. Filed 2026-11-08.
 
 ## Active
 

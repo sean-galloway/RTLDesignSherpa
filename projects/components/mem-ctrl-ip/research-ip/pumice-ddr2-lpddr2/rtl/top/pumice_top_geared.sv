@@ -73,11 +73,11 @@ module pumice_top_geared
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
     // FPGA SKU knobs (pumice_top -> pumice_core; memory-controllers MC-006)
-    parameter bit WR_MERGE_EN    = 1'b1,
-    parameter bit RD_MERGE_EN    = 1'b1,
-    parameter bit HAS_SNARF      = 1'b1,
-    parameter bit NARROW_EN      = 1'b1,
-    parameter bit RUNTIME_PICK_MODES = 1'b1,
+    parameter bit WR_MERGE_EN    = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RD_MERGE_EN    = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit HAS_SNARF      = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit NARROW_EN      = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RUNTIME_PICK_MODES = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
     // Ocelus observability (passed to pumice_top; MON_* CSRs at 0x200)
     parameter bit          HAS_MON        = 1'b0,
     parameter int          MON_ACLK_MHZ   = 100,

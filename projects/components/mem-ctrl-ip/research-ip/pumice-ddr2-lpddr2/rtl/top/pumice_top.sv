@@ -41,11 +41,11 @@ module pumice_top
     parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
     // FPGA SKU knobs (pumice_core; memory-controllers MC-006): combiners,
     // snarf and the narrow pack, all default on (research configuration).
-    parameter bit WR_MERGE_EN    = 1'b1,
-    parameter bit RD_MERGE_EN    = 1'b1,
-    parameter bit HAS_SNARF      = 1'b1,
-    parameter bit NARROW_EN      = 1'b1,
-    parameter bit RUNTIME_PICK_MODES = 1'b1,
+    parameter bit WR_MERGE_EN    = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RD_MERGE_EN    = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit HAS_SNARF      = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit NARROW_EN      = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RUNTIME_PICK_MODES = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
     parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
     parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
     parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output

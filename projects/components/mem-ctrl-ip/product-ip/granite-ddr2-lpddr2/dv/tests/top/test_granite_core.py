@@ -634,9 +634,10 @@ def _core_params():
             "BANK_EVT_REG": os.environ.get("GRANITE_BANK_EVT_REG", "1"),
             "BANK_CAP_MIXED": os.environ.get("GRANITE_BANK_CAP_MIXED", "6"),
             "HAS_AGE": os.environ.get("GRANITE_HAS_AGE", "0"),
-            # GRANITE_FPGA_SKU=1 runs the board SKU: store combiner and narrow pack off
-            "STORE_MERGE_EN": "0" if os.environ.get("GRANITE_FPGA_SKU", "0") == "1" else os.environ.get("GRANITE_STORE_MERGE_EN", "1"),
-            "NARROW_EN": "0" if os.environ.get("GRANITE_FPGA_SKU", "0") == "1" else os.environ.get("GRANITE_NARROW_EN", "1"),
+            # The FPGA SKU is the default (store combiner and narrow pack off, 2026-11-08);
+            # GRANITE_RESEARCH_CFG=1 runs the research configuration with both on.
+            "STORE_MERGE_EN": "1" if os.environ.get("GRANITE_RESEARCH_CFG", "0") == "1" else os.environ.get("GRANITE_STORE_MERGE_EN", "0"),
+            "NARROW_EN": "1" if os.environ.get("GRANITE_RESEARCH_CFG", "0") == "1" else os.environ.get("GRANITE_NARROW_EN", "0"),
             "PP_TIMEOUT_CLOSE": os.environ.get("GRANITE_PP_TIMEOUT_CLOSE", "1"),
             "DFI_CMD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_CMD_FIFO_DEPTH", "4"),
             "DFI_WD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_WD_FIFO_DEPTH", "16"),
@@ -680,9 +681,9 @@ def test_granite_core(request, test_level):
 @pytest.mark.parametrize("size", [0, 1, 2, 3, 4])
 def test_granite_core_narrow(request, size):
     # Narrow (AxSIZE below the bus) bursts need the narrow-transfer pack, which
-    # GRANITE_FPGA_SKU=1 builds out (NARROW_EN = 0): the board never issues one.
-    if os.environ.get("GRANITE_FPGA_SKU", "0") == "1":
-        pytest.skip("narrow pack is off on the FPGA SKU (GRANITE_FPGA_SKU=1)")
+    # the FPGA SKU (the default) builds out: the board never issues one.
+    if os.environ.get("GRANITE_RESEARCH_CFG", "0") != "1":
+        pytest.skip("needs the research configuration (GRANITE_RESEARCH_CFG=1): the narrow pack is off on the FPGA SKU, the default")
     """granite TASK-007: narrow INCR beats at every legal AxSIZE on the 128-bit host."""
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "granite_core"

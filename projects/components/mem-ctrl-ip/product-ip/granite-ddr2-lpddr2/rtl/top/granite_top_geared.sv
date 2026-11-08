@@ -57,8 +57,8 @@ module granite_top_geared
     parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter bit BANK_EVT_REG      = 1'b1, // bank timer counters load one register after the pick's fire strobe (TASK-003 100 MHz; readiness exact); 0 = the live load
-    parameter bit STORE_MERGE_EN    = 1'b1, // FIFO-store combining (TASK-006, default ON); 0 = none
-    parameter bit NARROW_EN         = 1'b1, // 0 on the FPGA SKU (GRANITE_FPGA_SKU)
+    parameter bit STORE_MERGE_EN    = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; GRANITE_RESEARCH_CFG=1 builds the research value (1) // FIFO-store combining (TASK-006, default ON); 0 = none
+    parameter bit NARROW_EN         = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; GRANITE_RESEARCH_CFG=1 builds the research value (1) // 0 on the FPGA SKU (GRANITE_FPGA_SKU)
     // Ocelus observability (mc_ocelus_plane in the core; MON_* CSRs at 0x200)
     parameter bit          HAS_MON        = 1'b0,
     parameter int          MON_ACLK_MHZ   = 100,

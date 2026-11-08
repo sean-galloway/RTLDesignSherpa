@@ -33,11 +33,11 @@ module ddr2_char_uart_tb_top
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // -G from DV: pumice close-on-drain A/B (TASK-044)
     parameter bit DUAL_ISSUE      = 1'b0, // -G from DV: pumice scheduler row lane (TASK-047)
     // -G from DV (CHAR_FPGA_SKU=1): pumice FPGA SKU knobs, all off on the board SKU (MC-006)
-    parameter bit WR_MERGE_EN     = 1'b1,
-    parameter bit RD_MERGE_EN     = 1'b1,
-    parameter bit HAS_SNARF       = 1'b1,
-    parameter bit NARROW_EN       = 1'b1,
-    parameter bit RUNTIME_PICK_MODES = 1'b1,
+    parameter bit WR_MERGE_EN     = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RD_MERGE_EN     = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit HAS_SNARF       = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit NARROW_EN       = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RUNTIME_PICK_MODES = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,

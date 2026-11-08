@@ -36,11 +36,11 @@ module pumice_core_tb_top
     parameter bit CLOSE_ON_DRAIN = 1'b1, // -G from DV: pumice close-on-drain A/B (TASK-044)
     parameter bit DUAL_ISSUE     = 1'b0, // -G from DV: build the row lane (TASK-047)
     // -G from DV (PUMICE_FPGA_SKU=1): the board SKU's build knobs, all off there (memory-controllers MC-006)
-    parameter bit WR_MERGE_EN    = 1'b1,
-    parameter bit RD_MERGE_EN    = 1'b1,
-    parameter bit HAS_SNARF      = 1'b1,
-    parameter bit NARROW_EN      = 1'b1,
-    parameter bit RUNTIME_PICK_MODES = 1'b1,
+    parameter bit WR_MERGE_EN    = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RD_MERGE_EN    = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit HAS_SNARF      = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit NARROW_EN      = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RUNTIME_PICK_MODES = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,

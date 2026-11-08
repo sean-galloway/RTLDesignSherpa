@@ -64,11 +64,11 @@ module ddr2_char_macro
     parameter bit DFI_CDC_EN      = 1'b0,
     // FPGA SKU knobs (memory-controllers MC-006): the board top sets all four
     // off under PUMICE_FPGA_SKU; the sim TB keeps the research defaults.
-    parameter bit WR_MERGE_EN     = 1'b1,
-    parameter bit RD_MERGE_EN     = 1'b1,
-    parameter bit HAS_SNARF       = 1'b1,
-    parameter bit NARROW_EN       = 1'b1,
-    parameter bit RUNTIME_PICK_MODES = 1'b1,
+    parameter bit WR_MERGE_EN     = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RD_MERGE_EN     = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit HAS_SNARF       = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit NARROW_EN       = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RUNTIME_PICK_MODES = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // pumice: last same-row column carries auto-precharge (TASK-044; 0 = the BUG-027-era A/B)
     parameter bit DUAL_ISSUE      = 1'b0, // pumice: build the scheduler's row lane (TASK-047); runtime SCHED_POLICY.dual_issue
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)

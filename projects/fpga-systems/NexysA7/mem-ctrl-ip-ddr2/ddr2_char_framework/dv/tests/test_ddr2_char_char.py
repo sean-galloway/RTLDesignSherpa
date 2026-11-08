@@ -672,11 +672,11 @@ def _run(request, testcase: str, dfi_rate: int = 2, dram_beat_width: int = 32,
         testcase=testcase,
         parameters={"UART_BAUD": str(UART_BAUD),
                     "FPGA_CLK_HZ": str(FPGA_CLK_HZ),
-                    # CHAR_FPGA_SKU=1: the board's FPGA SKU (memory-controllers
+                    # CHAR_RESEARCH_CFG=1: the research configuration (the FPGA SKU is the default since 2026-11-08; memory-controllers
                     # MC-006): write/read combiners, the snarf forward and the
                     # narrow pack all off. Unset = the research configuration.
-                    **({"WR_MERGE_EN": "0", "RD_MERGE_EN": "0", "HAS_SNARF": "0", "NARROW_EN": "0", "RUNTIME_PICK_MODES": "0"}
-                       if os.environ.get("CHAR_FPGA_SKU", "0") == "1" else {}),
+                    **({"WR_MERGE_EN": "1", "RD_MERGE_EN": "1", "HAS_SNARF": "1", "NARROW_EN": "1", "RUNTIME_PICK_MODES": "1"}
+                       if os.environ.get("CHAR_RESEARCH_CFG", "0") == "1" else {}),
                     "DFI_RATE": str(dfi_rate),
                     "DRAM_BEAT_WIDTH": str(dram_beat_width),
                     "DRAM_DEVICE_WIDTH": str(dram_device_width),

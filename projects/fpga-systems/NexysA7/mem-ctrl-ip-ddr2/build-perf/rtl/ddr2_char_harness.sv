@@ -39,11 +39,11 @@ module ddr2_char_harness
     // pumice FPGA SKU knobs (memory-controllers MC-006): combiners, snarf
     // forward, narrow pack. Default on (research configuration); the board
     // top sets all four off under PUMICE_FPGA_SKU, the sim under CHAR_FPGA_SKU.
-    parameter bit WR_MERGE_EN     = 1'b1,
-    parameter bit RD_MERGE_EN     = 1'b1,
-    parameter bit HAS_SNARF       = 1'b1,
-    parameter bit NARROW_EN       = 1'b1,
-    parameter bit RUNTIME_PICK_MODES = 1'b1,
+    parameter bit WR_MERGE_EN     = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RD_MERGE_EN     = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit HAS_SNARF       = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit NARROW_EN       = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
+    parameter bit RUNTIME_PICK_MODES = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter int NUM_GEN         = 4,    // injectors per direction in char_gen_unit (<= NUM_BANKS); the top sets it (CHAR_NUM_GEN build knob, TASK-043)
     parameter int HIST_T_RFC_CORE = 0,

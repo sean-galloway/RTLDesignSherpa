@@ -352,9 +352,10 @@ def test_granite_top_geared(request, test_level, num_entries, many):
               "BANK_EVT_REG": os.environ.get("GRANITE_BANK_EVT_REG", "1"),
               "BANK_CAP_MIXED": os.environ.get("GRANITE_BANK_CAP_MIXED", "6"),
               "HAS_AGE": os.environ.get("GRANITE_HAS_AGE", "0"),
-              # GRANITE_FPGA_SKU=1 runs the board SKU: store combiner and narrow pack off
-            "STORE_MERGE_EN": "0" if os.environ.get("GRANITE_FPGA_SKU", "0") == "1" else os.environ.get("GRANITE_STORE_MERGE_EN", "1"),
-            "NARROW_EN": "0" if os.environ.get("GRANITE_FPGA_SKU", "0") == "1" else os.environ.get("GRANITE_NARROW_EN", "1"),
+              # The FPGA SKU is the default (store combiner and narrow pack off, 2026-11-08);
+            # GRANITE_RESEARCH_CFG=1 runs the research configuration with both on.
+            "STORE_MERGE_EN": "1" if os.environ.get("GRANITE_RESEARCH_CFG", "0") == "1" else os.environ.get("GRANITE_STORE_MERGE_EN", "0"),
+            "NARROW_EN": "1" if os.environ.get("GRANITE_RESEARCH_CFG", "0") == "1" else os.environ.get("GRANITE_NARROW_EN", "0"),
               "PP_TIMEOUT_CLOSE": os.environ.get("GRANITE_PP_TIMEOUT_CLOSE", "1"),
               "DFI_CMD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_CMD_FIFO_DEPTH", "4"),
               "DFI_WD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_WD_FIFO_DEPTH", "16"),
