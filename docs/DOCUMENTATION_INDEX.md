@@ -54,8 +54,8 @@ Practical how-tos for DOING something:
   debugging descriptor engines with waveforms
 - **[HOW_TO_ADD_WAVES_SUPPORT.md](user-guides/HOW_TO_ADD_WAVES_SUPPORT.md)** -
   adding waveform capture to tests (update pending)
-- **[GAXI_WAVEDROM_GUIDE.md](../bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md)** -
-  WaveDrom capture and signal binding (lives with the tooling)
+- **[GAXI WaveDrom tutorial](markdown/TestTutorial/wavedrom_gaxi_example.md)** -
+  WaveDrom capture and signal binding
 
 ---
 

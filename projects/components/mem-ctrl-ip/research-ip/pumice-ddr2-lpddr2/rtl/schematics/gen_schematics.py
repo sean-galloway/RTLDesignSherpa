@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Mux-level schematics for the pumice RTL parts (Yosys + netlistsvg -> PNG).
 
-Flow per module, following bin/mux-level-schematics.md:
+Flow per module:
 
     filelist (its exact compile closure)
       -> sv2v flatten        (Yosys's SV frontend chokes on pumice_pkg;
-                              the doc's documented fallback, same as formal)
+                              the fallback, same as formal)
       -> yosys, stop after `proc`   (always-blocks -> $mux/$pmux/$dff, memories
                                      as boxes -- NO flatten/techmap/abc/opt)
       -> netlistsvg + ELK    -> SVG

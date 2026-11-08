@@ -37,5 +37,6 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[silent-fallbacks]] - why almost every wrong DV conclusion is something that did not happen without saying so
 - [[structure-trackers]] - passive per-FUB monitors emitting one greppable table each, so a decision can be followed across structures; they rot silently on RTL renames, so validate content not existence
 - [[wavedrom-generators]] - the deliverable is the JSON, so empty = FAIL; the clock-group-name and add_interface-prefix traps; the gaxi reference
+- GAXI WaveDrom tutorial - the six-scenario skid-buffer walk-through (segmented capture, auto-binding, groups, arrows) is reader-facing and lives in the TestTutorial book: [wavedrom_gaxi_example.md](../../../docs/markdown/TestTutorial/wavedrom_gaxi_example.md)
 - [[register-testing]] - walk every register before anything is programmed; if the registers do not work, nothing above them can
 - [[bisecting-a-sim-regression]] - `git bisect run` against a cocotb suite: the 125 contract, pinning the harness, and why a pass and a failure have different runtimes

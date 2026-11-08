@@ -21,8 +21,8 @@ part of that move. Each needs a decision.
 
 | File | Lines | First read |
 |---|---|---|
-| `bin/mux-level-schematics.md` | 679 | method guide; likely a handbook note |
-| `bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md` | 563 | DV how-to; likely `dv/` beside `wavedrom-generators` |
+| `bin/mux-level-schematics.md` | 679 | DONE 2026-11-07: deleted (Sean) |
+| `bin/TBClasses/wavedrom_user/GAXI_WAVEDROM_GUIDE.md` | 563 | DONE 2026-11-07: it was only a symlink to `docs/markdown/TestTutorial/wavedrom_gaxi_example.md`, a chapter of the TestTutorial book linked from 6 pages; symlink deleted, DOCUMENTATION_INDEX and the dv INDEX point at the book chapter |
 | `bin/rtl_generators/bf16/README.md` | 373 | generator guide |
 | `bin/svsherpa/README.md` | 213 | tool guide |
 | `bin/TBClasses/apb4_monitor/apb4_monitor_readme.md` | 148 | BFM usage |
