@@ -37,3 +37,31 @@ took `bridge_mix_e` to -0.669 ns, and saved about 2k LUTs on each.*
 
 Clock targets are a band, not a number: 60-100 MHz acceptable on
 characterization builds - take the clean closure (owner rule).
+
+## Closure is margin beyond the placement spread, not a WNS near zero (2026-11-08)
+
+Owner: "the config placement should not be a coin flip. We must be able to
+predict the timing." The case: granite's 100 MHz profile landed at +0.003,
+0.000, -0.023, -0.159 and -0.013 ns on five builds of near-identical logic,
+and each was reported as "closes" or "fails" by the sign. That is reading
+the tool's noise. The same netlist moves within a band across placer runs;
+on the Nexys A7 DDR2 builds the band measured about 0.2 ns (pumice sys75
+SKU +0.083 .. +0.230, granite sys100 as above).
+
+Rules:
+- The band is PAID FOR IN THE CONSTRAINT: `set_clock_uncertainty -setup
+  0.200` on the system clock in both board XDCs. A report is closed only
+  when WNS >= 0 under it. A design that then lands at zero has no margin
+  and the next placement will flip it; the fix is structural (shorten the
+  binding cone), never another build.
+- The band is RE-MEASURED, not assumed: the flow takes `PLACE_DIRECTIVE`
+  (AltSpreadLogic_high default, ExtraTimingOpt, Explore); three builds of
+  the same netlist give the band, and the kept `reports_*_budget_*`
+  directories are where it is written down. When the band grows past the
+  budget, the budget follows it.
+- Write "closes by X ns under the 0.2 ns budget", never "closes" alone.
+
+What this made of two of the night's results: pumice sys75 FPGA SKU at
++0.083 .. +0.230 is at the edge of the budget, not comfortably closed;
+granite sys100 is not closed at all and its binding cone is the bank pick's
+hold / select loop (MC-010 row 15). Both are tracked in MC-011.

@@ -317,6 +317,20 @@ set_false_path -from [get_cells -hierarchical -regexp \
 set_false_path -from [get_cells -hierarchical -regexp \
     {.*u_harness_csr/r_(ctrlr_cfg|ctrlr_cap|dfi_tuning|rd_resp_delay_cyc|wr_resp_delay_cyc|timer_expected_beats|obs_hist_sel)_reg.*}]
 
+
+##==============================================================================
+## Timing budget: the placement spread is paid for in the constraint, not in
+## the reading of the report (owner, 2026-11-08: "the config placement should
+## not be a coin flip. We must be able to predict the timing"). On this board
+## the same netlist has landed within a 0.2 ns band of WNS across placer runs
+## (granite sys100: +0.003 .. -0.159; pumice sys75 SKU: +0.083 .. +0.230). A
+## report is "closed" only when WNS >= 0 UNDER this uncertainty, i.e. with the
+## spread already subtracted; a design that lands at zero here has no margin
+## and the fix is structural, not another placement. The directive sweep in
+## the tracker (PLACE_DIRECTIVE) is how the band is re-measured.
+##==============================================================================
+set_clock_uncertainty -setup 0.200 [get_clocks -of_objects [get_pins u_mmcm/CLKOUT0]]
+
 ##==============================================================================
 ## End of ddr2_char_top.xdc
 ##==============================================================================

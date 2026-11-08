@@ -4,21 +4,21 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 2 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 3 | in progress right now |
 | [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-- **MC-011** -- timing is predictable or it is not closed: the 0.2 ns
-  clock-uncertainty budget in both board XDCs, the three-directive placement
-  sweep, and structural margin for pumice's fire-stage readiness cone and
-  granite's bank-pick select loop. Filed 2026-11-08.
 
 ## Active
 
+- **MC-011** -- the 0.2 ns clock-uncertainty budget is in both board XDCs;
+  sweep 1: pumice sys75 closes by 0.100 under budget on the worst of three
+  placements, granite sys75 by 0.817, granite sys100 does not close (-0.335
+  worst, the bank-pick select loop). Open work: the two cones. Active 2026-11-08.
 - **MC-004** -- two-register `gaxi_skid_buffer`, no data reset, no shift
   (ISSUE-001 row 1; ~3k LUT chip-wide). Started 2026-11-06.
 - **MC-005** -- storage arrays out of `ALWAYS_FF_RST` into reset-free

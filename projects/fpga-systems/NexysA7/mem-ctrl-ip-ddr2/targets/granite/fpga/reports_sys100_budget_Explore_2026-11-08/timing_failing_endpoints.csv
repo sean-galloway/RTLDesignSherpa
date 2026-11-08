@@ -1,0 +1,10 @@
+slack_ns,levels,startpoint,endpoint
+-0.019,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_req_reg[2]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_pick_cls_reg[0]/D
+-0.016,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt/r_rp_reg[0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[5].u_bt/r_open_row_reg[10]/CE
+-0.016,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt/r_rp_reg[0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[5].u_bt/r_open_row_reg[12]/CE
+-0.016,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt/r_rp_reg[0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[5].u_bt/r_open_row_reg[1]/CE
+-0.016,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt/r_rp_reg[0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[5].u_bt/r_open_row_reg[2]/CE
+-0.016,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt/r_rp_reg[0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[5].u_bt/r_open_row_reg[4]/CE
+-0.016,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt/r_rp_reg[0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[5].u_bt/r_open_row_reg[5]/CE
+-0.016,10,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt/r_rp_reg[0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[5].u_bt/r_open_row_reg[8]/CE
+-0.003,11,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt/r_rp_reg[0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[2].u_bt/r_ap_pending_reg/D
