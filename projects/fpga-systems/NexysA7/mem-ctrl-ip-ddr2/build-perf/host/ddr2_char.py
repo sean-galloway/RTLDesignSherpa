@@ -573,15 +573,26 @@ class DDR2CharDriver:
                            memtype:     int = MEMTYPE_DDR2,
                            t_phy_wrlat: int = 0,
                            t_rddata_en: int = 0,
-                           rd_in_order: bool = False) -> None:
+                           rd_in_order: bool = False,
+                           rddata_delay: Optional[int] = None) -> None:
         """Program the controller's PHY timing + read ordering by name on the
         pumice controller CSR (bridge ddr2_apb window). The rearchitected
         controller no longer takes these as harness signals — config is
-        CSR-driven, so this must land BEFORE init is released."""
+        CSR-driven, so this must land BEFORE init is released.
+
+        `rddata_delay`, when given, is programmed in the same step (DFI_TUNING,
+        after the PHY timing) so the pair moves as a unit and the diagonal
+        check below sees the pair that traffic will run on. Written in two
+        calls, the check saw the intermediate (new t_rddata_en, old
+        rddata_delay) and warned once per char profile about a state no read
+        ever ran on (every 75 and 100 MHz char log before 2026-11-09)."""
         self.pumice.set_phy_timing(memtype=memtype, t_phy_wrlat=t_phy_wrlat,
                                    t_rddata_en=t_rddata_en)
         self._t_rddata_en = t_rddata_en
-        self._warn_off_diagonal()
+        if rddata_delay is not None:
+            self.set_dfi_rddata_delay(rddata_delay)   # checks the final pair
+        else:
+            self._warn_off_diagonal()
         # rd_in_order is the HARNESS CTRLR_CFG bit (the check engine's R
         # ordering); the controller's ordering is set_sched_policy().
 

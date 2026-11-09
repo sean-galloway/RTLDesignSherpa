@@ -497,17 +497,19 @@ class ControllerConfig:
             return
         # rd_in_order + the DFI latencies live on the harness CTRLR_CFG (one
         # non-rmw write, so always send the known-good latencies with it).
+        # The read-path pair (t_rddata_en, rddata_delay) goes out as a unit:
+        # soft_reset clears the alignment, a read one cycle off valid
+        # mismatches 100%, and the driver's diagonal check must see the pair
+        # traffic will run on, not the half-written one.
         drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
                                t_phy_wrlat=self.t_phy_wrlat,
                                t_rddata_en=self.t_rddata_en,
-                               rd_in_order=self.rd_in_order)
-        # Program the read-capture alignment every scenario for the same
-        # reason as the latencies above: soft_reset clears it, and a read
-        # one cycle off valid mismatches 100%.
+                               rd_in_order=self.rd_in_order,
+                               rddata_delay=self.rddata_delay)
+        # Program the read-capture phase every scenario for the same reason.
         row_phase = self.row_phase if (self.dual_issue or self.row_phase_set) else None
         drv.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=self.wr_phase,
                           row_phase=row_phase)
-        drv.set_dfi_rddata_delay(self.rddata_delay)
         drv.set_dfi_cmd_delay(self.cmd_delay)
         # JEDEC timings BEFORE the per-config refresh override below, so a
         # config's deliberate t_refi (the *_refresh pair) still wins.
