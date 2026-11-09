@@ -535,6 +535,20 @@ the untried candidate is rIC3 (HWMCC'24/'25 bit-level gold), which this
 sby already drives as `aiger rIC3` once the binary is on PATH or `RIC3`
 points at it.*
 
+*The boolector BMC itself was then measured to the end, 2026-11-08/09, on
+that same post-review `amber_control` flat: depth 126 does not complete.
+Per-step cost roughly doubles every 2-3 steps past ~45 (step 48 done at
+4h29m, 50 at 8h37m, 53 at 26h06m, step 54 still open at 30h40m when it was
+stopped); steps 0-53 passed. The committed depth is now 48, labelled in the
+.sby as a budget bound, with the ~113-step derived poison arc recorded as
+NOT covered by BMC on this model. The pre-review model did depth 126 in
+~68 min; the review's RAM-shaped victim line and data array are the only
+model change in between, so a RAM store under `memory_map` is the first
+suspect when a proof that used to finish stops finishing. Lesson: a depth
+chosen for an old model is a measurement, not a property of the design --
+re-time the proof whenever the flat changes shape, and say in the .sby
+which kind of bound the depth is.*
+
 *Later that day, riscv-formal on kestrel: removing the register file's reset
 (an unconstrained initial array) left z3 on `liveness` (depth 30) for over
 30 min where the whole 42-check suite had taken 8; `solver bitwuzla` in

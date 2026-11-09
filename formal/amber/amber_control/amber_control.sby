@@ -3,14 +3,22 @@ prove
 cover
 
 [options]
-# BMC depth 126: derived worst-case poison arc ~113 (init 18 + install ~29
-# + invalidating snoop ~6 + poisoned lookup, PLUS snoop detours the depth-60
-# estimate ignored -- that estimate was under-derived and is UNSOUND for the
-# poison claim) + ~11% margin. The tag model's SMT store chains make depth
-# 126 cost ~68 min with memory_map (seconds for the model-free liveness
-# proof in amber_control_live.sby). See task-13 report, safety depth split.
+# BMC depth 48, a BUDGET bound, not a derived one. The derived worst-case
+# poison arc is ~113 steps (init 18 + install ~29 + invalidating snoop ~6 +
+# poisoned lookup, plus the snoop detours the old depth-60 estimate ignored;
+# that estimate was under-derived and is UNSOUND for the poison claim), and
+# the committed depth was 126 (~11% margin) while the model cost ~68 min at
+# that depth. After the 2026-11 FPGA review (victim line as a RAM, block-RAM
+# data array, REPLICATED_OUT reset) the same boolector BMC on the same flat
+# shows per-step cost that roughly doubles every 2-3 steps past ~45:
+# step 48 done at 4h29m, 50 at 8h37m, 53 at 26h06m, and step 54 was still
+# open at 30h40m when the run was stopped (2026-11-09). Steps 0-53 all passed.
+# Depth 48 is the deepest bound that completes in half a working day; the
+# ~113-step arc is NOT covered by BMC on this model and needs an unbounded
+# engine (abc pdr and aiger suprove both time out here; rIC3 untried -- see
+# vault/handbook/dv/formal.md).
 prove: mode bmc
-prove: depth 126
+prove: depth 48
 cover: mode cover
 # 80: all seven covers are witnessed by step 49 (deepest: cp_detour_drain
 # @49); 80 leaves margin without paying for the tag store chains.
