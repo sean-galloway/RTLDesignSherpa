@@ -1,6 +1,6 @@
 # granite vs LiteDRAM, the full sweep (owner's request, 2026-10-29)
 
-## Update 2026-11-09: the FPGA SKU closes 100 MHz under the budget; its size against LiteDRAM; the board at 100 MHz is down
+## Update 2026-11-09: the FPGA SKU closes 100 MHz under the budget; its size and performance against LiteDRAM at 100 and 75 MHz
 
 Owner, 2026-11-08: "get granite to converge at 100mhz. compare its size and
 performance to litedram." Granite is the FPGA SKU since ace471566 (store
@@ -50,26 +50,57 @@ RAMs):
   research configuration; the SKU drops only the combiner the board never
   showed a benefit for).
 
-**Performance at 100 MHz: not measured today.** The SKU bitstream was
-programmed for the eight-profile run (`char_granite_sku100_*_2026-11-09`)
-and the board did not come up: a7ddrphy read leveling found no (bitslip,
-tap) eye through the controller and write_read mismatched 512 of 512 beats.
-The same under today's host for: the flow's own Explore bitstream (+0.002),
-the base bitstream (821b5c164, before this work), HEAD in the research
-configuration, and a worktree build of c38f80c9e -- the 2026-11-02 design
-that ran at 100 MHz on this board then. On the same board, same host, same
-hour: pumice sys75 (current tree) init + write_read PASS, **granite sys75 on
-the final RTL init + write_read PASS**, the 2026-11-02 bitstream under the
-2026-11-02 host FAIL, and **LiteDRAM's own 100 MHz bitstream
-(`litedram_char_100mhz_2026-10-31.bit`) init_done and 708-760 MB/s on the
-incremental cells**. So the board, the DRAM and the PHY work at 100 MHz; the
-granite controller works on the board; the granite harness at 100 MHz is
-what fails, for every design built today -- granite ISSUE-002 has the matrix
-and the leads (PHY-domain placement margin first). The 100 MHz comparison
-follows it; the 75 MHz board point is where the final RTL is measured today
-(`char_granite_sku75_<profile>_2026-11-09.csv` against LiteDRAM's `sweep75`
-set of 2026-10-29), and the 2026-11-01 100 MHz tables below stand as the last
-measured 100 MHz comparison.
+**Performance at 100 MHz, measured today** on the SKU bitstream
+(`ddr2_char_granite_sku100_2026-11-09.bit`, +0.147 ns under the budget; eight
+profiles at `--txn-scale 4000`, 184 cells, **0 mismatched beats**) against
+LiteDRAM's 100 MHz set of 2026-10-31 (`hx100`,
+`litedram_char_100mhz_2026-10-31.bit`), peak 800 MB/s each direction. Tally
+over the 60 shared cells (best granite preset, max of write / read, a tie is
+within 2 percent): **37 win, 23 tie, 0 lose**. Per-profile tables:
+`compare_granite_sku100_vs_litedram_hx100_2026-11-09.md`.
+
+The first attempt that morning did not come up: a7ddrphy read leveling found
+no (bitslip, tap) eye and write_read mismatched 512 of 512 beats, on every
+granite design built that day, while LiteDRAM's own 100 MHz bitstream and
+granite at 75 MHz ran on the same board in the same hour. That was the host.
+Its default read-path pair is the 75 MHz one (rddata_delay = t_rddata_en + 1);
+at 100 MHz the a7ddrphy's data-vs-valid offset is 0, and that pair had only
+ever reached the board through `TEST_*` environment variables (granite
+TASK-003, 2026-10-29), which the morning's runs did not export. With the data
+a whole cycle off its valid no bitslip or tap passes. Fixed in 7fa9034b6: the
+host derives the pair and the JEDEC timings from the bitstream's
+`BUILD_CLK_HZ`, leveling falls back over the offsets and names an off-table
+eye. granite ISSUE-002 (closed) has the matrix, its two errors and the fix;
+nothing in the RTL, the SKU parameters, the false paths or the budget was
+involved.
+
+| cell (write / read MB/s, 100 MHz) | granite SKU, power-on (2026-11-09) | granite research, open_page (2026-10-31) | LiteDRAM (2026-10-31) |
+|---|---|---|---|
+| incremental, 16-beat | 772 / 773 | 772 / 775 | 746 / 756 |
+| row_major, 8-beat | 775 / 778 | 775 / 778 | 766 / 776 |
+| col_major, 8-beat | 416 / 520 | 416 / 520 | 409 / 518 |
+| col_major_interleaved, 16-beat | 721 / 729 | 729 / 732 | 500 / 507 |
+| half_pair, 1 thread | 386 / 387 | 393 / 368 | 324 / 383 |
+| half_pair, 8 threads | 380 / 380 | 385 / 388 | 94 / 95 |
+| random window, 4 threads | 628 / 657 | 635 / 662 | 383 / 397 |
+| mixed window, 4 threads | 251 / 283 | 205 / 202 | 159 / 159 |
+| row_thrash window, 4 threads | 688 / 688 | 688 / 688 | 364 / 368 |
+| concurrent 1 writer + 1 reader, incremental | 369 / 369 | 369 / 369 | 167 / 167 |
+| multigen, incremental | 192 / 383 | 192 / 383 | 126 / 252 |
+
+Against the 2026-10-31 granite at the same clock (research configuration,
+before the direction ownership of 2026-11-01), the SKU is within 2 percent on
+51 of the 60 cells, ahead on two (the mixed window 330 against 205 on its best
+preset, 1.6x, and the concurrent interleaved column walk 318 against 269) and
+2.3 percent under on seven: every threaded half-pair cell reads 380 against
+389 MB/s, the one place the dropped features (store combiner, narrow pack,
+pool age) show at all. Against LiteDRAM the picture is the 75 MHz one scaled
+to the faster clock: single-stream cells are the DRAM's own ceiling for both
+(incremental and row_major at 96-97 percent of 800 MB/s, a 1.00-1.03x tie or
+near-tie; col_major and the gapped half-pair sweeps tie exactly), and
+anything that keeps more than one bank busy is granite's (interleaved column
+walks 1.4-2.5x, threaded half-pairs 4.0x, windows 1.7-2.1x, concurrent
+1.4-2.2x, multigen 1.2-1.8x).
 
 **Performance at 75 MHz, the board point, measured today** on the final RTL
 (`ddr2_char_granite_sku75_2026-11-09.bit`, +1.338 ns under the budget; eight
