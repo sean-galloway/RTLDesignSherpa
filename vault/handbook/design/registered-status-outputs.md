@@ -101,3 +101,34 @@ counter that is nonzero, or a registered "pending" flag).
 starvations with a one-credit receiver (payload: 0 starved cycles, age 11 us);
 only the FULL grid's CXS_MAX_CREDIT=1 cell exposed it. `axis_monitor_lite`'s
 stall timeout was already guarded by `r_valid_pend`.*
+
+## The same algebra cuts the ROOT of a cone: register the compare, not the count (2026-11-08)
+
+The rule above is about correctness (sample the next state). The algebraic
+form it recommends -- `next(c) == 0 <=> event ? (reload == 0) : (c <= 1)` --
+is also the cheapest way to take a compare OFF the head of a critical cone
+without changing a single cycle. memory-controllers MC-011 (granite, 100 MHz,
+0.2 ns placement budget) applied it three times; the fire-cone paths it fixed
+all began with 3 LUTs and ~2.5 ns of wire between a bank-timer counter flop
+and the pick's fire stage, before the search had even started.
+
+- `mc_bank_timer` (`ZF_REG`): the five zero-detects and five "within LA"
+  compares, and the three auto-precharge lookahead sums, are flops fed from
+  the counters' next values. With `SET_LAG` the strobes are registers, so
+  every D input is register-only; the readiness outputs become one LUT from
+  flops (`row_valid & z & !pending & !ap`). The pending-strobe mask stays
+  OUTSIDE the flag: readiness one cycle after a fire must see the fire, and
+  that term is the one place the strobe is allowed in.
+- `mc_bank_queue`: `rd_valid`, `wr_ready` and `pk_valid[k]` are flags from
+  the count's next value, written as the late push / pop selecting between
+  compares of the registered count (`(push && !pop) ? 1 : (pop && !push) ?
+  (cnt > 1) : (cnt != 0)`), never as `(cnt + push - pop) != 0`.
+- `mc_bank_fifo_store`: the drain queue's `occ < DEPTH` the same way.
+
+Each is cycle-exact and each is PROVED so: the queue against
+`gaxi_age_fifo_sync` (its existing lockstep harness), the timer against a
+golden copy of its live-compare form (`formal/mc_common/mc_bank_timer`,
+task `equiv`). Result with the other MC-011 cuts: 179 failing endpoints
+(-0.276 ns) to 0 (+0.078) under the budget on the same directive. See
+[[resolve-the-select-at-the-load]] for the arbiter-cone half of that number
+and [[formal]] ("golden-copy equivalence") for the proof pattern.

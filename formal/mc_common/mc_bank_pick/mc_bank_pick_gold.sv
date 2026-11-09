@@ -1,0 +1,1367 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// GOLDEN COPY of mc_bank_pick as committed at 821b5c164 (2026-11-08), module
+// renamed, for the equivalence tasks of bank_pick.sby: the resolved winner /
+// stale-mask registers (memory-controllers MC-011) must be cycle-exact against
+// this form on every output. Never edit this file to follow the RTL -- a
+// change that needs the golden copy changed is a change of behaviour, and the
+// equivalence proof is what says so. Replace it deliberately, with a note.
+`timescale 1ns / 1ps
+
+`include "reset_defs.svh"
+
+module mc_bank_pick_gold
+    import mc_common_pkg::*;
+#(
+    parameter int NUM_RANKS   = 1,
+    parameter int NUM_BANKS   = 8,
+    parameter int ROW_WIDTH   = 14,
+    parameter int COL_WIDTH   = 10,
+    parameter int NUM_ENTRIES = 8,
+    parameter bit HAS_ZQ      = 1'b0,
+    parameter bit CLOSE_ON_DRAIN = 1'b1,
+    parameter int MAINT_EXTRA_WIDTH = 1,
+    // Pipeline depth decode -> fire; the bank timers' BANK_LA must equal it.
+    parameter int LA          = 2,
+    // Hold REF out of an open read-return window (the DFI aligner's modulo
+    // framing has no resync; granite MC-003 2026-10-15). Off by default: a
+    // continuous read stream would postpone refresh without bound (pumice
+    // refresh_credit at the board geometry saw 2 REFs across a demand
+    // stretch), and pumice's DFI plane has run REF into open windows under
+    // the FRFCFS core since 2026-09 without a mis-framed beat.
+    parameter bit REF_WAIT_RD_RETURN = 1'b0,
+    // 0 = no stall-cause counters (the eight 32-bit stall_*_o outputs read 0). They feed the
+    //     STALL_* CSRs; an integration without those registers leaves them unconnected.
+    parameter bit HAS_STALL_STATS = 1'b1,
+    // tRFC / tZQCS recovery counter width. The CSR fields are 16 bits; a value above
+    // the counter's range saturates to its maximum (conservative). DDR2 tRFC at
+    // <= 100 MHz is 35 cycles: 8 bits is ample.
+    parameter int RFC_W = 16,
+    // Direction ownership of the banks (granite TASK-003, 2026-11-01). Both
+    // directions share banks with conflicting rows in a mixed load, and the
+    // char proxy's mixed window locked into one bank per direction run: at
+    // every flip the current direction still had heads queued (8 of them),
+    // none requesting -- one bank held open by the other direction's row
+    // (the PRE courtesy below withholds the close while the other direction's
+    // head hits it), the other a few cycles short of its ACT lookahead after
+    // its own auto-precharge. The bus turned round (tRTW ~21 + tWTR 5) for a
+    // close + open of ~4, 2043 times: 140.8 MB/s against 197 in the other
+    // state, and which state the window took depended on the refresh phase.
+    //   DIR_OWNS_ROWS 1: the courtesy is lifted for the direction that holds
+    //     the bus (r_dir): its miss may close the other direction's row --
+    //     until the batch cap. From the cap on the courtesy holds again, so
+    //     the owner cannot keep closing a row the waiting direction has just
+    //     opened for the column that would flip the bus. (Handing the lift
+    //     to the waiting direction at the cap instead cost the mixed window
+    //     12-31 MB/s and changed nothing else.)
+    //   DIR_HOLD_IDLE N > 0: the direction register also holds while the
+    //     current direction has a queued head in any bank, for at most N
+    //     cycles without a command of its own, so a head waiting out tRP /
+    //     its lookahead keeps the run. 0 = off. The batch cap still bounds a run.
+    // Both on (N = 8), proxy mixed window at five refresh phases: 510-535
+    // MB/s total against 394-403, no low state.
+    parameter bit DIR_OWNS_ROWS = 1'b0,
+    parameter int DIR_HOLD_IDLE = 0,
+
+    parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
+    parameter int BKW  = $clog2(NUM_BANKS),
+    parameter int PTRW = (NUM_ENTRIES > 1) ? $clog2(NUM_ENTRIES) : 1
+) (
+    input  logic                      aclk,
+    input  logic                      aresetn,
+    input  page_policy_e              page_policy_i,
+
+    // ---- runtime page policy (mc_page_policy): per-bank auto-precharge
+    //      override and the background idle-timeout close request ----------
+    input  logic                      ap_mode_en_i,
+    input  logic [NUM_BANKS-1:0]      ap_close_i,
+    // hybrid (page mode 4): the close-on-drain auto-precharge applies on a
+    // KNOWN conflict (a different row queued behind the column) always, and
+    // on an empty queue only where the page policy's per-bank history allows
+    // it (drain_close_ok_i: the bank's rows have been short and followed by a
+    // different row, and no close there has re-opened the same row since)
+    input  logic                      ap_conflict_only_i,
+    input  logic [NUM_BANKS-1:0]      drain_close_ok_i,
+    input  logic                      timeout_pre_req_i,
+    input  logic [BKW-1:0]            timeout_pre_bank_i,
+
+    // ---- storage plane per-bank head records (registered contract) -------
+    input  mc_head_rec_t [NUM_BANKS-1:0] wr_head_i,
+    input  mc_head_rec_t [NUM_BANKS-1:0] wr_head2_i,
+    input  mc_head_rec_t [NUM_BANKS-1:0] rd_head_i,
+    input  mc_head_rec_t [NUM_BANKS-1:0] rd_head2_i,
+    // ---- command payload by slot (2026-10-24) -----------------------------
+    // The records name a slot; the row and column of the command come from
+    // the backend's slot fields through ONE lookup per direction here, not
+    // from every head record. Materialising row + col in 32 records was the
+    // bulk of both storage backends on the board (report 5.11): the record's
+    // own row/col fields are no longer read by this core.
+    input  logic [NUM_ENTRIES*ROW_WIDTH-1:0] wr_slot_row_i,
+    input  logic [NUM_ENTRIES*COL_WIDTH-1:0] wr_slot_col_i,
+    input  logic [NUM_ENTRIES*ROW_WIDTH-1:0] rd_slot_row_i,
+    input  logic [NUM_ENTRIES*COL_WIDTH-1:0] rd_slot_col_i,
+
+    // ---- storage commit / issue handshake --------------------------------
+    // Write sink room, the CAM's own accept condition (registers only, no
+    // commit_valid and no drain-pop term). Used twice: the arbiter gates write
+    // column requests on it so a pick is never made into a full drain queue,
+    // and the fire stage re-checks it so two write columns picked back to
+    // back into one slot of room can never put a WR into the command FIFO
+    // that the CAM refused (a DRAM write whose data never drains). An earlier
+    // split "ready if the current winner commits now / if it does not" was
+    // pessimistic whenever the held winner was a write column blocked by a
+    // timer: it assumed that winner would commit, gated every other request,
+    // and cost one cycle per burst on the write ceiling (fires every 5
+    // cycles at tCCD 4).
+    input  logic                      wr_commit_ready_now_i,
+    output logic                      wr_commit_valid_o,
+    output logic [PTRW-1:0]           wr_commit_slot_o,
+    input  logic                      rd_issue_ready_i,
+    output logic                      rd_issue_valid_o,
+    output logic [PTRW-1:0]           rd_issue_slot_o,
+    // The column the fire stage holds this cycle, whether or not it fires,
+    // as COORDINATES: direction (a write / read column), bank, and which of
+    // that bank's two head records (cand_second_o = the shadow). All pick
+    // registers (the held/picked pair and class, r_shadow). The commit /
+    // issue slot is always that record's slot; the FIFO store resolves the
+    // coordinates against its own registered record flags and skips the
+    // slot in its merge searches, so the merge admission never waits on the
+    // timer-qualified fire, and no record slot makes the store -> pick ->
+    // store round trip (granite TASK-003, 2026-10-30: the live commit in the
+    // merge search cost -1.6 ns at 100 MHz, the candidate SLOT -0.3).
+    output logic                      wr_commit_cand_o,
+    output logic                      rd_issue_cand_o,
+    output logic [BKW-1:0]            cand_bank_o,
+    output logic                      cand_second_o,
+
+    // ---- init passthrough ----
+    input  logic                      init_done_i,
+    input  logic                      init_cmd_valid_i,
+    input  dram_op_e                  init_cmd_op_i,
+    input  logic [BKW-1:0]            init_cmd_bank_i,
+    input  logic [ROW_WIDTH-1:0]      init_cmd_row_i,
+
+    // ---- refresh ----
+    input  logic                      refresh_req_i,
+    input  logic                      refresh_drain_i,
+    input  logic                      refresh_kind_i,
+    input  logic [BKW-1:0]            refresh_bank_i,
+    output logic                      refresh_grant_o,
+    input  logic [15:0]               t_rfc_i,
+    input  logic [7:0]                t_rfc_pb_i,
+
+    // ---- read-return busy from DFI plane (keeps REF out of open return window)
+    input  logic                      rd_ret_busy_i,
+
+    // ---- ZQ (present when HAS_ZQ=1) ----
+    input  logic                      zq_req_i,
+    output logic                      zq_grant_o,
+    input  logic [15:0]               t_zqcs_i,
+
+    // ---- generic maintenance ----
+    input  logic                      maint_req_i,
+    output logic                      maint_grant_o,
+    input  dram_op_e                  maint_op_i,
+    input  logic [BKW-1:0]            maint_bank_i,
+    input  logic [ROW_WIDTH-1:0]      maint_row_i,
+    input  logic [COL_WIDTH-1:0]      maint_col_i,
+    input  logic [MAINT_EXTRA_WIDTH-1:0] maint_extra_i,
+    input  logic                      maint_busy_i,
+
+    // ---- per-bank readiness: live (fire) and lookahead (decode) ----------
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_i,
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_rdwr_ready_i,
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_pre_ready_i,
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_la_i,
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_rdwr_ready_la_i,
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_pre_ready_la_i,
+    // (no open-row input: the row hit rides in the record, classified at the
+    //  storage edge against the timers' registered image)
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_row_active_i,
+
+    // ---- global readiness ----
+    input  logic [NUM_RANKS-1:0]      tfaw_ok_i,
+    input  logic [NUM_RANKS-1:0]      trrd_ok_i,
+    input  logic                      twtr_ok_i,
+    input  logic                      trtw_ok_i,
+    // Raw tCCD for the forward column-spacing counter (same accounting as
+    // the FRFCFS core's r_tccd_fwd; the flopped tccd_ok window carries a +1
+    // lag a pick==fire core would eat as real spacing).
+    input  logic [7:0]                t_ccd_i,
+    // Hop timers, for hint eligibility only (hint iff t <= LA).
+    input  logic [7:0]                t_rcd_i,
+    input  logic [7:0]                t_rp_i,
+    input  logic [7:0]                t_wr_i,
+    input  logic [7:0]                t_rtp_i,
+
+    // ---- policy: consecutive columns in one direction while the other
+    //      direction has column requests (0 = unlimited) ----
+    input  logic [7:0]                dir_batch_max_i,
+
+    // ---- event strobes to bank + global timers ----
+    output logic                      evt_act_o,
+    output logic                      evt_rd_o,
+    output logic                      evt_wr_o,
+    output logic                      evt_pre_o,
+    output logic                      evt_ap_o,
+    output logic [RKW-1:0]            evt_rank_o,
+    output logic [BKW-1:0]            evt_bank_o,
+    output logic [ROW_WIDTH-1:0]      evt_row_o,
+
+    // ---- command push (scheduler -> DFI command FIFO) ----
+    output logic                      cmd_valid_o,
+    output logic                      cmd_timeout_pre_o,   // the PRE is the policy's timeout close (BUG-030)
+    input  logic                      cmd_ready_i,
+    output dram_op_e                  cmd_op_o,
+    output logic [RKW-1:0]            cmd_rank_o,
+    output logic [BKW-1:0]            cmd_bank_o,
+    output logic [ROW_WIDTH-1:0]      cmd_row_o,
+    output logic [COL_WIDTH-1:0]      cmd_col_o,
+    output logic                      cmd_ap_o,
+    output logic [MAINT_EXTRA_WIDTH-1:0] cmd_extra_o,
+
+    // ---- stall-cause attribution ----
+    output logic [31:0]               stall_bp_o,
+    output logic [31:0]               stall_refresh_o,
+    output logic [31:0]               stall_turnaround_o,
+    output logic [31:0]               stall_tccd_o,
+    output logic [31:0]               stall_actlimit_o,
+    output logic [31:0]               stall_banktimer_o,
+    output logic [31:0]               stall_noreq_o,
+    output logic [31:0]               stall_zq_o,
+
+    // ---- direction debug (mc_monlite MC_EV_DIR_FLIP; unconnected = pruned) ----
+    output logic                      dbg_dir_flip_o,   // the direction turned last cycle (one cycle)
+    output logic                      dbg_dir_o,        // current direction, 1 = write
+    output logic [1:0]                dbg_dir_cause_o,  // why it turned: 0 old-direction fire, 1 drained, 2 batch cap
+    output logic [7:0]                dbg_dir_batch_o   // column ops in the batch that ended
+);
+
+    localparam int RK0   = 0;
+    localparam int LA_SHORT = (LA > 0) ? LA - 1 : 0;   // a hop this short bypasses the arbiter register
+    localparam int NPAIR = 2*NUM_BANKS;
+    localparam int PAIRW = (NPAIR > 1) ? $clog2(NPAIR) : 1;
+
+    // op classes carried through the pipe (not dram_op_e: AP is decided at fire)
+    typedef enum logic [1:0] { CL_NONE = 2'd0, CL_ACT = 2'd1, CL_COL = 2'd2, CL_PRE = 2'd3 } cls_e;
+
+    // ======================================================================
+    // Stage 0: candidates and hits (combinational, flops in: records,
+    // timer row image, the one-cycle pop shadow)
+    // ======================================================================
+    mc_head_rec_t [NPAIR-1:0] w_rec1, w_rec2, w_cand;
+    logic         [NPAIR-1:0] w_hit;
+
+    // One-hot: the pair whose column fired last cycle. Its record still shows
+    // the popped head this cycle (the contract's one-cycle latency, pinned by
+    // the records' fub test), so the pair is served from its second record.
+    // No slot compare: that was 8 x 16 compares on the record's slot field
+    // sitting at the head of the fire cone.
+    logic [NPAIR-1:0] r_shadow;
+
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            w_rec1[2*b]   = rd_head_i [b];
+            w_rec2[2*b]   = rd_head2_i[b];
+            w_rec1[2*b+1] = wr_head_i [b];
+            w_rec2[2*b+1] = wr_head2_i[b];
+        end
+        for (int p = 0; p < NPAIR; p++) begin
+            w_cand[p] = r_shadow[p] ? w_rec2[p] : w_rec1[p];
+            // The record's hit is classified at the storage edge against the
+            // scheduler's REGISTERED row image, one cycle stale: a stale 1
+            // after a PRE is blocked by the live safe_rdwr below (row_valid
+            // is 0), a stale 0 after an ACT costs nothing while tRCD >= 2.
+            w_hit [p] = w_cand[p].vld && w_cand[p].hit;
+        end
+    end
+
+    // ======================================================================
+    // tRFC / tZQCS recovery counters and the refresh demand blocks
+    // (lifted from mc_bank_sched; see that history in MC-003)
+    // ======================================================================
+    logic [RFC_W-1:0] r_rfc_cnt, r_zqcs_cnt;
+    // The round-robin pick of one request set as a one-hot: the age
+    // tie-break, then the lowest bit at or above the rotor, else the lowest.
+    function automatic logic [NPAIR-1:0] rr_onehot(input logic [NPAIR-1:0] s,
+                                                   input logic [NPAIR-1:0] aged,
+                                                   input logic [NPAIR-1:0] below);
+        logic [NPAIR-1:0] a, f;
+        a = (|(s & aged)) ? (s & aged) : s;
+        f = (|(a & ~below)) ? (a & ~below) : a;
+        return f & (~f + NPAIR'(1));
+    endfunction
+    function automatic logic [RFC_W-1:0] sat_rfc(input logic [15:0] t);
+        if (RFC_W >= 16)      return RFC_W'(t);
+        else if (|(t >> RFC_W)) return {RFC_W{1'b1}};
+        else                  return RFC_W'(t);
+    endfunction
+    logic        w_rfc_busy, w_zq_busy;
+    assign w_rfc_busy = (r_rfc_cnt  != '0);
+    assign w_zq_busy  = (r_zqcs_cnt != '0);
+
+    // Refresh-episode demand block: while a refresh is requested or draining,
+    // no demand op to the affected bank(s) may fire (REFab = all banks,
+    // REFpb = the target). A column launched into the refresh window returns
+    // data the aligner mis-captures; an ACT squeezed in ahead of the deferred
+    // REF leaves the RTL row image open on a bank the device closed
+    // (MC-003 2026-10-15 / 10-17).
+    logic [NUM_BANKS-1:0] w_ref_dmd_block;
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++)
+            w_ref_dmd_block[b] = (refresh_req_i || refresh_drain_i)
+                              && (!refresh_kind_i || (BKW'(b) == refresh_bank_i));
+    end
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))      r_rfc_cnt <= '0;
+        else if (refresh_grant_o)
+            r_rfc_cnt <= sat_rfc((cmd_op_o == OP_REFPB && t_rfc_pb_i != 8'd0)
+                                 ? {8'h0, t_rfc_pb_i} : t_rfc_i);
+        else if (w_rfc_busy)             r_rfc_cnt <= r_rfc_cnt - 1'b1;
+    )
+
+    // tRFC window demand block: the granted refresh closes the bank(s) at the
+    // DEVICE while the bank timers keep their row image (REF sends no
+    // row-clear), so a demand column decoded against an "open" image would
+    // fire into a refreshing bank (MC-003 2026-10-17 tREFI=100).
+    logic r_rfc_ab;
+    logic [BKW-1:0] r_rfc_bank;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rfc_ab    <= 1'b1;
+            r_rfc_bank  <= '0;
+        end else if (refresh_grant_o) begin
+            r_rfc_ab   <= (cmd_op_o == OP_REF);
+            r_rfc_bank <= refresh_bank_i;
+        end
+    )
+    logic [NUM_BANKS-1:0] w_rfc_dmd_block;
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++)
+            w_rfc_dmd_block[b] = w_rfc_busy
+                              && (r_rfc_ab || (BKW'(b) == r_rfc_bank));
+    end
+    generate if (HAS_ZQ) begin : g_zq
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn))  r_zqcs_cnt <= '0;
+            else if (zq_grant_o)         r_zqcs_cnt <= sat_rfc(t_zqcs_i);
+            else if (w_zq_busy)          r_zqcs_cnt <= r_zqcs_cnt - 1'b1;
+        )
+    end else begin : g_no_zq
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn))  r_zqcs_cnt <= '0;
+        )
+    end endgenerate
+
+    // ======================================================================
+    // Stage 1: per-pair decode -> registered request / class
+    // ======================================================================
+    logic [NPAIR-1:0] r_req, r_aged;
+    cls_e             r_cls [NPAIR];
+    // the direction register (loaded below with the winner); declared here
+    // because DIR_OWNS_ROWS reads it in this decode
+    logic             r_dir;            // 0 = reads, 1 = writes
+    logic [7:0]       r_dir_batch;
+    logic             r_dir_flip;       // r_dir turned last cycle (cap, drain or a fire of the other direction)
+    logic             r_batch_done;     // r_dir_batch >= the cap, as a register (the compare on its next value)
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_req    <= '0;
+            r_aged   <= '0;
+            for (int p = 0; p < NPAIR; p++) r_cls[p] <= CL_NONE;
+        end else begin
+            for (int p = 0; p < NPAIR; p++) begin
+                automatic logic [BKW-1:0] pb = BKW'(p >> 1);   // the pair's bank
+                automatic logic req    = 1'b0;
+                automatic cls_e cls    = CL_NONE;
+                automatic logic blocked = w_ref_dmd_block[pb] || w_rfc_dmd_block[pb];
+                if (w_cand[p].vld && !blocked) begin
+                    if (w_hit[p]) begin
+                        // row hit: column when tRCD is within the pipe depth.
+                        // Sink room (drain FIFO / return ring) is the
+                        // ARBITER's check, one cycle before the fire, not
+                        // this stage's: gating here too, two cycles ahead of
+                        // the rate-matched commit predicate, halved the
+                        // single-beat write stream (board geometry, 1 commit
+                        // per 2 cycles).
+                        if (bank_rdwr_ready_la_i[RK0][pb]) begin
+                            req = 1'b1; cls = CL_COL;
+                        end
+                    end else if (bank_row_active_i[RK0][pb]) begin
+                        // miss on an open row: close it, unless the other
+                        // direction is still streaming hits on that row
+                        // (aging lifts the courtesy: no starvation)
+                        if (bank_pre_ready_la_i[RK0][pb]
+                            && (!w_hit[p ^ 1] || w_cand[p].age_exceed
+                                || (DIR_OWNS_ROWS && (p[0] == r_dir) && !r_batch_done))) begin
+                            req = 1'b1; cls = CL_PRE;
+                        end else if (bank_act_ready_la_i[RK0][pb]
+                                     && !w_rfc_busy && !maint_busy_i) begin
+                            // an AUTO-PRECHARGING row: it still reads open
+                            // and takes no PRE, but the timer's LA_AP term
+                            // already says its self-close + tRP lands within
+                            // the pipe depth (act_la is otherwise false on an
+                            // open row). Request the ACT now; the fire stage
+                            // re-checks the live row image and safe_act.
+                            // Waiting for the row image to clear cost one
+                            // cycle per AP row switch against an explicit
+                            // PRE (granite TASK-003, 2026-10-30: col -> ACT
+                            // 5 vs 4 after a read, 7 vs 6 after a write).
+                            req = 1'b1; cls = CL_ACT;
+                        end
+                    end else begin
+                        // closed bank: activate. The tRFC / maintenance
+                        // blocks the fire stage drops on are checked here
+                        // too, so a blocked ACT is not re-requested every
+                        // cycle and dropped every cycle.
+                        if (bank_act_ready_la_i[RK0][pb] && !w_rfc_busy && !maint_busy_i) begin
+                            req = 1'b1; cls = CL_ACT;
+                        end
+                    end
+                end
+                r_req   [p] <= req;
+                r_cls   [p] <= cls;
+                r_aged  [p] <= req && w_cand[p].age_exceed;
+            end
+        end
+    )
+
+    // ======================================================================
+    // Stage 2: arbiter -> registered winner {vld, pair, class}
+    // ======================================================================
+    logic             r_pick_vld;       // the arbiter's (or the speculation's) pick, loaded EVERY cycle
+    logic [PAIRW-1:0] r_pick_pair;
+    cls_e             r_pick_cls;
+    logic             r_held_vld;       // last cycle's effective winner
+    logic [PAIRW-1:0] r_held_pair;
+    cls_e             r_held_cls;
+    logic             r_hold;           // it was waiting on a timer: serve it again
+    // The EFFECTIVE winner the fire stage serves: the held one while it waits
+    // on a timer, else the fresh pick. A 2:1 mux of registers by a registered
+    // bit -- the hold of the Phase 2 core (oldest requester fires first, no
+    // walk under tCCD) without the fire cone on any register's load path.
+    logic             w_win_vld;
+    logic [PAIRW-1:0] w_win_pair;
+    cls_e             w_win_cls;
+    assign w_win_vld  = r_hold ? r_held_vld  : r_pick_vld;
+    assign w_win_pair = r_hold ? r_held_pair : r_pick_pair;
+    assign w_win_cls  = r_hold ? r_held_cls  : r_pick_cls;
+    logic [PAIRW-1:0] r_rotor;
+
+    // next-op hint from the fire stage (one-cycle pulse)
+    logic             r_hint_vld;
+    logic [PAIRW-1:0] r_hint_pair;
+    cls_e             r_hint_cls;
+
+    // Short-hop speculation (register-only): when the held winner is a column
+    // whose candidate is the last of its row and the following PRE's timer is
+    // shorter than the pipe (tRTP / tWR < LA), the NEXT winner is that PRE,
+    // assumed on the column firing now. If the column did not fire, the PRE
+    // fails its class check next cycle (the row still holds the hit) and
+    // costs nothing. Likewise ACT -> COL and PRE -> ACT for tRCD / tRP < LA.
+    // This replaces a bypass that loaded the winner register straight from
+    // the fire decision, i.e. put the whole fire cone on r_win's load path.
+    logic         w_spec_vld;
+    cls_e         w_spec_cls;
+    logic         w_win_bsr, w_win_bempty;   // the winner's CANDIDATE flags (record, or 2nd record under the pop shadow)
+    logic         w_win_hit;                 // the candidate's recorded hit (storage-edge register, one cycle stale)
+    logic         w_win_ap_policy;
+    logic         w_other_req;               // some pair other than the winner is requesting
+
+    logic [NPAIR-1:0] w_req_ok, w_req_col, w_req_col_dir, w_req_row, w_req_aged;
+    logic [NPAIR-1:0] w_sel, w_sel_above, w_below_mask, w_hint_vec;
+    logic [NPAIR-1:0] w_pick_onehot;
+    // which source the class select took, resolved in parallel with the
+    // per-source one-hots (see the pick below)
+    typedef enum logic [2:0] {SRC_NONE, SRC_HINT, SRC_CDIR, SRC_COL, SRC_ROW} src_e;
+    src_e             w_sel_src;
+    logic [NPAIR-1:0] w_oh_cdir, w_oh_col, w_oh_row;
+    logic             w_rd_col_any, w_wr_col_any;
+    logic             w_rd_col_pend, w_wr_col_pend;   // columns coming in a direction (pre stale mask)
+    logic             w_cur_queued;                   // the current direction has a queued head (DIR_HOLD_IDLE)
+    logic [7:0]       r_dir_idle;                     // cycles since the current direction last fired
+    logic             r_rd_col_more, r_wr_col_more;   // last cycle's column fire left a same-row entry behind it
+    logic             w_xdir_ok;                      // the other direction's columns may be taken
+    logic [NPAIR-1:0] w_req_row_pref;                 // row commands, the preferred direction first
+    logic [NPAIR-1:0] w_row_pref_mask;                // pairs of the preferred direction (registers only)
+    logic             w_row_pref_any;                 // the preferred direction has a row request (registers only)
+    logic             w_oth_req_any;                  // the other direction has any request (registered)
+    logic             w_hint_ok, w_hint_is_col;
+    logic             w_pick_vld;
+    logic [PAIRW-1:0] w_pick_pair;
+    cls_e             w_pick_cls;
+
+    // Fire-stage facts the arbiter needs (declared here, driven in stage 3):
+    // the held winner's candidate record and the class alternation bit.
+    mc_head_rec_t     w_sel_cand;
+    logic             r_last_was_row;     // last demand fire was ACT/PRE -> prefer columns now
+    logic [PAIRW-1:0] w_rotor_eff;
+
+    // Sink room is checked HERE, one cycle before the fire, and not at the
+    // fire stage: the write CAM's commit_ready answers "will a commit decided
+    // now be accepted next cycle" and is itself a function of this cycle's
+    // commit_valid (mc_wr_data_cam, rate-matched commit), so gating the fire
+    // on it is a combinational loop. A column that passed this check fires
+    // unconditionally and the CAM accepts it by construction (only pops can
+    // happen in between). The FRFCFS core makes the same split at its
+    // pre-pick.
+    //
+    // The search starts past the EFFECTIVE winner's pair, and the rotor
+    // follows a fire: r_req lags a fire by a cycle (decode -> request ->
+    // arbiter), so in the fire cycle the winner's own request is stale --
+    // after a row command, or a column that empties its pair, re-picking it
+    // costs a dropped cycle (a bank-rotating single-entry write stream ran
+    // at 50%, twice). Starting past it serves every other requester first;
+    // with no other requester the search wraps to the same pair, which is
+    // the one-column-per-cycle path (a stale re-pick then drops at the fire
+    // stage at no cost: the hint or the refreshed request lands in the same
+    // cycle). Because the effective winner HOLDS while it waits on a timer,
+    // the search start is stable while it waits: the next pick is the same
+    // pair every cycle, and the fire order is the request order. (A rotor
+    // that moved past the fresh pick every cycle walked on under tCCD and
+    // fired whichever pair it had reached: bank 0's second read before banks
+    // 1-3's first, +20 cycles on the return ring. A rotor that only moved on
+    // a fire re-picked the fired pair in the fire cycle, before anything
+    // registered could mask it.)
+    assign w_rotor_eff = w_win_vld ? (w_win_pair + PAIRW'(1)) : r_rotor;
+    // the write sink's room, registers only (see the port note)
+    logic w_wr_sink_ok;
+    assign w_wr_sink_ok = wr_commit_ready_now_i;
+    // The effective winner's OWN request is stale whenever it cannot be the
+    // pair's next command: a row command (the pair wants a column or an ACT
+    // next, which the hint / speculation carry), or a column with NO
+    // SAME-ROW entry behind it (the next entry is a miss, or there is none:
+    // a PRE or an ACT comes next, never this request again). The request
+    // register describes a fired entry for TWO cycles -- the fire cycle (it
+    // was decoded from the record the cycle before the pick) and the cycle
+    // after (decoded from the record in the fire cycle, which still shows
+    // the entry; the pop shadow re-aims the CANDIDATE that cycle, not the
+    // request) -- so the pair is masked out of the pick for both:
+    //
+    //   cycle N   (fire): r_stale_pick / r_stale_win / r_stale_spec, from
+    //             NEXT cycle's effective winner, which this cycle already
+    //             knows (hold, speculation or the fresh pick). Keyed on the
+    //             CANDIDATE's flag, read live through the pop shadow (w_cand
+    //             / w_sel_cand), never the decode's one-cycle-old copy,
+    //             which at a burst end still describes the previous entry.
+    //             Without it the class alternation (after a column, prefer
+    //             row commands) re-picked the pair whose ACT was firing that
+    //             very cycle, and every row switch under interleaved traffic
+    //             paid a bubble (col_ilv 418 vs 459 MB/s).
+    //   cycle N+1: r_stale_fire, from the FIRE, keyed on the fired record's
+    //             behind_empty. Without it a column that emptied its pair
+    //             was re-picked the cycle after it fired (the arbiter saw
+    //             its request, the fire stage saw an empty candidate),
+    //             failed its class, and that free slot went to the page
+    //             policy's idle-timeout close (tr_init 2 on this board),
+    //             which closed another generator's open row: one ACT per
+    //             eight columns with eight generators, 461 vs Phase 2's 567
+    //             MB/s. Phase 2's trace shows the same timeout request
+    //             asserted in 1 926 of 2 063 cycles and never served,
+    //             because its slot-compared shadow left no free slot; all
+    //             187 closes in the Phase 3 trace sit exactly two cycles
+    //             after a column fire of the stale winner's pair. An empty
+    //             pair has nothing legitimate to pick, so this cycle costs
+    //             nothing; a mask keyed on "another row behind" instead
+    //             cost the write PRE a cycle (col_major writes 291 vs 311),
+    //             since the hint / speculation carry that case.
+    //
+    // A streaming column (same row behind) is never masked: the search past
+    // the winner wraps to it when it is alone, the one-column-per-cycle
+    // path. Every source is REGISTERED: computed live from the effective-
+    // winner mux and a 4-to-16 decode the mask sat at the root of the
+    // arbiter cone (14 levels to the pick register). The three cycle-N
+    // sources are registered SEPARATELY (the fresh pick as the one-hot the
+    // arbiter already isolates, never the encoded index; the held / the
+    // speculated winner from registers) and resolved next cycle by the
+    // registered hold and speculation bits: a mux of registers at the root,
+    // and no fire-cone select on any load path (the N+1 mask's D input is
+    // the same column-fire term the pop shadow loads from).
+    logic [NPAIR-1:0] r_stale_pick, r_stale_win, r_stale_spec, r_stale_fire;
+    logic             r_spec_taken;
+    logic [NPAIR-1:0] w_self_stale;
+    assign w_self_stale = (r_hold ? r_stale_win : (r_spec_taken ? r_stale_spec : r_stale_pick))
+                        | r_stale_fire;
+    logic [NPAIR-1:0] w_stale_if;               // per pair: its request would be stale after a fire
+    // Direction batch exhausted: the CSR cap (0 = no cap) reached, the row
+    // gate below releases and the direction register's own cap logic flips.
+    // A register: the same compare done on the counter's NEXT value one cycle
+    // early (r_batch_done), so the select loop sees a flop. Live, the compare
+    // sat in the stale -> select -> stale loop once the cap stopped being 0
+    // (constant-folded away until 2026-10-30): -0.53 ns at 100 MHz.
+    logic             w_dir_batch_done;
+    assign w_dir_batch_done = r_batch_done;
+    // direction next state (the register block above loads these)
+    logic       w_dir_nxt, w_dir_flip_nxt;
+    logic [7:0] w_dir_batch_nxt;
+    always_comb begin
+        for (int p = 0; p < NPAIR; p++) w_stale_if[p] = (r_cls[p] != CL_COL) || !w_cand[p].behind_same_row;
+    end
+    always_comb begin
+        for (int p = 0; p < NPAIR; p++) begin
+            automatic logic sink_ok = (r_cls[p] != CL_COL)
+                                   || (p[0] ? w_wr_sink_ok : rd_issue_ready_i);
+            w_req_ok     [p] = r_req[p] && sink_ok && !w_self_stale[p];
+            w_req_col    [p] = w_req_ok[p] && (r_cls[p] == CL_COL);
+            w_req_col_dir[p] = w_req_col[p] && (p[0] == r_dir);
+            w_req_row    [p] = w_req_ok[p] && (r_cls[p] != CL_COL);
+            w_req_aged   [p] = w_req_ok[p] && r_aged[p];
+        end
+        w_oth_req_any = 1'b0;
+        for (int b = 0; b < NUM_BANKS; b++)
+            if (r_req[2*b + (r_dir ? 0 : 1)]) w_oth_req_any = 1'b1;
+        w_rd_col_any = 1'b0; w_wr_col_any = 1'b0;
+        w_rd_col_pend = 1'b0; w_wr_col_pend = 1'b0;
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            if (w_req_col[2*b])   w_rd_col_any = 1'b1;
+            if (w_req_col[2*b+1]) w_wr_col_any = 1'b1;
+            // pending = a registered column request with its sink open, the
+            // stale masks NOT applied: the direction still has columns coming
+            // even while the pair that just fired is masked for two cycles
+            if (r_req[2*b]   && (r_cls[2*b]   == CL_COL) && rd_issue_ready_i) w_rd_col_pend = 1'b1;
+            if (r_req[2*b+1] && (r_cls[2*b+1] == CL_COL) && w_wr_sink_ok)     w_wr_col_pend = 1'b1;
+        end
+        // The cycle after a column fire the fired pair's request register is
+        // EMPTY (decode lags the fire by one cycle; trace 2026-10-26, cycle
+        // 63343: req 0010, the read pair alone), so r_req cannot say "more
+        // columns coming" at the one cycle it matters. The fire stage knew:
+        // the candidate's behind_same_row at the fire is a column behind it.
+        // DIR_HOLD_IDLE: a queued head of the current direction, off the
+        // registered records (no pop-shadow mux)
+        w_cur_queued = 1'b0;
+        for (int b = 0; b < NUM_BANKS; b++)
+            if (r_dir ? wr_head_i[b].vld : rd_head_i[b].vld) w_cur_queued = 1'b1;
+        if (r_rd_col_more) w_rd_col_pend = 1'b1;
+        if (r_wr_col_more) w_wr_col_pend = 1'b1;
+        // Direction stickiness (sim trace 2026-10-26, conc_banks): the
+        // fall-through to the OTHER direction's columns ran every time the
+        // current direction's only column was stale-masked (two cycles after
+        // each fire); the other column was then picked and HELD through its
+        // turnaround timer while the first direction's next column came back
+        // and waited its turn -- one flip per column, tWTR+1 one way and the
+        // PHY-floor tRTW (~21) the other: 216 cycles per 8-column burst,
+        // 21.5 MB/s a side on the board and in the proxy. Hold the direction
+        // while it has pending columns, until the batch cap (255 on granite,
+        // GRANITE_DIR_BATCH_MAX, read back in a read-only CSR) lets the
+        // other direction in.
+        w_xdir_ok = !((r_dir ? w_wr_col_pend : w_rd_col_pend)
+                      || ((DIR_HOLD_IDLE > 0) && w_cur_queued && (r_dir_idle < 8'(DIR_HOLD_IDLE))))
+                    || w_dir_batch_done;
+        // Row commands follow the direction too, until the batch cap. With
+        // an auto-precharge close the bank empties by itself and BOTH
+        // directions' heads ask for its ACT in the same cycle; the rotor had
+        // just moved past the pair that fired, so the ACT went to the other
+        // direction and the bus turned around on every row (granite TASK-003,
+        // 2026-10-30, concurrent col_major on one bank: R row, W row, R row
+        // ... with tRTW at every switch -- 109 MB/s a side under the drain AP
+        // and the hybrid against fixed_open's 166 / 345, whose explicit PRE
+        // keeps the row switch inside one pair via the short-hop speculation).
+        // At the cap the preference turns round: the other direction's row
+        // commands go first, so its ACT opens the row its columns need and
+        // its first column fire flips r_dir (a row-only direction has no
+        // column for the register's own cap flip to see).
+        // The "does the preferred direction have one" test reads the
+        // REGISTERED requests, not the stale-masked live set: off the
+        // stale -> select -> stale loop, where the live form cost -0.58 ns at
+        // 100 MHz. A preferred request that is stale-masked this cycle
+        // leaves the class empty for that cycle (no other-direction
+        // fall-through), one bubble at most.
+        for (int p = 0; p < NPAIR; p++)
+            w_row_pref_mask[p] = (p[0] == r_dir) != w_dir_batch_done;
+        w_row_pref_any = 1'b0;
+        for (int p = 0; p < NPAIR; p++)
+            if (r_req[p] && (r_cls[p] != CL_COL) && w_row_pref_mask[p]) w_row_pref_any = 1'b1;
+        w_req_row_pref = w_row_pref_any ? (w_req_row & w_row_pref_mask) : w_req_row;
+
+        // the hint is a request of its own class (a column hint whose sink
+        // has no room is dropped; the decode re-presents it)
+        w_hint_is_col = (r_hint_cls == CL_COL);
+        w_hint_ok     = r_hint_vld && (!w_hint_is_col
+                                       || (r_hint_pair[0] ? w_wr_sink_ok : rd_issue_ready_i))
+                        // the short-hop hint (PRE -> ACT -> COL on one pair)
+                        // yields at the batch cap when the other direction
+                        // is waiting; it would otherwise chain one
+                        // direction's rows past the cap indefinitely
+                        && !(w_dir_batch_done && (r_hint_pair[0] == r_dir) && w_oth_req_any);
+        w_hint_vec    = NPAIR'(1) << r_hint_pair;
+
+        // Request set. The two classes ALTERNATE: after a row command prefer
+        // columns, after a column prefer row commands -- with both classes
+        // pending this interleaves one bank's ACT with another's column (A0
+        // A1 C0 A2 C1 ...: the ACT stream runs at tRRD and the columns fill
+        // the gaps), where a fixed priority either starves the columns
+        // behind a run of ACTs or holds every ACT behind the column stream.
+        // With one class pending the other falls through, so a single-bank
+        // stream is untouched. Within a class the hint leads, then the
+        // current direction's columns, then any.
+        // The stale mask's one-hot is computed per request set, in parallel
+        // with the class select, and the select's source picks one of them:
+        // the carry chain no longer follows the select on the stale ->
+        // select -> stale loop (granite TASK-003, 2026-11-01: the chain sat
+        // at the end of the 14-level worst path, -0.06 to -0.40 ns at 100 MHz
+        // on seven builds). Cycle-exact with the serial form: each set gets
+        // the same age tie-break and rotor search the selected set gets
+        // below. A hint is a single pair, so its one-hot is itself.
+        for (int p = 0; p < NPAIR; p++) w_below_mask[p] = (PAIRW'(p) < w_rotor_eff);
+        w_oh_cdir = rr_onehot(w_req_col_dir,  w_req_aged, w_below_mask);
+        w_oh_col  = rr_onehot(w_req_col,      w_req_aged, w_below_mask);
+        w_oh_row  = rr_onehot(w_req_row_pref, w_req_aged, w_below_mask);
+        if (r_last_was_row) begin
+            if (w_hint_ok && w_hint_is_col)    begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
+            else if (|w_req_col_dir)           begin w_sel = w_req_col_dir;  w_sel_src = SRC_CDIR; end
+            else if (|w_req_col && w_xdir_ok)  begin w_sel = w_req_col;      w_sel_src = SRC_COL;  end
+            else if (w_hint_ok)                begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
+            else                               begin w_sel = w_req_row_pref; w_sel_src = SRC_ROW;  end
+        end else begin
+            if (w_hint_ok && !w_hint_is_col)   begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
+            else if (|w_req_row)               begin w_sel = w_req_row_pref; w_sel_src = SRC_ROW;  end
+            else if (w_hint_ok)                begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
+            else if (|w_req_col_dir)           begin w_sel = w_req_col_dir;  w_sel_src = SRC_CDIR; end
+            else if (w_xdir_ok)                begin w_sel = w_req_col;      w_sel_src = SRC_COL;  end
+            else                               begin w_sel = '0;             w_sel_src = SRC_NONE; end
+        end
+
+        // Age as the WITHIN-CLASS tie-break (granite TASK-003 item 5, owner's
+        // placement): among the pairs the choice above left in the set, an
+        // aged one (the store's oldest-in-pool flag, age_exceed under a
+        // nonzero age_thresh) goes ahead of the rotor. The choice itself --
+        // direction, alternation, hint -- is not overridden: measured at the
+        // TOP of the select (the previous form, 2026-10-25) the oldest head
+        // outranked the direction register and the bus turned around on
+        // nearly every pick with both directions live (stream reads -10
+        // percent at 8 threads, the mixed family halved). A hint is a single
+        // pair, so this either keeps it or leaves it alone. With the ages
+        // compiled out (HAS_AGE 0) r_aged is all-zero and this is a no-op.
+        if (|(w_sel & w_req_aged))             w_sel = w_sel & w_req_aged;
+
+        // round-robin: lowest index at or above the (effective) rotor, else lowest overall
+        w_sel_above = w_sel & ~w_below_mask;
+        w_pick_vld  = |w_sel;
+        w_pick_pair = '0;
+        if (|w_sel_above) begin
+            for (int p = NPAIR-1; p >= 0; p--) if (w_sel_above[p]) w_pick_pair = PAIRW'(p);
+        end else begin
+            for (int p = NPAIR-1; p >= 0; p--) if (w_sel[p])       w_pick_pair = PAIRW'(p);
+        end
+        w_pick_cls = (w_hint_ok && (w_sel == w_hint_vec)) ? r_hint_cls : r_cls[w_pick_pair];
+        // the same pick as a one-hot, for the stale mask (per-source, above)
+        case (w_sel_src)
+            SRC_HINT: w_pick_onehot = w_hint_vec;
+            SRC_CDIR: w_pick_onehot = w_oh_cdir;
+            SRC_COL:  w_pick_onehot = w_oh_col;
+            SRC_ROW:  w_pick_onehot = w_oh_row;
+            default:  w_pick_onehot = '0;
+        endcase
+
+        // ---- short-hop speculation on the held winner (registers only) ----
+        // the candidate's flags, not the head record's: in a one-column-per-
+        // cycle stream every column after the first fires from the 2nd record
+        // (pop shadow), and the head's behind_same_row is 1 by definition --
+        // reading it here killed the speculation exactly where it matters
+        w_win_bsr       = w_sel_cand.behind_same_row;
+        w_win_bempty    = w_sel_cand.behind_empty;
+        w_win_hit       = w_sel_cand.hit;
+        w_other_req     = |(w_req_ok & ~(NPAIR'(1) << w_win_pair));
+        w_win_ap_policy = ap_mode_en_i ? ap_close_i[BKW'(w_win_pair >> 1)]
+                        : ((page_policy_i == PAGE_POLICY_CLOSE)
+                           || (CLOSE_ON_DRAIN && !w_win_bsr
+                               && !(ap_conflict_only_i && w_win_bempty
+                                    && !drain_close_ok_i[BKW'(w_win_pair >> 1)])));
+        // Only when the current winner CAN be accepted now as far as the
+        // registered facts go (sink room): a column blocked by a full return
+        // ring or drain queue must not be followed by a speculated PRE, which
+        // would fail its class check and cost the pair a cycle each time.
+        w_spec_vld = 1'b0;
+        w_spec_cls = CL_NONE;
+        if ((LA > 0) && w_win_vld
+            && ((w_win_cls != CL_COL) || (w_win_pair[0] ? w_wr_sink_ok : rd_issue_ready_i))) begin
+            if ((w_win_cls == CL_ACT) && (t_rcd_i <= 8'(LA_SHORT))) begin
+                w_spec_vld = 1'b1; w_spec_cls = CL_COL;
+            end else if ((w_win_cls == CL_PRE) && (t_rp_i <= 8'(LA_SHORT))) begin
+                w_spec_vld = 1'b1; w_spec_cls = CL_ACT;
+            end else if ((w_win_cls == CL_COL) && !w_win_ap_policy
+                         && !w_win_bsr && !w_win_bempty
+                         && !w_hit[w_win_pair ^ 1]
+                         && ((w_win_pair[0] ? t_wr_i : t_rtp_i) <= 8'(LA_SHORT))) begin
+                w_spec_vld = 1'b1; w_spec_cls = CL_PRE;
+            end else if ((w_win_cls == CL_COL) && w_win_bsr && w_win_hit
+                         && !w_win_ap_policy
+                         && (t_ccd_i <= 8'(LA_SHORT)) && !w_other_req) begin
+                // COL -> COL on the same row, same pair, when nobody else is
+                // asking: covers the cycle in which the record's hit is still
+                // stale after the ACT (decode cannot request yet) and the
+                // steady one-column-per-cycle stream. With other requesters
+                // the arbiter interleaves them instead (no starvation).
+                // The candidate's own RECORDED hit is required: behind_same_row
+                // says the entry behind the candidate shares ITS row, so after
+                // the last column of a row the next entry (a miss) carries
+                // behind_same_row = 1 for the row after it, and a speculation
+                // keyed on that flag alone re-loaded a column for the pair
+                // every cycle while the decode's PRE never won (a 351k-cycle
+                // write hang on col_major).
+                w_spec_vld = 1'b1; w_spec_cls = CL_COL;
+            end
+        end
+    end
+
+    // ======================================================================
+    // Stage 3: fire -- the live JEDEC authority
+    // ======================================================================
+    // Registered image for the refresh override's drain scan (advisory; the
+    // override's PRE re-checks the live pre gate).
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] r_row_act, r_pre_rdy;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_row_act <= '0; r_pre_rdy <= '0;
+        end else begin
+            r_row_act <= bank_row_active_i;
+            r_pre_rdy <= bank_pre_ready_la_i;
+        end
+    )
+
+    // ---- maintenance / refresh / init override (verbatim from mc_bank_sched)
+    logic w_any_active, w_rfsh_pre_found;
+    logic [BKW-1:0] w_rfsh_pre_bank;
+    always_comb begin
+        w_any_active     = |r_row_act[RK0];
+        w_rfsh_pre_found = 1'b0;
+        w_rfsh_pre_bank  = '0;
+        for (int j = NUM_BANKS-1; j >= 0; j--)
+            if (r_row_act[RK0][j] && r_pre_rdy[RK0][j]) begin
+                w_rfsh_pre_found = 1'b1;
+                w_rfsh_pre_bank  = BKW'(j);
+            end
+    end
+
+    // Read-return window: never grant REF while a read is between this
+    // scheduler and the aligner's last captured word (the aligner's modulo
+    // framing has no resync; MC-003 2026-10-15).
+    logic r_rd_pipe_busy;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))            r_rd_pipe_busy <= 1'b0;
+        else if (rd_issue_valid_o)             r_rd_pipe_busy <= 1'b1;
+        else if (!rd_ret_busy_i)               r_rd_pipe_busy <= 1'b0;
+    )
+    logic w_rdret_busy;
+    assign w_rdret_busy = r_rd_pipe_busy || rd_ret_busy_i;
+
+    // Demand-ACT fire history: the registered row image lags a fire by one
+    // cycle, so a REF request in that window would grant with a bank open
+    // at the device (MC-003 2026-10-17).
+    logic           r_actfire0;
+    logic [BKW-1:0] r_actfire0_bank;
+
+    // All-idle gates on the LIVE activate-ready bits: a bank is ready for REF
+    // (or any maintenance) exactly when it is ready for an ACT -- row closed
+    // AND tRP since its PRE AND tRC since its ACT. The registered row image
+    // alone met tRP only by the accident of two register stages (tRP = 2).
+    // Pending demand does NOT block refresh (the override has priority and a
+    // head that cannot fire would otherwise deadlock REFab).
+    logic w_all_act_ready, w_rdret_gate;
+    assign w_all_act_ready = &bank_act_ready_i[RK0];
+    assign w_rdret_gate    = REF_WAIT_RD_RETURN && w_rdret_busy;
+    logic w_ref_safe, w_refpb_safe, w_maint_safe;
+    assign w_ref_safe   = w_all_act_ready && !r_actfire0
+                       && !w_rfc_busy && !w_rdret_gate;
+    assign w_refpb_safe = bank_act_ready_i[RK0][refresh_bank_i] && !w_rfc_busy && !w_rdret_gate
+                       && !(r_actfire0 && (r_actfire0_bank == refresh_bank_i));
+    assign w_maint_safe = w_all_act_ready && !w_rfc_busy && !w_zq_busy && !maint_busy_i;
+
+    logic        w_ovr_vld;
+    dram_op_e    w_ovr_op;
+    logic [BKW-1:0] w_ovr_bank;
+    logic [ROW_WIDTH-1:0] w_ovr_row;
+    logic [COL_WIDTH-1:0] w_ovr_col;
+    always_comb begin
+        w_ovr_vld  = 1'b0;
+        w_ovr_op   = OP_NOP;
+        w_ovr_bank = '0;
+        w_ovr_row  = '0;
+        w_ovr_col  = '0;
+        if (!init_done_i) begin
+            if (init_cmd_valid_i) begin
+                w_ovr_vld  = 1'b1;
+                w_ovr_op   = init_cmd_op_i;
+                w_ovr_bank = init_cmd_bank_i;
+                w_ovr_row  = init_cmd_row_i;
+            end
+        end else if (refresh_req_i || refresh_drain_i) begin
+            if (refresh_kind_i) begin
+                if (r_row_act[RK0][refresh_bank_i]) begin
+                    if (r_pre_rdy[RK0][refresh_bank_i]) begin
+                        w_ovr_vld  = 1'b1;
+                        w_ovr_op   = OP_PRE;
+                        w_ovr_bank = refresh_bank_i;
+                    end
+                end else if (w_refpb_safe) begin
+                    w_ovr_vld  = 1'b1;
+                    w_ovr_op   = OP_REFPB;
+                    w_ovr_bank = refresh_bank_i;
+                end
+            end else if (w_any_active) begin
+                if (w_rfsh_pre_found) begin
+                    w_ovr_vld  = 1'b1;
+                    w_ovr_op   = OP_PRE;
+                    w_ovr_bank = w_rfsh_pre_bank;
+                end
+            end else if (w_ref_safe) begin
+                w_ovr_vld = 1'b1;
+                w_ovr_op  = OP_REF;
+            end
+        end else if (HAS_ZQ && zq_req_i && w_maint_safe) begin
+            w_ovr_vld = 1'b1;
+            w_ovr_op  = OP_ZQCS;
+        end else if (maint_req_i && w_maint_safe) begin
+            w_ovr_vld  = 1'b1;
+            w_ovr_op   = maint_op_i;
+            w_ovr_bank = maint_bank_i;
+            w_ovr_row  = maint_row_i;
+            w_ovr_col  = maint_col_i;
+        end
+    end
+
+    // ---- the winner's live view -----------------------------------------
+    logic [BKW-1:0]  w_sel_bank;
+    logic            w_sel_is_wr;
+    logic            w_sel_hit, w_sel_row_act;
+    logic            w_fis_col, w_fis_act, w_fis_pre;
+    assign w_sel_bank    = BKW'(w_win_pair >> 1);
+    assign w_sel_is_wr   = w_win_pair[0];
+    logic [PTRW-1:0] w_sel_slot;
+    assign w_sel_slot    = PTRW'(w_sel_cand.slot);
+    assign w_sel_cand    = w_cand[w_win_pair];
+    assign w_sel_hit     = w_hit [w_win_pair];
+    assign w_sel_row_act = bank_row_active_i[RK0][w_sel_bank];
+    assign w_fis_col     = (w_win_cls == CL_COL);
+    assign w_fis_act     = (w_win_cls == CL_ACT);
+    assign w_fis_pre     = (w_win_cls == CL_PRE);
+
+    // direction turnarounds: 1-deep fire history + the global windows
+    logic r_wrfire0, r_rdfire0;
+
+    // FORWARD tCCD counter (see the t_ccd_i port note)
+    logic [7:0] r_tccd_fwd;
+    logic       w_tccd_fwd_ok, w_fire, w_dmd_fire, w_col_fire_now;
+    assign w_tccd_fwd_ok  = (r_tccd_fwd == 8'd0);
+    assign w_col_fire_now = w_dmd_fire && w_fis_col;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))  r_tccd_fwd <= 8'd0;
+        else if (w_col_fire_now)
+            r_tccd_fwd <= (t_ccd_i > 8'd1) ? (t_ccd_i - 8'd1) : 8'd0;
+        else if (r_tccd_fwd != 8'd0) r_tccd_fwd <= r_tccd_fwd - 8'd1;
+    )
+
+    // class still applies and timers open -> fire; otherwise the winner is
+    // simply re-arbitrated next cycle (no hold: the winner register loads
+    // every cycle, so no fire-cone term sits on its load path)
+    logic w_class_ok, w_timer_ok, w_blocked, w_dmd_ok;
+    always_comb begin
+        w_class_ok = 1'b0;
+        w_timer_ok = 1'b0;
+        w_blocked  = w_ref_dmd_block[w_sel_bank] || w_rfc_dmd_block[w_sel_bank];
+        if (w_fis_col) begin
+            // the write sink re-check: registers only (see the port note).
+            // No live store state here: a merge target is never a
+            // schedulable record (the store admits merges only into
+            // entries still filling), so the record is the whole truth.
+            w_class_ok = w_sel_cand.vld && w_sel_hit
+                      && (!w_sel_is_wr || wr_commit_ready_now_i);
+            w_timer_ok = bank_rdwr_ready_i[RK0][w_sel_bank] && w_tccd_fwd_ok
+                      && (w_sel_is_wr ? (trtw_ok_i && !r_rdfire0)
+                                      : (twtr_ok_i && !r_wrfire0));
+        end else if (w_fis_act) begin
+            w_class_ok = w_sel_cand.vld && !w_sel_row_act && !w_rfc_busy && !maint_busy_i;
+            w_timer_ok = bank_act_ready_i[RK0][w_sel_bank] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+        end else if (w_fis_pre) begin
+            w_class_ok = w_sel_cand.vld && w_sel_row_act && !w_sel_hit;
+            w_timer_ok = bank_pre_ready_i[RK0][w_sel_bank];
+        end
+        w_dmd_ok   = w_win_vld && w_class_ok && !w_blocked && w_timer_ok;
+    end
+    // The winner's bank timer, as the lookahead sees it (registers only):
+    // bounds the hold to a timer that opens within the pipe depth. A bank
+    // gated longer than that (the contract bench's gate, a per-bank refresh)
+    // releases the winner so the next requester fires instead; the decode
+    // re-presents it when its lookahead opens.
+    logic w_win_la_ok;
+    always_comb begin
+        w_win_la_ok = 1'b0;
+        if (w_fis_col)      w_win_la_ok = bank_rdwr_ready_la_i[RK0][w_sel_bank];
+        else if (w_fis_act) w_win_la_ok = bank_act_ready_la_i [RK0][w_sel_bank];
+        else if (w_fis_pre) w_win_la_ok = bank_pre_ready_la_i [RK0][w_sel_bank];
+    end
+    // hold: the effective winner was a valid, applicable, unblocked request
+    // whose bank opens within the pipe depth and that did not fire (tCCD /
+    // turnaround / cmd_ready closed, or the override took the slot) -- serve
+    // it again next cycle. A winner whose class no longer applies, that is
+    // demand-blocked, or whose bank is gated beyond the lookahead is released
+    // and the decode re-presents it.
+    logic             w_hold_next;
+    // A held winner that is a column of the OTHER direction, waiting on the
+    // turnaround timer, yields as soon as the current direction has a column
+    // pending again (trace 2026-10-26, cycles 63343-63347: the read column
+    // was picked in the one cycle the writer's next entry was not yet
+    // visible, then HELD through tWTR while the writer's column sat ready
+    // from the next cycle on; after it fired the writer paid tRTW ~21, one
+    // flip per column). Dropping the hold re-runs the select, which takes
+    // the current direction's column; the other direction keeps its turn
+    // when nothing in the current direction is pending.
+    logic             w_win_xdir_col;
+    assign w_win_xdir_col = w_win_vld && (w_win_cls == CL_COL) && (w_sel_is_wr != r_dir)
+                         && (r_dir ? w_wr_col_pend : w_rd_col_pend) && !w_dir_batch_done;
+    assign w_hold_next = w_win_vld && w_class_ok && !w_blocked && w_win_la_ok && !w_dmd_fire
+                      && !w_win_xdir_col;
+
+    logic w_ovr_safe;
+    assign w_ovr_safe = (w_ovr_op == OP_PRE) ? bank_pre_ready_i[RK0][w_ovr_bank] : 1'b1;
+
+    // Background idle-timeout close (mc_page_policy fixed_open): the lowest
+    // priority command -- fires only when neither the override nor the demand
+    // winner does, against the live row image and pre gate, never on the
+    // bank the held winner is about to use.
+    logic w_to_pre;
+    assign w_to_pre = timeout_pre_req_i && !w_ovr_vld && !w_dmd_ok
+                   && bank_row_active_i[RK0][timeout_pre_bank_i]
+                   && bank_pre_ready_i[RK0][timeout_pre_bank_i]
+                   && !w_ref_dmd_block[timeout_pre_bank_i] && !w_rfc_dmd_block[timeout_pre_bank_i]
+                   && !(w_win_vld && (w_sel_bank == timeout_pre_bank_i));
+
+    assign w_fire      = cmd_ready_i && (w_ovr_vld ? w_ovr_safe : (w_dmd_ok || w_to_pre));
+    assign w_dmd_fire  = w_fire && !w_ovr_vld && w_dmd_ok;
+    assign cmd_valid_o = w_fire;
+    logic w_to_fire;
+    assign w_to_fire   = w_fire && !w_ovr_vld && !w_dmd_ok;
+    assign cmd_timeout_pre_o = w_to_fire;
+
+    // ---- payload ----------------------------------------------------------
+    // the backend's flat slot fields as arrays (wires only; see the index note below)
+    logic [ROW_WIDTH-1:0] w_wr_slot_row [NUM_ENTRIES], w_rd_slot_row [NUM_ENTRIES];
+    logic [COL_WIDTH-1:0] w_wr_slot_col [NUM_ENTRIES], w_rd_slot_col [NUM_ENTRIES];
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            w_wr_slot_row[i] = wr_slot_row_i[i*ROW_WIDTH +: ROW_WIDTH];
+            w_rd_slot_row[i] = rd_slot_row_i[i*ROW_WIDTH +: ROW_WIDTH];
+            w_wr_slot_col[i] = wr_slot_col_i[i*COL_WIDTH +: COL_WIDTH];
+            w_rd_slot_col[i] = rd_slot_col_i[i*COL_WIDTH +: COL_WIDTH];
+        end
+    end
+    // Auto-precharge: the runtime page policy owns it when enabled (static
+    // open / close / fixed_open); otherwise the build policy, or the exact
+    // close-on-drain term.
+    logic w_sel_ap;
+    assign w_sel_ap = ap_mode_en_i ? ap_close_i[w_sel_bank]
+                    : ((page_policy_i == PAGE_POLICY_CLOSE)
+                       || (CLOSE_ON_DRAIN && !w_sel_cand.behind_same_row
+                           && !(ap_conflict_only_i && w_sel_cand.behind_empty
+                                && !drain_close_ok_i[w_sel_bank])));
+
+    always_comb begin
+        cmd_op_o    = OP_NOP;
+        cmd_bank_o  = '0;
+        cmd_row_o   = '0;
+        cmd_col_o   = '0;
+        cmd_ap_o    = 1'b0;
+        cmd_extra_o = '0;
+        if (w_ovr_vld) begin
+            cmd_op_o    = w_ovr_op;
+            cmd_bank_o  = w_ovr_bank;
+            cmd_row_o   = w_ovr_row;
+            cmd_col_o   = w_ovr_col;
+            cmd_extra_o = maint_extra_i;
+        end else if (!w_dmd_ok && w_to_pre) begin
+            cmd_op_o    = OP_PRE;
+            cmd_bank_o  = timeout_pre_bank_i;
+        end else if (w_win_vld) begin
+            cmd_bank_o = w_sel_bank;
+            // Array index, not a variable part-select on the flat vector: the
+            // part-select synthesizes as a barrel shifter over the whole
+            // N x ROW_WIDTH bus (1 538 of this block's 5 407 ASAP7 cells,
+            // pumice TASK-056); the array index is an N:1 mux per bit.
+            cmd_row_o  = w_sel_is_wr ? w_wr_slot_row[w_sel_slot] : w_rd_slot_row[w_sel_slot];
+            cmd_col_o  = w_sel_is_wr ? w_wr_slot_col[w_sel_slot] : w_rd_slot_col[w_sel_slot];
+            if (w_fis_act) begin
+                cmd_op_o = OP_ACT;
+            end else if (w_fis_pre) begin
+                cmd_op_o = OP_PRE;
+            end else begin
+                cmd_ap_o = w_sel_ap;
+                cmd_op_o = w_sel_is_wr ? (w_sel_ap ? OP_WRA : OP_WR)
+                                       : (w_sel_ap ? OP_RDA : OP_RD);
+            end
+        end
+    end
+    assign cmd_rank_o = RKW'(RK0);
+
+    // ---- strobes: storage handshake, grants, timer events -------------------
+    assign wr_commit_valid_o = w_dmd_fire && w_fis_col &&  w_sel_is_wr;
+    assign wr_commit_slot_o  = PTRW'(w_sel_cand.slot);
+    assign rd_issue_valid_o  = w_dmd_fire && w_fis_col && !w_sel_is_wr;
+    assign rd_issue_slot_o   = PTRW'(w_sel_cand.slot);
+    assign wr_commit_cand_o   = w_fis_col &&  w_sel_is_wr;
+    assign rd_issue_cand_o    = w_fis_col && !w_sel_is_wr;
+    assign cand_bank_o        = BKW'(w_win_pair >> 1);
+    assign cand_second_o      = r_shadow[w_win_pair];
+
+    // A grant is a REF the refresh controller asked for. The init sequence's
+    // refreshes pass through the same override (DDR2 init issues two), and
+    // the controller banks any grant with no backlog as a PULL-IN credit;
+    // two init-time credits silently consumed the first two tREFI ticks
+    // after init on every run (pumice ISSUE-022: exactly 2 tREFI soft
+    // violations per BANK_PICK run, none on FRFCFS, whose grant is a
+    // registered request-side pulse) and left refresh_credit's strict arm
+    // one REF short once the core got faster.
+    assign refresh_grant_o = w_fire && w_ovr_vld && init_done_i
+                          && ((w_ovr_op == OP_REF) || (w_ovr_op == OP_REFPB));
+    assign zq_grant_o      = w_fire && w_ovr_vld && (w_ovr_op == OP_ZQCS);
+    assign maint_grant_o   = w_fire && w_ovr_vld && maint_req_i
+                          && !refresh_req_i && !refresh_drain_i
+                          && !(HAS_ZQ && zq_req_i);
+
+    assign evt_act_o  = w_dmd_fire && w_fis_act;
+    assign evt_rd_o   = w_dmd_fire && w_fis_col && !w_sel_is_wr;
+    assign evt_wr_o   = w_dmd_fire && w_fis_col &&  w_sel_is_wr;
+    assign evt_pre_o  = w_fire && (w_ovr_vld ? (w_ovr_op == OP_PRE) : (w_to_fire || w_fis_pre));
+    assign evt_ap_o   = w_dmd_fire && w_fis_col && cmd_ap_o;
+    assign evt_rank_o = RKW'(RK0);
+    assign evt_bank_o = cmd_bank_o;
+    assign evt_row_o  = cmd_row_o;
+
+    // ---- next-op hint: what this pair wants next, if its timer is within
+    //      the pipe depth (otherwise the lookahead decode lands it) ---------
+    // A hop whose timer is SHORTER than the pipe (t < LA, e.g. tRTP = 1 at
+    // the LiteDRAM-equivalent profile) cannot land through the arbiter
+    // register at all; the arbiter speculates it from the held winner
+    // (w_spec_*). A hop with t == LA takes the hint path and lands exactly;
+    // longer hops are the decode's.
+    logic w_hint_vld;
+    cls_e w_hint_cls;
+    logic [7:0] w_hop_t;
+    always_comb begin
+        w_hint_vld = 1'b0;
+        w_hint_cls = CL_NONE;
+        w_hop_t    = 8'hFF;
+        if (w_dmd_fire) begin
+            if (w_fis_act) begin
+                w_hop_t = t_rcd_i;
+                if (w_hop_t <= 8'(LA)) begin w_hint_vld = 1'b1; w_hint_cls = CL_COL; end
+            end else if (w_fis_pre) begin
+                w_hop_t = t_rp_i;
+                if (w_hop_t <= 8'(LA)) begin w_hint_vld = 1'b1; w_hint_cls = CL_ACT; end
+            end else if (w_fis_col && !cmd_ap_o
+                         && !w_sel_cand.behind_same_row && !w_sel_cand.behind_empty
+                         && !w_hit[w_win_pair ^ 1]) begin
+                w_hop_t = w_sel_is_wr ? t_wr_i : t_rtp_i;
+                if (w_hop_t <= 8'(LA)) begin w_hint_vld = 1'b1; w_hint_cls = CL_PRE; end
+            end
+        end
+        // hops shorter than the pipe are the arbiter's speculation, not a hint
+        w_hint_vld = w_hint_vld && !((LA > 0) && (w_hop_t <= 8'(LA_SHORT)));
+    end
+
+    // ---- direction register next state ----------------------------------
+    // Stick until the current direction runs dry, or the batch cap is hit
+    // while the other direction has columns. See the register load below for
+    // why an old-direction fire right after a flip does not turn back.
+    always_comb begin
+        w_dir_nxt       = r_dir;
+        w_dir_batch_nxt = r_dir_batch;
+        if (w_col_fire_now && (w_sel_is_wr != r_dir) && r_dir_flip) begin
+            // the leftover fires; the direction and its batch stand
+        end else if (w_col_fire_now && (w_sel_is_wr != r_dir)) begin
+            w_dir_nxt       = w_sel_is_wr;
+            w_dir_batch_nxt = 8'd1;
+        end else if ((r_dir ? !w_wr_col_pend : !w_rd_col_pend)
+                     && (r_dir ? w_rd_col_any : w_wr_col_any)) begin
+            w_dir_nxt       = ~r_dir;
+            w_dir_batch_nxt = '0;
+        end else if (r_batch_done && (r_dir ? w_rd_col_any : w_wr_col_any)) begin
+            w_dir_nxt       = ~r_dir;
+            w_dir_batch_nxt = '0;
+        end else if (w_col_fire_now && (r_dir_batch != 8'hFF)) begin
+            w_dir_batch_nxt = r_dir_batch + 8'd1;
+        end
+        w_dir_flip_nxt = (w_dir_nxt != r_dir);
+    end
+
+    // DIR_HOLD_IDLE: cycles since the current direction last fired a command
+    // (cleared on a flip and on any demand fire of that direction)
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))                         r_dir_idle <= '0;
+        else if ((w_dir_nxt != r_dir)
+                 || (w_dmd_fire && (w_sel_is_wr == r_dir))) r_dir_idle <= '0;
+        else if (r_dir_idle != 8'hFF)                       r_dir_idle <= r_dir_idle + 8'd1;
+    )
+    // ---- registered state: winner, rotor, direction, shadow, hint, history --
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_pick_vld  <= 1'b0;
+            r_pick_pair <= '0;
+            r_pick_cls  <= CL_NONE;
+            r_held_vld  <= 1'b0;
+            r_held_pair <= '0;
+            r_held_cls  <= CL_NONE;
+            r_hold      <= 1'b0;
+            r_rotor     <= '0;
+            r_dir       <= 1'b0;
+            r_dir_batch <= '0;
+            r_dir_flip  <= 1'b0;
+            r_batch_done <= 1'b0;
+            r_shadow    <= '0;
+            r_stale_pick  <= '0;
+            r_stale_win   <= '0;
+            r_stale_spec  <= '0;
+            r_stale_fire  <= '0;
+            r_spec_taken  <= 1'b0;
+            r_hint_vld  <= 1'b0;
+            r_hint_pair <= '0;
+            r_hint_cls  <= CL_NONE;
+            r_last_was_row <= 1'b0;
+            r_wrfire0   <= 1'b0;
+            r_rdfire0   <= 1'b0;
+            r_wr_col_more <= 1'b0;
+            r_rd_col_more <= 1'b0;
+            r_actfire0      <= 1'b0;
+            r_actfire0_bank <= '0;
+        end else begin
+            // pick: loads EVERY cycle from the arbiter (or the short-hop
+            // speculation on the effective winner); no fire-cone term on
+            // its load path
+            if (w_spec_vld) begin
+                r_pick_vld  <= 1'b1;
+                r_pick_pair <= w_win_pair;
+                r_pick_cls  <= w_spec_cls;
+            end else begin
+                r_pick_vld  <= w_pick_vld;
+                r_pick_pair <= w_pick_pair;
+                r_pick_cls  <= w_pick_cls;
+            end
+            r_hold      <= w_hold_next;
+            r_held_vld  <= w_win_vld;
+            r_held_pair <= w_win_pair;
+            r_held_cls  <= w_win_cls;
+            // next cycle's effective winner is known now: hold, speculation
+            // or the fresh pick -- register each source's stale mask; the
+            // registered hold / speculation bits resolve them next cycle
+            r_spec_taken  <= w_spec_vld;
+            r_stale_win   <= (w_win_vld && ((w_win_cls != CL_COL) || !w_sel_cand.behind_same_row))
+                           ? (NPAIR'(1) << w_win_pair) : '0;
+            r_stale_spec  <= ((w_spec_cls != CL_COL) || !w_sel_cand.behind_same_row) ? (NPAIR'(1) << w_win_pair) : '0;
+            r_stale_pick  <= w_pick_onehot & w_stale_if;
+            // the cycle after a column fire that emptied its pair (see above)
+            r_stale_fire  <= (w_col_fire_now && w_sel_cand.behind_empty) ? (NPAIR'(1) << w_win_pair) : '0;
+            if (w_dmd_fire) r_last_was_row <= !w_fis_col;
+            // rotor: past the fired pair; unchanged while the winner waits
+            if (w_dmd_fire) r_rotor <= w_win_pair + PAIRW'(1);
+
+            // direction: stick until the current direction runs dry or the
+            // batch limit is hit while the other direction has columns.
+            // A column of the OLD direction firing the cycle after a flip
+            // is the pick made before the flip, still in the fire stage
+            // -- not a decision to turn back. Following it undid every cap
+            // flip: the old direction got a fresh batch and the other
+            // direction's picked column yielded, so with the cap engaged (it
+            // was tied to 0 until 2026-10-30) a writer never got the bus
+            // while a reader had work (granite TASK-003, concurrent banks:
+            // 2048 reads, then 2048 writes).
+            // Any flip, not only the cap's (granite TASK-003, 2026-11-01):
+            // after a drain flip to reads, the writer's short-hop column
+            // picked the cycle before fired and turned the bus straight back
+            // to writes with a fresh batch; the picked read then failed tWTR
+            // behind that write and was re-picked away. Every write burst
+            // end repeated it, the batch never passed 8 and the cap never
+            // fired: one writer against two readers (multigen
+            // col_major_interleaved) starved a bank's read for the whole
+            // write stream, 367 619 cycles on the board.
+            r_dir        <= w_dir_nxt;
+            r_dir_batch  <= w_dir_batch_nxt;
+            r_dir_flip   <= w_dir_flip_nxt;
+            r_batch_done <= (dir_batch_max_i != 8'd0) && (w_dir_batch_nxt >= dir_batch_max_i);
+
+            // pop shadow (one cycle, one-hot)
+            r_shadow <= w_col_fire_now ? (NPAIR'(1) << w_win_pair) : '0;
+
+            // next-op hint (one cycle)
+            r_hint_vld  <= w_hint_vld;
+            r_hint_pair <= w_win_pair;
+            r_hint_cls  <= w_hint_cls;
+
+            r_wrfire0 <= w_col_fire_now &&  w_sel_is_wr;
+            r_rdfire0 <= w_col_fire_now && !w_sel_is_wr;
+            r_wr_col_more <= w_col_fire_now &&  w_sel_is_wr && w_win_bsr;
+            r_rd_col_more <= w_col_fire_now && !w_sel_is_wr && w_win_bsr;
+            r_actfire0      <= w_dmd_fire && w_fis_act;
+            r_actfire0_bank <= w_sel_bank;
+        end
+    )
+
+    // t_zqcs_i is consumed by the HAS_ZQ branch only; the winner's aging flag
+    // acted in the decode (priority) and is not re-read here.
+    wire _unused_pick = &{1'b0, t_zqcs_i, w_sel_cand.age_exceed};
+
+    // ======================================================================
+    // Stall-cause attribution (same buckets as the FRFCFS core)
+    // ======================================================================
+    logic w_any_pending;
+    always_comb begin
+        w_any_pending = 1'b0;
+        for (int b = 0; b < NUM_BANKS; b++)
+            if (wr_head_i[b].vld || rd_head_i[b].vld) w_any_pending = 1'b1;
+    end
+    generate if (HAS_STALL_STATS) begin : g_stall_stats
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stall_bp_o <= '0; stall_refresh_o <= '0; stall_turnaround_o <= '0;
+            stall_tccd_o <= '0; stall_actlimit_o <= '0; stall_banktimer_o <= '0;
+            stall_noreq_o <= '0; stall_zq_o <= '0;
+        end else if (!w_fire) begin
+            if (refresh_req_i || refresh_drain_i)        stall_refresh_o    <= stall_refresh_o + 1;
+            else if (!w_any_pending)                     stall_noreq_o      <= stall_noreq_o + 1;
+            else if (!cmd_ready_i)                       stall_bp_o         <= stall_bp_o + 1;
+            else if (!twtr_ok_i || !trtw_ok_i)           stall_turnaround_o <= stall_turnaround_o + 1;
+            else if (!w_tccd_fwd_ok)                     stall_tccd_o       <= stall_tccd_o + 1;
+            else if (!tfaw_ok_i[RK0] || !trrd_ok_i[RK0]) stall_actlimit_o   <= stall_actlimit_o + 1;
+            else if (HAS_ZQ && w_zq_busy)                stall_zq_o         <= stall_zq_o + 1;
+            else                                         stall_banktimer_o  <= stall_banktimer_o + 1;
+        end
+    )
+    end else begin : g_no_stall_stats
+        assign stall_bp_o = '0; assign stall_refresh_o = '0; assign stall_turnaround_o = '0;
+        assign stall_tccd_o = '0; assign stall_actlimit_o = '0; assign stall_banktimer_o = '0;
+        assign stall_noreq_o = '0; assign stall_zq_o = '0;
+        wire _unused_ss = &{1'b0, w_any_pending};
+    end endgenerate
+
+    // ======================================================================
+    // Direction-flip debug: the cause, in the next-state block's order, and
+    // the length of the batch that ended, captured when the flip is decided.
+    // Read-only on the decision terms; nothing here feeds back.
+    // ======================================================================
+    logic [1:0] w_dir_cause, r_dir_cause;
+    logic [7:0] r_dir_end_batch;
+    always_comb begin
+        if (w_col_fire_now && (w_sel_is_wr != r_dir) && !r_dir_flip)
+            w_dir_cause = 2'd0;
+        else if ((r_dir ? !w_wr_col_pend : !w_rd_col_pend)
+                 && (r_dir ? w_rd_col_any : w_wr_col_any))
+            w_dir_cause = 2'd1;
+        else
+            w_dir_cause = 2'd2;
+    end
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_dir_cause     <= 2'd0;
+            r_dir_end_batch <= 8'd0;
+        end else if (w_dir_flip_nxt) begin
+            r_dir_cause     <= w_dir_cause;
+            r_dir_end_batch <= r_dir_batch;
+        end
+    )
+    assign dbg_dir_flip_o  = r_dir_flip;
+    assign dbg_dir_o       = r_dir;
+    assign dbg_dir_cause_o = r_dir_cause;
+    assign dbg_dir_batch_o = r_dir_end_batch;
+
+endmodule : mc_bank_pick_gold

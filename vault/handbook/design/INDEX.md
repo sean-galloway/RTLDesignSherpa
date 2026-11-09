@@ -37,7 +37,8 @@ summary: RTL rules with the failures that taught them.
 - [[always-comb-block-fusion]] - a block is one scheduling node; mixing independent signals invents dependencies and fakes combinational loops
 - [[credit-tokens-count-every-event]] - a token/credit counter ADDS every increment source in the cycle; an OR between two sources is an off-by-one that silently shifts the pairing forever (pumice BUG-033: a lost release token made every command leave only when the next one arrived)
 - [[global-windows-revalidate-at-issue]] - a window that is not a per-resource property (tRRD, tFAW, tZQCS) must be re-checked in the gate that lets the command FIRE, not only where it is selected, and the gate OWNS the window from the fire cycle, not from the cycle its counter loads; four bugs in one block from this (pumice BUG-021, scoria BUG-001/002, pumice BUG-033)
-- [[registered-status-outputs]] - a registered readiness/status flag must sample the NEXT state; sampling `r_state == X` publishes it a cycle late and every consumer then compensates (pumice ISSUE-018)
+- [[registered-status-outputs]] - a registered readiness/status flag must sample the NEXT state; sampling `r_state == X` publishes it a cycle late and every consumer then compensates (pumice ISSUE-018); the same next-state algebra registers a compare off the ROOT of a cone, cycle-exact (MC-011)
+- [[resolve-the-select-at-the-load]] - a 2:1 mux of register sets by a registered decision is a LUT and a high-fanout net at the root of every consumer; load one register set with the decision at its D (mc_bank_pick, granite 100 MHz, MC-011)
 - [[naming-and-style]] - module/signal conventions, headers
 - [[signal-prefixes]] - r_ = flopped, w_ = combinational; what it promises and where it lies
 - [[filelists]] - every module MUST have a .f and be registered; the two silent failures

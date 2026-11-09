@@ -584,18 +584,30 @@ module mc_bank_fifo_store
     logic [PTRW-1:0] w_dq_wr_slot,  w_dq_rd_slot;
     logic            w_wr_commit_fire, w_dq_pop;
     logic [PTRW:0]   r_dq_occ;
-    assign w_wr_commit_fire = wr_commit_valid_i && w_dq_wr_ready
-                            && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
+    // r_dq_occ < DQ_DEPTH as a flag registered from the occupancy's next
+    // value (memory-controllers MC-011, 2026-11-08): the compare sat between
+    // the pick's commit strobe and every bank queue's pop on the granite
+    // 100 MHz board build. The late terms (commit, pop) select between
+    // compares of the registered occupancy.
+    logic            r_dq_room;
+    assign w_wr_commit_fire = wr_commit_valid_i && w_dq_wr_ready && r_dq_room;
     assign w_dq_wr_valid    = w_wr_commit_fire;
     assign w_dq_pop         = w_dq_rd_valid && w_dq_rd_ready;
-    assign wr_commit_ready_o     = w_dq_wr_ready && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
-    assign wr_commit_ready_now_o = w_dq_wr_ready && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
+    assign wr_commit_ready_o     = w_dq_wr_ready && r_dq_room;
+    assign wr_commit_ready_now_o = w_dq_wr_ready && r_dq_room;
 
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_dq_occ <= '0;
-        else                        r_dq_occ <= r_dq_occ
-                                               + (w_wr_commit_fire ? (PTRW+1)'(1) : (PTRW+1)'(0))
-                                               - (w_dq_pop         ? (PTRW+1)'(1) : (PTRW+1)'(0));
+        if (`RST_ASSERTED(aresetn)) begin
+            r_dq_occ  <= '0;
+            r_dq_room <= 1'b1;
+        end else begin
+            r_dq_occ  <= r_dq_occ
+                       + (w_wr_commit_fire ? (PTRW+1)'(1) : (PTRW+1)'(0))
+                       - (w_dq_pop         ? (PTRW+1)'(1) : (PTRW+1)'(0));
+            r_dq_room <= (w_wr_commit_fire && !w_dq_pop) ? (r_dq_occ < (PTRW+1)'(DQ_DEPTH - 1))
+                       : (w_dq_pop && !w_wr_commit_fire) ? 1'b1
+                       :                                   (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
+        end
     )
 
     assign w_dq_wr_slot = wr_commit_slot_i;

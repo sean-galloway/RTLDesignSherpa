@@ -90,3 +90,18 @@ tree once to see the miter fail. Results: arbiter 1.83 ns / 62 cells; board
 `always_comb` or function (`best = ... best ...`, `acc = acc + ...` with a
 compare in it). Every one is a chain of depth N; ask whether N is small
 enough to keep.
+
+## A min-search over four values is a tournament, not a walk (2026-11-08)
+
+`for (i) if (v[i] < min) begin min = v[i]; pick = i; end` over four 8-bit
+slots is three compares IN SERIES, each on the previous one's result: in
+`mc_global_timers`' tFAW slot search it was 12 LUT levels with three carry
+chains end to end, closing a `r_slot_pick -> r_slot_pick` loop at -0.264 ns
+on the granite 100 MHz board build (memory-controllers MC-011). The
+tournament form -- compare 0/1 and 2/3 in parallel, then the two winners --
+is two compares deep and gives the SAME answer when the tie-break is
+written down: keep the left (lower) index at both levels, and carry the
+exclusion as the key's top bit so an excluded slot sorts above every value.
+Keep the serial walk's quirks too (here: nothing beats the 8'hFF starting
+minimum, so an all-8'hFF set reads slot 0) or the equivalence proof says
+no; `formal/mc_common/mc_global_timers` task `equiv` is that proof.

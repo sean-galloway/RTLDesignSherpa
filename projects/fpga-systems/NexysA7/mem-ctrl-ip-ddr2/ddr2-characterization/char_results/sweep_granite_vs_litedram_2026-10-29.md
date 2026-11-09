@@ -1,5 +1,76 @@
 # granite vs LiteDRAM, the full sweep (owner's request, 2026-10-29)
 
+## Update 2026-11-09: the FPGA SKU closes 100 MHz under the budget; its size against LiteDRAM; the board at 100 MHz is down
+
+Owner, 2026-11-08: "get granite to converge at 100mhz. compare its size and
+performance to litedram." Granite is the FPGA SKU since ace471566 (store
+combiner off, narrow pack off, pool age off), and sweep 1 under the 0.2 ns
+placement budget had it at -0.276 / -0.335 / -0.019 ns on the three placer
+directives. Five cycle-exact cuts in the shared controller IP (the bank
+timers' readiness compares registered from the counters' next state, the
+bank pick's winner resolved at the register, the per-source class, the bank
+queue and store occupancy flags as flops, the tFAW slot search as a
+tournament), each gated by a golden-copy equivalence proof, bring it to
+**+0.147 / +0.128 / +0.002 ns under the budget: closed by 0.002 on the worst
+placement**, 35,713-35,727 LUT for the whole board design. memory-controllers
+MC-011 has the step table, the binding paths and the proofs.
+
+**Area** (Vivado `report_utilization -hierarchical` on the routed
+checkpoints, xc7a100t, default directive; the controller only, without the
+shared DDR2 PHY, the characterization engines, the UART bridge or the debug
+RAMs):
+
+| | granite FPGA SKU, 100 MHz (2026-11-09) | granite research cfg, 100 MHz (own3_100, 2026-11-01) | LiteDRAM, 100 MHz (hx100, 2026-10-31) |
+|---|---|---|---|
+| instance | `granite_top_geared` | `granite_top_geared` | `litedram_core` minus `VexRiscv` and `a7ddrphy` cells |
+| LUT (of which LUTRAM) | 5,869 (388) | 8,284 (416) | about 2,260 (235) |
+| FF | 4,746 | 5,019 | about 1,580 |
+| RAMB36 / RAMB18 | 2 / 0 | 2 / 0 | 3 at most / 1 (see note) |
+| of the LUT: core / CSR | `granite_core` 5,596 / `granite_csr` 274 | 7,905 / 379 | one flat module |
+| peak, both directions | 800 MB/s | 800 MB/s | 800 MB/s |
+
+- The SKU is 2.6x LiteDRAM's controller by LUT (the research configuration
+  was 3.7x); the 2,415 LUT between the two granite columns is the store
+  combiner (about 1,650), the narrow pack and the per-bank queue store's age
+  path. Inside the SKU core: the per-bank queue store 1,991 LUT (16 queues of
+  66-167 each, 134 LUTRAM, one RAMB36 for the payload), the scheduler plane
+  2,128 (of it the bank pick 820, the eight bank timers 674, the page policy
+  310, the global timers 166), the AXI plane 999 (return ring 475, read intake
+  218, write intake 183), the DFI plane 327 (of it the same-clock CDC form
+  281), the init plane 148.
+- LiteDRAM's figure is the same upper bound as before: `litedram_core`
+  4,400 LUT / 3,356 FF minus the `VexRiscv` subtree (1,933 / 1,278) and the
+  `a7ddrphy` cells (208 / 496); what remains still holds the SoC glue
+  (Wishbone, CSR bus, UART). Of its 13 RAMB36 / 9 RAMB18, 9 are the CPU's,
+  8 the BIOS ROM, 2 its SRAM.
+- The two are not the same machine: LiteDRAM is one per-bank FSM with a
+  round-robin, granite keeps 16 bank queues with lookahead, direction
+  ownership and a hybrid page policy. The 2026-11-01 numbers below show what
+  that buys at 100 MHz (42 win / 18 tie / 0 lose on the shared cells for the
+  research configuration; the SKU drops only the combiner the board never
+  showed a benefit for).
+
+**Performance at 100 MHz: not measured today.** The SKU bitstream was
+programmed for the eight-profile run (`char_granite_sku100_*_2026-11-09`)
+and the board did not come up: a7ddrphy read leveling found no (bitslip,
+tap) eye through the controller and write_read mismatched 512 of 512 beats.
+The same under today's host for: the flow's own Explore bitstream (+0.002),
+the base bitstream (821b5c164, before this work), HEAD in the research
+configuration, and a worktree build of c38f80c9e -- the 2026-11-02 design
+that ran at 100 MHz on this board then. On the same board, same host, same
+hour: pumice sys75 (current tree) init + write_read PASS, **granite sys75 on
+the final RTL init + write_read PASS**, the 2026-11-02 bitstream under the
+2026-11-02 host FAIL, and **LiteDRAM's own 100 MHz bitstream
+(`litedram_char_100mhz_2026-10-31.bit`) init_done and 708-760 MB/s on the
+incremental cells**. So the board, the DRAM and the PHY work at 100 MHz; the
+granite controller works on the board; the granite harness at 100 MHz is
+what fails, for every design built today -- granite ISSUE-002 has the matrix
+and the leads (PHY-domain placement margin first). The 100 MHz comparison
+follows it; the 75 MHz board point is where the final RTL is measured today
+(`char_granite_sku75_<profile>_2026-11-09.csv` against LiteDRAM's `sweep75`
+set of 2026-10-29), and the 2026-11-01 100 MHz tables below stand as the last
+measured 100 MHz comparison.
+
 ## Working summary (as of 2026-11-01)
 
 One board (Nexys A7-100T, MT47H64M16HR x16), one harness, one host program

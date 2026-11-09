@@ -1,6 +1,7 @@
 [tasks]
 prove
 cover
+equiv
 
 [options]
 # Four ACTs at tRRD=1 plus a fifth at the tFAW boundary (t_faw up to 6) needs
@@ -9,16 +10,28 @@ prove: mode bmc
 prove: depth 32
 cover: mode cover
 cover: depth 32
+# tournament slot search vs the serial golden copy (MC-011): free inputs,
+# 32 cycles sees four ACTs fill every slot and the window reopen several times
+equiv: mode bmc
+equiv: depth 32
 
 [engines]
 prove: smtbmc bitwuzla
 cover: smtbmc bitwuzla
+equiv: smtbmc bitwuzla
 
 [script]
 read_verilog -formal global_timers_flat.v
-read -formal -sv formal_global_timers.sv
-prep -top formal_global_timers
+prove: read -formal -sv formal_global_timers.sv
+prove: prep -top formal_global_timers
+cover: read -formal -sv formal_global_timers.sv
+cover: prep -top formal_global_timers
+equiv: read_verilog -formal global_timers_gold_flat.v
+equiv: read -formal -sv formal_global_timers_equiv.sv
+equiv: prep -top formal_global_timers_equiv
 
 [files]
 formal_global_timers.sv
+formal_global_timers_equiv.sv
 global_timers_flat.v
+global_timers_gold_flat.v

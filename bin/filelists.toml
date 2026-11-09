@@ -698,3 +698,20 @@ filelist_dirs = [
     "projects/fpga-systems/NexysA7/riscv-ip/gatling/build-bram/rtl/filelists",
     "projects/fpga-systems/NexysA7/riscv-ip/gatling/dv/filelists",
 ]
+
+# ---------------------------------------------------------------------------
+# Formal equivalence units (memory-controllers MC-011): each proof directory
+# keeps the golden copy's filelist and the lockstep unit (DUT .f + gold .f +
+# harness) under filelists/, where the parse gate can find them. sby itself
+# reads the sv2v flats the proof Makefile builds from these.
+# ---------------------------------------------------------------------------
+
+[[area]]
+name = "formal_mc_common_equiv"
+kind = "testbench"
+rtl_roots = []
+filelist_dirs = [
+    "formal/mc_common/mc_bank_pick/filelists",
+    "formal/mc_common/mc_bank_timer/filelists",
+    "formal/mc_common/mc_global_timers/filelists",
+]

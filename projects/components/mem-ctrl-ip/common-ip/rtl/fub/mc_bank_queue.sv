@@ -8,8 +8,11 @@
 //   every cycle (s0 / s1 / s2 and their valids) are register outputs; the
 //   rest of the queue sits in a small reset-free memory (LUTRAM) that is
 //   touched once per push and once per pop. There is no FIFO controller:
-//   the valids are compares on one registered count, and a pop ends in the
-//   shift register's load and a pointer increment.
+//   the valids and the ready are flags registered from one count's NEXT
+//   value (memory-controllers MC-011, 2026-11-08: as compares on the count
+//   they were one LUT level between the pick's fire strobe and this queue's
+//   pop on every granite 100 MHz failing path), and a pop ends in the shift
+//   register's load and a pointer increment.
 //
 //   Drop-in for gaxi_age_fifo_sync with the age column off (memory-controllers
 //   MC-010, ISSUE-001 row 2, 2026-11-08): same wr/rd handshake and the same
@@ -73,14 +76,16 @@ module mc_bank_queue #(
     end endgenerate
 
     logic [CW-1:0]  r_cnt;                 // entries held (shift register + tail)
+    logic           r_nonempty, r_notfull; // r_cnt != 0, r_cnt != D: registered from the count's next value
+    logic [PKN-1:0] r_pk_vld;              // r_cnt > k + 1, likewise
     logic [DW-1:0]  r_sr   [L];            // [0] = head
     logic [DW-1:0]  r_tail [TD];           // entries behind the shift register, in order
     logic [TAW-1:0] r_wp, r_rp;            // tail memory write / read pointers
 
     logic w_push, w_pop, w_tail_has;
     logic [CW-1:0] w_tcnt;                 // entries in the tail memory
-    assign rd_valid   = (r_cnt != '0);
-    assign wr_ready   = (r_cnt != CW'(D));
+    assign rd_valid   = r_nonempty;
+    assign wr_ready   = r_notfull;
     assign count      = r_cnt;
     assign w_push     = wr_valid && wr_ready;
     assign w_pop      = rd_ready && rd_valid;
@@ -91,7 +96,7 @@ module mc_bank_queue #(
     assign rd_data = r_sr[0];
     for (genvar k = 0; k < PKN; k++) begin : g_peek
         if (k < PEEK) begin : g_live
-            assign pk_valid[k] = (r_cnt > CW'(k + 1));
+            assign pk_valid[k] = r_pk_vld[k];
             assign pk_data[k]  = r_sr[k + 1];
         end else begin : g_off
             assign pk_valid[k] = 1'b0;
@@ -111,13 +116,28 @@ module mc_bank_queue #(
     logic w_push_to_mem;
     assign w_push_to_mem = w_push && (w_tail_has || (w_sr_pos >= CW'(L)));
 
+    // The flags are the same compares on the count's next value, written so
+    // the late terms (push, pop: the pick's fire strobe) select between
+    // compares of the registered count rather than following an adder.
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (`RST_ASSERTED(axi_aresetn)) begin
             r_cnt <= '0; r_wp <= '0; r_rp <= '0;
+            r_nonempty <= 1'b0; r_notfull <= 1'b1; r_pk_vld <= '0;
         end else begin
             r_cnt <= r_cnt + (w_push ? CW'(1) : CW'(0)) - (w_pop ? CW'(1) : CW'(0));
             if (w_push_to_mem)       r_wp <= f_inc(r_wp);
             if (w_pop && w_tail_has) r_rp <= f_inc(r_rp);
+            r_nonempty <= (w_push && !w_pop) ? 1'b1
+                        : (w_pop && !w_push) ? (r_cnt > CW'(1))
+                        :                      (r_cnt != '0);
+            r_notfull  <= (w_pop && !w_push) ? 1'b1
+                        : (w_push && !w_pop) ? (r_cnt < CW'(D - 1))
+                        :                      (r_cnt != CW'(D));
+            for (int k = 0; k < PKN; k++)
+                r_pk_vld[k] <= (k < PEEK)
+                             && ((w_push && !w_pop) ? (r_cnt > CW'(k))
+                               : (w_pop && !w_push) ? (r_cnt > CW'(k + 2))
+                               :                      (r_cnt > CW'(k + 1)));
         end
     )
 

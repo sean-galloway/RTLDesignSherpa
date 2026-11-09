@@ -58,7 +58,13 @@ module mc_bank_timer
     // the strobe and the load the pending load is folded into every counter
     // read (the "effective" view below), so safe_* and the lookahead twins
     // read what the live load would have given them. 0 = the live load.
-    parameter bit SET_LAG   = 1'b0
+    parameter bit SET_LAG   = 1'b0,
+    // 1 = the zero-detect / "within LA" compares (and the auto-precharge
+    // lookahead sums) are REGISTERED from the counters' next values, so a
+    // readiness output is one LUT from flops (memory-controllers MC-011,
+    // 2026-11-08; see the flags block). Cycle-exact either way; with
+    // SET_LAG = 1 every D input is register-only. 0 = the live compares.
+    parameter bit ZF_REG    = 1'b0
 ) (
     input  logic                 clk,
     input  logic                 rst_n,
@@ -181,17 +187,91 @@ module mc_bank_timer
     assign w_pend_rd  = SET_LAG && w_ld_rd;
     assign w_pend_wr  = SET_LAG && w_ld_wr;
     assign w_pend_pre = SET_LAG && w_ld_pre;
+
+    // ---- next counter values, computed once -------------------------------
+    // tRCD / tRAS / tRC: reload on ACT, else count down (saturate at 0).
+    // Load (t - LD), saturating -- see f_ld: "safe at count == 0" lands
+    // exactly at C + t, JEDEC-exact, the same semantics the tCCD forward
+    // counter uses (mc_bank_sched r_tccd_fwd). Loading t would enforce t+1
+    // (one cycle conservative per transition, which is what made the
+    // col_major bubble 9 against a 6-cycle floor; MC-003 2026-10-17).
+    // tRP: reload on the auto-PRE fire (live, D = 1) or the explicit PRE
+    // strobe, else count down. The self-close is the later of the two when
+    // both land in one cycle, so it wins (conservative).
+    // preblk: reload on RD (tRTP) / WR (tWR), else count down.
     logic w_rcd_z, w_ras_z, w_rc_z, w_rp_z, w_preblk_z;   // "count is zero", effective
-    assign w_rcd_z    = (r_rcd == '0) && !w_pend_act;
-    assign w_ras_z    = (r_ras == '0) && !w_pend_act;
-    assign w_rc_z     = (r_rc  == '0) && !w_pend_act;
-    assign w_rp_z     = (r_rp  == '0) && !w_pend_pre;
+    logic w_ap_fire;
+    logic [TW-1:0] w_rcd_nxt, w_ras_nxt, w_rc_nxt, w_rp_nxt, w_preblk_nxt;
+    function automatic logic [TW-1:0] f_dec(input logic [TW-1:0] c);
+        return (c != '0) ? (c - 1'b1) : '0;
+    endfunction
+    assign w_rcd_nxt    = w_ld_act  ? ld_rcd_i : f_dec(r_rcd);
+    assign w_ras_nxt    = w_ld_act  ? ld_ras_i : f_dec(r_ras);
+    assign w_rc_nxt     = w_ld_act  ? ld_rc_i  : f_dec(r_rc);
+    assign w_rp_nxt     = w_ap_fire ? ld_rp1_i : w_ld_pre ? ld_rp_i : f_dec(r_rp);
+    assign w_preblk_nxt = w_ld_rd   ? ld_rtp_i : w_ld_wr  ? ld_wr_i : f_dec(r_preblk);
+
+    // ---- the zero-detect and "within LA" flags ---------------------------
+    // ZF_REG = 0: compares on the live counters (the original form).
+    // ZF_REG = 1 (memory-controllers MC-011, 2026-11-08): the same compares
+    // on NEXT cycle's counter values, registered, so each readiness output
+    // is one LUT from flops instead of an 8-bit zero-detect, a mux and an
+    // AND in series. Cycle-exact: a flag registered from w_*_nxt at cycle N
+    // reads at N+1 what the live compare on r_* reads at N+1. The D inputs
+    // are register-only when SET_LAG = 1 (the strobes are the lagged
+    // registers), which is why the parent ties ZF_REG to EVT_REG: the
+    // granite 100 MHz census had 3 LUTs and 2.5 ns of wire between a bank
+    // counter and the pick's fire stage on every failing fire-cone path.
+    // Equivalence to the live form is proved against a golden copy in
+    // formal/mc_common/mc_bank_timer (task `equiv`).
+    logic w_rcd_z0, w_ras_z0, w_rc_z0, w_rp_z0, w_preblk_z0;   // count == 0
+    logic w_rcd_la0, w_ras_la0, w_rc_la0, w_rp_la0, w_preblk_la0;   // count <= LA
+    generate if (ZF_REG) begin : g_zf_reg
+        logic r_rcd_z0, r_ras_z0, r_rc_z0, r_rp_z0, r_preblk_z0;
+        logic r_rcd_la0, r_ras_la0, r_rc_la0, r_rp_la0, r_preblk_la0;
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) begin
+                r_rcd_z0 <= 1'b1; r_ras_z0 <= 1'b1; r_rc_z0 <= 1'b1; r_rp_z0 <= 1'b1; r_preblk_z0 <= 1'b1;
+                r_rcd_la0 <= 1'b1; r_ras_la0 <= 1'b1; r_rc_la0 <= 1'b1; r_rp_la0 <= 1'b1; r_preblk_la0 <= 1'b1;
+            end else begin
+                r_rcd_z0    <= (w_rcd_nxt    == '0);
+                r_ras_z0    <= (w_ras_nxt    == '0);
+                r_rc_z0     <= (w_rc_nxt     == '0);
+                r_rp_z0     <= (w_rp_nxt     == '0);
+                r_preblk_z0 <= (w_preblk_nxt == '0);
+                r_rcd_la0    <= (w_rcd_nxt    <= TW'(LA));
+                r_ras_la0    <= (w_ras_nxt    <= TW'(LA));
+                r_rc_la0     <= (w_rc_nxt     <= TW'(LA));
+                r_rp_la0     <= (w_rp_nxt     <= TW'(LA));
+                r_preblk_la0 <= (w_preblk_nxt <= TW'(LA));
+            end
+        )
+        assign w_rcd_z0 = r_rcd_z0;  assign w_ras_z0 = r_ras_z0;  assign w_rc_z0 = r_rc_z0;
+        assign w_rp_z0  = r_rp_z0;   assign w_preblk_z0 = r_preblk_z0;
+        assign w_rcd_la0 = r_rcd_la0;  assign w_ras_la0 = r_ras_la0;  assign w_rc_la0 = r_rc_la0;
+        assign w_rp_la0  = r_rp_la0;   assign w_preblk_la0 = r_preblk_la0;
+    end else begin : g_zf_live
+        assign w_rcd_z0    = (r_rcd    == '0);
+        assign w_ras_z0    = (r_ras    == '0);
+        assign w_rc_z0     = (r_rc     == '0);
+        assign w_rp_z0     = (r_rp     == '0);
+        assign w_preblk_z0 = (r_preblk == '0);
+        assign w_rcd_la0    = (r_rcd    <= TW'(LA));
+        assign w_ras_la0    = (r_ras    <= TW'(LA));
+        assign w_rc_la0     = (r_rc     <= TW'(LA));
+        assign w_rp_la0     = (r_rp     <= TW'(LA));
+        assign w_preblk_la0 = (r_preblk <= TW'(LA));
+    end endgenerate
+
+    assign w_rcd_z    = w_rcd_z0 && !w_pend_act;
+    assign w_ras_z    = w_ras_z0 && !w_pend_act;
+    assign w_rc_z     = w_rc_z0  && !w_pend_act;
+    assign w_rp_z     = w_rp_z0  && !w_pend_pre;
     assign w_preblk_z = w_pend_rd ? rtp_le1_i
                       : w_pend_wr ? wr_le1_i
-                      :             (r_preblk == '0);
+                      :             w_preblk_z0;
 
     // auto-precharge fires once the read/write recovery (preblk) AND tRAS elapse.
-    logic w_ap_fire;
     assign w_ap_fire = r_ap_pending && w_preblk_z && w_ras_z;
 
     `ALWAYS_FF_RST(clk, rst_n,
@@ -199,33 +279,11 @@ module mc_bank_timer
             r_rcd <= '0; r_ras <= '0; r_rc <= '0; r_rp <= '0; r_preblk <= '0;
             r_row_valid <= 1'b0; r_open_row <= '0; r_ap_pending <= 1'b0;
         end else begin
-            // tRCD / tRAS / tRC: reload on ACT, else count down (saturate at 0).
-            // Load (t - LD), saturating -- see f_ld: "safe at count == 0"
-            // lands exactly at C + t, JEDEC-exact, the same semantics the
-            // tCCD forward counter uses (mc_bank_sched r_tccd_fwd). Loading
-            // t would enforce t+1 (one cycle conservative per transition,
-            // which is what made the col_major bubble 9 against a 6-cycle
-            // floor; MC-003 2026-10-17).
-            if (w_ld_act)          r_rcd <= ld_rcd_i;
-            else if (r_rcd != '0)  r_rcd <= r_rcd - 1'b1;
-
-            if (w_ld_act)          r_ras <= ld_ras_i;
-            else if (r_ras != '0)  r_ras <= r_ras - 1'b1;
-
-            if (w_ld_act)          r_rc  <= ld_rc_i;
-            else if (r_rc  != '0)  r_rc  <= r_rc - 1'b1;
-
-            // tRP: reload on the auto-PRE fire (live, D = 1) or the explicit
-            // PRE strobe, else count down. The self-close is the later of the
-            // two when both land in one cycle, so it wins (conservative).
-            if (w_ap_fire)         r_rp <= ld_rp1_i;
-            else if (w_ld_pre)     r_rp <= ld_rp_i;
-            else if (r_rp != '0)   r_rp <= r_rp - 1'b1;
-
-            // preblk: reload on RD (tRTP) / WR (tWR), else count down
-            if (w_ld_rd)               r_preblk <= ld_rtp_i;
-            else if (w_ld_wr)          r_preblk <= ld_wr_i;
-            else if (r_preblk != '0)   r_preblk <= r_preblk - 1'b1;
+            r_rcd    <= w_rcd_nxt;
+            r_ras    <= w_ras_nxt;
+            r_rc     <= w_rc_nxt;
+            r_rp     <= w_rp_nxt;
+            r_preblk <= w_preblk_nxt;
 
             // row-open + auto-precharge bit (ACT > explicit PRE > auto-PRE).
             // Always on the LIVE strobe, SET_LAG or not: the row image is
@@ -290,25 +348,53 @@ module mc_bank_timer
     // C + t, which is t - 1 cycles from now: "within LA" is t <= LA + 1,
     // and the self-close wait is t - 1. Live these terms are the plain reads.
     logic w_rcd_la, w_ras_la, w_rc_la, w_rp_la, w_preblk_la;
-    assign w_rcd_la    = w_pend_act ? rcd_la_i : (r_rcd <= TW'(LA));
-    assign w_ras_la    = w_pend_act ? ras_la_i : (r_ras <= TW'(LA));
-    assign w_rc_la     = w_pend_act ? rc_la_i  : (r_rc  <= TW'(LA));
-    assign w_rp_la     = w_pend_pre ? rp_la_i  : (r_rp  <= TW'(LA));
+    assign w_rcd_la    = w_pend_act ? rcd_la_i : w_rcd_la0;
+    assign w_ras_la    = w_pend_act ? ras_la_i : w_ras_la0;
+    assign w_rc_la     = w_pend_act ? rc_la_i  : w_rc_la0;
+    assign w_rp_la     = w_pend_pre ? rp_la_i  : w_rp_la0;
     assign w_preblk_la = w_pend_rd  ? rtp_la_i
                        : w_pend_wr  ? wr_la_i
-                       :              (r_preblk <= TW'(LA));
-    logic [TW-1:0] w_preblk_wait, w_ras_wait;   // cycles until each reaches zero
-    assign w_preblk_wait = w_pend_rd ? rtp_w1_i
-                         : w_pend_wr ? wr_w1_i
-                         :             r_preblk;
-    assign w_ras_wait    = w_pend_act ? ras_w1_i : r_ras;
-    logic [TW:0]   w_ap_wait;       // cycles until the self-close fires
-    logic [TW+1:0] w_ap_act_in;     // ... plus tRP: cycles until ACT is safe
-    logic          w_ap_act_la;
-    assign w_ap_wait   = (w_preblk_wait > w_ras_wait) ? {1'b0, w_preblk_wait} : {1'b0, w_ras_wait};
-    assign w_ap_act_in = {1'b0, w_ap_wait} + {2'b00, t_rp_i};
+                       :              w_preblk_la0;
+    // The self-close extrapolation, max(preblk, ras) + t_rp <= LA, is read
+    // under r_ap_pending only. A pending ACT never coexists with it (the
+    // live ACT strobe clears r_ap_pending in the cycle that sets the lagged
+    // strobe), so the tRAS wait is the counter's own; the pending RD / WR
+    // waits are the CSR-derived (t - 1) values. ZF_REG registers the three
+    // sums on the next counter values, like the flags above.
+    function automatic logic f_ap_le(input logic [TW-1:0] pw, input logic [TW-1:0] rw);
+        logic [TW:0]   ap_wait;
+        logic [TW+1:0] ap_in;
+        ap_wait = (pw > rw) ? {1'b0, pw} : {1'b0, rw};
+        ap_in   = {1'b0, ap_wait} + {2'b00, t_rp_i};
+        return (ap_in <= (TW+2)'(LA));
+    endfunction
+    logic w_ap_le_cnt, w_ap_le_rd, w_ap_le_wr;   // the sum within LA: counters' own / pending RD / pending WR
+    generate if (ZF_REG) begin : g_ap_reg
+        logic r_ap_le_cnt, r_ap_le_rd, r_ap_le_wr;
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) begin
+                r_ap_le_cnt <= 1'b0; r_ap_le_rd <= 1'b0; r_ap_le_wr <= 1'b0;
+            end else begin
+                r_ap_le_cnt <= f_ap_le(w_preblk_nxt, w_ras_nxt);
+                r_ap_le_rd  <= f_ap_le(rtp_w1_i,     w_ras_nxt);
+                r_ap_le_wr  <= f_ap_le(wr_w1_i,      w_ras_nxt);
+            end
+        )
+        assign w_ap_le_cnt = r_ap_le_cnt;
+        assign w_ap_le_rd  = r_ap_le_rd;
+        assign w_ap_le_wr  = r_ap_le_wr;
+        wire _unused_ap_reg = &{1'b0, ras_w1_i};   // the pending-ACT wait is dead under r_ap_pending
+    end else begin : g_ap_live
+        logic [TW-1:0] w_ras_wait;
+        assign w_ras_wait  = w_pend_act ? ras_w1_i : r_ras;
+        assign w_ap_le_cnt = f_ap_le(r_preblk, w_ras_wait);
+        assign w_ap_le_rd  = f_ap_le(rtp_w1_i, w_ras_wait);
+        assign w_ap_le_wr  = f_ap_le(wr_w1_i,  w_ras_wait);
+    end endgenerate
+    logic w_ap_act_la;
     assign w_ap_act_la = LA_AP && r_row_valid && r_ap_pending
-                      && (w_ap_act_in <= (TW+2)'(LA)) && w_rc_la;
+                      && (w_pend_rd ? w_ap_le_rd : w_pend_wr ? w_ap_le_wr : w_ap_le_cnt)
+                      && w_rc_la;
     assign safe_act_la_o  = (!r_row_valid && w_rp_la && w_rc_la)
                          || w_ap_act_la;
     assign safe_rdwr_la_o = r_row_valid  && w_rcd_la && !r_ap_pending;

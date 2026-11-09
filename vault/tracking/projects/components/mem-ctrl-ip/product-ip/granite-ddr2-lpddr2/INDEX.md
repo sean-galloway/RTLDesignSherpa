@@ -18,9 +18,14 @@ construction.
 |---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | `TASK-010` |
 | [bug/](bug/INDEX.md) | defects with a reproduction | `BUG-002` |
-| [issue/](issue/INDEX.md) | undiagnosed problems | `ISSUE-002` |
+| [issue/](issue/INDEX.md) | undiagnosed problems | `ISSUE-003` |
 
 ## Open shortlist
+
+- **ISSUE-002 (active 2026-11-09):** granite does not come up on the Nexys at
+  100 MHz -- no read eye on every placement built that day, the 2026-11-02 design
+  included, while granite at 75 MHz and LiteDRAM at 100 MHz pass on the same
+  board. Blocks the 100 MHz LiteDRAM comparison.
 
 No task open or active. TASK-003 (100 MHz, ahead of LiteDRAM) and TASK-007
 (narrow beats, fixed by `mc_axi4_narrow_pack`) closed 2026-11-02; TASK-001,

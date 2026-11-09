@@ -1,0 +1,7 @@
+slack_ns,levels,startpoint,endpoint
+-0.126,11,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_cls_reg[3][0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_win_cls_reg[0]/D
+-0.106,11,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_shadow_reg[11]/C,u_harness/u_dut/u_ctrl/u_core/u_axi_plane/u_rd_ring/u_issue_q/fifo_control_inst/wr_full_reg/D
+-0.090,11,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_global_timers/r_slot_pick_reg[0][0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_global_timers/r_slot_pick_reg[0][0]/D
+-0.059,7,u_harness/u_dut/u_engines/u_chargen_shim/u_cpuif/r_cmd_paddr_reg[9]/C,u_harness/u_dut/u_engines/u_chargen_shim/u_cpuif/r_rsp_prdata_reg[14]/D
+-0.038,7,u_harness/u_dut/u_engines/u_chargen_shim/u_cpuif/r_cmd_paddr_reg[9]/C,u_harness/u_dut/u_engines/u_chargen_shim/u_cpuif/r_rsp_prdata_reg[12]/D
+-0.002,11,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_cls_reg[3][0]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_win_cls_reg[1]/D

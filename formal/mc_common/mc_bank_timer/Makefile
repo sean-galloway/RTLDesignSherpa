@@ -16,9 +16,26 @@ FLAT            := bank_timer_flat.v
 FLAT_FILELIST   := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_bank_timer.f
 include $(REPO_ROOT)/make/formal_flat.mk
 
-.PHONY: prove cover all clean
+# The golden copy (mc_bank_timer_gold.sv, the live-compare form as committed at
+# 821b5c164) for the equiv tasks, flattened the same way from its own .f.
+GOLD_FLAT := bank_timer_gold_flat.v
+$(GOLD_FLAT): mc_bank_timer_gold.sv filelists/gold.f
+	@mkdir -p $(FLAT_BUILD)
+	$(FLATTEN) filelists/gold.f --absolute-paths --resolve-env | grep -vE '^[[:space:]]*(#|$$)' \
+		| grep -E '^\+incdir\+|\.(sv|v|svh|vh)$$' > $(FLAT_BUILD)/gold.f
+	$(SV2V) $$(grep '^+incdir+' $(FLAT_BUILD)/gold.f | sed 's/^+incdir+/-I/') \
+		$$(grep -v '^+incdir+' $(FLAT_BUILD)/gold.f) > $@.tmp
+	@mv $@.tmp $@
 
-all: prove cover
+.PHONY: prove cover equiv equiv_live all clean
+
+all: prove cover equiv equiv_live
+
+equiv: bank_timer_flat.v $(GOLD_FLAT)
+	sby -f bank_timer.sby equiv
+
+equiv_live: bank_timer_flat.v $(GOLD_FLAT)
+	sby -f bank_timer.sby equiv_live
 
 prove: bank_timer_flat.v
 	sby -f bank_timer.sby prove
@@ -27,4 +44,4 @@ cover: bank_timer_flat.v
 	sby -f bank_timer.sby cover
 
 clean:
-	rm -rf *_flat.v *_prove *_cover
+	rm -rf *_flat.v *_prove *_cover *_equiv *_equiv_live

@@ -556,3 +556,54 @@ an sv2v flat ends in ERROR at witness replay ("signal not found"): read
 `Status returned by engine: FAIL` in the log, and use `smtbmc` bmc for the
 trace. Mutation-check the new engine too -- it must return FAIL on a broken
 copy, not just PASS on the real one.*
+
+## A timing restructure is gated by a golden-copy equivalence, not by the suites (2026-11-08)
+
+A change whose whole claim is "the same behaviour, shorter paths" -- a mux
+moved across a register, a compare registered from the next state, a search
+rewritten as a tournament -- is exactly what the existing property set does
+NOT test: every property still passes on a design that is off by one cycle
+in a corner, and the suites sample a few thousand of the corners. The gate
+is lockstep equivalence against the version being replaced:
+
+- copy the committed module into the formal directory as `<module>_gold.sv`
+  with the module renamed (and a header saying never to edit it to follow
+  the RTL: a change that needs the golden copy changed is a change of
+  behaviour, which is the thing the proof exists to say);
+- flatten it from its own `filelists/gold.f` the same way as the DUT (the
+  `$(GOLD_FLAT)` rule in `formal/mc_common/mc_bank_timer/Makefile`), read
+  both flats, instantiate both from one harness on the SAME free inputs,
+  assert every output equal every cycle after reset, cover the behaviours
+  that matter (a hold, a speculated hop, the pop shadow, the timeout close);
+- inputs are free -- including the records, the readiness bits and the sink
+  readiness, with no neighbour contract assumed -- except the CSR-programmed
+  timings, which are `anyconst`: they are static during traffic (false paths
+  on the board), and free per cycle they made the `mc_global_timers` 32-step
+  BMC intractable (the solver sat on step 23 for half an hour) for a case
+  the hardware cannot present.
+- keep `gold.f` and an `equiv.f` (DUT .f + gold .f + harness) under the proof
+  directory's `filelists/`, registered in `bin/filelists.toml`: the pre-commit
+  parse gate (`bin/check_sv_parses.py`) resolves a staged file's compilation
+  unit only through a `filelists/**/*.f`, and a golden copy parsed as a bare
+  library file next to its harness fails on the reset macros (2026-11-09).
+
+*Case (memory-controllers MC-011): `mc_bank_pick`'s class-per-source
+rewrite passed the store contract suite and both granite suites, and the
+equivalence proof failed at once on the candidate coordinates: on an EMPTY
+pick a column fall-through now said `CL_COL` where the index encode had
+read pair 0's class. Nothing fires on an empty pick, so no suite could see
+it; the proof did, the fix is one line, and "cycle-exact" means exact.*
+
+Solver: `bitwuzla` finished the `mc_bank_timer` equivalence (depth 40, two
+8-bit-counter copies) in 2 minutes where `z3` was at step 30 after 11; the
+`mc_bank_pick` pair (two 1,400-line cores, depth 20) took 3 minutes. Pick
+the solver for the state ([[formal]] above), and keep the depth honest: a
+retiming difference shows within a cycle or two of the register it moves,
+so 20 free cycles over a 16-pair core is many independent chances, not one.
+
+Four equivalence harnesses from that day: `formal/mc_common/mc_bank_timer`
+(`equiv`, `equiv_live`), `mc_bank_pick` (`equiv`, `equiv_n4`),
+`mc_global_timers` (`equiv`), and `mc_bank_queue` (its lockstep against
+`gaxi_age_fifo_sync` already was one). See
+[[resolve-the-select-at-the-load]] and [[registered-status-outputs]] in
+design/ for the restructures they gate.

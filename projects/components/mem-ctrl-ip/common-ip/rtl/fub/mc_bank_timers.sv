@@ -154,7 +154,7 @@ module mc_bank_timers
             assign w_sel2 = (k == 0) && (evt2_bank_i == BKW'(b));   // lane 2 is rank 0
 
             mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(BANK_LA), .LA_AP(BANK_LA_AP),
-                            .SET_LAG(EVT_REG)) u_bt (
+                            .SET_LAG(EVT_REG), .ZF_REG(EVT_REG)) u_bt (
                 .clk             (aclk),
                 .rst_n           (aresetn),
                 .ld_rcd_i        (r_ld_rcd),

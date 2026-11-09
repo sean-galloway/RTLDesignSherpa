@@ -1,0 +1,35 @@
+[tasks]
+equiv
+equiv_n4
+cover
+
+[options]
+# Lockstep equivalence of the MC-011 resolved winner / stale-mask registers
+# against the golden mux-resolved copy. 20 free cycles see holds, speculated
+# short hops, the pop shadow, direction flips and the stale masks' two-cycle
+# window many times over on a 16-pair core; a difference would show within a
+# cycle or two of the register it moves.
+equiv: mode bmc
+equiv: depth 20
+# the granite n1 / small shape: four banks, no direction ownership or hold
+equiv_n4: mode bmc
+equiv_n4: depth 20
+cover: mode cover
+cover: depth 20
+
+[engines]
+equiv: smtbmc bitwuzla
+equiv_n4: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal bank_pick_flat.v
+read_verilog -formal bank_pick_gold_flat.v
+read -formal -sv formal_bank_pick_equiv.sv
+equiv_n4: chparam -set NUM_BANKS 4 -set NUM_ENTRIES 4 -set DIR_OWNS_ROWS 0 -set DIR_HOLD_IDLE 0 formal_bank_pick_equiv
+prep -top formal_bank_pick_equiv
+
+[files]
+formal_bank_pick_equiv.sv
+bank_pick_flat.v
+bank_pick_gold_flat.v

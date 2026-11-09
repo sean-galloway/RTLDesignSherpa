@@ -1,0 +1,24 @@
+# Failing-endpoint count per parent instance (descending) — post-route
+# count  parent_instance
+    45  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_page_policy.u_page_policy
+    14  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick
+    12  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[6].u_bt
+    11  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[3].u_bt
+     9  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[7].u_bt
+     8  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[3].u_wq/r_tail_reg_0_7_0_3
+     8  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[7].u_wq/r_tail_reg_0_7_0_3
+     8  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[5].u_wq/r_tail_reg_0_7_0_3
+     8  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[1].u_wq/r_tail_reg_0_7_0_3
+     8  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[2].u_wq/r_tail_reg_0_7_0_3
+     8  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[7].u_rq/r_tail_reg_0_7_0_3
+     6  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[3].u_wq
+     6  u_harness/u_dut/u_ctrl/u_core/u_dfi_plane/u_cmd/g_sub[0].u_fmt
+     6  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[2].u_bt
+     5  u_harness/u_dut/u_engines/u_chargen_shim/u_cpuif
+     4  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[1].u_wq
+     4  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[7].u_wq
+     4  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[2].u_wq
+     2  u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/g_q_fifo.g_q[5].u_wq
+     1  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_global_timers
+     1  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_cmd_fifo/gen_auto.mem_reg_0_15_12_17
+     1  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[0].u_bt

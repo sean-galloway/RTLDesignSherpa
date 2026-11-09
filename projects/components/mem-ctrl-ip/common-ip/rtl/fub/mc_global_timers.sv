@@ -144,27 +144,32 @@ module mc_global_timers
     // are free, and every output here is a function of the slot VALUES, so
     // the published windows are the same cycle for cycle. Proved in
     // formal/mc_common/mc_global_timers.
+    // The search is a two-level tournament (memory-controllers MC-011,
+    // 2026-11-08), not three compares in series: slots 0/1 and 2/3 in
+    // parallel, then the two winners. Same answer as the serial walk it
+    // replaces: the lowest index among the smallest values (a tie keeps the
+    // left, lower, index at both levels), an excluded slot sorts above every
+    // value (its key's top bit), and the serial walk's default of slot 0
+    // when nothing beats the 8'hFF starting minimum is kept: a winner whose
+    // key reaches 9'h0FF (excluded, or a slot holding 8'hFF) reads 0. On the
+    // board this loop was 12 levels with three carry chains in series
+    // (-0.264 ns at 100 MHz); proved against the golden copy in
+    // formal/mc_common/mc_global_timers (task `equiv`).
+    function automatic logic [1:0] f_argmin4(input logic [3:0][7:0] v, input logic [3:0] excl);
+        logic [8:0] k0, k1, k2, k3, m01, m23;
+        logic [1:0] i01, i23, win;
+        k0 = {excl[0], v[0]}; k1 = {excl[1], v[1]}; k2 = {excl[2], v[2]}; k3 = {excl[3], v[3]};
+        if (k1 < k0) begin i01 = 2'd1; m01 = k1; end else begin i01 = 2'd0; m01 = k0; end
+        if (k3 < k2) begin i23 = 2'd3; m23 = k3; end else begin i23 = 2'd2; m23 = k2; end
+        win = (m23 < m01) ? i23 : i01;
+        return (((m23 < m01) ? m23 : m01) >= 9'h0FF) ? 2'd0 : win;
+    endfunction
     logic [NUM_RANKS-1:0][1:0] r_slot_pick;
     logic [NUM_RANKS-1:0][1:0] w_pick_all, w_pick_other;
     always_comb begin
-        automatic logic [7:0] slot_min;
         for (int unsigned k = 0; k < NUM_RANKS; k++) begin
-            slot_min        = 8'hFF;
-            w_pick_all[k]   = 2'd0;
-            for (int unsigned i = 0; i < 4; i++) begin
-                if (r_faw_slots[k][i] < slot_min) begin
-                    slot_min      = r_faw_slots[k][i];
-                    w_pick_all[k] = 2'(i);
-                end
-            end
-            slot_min        = 8'hFF;
-            w_pick_other[k] = 2'd0;
-            for (int unsigned i = 0; i < 4; i++) begin
-                if ((2'(i) != r_slot_pick[k]) && (r_faw_slots[k][i] < slot_min)) begin
-                    slot_min        = r_faw_slots[k][i];
-                    w_pick_other[k] = 2'(i);
-                end
-            end
+            w_pick_all[k]   = f_argmin4(r_faw_slots[k], 4'b0000);
+            w_pick_other[k] = f_argmin4(r_faw_slots[k], 4'b0001 << r_slot_pick[k]);
         end
     end
 
