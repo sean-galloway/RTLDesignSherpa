@@ -1,0 +1,13 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes,rd_lat_mean,rd_lat_min,rd_lat_max
+defaults,half_pair,half_pair,1,32000,0,1,1,0,128000,75.0,33284,0.0033,288.43,33239,0.0033,288.82,25.03,32000,0,1,no merge / column-op telemetry on this build,28.22,23,53
+defaults,half_oct,half_oct,1,32000,0,1,1,0,128000,75.0,33283,0.0033,288.44,33215,0.0033,289.03,25.01,32000,0,1,no merge / column-op telemetry on this build,28.12,23,48
+defaults,half_pair_sweep,half_pair_sweep,1,32000,0,1,1,0,128000,75.0,176013,0.0033,54.54,144023,0.0033,66.66,95.97,32000,0,1,no merge / column-op telemetry on this build,94.46,23,102
+defaults,half_oct_sweep,half_oct_sweep,1,32000,0,1,1,0,128000,75.0,176013,0.0033,54.54,144023,0.0033,66.66,95.97,32000,0,1,no merge / column-op telemetry on this build,94.46,23,102
+close_page,half_pair,half_pair,1,32000,0,1,1,0,128000,75.0,325171,0.0033,29.52,259055,0.0033,37.06,114.18,32000,0,1,no merge / column-op telemetry on this build,125.78,23,149
+close_page,half_oct,half_oct,1,32000,0,1,1,0,128000,75.0,325180,0.0033,29.52,259042,0.0033,37.06,114.20,32000,0,1,no merge / column-op telemetry on this build,125.77,23,149
+close_page,half_pair_sweep,half_pair_sweep,1,32000,0,1,1,0,128000,75.0,325179,0.0033,29.52,259039,0.0033,37.06,114.17,32000,0,1,no merge / column-op telemetry on this build,125.83,23,149
+close_page,half_oct_sweep,half_oct_sweep,1,32000,0,1,1,0,128000,75.0,325163,0.0033,29.52,259036,0.0033,37.06,114.27,32000,0,1,no merge / column-op telemetry on this build,125.83,23,148
+open_page,half_pair,half_pair,1,32000,0,1,1,0,128000,75.0,33282,0.0033,288.44,33109,0.0033,289.95,25.02,32000,0,1,no merge / column-op telemetry on this build,28.14,23,50
+open_page,half_oct,half_oct,1,32000,0,1,1,0,128000,75.0,33286,0.0033,288.41,33107,0.0033,289.97,25.00,32000,0,1,no merge / column-op telemetry on this build,28.13,23,50
+open_page,half_pair_sweep,half_pair_sweep,1,32000,0,1,1,0,128000,75.0,176018,0.0033,54.54,144023,0.0033,66.66,95.97,32000,0,1,no merge / column-op telemetry on this build,94.46,23,102
+open_page,half_oct_sweep,half_oct_sweep,1,32000,0,1,1,0,128000,75.0,176015,0.0033,54.54,144023,0.0033,66.66,95.97,32000,0,1,no merge / column-op telemetry on this build,94.46,23,102

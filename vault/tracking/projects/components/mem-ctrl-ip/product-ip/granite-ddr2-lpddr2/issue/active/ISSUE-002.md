@@ -40,13 +40,22 @@ paths or the budget (c38f80c9e has none of them), not the host.
 - **Placement / tool state.** The 2026-11-02 bitstream itself is gone (the
   flow overwrites `fpga/bitstream/ddr2_char.bit`; the dated copies in the
   sweep md were not kept). Five placements built today all fail, so a design
-  that is marginal in the PHY domain and happened to work on the 10-31 /
-  11-01 / 11-02 placements is the leading explanation: the sys4x_dqs capture
-  (400 MHz at the 100 MHz profile) and the DFI write path are constrained by
-  the harness XDC, not by the controller's budget, and nothing in the report
-  says whether they close. Compare `targets/granite/fpga/constraints` against
-  the LiteDRAM flow's constraints and clocking for the 100 MHz profile
-  (IDELAYCTRL refclk, DQS phase, the cmd / rddata delay blocks).
+  that is marginal at 400 MT/s and happened to work on the 10-31 / 11-01 /
+  11-02 placements is one explanation, but five of five is a lot of bad luck.
+  The constraints are not the gap: in the kept 100 MHz report every PHY-facing
+  path is timed inside `w_sys_i` (the OSERDES / ISERDES take CLKDIV = sys; the
+  derived `w_sys2x_i`, `w_sys2x_dqs_i` {1.25, 3.75} and `w_idelay_i` clocks
+  carry no flop endpoints), `check_timing` reports 0 no_clock and 0
+  unconstrained endpoints, and the 75 MHz build that works has the identical
+  clock structure. What differs between 75 and 100 is only the capture window
+  at the DQS (5.0 ns vs 6.7 ns CK period).
+- **Eye width.** The host's leveling logs its per-bitslip eye only when
+  verbose; the 75 MHz runs printed none. pumice's `level_cache.json` (2026-11-08
+  23:44, 75 MHz) shows bitslip 0, tap 8, window 0..16 -- a 17-tap eye. Run the
+  granite init at 75 MHz verbose to read granite's eye; a narrow eye at 75
+  says systematic margin (DRAM drive / ODT / OCD state from the harness init
+  versus LiteDRAM's BIOS sequence), a wide one says the 100 MHz failure is
+  specific to that point.
 - **Write side vs read side.** "No eye" through the controller cannot tell a
   write that never lands from a read that never captures. The `telemetry`
   and `ocelus` sequences on the failing bitstream (ACT / WR / RD counts, DFI

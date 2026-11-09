@@ -71,6 +71,41 @@ follows it; the 75 MHz board point is where the final RTL is measured today
 set of 2026-10-29), and the 2026-11-01 100 MHz tables below stand as the last
 measured 100 MHz comparison.
 
+**Performance at 75 MHz, the board point, measured today** on the final RTL
+(`ddr2_char_granite_sku75_2026-11-09.bit`, +1.338 ns under the budget; eight
+profiles at `--txn-scale 4000`, 193 cells, **0 mismatched beats**) against
+LiteDRAM's 75 MHz set of 2026-10-29 (`sweep75`), peak 600 MB/s each
+direction. Tally over the 60 shared cells (best granite preset, max of write
+/ read, a tie is within 2 percent): **38 win, 22 tie, 0 lose**. The 2026-10-29
+granite at 75 MHz (research configuration, before the hybrid page policy)
+scored 35 / 19 / 6 with all six losses on `col_major`; those are ties now.
+Per-profile tables: `compare_granite_sku75_vs_litedram_sweep75_2026-11-09.md`.
+
+| cell (write / read MB/s, 75 MHz) | granite SKU, power-on (2026-11-09) | granite research, open_page (2026-10-29) | LiteDRAM (2026-10-29) |
+|---|---|---|---|
+| incremental, 16-beat | 576 / 577 | 576 / 578 | 554 / 564 |
+| row_major, 8-beat | 578 / 582 | 578 / 581 | 569 / 580 |
+| col_major, 8-beat | 311 / 389 | 292 / 333 | 304 / 386 |
+| col_major_interleaved, 16-beat | 541 / 543 | 541 / 545 | 377 / 380 |
+| half_pair, 1 thread | 288 / 289 | 294 / 243 | 243 / 286 |
+| half_pair, 8 threads | 282 / 282 | 268 / 290 | 70 / 71 |
+| random window, 4 threads | 469 / 490 | 468 / 481 | 286 / 298 |
+| mixed window, 4 threads | 217 / 351 | 147 / 147 | 119 / 119 |
+| row_thrash window, 4 threads | 508 / 513 | 512 / 514 | 271 / 278 |
+| concurrent 1 writer + 1 reader, incremental | 281 / 281 | 285 / 285 | 124 / 124 |
+| multigen, incremental | 144 / 287 | 128 / 257 | 93 / 186 |
+
+The SKU gives up nothing measurable against the research configuration at
+75 MHz: the single-stream cells are the DRAM's own ceiling for both (96-97
+percent of peak on incremental / row_major), the bank-parallel cells are the
+same within a few MB/s, and the mixed window reads 217 / 351 against the
+research design's 147 / 147 of 2026-10-29 (the hybrid page policy and the
+direction ownership landed in between). Where the two controllers differ is
+unchanged in kind from the 100 MHz tables below: anything that keeps more
+than one bank busy (interleaved column walks 1.4-2.5x, threaded half-pairs
+4x, windows 1.7-3x, concurrent 1.4-2.3x), while one bank or one stream at a
+time ties.
+
 ## Working summary (as of 2026-11-01)
 
 One board (Nexys A7-100T, MT47H64M16HR x16), one harness, one host program
