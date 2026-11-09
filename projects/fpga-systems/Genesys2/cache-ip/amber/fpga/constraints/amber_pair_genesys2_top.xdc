@@ -16,6 +16,18 @@ set_property -dict {PACKAGE_PIN AD11 IOSTANDARD LVDS} [get_ports sysclk_n]
 create_clock -period 5.000 -name sysclk_200 -waveform {0.000 2.500} [get_ports sysclk_p]
 
 ##==============================================================================
+## Timing budget: the placement spread is paid for in the constraint, not in
+## the reading of the report (owner, 2026-11-08: "the config placement should
+## not be a coin flip. We must be able to predict the timing"). The DDR2 boards
+## measured a 0.2 ns WNS band across placer runs of one netlist; this rig shows
+## the same band (jet bins 10 -> 11, an unchanged write-address cone, landed at
+## +0.517 and +0.152). A report is "closed" only when WNS >= 0 UNDER this
+## uncertainty; a design that lands at zero here has no margin and the fix is
+## structural, not another placement.
+##==============================================================================
+set_clock_uncertainty -setup 0.200 [get_clocks -of_objects [get_pins u_mmcm/CLKOUT0]]
+
+##==============================================================================
 ## CPU reset button (R19, active-low) — asynchronous
 ##==============================================================================
 set_property -dict {PACKAGE_PIN R19 IOSTANDARD LVCMOS33} [get_ports cpu_resetn]
