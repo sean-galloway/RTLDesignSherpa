@@ -111,9 +111,17 @@ process.stdout.write(JSON.stringify(out));
 
 
 def repo_root() -> str:
-    return os.environ.get('REPO_ROOT', subprocess.run(
+    # REPO_ROOT first; the git fallback only when it is unset. As a default
+    # argument of os.environ.get the subprocess ran unconditionally, and in a
+    # tree that is not a git checkout (a `git archive` snapshot run for a
+    # regression on a pinned commit, 2026-11-09) `git rev-parse` exits 128
+    # and every parity cell died before simulating.
+    root = os.environ.get('REPO_ROOT')
+    if root:
+        return root
+    return subprocess.run(
         ['git', 'rev-parse', '--show-toplevel'], capture_output=True,
-        text=True, check=True).stdout.strip())
+        text=True, check=True).stdout.strip()
 
 
 class LfsrRng:
