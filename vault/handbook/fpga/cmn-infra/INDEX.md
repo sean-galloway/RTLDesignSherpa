@@ -11,7 +11,9 @@ the [FPGA area](../INDEX.md) "Boards / components").
 
 ## Canonical patterns
 - [[uart-harness]] - one host program against sim and silicon; includes the
-  anti-pattern (a private bridge class in a testbench) and what it cost
+  anti-pattern (a private bridge class in a testbench) and what it cost, and
+  the rule that a bitstream property (clock plan, read-path pair, beat width)
+  is read from the bitstream's registers, never carried in the environment
 - [[host-stack]] - the shared py transport stack that pattern is built on
   (board/port discovery -> UARTAxiBridge -> Device/DeviceBus, registers by name)
 - [[one-source-config]] - board and sim elaborate from ONE cfg package; a

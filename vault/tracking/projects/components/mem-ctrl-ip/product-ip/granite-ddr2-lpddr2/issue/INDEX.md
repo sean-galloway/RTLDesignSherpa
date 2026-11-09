@@ -13,8 +13,8 @@ exactly one state by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,13 +24,19 @@ None.
 
 ## Active
 
-- **ISSUE-002** -- granite does not come up on the Nexys at 100 MHz (2026-11-09):
-  no read eye through the controller on every placement built that day, the
-  2026-11-02 design included; granite at 75 MHz and LiteDRAM at 100 MHz pass on
-  the same board. Blocks the 100 MHz LiteDRAM comparison (memory-controllers
-  MC-011). [active/ISSUE-002.md](active/ISSUE-002.md).
+None.
 
 ## Closed
+
+- **ISSUE-002** -- granite "does not come up on the Nexys at 100 MHz" (2026-11-09):
+  the host ran the 75 MHz read-path pair (rddata_delay = t_rddata_en + 1) on a
+  100 MHz board, where the a7ddrphy's data-vs-valid offset is 0; the 100 MHz
+  pair had only ever been passed through TEST_* environment variables. The
+  design was never implicated. Fixed in the host the same day (pair and JEDEC
+  timings derived from BUILD_CLK_HZ, leveling falls back over the offsets);
+  the committed 100 MHz bitstream passes init, write_read and the 128 MB
+  memtest with no environment. Closed 2026-11-09.
+  [closed/ISSUE-002.md](closed/ISSUE-002.md).
 
 - **ISSUE-001** — same-id writes to different banks can return their B responses
   out of AXI order. Found by reading the store 2026-11-03; REPRODUCED 2026-11-05

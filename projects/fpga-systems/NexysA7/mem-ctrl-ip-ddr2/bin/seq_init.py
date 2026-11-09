@@ -68,6 +68,17 @@ class Init(Sequence):
                if ctx.param(k) is not None},
         )
         test.init(do_leveling=ctx.param("leveling", True))
+        # The pair and the timings the run is about to measure under. Both are
+        # derived from the bitstream's clock (BUILD_CLK_HZ) unless a TEST_* env
+        # pinned them; logged so a failing run records what it ran with
+        # (granite ISSUE-002: a day of 100 MHz runs on the 75 MHz pair, and no
+        # line said so).
+        ctx.say(f"[init] read path: wrlat {test.t_phy_wrlat} rddata_en {test.t_rddata_en} "
+                f"rddata_delay {test.rddata_delay} (offset {test.rddata_delay - test.t_rddata_en}"
+                f"{', leveled' if (test.level is not None and test.level.offset is not None) else ''})"
+                f"; jedec timings "
+                + (" ".join(f"{k}={v}" for k, v in test.jedec.items()) if test.jedec
+                   else "at the RTL resets (no clock register)"))
 
         level = test.level
         if level is not None and not level.ok:

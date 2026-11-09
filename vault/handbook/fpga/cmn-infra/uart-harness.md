@@ -116,3 +116,63 @@ trigger, decode both CSVs and diff the DFI words written against the DFI
 words read, on both sides of the harness's `dfi_rddata_delay` -- that is
 how the one wrong beat per read run became "the first device word of the
 run, wrong on the PHY's own output" in one pass.
+
+### The read-path pair follows the clock plan; the host derives it from the bitstream (granite ISSUE-002, 2026-11-09)
+
+The a7ddrphy presents a read's data a fixed number of nanoseconds after the
+command (CL, flight time, ISERDES capture) and asserts `rddata_valid` a fixed
+number of sys cycles after `rddata_en`. Which sys cycle the data lands in
+therefore depends on the sys period, and the harness's `rddata_delay` has to
+move with it: `t_rddata_en + 1` at 50 / 66.67 / 75 MHz, `t_rddata_en + 0` at
+100 MHz (DDR2-400). Both values were measured by joint board sweeps
+(bring-up 2026-07-21, pumice ISSUE-012 / ISSUE-015; granite TASK-003
+2026-10-29). Bitslip and IDELAY tap cannot recover a whole-cycle
+misplacement, so with the wrong pair the leveling sweep probes all 8 x 32
+cells and finds no eye, every read mismatches, and the log says "analog read
+path not recoverable" -- which reads as a hardware fault.
+
+For six weeks the 100 MHz pair lived in three environment variables
+(`TEST_T_PHY_WRLAT=1 TEST_T_RDDATA_EN=1 TEST_RDDATA_DELAY=1`, plus
+`PUMICE_MC_CLK_HZ=100000000` for the JEDEC derivation) that every 100 MHz run
+had to export, recorded in one task log. On 2026-11-09 a session that did not
+know ran every 100 MHz bitstream it had without them, saw five placements
+fail identically while 75 MHz and LiteDRAM passed, and filed the design
+(granite ISSUE-002) with a day's matrix behind it. The "source-identical
+rebuild of the 2026-11-02 design" in that matrix was not one either: the
+worktree build sourced the MAIN tree's `env_python`, so `REPO_ROOT` and every
+`$REPO_ROOT` in the filelists pointed at HEAD -- 566 of 749 sources came from
+the wrong tree. Source the worktree's own `env_python` and count the paths
+in the build log before calling a worktree build an A/B.
+
+Rules, all in the host now:
+
+- **The pair is derived from the bitstream.** `DDR2CharDriver.clk_mhz()`
+  reads `BUILD_CLK_HZ` (the harness's own `FPGA_CLK_HZ`, the constant its
+  UART divisor is built from); `ddr2_char.read_path_offset(clk_mhz)` is the
+  measured table; `SimpleTest`, `A7Leveling` and `pumice_char.
+  ControllerConfig` default `rddata_delay` to `t_rddata_en + offset`, and
+  `ControllerConfig.mc_clk_hz` to the same register. The `TEST_*` and
+  `PUMICE_MC_CLK_HZ` variables still pin a value; they are overrides for an
+  experiment, never the way a board point is configured.
+- **Leveling verifies the pair and searches when it is wrong.**
+  `A7Leveling.run` sweeps at the derived `rddata_delay` first and, finding no
+  eye, at the other offsets (0, 1, 2 above `t_rddata_en`); an eye found off
+  the table is reported in the result and on the console with the clock, so
+  the table gets extended instead of the environment. The level cache carries
+  the pair the eye belongs to.
+- **The JEDEC timings are programmed after every soft reset, from the same
+  clock.** `soft_reset` reverts the controller CSRs to the RTL resets, which
+  are not a board configuration (tREFI 1950 cycles is 19.5 us at 100 MHz,
+  2.5x JEDEC's 7.8 us; tRTW 6 is under the read window). The smoke init and
+  the leveling sweep used to run on them; `jedec_for_read_path` derives the
+  set once and `SimpleTest.init`, `reinit_datapath` and `A7Leveling._reinit`
+  write it each time.
+- **`[init]` logs what it ran with**: the pair, its offset, whether leveling
+  moved it, and the timings. A failing run then records its configuration,
+  and "no eye" with `offset 1 at 100.00 MHz` in the line above it is a host
+  bug, not a board one.
+
+The general form: a value the host needs that is a property of the BITSTREAM
+(its clock, its DFI rate, its beat width) is read from the bitstream's own
+registers, never carried in the environment of the shell that happens to run
+it. The beat-width rule two sections up is the same rule.

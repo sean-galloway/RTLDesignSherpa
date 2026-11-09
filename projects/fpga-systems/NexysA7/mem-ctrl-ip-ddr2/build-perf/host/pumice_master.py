@@ -178,7 +178,49 @@ class LevelingResult:
     rd_window:   Tuple[int, int] = (-1, -1)  # (first, last) passing tap
     bitslip:     int = -1           # winning read bitslip (coarse word align)
     wr_phase:    int = -1           # kept for API compat (A7 fixes wrphase=3)
+    # The rddata_delay the eye was found at and its offset above t_rddata_en
+    # (None: a result from before 2026-11-09, or a sweep that found nothing).
+    # The offset is what the clock-plan table (ddr2_char.read_path_offset)
+    # predicts; a sweep that found the eye elsewhere says so in `notes`.
+    rddata_delay: Optional[int] = None
+    offset:       Optional[int] = None
     notes:       List[str] = field(default_factory=list)
+
+
+def _env_int(name: str) -> Optional[int]:
+    """TEST_* read-path override: the integer when the variable is set, else
+    None, which means 'derive it from the bitstream'."""
+    return int(os.environ[name]) if name in os.environ else None
+
+
+def resolve_read_path(drv, t_rddata_en: int, rddata_delay: Optional[int]) -> Tuple[int, bool]:
+    """(rddata_delay, pinned). An explicit value (argument or TEST_RDDATA_DELAY)
+    is returned as given and pinned; None becomes t_rddata_en + the clock
+    plan's data-vs-valid offset for this bitstream (DDR2CharDriver.
+    read_path_expected_offset: a leveled offset on this connection first,
+    else the table in ddr2_char.read_path_offset by BUILD_CLK_HZ)."""
+    if rddata_delay is not None:
+        return int(rddata_delay), True
+    off = (drv.read_path_expected_offset() if hasattr(drv, "read_path_expected_offset")
+           else dc.read_path_offset(None))
+    return int(t_rddata_en) + off, False
+
+
+def jedec_for_read_path(drv, *, t_phy_wrlat: int, t_rddata_en: int,
+                        rddata_delay: int) -> Optional[Dict[str, int]]:
+    """The JEDEC TIMINGS_* set for this bitstream's clock and this read-path
+    pair (tRTW is derived from the pair), or None when the driver has no clock
+    register -- the loopback sim, which keeps the RTL resets as it always has.
+    Programmed through ``drv.pumice.set_jedec_timings`` after EVERY
+    soft_reset: the reset reverts the CSRs to the RTL values, and those are
+    not a board configuration (tREFI 1950 cycles is 19.5 us at 100 MHz, 2.5x
+    JEDEC's 7.8 us; tRTW 6 is under the read window). Until 2026-11-09 the
+    smoke init and the leveling sweep ran on them."""
+    mhz = drv.clk_mhz() if hasattr(drv, "clk_mhz") else None
+    if not mhz:
+        return None
+    return drv.jedec_timings_for(mhz * 1e6, t_rddata_en=t_rddata_en,
+                                 rddata_delay=rddata_delay, t_phy_wrlat=t_phy_wrlat)
 
 
 class A7Leveling:
@@ -207,23 +249,25 @@ class A7Leveling:
     MAX_RD_TAPS = 32     # IDELAYE2 5-bit tap
 
     # Board-validated bring-up tuple (2026-07-21, rate-2/BL4 build, BUILD_ID
-    # 0x44445232): the s7ddrphy asserts rddata_valid a FIXED read_latency (8)
-    # sys cycles after rddata_en while the DATA arrives at its own physical
+    # 0x44445232, 75 MHz): the s7ddrphy asserts rddata_valid a FIXED read_latency
+    # (8) sys cycles after rddata_en while the DATA arrives at its own physical
     # latency, so rddata_delay slides the DATA onto the valid window (coarse)
     # and bitslip/tap cover the remainder. wrlat=1/rden=6/rddata_delay=7 gives
-    # a 17-tap-wide eye at bitslip 0 (centre tap 8); soaks clean at default
-    # tREFI (residual row-sized corruption under refresh pressure is the open
-    # TASK-SCHED-REFRESH arbiter bug, not the read path).
+    # a 17-tap-wide eye at bitslip 0 (centre tap 8) at 75 MHz; soaks clean at
+    # default tREFI (residual row-sized corruption under refresh pressure is the
+    # open TASK-SCHED-REFRESH arbiter bug, not the read path).
+    #
+    # rddata_delay is NOT a constant of the PHY: its offset above t_rddata_en
+    # is a property of the clock plan (1 at 75 MHz, 0 at 100 MHz -- ddr2_char.
+    # read_path_offset, measured both times), so the default is derived from
+    # the bitstream's clock and TEST_RDDATA_DELAY pins it. Leveling and the
+    # test must use the SAME pair.
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  burst_len: int = 8, txn_count: int = 2,
                  seed: int = 0x1EAF_F00D,
                  t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
-                 # Env-overridable like wrlat / rddata_delay: leveling and test must
-                 # use the SAME (rden, delay) pair, and the clean pair is clock-plan
-                 # dependent (75 MHz: rden 1 / delay 2; 100 MHz DDR2-400: rden 1 /
-                 # delay 1, joint probe 2026-10-29). Default unchanged.
                  t_rddata_en: int = int(os.environ.get("TEST_T_RDDATA_EN", "6")),
-                 rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
+                 rddata_delay: Optional[int] = _env_int("TEST_RDDATA_DELAY"),
                  rd_phase: int = 0, lane_mask: int = 0b11, verbose: bool = True):
         self.drv = drv
         self.base = base_addr
@@ -232,7 +276,10 @@ class A7Leveling:
         self.seed = seed
         self.wrlat = t_phy_wrlat
         self.rden = t_rddata_en
-        self.rddly = rddata_delay       # dfi_rddata->rddata_valid realign (ILA=8)
+        # dfi_rddata->rddata_valid realign: the pair's delay (see above)
+        self.rddly, self.rddly_pinned = resolve_read_path(drv, t_rddata_en, rddata_delay)
+        self.jedec = jedec_for_read_path(drv, t_phy_wrlat=self.wrlat,
+                                         t_rddata_en=self.rden, rddata_delay=self.rddly)
         # RD command sub-phase. 0 on this board: the a7ddrphy applies its own
         # rdphase=1 internally (poking rdphase=1 here reads nothing back).
         self.rdphase = rd_phase
@@ -268,6 +315,10 @@ class A7Leveling:
         # soft_reset above reverted the pumice CSRs to their RTL resets, which
         # are the 1:4 / BL8 values and do NOT match this DFI_RATE=2 / BL4 build.
         program_geometry(self.drv, rd_phase=self.rdphase, wr_phase=0)
+        # The JEDEC timings likewise (jedec_for_read_path): derived once for
+        # the bitstream's clock, written after every reset.
+        if self.jedec:
+            self.drv.pumice.set_jedec_timings(self.jedec)
         # A prior failing read leaves a STICKY rd_error/any_error latch that
         # soft_reset does not clear (it lives in harness_csr) — clear_stats
         # does. Without this, wait_engine() would false-negative every write
@@ -301,6 +352,15 @@ class A7Leveling:
         self._strobe(dc.PHY_RDLY_DQ_RST)
         self._strobe(dc.PHY_RDLY_DQ_BITSLIP_RST)
 
+    def _set_rddly(self, rddly: int) -> None:
+        """Move the sweep to another rddata_delay; _reinit programs it (and the
+        tRTW derived from it) before every probe."""
+        if rddly == self.rddly:
+            return
+        self.rddly = rddly
+        self.jedec = jedec_for_read_path(self.drv, t_phy_wrlat=self.wrlat,
+                                         t_rddata_en=self.rden, rddata_delay=rddly)
+
     def _scan_taps(self):
         """At the current bitslip, sweep the 32 IDELAY taps; return passing taps."""
         self._strobe(dc.PHY_RDLY_DQ_RST)          # tap 0
@@ -321,12 +381,11 @@ class A7Leveling:
                 best = cur
         return best
 
-    def run(self) -> LevelingResult:
-        """Sweep bitslip x IDELAY-tap, find the widest read eye, centre the tap."""
-        res = LevelingResult(ok=False)
-        self._log("A7 read leveling (read-only, dly_sel-bracketed, no PHY_RST)")
+    def _sweep_eye(self):
+        """bitslip x IDELAY-tap at the current rddata_delay. The widest eye as
+        (width, bitslip, (lo, hi)), or None when no (bitslip, tap) passed."""
         self._reset_read_path()
-        best = None                     # (width, bitslip, (lo, hi))
+        best = None
         for bs in range(self.N_BITSLIPS):
             passing = self._scan_taps()
             if passing:
@@ -337,16 +396,59 @@ class A7Leveling:
             else:
                 self._log(f"bitslip {bs}: no passing tap")
             self._strobe(dc.PHY_RDLY_DQ_BITSLIP)   # advance bitslip (wraps mod-8)
+        return best
+
+    # The data-vs-valid offsets a sweep falls back to, in sys cycles above
+    # t_rddata_en: the two measured values and one more for a slower plan.
+    FALLBACK_OFFSETS = (0, 1, 2)
+
+    def run(self) -> LevelingResult:
+        """Sweep bitslip x IDELAY-tap for the widest read eye and centre the
+        tap. The sweep runs at the programmed rddata_delay first and, finding
+        no eye there, at the other data-vs-valid offsets (FALLBACK_OFFSETS
+        above t_rddata_en): a whole-cycle misplacement of the data hides every
+        eye, 256 probes long (granite ISSUE-002, the 75 MHz pair on a 100 MHz
+        board), and bitslip and tap cannot recover it. An eye found off the
+        programmed pair is reported in the result's notes and on the console
+        so the table in ddr2_char.read_path_offset gets extended."""
+        res = LevelingResult(ok=False)
+        self._log("A7 read leveling (read-only, dly_sel-bracketed, no PHY_RST)")
+        first = self.rddly
+        cands = [first] + [self.rden + o for o in self.FALLBACK_OFFSETS
+                           if self.rden + o != first and 0 <= self.rden + o <= 15]
+        best = None                     # (width, bitslip, (lo, hi))
+        for rddly in cands:
+            if rddly != first:
+                self._log(f"no eye at rddata_delay {first}; sweeping again at "
+                          f"rddata_delay {rddly} (offset {rddly - self.rden})")
+            self._set_rddly(rddly)
+            best = self._sweep_eye()
+            if best is not None:
+                break
         if best is None:
-            res.notes.append("no (bitslip, tap) combination passed — analog "
-                             "read path (DQ/DQS capture) not recoverable by "
+            self._set_rddly(first)
+            res.notes.append(f"no (bitslip, tap) combination passed at rddata_delay "
+                             f"{', '.join(str(c) for c in cands)} (t_rddata_en {self.rden}) "
+                             "— analog read path (DQ/DQS capture) not recoverable by "
                              "IDELAY/bitslip; check sys4x_dqs clock / IO / pins")
             return res
         _w, bs, (lo, hi) = best
+        res.rddata_delay, res.offset = self.rddly, self.rddly - self.rden
+        if self.rddly != first:
+            mhz = self.drv.clk_mhz() if hasattr(self.drv, "clk_mhz") else None
+            msg = (f"eye found at rddata_delay {self.rddly} (offset {res.offset}), not at "
+                   f"the programmed {first} (offset {first - self.rden}"
+                   f"{', pinned by TEST_RDDATA_DELAY' if self.rddly_pinned else ''}): the "
+                   f"clock-plan table in ddr2_char.read_path_offset does not cover "
+                   f"{f'{mhz:.2f} MHz' if mhz else 'this bitstream (no clock register)'} "
+                   "-- extend it")
+            res.notes.append(msg)
+            print(f"[level] WARNING: {msg}", flush=True)
         centre = (lo + hi) // 2
         self.apply_taps(bs, centre)               # winning bitslip + centre tap
         res.bitslip, res.rd_tap, res.rd_window = bs, centre, (lo, hi)
-        self._log(f"chosen bitslip {bs}, read tap {centre} (eye {lo}..{hi})")
+        self._log(f"chosen bitslip {bs}, read tap {centre} (eye {lo}..{hi}) at "
+                  f"rddata_delay {self.rddly}")
         res.ok = self._test()
         if not res.ok:
             res.notes.append("final verify at centred (bitslip, tap) failed")
@@ -371,10 +473,19 @@ class A7Leveling:
             self._strobe(dc.PHY_RDLY_DQ_INC)
 
     def restore(self, saved: "LevelingResult") -> LevelingResult:
-        """Re-apply a saved window (no sweep) and verify one write-read pass."""
+        """Re-apply a saved window (no sweep) and verify one write-read pass.
+        A saved rddata_delay is restored with it (the pair the eye belongs
+        to); a cache from another clock plan then fails the verify and
+        ensure_leveled re-levels, as before."""
+        derived = self.rddly
+        if saved.rddata_delay is not None:
+            self._set_rddly(int(saved.rddata_delay))
         self.apply_taps(saved.bitslip, saved.rd_tap)
         res = LevelingResult(ok=self._test(), rd_tap=saved.rd_tap,
-                             rd_window=saved.rd_window, bitslip=saved.bitslip)
+                             rd_window=saved.rd_window, bitslip=saved.bitslip,
+                             rddata_delay=self.rddly, offset=self.rddly - self.rden)
+        if not res.ok:
+            self._set_rddly(derived)      # the re-level starts from the derived pair
         self._log(f"restored bitslip {saved.bitslip}, tap {saved.rd_tap} "
                   f"-> verify {'OK' if res.ok else 'FAILED (re-level needed)'}")
         if not res.ok:
@@ -388,15 +499,19 @@ class A7Leveling:
         import json
         with open(path, "w") as fh:
             json.dump({"ok": res.ok, "bitslip": res.bitslip, "rd_tap": res.rd_tap,
-                       "rd_window": list(res.rd_window)}, fh, indent=2)
+                       "rd_window": list(res.rd_window),
+                       "rddata_delay": res.rddata_delay, "offset": res.offset},
+                      fh, indent=2)
 
     @staticmethod
     def load_level(path: str) -> "LevelingResult":
         import json
         d = json.load(open(path))
+        opt = lambda k: (int(d[k]) if d.get(k) is not None else None)   # noqa: E731
         return LevelingResult(ok=bool(d.get("ok", True)), bitslip=int(d["bitslip"]),
                               rd_tap=int(d["rd_tap"]),
-                              rd_window=tuple(d.get("rd_window", (-1, -1))))
+                              rd_window=tuple(d.get("rd_window", (-1, -1))),
+                              rddata_delay=opt("rddata_delay"), offset=opt("offset"))
 
 
 def ensure_leveled(drv, level_cache: Optional[str] = None, *, hard: bool = False,
@@ -455,26 +570,29 @@ class SimpleResult:
 
 
 class SimpleTest:
-    # Defaults = the board-validated bring-up tuple (TASK-BRINGUP 2026-07-21).
-    # Defaults = the board-validated bring-up tuple (TASK-BRINGUP 2026-07-21).
-    # PHY-specific: the cocotb DFI-loopback sim (zero-skew BFM) overrides via
-    # TEST_T_PHY_WRLAT=0 / TEST_RDDATA_DELAY=0 in the test env — same pattern
-    # as the TEST_DRAM_BL geometry overrides.
+    # Defaults = the board-validated bring-up tuple (TASK-BRINGUP 2026-07-21):
+    # wrlat 1, rddata_en 6, and rddata_delay = 6 + the clock plan's offset
+    # (7 at 75 MHz, 6 at 100 MHz -- ddr2_char.read_path_offset, derived from
+    # the bitstream; TEST_RDDATA_DELAY pins it). Leveling and the test use the
+    # SAME pair. PHY-specific: the cocotb DFI-loopback sim (zero-skew BFM)
+    # overrides via TEST_T_PHY_WRLAT=0 / TEST_RDDATA_DELAY=0 in the test env —
+    # same pattern as the TEST_DRAM_BL geometry overrides.
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  t_phy_wrlat: int = int(os.environ.get("TEST_T_PHY_WRLAT", "1")),
-                 # Env-overridable like wrlat / rddata_delay: leveling and test must
-                 # use the SAME (rden, delay) pair, and the clean pair is clock-plan
-                 # dependent (75 MHz: rden 1 / delay 2; 100 MHz DDR2-400: rden 1 /
-                 # delay 1, joint probe 2026-10-29). Default unchanged.
                  t_rddata_en: int = int(os.environ.get("TEST_T_RDDATA_EN", "6")),
-                 rddata_delay: int = int(os.environ.get("TEST_RDDATA_DELAY", "7")),
+                 rddata_delay: Optional[int] = _env_int("TEST_RDDATA_DELAY"),
                  rd_phase: int = 0,
                  level_cache: Optional[str] = None):
         self.drv = drv
         self.base = base_addr
         self.t_phy_wrlat = t_phy_wrlat
         self.t_rddata_en = t_rddata_en
-        self.rddata_delay = rddata_delay
+        self.rddata_delay, _pinned = resolve_read_path(drv, t_rddata_en, rddata_delay)
+        # JEDEC timings for the bitstream's clock and this pair; None = no
+        # clock register (the sim), the RTL resets stay. Re-programmed after
+        # every soft_reset (init, reinit_datapath).
+        self.jedec = jedec_for_read_path(drv, t_phy_wrlat=t_phy_wrlat,
+                                         t_rddata_en=t_rddata_en, rddata_delay=self.rddata_delay)
         self.rd_phase = rd_phase
         # Optional path to persist / reuse the leveled read window (skips the
         # ~256-iteration sweep on later runs; re-levels + re-saves if the saved
@@ -492,6 +610,8 @@ class SimpleTest:
                              t_phy_wrlat=self.t_phy_wrlat,
                              t_rddata_en=self.t_rddata_en, rd_in_order=True)
         d.set_dfi_rddata_delay(self.rddata_delay)
+        if self.jedec:
+            d.pumice.set_jedec_timings(self.jedec)
         d.clear_stats()
 
     def init(self, do_leveling: bool = True) -> None:
@@ -507,6 +627,8 @@ class SimpleTest:
         # (1:4 / BL8 / MR0=0x0433) do not match this DFI_RATE=2 / BL4 build, so
         # they are always programmed explicitly rather than rmw-preserved.
         program_geometry(d, rd_phase=self.rd_phase, wr_phase=0)
+        if self.jedec:
+            d.pumice.set_jedec_timings(self.jedec)
         # pumice BUG-033 A/B: TEST_FAST_RD_EARLY=1 sets SCHED_POLICY.fast_rd_release
         # here, before the first read (leveling verify included), as the
         # always-on FAST_RD_RELEASE builds ran. TEST_FAST_RD alone sets it later,
@@ -522,6 +644,16 @@ class SimpleTest:
                                         rd_phase=self.rd_phase)
             if not self.level.ok:
                 print(f"[simple] WARNING: leveling not clean: {self.level.notes}")
+            # The eye may have been found at another rddata_delay than the one
+            # derived (the sweep's fallback); the test then runs on the pair
+            # the eye belongs to. The controller already holds it (the sweep's
+            # last _reinit); this keeps reinit_datapath on it too.
+            lv_rddly = self.level.rddata_delay
+            if lv_rddly is not None and lv_rddly != self.rddata_delay:
+                self.rddata_delay = int(lv_rddly)
+                self.jedec = jedec_for_read_path(d, t_phy_wrlat=self.t_phy_wrlat,
+                                                 t_rddata_en=self.t_rddata_en,
+                                                 rddata_delay=self.rddata_delay)
 
     def run(self, burst_len: int = 8, txn_count: int = 64) -> SimpleResult:
         d = self.drv
@@ -839,7 +971,7 @@ class FullCharacterization:
 
     def __init__(self, drv: DDR2CharDriver, base_addr: int = 0x0000_0000,
                  txn_count: int = 1024, grid=None, rd_phase: int = 0,
-                 rddata_delay: int = 0, level_cache: Optional[str] = None):
+                 rddata_delay: Optional[int] = None, level_cache: Optional[str] = None):
         self.drv = drv
         self.base = base_addr
         self.txn = txn_count
@@ -906,12 +1038,12 @@ def main() -> int:
                          "internally, so 0 is correct here (on-silicon: rd_phase=1 "
                          "made reads WORSE, 16/16). Non-zero is for a PHY that "
                          "genuinely consumes a per-command rdphase off the DFI bus.")
-    ap.add_argument("--rd-delay", type=int,
-                    default=int(os.environ.get("TEST_RDDATA_DELAY", "7")),
+    ap.add_argument("--rd-delay", type=int, default=_env_int("TEST_RDDATA_DELAY"),
                     help="dfi_rddata_delay: sys-cycles to delay read DATA onto "
-                         "the a7ddrphy's fixed valid (= rddata_en + "
-                         "read_latency 8). Board-validated tuple: 7 (with "
-                         "t_rddata_en=6, t_phy_wrlat=1 — see TASK-BRINGUP)")
+                         "the a7ddrphy's fixed valid. Default: derived from the "
+                         "bitstream's clock as t_rddata_en + the clock plan's "
+                         "offset (7 at 75 MHz, 6 at 100 MHz with t_rddata_en 6 -- "
+                         "ddr2_char.read_path_offset); TEST_RDDATA_DELAY pins it")
     ap.add_argument("--char-level", default="medium",
                     choices=["basic", "medium", "full"],
                     help="scenario depth for --char (basic/medium/full)")

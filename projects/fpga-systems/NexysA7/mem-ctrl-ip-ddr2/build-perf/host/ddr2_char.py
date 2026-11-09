@@ -263,6 +263,37 @@ class MeterCounts:
 # =============================================================================
 # Driver
 # =============================================================================
+# ---- Read-path data-vs-valid offset, per clock plan ---------------------------
+# rddata_delay - t_rddata_en: the sys cycles between the a7ddrphy presenting a
+# read's DATA and asserting its rddata_valid. MEASURED per clock plan, not
+# derived. The DRAM's read round trip (CL, flight time, ISERDES capture) is a
+# fixed number of ns, so which sys cycle the data lands in depends on the sys
+# period:
+#     1 at 50 / 66.67 / 75 MHz   (bring-up 2026-07-21 at 6/7; the joint sweep
+#                                 behind pumice ISSUE-012 / ISSUE-015 at 1/2)
+#     0 at 100 MHz, DDR2-400     (granite TASK-003 joint probe 2026-10-29: the
+#                                 one clean cell was wrlat 1 / rden 1 / delay 1)
+# Until 2026-11-09 the 100 MHz value lived in three TEST_* environment
+# variables that every 100 MHz run had to export; the default was the 75 MHz
+# pair, and a run without the exports swept 8 bitslips x 32 taps and found no
+# eye, 512 of 512 beats wrong (granite ISSUE-002: a day of a design blamed for
+# its host). The table is read through DDR2CharDriver.clk_mhz() (BUILD_CLK_HZ,
+# the bitstream's own constant); an unknown clock (an older bitstream, a
+# driver with no build registers) gets the legacy 1. A7Leveling verifies the
+# pair and, finding no eye at it, sweeps the other offsets and names the one
+# it finds, so a plan this table has not seen still levels -- slowly, and
+# loudly enough that the table gets extended.
+READ_PATH_OFFSET_FAST_MHZ = 90.0   # at and above: 0; below: 1
+
+
+def read_path_offset(clk_mhz: Optional[float]) -> int:
+    """sys cycles of rddata_delay above t_rddata_en for the sys clock `clk_mhz`
+    (None = unknown -> the legacy 1). See the table above."""
+    if clk_mhz is None:
+        return 1
+    return 0 if float(clk_mhz) >= READ_PATH_OFFSET_FAST_MHZ else 1
+
+
 class DDR2CharDriver:
     """UART-bridge host driver for the ddr2-char harness (pumice/granite).
 
@@ -373,6 +404,32 @@ class DDR2CharDriver:
             "dram_device_width": self.regs.field("BUILD_DATA_CFG", "dram_device_width"),
             "clk_hz":            self.regs.read("BUILD_CLK_HZ"),
         }
+
+    _clk_mhz_cache: Optional[float] = None
+    _clk_mhz_read: bool = False
+
+    def clk_mhz(self) -> Optional[float]:
+        """The sys clock this bitstream was built for, in MHz, from BUILD_CLK_HZ
+        (the harness's own FPGA_CLK_HZ, the constant its UART divisor is built
+        from, so it cannot drift from the hardware). None when the register is
+        absent or zero. Read once per connection: it is a property of the
+        bitstream, and every soft_reset-and-reprogram path asks for it."""
+        if not self._clk_mhz_read:
+            try:
+                hz = int(self.regs.read("BUILD_CLK_HZ"))
+            except Exception:                                  # noqa: BLE001
+                hz = 0
+            self._clk_mhz_cache = (hz / 1e6) if hz else None
+            self._clk_mhz_read = True
+        return self._clk_mhz_cache
+
+    def read_path_expected_offset(self) -> int:
+        """rddata_delay - t_rddata_en for THIS bitstream: the value a leveling
+        sweep found on this connection when there is one (A7Leveling records
+        its result on the driver), else the clock plan's table entry
+        (read_path_offset)."""
+        off = getattr(getattr(self, "_phy_leveled_result", None), "offset", None)
+        return int(off) if off is not None else read_path_offset(self.clk_mhz())
 
     def describe_build(self) -> str:
         """One-line summary of what is on the board, for logs and failures."""
@@ -530,8 +587,17 @@ class DDR2CharDriver:
 
     def set_jedec_timings(self, mc_clk_hz: float, **align) -> dict:
         """Program the controller's JEDEC DDR2 timing CSRs (MC cycles) derived
-        from the board part and the MC clock -- see pumice_device.
-        ddr2_timings_mc_cycles(). Returns the applied dict for the log.
+        from the board part and the MC clock -- see jedec_timings_for() for the
+        derivation and its arguments. Returns the applied dict for the log."""
+        return self.pumice.set_jedec_timings(self.jedec_timings_for(mc_clk_hz, **align))
+
+    def jedec_timings_for(self, mc_clk_hz: float, **align) -> dict:
+        """The TIMINGS_* values (MC cycles) set_jedec_timings() programs,
+        derived but NOT written, from the board part and the MC clock -- see
+        pumice_device.ddr2_timings_mc_cycles(). A caller that re-programs one
+        fixed set after every soft_reset (A7Leveling._reinit, 256 times per
+        sweep) derives once here and writes the dict through
+        ``drv.pumice.set_jedec_timings``.
 
         `align` forwards the READ-PATH alignment (t_rddata_en, rddata_delay,
         t_phy_wrlat). tRTW is derived from it -- a read owns DQ until
@@ -571,7 +637,7 @@ class DDR2CharDriver:
                 raise ValueError(f"JEDEC_OVERRIDE: unknown timing {k.strip()!r}; have {sorted(timings)}")
             timings[k.strip()] = int(v, 0)
             print(f"[timings] JEDEC_OVERRIDE {k.strip()} = {int(v, 0)}")
-        return self.pumice.set_jedec_timings(timings)
+        return timings
 
     def set_sched_wr_wm(self, high_wm: int, low_wm: int) -> None:
         """Write-batching watermarks -- see Pumice.set_sched_wr_wm."""
@@ -620,8 +686,9 @@ class DDR2CharDriver:
         self._warn_off_diagonal()
 
     # Read-path diagonal. A joint (t_rddata_en x rddata_delay) board sweep found
-    # every clean pair on `rddata_delay = t_rddata_en + 1`: the a7ddrphy's
-    # data-vs-valid offset is a fixed 1 cycle, so ANY t_rddata_en works provided
+    # every clean pair on `rddata_delay = t_rddata_en + 1` at 75 MHz: the
+    # a7ddrphy's data-vs-valid offset is fixed PER CLOCK PLAN (1 there, 0 at
+    # 100 MHz -- read_path_offset above), so ANY t_rddata_en works provided
     # the delay tracks it. Two host paths deliberately sit on different points of
     # that line -- `init` at 6/7, `char` at 1/2 -- and a 2026-09-28 A/B measured
     # the leveled eye at BOTH: 10 taps wide, bitslip 0, tap 4, identical. The
@@ -640,13 +707,17 @@ class DDR2CharDriver:
         en, dly = self._t_rddata_en, self._rddata_delay
         if en is None or dly is None:
             return
-        if dly != en + 1:
+        want = en + self.read_path_expected_offset()
+        if dly != want:
+            mhz = self.clk_mhz()
             print(f"[read-path] WARNING: t_rddata_en={en} with rddata_delay={dly} "
-                  f"is OFF the measured clean diagonal (rddata_delay should be "
-                  f"{en + 1}). Every clean pair found by the joint board sweep is "
-                  f"on that line. An off-diagonal pair can read plausible "
-                  f"bandwidth while corrupting data -- check integrity, not just "
-                  f"throughput (pumice ISSUE-015).", flush=True)
+                  f"is OFF the measured clean diagonal for this clock plan "
+                  f"(rddata_delay should be {want}: offset {want - en} at "
+                  f"{f'{mhz:.2f}' if mhz else 'an unknown'} MHz). Every clean pair "
+                  f"found by the joint board sweeps is on that line. An "
+                  f"off-diagonal pair can read plausible bandwidth while "
+                  f"corrupting data -- check integrity, not just throughput "
+                  f"(pumice ISSUE-015, granite ISSUE-002).", flush=True)
 
     def get_dfi_rddata_delay(self) -> int:
         return self.regs.field("DFI_TUNING", "rddata_delay")

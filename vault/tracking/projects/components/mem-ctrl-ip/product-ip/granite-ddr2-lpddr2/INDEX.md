@@ -22,10 +22,7 @@ construction.
 
 ## Open shortlist
 
-- **ISSUE-002 (active 2026-11-09):** granite does not come up on the Nexys at
-  100 MHz -- no read eye on every placement built that day, the 2026-11-02 design
-  included, while granite at 75 MHz and LiteDRAM at 100 MHz pass on the same
-  board. Blocks the 100 MHz LiteDRAM comparison.
+Nothing open or active in any lane (2026-11-09).
 
 No task open or active. TASK-003 (100 MHz, ahead of LiteDRAM) and TASK-007
 (narrow beats, fixed by `mc_axi4_narrow_pack`) closed 2026-11-02; TASK-001,
@@ -34,5 +31,7 @@ margin levers), TASK-009 (1:4 board first DQ word). TASK-005 (half-width
 aggregator) dropped 2026-11-03: the store combiner does its job.
 No bug open or active: BUG-001 (same-id write B order across banks; was
 ISSUE-001, reproduced 2026-11-05) was fixed 2026-11-06 by the AW-order B release
-queue and closed 2026-11-07. No open issue. See
+queue and closed 2026-11-07. No open issue: ISSUE-002 (the 100 MHz board
+"failure" of 2026-11-09) was the host running the 75 MHz read-path pair and was
+closed the same day with the host fix. See
 [bug/INDEX.md](bug/INDEX.md), [issue/INDEX.md](issue/INDEX.md), [task/INDEX.md](task/INDEX.md).

@@ -420,7 +420,12 @@ class ControllerConfig:
     # the READ command, not by when pumice samples. Proven on the board -- at
     # this alignment with tRTW=8 gaps 13/15 failed exactly as before the
     # pumice BUG-014 (was PUMICE-037) fix, while tRTW=20 is clean at BOTH alignments.
-    rddata_delay:  int = int(os.environ.get("TEST_RDDATA_DELAY", "2"))
+    # None (the default, no TEST_RDDATA_DELAY) = t_rddata_en + the clock plan's
+    # data-vs-valid offset, resolved against the bitstream in apply(): 1 + 1
+    # at 75 MHz, 1 + 0 at 100 MHz (ddr2_char.read_path_offset; granite
+    # ISSUE-002 was this value left at the 75 MHz pair on a 100 MHz board).
+    rddata_delay:  Optional[int] = (int(os.environ["TEST_RDDATA_DELAY"])
+                                    if "TEST_RDDATA_DELAY" in os.environ else None)
     # Harness DFI command delay (DFI_TUNING.cmd_delay): holds EVERY command,
     # reads included, this many cycles so write data meets the a7ddrphy's
     # write_latency=0. Default 1 = the harness reset value, the value every
@@ -461,9 +466,35 @@ class ControllerConfig:
     # measured 72 MHz, so the part was refreshed ~38% less often than JEDEC
     # allows, for the whole pumice BUG-014 (was PUMICE-037) investigation. Deriving it from the
     # board (see check_mc_clk_hz) beats trusting this number.
-    mc_clk_hz:     int = int(float(os.environ.get("PUMICE_MC_CLK_HZ", "75000000")))
+    # None (the default, no PUMICE_MC_CLK_HZ) = the bitstream's own clock,
+    # BUILD_CLK_HZ, read in apply() (2026-11-09; before that a 75 MHz constant
+    # that a 100 MHz board had to override by hand -- tRC 5 where 7 is needed
+    # when it was not). 75 MHz stays the fallback for a driver with no clock
+    # register.
+    mc_clk_hz:     Optional[int] = (int(float(os.environ["PUMICE_MC_CLK_HZ"]))
+                                    if "PUMICE_MC_CLK_HZ" in os.environ else None)
+
+    def resolved(self, drv: DDR2CharDriver) -> "ControllerConfig":
+        """This config with its board-dependent fields filled from the
+        bitstream: rddata_delay = t_rddata_en + the data-vs-valid offset
+        (``drv.read_path_expected_offset()``: the offset a leveling sweep found
+        on this connection when there is one, else the clock plan's table), and
+        mc_clk_hz = BUILD_CLK_HZ. An explicit value (a preset, or the
+        TEST_RDDATA_DELAY / PUMICE_MC_CLK_HZ environment) wins. A new object:
+        presets are frozen."""
+        rddly = self.rddata_delay
+        if rddly is None:
+            rddly = self.t_rddata_en + drv.read_path_expected_offset()
+        hz = self.mc_clk_hz
+        if hz is None:
+            mhz = drv.clk_mhz()
+            hz = int(round(mhz * 1e6)) if mhz else 75_000_000
+        return replace(self, rddata_delay=rddly, mc_clk_hz=hz)
 
     def apply(self, drv: DDR2CharDriver) -> None:
+        if self.rddata_delay is None or self.mc_clk_hz is None:
+            self.resolved(drv).apply(drv)
+            return
         # rd_in_order + the DFI latencies live on the harness CTRLR_CFG (one
         # non-rmw write, so always send the known-good latencies with it).
         drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
