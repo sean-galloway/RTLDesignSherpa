@@ -504,7 +504,6 @@ module bridge_1x4_wr_xbar
             cpu_wr_32b_wdest_rptr <= '0;
         end else begin
             if (cpu_wr_32b_wdest_push) begin
-                cpu_wr_32b_wdest_mem[cpu_wr_32b_wdest_wptr[3:0]] <= cpu_wr_32b_wdest_enc;
                 cpu_wr_32b_wdest_wptr <= cpu_wr_32b_wdest_wptr + 1'b1;
             end
             if (cpu_wr_32b_wdest_pop) begin
@@ -512,6 +511,11 @@ module bridge_1x4_wr_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_wr_32b_wdest_push) cpu_wr_32b_wdest_mem[cpu_wr_32b_wdest_wptr[3:0]] <= cpu_wr_32b_wdest_enc;
+    end
     wire cpu_wr_32b_wdest_valid = (cpu_wr_32b_wdest_wptr != cpu_wr_32b_wdest_rptr);
     assign cpu_wr_32b_wdest_full = (cpu_wr_32b_wdest_wptr[4] != cpu_wr_32b_wdest_rptr[4]) && (cpu_wr_32b_wdest_wptr[3:0] == cpu_wr_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_wr_32b_wdest_head = cpu_wr_32b_wdest_mem[cpu_wr_32b_wdest_rptr[3:0]];
@@ -530,7 +534,6 @@ module bridge_1x4_wr_xbar
             cpu_wr_64b_wdest_rptr <= '0;
         end else begin
             if (cpu_wr_64b_wdest_push) begin
-                cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_wptr[3:0]] <= cpu_wr_64b_wdest_enc;
                 cpu_wr_64b_wdest_wptr <= cpu_wr_64b_wdest_wptr + 1'b1;
             end
             if (cpu_wr_64b_wdest_pop) begin
@@ -538,6 +541,11 @@ module bridge_1x4_wr_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_wr_64b_wdest_push) cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_wptr[3:0]] <= cpu_wr_64b_wdest_enc;
+    end
     wire cpu_wr_64b_wdest_valid = (cpu_wr_64b_wdest_wptr != cpu_wr_64b_wdest_rptr);
     assign cpu_wr_64b_wdest_full = (cpu_wr_64b_wdest_wptr[4] != cpu_wr_64b_wdest_rptr[4]) && (cpu_wr_64b_wdest_wptr[3:0] == cpu_wr_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_wr_64b_wdest_head = cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_rptr[3:0]];
@@ -555,7 +563,6 @@ module bridge_1x4_wr_xbar
             cpu_wr_128b_wdest_rptr <= '0;
         end else begin
             if (cpu_wr_128b_wdest_push) begin
-                cpu_wr_128b_wdest_mem[cpu_wr_128b_wdest_wptr[3:0]] <= cpu_wr_128b_wdest_enc;
                 cpu_wr_128b_wdest_wptr <= cpu_wr_128b_wdest_wptr + 1'b1;
             end
             if (cpu_wr_128b_wdest_pop) begin
@@ -563,6 +570,11 @@ module bridge_1x4_wr_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_wr_128b_wdest_push) cpu_wr_128b_wdest_mem[cpu_wr_128b_wdest_wptr[3:0]] <= cpu_wr_128b_wdest_enc;
+    end
     wire cpu_wr_128b_wdest_valid = (cpu_wr_128b_wdest_wptr != cpu_wr_128b_wdest_rptr);
     assign cpu_wr_128b_wdest_full = (cpu_wr_128b_wdest_wptr[4] != cpu_wr_128b_wdest_rptr[4]) && (cpu_wr_128b_wdest_wptr[3:0] == cpu_wr_128b_wdest_rptr[3:0]);
     wire [0:0] cpu_wr_128b_wdest_head = cpu_wr_128b_wdest_mem[cpu_wr_128b_wdest_rptr[3:0]];

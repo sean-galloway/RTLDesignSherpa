@@ -154,10 +154,14 @@ module bridge_mix_c_subtractive_adapter
         if (`RST_ASSERTED(aresetn)) begin
             wr_ptr <= '0;
         end else if (xbar_subtractive_axi_awvalid && xbar_subtractive_axi_awready) begin
-            wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;
             wr_ptr <= wr_ptr + 1'b1;
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (xbar_subtractive_axi_awvalid && xbar_subtractive_axi_awready) wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;
+    end
 
     // Pop on B response (xbar_subtractive_axi_bvalid && xbar_subtractive_axi_bready)
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -232,10 +236,14 @@ module bridge_mix_c_subtractive_adapter
         if (`RST_ASSERTED(aresetn)) begin
             ar_ptr <= '0;
         end else if (xbar_subtractive_axi_arvalid && xbar_subtractive_axi_arready) begin
-            rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;
             ar_ptr <= ar_ptr + 1'b1;
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (xbar_subtractive_axi_arvalid && xbar_subtractive_axi_arready) rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;
+    end
 
     // Pop on R response (xbar_subtractive_axi_rvalid && xbar_subtractive_axi_rready && xbar_subtractive_axi_rlast)
     `ALWAYS_FF_RST(aclk, aresetn,

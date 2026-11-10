@@ -653,7 +653,6 @@ module bridge_mix_d_mon_xbar
             if (ddr_wowner_aw_hs && ddr_wowner_ahead) begin
                 ddr_wowner_ahead <= 1'b0;   // its W already went
             end else if (ddr_wowner_aw_hs && !(ddr_wowner_byp && ddr_wowner_w_end)) begin
-                ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
             end else if (!ddr_wowner_aw_hs && ddr_wowner_byp && ddr_wowner_w_end) begin
                 ddr_wowner_ahead <= 1'b1;
@@ -663,6 +662,11 @@ module bridge_mix_d_mon_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (ddr_wowner_aw_hs && !ddr_wowner_ahead && !(ddr_wowner_byp && ddr_wowner_w_end)) ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
+    end
     wire [0:0] ddr_wowner_head = ddr_wowner_valid ? ddr_wowner_mem[ddr_wowner_rptr[3:0]]
                                        : ddr_aw_arb_gnt;
     assign cpu_axi4_64b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd0) && cpu_axi4_64b_w_to_ddr;
@@ -866,7 +870,6 @@ module bridge_mix_d_mon_xbar
             doorbell_wowner_rptr <= '0;
         end else begin
             if (doorbell_axi_awvalid && doorbell_axi_awready) begin
-                doorbell_wowner_mem[doorbell_wowner_wptr[3:0]] <= doorbell_aw_arb_gnt;
                 doorbell_wowner_wptr <= doorbell_wowner_wptr + 1'b1;
             end
             if (doorbell_axi_wvalid && doorbell_axi_wready && doorbell_axi_wlast) begin
@@ -874,6 +877,11 @@ module bridge_mix_d_mon_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (doorbell_axi_awvalid && doorbell_axi_awready) doorbell_wowner_mem[doorbell_wowner_wptr[3:0]] <= doorbell_aw_arb_gnt;
+    end
     wire doorbell_wowner_valid = (doorbell_wowner_wptr != doorbell_wowner_rptr);
     wire [0:0] doorbell_wowner_head = doorbell_wowner_mem[doorbell_wowner_rptr[3:0]];
     assign cpu_axi4_32b_w_sel_doorbell = doorbell_wowner_valid && (doorbell_wowner_head == 1'd0) && cpu_axi4_32b_w_to_doorbell;
@@ -1148,7 +1156,6 @@ module bridge_mix_d_mon_xbar
             if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
                 subtractive_wowner_ahead <= 1'b0;   // its W already went
             end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
-                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
             end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
                 subtractive_wowner_ahead <= 1'b1;
@@ -1158,6 +1165,11 @@ module bridge_mix_d_mon_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (subtractive_wowner_aw_hs && !subtractive_wowner_ahead && !(subtractive_wowner_byp && subtractive_wowner_w_end)) subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+    end
     wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
                                        : subtractive_aw_arb_gnt;
     assign cpu_axi4_64b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && cpu_axi4_64b_w_to_subtractive;
@@ -1280,7 +1292,6 @@ module bridge_mix_d_mon_xbar
             cpu_axi4_32b_wdest_rptr <= '0;
         end else begin
             if (cpu_axi4_32b_wdest_push) begin
-                cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_wptr[3:0]] <= cpu_axi4_32b_wdest_enc;
                 cpu_axi4_32b_wdest_wptr <= cpu_axi4_32b_wdest_wptr + 1'b1;
             end
             if (cpu_axi4_32b_wdest_pop) begin
@@ -1288,6 +1299,11 @@ module bridge_mix_d_mon_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_axi4_32b_wdest_push) cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_wptr[3:0]] <= cpu_axi4_32b_wdest_enc;
+    end
     wire cpu_axi4_32b_wdest_valid = (cpu_axi4_32b_wdest_wptr != cpu_axi4_32b_wdest_rptr);
     assign cpu_axi4_32b_wdest_full = (cpu_axi4_32b_wdest_wptr[4] != cpu_axi4_32b_wdest_rptr[4]) && (cpu_axi4_32b_wdest_wptr[3:0] == cpu_axi4_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_axi4_32b_wdest_head = cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_rptr[3:0]];
@@ -1306,7 +1322,6 @@ module bridge_mix_d_mon_xbar
             cpu_axi4_64b_wdest_rptr <= '0;
         end else begin
             if (cpu_axi4_64b_wdest_push) begin
-                cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_wptr[3:0]] <= cpu_axi4_64b_wdest_enc;
                 cpu_axi4_64b_wdest_wptr <= cpu_axi4_64b_wdest_wptr + 1'b1;
             end
             if (cpu_axi4_64b_wdest_pop) begin
@@ -1314,6 +1329,11 @@ module bridge_mix_d_mon_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_axi4_64b_wdest_push) cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_wptr[3:0]] <= cpu_axi4_64b_wdest_enc;
+    end
     wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
     assign cpu_axi4_64b_wdest_full = (cpu_axi4_64b_wdest_wptr[4] != cpu_axi4_64b_wdest_rptr[4]) && (cpu_axi4_64b_wdest_wptr[3:0] == cpu_axi4_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
@@ -1332,7 +1352,6 @@ module bridge_mix_d_mon_xbar
             trace_axil_32b_wdest_rptr <= '0;
         end else begin
             if (trace_axil_32b_wdest_push) begin
-                trace_axil_32b_wdest_mem[trace_axil_32b_wdest_wptr[3:0]] <= trace_axil_32b_wdest_enc;
                 trace_axil_32b_wdest_wptr <= trace_axil_32b_wdest_wptr + 1'b1;
             end
             if (trace_axil_32b_wdest_pop) begin
@@ -1340,6 +1359,11 @@ module bridge_mix_d_mon_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (trace_axil_32b_wdest_push) trace_axil_32b_wdest_mem[trace_axil_32b_wdest_wptr[3:0]] <= trace_axil_32b_wdest_enc;
+    end
     wire trace_axil_32b_wdest_valid = (trace_axil_32b_wdest_wptr != trace_axil_32b_wdest_rptr);
     assign trace_axil_32b_wdest_full = (trace_axil_32b_wdest_wptr[4] != trace_axil_32b_wdest_rptr[4]) && (trace_axil_32b_wdest_wptr[3:0] == trace_axil_32b_wdest_rptr[3:0]);
     wire [0:0] trace_axil_32b_wdest_head = trace_axil_32b_wdest_mem[trace_axil_32b_wdest_rptr[3:0]];
@@ -1357,7 +1381,6 @@ module bridge_mix_d_mon_xbar
             trace_axil_64b_wdest_rptr <= '0;
         end else begin
             if (trace_axil_64b_wdest_push) begin
-                trace_axil_64b_wdest_mem[trace_axil_64b_wdest_wptr[3:0]] <= trace_axil_64b_wdest_enc;
                 trace_axil_64b_wdest_wptr <= trace_axil_64b_wdest_wptr + 1'b1;
             end
             if (trace_axil_64b_wdest_pop) begin
@@ -1365,6 +1388,11 @@ module bridge_mix_d_mon_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (trace_axil_64b_wdest_push) trace_axil_64b_wdest_mem[trace_axil_64b_wdest_wptr[3:0]] <= trace_axil_64b_wdest_enc;
+    end
     wire trace_axil_64b_wdest_valid = (trace_axil_64b_wdest_wptr != trace_axil_64b_wdest_rptr);
     assign trace_axil_64b_wdest_full = (trace_axil_64b_wdest_wptr[4] != trace_axil_64b_wdest_rptr[4]) && (trace_axil_64b_wdest_wptr[3:0] == trace_axil_64b_wdest_rptr[3:0]);
     wire [0:0] trace_axil_64b_wdest_head = trace_axil_64b_wdest_mem[trace_axil_64b_wdest_rptr[3:0]];

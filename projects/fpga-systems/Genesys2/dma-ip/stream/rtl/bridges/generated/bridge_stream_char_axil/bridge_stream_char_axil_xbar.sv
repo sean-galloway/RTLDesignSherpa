@@ -931,7 +931,6 @@ module bridge_stream_char_axil_xbar
             if (desc_ram_wowner_aw_hs && desc_ram_wowner_ahead) begin
                 desc_ram_wowner_ahead <= 1'b0;   // its W already went
             end else if (desc_ram_wowner_aw_hs && !(desc_ram_wowner_byp && desc_ram_wowner_w_end)) begin
-                desc_ram_wowner_mem[desc_ram_wowner_wptr[3:0]] <= desc_ram_aw_arb_gnt;
                 desc_ram_wowner_wptr <= desc_ram_wowner_wptr + 1'b1;
             end else if (!desc_ram_wowner_aw_hs && desc_ram_wowner_byp && desc_ram_wowner_w_end) begin
                 desc_ram_wowner_ahead <= 1'b1;
@@ -941,6 +940,11 @@ module bridge_stream_char_axil_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (desc_ram_wowner_aw_hs && !desc_ram_wowner_ahead && !(desc_ram_wowner_byp && desc_ram_wowner_w_end)) desc_ram_wowner_mem[desc_ram_wowner_wptr[3:0]] <= desc_ram_aw_arb_gnt;
+    end
     wire [0:0] desc_ram_wowner_head = desc_ram_wowner_valid ? desc_ram_wowner_mem[desc_ram_wowner_rptr[3:0]]
                                        : desc_ram_aw_arb_gnt;
     assign host_256b_w_sel_desc_ram = (desc_ram_wowner_valid || desc_ram_wowner_byp) && (desc_ram_wowner_head == 1'd0) && host_256b_w_to_desc_ram;
@@ -1199,7 +1203,6 @@ module bridge_stream_char_axil_xbar
             debug_sram_wowner_rptr <= '0;
         end else begin
             if (debug_sram_axi_awvalid && debug_sram_axi_awready) begin
-                debug_sram_wowner_mem[debug_sram_wowner_wptr[3:0]] <= debug_sram_aw_arb_gnt;
                 debug_sram_wowner_wptr <= debug_sram_wowner_wptr + 1'b1;
             end
             if (debug_sram_axi_wvalid && debug_sram_axi_wready && debug_sram_axi_wlast) begin
@@ -1207,6 +1210,11 @@ module bridge_stream_char_axil_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (debug_sram_axi_awvalid && debug_sram_axi_awready) debug_sram_wowner_mem[debug_sram_wowner_wptr[3:0]] <= debug_sram_aw_arb_gnt;
+    end
     wire debug_sram_wowner_valid = (debug_sram_wowner_wptr != debug_sram_wowner_rptr);
     wire [0:0] debug_sram_wowner_head = debug_sram_wowner_mem[debug_sram_wowner_rptr[3:0]];
     assign host_64b_w_sel_debug_sram = debug_sram_wowner_valid && (debug_sram_wowner_head == 1'd0) && host_64b_w_to_debug_sram;
@@ -1457,7 +1465,6 @@ module bridge_stream_char_axil_xbar
             if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
                 subtractive_wowner_ahead <= 1'b0;   // its W already went
             end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
-                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
             end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
                 subtractive_wowner_ahead <= 1'b1;
@@ -1467,6 +1474,11 @@ module bridge_stream_char_axil_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (subtractive_wowner_aw_hs && !subtractive_wowner_ahead && !(subtractive_wowner_byp && subtractive_wowner_w_end)) subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+    end
     wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
                                        : subtractive_aw_arb_gnt;
     assign host_256b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && host_256b_w_to_subtractive;
@@ -1589,7 +1601,6 @@ module bridge_stream_char_axil_xbar
             host_32b_wdest_rptr <= '0;
         end else begin
             if (host_32b_wdest_push) begin
-                host_32b_wdest_mem[host_32b_wdest_wptr[3:0]] <= host_32b_wdest_enc;
                 host_32b_wdest_wptr <= host_32b_wdest_wptr + 1'b1;
             end
             if (host_32b_wdest_pop) begin
@@ -1597,6 +1608,11 @@ module bridge_stream_char_axil_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (host_32b_wdest_push) host_32b_wdest_mem[host_32b_wdest_wptr[3:0]] <= host_32b_wdest_enc;
+    end
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
     assign host_32b_wdest_full = (host_32b_wdest_wptr[4] != host_32b_wdest_rptr[4]) && (host_32b_wdest_wptr[3:0] == host_32b_wdest_rptr[3:0]);
     wire [1:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
@@ -1617,7 +1633,6 @@ module bridge_stream_char_axil_xbar
             host_64b_wdest_rptr <= '0;
         end else begin
             if (host_64b_wdest_push) begin
-                host_64b_wdest_mem[host_64b_wdest_wptr[3:0]] <= host_64b_wdest_enc;
                 host_64b_wdest_wptr <= host_64b_wdest_wptr + 1'b1;
             end
             if (host_64b_wdest_pop) begin
@@ -1625,6 +1640,11 @@ module bridge_stream_char_axil_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (host_64b_wdest_push) host_64b_wdest_mem[host_64b_wdest_wptr[3:0]] <= host_64b_wdest_enc;
+    end
     wire host_64b_wdest_valid = (host_64b_wdest_wptr != host_64b_wdest_rptr);
     assign host_64b_wdest_full = (host_64b_wdest_wptr[4] != host_64b_wdest_rptr[4]) && (host_64b_wdest_wptr[3:0] == host_64b_wdest_rptr[3:0]);
     wire [0:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
@@ -1642,7 +1662,6 @@ module bridge_stream_char_axil_xbar
             host_256b_wdest_rptr <= '0;
         end else begin
             if (host_256b_wdest_push) begin
-                host_256b_wdest_mem[host_256b_wdest_wptr[3:0]] <= host_256b_wdest_enc;
                 host_256b_wdest_wptr <= host_256b_wdest_wptr + 1'b1;
             end
             if (host_256b_wdest_pop) begin
@@ -1650,6 +1669,11 @@ module bridge_stream_char_axil_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (host_256b_wdest_push) host_256b_wdest_mem[host_256b_wdest_wptr[3:0]] <= host_256b_wdest_enc;
+    end
     wire host_256b_wdest_valid = (host_256b_wdest_wptr != host_256b_wdest_rptr);
     assign host_256b_wdest_full = (host_256b_wdest_wptr[4] != host_256b_wdest_rptr[4]) && (host_256b_wdest_wptr[3:0] == host_256b_wdest_rptr[3:0]);
     wire [0:0] host_256b_wdest_head = host_256b_wdest_mem[host_256b_wdest_rptr[3:0]];
@@ -1668,7 +1692,6 @@ module bridge_stream_char_axil_xbar
             monbus_wr_64b_wdest_rptr <= '0;
         end else begin
             if (monbus_wr_64b_wdest_push) begin
-                monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_wptr[3:0]] <= monbus_wr_64b_wdest_enc;
                 monbus_wr_64b_wdest_wptr <= monbus_wr_64b_wdest_wptr + 1'b1;
             end
             if (monbus_wr_64b_wdest_pop) begin
@@ -1676,6 +1699,11 @@ module bridge_stream_char_axil_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (monbus_wr_64b_wdest_push) monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_wptr[3:0]] <= monbus_wr_64b_wdest_enc;
+    end
     wire monbus_wr_64b_wdest_valid = (monbus_wr_64b_wdest_wptr != monbus_wr_64b_wdest_rptr);
     assign monbus_wr_64b_wdest_full = (monbus_wr_64b_wdest_wptr[4] != monbus_wr_64b_wdest_rptr[4]) && (monbus_wr_64b_wdest_wptr[3:0] == monbus_wr_64b_wdest_rptr[3:0]);
     wire [0:0] monbus_wr_64b_wdest_head = monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_rptr[3:0]];
@@ -1693,7 +1721,6 @@ module bridge_stream_char_axil_xbar
             monbus_wr_256b_wdest_rptr <= '0;
         end else begin
             if (monbus_wr_256b_wdest_push) begin
-                monbus_wr_256b_wdest_mem[monbus_wr_256b_wdest_wptr[3:0]] <= monbus_wr_256b_wdest_enc;
                 monbus_wr_256b_wdest_wptr <= monbus_wr_256b_wdest_wptr + 1'b1;
             end
             if (monbus_wr_256b_wdest_pop) begin
@@ -1701,6 +1728,11 @@ module bridge_stream_char_axil_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (monbus_wr_256b_wdest_push) monbus_wr_256b_wdest_mem[monbus_wr_256b_wdest_wptr[3:0]] <= monbus_wr_256b_wdest_enc;
+    end
     wire monbus_wr_256b_wdest_valid = (monbus_wr_256b_wdest_wptr != monbus_wr_256b_wdest_rptr);
     assign monbus_wr_256b_wdest_full = (monbus_wr_256b_wdest_wptr[4] != monbus_wr_256b_wdest_rptr[4]) && (monbus_wr_256b_wdest_wptr[3:0] == monbus_wr_256b_wdest_rptr[3:0]);
     wire [0:0] monbus_wr_256b_wdest_head = monbus_wr_256b_wdest_mem[monbus_wr_256b_wdest_rptr[3:0]];

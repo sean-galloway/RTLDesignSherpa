@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 0 | 0 | 19 | 4 | 0 |
+| [task/](task/INDEX.md) | 0 | 0 | 20 | 4 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 26 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
 
@@ -25,9 +25,13 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 Counts are the item files in each lane directory, not counting the
 `*-000.md` templates (checked 2026-10-23).
 
-## Open (2026-10-25)
+## Open (2026-11-10)
 
-Nothing open in any lane. (TASK-022 closed 2026-10-25: the 4x4's
+Nothing open in any lane. (TASK-024 closed 2026-11-10: the generator's FIFO
+storage arrays out of `ALWAYS_FF_RST` into their own clock-only process --
+Vivado kept them in flops, Synth 8-4767; memory-controllers MC-005 phase 3 --
+every generated bridge in the repo regenerated and re-tested, 17 -> 0 arrays
+per ddr2 controller. TASK-022 closed 2026-10-25: the 4x4's
 uniform-traffic ceiling measured -- the driver's ID rotation on the
 per-ID same-target gate, then the traffic's own skew at the 32-bit periph
 port; the driver fixed, the residue documented in HAS 5.1. TASK-023

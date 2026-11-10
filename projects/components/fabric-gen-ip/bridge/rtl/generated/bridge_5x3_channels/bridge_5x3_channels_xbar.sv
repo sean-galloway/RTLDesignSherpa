@@ -805,7 +805,6 @@ module bridge_5x3_channels_xbar
             if (sram_buffer_wowner_aw_hs && sram_buffer_wowner_ahead) begin
                 sram_buffer_wowner_ahead <= 1'b0;   // its W already went
             end else if (sram_buffer_wowner_aw_hs && !(sram_buffer_wowner_byp && sram_buffer_wowner_w_end)) begin
-                sram_buffer_wowner_mem[sram_buffer_wowner_wptr[3:0]] <= sram_buffer_aw_arb_gnt;
                 sram_buffer_wowner_wptr <= sram_buffer_wowner_wptr + 1'b1;
             end else if (!sram_buffer_wowner_aw_hs && sram_buffer_wowner_byp && sram_buffer_wowner_w_end) begin
                 sram_buffer_wowner_ahead <= 1'b1;
@@ -815,6 +814,11 @@ module bridge_5x3_channels_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (sram_buffer_wowner_aw_hs && !sram_buffer_wowner_ahead && !(sram_buffer_wowner_byp && sram_buffer_wowner_w_end)) sram_buffer_wowner_mem[sram_buffer_wowner_wptr[3:0]] <= sram_buffer_aw_arb_gnt;
+    end
     wire [1:0] sram_buffer_wowner_head = sram_buffer_wowner_valid ? sram_buffer_wowner_mem[sram_buffer_wowner_rptr[3:0]]
                                        : sram_buffer_aw_arb_gnt;
     assign descr_wr_master_256b_w_sel_sram_buffer = (sram_buffer_wowner_valid || sram_buffer_wowner_byp) && (sram_buffer_wowner_head == 2'd0) && descr_wr_master_256b_w_to_sram_buffer;
@@ -1117,7 +1121,6 @@ module bridge_5x3_channels_xbar
             if (ddr_controller_wowner_aw_hs && ddr_controller_wowner_ahead) begin
                 ddr_controller_wowner_ahead <= 1'b0;   // its W already went
             end else if (ddr_controller_wowner_aw_hs && !(ddr_controller_wowner_byp && ddr_controller_wowner_w_end)) begin
-                ddr_controller_wowner_mem[ddr_controller_wowner_wptr[3:0]] <= ddr_controller_aw_arb_gnt;
                 ddr_controller_wowner_wptr <= ddr_controller_wowner_wptr + 1'b1;
             end else if (!ddr_controller_wowner_aw_hs && ddr_controller_wowner_byp && ddr_controller_wowner_w_end) begin
                 ddr_controller_wowner_ahead <= 1'b1;
@@ -1127,6 +1130,11 @@ module bridge_5x3_channels_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (ddr_controller_wowner_aw_hs && !ddr_controller_wowner_ahead && !(ddr_controller_wowner_byp && ddr_controller_wowner_w_end)) ddr_controller_wowner_mem[ddr_controller_wowner_wptr[3:0]] <= ddr_controller_aw_arb_gnt;
+    end
     wire [1:0] ddr_controller_wowner_head = ddr_controller_wowner_valid ? ddr_controller_wowner_mem[ddr_controller_wowner_rptr[3:0]]
                                        : ddr_controller_aw_arb_gnt;
     assign descr_wr_master_256b_w_sel_ddr_controller = (ddr_controller_wowner_valid || ddr_controller_wowner_byp) && (ddr_controller_wowner_head == 2'd0) && descr_wr_master_256b_w_to_ddr_controller;
@@ -1492,7 +1500,6 @@ module bridge_5x3_channels_xbar
             if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
                 subtractive_wowner_ahead <= 1'b0;   // its W already went
             end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
-                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
             end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
                 subtractive_wowner_ahead <= 1'b1;
@@ -1502,6 +1509,11 @@ module bridge_5x3_channels_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (subtractive_wowner_aw_hs && !subtractive_wowner_ahead && !(subtractive_wowner_byp && subtractive_wowner_w_end)) subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+    end
     wire [1:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
                                        : subtractive_aw_arb_gnt;
     assign descr_wr_master_256b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 2'd0) && descr_wr_master_256b_w_to_subtractive;
@@ -1663,7 +1675,6 @@ module bridge_5x3_channels_xbar
             descr_wr_master_256b_wdest_rptr <= '0;
         end else begin
             if (descr_wr_master_256b_wdest_push) begin
-                descr_wr_master_256b_wdest_mem[descr_wr_master_256b_wdest_wptr[3:0]] <= descr_wr_master_256b_wdest_enc;
                 descr_wr_master_256b_wdest_wptr <= descr_wr_master_256b_wdest_wptr + 1'b1;
             end
             if (descr_wr_master_256b_wdest_pop) begin
@@ -1671,6 +1682,11 @@ module bridge_5x3_channels_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (descr_wr_master_256b_wdest_push) descr_wr_master_256b_wdest_mem[descr_wr_master_256b_wdest_wptr[3:0]] <= descr_wr_master_256b_wdest_enc;
+    end
     wire descr_wr_master_256b_wdest_valid = (descr_wr_master_256b_wdest_wptr != descr_wr_master_256b_wdest_rptr);
     assign descr_wr_master_256b_wdest_full = (descr_wr_master_256b_wdest_wptr[4] != descr_wr_master_256b_wdest_rptr[4]) && (descr_wr_master_256b_wdest_wptr[3:0] == descr_wr_master_256b_wdest_rptr[3:0]);
     wire [1:0] descr_wr_master_256b_wdest_head = descr_wr_master_256b_wdest_mem[descr_wr_master_256b_wdest_rptr[3:0]];
@@ -1690,7 +1706,6 @@ module bridge_5x3_channels_xbar
             sink_wr_master_256b_wdest_rptr <= '0;
         end else begin
             if (sink_wr_master_256b_wdest_push) begin
-                sink_wr_master_256b_wdest_mem[sink_wr_master_256b_wdest_wptr[3:0]] <= sink_wr_master_256b_wdest_enc;
                 sink_wr_master_256b_wdest_wptr <= sink_wr_master_256b_wdest_wptr + 1'b1;
             end
             if (sink_wr_master_256b_wdest_pop) begin
@@ -1698,6 +1713,11 @@ module bridge_5x3_channels_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (sink_wr_master_256b_wdest_push) sink_wr_master_256b_wdest_mem[sink_wr_master_256b_wdest_wptr[3:0]] <= sink_wr_master_256b_wdest_enc;
+    end
     wire sink_wr_master_256b_wdest_valid = (sink_wr_master_256b_wdest_wptr != sink_wr_master_256b_wdest_rptr);
     assign sink_wr_master_256b_wdest_full = (sink_wr_master_256b_wdest_wptr[4] != sink_wr_master_256b_wdest_rptr[4]) && (sink_wr_master_256b_wdest_wptr[3:0] == sink_wr_master_256b_wdest_rptr[3:0]);
     wire [1:0] sink_wr_master_256b_wdest_head = sink_wr_master_256b_wdest_mem[sink_wr_master_256b_wdest_rptr[3:0]];
@@ -1717,7 +1737,6 @@ module bridge_5x3_channels_xbar
             stream_master_256b_wdest_rptr <= '0;
         end else begin
             if (stream_master_256b_wdest_push) begin
-                stream_master_256b_wdest_mem[stream_master_256b_wdest_wptr[3:0]] <= stream_master_256b_wdest_enc;
                 stream_master_256b_wdest_wptr <= stream_master_256b_wdest_wptr + 1'b1;
             end
             if (stream_master_256b_wdest_pop) begin
@@ -1725,6 +1744,11 @@ module bridge_5x3_channels_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (stream_master_256b_wdest_push) stream_master_256b_wdest_mem[stream_master_256b_wdest_wptr[3:0]] <= stream_master_256b_wdest_enc;
+    end
     wire stream_master_256b_wdest_valid = (stream_master_256b_wdest_wptr != stream_master_256b_wdest_rptr);
     assign stream_master_256b_wdest_full = (stream_master_256b_wdest_wptr[4] != stream_master_256b_wdest_rptr[4]) && (stream_master_256b_wdest_wptr[3:0] == stream_master_256b_wdest_rptr[3:0]);
     wire [1:0] stream_master_256b_wdest_head = stream_master_256b_wdest_mem[stream_master_256b_wdest_rptr[3:0]];
@@ -1744,7 +1768,6 @@ module bridge_5x3_channels_xbar
             cpu_master_32b_wdest_rptr <= '0;
         end else begin
             if (cpu_master_32b_wdest_push) begin
-                cpu_master_32b_wdest_mem[cpu_master_32b_wdest_wptr[3:0]] <= cpu_master_32b_wdest_enc;
                 cpu_master_32b_wdest_wptr <= cpu_master_32b_wdest_wptr + 1'b1;
             end
             if (cpu_master_32b_wdest_pop) begin
@@ -1752,6 +1775,11 @@ module bridge_5x3_channels_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_master_32b_wdest_push) cpu_master_32b_wdest_mem[cpu_master_32b_wdest_wptr[3:0]] <= cpu_master_32b_wdest_enc;
+    end
     wire cpu_master_32b_wdest_valid = (cpu_master_32b_wdest_wptr != cpu_master_32b_wdest_rptr);
     assign cpu_master_32b_wdest_full = (cpu_master_32b_wdest_wptr[4] != cpu_master_32b_wdest_rptr[4]) && (cpu_master_32b_wdest_wptr[3:0] == cpu_master_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_32b_wdest_head = cpu_master_32b_wdest_mem[cpu_master_32b_wdest_rptr[3:0]];
@@ -1769,7 +1797,6 @@ module bridge_5x3_channels_xbar
             cpu_master_256b_wdest_rptr <= '0;
         end else begin
             if (cpu_master_256b_wdest_push) begin
-                cpu_master_256b_wdest_mem[cpu_master_256b_wdest_wptr[3:0]] <= cpu_master_256b_wdest_enc;
                 cpu_master_256b_wdest_wptr <= cpu_master_256b_wdest_wptr + 1'b1;
             end
             if (cpu_master_256b_wdest_pop) begin
@@ -1777,6 +1804,11 @@ module bridge_5x3_channels_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_master_256b_wdest_push) cpu_master_256b_wdest_mem[cpu_master_256b_wdest_wptr[3:0]] <= cpu_master_256b_wdest_enc;
+    end
     wire cpu_master_256b_wdest_valid = (cpu_master_256b_wdest_wptr != cpu_master_256b_wdest_rptr);
     assign cpu_master_256b_wdest_full = (cpu_master_256b_wdest_wptr[4] != cpu_master_256b_wdest_rptr[4]) && (cpu_master_256b_wdest_wptr[3:0] == cpu_master_256b_wdest_rptr[3:0]);
     wire [1:0] cpu_master_256b_wdest_head = cpu_master_256b_wdest_mem[cpu_master_256b_wdest_rptr[3:0]];

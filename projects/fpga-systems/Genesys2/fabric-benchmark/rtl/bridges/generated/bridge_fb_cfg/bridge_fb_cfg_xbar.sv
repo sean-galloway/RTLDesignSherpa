@@ -1314,7 +1314,6 @@ module bridge_fb_cfg_xbar
             host_32b_wdest_rptr <= '0;
         end else begin
             if (host_32b_wdest_push) begin
-                host_32b_wdest_mem[host_32b_wdest_wptr[3:0]] <= host_32b_wdest_enc;
                 host_32b_wdest_wptr <= host_32b_wdest_wptr + 1'b1;
             end
             if (host_32b_wdest_pop) begin
@@ -1322,6 +1321,11 @@ module bridge_fb_cfg_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (host_32b_wdest_push) host_32b_wdest_mem[host_32b_wdest_wptr[3:0]] <= host_32b_wdest_enc;
+    end
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
     assign host_32b_wdest_full = (host_32b_wdest_wptr[4] != host_32b_wdest_rptr[4]) && (host_32b_wdest_wptr[3:0] == host_32b_wdest_rptr[3:0]);
     wire [2:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
@@ -1345,7 +1349,6 @@ module bridge_fb_cfg_xbar
             host_128b_wdest_rptr <= '0;
         end else begin
             if (host_128b_wdest_push) begin
-                host_128b_wdest_mem[host_128b_wdest_wptr[3:0]] <= host_128b_wdest_enc;
                 host_128b_wdest_wptr <= host_128b_wdest_wptr + 1'b1;
             end
             if (host_128b_wdest_pop) begin
@@ -1353,6 +1356,11 @@ module bridge_fb_cfg_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (host_128b_wdest_push) host_128b_wdest_mem[host_128b_wdest_wptr[3:0]] <= host_128b_wdest_enc;
+    end
     wire host_128b_wdest_valid = (host_128b_wdest_wptr != host_128b_wdest_rptr);
     assign host_128b_wdest_full = (host_128b_wdest_wptr[4] != host_128b_wdest_rptr[4]) && (host_128b_wdest_wptr[3:0] == host_128b_wdest_rptr[3:0]);
     wire [0:0] host_128b_wdest_head = host_128b_wdest_mem[host_128b_wdest_rptr[3:0]];

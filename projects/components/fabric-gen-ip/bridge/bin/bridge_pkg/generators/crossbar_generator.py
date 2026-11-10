@@ -20,6 +20,7 @@ from bridge_pkg.generators.adapter_generator import MasterConfig, SlaveInfo
 from bridge_pkg.width_utils import get_connected_slave_widths, get_masters_connecting_to_slave
 from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, AXI4_SLAVE_SIGNALS, AXI4_MASTER_SIGNALS
 from bridge_pkg import cdc_lanes
+from bridge_pkg.emit_utils import mem_write_lines
 
 
 class CrossbarGenerator:
@@ -596,7 +597,6 @@ class CrossbarGenerator:
             lines.append(f"            {base}_rptr <= '0;")
             lines.append(f"        end else begin")
             lines.append(f"            if ({base}_push) begin")
-            lines.append(f"                {base}_mem[{base}_wptr[{db-1}:0]] <= {base}_enc;")
             lines.append(f"                {base}_wptr <= {base}_wptr + 1'b1;")
             lines.append(f"            end")
             lines.append(f"            if ({base}_pop) begin")
@@ -604,6 +604,8 @@ class CrossbarGenerator:
             lines.append(f"            end")
             lines.append(f"        end")
             lines.append(f"    )")
+            lines.extend(mem_write_lines(f"{base}_mem[{base}_wptr[{db-1}:0]] <= {base}_enc;",
+                                          f"{base}_push"))
             lines.append(f"    wire {base}_valid = ({base}_wptr != {base}_rptr);")
             lines.append(f"    assign {base}_full = ({base}_wptr[{db}] != {base}_rptr[{db}]) && "
                          f"({base}_wptr[{db-1}:0] == {base}_rptr[{db-1}:0]);")
@@ -1235,7 +1237,6 @@ class CrossbarGenerator:
                 lines.append(f"            {own}_rptr <= '0;")
                 lines.append(f"        end else begin")
                 lines.append(f"            if ({prefix}awvalid && {prefix}awready) begin")
-                lines.append(f"                {own}_mem[{own}_wptr[{ob-1}:0]] <= {slave.name}_aw_arb_gnt;")
                 lines.append(f"                {own}_wptr <= {own}_wptr + 1'b1;")
                 lines.append(f"            end")
                 lines.append(f"            if ({prefix}wvalid && {prefix}wready && {prefix}wlast) begin")
@@ -1243,6 +1244,8 @@ class CrossbarGenerator:
                 lines.append(f"            end")
                 lines.append(f"        end")
                 lines.append(f"    )")
+                lines.extend(mem_write_lines(f"{own}_mem[{own}_wptr[{ob-1}:0]] <= {slave.name}_aw_arb_gnt;",
+                                              f"{prefix}awvalid && {prefix}awready"))
                 lines.append(f"    wire {own}_valid = ({own}_wptr != {own}_rptr);")
                 lines.append(f"    wire [{k-1}:0] {own}_head = {own}_mem[{own}_rptr[{ob-1}:0]];")
                 for i, m in enumerate(wr_masters):
@@ -1274,7 +1277,6 @@ class CrossbarGenerator:
                 lines.append(f"            if ({own}_aw_hs && {own}_ahead) begin")
                 lines.append(f"                {own}_ahead <= 1'b0;   // its W already went")
                 lines.append(f"            end else if ({own}_aw_hs && !({own}_byp && {own}_w_end)) begin")
-                lines.append(f"                {own}_mem[{own}_wptr[{ob-1}:0]] <= {slave.name}_aw_arb_gnt;")
                 lines.append(f"                {own}_wptr <= {own}_wptr + 1'b1;")
                 lines.append(f"            end else if (!{own}_aw_hs && {own}_byp && {own}_w_end) begin")
                 lines.append(f"                {own}_ahead <= 1'b1;")
@@ -1284,6 +1286,10 @@ class CrossbarGenerator:
                 lines.append(f"            end")
                 lines.append(f"        end")
                 lines.append(f"    )")
+                # the same branch as the wptr advance above: not the "ahead" case,
+                # not the W-already-done bypass case
+                lines.extend(mem_write_lines(f"{own}_mem[{own}_wptr[{ob-1}:0]] <= {slave.name}_aw_arb_gnt;",
+                                              f"{own}_aw_hs && !{own}_ahead && !({own}_byp && {own}_w_end)"))
                 lines.append(f"    wire [{k-1}:0] {own}_head = {own}_valid ? {own}_mem[{own}_rptr[{ob-1}:0]]")
                 lines.append(f"                                       : {slave.name}_aw_arb_gnt;")
                 for i, m in enumerate(wr_masters):

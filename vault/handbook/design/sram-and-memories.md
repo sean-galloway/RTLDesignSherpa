@@ -82,6 +82,25 @@ MC-005, 2026-11-06). A census helps: for every `[N]` array, list its write
 sites and whether any is a reset-loop write; the single-site, no-reset ones
 are the candidates.
 
+The census must include GENERATED RTL, and the fix for a generated array goes
+in the generator. After MC-005's two hand-written phases the pumice and
+granite board builds each still reported 17 arrays, every one emitted by the
+bridge generator: the APB adapters' B / R position FIFOs (`wr_fifo`,
+`rd_fifo`), the host adapter's AW-to-W tracking FIFO (`w_trk_mem`) and the
+crossbar's W destination FIFOs (`*_wdest_mem`), written inside the same
+`ALWAYS_FF_RST` block as their pointers at six emission sites in
+`bridge_pkg/generators/`. The one helper that now emits the array's own
+clock-only process (`bridge_pkg/emit_utils.mem_write_lines`) took the array
+write out of all six, and the regeneration touched 532 generated files across
+the bridge batch and nine fpga-systems areas (bridge TASK-024, 2026-11-10).
+Two findings from doing it: regenerate everything with the UNCHANGED
+generator first, so the diff you then review is the change and nothing else
+(three consumer areas turned out to be behind the generator already); and
+verify the regenerated diff mechanically -- every removed array write must
+reappear verbatim under an `if (<the same push>)` in the new process, which
+a short script over `git diff -U0` checks (1,118 of 1,118), rather than
+reading 500 files.
+
 ## Several write addresses in one process also dissolve the array (2026-11-07)
 
 The cache-ip shared tag array (`l1_tag_array`) had no reset anywhere near

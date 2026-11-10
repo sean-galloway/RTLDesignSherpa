@@ -717,7 +717,6 @@ module bridge_bs_axi5_cpu_adapter
             w_trk_rptr <= '0;
         end else begin
             if (w_trk_push) begin
-                w_trk_mem[w_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
                 w_trk_wptr <= w_trk_wptr + 1'b1;
             end
             if (w_trk_pop) begin
@@ -725,6 +724,11 @@ module bridge_bs_axi5_cpu_adapter
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (w_trk_push) w_trk_mem[w_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
+    end
 
     assign w_slave_select = (w_trk_wptr != w_trk_rptr)
                           ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]
@@ -856,7 +860,6 @@ module bridge_bs_axi5_cpu_adapter
             lr_rptr <= '0;
         end else begin
             if (fub_axi_awvalid && fub_axi_awready && aw_rr_local) begin
-                lr_mem[lr_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;
                 lr_wptr <= lr_wptr + 1'b1;
             end
             if (r_local_head && fub_axi_rvalid && fub_axi_rready) begin
@@ -864,6 +867,11 @@ module bridge_bs_axi5_cpu_adapter
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (fub_axi_awvalid && fub_axi_awready && aw_rr_local) lr_mem[lr_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;
+    end
     assign lr_valid   = (lr_wptr != lr_rptr);
     assign r_local_id = lr_mem[lr_rptr[AR_TRK_AW-1:0]];
 

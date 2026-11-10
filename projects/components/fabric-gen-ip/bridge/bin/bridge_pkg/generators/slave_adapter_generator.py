@@ -14,7 +14,7 @@ from ..signal_naming import SignalNaming, Direction, AXI4Channel, PortDirection,
 # Single shared SlaveInfo dataclass (carries mon_enables) — the local
 # duplicate that used to live here diverged from the canonical one.
 from .adapter_generator import SlaveInfo
-from ..emit_utils import generate_monitor_ports
+from ..emit_utils import generate_monitor_ports, mem_write_lines
 
 
 from bridge_pkg.module_naming import adapter_module_name
@@ -933,10 +933,11 @@ class SlaveAdapterGenerator:
         lines.append("        if (`RST_ASSERTED(aresetn)) begin")
         lines.append("            wr_ptr <= '0;")
         lines.append(f"        end else if ({crossbar_prefix}awvalid && {crossbar_prefix}awready) begin")
-        lines.append("            wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;")
         lines.append("            wr_ptr <= wr_ptr + 1'b1;")
         lines.append("        end")
         lines.append("    )")
+        lines.extend(mem_write_lines("wr_fifo[wr_ptr[$clog2(WR_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_aw;",
+                                      f"{crossbar_prefix}awvalid && {crossbar_prefix}awready"))
         lines.append("")
         lines.append(f"    // Pop on B response ({pop_condition})")
         lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")
@@ -1069,10 +1070,11 @@ class SlaveAdapterGenerator:
         lines.append("        if (`RST_ASSERTED(aresetn)) begin")
         lines.append("            ar_ptr <= '0;")
         lines.append(f"        end else if ({crossbar_prefix}arvalid && {crossbar_prefix}arready) begin")
-        lines.append("            rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;")
         lines.append("            ar_ptr <= ar_ptr + 1'b1;")
         lines.append("        end")
         lines.append("    )")
+        lines.extend(mem_write_lines("rd_fifo[ar_ptr[$clog2(RD_FIFO_DEPTH)-1:0]] <= xbar_bridge_id_ar;",
+                                      f"{crossbar_prefix}arvalid && {crossbar_prefix}arready"))
         lines.append("")
         lines.append(f"    // Pop on R response ({pop_condition})")
         lines.append("    `ALWAYS_FF_RST(aclk, aresetn,")

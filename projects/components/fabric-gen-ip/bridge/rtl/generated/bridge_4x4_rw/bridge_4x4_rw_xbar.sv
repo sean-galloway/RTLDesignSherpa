@@ -1033,7 +1033,6 @@ module bridge_4x4_rw_xbar
             if (periph_slave_wowner_aw_hs && periph_slave_wowner_ahead) begin
                 periph_slave_wowner_ahead <= 1'b0;   // its W already went
             end else if (periph_slave_wowner_aw_hs && !(periph_slave_wowner_byp && periph_slave_wowner_w_end)) begin
-                periph_slave_wowner_mem[periph_slave_wowner_wptr[3:0]] <= periph_slave_aw_arb_gnt;
                 periph_slave_wowner_wptr <= periph_slave_wowner_wptr + 1'b1;
             end else if (!periph_slave_wowner_aw_hs && periph_slave_wowner_byp && periph_slave_wowner_w_end) begin
                 periph_slave_wowner_ahead <= 1'b1;
@@ -1043,6 +1042,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (periph_slave_wowner_aw_hs && !periph_slave_wowner_ahead && !(periph_slave_wowner_byp && periph_slave_wowner_w_end)) periph_slave_wowner_mem[periph_slave_wowner_wptr[3:0]] <= periph_slave_aw_arb_gnt;
+    end
     wire [1:0] periph_slave_wowner_head = periph_slave_wowner_valid ? periph_slave_wowner_mem[periph_slave_wowner_rptr[3:0]]
                                        : periph_slave_aw_arb_gnt;
     assign cpu_master_32b_w_sel_periph_slave = (periph_slave_wowner_valid || periph_slave_wowner_byp) && (periph_slave_wowner_head == 2'd0) && cpu_master_32b_w_to_periph_slave;
@@ -1338,7 +1342,6 @@ module bridge_4x4_rw_xbar
             if (ddr0_slave_wowner_aw_hs && ddr0_slave_wowner_ahead) begin
                 ddr0_slave_wowner_ahead <= 1'b0;   // its W already went
             end else if (ddr0_slave_wowner_aw_hs && !(ddr0_slave_wowner_byp && ddr0_slave_wowner_w_end)) begin
-                ddr0_slave_wowner_mem[ddr0_slave_wowner_wptr[3:0]] <= ddr0_slave_aw_arb_gnt;
                 ddr0_slave_wowner_wptr <= ddr0_slave_wowner_wptr + 1'b1;
             end else if (!ddr0_slave_wowner_aw_hs && ddr0_slave_wowner_byp && ddr0_slave_wowner_w_end) begin
                 ddr0_slave_wowner_ahead <= 1'b1;
@@ -1348,6 +1351,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (ddr0_slave_wowner_aw_hs && !ddr0_slave_wowner_ahead && !(ddr0_slave_wowner_byp && ddr0_slave_wowner_w_end)) ddr0_slave_wowner_mem[ddr0_slave_wowner_wptr[3:0]] <= ddr0_slave_aw_arb_gnt;
+    end
     wire [1:0] ddr0_slave_wowner_head = ddr0_slave_wowner_valid ? ddr0_slave_wowner_mem[ddr0_slave_wowner_rptr[3:0]]
                                        : ddr0_slave_aw_arb_gnt;
     assign cpu_master_64b_w_sel_ddr0_slave = (ddr0_slave_wowner_valid || ddr0_slave_wowner_byp) && (ddr0_slave_wowner_head == 2'd0) && cpu_master_64b_w_to_ddr0_slave;
@@ -1649,7 +1657,6 @@ module bridge_4x4_rw_xbar
             if (sram_slave_wowner_aw_hs && sram_slave_wowner_ahead) begin
                 sram_slave_wowner_ahead <= 1'b0;   // its W already went
             end else if (sram_slave_wowner_aw_hs && !(sram_slave_wowner_byp && sram_slave_wowner_w_end)) begin
-                sram_slave_wowner_mem[sram_slave_wowner_wptr[3:0]] <= sram_slave_aw_arb_gnt;
                 sram_slave_wowner_wptr <= sram_slave_wowner_wptr + 1'b1;
             end else if (!sram_slave_wowner_aw_hs && sram_slave_wowner_byp && sram_slave_wowner_w_end) begin
                 sram_slave_wowner_ahead <= 1'b1;
@@ -1659,6 +1666,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (sram_slave_wowner_aw_hs && !sram_slave_wowner_ahead && !(sram_slave_wowner_byp && sram_slave_wowner_w_end)) sram_slave_wowner_mem[sram_slave_wowner_wptr[3:0]] <= sram_slave_aw_arb_gnt;
+    end
     wire [1:0] sram_slave_wowner_head = sram_slave_wowner_valid ? sram_slave_wowner_mem[sram_slave_wowner_rptr[3:0]]
                                        : sram_slave_aw_arb_gnt;
     assign cpu_master_128b_w_sel_sram_slave = (sram_slave_wowner_valid || sram_slave_wowner_byp) && (sram_slave_wowner_head == 2'd0) && cpu_master_128b_w_to_sram_slave;
@@ -1928,7 +1940,6 @@ module bridge_4x4_rw_xbar
             if (gpu_mem_slave_wowner_aw_hs && gpu_mem_slave_wowner_ahead) begin
                 gpu_mem_slave_wowner_ahead <= 1'b0;   // its W already went
             end else if (gpu_mem_slave_wowner_aw_hs && !(gpu_mem_slave_wowner_byp && gpu_mem_slave_wowner_w_end)) begin
-                gpu_mem_slave_wowner_mem[gpu_mem_slave_wowner_wptr[3:0]] <= gpu_mem_slave_aw_arb_gnt;
                 gpu_mem_slave_wowner_wptr <= gpu_mem_slave_wowner_wptr + 1'b1;
             end else if (!gpu_mem_slave_wowner_aw_hs && gpu_mem_slave_wowner_byp && gpu_mem_slave_wowner_w_end) begin
                 gpu_mem_slave_wowner_ahead <= 1'b1;
@@ -1938,6 +1949,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (gpu_mem_slave_wowner_aw_hs && !gpu_mem_slave_wowner_ahead && !(gpu_mem_slave_wowner_byp && gpu_mem_slave_wowner_w_end)) gpu_mem_slave_wowner_mem[gpu_mem_slave_wowner_wptr[3:0]] <= gpu_mem_slave_aw_arb_gnt;
+    end
     wire [1:0] gpu_mem_slave_wowner_head = gpu_mem_slave_wowner_valid ? gpu_mem_slave_wowner_mem[gpu_mem_slave_wowner_rptr[3:0]]
                                        : gpu_mem_slave_aw_arb_gnt;
     assign cpu_master_256b_w_sel_gpu_mem_slave = (gpu_mem_slave_wowner_valid || gpu_mem_slave_wowner_byp) && (gpu_mem_slave_wowner_head == 2'd0) && cpu_master_256b_w_to_gpu_mem_slave;
@@ -2233,7 +2249,6 @@ module bridge_4x4_rw_xbar
             if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
                 subtractive_wowner_ahead <= 1'b0;   // its W already went
             end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
-                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
             end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
                 subtractive_wowner_ahead <= 1'b1;
@@ -2243,6 +2258,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (subtractive_wowner_aw_hs && !subtractive_wowner_ahead && !(subtractive_wowner_byp && subtractive_wowner_w_end)) subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+    end
     wire [1:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
                                        : subtractive_aw_arb_gnt;
     assign cpu_master_256b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 2'd0) && cpu_master_256b_w_to_subtractive;
@@ -2429,7 +2449,6 @@ module bridge_4x4_rw_xbar
             cpu_master_32b_wdest_rptr <= '0;
         end else begin
             if (cpu_master_32b_wdest_push) begin
-                cpu_master_32b_wdest_mem[cpu_master_32b_wdest_wptr[3:0]] <= cpu_master_32b_wdest_enc;
                 cpu_master_32b_wdest_wptr <= cpu_master_32b_wdest_wptr + 1'b1;
             end
             if (cpu_master_32b_wdest_pop) begin
@@ -2437,6 +2456,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_master_32b_wdest_push) cpu_master_32b_wdest_mem[cpu_master_32b_wdest_wptr[3:0]] <= cpu_master_32b_wdest_enc;
+    end
     wire cpu_master_32b_wdest_valid = (cpu_master_32b_wdest_wptr != cpu_master_32b_wdest_rptr);
     assign cpu_master_32b_wdest_full = (cpu_master_32b_wdest_wptr[4] != cpu_master_32b_wdest_rptr[4]) && (cpu_master_32b_wdest_wptr[3:0] == cpu_master_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_32b_wdest_head = cpu_master_32b_wdest_mem[cpu_master_32b_wdest_rptr[3:0]];
@@ -2454,7 +2478,6 @@ module bridge_4x4_rw_xbar
             cpu_master_64b_wdest_rptr <= '0;
         end else begin
             if (cpu_master_64b_wdest_push) begin
-                cpu_master_64b_wdest_mem[cpu_master_64b_wdest_wptr[3:0]] <= cpu_master_64b_wdest_enc;
                 cpu_master_64b_wdest_wptr <= cpu_master_64b_wdest_wptr + 1'b1;
             end
             if (cpu_master_64b_wdest_pop) begin
@@ -2462,6 +2485,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_master_64b_wdest_push) cpu_master_64b_wdest_mem[cpu_master_64b_wdest_wptr[3:0]] <= cpu_master_64b_wdest_enc;
+    end
     wire cpu_master_64b_wdest_valid = (cpu_master_64b_wdest_wptr != cpu_master_64b_wdest_rptr);
     assign cpu_master_64b_wdest_full = (cpu_master_64b_wdest_wptr[4] != cpu_master_64b_wdest_rptr[4]) && (cpu_master_64b_wdest_wptr[3:0] == cpu_master_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_64b_wdest_head = cpu_master_64b_wdest_mem[cpu_master_64b_wdest_rptr[3:0]];
@@ -2479,7 +2507,6 @@ module bridge_4x4_rw_xbar
             cpu_master_128b_wdest_rptr <= '0;
         end else begin
             if (cpu_master_128b_wdest_push) begin
-                cpu_master_128b_wdest_mem[cpu_master_128b_wdest_wptr[3:0]] <= cpu_master_128b_wdest_enc;
                 cpu_master_128b_wdest_wptr <= cpu_master_128b_wdest_wptr + 1'b1;
             end
             if (cpu_master_128b_wdest_pop) begin
@@ -2487,6 +2514,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_master_128b_wdest_push) cpu_master_128b_wdest_mem[cpu_master_128b_wdest_wptr[3:0]] <= cpu_master_128b_wdest_enc;
+    end
     wire cpu_master_128b_wdest_valid = (cpu_master_128b_wdest_wptr != cpu_master_128b_wdest_rptr);
     assign cpu_master_128b_wdest_full = (cpu_master_128b_wdest_wptr[4] != cpu_master_128b_wdest_rptr[4]) && (cpu_master_128b_wdest_wptr[3:0] == cpu_master_128b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_128b_wdest_head = cpu_master_128b_wdest_mem[cpu_master_128b_wdest_rptr[3:0]];
@@ -2504,7 +2536,6 @@ module bridge_4x4_rw_xbar
             cpu_master_256b_wdest_rptr <= '0;
         end else begin
             if (cpu_master_256b_wdest_push) begin
-                cpu_master_256b_wdest_mem[cpu_master_256b_wdest_wptr[3:0]] <= cpu_master_256b_wdest_enc;
                 cpu_master_256b_wdest_wptr <= cpu_master_256b_wdest_wptr + 1'b1;
             end
             if (cpu_master_256b_wdest_pop) begin
@@ -2512,6 +2543,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_master_256b_wdest_push) cpu_master_256b_wdest_mem[cpu_master_256b_wdest_wptr[3:0]] <= cpu_master_256b_wdest_enc;
+    end
     wire cpu_master_256b_wdest_valid = (cpu_master_256b_wdest_wptr != cpu_master_256b_wdest_rptr);
     assign cpu_master_256b_wdest_full = (cpu_master_256b_wdest_wptr[4] != cpu_master_256b_wdest_rptr[4]) && (cpu_master_256b_wdest_wptr[3:0] == cpu_master_256b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_256b_wdest_head = cpu_master_256b_wdest_mem[cpu_master_256b_wdest_rptr[3:0]];
@@ -2530,7 +2566,6 @@ module bridge_4x4_rw_xbar
             dma0_master_32b_wdest_rptr <= '0;
         end else begin
             if (dma0_master_32b_wdest_push) begin
-                dma0_master_32b_wdest_mem[dma0_master_32b_wdest_wptr[3:0]] <= dma0_master_32b_wdest_enc;
                 dma0_master_32b_wdest_wptr <= dma0_master_32b_wdest_wptr + 1'b1;
             end
             if (dma0_master_32b_wdest_pop) begin
@@ -2538,6 +2573,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (dma0_master_32b_wdest_push) dma0_master_32b_wdest_mem[dma0_master_32b_wdest_wptr[3:0]] <= dma0_master_32b_wdest_enc;
+    end
     wire dma0_master_32b_wdest_valid = (dma0_master_32b_wdest_wptr != dma0_master_32b_wdest_rptr);
     assign dma0_master_32b_wdest_full = (dma0_master_32b_wdest_wptr[4] != dma0_master_32b_wdest_rptr[4]) && (dma0_master_32b_wdest_wptr[3:0] == dma0_master_32b_wdest_rptr[3:0]);
     wire [0:0] dma0_master_32b_wdest_head = dma0_master_32b_wdest_mem[dma0_master_32b_wdest_rptr[3:0]];
@@ -2555,7 +2595,6 @@ module bridge_4x4_rw_xbar
             dma0_master_64b_wdest_rptr <= '0;
         end else begin
             if (dma0_master_64b_wdest_push) begin
-                dma0_master_64b_wdest_mem[dma0_master_64b_wdest_wptr[3:0]] <= dma0_master_64b_wdest_enc;
                 dma0_master_64b_wdest_wptr <= dma0_master_64b_wdest_wptr + 1'b1;
             end
             if (dma0_master_64b_wdest_pop) begin
@@ -2563,6 +2602,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (dma0_master_64b_wdest_push) dma0_master_64b_wdest_mem[dma0_master_64b_wdest_wptr[3:0]] <= dma0_master_64b_wdest_enc;
+    end
     wire dma0_master_64b_wdest_valid = (dma0_master_64b_wdest_wptr != dma0_master_64b_wdest_rptr);
     assign dma0_master_64b_wdest_full = (dma0_master_64b_wdest_wptr[4] != dma0_master_64b_wdest_rptr[4]) && (dma0_master_64b_wdest_wptr[3:0] == dma0_master_64b_wdest_rptr[3:0]);
     wire [0:0] dma0_master_64b_wdest_head = dma0_master_64b_wdest_mem[dma0_master_64b_wdest_rptr[3:0]];
@@ -2580,7 +2624,6 @@ module bridge_4x4_rw_xbar
             dma0_master_128b_wdest_rptr <= '0;
         end else begin
             if (dma0_master_128b_wdest_push) begin
-                dma0_master_128b_wdest_mem[dma0_master_128b_wdest_wptr[3:0]] <= dma0_master_128b_wdest_enc;
                 dma0_master_128b_wdest_wptr <= dma0_master_128b_wdest_wptr + 1'b1;
             end
             if (dma0_master_128b_wdest_pop) begin
@@ -2588,6 +2631,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (dma0_master_128b_wdest_push) dma0_master_128b_wdest_mem[dma0_master_128b_wdest_wptr[3:0]] <= dma0_master_128b_wdest_enc;
+    end
     wire dma0_master_128b_wdest_valid = (dma0_master_128b_wdest_wptr != dma0_master_128b_wdest_rptr);
     assign dma0_master_128b_wdest_full = (dma0_master_128b_wdest_wptr[4] != dma0_master_128b_wdest_rptr[4]) && (dma0_master_128b_wdest_wptr[3:0] == dma0_master_128b_wdest_rptr[3:0]);
     wire [0:0] dma0_master_128b_wdest_head = dma0_master_128b_wdest_mem[dma0_master_128b_wdest_rptr[3:0]];
@@ -2605,7 +2653,6 @@ module bridge_4x4_rw_xbar
             dma0_master_256b_wdest_rptr <= '0;
         end else begin
             if (dma0_master_256b_wdest_push) begin
-                dma0_master_256b_wdest_mem[dma0_master_256b_wdest_wptr[3:0]] <= dma0_master_256b_wdest_enc;
                 dma0_master_256b_wdest_wptr <= dma0_master_256b_wdest_wptr + 1'b1;
             end
             if (dma0_master_256b_wdest_pop) begin
@@ -2613,6 +2660,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (dma0_master_256b_wdest_push) dma0_master_256b_wdest_mem[dma0_master_256b_wdest_wptr[3:0]] <= dma0_master_256b_wdest_enc;
+    end
     wire dma0_master_256b_wdest_valid = (dma0_master_256b_wdest_wptr != dma0_master_256b_wdest_rptr);
     assign dma0_master_256b_wdest_full = (dma0_master_256b_wdest_wptr[4] != dma0_master_256b_wdest_rptr[4]) && (dma0_master_256b_wdest_wptr[3:0] == dma0_master_256b_wdest_rptr[3:0]);
     wire [0:0] dma0_master_256b_wdest_head = dma0_master_256b_wdest_mem[dma0_master_256b_wdest_rptr[3:0]];
@@ -2630,7 +2682,6 @@ module bridge_4x4_rw_xbar
             dma1_master_64b_wdest_rptr <= '0;
         end else begin
             if (dma1_master_64b_wdest_push) begin
-                dma1_master_64b_wdest_mem[dma1_master_64b_wdest_wptr[3:0]] <= dma1_master_64b_wdest_enc;
                 dma1_master_64b_wdest_wptr <= dma1_master_64b_wdest_wptr + 1'b1;
             end
             if (dma1_master_64b_wdest_pop) begin
@@ -2638,6 +2689,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (dma1_master_64b_wdest_push) dma1_master_64b_wdest_mem[dma1_master_64b_wdest_wptr[3:0]] <= dma1_master_64b_wdest_enc;
+    end
     wire dma1_master_64b_wdest_valid = (dma1_master_64b_wdest_wptr != dma1_master_64b_wdest_rptr);
     assign dma1_master_64b_wdest_full = (dma1_master_64b_wdest_wptr[4] != dma1_master_64b_wdest_rptr[4]) && (dma1_master_64b_wdest_wptr[3:0] == dma1_master_64b_wdest_rptr[3:0]);
     wire [0:0] dma1_master_64b_wdest_head = dma1_master_64b_wdest_mem[dma1_master_64b_wdest_rptr[3:0]];
@@ -2655,7 +2711,6 @@ module bridge_4x4_rw_xbar
             dma1_master_128b_wdest_rptr <= '0;
         end else begin
             if (dma1_master_128b_wdest_push) begin
-                dma1_master_128b_wdest_mem[dma1_master_128b_wdest_wptr[3:0]] <= dma1_master_128b_wdest_enc;
                 dma1_master_128b_wdest_wptr <= dma1_master_128b_wdest_wptr + 1'b1;
             end
             if (dma1_master_128b_wdest_pop) begin
@@ -2663,6 +2718,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (dma1_master_128b_wdest_push) dma1_master_128b_wdest_mem[dma1_master_128b_wdest_wptr[3:0]] <= dma1_master_128b_wdest_enc;
+    end
     wire dma1_master_128b_wdest_valid = (dma1_master_128b_wdest_wptr != dma1_master_128b_wdest_rptr);
     assign dma1_master_128b_wdest_full = (dma1_master_128b_wdest_wptr[4] != dma1_master_128b_wdest_rptr[4]) && (dma1_master_128b_wdest_wptr[3:0] == dma1_master_128b_wdest_rptr[3:0]);
     wire [0:0] dma1_master_128b_wdest_head = dma1_master_128b_wdest_mem[dma1_master_128b_wdest_rptr[3:0]];
@@ -2680,7 +2740,6 @@ module bridge_4x4_rw_xbar
             dma1_master_256b_wdest_rptr <= '0;
         end else begin
             if (dma1_master_256b_wdest_push) begin
-                dma1_master_256b_wdest_mem[dma1_master_256b_wdest_wptr[3:0]] <= dma1_master_256b_wdest_enc;
                 dma1_master_256b_wdest_wptr <= dma1_master_256b_wdest_wptr + 1'b1;
             end
             if (dma1_master_256b_wdest_pop) begin
@@ -2688,6 +2747,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (dma1_master_256b_wdest_push) dma1_master_256b_wdest_mem[dma1_master_256b_wdest_wptr[3:0]] <= dma1_master_256b_wdest_enc;
+    end
     wire dma1_master_256b_wdest_valid = (dma1_master_256b_wdest_wptr != dma1_master_256b_wdest_rptr);
     assign dma1_master_256b_wdest_full = (dma1_master_256b_wdest_wptr[4] != dma1_master_256b_wdest_rptr[4]) && (dma1_master_256b_wdest_wptr[3:0] == dma1_master_256b_wdest_rptr[3:0]);
     wire [0:0] dma1_master_256b_wdest_head = dma1_master_256b_wdest_mem[dma1_master_256b_wdest_rptr[3:0]];
@@ -2706,7 +2770,6 @@ module bridge_4x4_rw_xbar
             gpu_master_32b_wdest_rptr <= '0;
         end else begin
             if (gpu_master_32b_wdest_push) begin
-                gpu_master_32b_wdest_mem[gpu_master_32b_wdest_wptr[3:0]] <= gpu_master_32b_wdest_enc;
                 gpu_master_32b_wdest_wptr <= gpu_master_32b_wdest_wptr + 1'b1;
             end
             if (gpu_master_32b_wdest_pop) begin
@@ -2714,6 +2777,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (gpu_master_32b_wdest_push) gpu_master_32b_wdest_mem[gpu_master_32b_wdest_wptr[3:0]] <= gpu_master_32b_wdest_enc;
+    end
     wire gpu_master_32b_wdest_valid = (gpu_master_32b_wdest_wptr != gpu_master_32b_wdest_rptr);
     assign gpu_master_32b_wdest_full = (gpu_master_32b_wdest_wptr[4] != gpu_master_32b_wdest_rptr[4]) && (gpu_master_32b_wdest_wptr[3:0] == gpu_master_32b_wdest_rptr[3:0]);
     wire [0:0] gpu_master_32b_wdest_head = gpu_master_32b_wdest_mem[gpu_master_32b_wdest_rptr[3:0]];
@@ -2731,7 +2799,6 @@ module bridge_4x4_rw_xbar
             gpu_master_64b_wdest_rptr <= '0;
         end else begin
             if (gpu_master_64b_wdest_push) begin
-                gpu_master_64b_wdest_mem[gpu_master_64b_wdest_wptr[3:0]] <= gpu_master_64b_wdest_enc;
                 gpu_master_64b_wdest_wptr <= gpu_master_64b_wdest_wptr + 1'b1;
             end
             if (gpu_master_64b_wdest_pop) begin
@@ -2739,6 +2806,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (gpu_master_64b_wdest_push) gpu_master_64b_wdest_mem[gpu_master_64b_wdest_wptr[3:0]] <= gpu_master_64b_wdest_enc;
+    end
     wire gpu_master_64b_wdest_valid = (gpu_master_64b_wdest_wptr != gpu_master_64b_wdest_rptr);
     assign gpu_master_64b_wdest_full = (gpu_master_64b_wdest_wptr[4] != gpu_master_64b_wdest_rptr[4]) && (gpu_master_64b_wdest_wptr[3:0] == gpu_master_64b_wdest_rptr[3:0]);
     wire [0:0] gpu_master_64b_wdest_head = gpu_master_64b_wdest_mem[gpu_master_64b_wdest_rptr[3:0]];
@@ -2756,7 +2828,6 @@ module bridge_4x4_rw_xbar
             gpu_master_256b_wdest_rptr <= '0;
         end else begin
             if (gpu_master_256b_wdest_push) begin
-                gpu_master_256b_wdest_mem[gpu_master_256b_wdest_wptr[3:0]] <= gpu_master_256b_wdest_enc;
                 gpu_master_256b_wdest_wptr <= gpu_master_256b_wdest_wptr + 1'b1;
             end
             if (gpu_master_256b_wdest_pop) begin
@@ -2764,6 +2835,11 @@ module bridge_4x4_rw_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (gpu_master_256b_wdest_push) gpu_master_256b_wdest_mem[gpu_master_256b_wdest_wptr[3:0]] <= gpu_master_256b_wdest_enc;
+    end
     wire gpu_master_256b_wdest_valid = (gpu_master_256b_wdest_wptr != gpu_master_256b_wdest_rptr);
     assign gpu_master_256b_wdest_full = (gpu_master_256b_wdest_wptr[4] != gpu_master_256b_wdest_rptr[4]) && (gpu_master_256b_wdest_wptr[3:0] == gpu_master_256b_wdest_rptr[3:0]);
     wire [0:0] gpu_master_256b_wdest_head = gpu_master_256b_wdest_mem[gpu_master_256b_wdest_rptr[3:0]];

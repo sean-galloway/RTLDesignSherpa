@@ -335,7 +335,6 @@ module bridge_5x3_channels_descr_wr_master_adapter
             w_trk_rptr <= '0;
         end else begin
             if (w_trk_push) begin
-                w_trk_mem[w_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
                 w_trk_wptr <= w_trk_wptr + 1'b1;
             end
             if (w_trk_pop) begin
@@ -343,6 +342,11 @@ module bridge_5x3_channels_descr_wr_master_adapter
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (w_trk_push) w_trk_mem[w_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
+    end
 
     assign w_slave_select = (w_trk_wptr != w_trk_rptr)
                           ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]

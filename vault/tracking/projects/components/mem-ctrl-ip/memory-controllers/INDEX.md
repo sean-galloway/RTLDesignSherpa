@@ -15,7 +15,7 @@ states is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | For | Next ID |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `MC-006` |
+| [task/](task/INDEX.md) | planned work we decided to do | `MC-013` |
 | [bug/](bug/INDEX.md) | defects in the shared `common-ip` RTL, more than one controller | `BUG-003` |
 | [issue/](issue/INDEX.md) | undiagnosed problems spanning controllers | `ISSUE-002` |
 
@@ -26,7 +26,8 @@ backpressure) and BUG-002 (`mc_dfi_cdc` token and data on separate
 synchronizers), both fixed 2026-11-06. Lanes created 2026-11-06. Active: MC-004
 (skid buffer `DATA_RST` parameter) and MC-005 (reset-free storage arrays), the
 first two ISSUE-001 reworks: RTL done and regression-clean 2026-11-06, routed
-A/B builds running 2026-11-07; MC-005 phase 3 (bridge generator) open.
+A/B builds done 2026-11-07; MC-005 closed 2026-11-10 (phase 3, the bridge
+generator, as bridge TASK-024).
 
 Family-wide conventions live here (see
 [ADVANCED_MODES_ROADMAP.md](ADVANCED_MODES_ROADMAP.md) for the feature

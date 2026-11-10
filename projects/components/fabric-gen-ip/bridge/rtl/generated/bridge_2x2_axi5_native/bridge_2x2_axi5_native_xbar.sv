@@ -562,7 +562,6 @@ module bridge_2x2_axi5_native_xbar
             if (ddr_wowner_aw_hs && ddr_wowner_ahead) begin
                 ddr_wowner_ahead <= 1'b0;   // its W already went
             end else if (ddr_wowner_aw_hs && !(ddr_wowner_byp && ddr_wowner_w_end)) begin
-                ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
             end else if (!ddr_wowner_aw_hs && ddr_wowner_byp && ddr_wowner_w_end) begin
                 ddr_wowner_ahead <= 1'b1;
@@ -572,6 +571,11 @@ module bridge_2x2_axi5_native_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (ddr_wowner_aw_hs && !ddr_wowner_ahead && !(ddr_wowner_byp && ddr_wowner_w_end)) ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
+    end
     wire [0:0] ddr_wowner_head = ddr_wowner_valid ? ddr_wowner_mem[ddr_wowner_rptr[3:0]]
                                        : ddr_aw_arb_gnt;
     assign cpu_128b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd0) && cpu_128b_w_to_ddr;
@@ -807,7 +811,6 @@ module bridge_2x2_axi5_native_xbar
             if (sram_wowner_aw_hs && sram_wowner_ahead) begin
                 sram_wowner_ahead <= 1'b0;   // its W already went
             end else if (sram_wowner_aw_hs && !(sram_wowner_byp && sram_wowner_w_end)) begin
-                sram_wowner_mem[sram_wowner_wptr[3:0]] <= sram_aw_arb_gnt;
                 sram_wowner_wptr <= sram_wowner_wptr + 1'b1;
             end else if (!sram_wowner_aw_hs && sram_wowner_byp && sram_wowner_w_end) begin
                 sram_wowner_ahead <= 1'b1;
@@ -817,6 +820,11 @@ module bridge_2x2_axi5_native_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (sram_wowner_aw_hs && !sram_wowner_ahead && !(sram_wowner_byp && sram_wowner_w_end)) sram_wowner_mem[sram_wowner_wptr[3:0]] <= sram_aw_arb_gnt;
+    end
     wire [0:0] sram_wowner_head = sram_wowner_valid ? sram_wowner_mem[sram_wowner_rptr[3:0]]
                                        : sram_aw_arb_gnt;
     assign cpu_128b_w_sel_sram = (sram_wowner_valid || sram_wowner_byp) && (sram_wowner_head == 1'd0) && cpu_128b_w_to_sram;
@@ -1044,7 +1052,6 @@ module bridge_2x2_axi5_native_xbar
             if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
                 subtractive_wowner_ahead <= 1'b0;   // its W already went
             end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
-                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
             end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
                 subtractive_wowner_ahead <= 1'b1;
@@ -1054,6 +1061,11 @@ module bridge_2x2_axi5_native_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (subtractive_wowner_aw_hs && !subtractive_wowner_ahead && !(subtractive_wowner_byp && subtractive_wowner_w_end)) subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+    end
     wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
                                        : subtractive_aw_arb_gnt;
     assign cpu_128b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && cpu_128b_w_to_subtractive;
@@ -1176,7 +1188,6 @@ module bridge_2x2_axi5_native_xbar
             cpu_128b_wdest_rptr <= '0;
         end else begin
             if (cpu_128b_wdest_push) begin
-                cpu_128b_wdest_mem[cpu_128b_wdest_wptr[3:0]] <= cpu_128b_wdest_enc;
                 cpu_128b_wdest_wptr <= cpu_128b_wdest_wptr + 1'b1;
             end
             if (cpu_128b_wdest_pop) begin
@@ -1184,6 +1195,11 @@ module bridge_2x2_axi5_native_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (cpu_128b_wdest_push) cpu_128b_wdest_mem[cpu_128b_wdest_wptr[3:0]] <= cpu_128b_wdest_enc;
+    end
     wire cpu_128b_wdest_valid = (cpu_128b_wdest_wptr != cpu_128b_wdest_rptr);
     assign cpu_128b_wdest_full = (cpu_128b_wdest_wptr[4] != cpu_128b_wdest_rptr[4]) && (cpu_128b_wdest_wptr[3:0] == cpu_128b_wdest_rptr[3:0]);
     wire [1:0] cpu_128b_wdest_head = cpu_128b_wdest_mem[cpu_128b_wdest_rptr[3:0]];
@@ -1203,7 +1219,6 @@ module bridge_2x2_axi5_native_xbar
             dma_128b_wdest_rptr <= '0;
         end else begin
             if (dma_128b_wdest_push) begin
-                dma_128b_wdest_mem[dma_128b_wdest_wptr[3:0]] <= dma_128b_wdest_enc;
                 dma_128b_wdest_wptr <= dma_128b_wdest_wptr + 1'b1;
             end
             if (dma_128b_wdest_pop) begin
@@ -1211,6 +1226,11 @@ module bridge_2x2_axi5_native_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (dma_128b_wdest_push) dma_128b_wdest_mem[dma_128b_wdest_wptr[3:0]] <= dma_128b_wdest_enc;
+    end
     wire dma_128b_wdest_valid = (dma_128b_wdest_wptr != dma_128b_wdest_rptr);
     assign dma_128b_wdest_full = (dma_128b_wdest_wptr[4] != dma_128b_wdest_rptr[4]) && (dma_128b_wdest_wptr[3:0] == dma_128b_wdest_rptr[3:0]);
     wire [1:0] dma_128b_wdest_head = dma_128b_wdest_mem[dma_128b_wdest_rptr[3:0]];

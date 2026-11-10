@@ -1,12 +1,12 @@
 # memory-controllers — task lane
 
-**Next ID: MC-012** — never recycle a number.
+**Next ID: MC-013** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 3 | in progress right now |
-| [closed/](closed/) | 7 | done (kept for history) |
+| [closed/](closed/) | 8 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -16,15 +16,16 @@
 
 ## Active
 
+- **MC-012** -- Ramulator 2 in `vendor/ramulator2` (2.1, pinned 7bead6cb,
+  builds and runs); no DDR2 upstream, a DDR2 device class drafted from the
+  DDR3 one; next the class into the build and checked against JESD79-2F, then
+  a granite-shaped config on the char patterns. Active 2026-11-10.
 - **MC-011** -- the 0.2 ns clock-uncertainty budget is in both board XDCs;
   sweep 1: pumice sys75 closes by 0.100 under budget on the worst of three
   placements, granite sys75 by 0.817, granite sys100 does not close (-0.335
   worst, the bank-pick select loop). Open work: the two cones. Active 2026-11-08.
 - **MC-004** -- two-register `gaxi_skid_buffer`, no data reset, no shift
   (ISSUE-001 row 1; ~3k LUT chip-wide). Started 2026-11-06.
-- **MC-005** -- storage arrays out of `ALWAYS_FF_RST` into reset-free
-  `always_ff` with the live state kept in the reset block (ISSUE-001 row 2b;
-  35 / 30 arrays dissolved to flops today). Started 2026-11-06.
 
 ## Deferred
 
@@ -34,6 +35,12 @@
   close 75 MHz on the board. Deferred 2026-11-08.
 
 ## Closed
+
+- **MC-005** -- storage arrays out of `ALWAYS_FF_RST` into reset-free
+  `always_ff` (ISSUE-001 row 2b): phases 1-2 (common-ip + harness, -2,042 /
+  -2,198 routed LUT with MC-004) 2026-11-06/07, phase 3 (the bridge generator,
+  bridge TASK-024) 2026-11-10 -- Synth 8-4767 bridge arrays 17 -> 0 on both
+  controllers. Closed 2026-11-10.
 
 - **MC-006** -- pumice FPGA SKU build knobs (merge, snarf, narrow pack off;
   mapper one-hot; CAM default 8). Closed 2026-11-08: the SKU closes sys75 at

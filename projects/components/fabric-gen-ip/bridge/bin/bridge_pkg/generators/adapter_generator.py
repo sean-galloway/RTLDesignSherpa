@@ -15,7 +15,7 @@ Date: 2025-11-03
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from ..width_utils import get_connected_slave_widths
-from ..emit_utils import generate_monitor_ports
+from ..emit_utils import generate_monitor_ports, mem_write_lines
 from ..signal_naming import SignalNaming, Direction, AXI4Channel, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
 
 
@@ -2406,7 +2406,6 @@ class AdapterGenerator:
             lines.append("            w_trk_rptr <= '0;")
             lines.append("        end else begin")
             lines.append("            if (w_trk_push) begin")
-            lines.append("                w_trk_mem[w_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;")
             lines.append("                w_trk_wptr <= w_trk_wptr + 1'b1;")
             lines.append("            end")
             lines.append("            if (w_trk_pop) begin")
@@ -2414,6 +2413,8 @@ class AdapterGenerator:
             lines.append("            end")
             lines.append("        end")
             lines.append("    )")
+            lines.extend(mem_write_lines("w_trk_mem[w_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;",
+                                          "w_trk_push"))
             lines.append("")
             lines.append("    assign w_slave_select = (w_trk_wptr != w_trk_rptr)")
             lines.append("                          ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]")
@@ -2484,7 +2485,6 @@ class AdapterGenerator:
                 lines.append("            lr_rptr <= '0;")
                 lines.append("        end else begin")
                 lines.append("            if (fub_axi_awvalid && fub_axi_awready && aw_rr_local) begin")
-                lines.append("                lr_mem[lr_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;")
                 lines.append("                lr_wptr <= lr_wptr + 1'b1;")
                 lines.append("            end")
                 lines.append("            if (r_local_head && fub_axi_rvalid && fub_axi_rready) begin")
@@ -2492,6 +2492,8 @@ class AdapterGenerator:
                 lines.append("            end")
                 lines.append("        end")
                 lines.append("    )")
+                lines.extend(mem_write_lines("lr_mem[lr_wptr[AR_TRK_AW-1:0]] <= fub_axi_awid;",
+                                              "fub_axi_awvalid && fub_axi_awready && aw_rr_local"))
                 lines.append("    assign lr_valid   = (lr_wptr != lr_rptr);")
                 lines.append("    assign r_local_id = lr_mem[lr_rptr[AR_TRK_AW-1:0]];")
                 lines.append("")

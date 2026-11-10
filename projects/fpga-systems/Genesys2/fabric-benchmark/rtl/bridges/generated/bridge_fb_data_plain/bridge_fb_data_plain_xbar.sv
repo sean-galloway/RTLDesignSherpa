@@ -489,7 +489,6 @@ module bridge_fb_data_plain_xbar
             ddr_wowner_rptr <= '0;
         end else begin
             if (ddr_axi_awvalid && ddr_axi_awready) begin
-                ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
             end
             if (ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast) begin
@@ -497,6 +496,11 @@ module bridge_fb_data_plain_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (ddr_axi_awvalid && ddr_axi_awready) ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
+    end
     wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
     wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
     assign stream_wr_128b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && stream_wr_128b_w_to_ddr;
@@ -775,7 +779,6 @@ module bridge_fb_data_plain_xbar
             if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
                 subtractive_wowner_ahead <= 1'b0;   // its W already went
             end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
-                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
             end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
                 subtractive_wowner_ahead <= 1'b1;
@@ -785,6 +788,11 @@ module bridge_fb_data_plain_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (subtractive_wowner_aw_hs && !subtractive_wowner_ahead && !(subtractive_wowner_byp && subtractive_wowner_w_end)) subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+    end
     wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
                                        : subtractive_aw_arb_gnt;
     assign stream_wr_128b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && stream_wr_128b_w_to_subtractive;
@@ -907,7 +915,6 @@ module bridge_fb_data_plain_xbar
             stream_wr_128b_wdest_rptr <= '0;
         end else begin
             if (stream_wr_128b_wdest_push) begin
-                stream_wr_128b_wdest_mem[stream_wr_128b_wdest_wptr[3:0]] <= stream_wr_128b_wdest_enc;
                 stream_wr_128b_wdest_wptr <= stream_wr_128b_wdest_wptr + 1'b1;
             end
             if (stream_wr_128b_wdest_pop) begin
@@ -915,6 +922,11 @@ module bridge_fb_data_plain_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (stream_wr_128b_wdest_push) stream_wr_128b_wdest_mem[stream_wr_128b_wdest_wptr[3:0]] <= stream_wr_128b_wdest_enc;
+    end
     wire stream_wr_128b_wdest_valid = (stream_wr_128b_wdest_wptr != stream_wr_128b_wdest_rptr);
     assign stream_wr_128b_wdest_full = (stream_wr_128b_wdest_wptr[4] != stream_wr_128b_wdest_rptr[4]) && (stream_wr_128b_wdest_wptr[3:0] == stream_wr_128b_wdest_rptr[3:0]);
     wire [1:0] stream_wr_128b_wdest_head = stream_wr_128b_wdest_mem[stream_wr_128b_wdest_rptr[3:0]];
@@ -934,7 +946,6 @@ module bridge_fb_data_plain_xbar
             inj_wr_128b_wdest_rptr <= '0;
         end else begin
             if (inj_wr_128b_wdest_push) begin
-                inj_wr_128b_wdest_mem[inj_wr_128b_wdest_wptr[3:0]] <= inj_wr_128b_wdest_enc;
                 inj_wr_128b_wdest_wptr <= inj_wr_128b_wdest_wptr + 1'b1;
             end
             if (inj_wr_128b_wdest_pop) begin
@@ -942,6 +953,11 @@ module bridge_fb_data_plain_xbar
             end
         end
     )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (inj_wr_128b_wdest_push) inj_wr_128b_wdest_mem[inj_wr_128b_wdest_wptr[3:0]] <= inj_wr_128b_wdest_enc;
+    end
     wire inj_wr_128b_wdest_valid = (inj_wr_128b_wdest_wptr != inj_wr_128b_wdest_rptr);
     assign inj_wr_128b_wdest_full = (inj_wr_128b_wdest_wptr[4] != inj_wr_128b_wdest_rptr[4]) && (inj_wr_128b_wdest_wptr[3:0] == inj_wr_128b_wdest_rptr[3:0]);
     wire [0:0] inj_wr_128b_wdest_head = inj_wr_128b_wdest_mem[inj_wr_128b_wdest_rptr[3:0]];

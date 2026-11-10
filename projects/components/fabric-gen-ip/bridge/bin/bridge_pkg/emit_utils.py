@@ -76,3 +76,26 @@ def generate_monitor_ports(channels_mode: str) -> List[str]:
         if chan != last_chan:
             lines.append("")
     return lines
+
+
+def mem_write_lines(write_stmt: str, cond: str, indent: str = "    ") -> list:
+    """The clock-only write process for a FIFO's storage array.
+
+    An array written inside a process that has an asynchronous reset branch is
+    kept in flops by Vivado (``Synth 8-4767 ... RAM is sensitive to asynchronous
+    reset signal``), never LUTRAM, whatever the branch does to the array. So the
+    pointers keep their reset in the ``ALWAYS_FF_RST`` block and the array gets
+    this process, gated by the SAME push condition and indexed the SAME way; an
+    entry under a reset pointer is overwritten before it can be read, and every
+    reader is already qualified by the pointers' valid. Behaviour-identical in
+    simulation; only the synth log can tell (memory-controllers MC-005 phase 3,
+    bridge TASK-024, vault/handbook/design/sram-and-memories.md).
+    """
+    return [
+        f"{indent}// storage array: clock-only process, no reset (Synth 8-4767 -- see",
+        f"{indent}// vault/handbook/design/sram-and-memories.md)",
+        f"{indent}always_ff @(posedge aclk) begin",
+        f"{indent}    if ({cond}) {write_stmt}",
+        f"{indent}end",
+    ]
+
