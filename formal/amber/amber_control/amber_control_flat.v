@@ -330,7 +330,7 @@ module l1_control (
 	reg [WAY_INDEX_WIDTH - 1:0] victim_way_q;
 	reg [TAG_WIDTH - 1:0] victim_tag_q;
 	reg [2:0] victim_state_q;
-	reg [64 - 1:0] victim_line_mem [0:FILL_BEATS - 1];
+	(* ram_style = "distributed" *) reg [64 - 1:0] victim_line_mem [0:FILL_BEATS - 1];
 	wire [64 - 1:0] victim_sn_word;
 	reg [BEAT_INDEX_WIDTH:0] mv_cnt_q;
 	reg fill_seen_q;

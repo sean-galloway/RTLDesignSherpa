@@ -48,11 +48,8 @@ module alu_infer_pwl
 
     localparam int NL = LINE_W / 16;
 
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
-`endif
     logic [31:0] r_lut [256];
 
     always_ff @(posedge clk) begin

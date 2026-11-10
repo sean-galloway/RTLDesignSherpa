@@ -584,21 +584,13 @@ module jet_control
     // qualified by the entry's merge count). FPGA review 2026-11-07: as
     // flops under the reset macro this was MSHR_COUNT^2 x 76 bits of FDCE
     // per core (2k+ kept at 8 entries) plus the enable fan-out.
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`endif
     logic                    r_req_we    [MSHR_COUNT * MSHR_COUNT];
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`endif
     logic [BEAT_W-1:0]       r_req_beat  [MSHR_COUNT * MSHR_COUNT];
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`endif
     logic [STRB_W-1:0]       r_req_be    [MSHR_COUNT * MSHR_COUNT];
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`endif
     logic [BUS_WIDTH-1:0]    r_req_wdata [MSHR_COUNT * MSHR_COUNT];
     // commit pipeline registers (the entry snapshot + walk state)
     logic [3:0]              r_cmt_state;

@@ -719,11 +719,8 @@ module axi4_dwidth_converter_rd #(
             assign int_ruser   = q_ruser;
 
             for (genvar k = 0; k < WIDTH_RATIO - 1; k++) begin : gen_lane
-`ifdef XILINX
                 (* ram_style = "distributed" *)
-`elsif SYNTH_PRAGMA
                 /* synthesis ramstyle = "MLAB" */
-`endif
                 logic [M_AXI_DATA_WIDTH-1:0] acc [NUM_IDS];
                 always_ff @(posedge aclk) begin
                     if (w_take && !w_emit && (w_lane == LW'(k)))

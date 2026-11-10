@@ -441,7 +441,7 @@ module jet_wb_buffer (
 	reg [VICTIM_DEPTH - 1:0] r_valid;
 	reg [VICTIM_DEPTH - 1:0] r_allocated;
 	reg [LINE_W - 1:0] r_line [0:VICTIM_DEPTH - 1];
-	reg [BUS_WIDTH - 1:0] r_data [0:((2 ** SLOT_W) * FILL_BEATS) - 1];
+	(* ram_style = "distributed" *) reg [BUS_WIDTH - 1:0] r_data [0:((2 ** SLOT_W) * FILL_BEATS) - 1];
 	reg [BEAT_W - 1:0] r_beats_rcvd [0:VICTIM_DEPTH - 1];
 	reg [1:0] r_eff [0:VICTIM_DEPTH - 1];
 	reg [SLOT_W - 1:0] r_head;
@@ -604,7 +604,7 @@ module jet_rsp_seq (
 			$display("Error [%0t] .flat_build/prep/jet_rsp_seq.sv:124:13 - jet_rsp_seq.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_rsp_seq: BUS_WIDTH out of supported range");
 	end
 	reg [RSP_DEPTH - 1:0] r_valid;
-	reg [BUS_WIDTH - 1:0] r_data [0:RSP_DEPTH - 1];
+	(* ram_style = "distributed" *) reg [BUS_WIDTH - 1:0] r_data [0:RSP_DEPTH - 1];
 	reg [SEQ_W - 1:0] r_alloc_tag;
 	reg [SEQ_W - 1:0] r_rel_tag;
 	reg [OCC_W - 1:0] r_occupancy;
@@ -1026,10 +1026,10 @@ module jet_control (
 	reg [1:0] r_fq_cls [0:FQ_DEPTH - 1];
 	reg r_fq_pd [0:FQ_DEPTH - 1];
 	reg r_fq_done [0:FQ_DEPTH - 1];
-	reg r_req_we [0:(2 * 2) - 1];
-	reg [BEAT_W - 1:0] r_req_beat [0:(2 * 2) - 1];
-	reg [STRB_W - 1:0] r_req_be [0:(2 * 2) - 1];
-	reg [64 - 1:0] r_req_wdata [0:(2 * 2) - 1];
+	(* ram_style = "distributed" *) reg r_req_we [0:(2 * 2) - 1];
+	(* ram_style = "distributed" *) reg [BEAT_W - 1:0] r_req_beat [0:(2 * 2) - 1];
+	(* ram_style = "distributed" *) reg [STRB_W - 1:0] r_req_be [0:(2 * 2) - 1];
+	(* ram_style = "distributed" *) reg [64 - 1:0] r_req_wdata [0:(2 * 2) - 1];
 	reg [3:0] r_cmt_state;
 	reg [MW - 1:0] r_cmt_idx;
 	reg [LINE_W - 1:0] r_cmt_line;

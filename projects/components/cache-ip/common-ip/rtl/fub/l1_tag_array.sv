@@ -149,11 +149,8 @@ module l1_tag_array
     // flat index way * SETS + set.
     generate
         for (genvar w = 0; w < WAYS; w++) begin : g_way
-`ifdef XILINX
             (* ram_style = "distributed" *)
-`elsif SYNTH_PRAGMA
             /* synthesis ramstyle = "MLAB" */
-`endif
             logic [TAG_STATE_WIDTH-1:0] mem [SETS];
 
             always_ff @(posedge clk) begin

@@ -48,11 +48,8 @@ module simple_rom #(
     //==========================================================================
 
     // FPGA block RAM inference - vendor-specific attributes
-    `ifdef XILINX
         (* rom_style = "block" *)  // Xilinx: Force block RAM
-    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "M20K" */  // Use M20K block RAM
-    `endif
     logic [DATA_WIDTH-1:0] rom_mem [ROM_DEPTH];  // Modern array syntax
 
     //==========================================================================

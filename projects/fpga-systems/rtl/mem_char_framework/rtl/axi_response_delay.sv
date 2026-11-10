@@ -110,18 +110,12 @@ module axi_response_delay #(
     // Each slot holds {payload, admit-timestamp}. Vivado picks BRAM or LUTRAM
     // based on width/depth — at 256×~160b the R-channel queue lands in BRAM,
     // the small B-channel queue in LUTRAM.
-    `ifdef XILINX
         (* ram_style = "auto" *)
-    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "AUTO" */
-    `endif
     logic [DATA_WIDTH-1:0] r_data [CAPACITY];
 
-    `ifdef XILINX
         (* ram_style = "auto" *)
-    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "AUTO" */
-    `endif
     logic [CYC_W-1:0]      r_tin  [CAPACITY];
 
     logic [IDX_W-1:0]      r_head, r_tail;

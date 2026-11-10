@@ -163,11 +163,8 @@ module l1_data_array
 
     generate
         for (genvar w = 0; w < WAYS; w++) begin : g_way
-`ifdef XILINX
             (* ram_style = "auto" *)
-`elsif SYNTH_PRAGMA
             /* synthesis ramstyle = "AUTO" */
-`endif
             logic [BUS_WIDTH-1:0] mem [SETS * FILL_BEATS];
 
             always_ff @(posedge clk) begin

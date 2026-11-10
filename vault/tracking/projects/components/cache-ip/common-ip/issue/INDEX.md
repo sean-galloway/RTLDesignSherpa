@@ -12,15 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-001** ([page](open/ISSUE-001.md)) — the Vivado flow defines no `XILINX` macro; every `ifdef XILINX (* ram_style *)` in cache-ip (and 24 files repo-wide) is dead on the board. Filed 2026-11-08.
+(none)
 
 ## Active
 
@@ -28,4 +28,4 @@ by construction rather than by discipline.
 
 ## Closed
 
-(none)
+- **ISSUE-001** ([page](closed/ISSUE-001.md)) -- the Vivado flow defines no `XILINX` macro; every `ifdef XILINX (* ram_style *)` was dead on the board. Filed 2026-11-08. **Closed 2026-11-10:** the guards are gone and the attributes are unconditional in all 25 files repo-wide; measured on four rigs and both cache-ip boards.

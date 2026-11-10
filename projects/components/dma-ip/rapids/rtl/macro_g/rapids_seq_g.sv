@@ -450,11 +450,8 @@ module rapids_seq_g #(
     end
 
     // Scratch: one block RAM, indexed {context, word}
-    `ifdef XILINX
         (* ram_style = "auto" *)
-    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "AUTO" */
-    `endif
     logic [31:0] r_scratch [NUM_HARTS * SCRATCH_WORDS];
 
     wire [HART_W+SCR_AW-1:0] w_scr_idx = {w_dmem_ctx, w_dmem_addr[SCR_AW+1:2]};

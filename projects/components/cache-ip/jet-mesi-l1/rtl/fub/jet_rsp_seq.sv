@@ -134,11 +134,8 @@ module jet_rsp_seq
     // The async-cleared version was the reset synchronizer's worst recovery
     // path once the larger stores were gone (jet bin 7, FPGA review
     // 2026-11-07).
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
-`endif
     logic [BUS_WIDTH-1:0]       r_data  [RSP_DEPTH];
 
     // ------------------------------------------------------------------

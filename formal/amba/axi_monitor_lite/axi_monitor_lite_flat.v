@@ -421,7 +421,7 @@ module gaxi_fifo_sync (
 	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
 	generate
 		if (MEM_STYLE == 32'sd1) begin : gen_srl
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			(* shreg_extract = "yes", ram_style = "distributed" *) reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
@@ -439,7 +439,7 @@ module gaxi_fifo_sync (
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			(* ram_style = "block" *) reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;

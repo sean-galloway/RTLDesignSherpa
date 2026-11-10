@@ -11,7 +11,18 @@ summary: No reset ports on SRAMs; ram_style attributes; [DEPTH] syntax.
   (+ the sdpram_slave_* protocol wrappers). The old simple_sram.sv is gone.
 - FPGA inference attributes on every memory array:
   `(* ram_style = "auto"|"distributed"|"block" *)` (Xilinx) with the
-  comment variant beside it. Small FIFOs: distributed.
+  comment variant beside it. Small FIFOs: distributed. **Unconditional,
+  never behind `ifdef XILINX` or `elsif SYNTH_PRAGMA`.** No flow in this
+  repo defines either macro (`create_project.tcl` takes its defines from the
+  filelist, and no filelist carries `+define+XILINX`), so for two years every
+  guarded attribute in 25 files was dead on every board and every RAM mapping
+  the FPGA reviews measured came from array shape alone (cache-ip common-ip
+  ISSUE-001, found 2026-11-08, guards removed 2026-11-10). Verilator, yosys
+  and Quartus ignore an attribute they do not know, and Quartus reads the
+  `/* synthesis ramstyle */` comment, so both forms simply sit on the array.
+  The one legitimate vendor `ifdef` is around a vendor *primitive*
+  (`rtc_clk_mux`'s BUFGCTRL/ALTCLKCTRL), and it is just as dead until a flow
+  defines the macro -- say so beside it.
 - Array syntax `[DEPTH]`, never `[0:DEPTH-1]`.
 - FIFO depths: power of 2 ([[cdc]] for why async cares even more).
 - A datapath buffer sized too shallow for concurrent read+write at wide data

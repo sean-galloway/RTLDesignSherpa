@@ -125,11 +125,8 @@ module kestrel_mem_bram #(
     // The array: port A read-only (fetch), port B byte writes; registered
     // read on both ports
     // =========================================================================
-`ifdef XILINX
     (* ram_style = "block" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "M10K" */
-`endif
     logic [31:0] r_mem [MEM_WORDS];
 
     logic             a_en, b_en;

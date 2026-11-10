@@ -150,11 +150,8 @@ module gatling_mem_bram #(
     // The array: NH banks of MEM_WORDS, indexed {ctx, word}.  Port A
     // read-only (fetch), port B byte writes; registered read on both
     // =========================================================================
-`ifdef XILINX
     (* ram_style = "block" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "M10K" */
-`endif
     logic [31:0] r_mem [NH*MEM_WORDS];
 
     logic               a_en, b_en;

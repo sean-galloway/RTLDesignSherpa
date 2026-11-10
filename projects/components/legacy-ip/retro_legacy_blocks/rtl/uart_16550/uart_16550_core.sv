@@ -239,11 +239,8 @@ module uart_16550_core #(
     // FPGA memory attributes are mandatory on every memory array (component
     // rule #0.2). "auto" because the depth is a parameter: at 16 the vendor
     // picks distributed RAM, at 64+ it can pick a block.
-`ifdef XILINX
     (* ram_style = "auto" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "AUTO" */
-`endif
     logic [7:0] r_tx_fifo [FIFO_DEPTH];
     logic [FIFO_ADDR_WIDTH:0] r_tx_wr_ptr, r_tx_rd_ptr;
     logic w_tx_fifo_empty, w_tx_fifo_full;
@@ -443,11 +440,8 @@ module uart_16550_core #(
     assign w_rx_in = cfg_loopback ? w_tx_bit : r_rx_sync[SYNC_STAGES-1];
 
     // RX FIFO
-`ifdef XILINX
     (* ram_style = "auto" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "AUTO" */
-`endif
     logic [10:0] r_rx_fifo [FIFO_DEPTH];  // 8 data + parity_err + frame_err + break
     logic [FIFO_ADDR_WIDTH:0] r_rx_wr_ptr, r_rx_rd_ptr;
     // Count of FIFO entries carrying a PE/FE/BI tag. LSR[7] is an

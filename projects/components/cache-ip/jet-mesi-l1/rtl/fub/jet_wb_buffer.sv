@@ -186,11 +186,8 @@ module jet_wb_buffer
     logic [LINE_W-1:0]             r_line      [VICTIM_DEPTH];
     // line payload: one word per (slot, beat) -- a distributed RAM with
     // one beat write port and two beat read ports (drain, snoop stream)
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
-`endif
     // Sized to the {slot, beat} index, not to VICTIM_DEPTH: the three index
     // sites concatenate SLOT_W + BEAT_W bits, which is slot*FILL_BEATS+beat
     // only when the store has 2**SLOT_W slots. At the default depth 2 this

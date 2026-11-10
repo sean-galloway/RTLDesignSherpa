@@ -114,17 +114,11 @@ module axi_response_delay #(
     // queue is 512 x 523 b = 268 kbit; Synth 8-3391 "number of bits too
     // large"). The timestamp array is read combinationally for the dwell
     // compare, so it stays distributed RAM.
-    `ifdef XILINX
         (* ram_style = "block" *)
-    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "M20K" */
-    `endif
     logic [DATA_WIDTH-1:0] r_data [CAPACITY];
-    `ifdef XILINX
         (* ram_style = "distributed" *)
-    `elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "MLAB" */
-    `endif
     logic [CYC_W-1:0]      r_tin  [CAPACITY];
 
     logic [IDX_W-1:0]      r_head, r_tail;

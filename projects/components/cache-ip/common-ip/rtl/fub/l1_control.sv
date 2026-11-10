@@ -320,11 +320,8 @@ module l1_control
     // the gathered victim line, one word per beat (a small distributed
     // RAM: written by the gather, read by beat by the drain and the snoop
     // CD bypass -- never as a whole line)
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
-`endif
     logic [BUS_WIDTH-1:0]       victim_line_mem [FILL_BEATS];
     logic [BUS_WIDTH-1:0]       victim_sn_word;   // the bypass's current CD beat
     logic [BEAT_INDEX_WIDTH:0]  mv_cnt_q;

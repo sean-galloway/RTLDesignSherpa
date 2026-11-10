@@ -176,11 +176,8 @@ module l1_repl
                 rank_init[w * RANK_WIDTH +: RANK_WIDTH] = RANK_WIDTH'(w);
         end
 
-`ifdef XILINX
         (* ram_style = "distributed" *)
-`elsif SYNTH_PRAGMA
         /* synthesis ramstyle = "MLAB" */
-`endif
         logic [RANK_WORD_W-1:0] rank_mem [SETS];
         logic [SETS-1:0]        rank_vld;
 

@@ -40,11 +40,8 @@ module kestrel_regfile (
 
     localparam int REG_COUNT = 32;
 
-`ifdef XILINX
     (* ram_style = "distributed" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
-`endif
     logic [31:0] regs [REG_COUNT];
 
     always_ff @(posedge clk) begin

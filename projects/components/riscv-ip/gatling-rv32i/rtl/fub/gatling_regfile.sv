@@ -55,17 +55,11 @@ module gatling_regfile #(
     localparam int REGS_PER_CTX = 32;
     localparam int ENTRIES      = NUM_HARTS * REGS_PER_CTX;
 
-`ifdef XILINX
     (* ram_style = "block" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "M10K" */
-`endif
     logic [31:0] regs_a [ENTRIES];
-`ifdef XILINX
     (* ram_style = "block" *)
-`elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "M10K" */
-`endif
     logic [31:0] regs_b [ENTRIES];
 
     logic [31:0] q1, q2;
