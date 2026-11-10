@@ -242,7 +242,9 @@ module jet_control
     // consumer presents its address a cycle ahead and fires only when the
     // address presented LAST cycle was its own (ports are shared), so a
     // response is never built from another consumer's word.  The way
-    // select is applied in the data cycle (l1_data_array SYNC_READ).
+    // select is applied in the data cycle (l1_data_array SYNC_READ).  The
+    // read-hit serve's address leads in the classify cycle (TASK-003), so a
+    // resident read hit costs the sync read no extra cycle.
     parameter bit DATA_SYNC_READ = 1'b0,
     localparam int SET_W      = $clog2(SETS),
     localparam int OFF_W      = $clog2(LINE_BYTES),
@@ -519,7 +521,9 @@ module jet_control
     logic                    w_cap_active;  // capture busy OR its last word still in flight
     logic                    w_cap_adr;     // the capture owns port B's address this cycle
     logic                    w_sn_portb_pre;// the snoop takes port B's address in its grant cycle (beat 0 lead)
-    logic                    r_pa_srv_d1;   // port A's address last cycle was the (unchanged) serve record's
+    logic                    r_pa_srv_d1;   // port A's address last cycle was the serve record's (re-presented, or led at its accept)
+    logic                    w_srv_adr;     // an unfired read serve owns port A's address this cycle
+    logic                    w_lead_adr;    // the classify-stage occupant's address leads on port A this cycle
     logic                    r_cmt_rd_d1;   // a commit read slot was presented last cycle
     logic [MW-1:0]           r_cmt_rd_k_d1; // ... for this cursor position
     // fill launch hold (one launch awaits fill_accept_i at a time)
@@ -1553,8 +1557,26 @@ module jet_control
                              ? {r_sn_tag, r_sn_nxt}
                            : {r_srv_atag, AMBER_STATE_M};
 
+    // Port A read address (TASK-003 step 1, 2026-11-09): the classify-stage
+    // occupant's {set, beat} LEADS on the port whenever neither the commit
+    // read cursor nor an unfired read serve needs it.  Under DATA_SYNC_READ
+    // the word for that address lands in the next cycle -- the cycle the
+    // accepted hit sits in the serve record -- so the serve fires there
+    // (r_pa_srv_d1 records the lead) and a resident read hit answers one
+    // cycle sooner than when the serve record presented its own address.
+    // Presenting an address that turns out not to be a read hit (write hit,
+    // miss, stall) is harmless: the read has no side effect and its word is
+    // consumed only through the qualifier.  With the combinational read the
+    // serve record owns the port for its whole residence, as before.
+    //   lead : w_cmt_datrd=0, w_srv_adr=0        -> {w_req_set, w_req_beat}
+    //   serve: a read record that has not fired  -> {r_srv_set, r_srv_beat}
+    //   cmt  : the commit read cursor wins outright
+    assign w_srv_adr            = r_srv_vld & ~r_srv_we
+                                  & ~(DATA_SYNC_READ & w_srv_fire_rd);
+    assign w_lead_adr           = ~w_cmt_datrd & ~w_srv_adr;
     assign dat_a_addr_o         = w_cmt_datrd ? {w_cmt_set, w_slot_beat}
-                                              : {r_srv_set, r_srv_beat};
+                                : w_srv_adr   ? {r_srv_set, r_srv_beat}
+                                              : {w_req_set, w_req_beat};
     // sync read: a commit read slot's word lands the cycle after its
     // address, and the way select applies in that data cycle -- hold the
     // commit's way while its word is in flight (the serve read cannot
@@ -2027,8 +2049,12 @@ module jet_control
 
     // ------------------------------------------------------------------
     // DATA_SYNC_READ qualifiers: who owned each read port's address last
-    // cycle.  r_pa_srv_d1 also requires the serve record not to have
-    // reloaded (a reload only happens in a fire cycle).
+    // cycle.  r_pa_srv_d1 is "port A carried the CURRENT serve record's
+    // address last cycle": either the unfired record re-presented it (a
+    // reload only happens in a fire cycle), or the classify-stage occupant
+    // led its own address while being accepted as a read hit (TASK-003
+    // step 1) -- w_accept_rd implies the record is free or firing, so the
+    // led address is the one the new record holds.
     // ------------------------------------------------------------------
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
@@ -2038,8 +2064,9 @@ module jet_control
             r_cmt_rd_k_d1 <= '0;
         end else begin
             r_cap_d1      <= DATA_SYNC_READ & w_cap_adr;
-            r_pa_srv_d1   <= DATA_SYNC_READ & r_srv_vld & ~r_srv_we
-                             & ~w_cmt_datrd & ~w_srv_fire;
+            r_pa_srv_d1   <= DATA_SYNC_READ
+                             & ((w_srv_adr & ~w_cmt_datrd)
+                                | (w_accept_rd & w_lead_adr));
             r_cmt_rd_d1   <= DATA_SYNC_READ & w_cmt_datrd;
             r_cmt_rd_k_d1 <= r_cmt_k[MW-1:0];
         end

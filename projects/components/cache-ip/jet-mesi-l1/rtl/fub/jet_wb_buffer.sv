@@ -191,7 +191,15 @@ module jet_wb_buffer
 `elsif SYNTH_PRAGMA
     /* synthesis ramstyle = "MLAB" */
 `endif
-    logic [BUS_WIDTH-1:0]          r_data      [VICTIM_DEPTH * FILL_BEATS];
+    // Sized to the {slot, beat} index, not to VICTIM_DEPTH: the three index
+    // sites concatenate SLOT_W + BEAT_W bits, which is slot*FILL_BEATS+beat
+    // only when the store has 2**SLOT_W slots. At the default depth 2 this
+    // is the same 16 words; at depth 1 the 4-bit index into 8 words was a
+    // fatal WIDTHTRUNC lint that stopped every *_v1 FULL cell (jet BUG-002,
+    // 2026-11-09), and a non-power-of-two depth would have aliased slots.
+    // (A comment must not begin with the lint tool's name: it reads that as
+    // a directive.)
+    logic [BUS_WIDTH-1:0]          r_data      [(2**SLOT_W) * FILL_BEATS];
     logic [BEAT_W-1:0]             r_beats_rcvd[VICTIM_DEPTH];
     logic [1:0]                    r_eff       [VICTIM_DEPTH];
 

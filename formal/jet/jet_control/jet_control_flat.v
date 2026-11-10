@@ -189,11 +189,11 @@ module jet_mshr (
 		end
 	end
 	assign full_o = ~w_any_free;
-	function automatic signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] sv2v_cast_5C329_signed;
-		input reg signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] inp;
-		sv2v_cast_5C329_signed = inp;
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
 	endfunction
-	assign set_full_o = w_set_claims >= sv2v_cast_5C329_signed(WAYS);
+	assign set_full_o = sv2v_cast_32(w_set_claims) >= WAYS;
 	assign alloc_gnt_o = (alloc_i & w_any_free) & ~set_full_o;
 	assign alloc_idx_o = w_free_sel;
 	reg [MSHR_COUNT - 1:0] w_lkup_hits;
@@ -264,10 +264,6 @@ module jet_mshr (
 	end
 	assign sn_beats_rcvd_o = (|w_sn_hits ? r_beats_rcvd[sn_match_idx_o] : {8 {1'sb0}});
 	assign sn_install_o = (|w_sn_hits ? r_install[sn_match_idx_o] : w_sn_alloc_hit & alloc_install_i);
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -301,6 +297,10 @@ module jet_mshr (
 	assign alloc_o = alloc_gnt_o;
 	assign alloc_set_o = alloc_set_i;
 	assign alloc_cls_o = alloc_cls_i;
+	function automatic signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] sv2v_cast_5C329_signed;
+		input reg signed [((MW + 0) >= 0 ? MW + 1 : 1 - (MW + 0)) - 1:0] inp;
+		sv2v_cast_5C329_signed = inp;
+	endfunction
 	assign merge_o = merge_i & (r_merge_count[merge_idx_i] < sv2v_cast_5C329_signed(MSHR_COUNT));
 	assign merge_idx_o = merge_idx_i;
 	assign merge_depth_o = r_merge_count[merge_idx_i] + 1'b1;
@@ -441,7 +441,7 @@ module jet_wb_buffer (
 	reg [VICTIM_DEPTH - 1:0] r_valid;
 	reg [VICTIM_DEPTH - 1:0] r_allocated;
 	reg [LINE_W - 1:0] r_line [0:VICTIM_DEPTH - 1];
-	reg [BUS_WIDTH - 1:0] r_data [0:(VICTIM_DEPTH * FILL_BEATS) - 1];
+	reg [BUS_WIDTH - 1:0] r_data [0:((2 ** SLOT_W) * FILL_BEATS) - 1];
 	reg [BEAT_W - 1:0] r_beats_rcvd [0:VICTIM_DEPTH - 1];
 	reg [1:0] r_eff [0:VICTIM_DEPTH - 1];
 	reg [SLOT_W - 1:0] r_head;
@@ -941,19 +941,19 @@ module jet_control (
 	output wire ctrl_error_o;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:446:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:448:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:448:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:450:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:450:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:452:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:452:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:454:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:454:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:456:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be >= 2");
 		if ((2 < 2) || (2 > 16))
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:456:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 2..16 (J1)");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:458:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 2..16 (J1)");
 		if ((2 < 1) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/jet_control.sv:458:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_control.sv:460:13 - jet_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_control: 2 must be in 1..4 (J5)");
 	end
 	localparam [2:0] STALL_NONE = 3'd0;
 	localparam [2:0] STALL_MSHR_FULL = 3'd1;
@@ -993,6 +993,8 @@ module jet_control (
 	wire w_cap_adr;
 	wire w_sn_portb_pre;
 	reg r_pa_srv_d1;
+	wire w_srv_adr;
+	wire w_lead_adr;
 	reg r_cmt_rd_d1;
 	reg [MW - 1:0] r_cmt_rd_k_d1;
 	reg r_fill_pend;
@@ -1609,7 +1611,9 @@ module jet_control (
 	assign tag_a_wr_way_onehot_o = (r_init_busy ? {2 {1'b1}} : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? w_upgr_way_onehot : w_cmt_way_onehot) : (w_sn_tagwr ? w_sn_way_onehot : r_srv_way_onehot)));
 	assign tag_a_wr_set_o = (r_init_busy ? r_init_cnt : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? r_upgr_set : w_cmt_set) : (w_sn_tagwr ? r_sn_set : r_srv_set)));
 	assign tag_a_wr_tag_state_o = (r_init_busy ? {{TAG_W {1'b0}}, 3'b000} : (r_cmt_state == C_INSTALL ? {w_cmt_tag, w_install_state} : (r_cmt_state == C_PEND ? {w_cmt_tag, (r_cmt_pend == 2'b10 ? 3'b000 : 3'b001)} : (r_cmt_state == C_CU_INSTALL ? {w_upgr_tag, (r_upgr_killed ? 3'b000 : 3'b011)} : (w_sn_tagwr ? {r_sn_tag, r_sn_nxt} : {r_srv_atag, 3'b011})))));
-	assign dat_a_addr_o = (w_cmt_datrd ? {w_cmt_set, w_slot_beat} : {r_srv_set, r_srv_beat});
+	assign w_srv_adr = (r_srv_vld & ~r_srv_we) & ~(0 & w_srv_fire_rd);
+	assign w_lead_adr = ~w_cmt_datrd & ~w_srv_adr;
+	assign dat_a_addr_o = (w_cmt_datrd ? {w_cmt_set, w_slot_beat} : (w_srv_adr ? {r_srv_set, r_srv_beat} : {w_req_set, w_req_beat}));
 	assign dat_a_way_o = (0 & r_cmt_rd_d1 ? r_cmt_way : (w_cmt_datrd ? r_cmt_way : r_srv_way));
 	assign dat_a_wr_en_o = w_srv_fire_wr | w_cmt_datwr;
 	assign dat_a_wr_way_onehot_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? w_upgr_way_onehot : w_cmt_way_onehot) : r_srv_way_onehot);
@@ -1950,7 +1954,7 @@ module jet_control (
 		end
 		else begin
 			r_cap_d1 <= 0 & w_cap_adr;
-			r_pa_srv_d1 <= (((0 & r_srv_vld) & ~r_srv_we) & ~w_cmt_datrd) & ~w_srv_fire;
+			r_pa_srv_d1 <= 0 & ((w_srv_adr & ~w_cmt_datrd) | (w_accept_rd & w_lead_adr));
 			r_cmt_rd_d1 <= 0 & w_cmt_datrd;
 			r_cmt_rd_k_d1 <= r_cmt_k[MW - 1:0];
 		end

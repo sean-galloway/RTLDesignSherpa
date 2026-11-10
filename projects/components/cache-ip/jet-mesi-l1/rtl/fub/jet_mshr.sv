@@ -280,7 +280,11 @@ module jet_mshr
     end
 
     assign full_o      = ~w_any_free;
-    assign set_full_o  = (w_set_claims >= (MW+1)'(WAYS));
+    // Compare as integers: at MSHR_COUNT=2 the MW+1 = 2-bit cast of WAYS=4
+    // was 0 and the compare read "claims >= 0" -- constant-true, every miss
+    // stalled set_oversubscribed, and Verilator refused the build (jet BUG-001,
+    // 2026-11-09). A set can never be full of claims when WAYS > MSHR_COUNT.
+    assign set_full_o  = (32'(w_set_claims) >= WAYS);
     assign alloc_gnt_o = alloc_i & w_any_free & ~set_full_o;
     assign alloc_idx_o = w_free_sel;
 

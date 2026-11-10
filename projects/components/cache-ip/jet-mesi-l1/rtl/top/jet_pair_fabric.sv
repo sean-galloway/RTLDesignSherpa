@@ -1011,13 +1011,24 @@ module jet_pair_fabric
             end
 
             // buffer free: at transaction end when no absorption trails,
-            // or when a trailing absorption completes
+            // or when a trailing absorption completes.  The replay guard
+            // protects only the buffer the current grant is replaying
+            // FROM: an absorption completing for the OTHER direction's
+            // buffer must clear it now, because nothing else ever will --
+            // its abs_pend flag drops below on this same BVALID, and the
+            // F_DONE clear looks only at grant_q's buffer.  Unqualified,
+            // `state_q != F_REPLAY_R` dropped that clear whenever the
+            // peer's replay overlapped the BVALID: the stale buf_vld then
+            // vetoed every later grant to that direction (g_take) and the
+            // rig hung with the request pending and AR held (jet BUG-003,
+            // pair rig s128w4 m16v1 fifo, SEED=54355, 2026-11-09).
             if ((state_q == F_DONE) && buf_vld_q[grant_q]
                 && !abs_pend_vld_q[1'(grant_q)]) begin
                 buf_vld_q[grant_q] <= 1'b0;
             end else if ((wstate_q == W_B) && w_is_abs_q && mem_bvalid
                          && buf_vld_q[1'(w_owner_q)]
-                         && state_q != F_REPLAY_R
+                         && !(state_q == F_REPLAY_R
+                              && 2'(grant_q) == w_owner_q)
                          && !(state_q == F_REPLAY_AR
                               && 2'(grant_q) == w_owner_q)) begin
                 buf_vld_q[1'(w_owner_q)] <= 1'b0;
