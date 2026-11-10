@@ -19,7 +19,7 @@ here.
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | 1 | 0 | 2 | 0 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 3 | 0 | 0 |
-| [issue/](issue/INDEX.md) | 1 | 0 | 1 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 0 | 0 | 2 | 0 | 0 |
 
 Counts exclude the reserved `-000` template in each lane. **Each lane
 carries its own `Next ID`** — see the lane INDEXes.

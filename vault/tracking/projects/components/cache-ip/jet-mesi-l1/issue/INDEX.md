@@ -12,17 +12,15 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-002** ([page](open/ISSUE-002.md)) — jet_monlite commits only 2
-  events/cycle and drops the rest under thrash (up to ~1.5% of J7 events on
-  64 KB configs); drops are counted (profile bin 17) but MSHR bins undercount.
+(none)
 
 ## Active
 
@@ -30,6 +28,10 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Closed
 
+- **ISSUE-002** ([page](closed/ISSUE-002.md)) — jet_monlite commits only 2
+  events/cycle and drops the rest under thrash (up to ~1.5% of J7 events on
+  64 KB configs); drops are counted (profile bin 17) but MSHR bins undercount.
+  **Closed 2026-11-10:** owner decision, leave it; bin 17 is the error bar. Monitor-family FPGA cost question -> rtl/amba/monitors TASK-007.
 - **ISSUE-001** ([page](closed/ISSUE-001.md)) — cpu_req→snoop-accept
   combinational chain (31 levels) fails 90 MHz timing on Kintex-7; jet rig
   reclocks to 60 MHz; pipelining the snoop-accept path is jet v2 work.

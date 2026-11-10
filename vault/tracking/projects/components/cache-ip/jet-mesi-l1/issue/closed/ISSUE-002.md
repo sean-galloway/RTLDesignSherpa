@@ -2,7 +2,7 @@
 
 **Priority:** P3 (measurement quality, not a functional defect — drops are
 reported and counted)
-**Status:** OPEN
+**Status:** CLOSED 2026-11-10 -- owner decision: accept the loss; profile bin 17 is the J7 error bar.
 **Filed:** 2026-11-03, from the first jet Genesys2 perf sweep (T13 step 3).
 
 ## Observation
@@ -54,3 +54,13 @@ hit-under-miss, alloc+merge+retire coincide often:
   catch-all): all agent `0x00A2` PktTypeError/0x09.
 - Sweep JSONs: `results/perf_sweep_20261103T124213Z.json` (unc>0, pre-fix),
   `results/perf_sweep_mshr8_20261103T125016Z.json` (unc=0, jmon_drop named).
+
+## Resolution (2026-11-10)
+
+Owner decision: leave it. The drops stay as the error bar in J7 reporting:
+`jet_monlite` keeps its two-per-cycle commit, the drop count stays a named
+bin (17) that every sweep prints, and the MSHR bins are read with it. Neither
+widening the commit nor coalescing the occupancy events is scoped. The
+broader question the issue raised -- whether jet_monlite and the monitor
+family would benefit from the FPGA-review treatment -- is filed as
+rtl/amba/monitors TASK-007.
