@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-045** — never recycle a number, even when its item closed.
+**Next ID: TASK-046** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 39 | done (kept for history) |
+| [closed/](closed/) | 40 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -27,12 +27,15 @@ by construction rather than by discipline.
 
 ## Active
 
+(none)
+
 ## Dropped
 
 - **TASK-044** — the pre-beats TASKS.md work list (its TASK-002, 004-009), superseded by the beats rearchitecture; seven dispositions and the pre-beats -> beats path map (dropped 2026-11-07)
 
 ## Closed
 
+- **TASK-045** — CLOSED 2026-11-11: the monbus error window has its own 4 KB memory on both Genesys 2 rapids harnesses (AW/W-paired capture, `ERRCAP_*` / `ERR_REC_CNT` / `ERR_WIN_*` CSRs, MON_CAPTURE trace-only, `cocotb_test_err_window` in both flows); byte 86 / beats 5 passed from clean, 0 rerun; bitstreams not rebuilt
 - **TASK-040** — autonomous descriptor chaining (TASKS.md TASK-011); beats resync 516f68164, `test_descriptor_chaining`
 - **TASK-041** — channel idle composition (TASKS.md TASK-012), equivalent form in `scheduler_group_beats.sv`
 - **TASK-042** — RAPIDS TB classes in `dv/tbclasses/` (TASKS.md TASK-003); residual is TASK-043

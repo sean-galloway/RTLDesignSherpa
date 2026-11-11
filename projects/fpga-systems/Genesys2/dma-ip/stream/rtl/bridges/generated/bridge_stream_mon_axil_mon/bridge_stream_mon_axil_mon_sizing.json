@@ -49,7 +49,7 @@
    "value": 16,
    "source": "rule",
    "rule_min": 11,
-   "basis": "1 + latency_cycles 0 + round trip 10 (monbus_wr -> stream_tally, write 10 / read 9)",
+   "basis": "1 + latency_cycles 0 + round trip 10 (monbus_wr -> stream_err, write 10 / read 9)",
    "warning": null
   },
   {
@@ -138,8 +138,8 @@
    "key": "max_outstanding",
    "value": 16,
    "source": "rule",
-   "rule_min": 10,
-   "basis": "1 + latency_cycles 0 + round trip 9 (host -> stream_err, write 9 / read 8)",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (host -> stream_err, write 10 / read 9)",
    "warning": null
   },
   {
@@ -317,11 +317,11 @@
   {
    "master": "host",
    "slave": "stream_err",
-   "read": 8,
-   "write": 9,
+   "read": 9,
+   "write": 10,
    "terms": {
     "master request stage": 1,
-    "request slot": 0,
+    "request slot": 1,
     "xbar request stage": 0,
     "slave request stage": 0,
     "converters, request side": 2,
@@ -489,6 +489,26 @@
     "slave turnaround": 1,
     "slave response stage": 1,
     "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "monbus_wr",
+   "slave": "stream_err",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
     "xbar response stage": 0,
     "response routing": 1,
     "master response stage": 1

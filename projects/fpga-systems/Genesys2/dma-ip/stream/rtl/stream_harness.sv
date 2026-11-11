@@ -14,6 +14,7 @@
 //   - desc_ram                        (descriptor storage)
 //   - stream_tally / slave_tally      (observer monbus records, counted)
 //   - comp_sram                       (STREAM monbus capture, host download)
+//   - err_sram                        (STREAM monbus ERROR window, 4 KB, host download)
 //   - axi4_slave_rd_injector       (DMA source)
 //   - axi4_slave_wr_crc_check         (DMA sink)
 //   - stream_top_ch8                  (DUT: STREAM DMA)
@@ -303,8 +304,8 @@ module stream_harness #(
     //   stream_apb     0x0000_0000  4 KB    APB    STREAM config (auto-conv)
     //   harness_csr    0x0001_0000  256 B   AXIL   timer/delay/kick/status
     //   desc_ram       0x0002_0000  64 KB   AXIL   descriptor preload
-    //   stream_err     0x0003_0000  4 KB    AXIL   reserved (SLVERR); error
-    //                                              records land in comp_sram
+    //   stream_err     0x0003_0000  4 KB    AXIL   the in-core group's ERROR
+    //                                              window: its own SRAM (64-bit)
     //   stream_tally   0x0004_0000  256 KB  AXIL   master-observer records
     //   dma_axil       0x0008_0000  4 KB    AXIL   DMA bridge port (unused
     //                                              in flows-stream-bridge;
@@ -368,7 +369,7 @@ module stream_harness #(
     `SC_DBG logic                       desc_rvalid, desc_rready;
 
     // ---- Slave-side AXIL wires consumed by the rest of the harness ---------
-    // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err [reserved], s4_* stream_tally)
+    // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err [error-window SRAM, 64-bit], s4_* stream_tally)
     logic [31:0] s1_awaddr, s1_wdata, s1_araddr, s1_rdata;
     logic [3:0]  s1_wstrb;
     logic [2:0]  s1_awprot, s1_arprot;
@@ -405,8 +406,9 @@ module stream_harness #(
     logic s2_awvalid, s2_awready, s2_wvalid, s2_wready, s2_bvalid, s2_bready;
     logic s2_arvalid, s2_arready, s2_rvalid, s2_rready;
 
-    logic [31:0] s3_awaddr, s3_wdata, s3_araddr, s3_rdata;
-    logic [3:0]  s3_wstrb;
+    logic [31:0] s3_awaddr, s3_araddr;
+    logic [63:0] s3_wdata, s3_rdata;          // 64-bit like comp_sram (whole monbus beats)
+    logic [7:0]  s3_wstrb;
     logic [2:0]  s3_awprot, s3_arprot;
     logic [1:0]  s3_bresp, s3_rresp;
     logic s3_awvalid, s3_awready, s3_wvalid, s3_wready, s3_bvalid, s3_bready;
@@ -630,7 +632,7 @@ module stream_harness #(
         .desc_ram_axi_rvalid   (s2_rvalid),
         .desc_ram_axi_rready   (s2_rready),
 
-        // Slave 3: stream_err (native AXIL — wired directly to s3_*)
+        // Slave 3: stream_err -- the error-window SRAM (native AXIL, 64-bit, s3_*)
         .stream_err_axi_awaddr   (s3_awaddr),
         .stream_err_axi_awprot   (s3_awprot),
         .stream_err_axi_awvalid  (s3_awvalid),
@@ -1348,38 +1350,73 @@ module stream_harness #(
     )
 
     // =========================================================================
-    // S3: stream_err -- RESERVED slot.
+    // S3: stream_err -- the in-core group's ERROR-WINDOW SRAM (4 KB, 64-bit).
     //
     // This window was the in-core monbus group's AXIL error-FIFO read port
-    // (monbus_axil4_axil4_group s_axil_err_*). stream_top_ch8 now carries
-    // monbus_axil4_group_1wr, which WRITES error-selected packets as 3-beat
-    // records into an error window in memory (the top 4 KB of comp_sram,
-    // programmed by name through MON_GROUP_ERR_BASE_ADDR/LIMIT_ADDR) and
-    // counts them in MON_ERR_REC_COUNT. Nothing sits behind this slot any more.
-    // The bridge keeps it so the address map and the generated xbar stay as
-    // built (no respin), and the harness answers SLVERR on both channels so a
-    // stale host tool fails loudly instead of reading zeros.
+    // (monbus_axil4_axil4_group s_axil_err_*). stream_top_ch8 carries
+    // monbus_axil4_group_1wr since 2026-10-25 (stream TASK-019), which WRITES
+    // error-selected packets as 3-beat records into an error window in memory
+    // (MON_GROUP_ERR_BASE_ADDR/LIMIT_ADDR) and counts them in
+    // MON_ERR_REC_COUNT; the slot was left RESERVED (SLVERR) and the error
+    // window carved out of comp_sram's top 4 KB. Since 2026-11-10 the error
+    // records have their own memory: this slot is a real 4 KB SRAM, the
+    // bridge's monbus_wr master reaches it (connectivity row), the host
+    // programs MON_GROUP_ERR_* to it BY NAME (bridge_windows.monbus_err_window()
+    // == W("stream_err")) and reads the records back from the same window, and
+    // comp_sram is the trace window entire. 4 KB = 170 records of 24 B; the
+    // group's burst writer steps over the 16-byte stub at the end rather than
+    // splitting a record across the wrap, exactly as it did in comp_sram.
+    //
+    // Same memory as comp_sram, sized from the window (a memory smaller than
+    // its window aliases silently) and USE_WSTRB=0 for the same reason: the
+    // group writes whole 64-bit beats, and byte enables would put this in
+    // distributed RAM.
     // =========================================================================
-    logic r_s3_bvalid, r_s3_rvalid;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_s3_bvalid <= 1'b0;
-            r_s3_rvalid <= 1'b0;
-        end else begin
-            if (s3_awvalid && s3_wvalid && !r_s3_bvalid) r_s3_bvalid <= 1'b1;
-            else if (s3_bready && r_s3_bvalid)            r_s3_bvalid <= 1'b0;
-            if (s3_arvalid && !r_s3_rvalid)               r_s3_rvalid <= 1'b1;
-            else if (s3_rready && r_s3_rvalid)            r_s3_rvalid <= 1'b0;
-        end
-    )
-    assign s3_awready = !r_s3_bvalid;
-    assign s3_wready  = !r_s3_bvalid;
-    assign s3_bvalid  = r_s3_bvalid;
-    assign s3_bresp   = 2'b10;  // SLVERR
-    assign s3_arready = !r_s3_rvalid;
-    assign s3_rvalid  = r_s3_rvalid;
-    assign s3_rdata   = 32'h0;
-    assign s3_rresp   = 2'b10;  // SLVERR
+    localparam int ERR_SRAM_BYTES = 32'h0000_1000;   // must match stream_err addr_range
+    localparam int ERR_SRAM_WORDS = ERR_SRAM_BYTES / 8;
+
+    sdpram_slave_axil_axil #(
+        .ADDR_WIDTH (32),
+        .DATA_WIDTH (64),
+        .MEM_DEPTH  (ERR_SRAM_WORDS),
+        .USE_WSTRB  (1'b0)
+    ) u_err_sram (
+        .aclk(aclk), .aresetn(unit_aresetn),
+
+        .s_axil_awaddr  (s3_awaddr),
+        .s_axil_awprot  (s3_awprot),
+        .s_axil_awvalid (s3_awvalid),
+        .s_axil_awready (s3_awready),
+
+        .s_axil_wdata   (s3_wdata),
+        .s_axil_wstrb   (s3_wstrb),
+        .s_axil_wvalid  (s3_wvalid),
+        .s_axil_wready  (s3_wready),
+
+        .s_axil_bresp   (s3_bresp),
+        .s_axil_bvalid  (s3_bvalid),
+        .s_axil_bready  (s3_bready),
+
+        .s_axil_araddr  (s3_araddr),
+        .s_axil_arprot  (s3_arprot),
+        .s_axil_arvalid (s3_arvalid),
+        .s_axil_arready (s3_arready),
+
+        .s_axil_rdata   (s3_rdata),
+        .s_axil_rresp   (s3_rresp),
+        .s_axil_rvalid  (s3_rvalid),
+        .s_axil_rready  (s3_rready),
+
+        // Bulk clear unused, as on comp_sram: the host reads only the records
+        // MON_ERR_REC_COUNT says have landed.
+        .i_cfg_start_clear (1'b0),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .o_cfg_done_clear  (),
+        .o_dbg_vr          (), .o_dbg_fub_vr (),
+        .o_dbg_bram_wr     (), .o_dbg_bram_rd (),
+        .o_dbg_busy_wr     (), .o_dbg_busy_rd ()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
 
     // =========================================================================
     // S4: stream_tally — monbus_tally_axil at 64-bit.

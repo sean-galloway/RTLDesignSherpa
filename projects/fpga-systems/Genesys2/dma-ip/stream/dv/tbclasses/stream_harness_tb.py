@@ -66,7 +66,7 @@ from descriptor_builder import DescriptorBuilder, CharConfig
 # broke the perf path when the monitors relocated to 0x1000+).
 from stream_addrs import A, compose as _scompose
 from harness_addrs import H, compose  # by-name harness CSR access (never hardcode offsets)
-from bridge_windows import monbus_capture_window, monbus_err_window  # comp_sram windows, by name
+from bridge_windows import monbus_capture_window, monbus_err_window  # comp_sram / stream_err windows, by name
 import obs_addrs as _obs  # observer regblock, by name (both observers share it)
 
 
@@ -1322,9 +1322,10 @@ class StreamHarnessTB(TBBase):
         await self.uart_write(APB_MON_GROUP_BASE,  _cap_base)
         await self.uart_write(APB_MON_GROUP_LIMIT, _cap_limit)
         await self.uart_write(APB_MON_GROUP_WM,    0)
-        # Error window (ERR_SELECT-routed packets, write-only group): the top
-        # 4 KB of comp_sram. The RDL reset is a sim address that is dma_axil on
-        # this bridge, so it is always programmed here. 3 beats = one record.
+        # Error window (ERR_SELECT-routed packets, write-only group): the
+        # stream_err slave, its own 4 KB SRAM (comp_sram's top 4 KB until
+        # 2026-11-10). The RDL reset is a sim address that is dma_axil on this
+        # bridge, so it is always programmed here. 3 beats = one record.
         _err_base, _err_limit = monbus_err_window()
         await self.uart_write(APB_MON_GROUP_ERR_BASE,  _err_base)
         await self.uart_write(APB_MON_GROUP_ERR_LIMIT, _err_limit)

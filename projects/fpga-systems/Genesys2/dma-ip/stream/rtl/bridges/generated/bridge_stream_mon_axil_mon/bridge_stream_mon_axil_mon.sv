@@ -249,8 +249,8 @@ module bridge_stream_mon_axil_mon
     output logic [2:0]            stream_err_axi_awprot,
     output logic                  stream_err_axi_awvalid,
     input  logic                  stream_err_axi_awready,
-    output logic [31:0] stream_err_axi_wdata,
-    output logic [3:0] stream_err_axi_wstrb,
+    output logic [63:0] stream_err_axi_wdata,
+    output logic [7:0] stream_err_axi_wstrb,
     output logic                  stream_err_axi_wvalid,
     input  logic                  stream_err_axi_wready,
     input  logic [1:0]            stream_err_axi_bresp,
@@ -260,7 +260,7 @@ module bridge_stream_mon_axil_mon
     output logic [2:0]            stream_err_axi_arprot,
     output logic                  stream_err_axi_arvalid,
     input  logic                  stream_err_axi_arready,
-    input  logic [31:0] stream_err_axi_rdata,
+    input  logic [63:0] stream_err_axi_rdata,
     input  logic [1:0]            stream_err_axi_rresp,
     input  logic                  stream_err_axi_rvalid,
     output logic                  stream_err_axi_rready,
@@ -886,7 +886,7 @@ module bridge_stream_mon_axil_mon
     logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_rid_bridge_id;
     logic                       desc_ram_axi_rid_valid;
 
-    // stream_err (AXIL, 32b AXI4 interface)
+    // stream_err (AXIL, 64b AXI4 interface)
     logic [5:0]            xbar_stream_err_axi_awid;
     logic [31:0]               xbar_stream_err_axi_awaddr;
     logic [7:0]                xbar_stream_err_axi_awlen;
@@ -900,8 +900,8 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_err_axi_awuser;
     logic                      xbar_stream_err_axi_awvalid;
     logic                      xbar_stream_err_axi_awready;
-    logic [31:0] xbar_stream_err_axi_wdata;
-    logic [3:0] xbar_stream_err_axi_wstrb;
+    logic [63:0] xbar_stream_err_axi_wdata;
+    logic [7:0] xbar_stream_err_axi_wstrb;
     logic                      xbar_stream_err_axi_wlast;
     logic                      xbar_stream_err_axi_wuser;
     logic                      xbar_stream_err_axi_wvalid;
@@ -925,7 +925,7 @@ module bridge_stream_mon_axil_mon
     logic                      xbar_stream_err_axi_arvalid;
     logic                      xbar_stream_err_axi_arready;
     logic [5:0]            xbar_stream_err_axi_rid;
-    logic [31:0] xbar_stream_err_axi_rdata;
+    logic [63:0] xbar_stream_err_axi_rdata;
     logic [1:0]                xbar_stream_err_axi_rresp;
     logic                      xbar_stream_err_axi_rlast;
     logic                      xbar_stream_err_axi_ruser;

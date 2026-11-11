@@ -393,6 +393,32 @@ def monbus_capture(s, max_records=24):
     return pkts, wrapped, n_words
 
 
+def monbus_err_window(s, max_records=170):
+    """Read the harness's monbus ERROR-WINDOW SRAM (2026-11-10: the write-only
+    group's error-selected records have their own 4 KB memory, ERRCAP_SEL/LO/HI,
+    beside the trace capture) and decode it with the SHARED decoder.
+
+    ERR_REC_CNT is the DUT's free-running count of whole records landed; the
+    window holds 170 and wraps, so at most that many are read, three 64-bit
+    words each from word 0. Returns (packets, landed, base, limit). Built in
+    every flavour (no BUILD bit): an empty window with count 0 is "nothing
+    happened", a count with no parsable records behind it is a bug.
+    """
+    from TBClasses.monbus import parse_stream
+    landed = s.io.csr_read_reg("ERR_REC_CNT") & 0xFFFF
+    base = s.io.csr_read_reg("ERR_WIN_BASE")
+    limit = s.io.csr_read_reg("ERR_WIN_LIMIT")
+    want = 3 * min(landed, max_records)
+    words = []
+    for i in range(want):
+        s.io.csr_write_reg("ERRCAP_SEL", INDEX=i)
+        lo = s.io.csr_read_reg("ERRCAP_LO")
+        hi = s.io.csr_read_reg("ERRCAP_HI")
+        words.append((hi << 32) | lo)
+    pkts = [r.packet for r in parse_stream(words, stride_bytes=24, ts_mode=1)]
+    return pkts, landed, base, limit
+
+
 def _arm_monbus_error_class(s, half):
     """Enable the half's AXI monitor and unmask ONLY the Error packet class.
 
@@ -440,8 +466,17 @@ def _check_monbus_error_packet(s, tag, channel):
     fact, not a pass and not a failure. Whether an AXI-protocol monitor belongs
     on those masters is a design question, not something a test should assert.
     """
+    # The ERROR WINDOW is always built (its own SRAM since 2026-11-10): whatever
+    # ERR_SELECT routed there must parse, record for record, against the DUT's
+    # own count -- a count with nothing behind it is an addressing bug.
+    err_pkts, landed, eb, el = monbus_err_window(s)
+    s.check(f"{tag}: error window 0x{eb:08X}..0x{el:08X} holds what ERR_REC_CNT "
+            f"counts ({landed} record(s))",
+            len(err_pkts) == min(landed, 170), landed=landed, parsed=len(err_pkts),
+            records=[f"{p.get_protocol_name()}/{p.get_packet_type_name()}"
+                     f"/0x{p.event_code:02X}/ch{p.channel_id}" for p in err_pkts[:8]])
     if not s.io.csr_field("BUILD", "MON_CAPTURE"):
-        s.check(f"{tag}: monbus capture SKIPPED (no buffer in this build)",
+        s.check(f"{tag}: monbus trace capture SKIPPED (no buffer in this build)",
                 True, skipped=True, reason="BUILD.MON_CAPTURE=0")
         return
     pkts, wrapped, n_words = monbus_capture(s)

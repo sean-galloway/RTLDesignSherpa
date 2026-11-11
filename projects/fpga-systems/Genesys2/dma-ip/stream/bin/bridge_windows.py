@@ -51,12 +51,14 @@ _CAPTURE_SLAVE = "comp_sram"
 
 # The in-core group is monbus_axil4_group_1wr (write-only): packets selected by
 # <MON>_ERR_CFG.ERR_SELECT land as raw 3-beat records in an ERROR window and are
-# counted in MON_ERR_REC_COUNT; everything else goes to the trace window. Both
-# windows must be memory the group's monbus_wr master can reach, and the only
-# such memory on this bridge is comp_sram, so the error window is carved out of
-# its top. 4 KB = 170 records of 24 B; the burst writer steps over the 16-byte
-# stub at the end rather than splitting a record across the wrap.
-ERR_WINDOW_BYTES = 0x1000
+# counted in MON_ERR_REC_COUNT; everything else goes to the trace window. The
+# error window is the stream_err slave: its own 4 KB SRAM in stream_harness
+# (since 2026-11-10; until then it was carved out of comp_sram's top 4 KB while
+# the slot sat reserved). 4 KB = 170 records of 24 B; the burst writer steps
+# over the 16-byte stub at the end rather than splitting a record across the
+# wrap. Both windows are memory the group's monbus_wr master reaches
+# (bridge_stream_mon_axil_connectivity.csv).
+_ERR_SLAVE = "stream_err"
 
 
 @lru_cache(maxsize=None)
@@ -100,22 +102,21 @@ def base(name: str, bridge: str = "mon") -> int:
 def monbus_capture_window() -> Tuple[int, int]:
     """(base, inclusive_limit) for STREAM's in-core monbus TRACE window.
 
-    Always comp_sram, minus the error window at its top. It was hardcoded
-    0x40000 for years, which is the TALLY in this bridge -- and the tally's
-    write side is SLVERR-terminated now that the observers feed it directly, so
-    the old constant aims records at a slave that rejects them.
+    All of comp_sram. It was hardcoded 0x40000 for years, which is the TALLY in
+    this bridge -- and the tally's write side is SLVERR-terminated now that the
+    observers feed it directly, so the old constant aims records at a slave that
+    rejects them. Until 2026-11-10 the error window took the top 4 KB of this
+    memory; it has its own slave now (monbus_err_window).
     """
-    base_, limit = W(_CAPTURE_SLAVE, bridge="mon")
-    return base_, limit - ERR_WINDOW_BYTES
+    return W(_CAPTURE_SLAVE, bridge="mon")
 
 
 def monbus_err_window() -> Tuple[int, int]:
     """(base, inclusive_limit) for STREAM's in-core monbus ERROR window: the
-    top ERR_WINDOW_BYTES of comp_sram. Program MON_GROUP_ERR_BASE_ADDR /
-    MON_GROUP_ERR_LIMIT_ADDR from this; read records back from the same range
-    (dump_monbus.py)."""
-    base_, limit = W(_CAPTURE_SLAVE, bridge="mon")
-    return limit + 1 - ERR_WINDOW_BYTES, limit
+    stream_err slave, a 4 KB SRAM of its own in stream_harness. Program
+    MON_GROUP_ERR_BASE_ADDR / MON_GROUP_ERR_LIMIT_ADDR from this; read records
+    back from the same range (dump_monbus.py)."""
+    return W(_ERR_SLAVE, bridge="mon")
 
 
 if __name__ == "__main__":
@@ -123,5 +124,6 @@ if __name__ == "__main__":
         print(f"--- {flavour} bridge ---")
         for n, (b, r) in sorted(_slaves(flavour).items(), key=lambda kv: kv[1][0]):
             tag = ("  <-- monbus capture" if (flavour == "mon" and n == _CAPTURE_SLAVE)
+                   else "  <-- monbus error window" if (flavour == "mon" and n == _ERR_SLAVE)
                    else "")
             print(f"  {n:20s} 0x{b:08X} .. 0x{b + r - 1:08X}  ({r // 1024:>4} KB){tag}")

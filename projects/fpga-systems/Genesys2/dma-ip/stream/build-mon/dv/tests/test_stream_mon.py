@@ -567,7 +567,12 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
                  else "test_stream_mon_compress" if testcase.endswith("_compress")
                  else "test_stream_scenario_order" if testcase.endswith("_scenario_order")
                  else "test_stream_soft_reset_scope" if testcase.endswith("_soft_reset_scope")
+                 else "test_stream_mon_err_window" if testcase.endswith("_err_window")
                  else "test_stream_mon")   # every testcase gets its OWN sim_build: two tests sharing one dir collide under xdist
+    # err_window was missing from this list until 2026-11-10 and shared
+    # test_stream_mon's sim_build and log: under xdist the two built the same
+    # tree at once, the loser's simulation never ran (a 0-byte results.xml,
+    # no log), and the suite only went green through --reruns (stream BUG-023).
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -748,8 +753,8 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
 @cocotb.test(timeout_time=int(os.environ.get('SIM_TIMEOUT_MS', '80')), timeout_unit="ms")
 async def cocotb_test_stream_mon_err_window(dut):
     """Completion records -> the ERROR WINDOW (monbus_axil4_group_1wr, stream
-    TASK-019), read back out of comp_sram's top 4 KB and checked against
-    MON_ERR_REC_COUNT -- by running the BOARD'S program
+    TASK-019), read back out of the stream_err SRAM (its own 4 KB window since
+    2026-11-10) and checked against MON_ERR_REC_COUNT -- by running the BOARD'S program
     (bin/mon_err_window.probe_err_window) over the cosim's UART channel.
 
     The other mon runs route every type to the trace (tally / capture). This is
@@ -869,6 +874,6 @@ def test_stream_mon_compress(request):
 
 
 def test_stream_mon_err_window(request):
-    """Completion records land in the error window (top 4 KB of comp_sram) and
+    """Completion records land in the error window (the stream_err SRAM) and
     MON_ERR_REC_COUNT matches what is read back (stream TASK-019)."""
     _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon_err_window")

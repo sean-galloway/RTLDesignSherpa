@@ -43,7 +43,7 @@ tied-off `dma_axil` port or returns DECERR.
 | `0x0000_0000` | 8 KB | APB | `stream_apb` | STREAM DUT config and in-core monitor perf CSRs |
 | `0x0001_0000` | 4 KB | AXIL | `harness_csr` | Harness control/status/timer/CRC/build identity |
 | `0x0002_0000` | 64 KB | AXI4/AXIL | `desc_ram` | Descriptor preload: host writes 32-bit, STREAM reads 256-bit |
-| `0x0003_0000` | 4 KB | AXIL | `stream_err` | Reserved, SLVERR (was the in-core error FIFO drain; error records now land in `comp_sram`'s top 4 KB, `0x001A_F000`) |
+| `0x0003_0000` | 4 KB | AXIL | `stream_err` | In-core group ERROR window: its own 64-bit SRAM, 170 records, written by `monbus_wr`, read by the host (`dump_monbus.py`) |
 | `0x0004_0000` | 256 KB | AXIL | `stream_tally` | In-core monitor packet tally histogram readback |
 | `0x0008_0000` | 4 KB | AXIL | `dma_axil` | Tied off / DECERR -- not used in this harness |
 | `0x0009_0000` | 4 KB | AXIL | `slave_err` | Slave observer error / IRQ FIFO drain |

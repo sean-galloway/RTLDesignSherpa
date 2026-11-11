@@ -20,11 +20,15 @@
 //                                master WRITES and the ctrlrd master READS the
 //                                same backing store, so a doorbell write is
 //                                observable by a gate read)
-//   - always-accept AXIL write responder for m_axil_mon_* (monitor egress never
-//                                stalls); the error window sits above the trace window, unread. The interface
-//                                observers' monbus egress (USE_OBSERVERS=1) gets
-//                                the same treatment, and MON_CAPTURE=1 stores
-//                                whichever stream is live (rapids ISSUE-007).
+//   - AXIL write responder for m_axil_mon_* (monitor egress is never dropped,
+//                                only paced by its own AW); the ERROR WINDOW has
+//                                its own 4 KB SRAM (gen_errcap, read through
+//                                ERRCAP_SEL/LO/HI, counted by ERR_REC_CNT) and the
+//                                trace window is dropped unless MON_CAPTURE=1
+//                                stores it. The interface observers' monbus egress
+//                                (USE_OBSERVERS=1) is always-accept, and on
+//                                observer-only builds MON_CAPTURE stores it
+//                                instead (rapids ISSUE-007).
 //
 // The cocotb TB drives s_apb_* + the control ports directly. A UART/AXIL bridge
 // + CSR + trace observer are intentionally NOT part of this stage; the harness
@@ -259,6 +263,17 @@ module rapids_byte_harness #(
     localparam logic [11:0] CSR_MONCAP_SEL  = 12'h0D8;  // word index to read
     localparam logic [11:0] CSR_MONCAP_LO   = 12'h0DC;  // selected word [31:0]
     localparam logic [11:0] CSR_MONCAP_HI   = 12'h0E0;  // selected word [63:32]
+    // MonBus ERROR-WINDOW SRAM readback (2026-11-10, gen_errcap below): the
+    // write-only group's error-selected records in their own 4 KB memory, read
+    // a 64-bit word at a time like MONCAP. ERR_REC_CNT is the DUT's own
+    // free-running whole-record count; ERR_WIN_BASE/LIMIT report the window the
+    // harness drives (MON_LIMIT+1 .. MON_LIMIT+0x1000) so no host retypes it.
+    localparam logic [11:0] CSR_ERRCAP_SEL    = 12'h0E4;  // word index to read
+    localparam logic [11:0] CSR_ERRCAP_LO     = 12'h0E8;  // selected word [31:0]
+    localparam logic [11:0] CSR_ERRCAP_HI     = 12'h0EC;  // selected word [63:32]
+    localparam logic [11:0] CSR_ERR_REC_CNT   = 12'h0F0;  // [15:0] whole error records landed
+    localparam logic [11:0] CSR_ERR_WIN_BASE  = 12'h0F4;  // cfg_mon_err_base_addr as driven
+    localparam logic [11:0] CSR_ERR_WIN_LIMIT = 12'h0F8;  // cfg_mon_err_limit_addr as driven
     // Sink-ingress launch wait: cycles offered-but-not-accepted before the
     // first accept (the packet-record wait). Excluded from the ingress
     // window on purpose; reported here instead.
@@ -328,6 +343,12 @@ module rapids_byte_harness #(
     logic [31:0]                w_moncap_cnt;
     logic [63:0]                w_moncap_word;
     localparam int MONCAP_WORDS = 192;                  // 64 records of 3 words
+    // error-window SRAM (gen_errcap): 4 KB = 512 words = 170 records of 24 B
+    localparam int ERRCAP_WORDS = 512;
+    logic [31:0]                r_errcap_sel;
+    logic [63:0]                w_errcap_word;
+    logic [15:0]                mon_err_rec_count;      // DUT: whole error records landed
+    logic [31:0]                w_err_win_base, w_err_win_limit;
     logic                       wr_err_injected;      // sticky, from the write slave
     logic                       rd_err_injected;      // sticky, from the read slave
     localparam int CIW_SLV = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
@@ -609,6 +630,7 @@ module rapids_byte_harness #(
             r_resp_delay            <= '0;
             r_err_inj               <= '0;
             r_moncap_sel            <= '0;
+            r_errcap_sel            <= '0;
         end else begin
             // Pulses default low; re-asserted for one cycle on a matching write.
             // The gen/chk START bits are ALSO 1-cycle pulses (not held levels):
@@ -635,6 +657,7 @@ module rapids_byte_harness #(
                     CSR_ERR_INJ:     r_err_inj               <= r_wdata;
                     CSR_MONCAP_CTRL: r_moncap_clear          <= r_wdata[0];
                     CSR_MONCAP_SEL:  r_moncap_sel            <= r_wdata;
+                    CSR_ERRCAP_SEL:  r_errcap_sel            <= r_wdata;
                     CSR_GEN_CTRL:    r_cfg_gen_start         <= r_wdata[0];
                     CSR_GEN_SEED:    r_cfg_gen_lfsr_seed     <= r_wdata;
                     CSR_GEN_NBEATS:  r_cfg_gen_num_beats     <= r_wdata;
@@ -771,6 +794,12 @@ module rapids_byte_harness #(
                     CSR_MONCAP_SEL:  w_readmux = r_moncap_sel;
                     CSR_MONCAP_LO:   w_readmux = w_moncap_word[31:0];
                     CSR_MONCAP_HI:   w_readmux = w_moncap_word[63:32];
+                    CSR_ERRCAP_SEL:  w_readmux = r_errcap_sel;
+                    CSR_ERRCAP_LO:   w_readmux = w_errcap_word[31:0];
+                    CSR_ERRCAP_HI:   w_readmux = w_errcap_word[63:32];
+                    CSR_ERR_REC_CNT: w_readmux = {16'b0, mon_err_rec_count};
+                    CSR_ERR_WIN_BASE:  w_readmux = w_err_win_base;
+                    CSR_ERR_WIN_LIMIT: w_readmux = w_err_win_limit;
                     CSR_OBS_SIN_LAUNCH: w_readmux = r_sin_launch;
                     CSR_OBS_WR_PROD: w_readmux = obs_wr_prod;
                     CSR_OBS_WR_BP:   w_readmux = obs_wr_bp;
@@ -1661,13 +1690,12 @@ module rapids_byte_harness #(
         .m_axis_tready (m_axis_tready),
 
         // MonBus error window (the write-only group, rapids TASK-039): the
-        // 64 KB above the trace window; nothing on this harness reads it yet
-        .cfg_mon_err_base_addr       (r_cfg_mon_limit_addr + 32'd1),
-        .cfg_mon_err_limit_addr      (r_cfg_mon_limit_addr + 32'h0001_0000),
+        // 4 KB above the trace window, stored by gen_errcap and read back
+        // through ERRCAP_*; ERR_REC_CNT is this count
+        .cfg_mon_err_base_addr       (w_err_win_base),
+        .cfg_mon_err_limit_addr      (w_err_win_limit),
         .cfg_mon_err_flush_watermark (16'd3),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .mon_err_rec_count  (),
-        /* verilator lint_on PINCONNECTEMPTY */
+        .mon_err_rec_count           (mon_err_rec_count),
 
         // MonBus AXIL capture master (always-accept responder below)
         .m_axil_mon_awvalid (mon_awvalid),
@@ -2214,14 +2242,63 @@ module rapids_byte_harness #(
     );
 
     //=========================================================================
-    // MonBus AXIL capture master: always-accept write responder.
-    // aw/w are accepted every cycle (never stalls the always-on monitor
-    // egress); a matched aw/w pair produces one OKAY B. Monotonic counters
-    // compared mod-2^16 keep bvalid asserted while responses are owed.
+    // MonBus AXIL capture master: write responder + the ERROR-WINDOW SRAM.
+    //
+    // The write-only group (rapids TASK-039) puts error-selected packets as
+    // raw 3-beat records into [cfg_mon_err_base_addr, cfg_mon_err_limit_addr]
+    // and everything else into the trace window. Until 2026-11-10 every
+    // monitor write was accepted and dropped, so the error window was a 64 KB
+    // range nothing stored. Now the error window is 4 KB with its own memory
+    // (gen_errcap, below): every W beat whose AW address falls in the window
+    // lands at word (awaddr - base) >> 3 and the host reads it back a word at
+    // a time through CSR_ERRCAP_SEL / LO / HI, the MONCAP shape; ERR_REC_CNT
+    // (the DUT's free-running count) says how many records are there, and
+    // ERR_WIN_BASE / LIMIT say where the window is.
+    //
+    // Pairing a W beat with its AW address: AXI-Lite lets W lead AW, and the
+    // capture needs the address before it can place the beat, so a W beat is
+    // accepted only once its AW has been seen -- per AW, {in-window, word
+    // index} is queued, each accepted W pops one, and AW is held while the
+    // queue (depth 8) is full. Both are legal AXI backpressure, the group's
+    // writer tolerates them, and nothing is dropped: the egress is paced by
+    // its own AW, never stalled by the host. A matched aw/w pair still
+    // produces one OKAY B from the monotonic counters below.
     //=========================================================================
-    assign mon_awready = 1'b1;
-    assign mon_wready  = 1'b1;
-    assign mon_bresp   = 2'b00;  // OKAY
+    assign w_err_win_base  = r_cfg_mon_limit_addr + 32'd1;
+    assign w_err_win_limit = r_cfg_mon_limit_addr + 32'h0000_1000;   // base + 0xFFF
+    localparam int ECW = $clog2(ERRCAP_WORDS);
+    wire        w_mon_aw_in_err = (mon_awaddr >= w_err_win_base) && (mon_awaddr <= w_err_win_limit);
+    wire [31:0] w_mon_aw_off    = mon_awaddr - w_err_win_base;
+    logic         w_awq_rd_valid;
+    logic [ECW:0] w_awq_rd_data;         // {in_err, word index}
+    logic [3:0]   w_awq_count;
+    gaxi_fifo_sync #(.DATA_WIDTH(ECW + 1), .DEPTH(8)) u_mon_awq (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (mon_awvalid),
+        .wr_ready    (mon_awready),
+        .wr_data     ({w_mon_aw_in_err, w_mon_aw_off[ECW+2:3]}),
+        .rd_ready    (mon_wvalid && mon_wready),
+        .count       (w_awq_count),
+        .rd_valid    (w_awq_rd_valid),
+        .rd_data     (w_awq_rd_data)
+    );
+    wire unused_awq_count = ^w_awq_count;
+    assign mon_wready = w_awq_rd_valid;   // W waits for its AW, nothing more
+    assign mon_bresp  = 2'b00;            // OKAY
+    wire           w_mon_w_beat   = mon_wvalid && mon_wready;
+    wire           w_mon_w_in_err = w_awq_rd_data[ECW];
+    wire [ECW-1:0] w_mon_w_word   = w_awq_rd_data[ECW-1:0];
+
+    // gen_errcap: the error window's memory. Reset-free storage written at the
+    // beat only (memory-controllers MC-005: an array in a reset process is
+    // flops, not RAM); the host reads only what ERR_REC_CNT says has landed.
+    logic [63:0] r_ec_mem [ERRCAP_WORDS];
+    always_ff @(posedge aclk) begin
+        if (w_mon_w_beat && w_mon_w_in_err) r_ec_mem[w_mon_w_word] <= mon_wdata;
+    end
+    assign w_errcap_word = (r_errcap_sel < 32'(ERRCAP_WORDS))
+                           ? r_ec_mem[r_errcap_sel[ECW-1:0]] : 64'h0;
 
     logic [15:0] r_mon_aw_cnt, r_mon_w_cnt, r_mon_b_cnt;
     wire mon_b_beat = mon_bvalid && mon_bready;
@@ -2275,7 +2352,9 @@ module rapids_byte_harness #(
         wire sel_a  = obs_oa_wvalid
                     && (!obs_ox_wvalid || a_open || (!x_open && !r_mc_rr));
         wire sel_x  = !sel_a && obs_ox_wvalid;
-        wire        cap_wvalid = CAP_OBS ? (sel_a || sel_x) : mon_wvalid;
+        // in-core mode: the TRACE window only -- error-window beats have their
+        // own memory (gen_errcap) and would otherwise appear in both
+        wire        cap_wvalid = CAP_OBS ? (sel_a || sel_x) : (w_mon_w_beat && !w_mon_w_in_err);
         wire [63:0] cap_wdata  = CAP_OBS ? (sel_a ? obs_oa_wdata : obs_ox_wdata)
                                          : mon_wdata;
         wire        w_mc_push  = cap_wvalid && !r_mc_full;

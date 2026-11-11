@@ -105,6 +105,18 @@ CSR = [
     (0x0C0, 'OBS_CTRL',    'w',  [('ARM', 0, 0, 'w')]),               # bus-meter re-arm pulse
     (0x0C4, 'RESP_DELAY',  'rw', [('RD_DELAY', 15, 0, 'rw'),           # R-channel hold, cycles
                                   ('WR_DELAY', 31, 16, 'rw')]),         # B-channel hold, cycles
+    # MonBus ERROR-WINDOW SRAM (2026-11-10, gen_errcap in the harness): the
+    # write-only group's error-selected records in their own 4 KB memory, read a
+    # 64-bit word at a time (three words per record, TBClasses.monbus
+    # parse_stream decodes them). ERR_REC_CNT is the DUT's free-running whole-
+    # record count; ERR_WIN_BASE / LIMIT are the window the harness drives
+    # (MON_LIMIT+1 .. MON_LIMIT+0x1000), read them, never retype them.
+    (0x0E4, 'ERRCAP_SEL',   'rw', [('INDEX', 31, 0, 'rw')]),             # word index to read
+    (0x0E8, 'ERRCAP_LO',    'r',  None),                                  # selected word [31:0]
+    (0x0EC, 'ERRCAP_HI',    'r',  None),                                  # selected word [63:32]
+    (0x0F0, 'ERR_REC_CNT',  'r',  [('RECORDS', 15, 0, 'r')]),             # whole error records landed
+    (0x0F4, 'ERR_WIN_BASE', 'r',  None),                                  # cfg_mon_err_base_addr
+    (0x0F8, 'ERR_WIN_LIMIT','r',  None),                                  # cfg_mon_err_limit_addr
     # ---- readable status ----  (CSR_ID aliases 0x000 on the read path)
     (0x080, 'STATUS',      'r',  [('MON_IRQ', 0, 0, 'r'), ('SRC_IDLE', 1, 1, 'r'),
                                   ('SNK_IDLE', 2, 2, 'r'), ('GEN_BUSY', 3, 3, 'r'),

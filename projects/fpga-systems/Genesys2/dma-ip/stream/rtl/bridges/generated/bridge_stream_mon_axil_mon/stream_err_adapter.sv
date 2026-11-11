@@ -33,8 +33,8 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
     input  logic         xbar_stream_err_axi_awuser,
     input  logic         xbar_stream_err_axi_awvalid,
     output  logic         xbar_stream_err_axi_awready,
-    input  logic [31:0]  xbar_stream_err_axi_wdata,
-    input  logic [3:0]  xbar_stream_err_axi_wstrb,
+    input  logic [63:0]  xbar_stream_err_axi_wdata,
+    input  logic [7:0]  xbar_stream_err_axi_wstrb,
     input  logic         xbar_stream_err_axi_wlast,
     input  logic         xbar_stream_err_axi_wuser,
     input  logic         xbar_stream_err_axi_wvalid,
@@ -58,7 +58,7 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
     input  logic         xbar_stream_err_axi_arvalid,
     output  logic         xbar_stream_err_axi_arready,
     output  logic [5:0]  xbar_stream_err_axi_rid,
-    output  logic [31:0]  xbar_stream_err_axi_rdata,
+    output  logic [63:0]  xbar_stream_err_axi_rdata,
     output  logic [1:0]  xbar_stream_err_axi_rresp,
     output  logic         xbar_stream_err_axi_rlast,
     output  logic         xbar_stream_err_axi_ruser,
@@ -80,8 +80,8 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
     output logic                  stream_err_axi_awvalid,
     input  logic                  stream_err_axi_awready,
     // Write Data Channel
-    output logic [31:0] stream_err_axi_wdata,
-    output logic [3:0] stream_err_axi_wstrb,
+    output logic [63:0] stream_err_axi_wdata,
+    output logic [7:0] stream_err_axi_wstrb,
     output logic                  stream_err_axi_wvalid,
     input  logic                  stream_err_axi_wready,
     // Write Response Channel
@@ -94,7 +94,7 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
     output logic                  stream_err_axi_arvalid,
     input  logic                  stream_err_axi_arready,
     // Read Data Channel
-    input  logic [31:0] stream_err_axi_rdata,
+    input  logic [63:0] stream_err_axi_rdata,
     input  logic [1:0]            stream_err_axi_rresp,
     input  logic                  stream_err_axi_rvalid,
     output logic                  stream_err_axi_rready,
@@ -359,8 +359,8 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
     logic        stream_err_mon_axi_awuser;
     logic        stream_err_mon_axi_awvalid;
     logic        stream_err_mon_axi_awready;
-    logic [31:0] stream_err_mon_axi_wdata;
-    logic [3:0] stream_err_mon_axi_wstrb;
+    logic [63:0] stream_err_mon_axi_wdata;
+    logic [7:0] stream_err_mon_axi_wstrb;
     logic        stream_err_mon_axi_wlast;
     logic        stream_err_mon_axi_wuser;
     logic        stream_err_mon_axi_wvalid;
@@ -384,7 +384,7 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
     logic        stream_err_mon_axi_arvalid;
     logic        stream_err_mon_axi_arready;
     logic [5:0] stream_err_mon_axi_rid;
-    logic [31:0] stream_err_mon_axi_rdata;
+    logic [63:0] stream_err_mon_axi_rdata;
     logic [1:0]  stream_err_mon_axi_rresp;
     logic        stream_err_mon_axi_rlast;
     logic        stream_err_mon_axi_ruser;
@@ -398,7 +398,7 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
+        .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(81),
@@ -503,7 +503,7 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
         .SKID_DEPTH_R(2),
         .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
+        .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(80),
@@ -598,7 +598,7 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
     axi4_to_axil4_wr #(
         .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
+        .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)
     ) u_stream_err_axil_converter_wr (
         // Clocks and resets
@@ -648,7 +648,7 @@ module bridge_stream_mon_axil_mon_stream_err_adapter
     axi4_to_axil4_rd #(
         .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
+        .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)
     ) u_stream_err_axil_converter_rd (
         // Clocks and resets

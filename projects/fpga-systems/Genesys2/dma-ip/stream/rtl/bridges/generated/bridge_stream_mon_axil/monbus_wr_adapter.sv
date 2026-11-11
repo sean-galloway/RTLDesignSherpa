@@ -201,6 +201,7 @@ module bridge_stream_mon_axil_monbus_wr_adapter
 
     // ================================================================
     // Address decode (slave selection) - Write
+    // Slave 5 (stream_err): 0x00030000 - 0x00030FFF
     // Slave 6 (stream_tally): 0x00040000 - 0x0007FFFF
     // Slave 10 (comp_sram): 0x001A0000 - 0x001AFFFF
     // Slave 13 (subtractive): 0x00000000 - 0xFFFFFFFF
@@ -208,7 +209,10 @@ module bridge_stream_mon_axil_monbus_wr_adapter
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
         comb_slave_select_aw = '0;
-        if (fub_axi_awaddr >= 32'h00040000 && fub_axi_awaddr <= 32'h0007FFFF) begin
+        if (fub_axi_awaddr >= 32'h00030000 && fub_axi_awaddr <= 32'h00030FFF) begin
+            comb_slave_select_aw[5] = 1'b1;  // stream_err
+        end
+        else if (fub_axi_awaddr >= 32'h00040000 && fub_axi_awaddr <= 32'h0007FFFF) begin
             comb_slave_select_aw[6] = 1'b1;  // stream_tally
         end
         else if (fub_axi_awaddr >= 32'h001A0000 && fub_axi_awaddr <= 32'h001AFFFF) begin
@@ -230,11 +234,11 @@ module bridge_stream_mon_axil_monbus_wr_adapter
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_gate_ok;
     logic aw_path_active_64b;
-    assign aw_path_active_64b = (comb_slave_select_aw[6] | comb_slave_select_aw[10]) && aw_gate_ok;
+    assign aw_path_active_64b = (comb_slave_select_aw[5] | comb_slave_select_aw[6] | comb_slave_select_aw[10]) && aw_gate_ok;
     logic w_path_active_64b;
-    assign w_path_active_64b = w_slave_select[6] | w_slave_select[10];
+    assign w_path_active_64b = w_slave_select[5] | w_slave_select[6] | w_slave_select[10];
     logic b_path_active_64b;
-    assign b_path_active_64b = b_slave_select[6] | b_slave_select[10];
+    assign b_path_active_64b = b_slave_select[5] | b_slave_select[6] | b_slave_select[10];
     logic aw_path_active_256b;
     assign aw_path_active_256b = (comb_slave_select_aw[13]) && aw_gate_ok;
     logic w_path_active_256b;
@@ -481,7 +485,7 @@ module bridge_stream_mon_axil_monbus_wr_adapter
         end
     )
 
-    assign b_slave_select = ({NUM_SLAVES{b_pgnt[0]}} & 14'b00000001000000)
+    assign b_slave_select = ({NUM_SLAVES{b_pgnt[0]}} & 14'b00000000100000)
                           | ({NUM_SLAVES{b_pgnt[1]}} & 14'b10000000000000);
 
     // -------- AW->W slave_select tracking FIFO --------
@@ -532,6 +536,9 @@ module bridge_stream_mon_axil_monbus_wr_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
+            14'b00000000100000: begin  // Slave 5 (64b)
+                fub_axi_awready = monbus_wr_64b_awready;
+            end
             14'b00000001000000: begin  // Slave 6 (64b)
                 fub_axi_awready = monbus_wr_64b_awready;
             end
@@ -553,6 +560,9 @@ module bridge_stream_mon_axil_monbus_wr_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
+            14'b00000000100000: begin  // Slave 5 (64b)
+                fub_axi_wready = monbus_wr_64b_wready;
+            end
             14'b00000001000000: begin  // Slave 6 (64b)
                 fub_axi_wready = monbus_wr_64b_wready;
             end
@@ -575,6 +585,11 @@ module bridge_stream_mon_axil_monbus_wr_adapter
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
+            14'b00000000100000: begin  // Slave 5 (64b)
+                fub_axi_bid = monbus_wr_64b_b.id[3:0];
+                fub_axi_bresp = monbus_wr_64b_b.resp;
+                fub_axi_bvalid = monbus_wr_64b_bvalid;
+            end
             14'b00000001000000: begin  // Slave 6 (64b)
                 fub_axi_bid = monbus_wr_64b_b.id[3:0];
                 fub_axi_bresp = monbus_wr_64b_b.resp;

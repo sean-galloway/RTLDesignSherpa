@@ -17,7 +17,12 @@
 //     stream_apb   0x0000_0000  STREAM registers
 //     harness_csr  0x0001_0000  the STREAM harness's CSR block, unchanged
 //     desc_ram     0x0002_0000  descriptor preload (write port)
-//     stream_err   0x0003_0000  STREAM error FIFO
+//     stream_err   0x0003_0000  RESERVED (SLVERR both ways): the STREAM error
+//                               FIFO read port this slot was cut for left
+//                               stream_top_ch8 on 2026-10-25 (stream TASK-019,
+//                               the write-only monbus group); this harness
+//                               builds no monitors (GEN_MON=0) so nothing is
+//                               written to an error window here either
 //     slvmon_apb   0x0018_0000  slave-side observer (the fabric's S2/S3 output):
 //                               bus meters over the master-side window
 //     obs_apb      0x0019_0000  master-side observer (STREAM's rd/wr port): bus
@@ -663,10 +668,6 @@ module fb_harness #(
         .m_axi_wr_bid(stream_wr_bid), .m_axi_wr_bresp(stream_wr_bresp),
         .m_axi_wr_buser('0), .m_axi_wr_bvalid(stream_wr_bvalid),
         .m_axi_wr_bready(stream_wr_bready),
-        .s_axil_err_arvalid(stream_err_axi_arvalid), .s_axil_err_arready(stream_err_axi_arready),
-        .s_axil_err_araddr (stream_err_axi_araddr),  .s_axil_err_arprot (stream_err_axi_arprot),
-        .s_axil_err_rvalid (stream_err_axi_rvalid),  .s_axil_err_rready (stream_err_axi_rready),
-        .s_axil_err_rdata  (stream_err_axi_rdata),   .s_axil_err_rresp  (stream_err_axi_rresp),
         .m_axil_mon_awvalid(mon_awvalid), .m_axil_mon_awready(mon_awready),
         .m_axil_mon_awaddr (mon_awaddr),  .m_axil_mon_awprot (mon_awprot),
         .m_axil_mon_wvalid (mon_wvalid),  .m_axil_mon_wready (mon_wready),
@@ -691,22 +692,46 @@ module fb_harness #(
         .debug_peakrdl_rd_count(), .debug_regblk_rd_count()
     );
 
-    // MonBus egress (monitors compiled out) and writes to the error-FIFO
-    // window: accepted and dropped, so neither can stall.
+    // MonBus egress (monitors compiled out): accepted and dropped, so it can
+    // never stall STREAM.
     fb_axil_wr_sink #(.AW(32), .DW(64)) u_mon_sink (
         .aclk(aclk), .aresetn(unit_aresetn),
         .s_awaddr(mon_awaddr), .s_awprot(mon_awprot), .s_awvalid(mon_awvalid),
         .s_awready(mon_awready), .s_wdata(mon_wdata), .s_wstrb(mon_wstrb),
         .s_wvalid(mon_wvalid), .s_wready(mon_wready), .s_bresp(mon_bresp),
         .s_bvalid(mon_bvalid), .s_bready(mon_bready));
-    fb_axil_wr_sink #(.AW(32), .DW(32)) u_err_wr_sink (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_awaddr(stream_err_axi_awaddr), .s_awprot(stream_err_axi_awprot),
-        .s_awvalid(stream_err_axi_awvalid), .s_awready(stream_err_axi_awready),
-        .s_wdata(stream_err_axi_wdata), .s_wstrb(stream_err_axi_wstrb),
-        .s_wvalid(stream_err_axi_wvalid), .s_wready(stream_err_axi_wready),
-        .s_bresp(stream_err_axi_bresp), .s_bvalid(stream_err_axi_bvalid),
-        .s_bready(stream_err_axi_bready));
+
+    // stream_err slot: RESERVED. Its read side used to be stream_top_ch8's
+    // s_axil_err_* error-FIFO port; that port left the top on 2026-10-25
+    // (stream TASK-019: the write-only group puts error records in memory)
+    // and this harness kept naming it, so the harness did not elaborate from
+    // then until 2026-11-10. The slot stays so the generated bridge and the
+    // host address map are untouched; both channels answer SLVERR so a stale
+    // host tool fails loudly instead of reading zeros (the Genesys 2
+    // stream_harness does the same). No error records are written on this
+    // harness: the monitors are compiled out (GEN_MON=0).
+    logic r_err_bvalid, r_err_rvalid;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_err_bvalid <= 1'b0;
+            r_err_rvalid <= 1'b0;
+        end else begin
+            if (stream_err_axi_awvalid && stream_err_axi_wvalid && !r_err_bvalid) r_err_bvalid <= 1'b1;
+            else if (stream_err_axi_bready && r_err_bvalid)                        r_err_bvalid <= 1'b0;
+            if (stream_err_axi_arvalid && !r_err_rvalid)                           r_err_rvalid <= 1'b1;
+            else if (stream_err_axi_rready && r_err_rvalid)                        r_err_rvalid <= 1'b0;
+        end
+    )
+    assign stream_err_axi_awready = !r_err_bvalid;
+    assign stream_err_axi_wready  = !r_err_bvalid;
+    assign stream_err_axi_bvalid  = r_err_bvalid;
+    assign stream_err_axi_bresp   = 2'b10;   // SLVERR
+    assign stream_err_axi_arready = !r_err_rvalid;
+    assign stream_err_axi_rvalid  = r_err_rvalid;
+    assign stream_err_axi_rdata   = 32'h0;
+    assign stream_err_axi_rresp   = 2'b10;   // SLVERR
+    wire unused_stream_err = ^{stream_err_axi_awaddr, stream_err_axi_awprot, stream_err_axi_wdata,
+                               stream_err_axi_wstrb, stream_err_axi_araddr, stream_err_axi_arprot};
 
 
     // =========================================================================

@@ -8,7 +8,7 @@
 # stream_top_ch8 carries monbus_axil4_group_1wr (write-only). Packets whose
 # type is selected in <MON>_ERR_CFG.ERR_SELECT are written as raw 3-beat
 # records into the ERROR window [MON_GROUP_ERR_BASE_ADDR, MON_GROUP_ERR_LIMIT_ADDR]
-# (the top 4 KB of comp_sram on the Genesys 2 bridge, bridge_windows.
+# (the stream_err slave's own 4 KB SRAM on the Genesys 2 bridge, bridge_windows.
 # monbus_err_window()), one irq_out pulse per record, and MON_ERR_REC_COUNT
 # counts them. Everything else goes to the trace window (dump_monbus_sram.py).
 # This tool reads the records back out of that memory and decodes them via
@@ -217,7 +217,7 @@ def main(argv=None) -> int:
     p.add_argument("--baud", type=int, default=115200)
     p.add_argument("--base", type=lambda s: int(s, 0), default=None,
                    help="Error window base (default: bridge_windows."
-                        "monbus_err_window(), the top 4 KB of comp_sram)")
+                        "monbus_err_window(), the stream_err SRAM)")
     p.add_argument("--count", type=int, default=None,
                    help="Records to read (default: MON_ERR_REC_COUNT from the "
                         "DUT, by name; capped at the window's capacity)")

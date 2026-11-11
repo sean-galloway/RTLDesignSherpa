@@ -155,7 +155,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
             2: ('apb', 0x00000000, 0x00002000, 32),  # stream_apb
             3: ('axil', 0x00010000, 0x00001000, 32),  # harness_csr
             4: ('axi4', 0x00020000, 0x00010000, 256),  # desc_ram
-            5: ('axil', 0x00030000, 0x00001000, 32),  # stream_err
+            5: ('axil', 0x00030000, 0x00001000, 64),  # stream_err
             6: ('axil', 0x00040000, 0x00040000, 64),  # stream_tally
             7: ('axil', 0x00080000, 0x00001000, 32),  # dma_axil
             8: ('axil', 0x00090000, 0x00001000, 32),  # slave_err
@@ -173,7 +173,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
         self.connectivity = {
             0: {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, },  # host
             1: {4, },  # stream_desc
-            2: {6, 10, },  # monbus_wr
+            2: {5, 6, 10, },  # monbus_wr
             3: {9, 10, },  # slave_monbus_wr
         }
 
@@ -651,11 +651,11 @@ class BridgeStreamMonAxilMonTB(TBBase):
         # pattern; AXIL4SlaveRead/Write auto-responds from it honoring
         # whatever ARADDR / AWADDR the bridge forwards (after burst
         # decomposition by axi4_to_axil4 shims, if any).
-        bytes_per_line = 32 // 8
+        bytes_per_line = 64 // 8
         addr_range = 0x00001000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
         mem_bytes = min(addr_range, self.SLAVE_MEM_CAP_BYTES)
-        preset = self._build_preset(5, addr_range, 32)
+        preset = self._build_preset(5, addr_range, 64)
         self.slave_memory[5] = MemoryModel(
             num_lines=mem_bytes // bytes_per_line,
             bytes_per_line=bytes_per_line,
@@ -666,7 +666,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
             self.dut, self.clock,
             prefix="stream_err_axi_",
             log=self.log,
-            data_width=32,
+            data_width=64,
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[5],
@@ -676,7 +676,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
             self.dut, self.clock,
             prefix="stream_err_axi_",
             log=self.log,
-            data_width=32,
+            data_width=64,
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[5],

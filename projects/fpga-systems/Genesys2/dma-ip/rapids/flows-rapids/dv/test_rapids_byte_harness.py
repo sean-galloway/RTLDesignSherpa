@@ -203,6 +203,79 @@ async def cocotb_test_observer_moncap(dut):
 
 
 # ===========================================================================
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_err_window(dut):
+    """The monbus ERROR WINDOW has its own SRAM (2026-11-10). Completion packets
+    routed there by ERR_SELECT land in it and nowhere else: ERR_REC_CNT
+    advances, every counted slot reads back through ERRCAP_SEL/LO/HI as a
+    Completion record, and the trace capture (MON_CAPTURE=1) holds none.
+    Needs the in-core group and its emitters built: USE_AXI_MONITORS=1,
+    GEN_MON=1 (the pytest wrapper sets both)."""
+    tb = RapidsByteHarnessTB(dut)
+    if int(os.environ.get('TEST_USE_AXI_MONITORS', '0')) != 1 or \
+       int(os.environ.get('TEST_GEN_MON', '0')) != 1:
+        tb.log.info("ERR-WINDOW skipped: TEST_USE_AXI_MONITORS=1 TEST_GEN_MON=1 build only")
+        return
+
+    await tb.setup_clocks_and_reset()
+
+    from types import SimpleNamespace
+    from TBClasses.monbus.monbus_types import PktType
+    from byte_sequences import monbus_err_window, monbus_capture
+    COMPL = int(PktType.PktTypeCompletion)
+    shim = SimpleNamespace(io=tb.io)   # the sequences take the campaign's `s`; only s.io is used
+
+    def arm():
+        c = tb.campaign
+        # The group's core-protocol egress config is the SRC half's WRMON_*
+        # registers (rapids_top_base: cfg_core_* <- SRC.MON.WRMON_*): every
+        # class unmasked, nothing dropped, Completions routed to the error
+        # window. Both halves' schedulers emit their completion packets.
+        c.write_fields('src', 'WRMON_PKT_MASK', PKT_MASK=0x0000)
+        c.write_fields('src', 'WRMON_ERR_CFG', ERR_SELECT=1 << COMPL, ERR_MASK=0)
+        c.write_fields('src', 'WRMON_MASK1', TIMEOUT_MASK=0, COMPL_MASK=0)
+        for half in ('src', 'snk'):
+            c.write_fields(half, 'SCHED_CONFIG', SCHED_EN=1, COMPL_EN=1, ERR_EN=1)
+        if tb.io.csr_field("BUILD", "MON_CAPTURE"):
+            tb.io.csr_write_reg("MONCAP_CTRL", CLEAR=1)
+        return (tb.io.csr_read_reg("ERR_REC_CNT") & 0xFFFF,
+                tb.io.csr_read_reg("ERR_WIN_BASE"), tb.io.csr_read_reg("ERR_WIN_LIMIT"))
+
+    before, eb, el = await bridge(arm)()
+    # The window as the harness drives it (MON_LIMIT itself is write-only in
+    # the harness CSR block and reads 0, which is why these two registers exist).
+    assert eb != 0 and el == eb + 0xFFF, (
+        f"error window 0x{eb:08X}..0x{el:08X} is not a 4 KB window above the trace window")
+    tb.log.info(f"error window 0x{eb:08X}..0x{el:08X}, ERR_REC_CNT before = {before}")
+
+    active = list(range(tb.NUM_ACTIVE))
+    ok, stats = await tb.run_sink_selfcheck(active_channels=active, beats=tb.NUM_BEATS)
+    assert ok, f"SINK self-check failed: {stats.get('errors')}"
+
+    def readback():
+        pkts, landed, _b, _l = monbus_err_window(shim)
+        trace = monbus_capture(shim)[0] if tb.io.csr_field("BUILD", "MON_CAPTURE") else None
+        return pkts, landed, trace
+
+    pkts, landed, trace = await bridge(readback)()
+    new = (landed - before) & 0xFFFF
+    assert new > 0, (
+        "ERR_REC_CNT did not advance: no Completion reached the error window "
+        "(ERR_SELECT routing or the GEN_MON emitters)")
+    assert len(pkts) == min(landed, 170), (
+        f"ERR_REC_CNT says {landed} record(s), {len(pkts)} parsed from the error SRAM")
+    wrong = [p for p in pkts if p.packet_type != COMPL]
+    assert not wrong, (
+        f"{len(wrong)} non-Completion record(s) in the error window: "
+        + ", ".join(f"{p.get_protocol_name()}/{p.get_packet_type_name()}" for p in wrong[:6]))
+    if trace is not None:
+        leaked = [p for p in trace if p.packet_type == COMPL]
+        assert not leaked, f"{len(leaked)} Completion(s) also in the trace capture: the two routes must be exclusive"
+    tb.log.info(f"rapids_byte_harness ERR-WINDOW PASSED: {new} Completion record(s) landed, "
+                f"{len(pkts)} read back, trace holds {len(trace) if trace is not None else 'n/a'} other record(s)")
+
+
 # PYTEST WRAPPER
 # ===========================================================================
 
@@ -298,6 +371,10 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
         # the characterization bitstream; TEST_MON_CAPTURE=1 builds it.
         'MON_CAPTURE': int(os.environ.get('TEST_MON_CAPTURE', '0')),
         'GEN_MON': int(os.environ.get('TEST_GEN_MON', '0')),
+        # The in-core monbus group (egress, error window, IRQ) and the
+        # descriptor-AXI monitor. Default OUT, as on the characterization
+        # bitstream; TEST_USE_AXI_MONITORS=1 builds them (the error-window test).
+        'USE_AXI_MONITORS': int(os.environ.get('TEST_USE_AXI_MONITORS', '0')),
         # 1 = byte-wise checkers (every campaign); 0 = the word-wide flavour the
         # aligned performance build uses (BUILD.WORD_CRC = 1).
         'BYTE_CRC': int(os.environ.get('TEST_BYTE_CRC', '1')),
@@ -406,6 +483,27 @@ def test_rapids_byte_harness_perf(request):
 def test_rapids_byte_harness_source(request):
     """Multi-channel SOURCE self-check (m_axi_rd -> source -> m_axis per-channel CRC)."""
     _run_harness("cocotb_test_source_selfcheck", "test_rapids_byte_harness_source")
+
+
+@pytest.mark.rapids_byte_harness
+def test_rapids_byte_harness_err_window(request):
+    """2026-11-10: the monbus error window has its own SRAM. Built with the
+    in-core group and its emitters (USE_AXI_MONITORS=1, GEN_MON=1) and the trace
+    capture beside it (MON_CAPTURE=1), so the exclusivity of the two routes is
+    measured, not assumed."""
+    saved = {k: os.environ.get(k) for k in
+             ('TEST_USE_AXI_MONITORS', 'TEST_GEN_MON', 'TEST_MON_CAPTURE')}
+    os.environ['TEST_USE_AXI_MONITORS'] = '1'
+    os.environ['TEST_GEN_MON'] = '1'
+    os.environ['TEST_MON_CAPTURE'] = '1'
+    try:
+        _run_harness("cocotb_test_err_window", "test_rapids_byte_harness_err_window")
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
 
 @pytest.mark.rapids_byte_harness

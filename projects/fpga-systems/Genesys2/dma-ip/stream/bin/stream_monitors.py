@@ -164,12 +164,11 @@ def route_monbus(bridge, window: str) -> Tuple[int, int]:
     a short workload until the 1024-cycle flush timeout. Returns (base, limit).
 
     The ERROR window (ERR_SELECT-routed packets, write-only 1wr group) is
-    programmed alongside, always to comp_sram's top 4 KB: its RDL reset value
+    programmed alongside, always to the stream_err slave (its own 4 KB SRAM
+    since 2026-11-10; comp_sram's top 4 KB before that): its RDL reset value
     is a sim address that is dma_axil on this bridge. Watermark 3 beats = one
     whole record per write.
     """
-    # comp_sram minus its top 4 KB: that is the error window (below), and the
-    # two must not overlap
     base, limit = monbus_capture_window() if window == _CAPTURE_SLAVE else W(window)
     write_reg(bridge, "MON_GROUP_BASE_ADDR", VALUE=base)
     write_reg(bridge, "MON_GROUP_LIMIT_ADDR", VALUE=limit)

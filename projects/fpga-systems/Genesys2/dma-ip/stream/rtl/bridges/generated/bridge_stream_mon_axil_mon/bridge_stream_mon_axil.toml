@@ -16,9 +16,9 @@
 #   stream_apb    0x0000_0000  8 KB    APB    STREAM config regs
 #   harness_csr   0x0001_0000  4 KB    AXIL   timer / delay / kick / status / tally ctrl
 #   desc_ram      0x0002_0000  64 KB   AXIL   descriptor preload BRAM
-#   stream_err    0x0003_0000  4 KB    AXIL   RESERVED (SLVERR in the harness; the
-#                                            1wr group writes error records into
-#                                            comp_sram's top 4 KB instead)
+#   stream_err    0x0003_0000  4 KB    AXIL   the in-core group's ERROR-WINDOW
+#                                            SRAM (64-bit; monbus_wr writes the
+#                                            error records, host reads them)
 #   stream_tally  0x0004_0000  256 KB  AXIL   STREAM tally SRAM  (ends 0x7_FFFF)
 #   dma_axil      0x0008_0000  4 KB    AXIL   DMA s_axi_lite config
 #   slave_err     0x0009_0000  4 KB    AXIL   dma-monitor group err/IRQ read
@@ -150,10 +150,15 @@ user_width  = 0
 base_addr   = "0x00020000"
 addr_range  = "0x00010000"     # 64 KB
 
-# RESERVED. Was the in-core group's AXIL error-FIFO read port; stream_top_ch8
-# now carries monbus_axil4_group_1wr (write-only: error records go to the
-# MON_GROUP_ERR_* window in comp_sram). The slot stays so the map and the
-# generated xbar are untouched; stream_harness answers SLVERR on it.
+# The in-core group's ERROR-WINDOW SRAM (sdpram_slave_axil_axil, 4 KB = 170
+# records of 24 B). Was the group's AXIL error-FIFO read port until 2026-10-25
+# (stream TASK-019: monbus_axil4_group_1wr is write-only), then RESERVED with
+# the error records carved out of comp_sram's top 4 KB. Since 2026-11-10 the
+# error records have their own memory here: monbus_wr writes them (its
+# connectivity row gains this slave), the host reads them back by name
+# (bridge_windows.monbus_err_window() == W("stream_err")), and comp_sram is
+# the trace window entire. 64-bit like comp_sram: the group writes whole
+# 64-bit beats and the host's 32-bit reads are adapted by the bridge.
 [[bridge.slaves]]
 name        = "stream_err"
 prefix      = "stream_err_axi_"
@@ -161,7 +166,7 @@ protocol    = "axil"
 channels    = "rw"
 id_width    = 8
 addr_width  = 32
-data_width  = 32
+data_width  = 64
 user_width  = 0
 base_addr   = "0x00030000"
 addr_range  = "0x00001000"     # 4 KB

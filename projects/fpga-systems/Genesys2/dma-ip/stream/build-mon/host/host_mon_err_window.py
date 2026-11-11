@@ -6,7 +6,7 @@
 The CLI half only. The program is bin/mon_err_window.py, which the cosim
 (test_stream_mon_err_window) runs over its UART channel with the same code:
 Completions routed to the error window, MON_ERR_REC_COUNT against the records
-read back out of comp_sram's top 4 KB.
+read back out of the stream_err SRAM (bridge_windows.monbus_err_window()).
 
     source env_python
     python3 host/host_mon_err_window.py                       # 4 desc x 16 KB

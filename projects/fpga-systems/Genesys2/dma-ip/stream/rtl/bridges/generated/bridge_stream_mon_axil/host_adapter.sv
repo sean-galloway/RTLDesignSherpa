@@ -492,25 +492,25 @@ module bridge_stream_mon_axil_host_adapter
     logic aw_gate_ok;
     logic ar_gate_ok;
     logic aw_path_active_32b;
-    assign aw_path_active_32b = (comb_slave_select_aw[0] | comb_slave_select_aw[1] | comb_slave_select_aw[2] | comb_slave_select_aw[3] | comb_slave_select_aw[5] | comb_slave_select_aw[7] | comb_slave_select_aw[8]) && aw_gate_ok;
+    assign aw_path_active_32b = (comb_slave_select_aw[0] | comb_slave_select_aw[1] | comb_slave_select_aw[2] | comb_slave_select_aw[3] | comb_slave_select_aw[7] | comb_slave_select_aw[8]) && aw_gate_ok;
     logic w_path_active_32b;
-    assign w_path_active_32b = w_slave_select[0] | w_slave_select[1] | w_slave_select[2] | w_slave_select[3] | w_slave_select[5] | w_slave_select[7] | w_slave_select[8];
+    assign w_path_active_32b = w_slave_select[0] | w_slave_select[1] | w_slave_select[2] | w_slave_select[3] | w_slave_select[7] | w_slave_select[8];
     logic ar_path_active_32b;
-    assign ar_path_active_32b = (comb_slave_select_ar[0] | comb_slave_select_ar[1] | comb_slave_select_ar[2] | comb_slave_select_ar[3] | comb_slave_select_ar[5] | comb_slave_select_ar[7] | comb_slave_select_ar[8]) && ar_gate_ok;
+    assign ar_path_active_32b = (comb_slave_select_ar[0] | comb_slave_select_ar[1] | comb_slave_select_ar[2] | comb_slave_select_ar[3] | comb_slave_select_ar[7] | comb_slave_select_ar[8]) && ar_gate_ok;
     logic b_path_active_32b;
-    assign b_path_active_32b = b_slave_select[0] | b_slave_select[1] | b_slave_select[2] | b_slave_select[3] | b_slave_select[5] | b_slave_select[7] | b_slave_select[8];
+    assign b_path_active_32b = b_slave_select[0] | b_slave_select[1] | b_slave_select[2] | b_slave_select[3] | b_slave_select[7] | b_slave_select[8];
     logic r_path_active_32b;
-    assign r_path_active_32b = r_slave_select[0] | r_slave_select[1] | r_slave_select[2] | r_slave_select[3] | r_slave_select[5] | r_slave_select[7] | r_slave_select[8];
+    assign r_path_active_32b = r_slave_select[0] | r_slave_select[1] | r_slave_select[2] | r_slave_select[3] | r_slave_select[7] | r_slave_select[8];
     logic aw_path_active_64b;
-    assign aw_path_active_64b = (comb_slave_select_aw[6] | comb_slave_select_aw[9] | comb_slave_select_aw[10] | comb_slave_select_aw[11] | comb_slave_select_aw[12]) && aw_gate_ok;
+    assign aw_path_active_64b = (comb_slave_select_aw[5] | comb_slave_select_aw[6] | comb_slave_select_aw[9] | comb_slave_select_aw[10] | comb_slave_select_aw[11] | comb_slave_select_aw[12]) && aw_gate_ok;
     logic w_path_active_64b;
-    assign w_path_active_64b = w_slave_select[6] | w_slave_select[9] | w_slave_select[10] | w_slave_select[11] | w_slave_select[12];
+    assign w_path_active_64b = w_slave_select[5] | w_slave_select[6] | w_slave_select[9] | w_slave_select[10] | w_slave_select[11] | w_slave_select[12];
     logic ar_path_active_64b;
-    assign ar_path_active_64b = (comb_slave_select_ar[6] | comb_slave_select_ar[9] | comb_slave_select_ar[10] | comb_slave_select_ar[11] | comb_slave_select_ar[12]) && ar_gate_ok;
+    assign ar_path_active_64b = (comb_slave_select_ar[5] | comb_slave_select_ar[6] | comb_slave_select_ar[9] | comb_slave_select_ar[10] | comb_slave_select_ar[11] | comb_slave_select_ar[12]) && ar_gate_ok;
     logic b_path_active_64b;
-    assign b_path_active_64b = b_slave_select[6] | b_slave_select[9] | b_slave_select[10] | b_slave_select[11] | b_slave_select[12];
+    assign b_path_active_64b = b_slave_select[5] | b_slave_select[6] | b_slave_select[9] | b_slave_select[10] | b_slave_select[11] | b_slave_select[12];
     logic r_path_active_64b;
-    assign r_path_active_64b = r_slave_select[6] | r_slave_select[9] | r_slave_select[10] | r_slave_select[11] | r_slave_select[12];
+    assign r_path_active_64b = r_slave_select[5] | r_slave_select[6] | r_slave_select[9] | r_slave_select[10] | r_slave_select[11] | r_slave_select[12];
     logic aw_path_active_256b;
     assign aw_path_active_256b = (comb_slave_select_aw[4] | comb_slave_select_aw[13]) && aw_gate_ok;
     logic w_path_active_256b;
@@ -980,7 +980,7 @@ module bridge_stream_mon_axil_host_adapter
     )
 
     assign b_slave_select = ({NUM_SLAVES{b_pgnt[0]}} & 14'b00000000000001)
-                          | ({NUM_SLAVES{b_pgnt[1]}} & 14'b00000001000000)
+                          | ({NUM_SLAVES{b_pgnt[1]}} & 14'b00000000100000)
                           | ({NUM_SLAVES{b_pgnt[2]}} & 14'b00000000010000);
 
     // -------- AW->W slave_select tracking FIFO --------
@@ -1154,7 +1154,7 @@ module bridge_stream_mon_axil_host_adapter
     )
 
     assign r_slave_select = ({NUM_SLAVES{r_pgnt[0]}} & 14'b00000000000001)
-                          | ({NUM_SLAVES{r_pgnt[1]}} & 14'b00000001000000)
+                          | ({NUM_SLAVES{r_pgnt[1]}} & 14'b00000000100000)
                           | ({NUM_SLAVES{r_pgnt[2]}} & 14'b00000000010000);
 
     // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)
@@ -1173,14 +1173,14 @@ module bridge_stream_mon_axil_host_adapter
             14'b00000000001000: begin  // Slave 3 (32b)
                 fub_axi_awready = host_32b_awready;
             end
-            14'b00000000100000: begin  // Slave 5 (32b)
-                fub_axi_awready = host_32b_awready;
-            end
             14'b00000010000000: begin  // Slave 7 (32b)
                 fub_axi_awready = host_32b_awready;
             end
             14'b00000100000000: begin  // Slave 8 (32b)
                 fub_axi_awready = host_32b_awready;
+            end
+            14'b00000000100000: begin  // Slave 5 (64b)
+                fub_axi_awready = conv_64b_awready;
             end
             14'b00000001000000: begin  // Slave 6 (64b)
                 fub_axi_awready = conv_64b_awready;
@@ -1227,14 +1227,14 @@ module bridge_stream_mon_axil_host_adapter
             14'b00000000001000: begin  // Slave 3 (32b)
                 fub_axi_wready = host_32b_wready;
             end
-            14'b00000000100000: begin  // Slave 5 (32b)
-                fub_axi_wready = host_32b_wready;
-            end
             14'b00000010000000: begin  // Slave 7 (32b)
                 fub_axi_wready = host_32b_wready;
             end
             14'b00000100000000: begin  // Slave 8 (32b)
                 fub_axi_wready = host_32b_wready;
+            end
+            14'b00000000100000: begin  // Slave 5 (64b)
+                fub_axi_wready = conv_64b_wready;
             end
             14'b00000001000000: begin  // Slave 6 (64b)
                 fub_axi_wready = conv_64b_wready;
@@ -1290,11 +1290,6 @@ module bridge_stream_mon_axil_host_adapter
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
-            14'b00000000100000: begin  // Slave 5 (32b)
-                fub_axi_bid = host_32b_b.id[3:0];
-                fub_axi_bresp = host_32b_b.resp;
-                fub_axi_bvalid = host_32b_bvalid;
-            end
             14'b00000010000000: begin  // Slave 7 (32b)
                 fub_axi_bid = host_32b_b.id[3:0];
                 fub_axi_bresp = host_32b_b.resp;
@@ -1304,6 +1299,11 @@ module bridge_stream_mon_axil_host_adapter
                 fub_axi_bid = host_32b_b.id[3:0];
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
+            end
+            14'b00000000100000: begin  // Slave 5 (64b)
+                fub_axi_bid = conv_64b_bid[3:0];
+                fub_axi_bresp = conv_64b_bresp;
+                fub_axi_bvalid = conv_64b_bvalid;
             end
             14'b00000001000000: begin  // Slave 6 (64b)
                 fub_axi_bid = conv_64b_bid[3:0];
@@ -1362,14 +1362,14 @@ module bridge_stream_mon_axil_host_adapter
             14'b00000000001000: begin  // Slave 3 (32b)
                 fub_axi_arready = host_32b_arready;
             end
-            14'b00000000100000: begin  // Slave 5 (32b)
-                fub_axi_arready = host_32b_arready;
-            end
             14'b00000010000000: begin  // Slave 7 (32b)
                 fub_axi_arready = host_32b_arready;
             end
             14'b00000100000000: begin  // Slave 8 (32b)
                 fub_axi_arready = host_32b_arready;
+            end
+            14'b00000000100000: begin  // Slave 5 (64b)
+                fub_axi_arready = conv_64b_arready;
             end
             14'b00000001000000: begin  // Slave 6 (64b)
                 fub_axi_arready = conv_64b_arready;
@@ -1437,13 +1437,6 @@ module bridge_stream_mon_axil_host_adapter
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
-            14'b00000000100000: begin  // Slave 5 (32b)
-                fub_axi_rid = host_32b_r.id[3:0];
-                fub_axi_rdata = host_32b_r.data;
-                fub_axi_rresp = host_32b_r.resp;
-                fub_axi_rlast = host_32b_r.last;
-                fub_axi_rvalid = host_32b_rvalid;
-            end
             14'b00000010000000: begin  // Slave 7 (32b)
                 fub_axi_rid = host_32b_r.id[3:0];
                 fub_axi_rdata = host_32b_r.data;
@@ -1457,6 +1450,13 @@ module bridge_stream_mon_axil_host_adapter
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
+            end
+            14'b00000000100000: begin  // Slave 5 (64b)
+                fub_axi_rid = conv_64b_rid[3:0];
+                fub_axi_rdata = conv_64b_rdata;
+                fub_axi_rresp = conv_64b_rresp;
+                fub_axi_rlast = conv_64b_rlast;
+                fub_axi_rvalid = conv_64b_rvalid;
             end
             14'b00000001000000: begin  // Slave 6 (64b)
                 fub_axi_rid = conv_64b_rid[3:0];

@@ -44,6 +44,7 @@
 | 1.3 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 1.4 | 2026-10-24 | Chapter 5, STREAM against stream-g on this board (stream TASK-020): the `STREAM_G` / `FW_WRITABLE` build, Figure 5.1 (the stream-g DUT's register path and sequencing in the harness), the two bitstreams' area and timing, the A/B method (Figure 5.2: one tree, one host program, the gcompare / gscale / gscale1 point profiles on the board and in simulation), every measured table, the first dead stream-g bitstream and the undriven-net scan it added to `make bitstream`, and the ILA build. Chapter 3 gains the stream-g build row and the `STREAM_G`, `FW_WRITABLE`, `STREAM_CHAR_ILA`, `STREAM_SHARED_ENGINES` and clock knobs; Figures 2.1 and 3.1 name the second DUT. |
 | 1.5 | 2026-10-25 | STREAM's monitor egress is `monbus_axil4_group_1wr` (stream TASK-019): the `stream_err` bridge slot is reserved (SLVERR), error records land in the top 4 KB of `comp_sram` (Section 2.2 address map, Section 2.1 capture), read back by `dump_monbus.py`. |
+| 1.6 | 2026-11-10 | The error window has its own memory: the `stream_err` slot is a 64-bit 4 KB SRAM written by `monbus_wr` and read by the host, `comp_sram` is the trace window entire (Sections 2.1 and 2.2). Host tools and tests resolve both windows by name from the bridge config. |
 
 : Table 0.2: Revision history
 

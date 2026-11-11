@@ -4,9 +4,10 @@
 
 STREAM's monitor egress is monbus_axil4_group_1wr (stream TASK-019): packets
 whose type is selected by <MON>_ERR_CFG.ERR_SELECT are written as raw 24-byte
-records into the error window (MON_GROUP_ERR_BASE/LIMIT_ADDR: the top 4 KB of
-comp_sram on this bridge), one stream_irq pulse and one MON_ERR_REC_COUNT step
-per record landed. Nothing drains a FIFO any more; the host reads memory.
+records into the error window (MON_GROUP_ERR_BASE/LIMIT_ADDR: the stream_err
+slave, a 4 KB SRAM of its own on this bridge since 2026-11-10), one stream_irq
+pulse and one MON_ERR_REC_COUNT step per record landed. Nothing drains a FIFO
+any more; the host reads memory.
 
 This routes COMPLETION packets (type 1) from the datapath monitors to the error
 window, runs a monitors-on DMA through the board's own program

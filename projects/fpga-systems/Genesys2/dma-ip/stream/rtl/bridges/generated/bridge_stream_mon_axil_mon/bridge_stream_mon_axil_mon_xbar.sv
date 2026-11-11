@@ -443,8 +443,8 @@ module bridge_stream_mon_axil_mon_xbar
     output  logic         stream_err_axi_awvalid,
     input  logic         stream_err_axi_awready,
 
-    output  logic [31:0]  stream_err_axi_wdata,
-    output  logic [3:0]  stream_err_axi_wstrb,
+    output  logic [63:0]  stream_err_axi_wdata,
+    output  logic [7:0]  stream_err_axi_wstrb,
     output  logic         stream_err_axi_wlast,
     output  logic         stream_err_axi_wuser,
     output  logic         stream_err_axi_wvalid,
@@ -471,7 +471,7 @@ module bridge_stream_mon_axil_mon_xbar
     input  logic         stream_err_axi_arready,
 
     input  logic [5:0]  stream_err_axi_rid,
-    input  logic [31:0]  stream_err_axi_rdata,
+    input  logic [63:0]  stream_err_axi_rdata,
     input  logic [1:0]  stream_err_axi_rresp,
     input  logic         stream_err_axi_rlast,
     input  logic         stream_err_axi_ruser,
@@ -957,13 +957,13 @@ module bridge_stream_mon_axil_mon_xbar
     logic host_32b_w_sel_stream_apb;
     logic host_32b_w_to_harness_csr;
     logic host_32b_w_sel_harness_csr;
-    logic host_32b_w_to_stream_err;
-    logic host_32b_w_sel_stream_err;
     logic host_32b_w_to_dma_axil;
     logic host_32b_w_sel_dma_axil;
     logic host_32b_w_to_slave_err;
     logic host_32b_w_sel_slave_err;
     logic host_64b_wdest_full;
+    logic host_64b_w_to_stream_err;
+    logic host_64b_w_sel_stream_err;
     logic host_64b_w_to_stream_tally;
     logic host_64b_w_sel_stream_tally;
     logic host_64b_w_to_slave_tally;
@@ -980,6 +980,8 @@ module bridge_stream_mon_axil_mon_xbar
     logic host_256b_w_to_subtractive;
     logic host_256b_w_sel_subtractive;
     logic monbus_wr_64b_wdest_full;
+    logic monbus_wr_64b_w_to_stream_err;
+    logic monbus_wr_64b_w_sel_stream_err;
     logic monbus_wr_64b_w_to_stream_tally;
     logic monbus_wr_64b_w_sel_stream_tally;
     logic monbus_wr_64b_w_to_comp_sram;
@@ -999,6 +1001,10 @@ module bridge_stream_mon_axil_mon_xbar
     // Request slots of the arbitrated slaves (assigned below)
     axi4_aw_t host_256b_aw_slot_desc_ram;
     logic host_256b_aw_slot_desc_ram_valid, host_256b_aw_slot_desc_ram_ready, host_256b_aw_slot_desc_ram_in_valid, host_256b_aw_slot_desc_ram_in_ready;
+    axi4_aw_t host_64b_aw_slot_stream_err;
+    logic host_64b_aw_slot_stream_err_valid, host_64b_aw_slot_stream_err_ready, host_64b_aw_slot_stream_err_in_valid, host_64b_aw_slot_stream_err_in_ready;
+    axi4_aw_t monbus_wr_64b_aw_slot_stream_err;
+    logic monbus_wr_64b_aw_slot_stream_err_valid, monbus_wr_64b_aw_slot_stream_err_ready, monbus_wr_64b_aw_slot_stream_err_in_valid, monbus_wr_64b_aw_slot_stream_err_in_ready;
     axi4_aw_t host_64b_aw_slot_stream_tally;
     logic host_64b_aw_slot_stream_tally_valid, host_64b_aw_slot_stream_tally_ready, host_64b_aw_slot_stream_tally_in_valid, host_64b_aw_slot_stream_tally_in_ready;
     axi4_aw_t monbus_wr_64b_aw_slot_stream_tally;
@@ -1023,6 +1029,8 @@ module bridge_stream_mon_axil_mon_xbar
     logic host_256b_ar_slot_desc_ram_valid, host_256b_ar_slot_desc_ram_ready, host_256b_ar_slot_desc_ram_in_valid, host_256b_ar_slot_desc_ram_in_ready;
     axi4_ar_t stream_desc_256b_ar_slot_desc_ram;
     logic stream_desc_256b_ar_slot_desc_ram_valid, stream_desc_256b_ar_slot_desc_ram_ready, stream_desc_256b_ar_slot_desc_ram_in_valid, stream_desc_256b_ar_slot_desc_ram_in_ready;
+    axi4_ar_t host_64b_ar_slot_stream_err;
+    logic host_64b_ar_slot_stream_err_valid, host_64b_ar_slot_stream_err_ready, host_64b_ar_slot_stream_err_in_valid, host_64b_ar_slot_stream_err_in_ready;
     axi4_ar_t host_64b_ar_slot_stream_tally;
     logic host_64b_ar_slot_stream_tally_valid, host_64b_ar_slot_stream_tally_ready, host_64b_ar_slot_stream_tally_in_valid, host_64b_ar_slot_stream_tally_in_ready;
     axi4_ar_t host_64b_ar_slot_slave_tally;
@@ -1035,23 +1043,24 @@ module bridge_stream_mon_axil_mon_xbar
     logic stream_desc_256b_ar_slot_subtractive_valid, stream_desc_256b_ar_slot_subtractive_ready, stream_desc_256b_ar_slot_subtractive_in_valid, stream_desc_256b_ar_slot_subtractive_in_ready;
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
-    wire host_32b_aw_hold_obs_apb = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_32b_aw_hold_slvmon_apb = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_32b_aw_hold_stream_apb = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_32b_aw_hold_harness_csr = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_32b_aw_hold_stream_err = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_32b_aw_hold_dma_axil = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_32b_aw_hold_slave_err = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_64b_aw_hold_stream_tally = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_64b_aw_hold_slave_tally = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_64b_aw_hold_comp_sram = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_64b_aw_hold_stream_tally_cfg = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_64b_aw_hold_slave_tally_cfg = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_256b_aw_hold_desc_ram = host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
-    wire host_256b_aw_hold_subtractive = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid;
-    wire monbus_wr_64b_aw_hold_stream_tally = monbus_wr_64b_aw_slot_comp_sram_valid || monbus_wr_256b_aw_slot_subtractive_valid;
-    wire monbus_wr_64b_aw_hold_comp_sram = monbus_wr_64b_aw_slot_stream_tally_valid || monbus_wr_256b_aw_slot_subtractive_valid;
-    wire monbus_wr_256b_aw_hold_subtractive = monbus_wr_64b_aw_slot_stream_tally_valid || monbus_wr_64b_aw_slot_comp_sram_valid;
+    wire host_32b_aw_hold_obs_apb = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_32b_aw_hold_slvmon_apb = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_32b_aw_hold_stream_apb = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_32b_aw_hold_harness_csr = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_32b_aw_hold_dma_axil = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_32b_aw_hold_slave_err = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_64b_aw_hold_stream_err = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_64b_aw_hold_stream_tally = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_64b_aw_hold_slave_tally = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_64b_aw_hold_comp_sram = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_64b_aw_hold_stream_tally_cfg = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_64b_aw_hold_slave_tally_cfg = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_256b_aw_hold_desc_ram = host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid || host_256b_aw_slot_subtractive_valid;
+    wire host_256b_aw_hold_subtractive = host_256b_aw_slot_desc_ram_valid || host_64b_aw_slot_stream_err_valid || host_64b_aw_slot_stream_tally_valid || host_64b_aw_slot_slave_tally_valid || host_64b_aw_slot_comp_sram_valid;
+    wire monbus_wr_64b_aw_hold_stream_err = monbus_wr_64b_aw_slot_stream_tally_valid || monbus_wr_64b_aw_slot_comp_sram_valid || monbus_wr_256b_aw_slot_subtractive_valid;
+    wire monbus_wr_64b_aw_hold_stream_tally = monbus_wr_64b_aw_slot_stream_err_valid || monbus_wr_64b_aw_slot_comp_sram_valid || monbus_wr_256b_aw_slot_subtractive_valid;
+    wire monbus_wr_64b_aw_hold_comp_sram = monbus_wr_64b_aw_slot_stream_err_valid || monbus_wr_64b_aw_slot_stream_tally_valid || monbus_wr_256b_aw_slot_subtractive_valid;
+    wire monbus_wr_256b_aw_hold_subtractive = monbus_wr_64b_aw_slot_stream_err_valid || monbus_wr_64b_aw_slot_stream_tally_valid || monbus_wr_64b_aw_slot_comp_sram_valid;
     wire slave_monbus_wr_64b_aw_hold_slave_tally = slave_monbus_wr_64b_aw_slot_comp_sram_valid || slave_monbus_wr_256b_aw_slot_subtractive_valid;
     wire slave_monbus_wr_64b_aw_hold_comp_sram = slave_monbus_wr_64b_aw_slot_slave_tally_valid || slave_monbus_wr_256b_aw_slot_subtractive_valid;
     wire slave_monbus_wr_256b_aw_hold_subtractive = slave_monbus_wr_64b_aw_slot_slave_tally_valid || slave_monbus_wr_64b_aw_slot_comp_sram_valid;
@@ -1061,27 +1070,25 @@ module bridge_stream_mon_axil_mon_xbar
     // ================================================================
 
     // ---- B response arbiter, master host 32b: round-robin per beat, lock until taken ----
-    logic [6:0] host_32b_b_rarb_req;
-    assign host_32b_b_rarb_req = {((slave_err_axi_bid_bridge_id == 0) && slave_err_axi_bid_valid) && slave_err_axi_bvalid, ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid) && dma_axil_axi_bvalid, ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid) && stream_err_axi_bvalid, ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) && harness_csr_axi_bvalid, ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid) && stream_apb_axi_bvalid, ((slvmon_apb_axi_bid_bridge_id == 0) && slvmon_apb_axi_bid_valid) && slvmon_apb_axi_bvalid, ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid) && obs_apb_axi_bvalid};
+    logic [5:0] host_32b_b_rarb_req;
+    assign host_32b_b_rarb_req = {((slave_err_axi_bid_bridge_id == 0) && slave_err_axi_bid_valid) && slave_err_axi_bvalid, ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid) && dma_axil_axi_bvalid, ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) && harness_csr_axi_bvalid, ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid) && stream_apb_axi_bvalid, ((slvmon_apb_axi_bid_bridge_id == 0) && slvmon_apb_axi_bid_valid) && slvmon_apb_axi_bvalid, ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid) && obs_apb_axi_bvalid};
     logic [2:0] host_32b_b_rarb_lock, host_32b_b_rarb_rr;
     logic host_32b_b_rarb_locked;
-    wire [2:0] host_32b_b_rarb_pick = (host_32b_b_rarb_rr == 3'd0) ? (host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : 3'd6) : 
-        (host_32b_b_rarb_rr == 3'd1) ? (host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : 3'd0) : 
-        (host_32b_b_rarb_rr == 3'd2) ? (host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : 3'd1) : 
-        (host_32b_b_rarb_rr == 3'd3) ? (host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : 3'd2) : 
-        (host_32b_b_rarb_rr == 3'd4) ? (host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : 3'd3) : 
-        (host_32b_b_rarb_rr == 3'd5) ? (host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : 3'd4) : 
-        host_32b_b_rarb_req[6] ? 3'd6 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : 3'd5;
+    wire [2:0] host_32b_b_rarb_pick = (host_32b_b_rarb_rr == 3'd0) ? (host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : 3'd5) : 
+        (host_32b_b_rarb_rr == 3'd1) ? (host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : 3'd0) : 
+        (host_32b_b_rarb_rr == 3'd2) ? (host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[0] ? 3'd0 : 3'd1) : 
+        (host_32b_b_rarb_rr == 3'd3) ? (host_32b_b_rarb_req[3] ? 3'd3 : host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : 3'd2) : 
+        (host_32b_b_rarb_rr == 3'd4) ? (host_32b_b_rarb_req[4] ? 3'd4 : host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : 3'd3) : 
+        host_32b_b_rarb_req[5] ? 3'd5 : host_32b_b_rarb_req[0] ? 3'd0 : host_32b_b_rarb_req[1] ? 3'd1 : host_32b_b_rarb_req[2] ? 3'd2 : host_32b_b_rarb_req[3] ? 3'd3 : 3'd4;
     wire [2:0] host_32b_b_rarb_gnt = host_32b_b_rarb_locked ? host_32b_b_rarb_lock : host_32b_b_rarb_pick;
     wire host_32b_b_rarb_gnt_valid = host_32b_b_rarb_locked || (|host_32b_b_rarb_req);
     wire host_32b_b_rgnt_obs_apb = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd0);
     wire host_32b_b_rgnt_slvmon_apb = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd1);
     wire host_32b_b_rgnt_stream_apb = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd2);
     wire host_32b_b_rgnt_harness_csr = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd3);
-    wire host_32b_b_rgnt_stream_err = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd4);
-    wire host_32b_b_rgnt_dma_axil = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd5);
-    wire host_32b_b_rgnt_slave_err = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd6);
-    wire host_32b_b_rarb_vld = (host_32b_b_rgnt_obs_apb && host_32b_b_rarb_req[0]) || (host_32b_b_rgnt_slvmon_apb && host_32b_b_rarb_req[1]) || (host_32b_b_rgnt_stream_apb && host_32b_b_rarb_req[2]) || (host_32b_b_rgnt_harness_csr && host_32b_b_rarb_req[3]) || (host_32b_b_rgnt_stream_err && host_32b_b_rarb_req[4]) || (host_32b_b_rgnt_dma_axil && host_32b_b_rarb_req[5]) || (host_32b_b_rgnt_slave_err && host_32b_b_rarb_req[6]);
+    wire host_32b_b_rgnt_dma_axil = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd4);
+    wire host_32b_b_rgnt_slave_err = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 3'd5);
+    wire host_32b_b_rarb_vld = (host_32b_b_rgnt_obs_apb && host_32b_b_rarb_req[0]) || (host_32b_b_rgnt_slvmon_apb && host_32b_b_rarb_req[1]) || (host_32b_b_rgnt_stream_apb && host_32b_b_rarb_req[2]) || (host_32b_b_rgnt_harness_csr && host_32b_b_rarb_req[3]) || (host_32b_b_rgnt_dma_axil && host_32b_b_rarb_req[4]) || (host_32b_b_rgnt_slave_err && host_32b_b_rarb_req[5]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_32b_b_rarb_lock   <= '0;
@@ -1089,7 +1096,7 @@ module bridge_stream_mon_axil_mon_xbar
             host_32b_b_rarb_locked <= 1'b0;
         end else if (host_32b_b_rarb_vld && host_32b_bready) begin
             host_32b_b_rarb_locked <= 1'b0;
-            host_32b_b_rarb_rr <= (host_32b_b_rarb_gnt == 3'd6) ? 3'd0 : host_32b_b_rarb_gnt + 1'b1;
+            host_32b_b_rarb_rr <= (host_32b_b_rarb_gnt == 3'd5) ? 3'd0 : host_32b_b_rarb_gnt + 1'b1;
         end else if (host_32b_b_rarb_vld) begin
             host_32b_b_rarb_lock   <= host_32b_b_rarb_gnt;       // offered, not taken: hold
             host_32b_b_rarb_locked <= 1'b1;
@@ -1097,27 +1104,25 @@ module bridge_stream_mon_axil_mon_xbar
     )
 
     // ---- R response arbiter, master host 32b: round-robin per beat, lock until taken ----
-    logic [6:0] host_32b_r_rarb_req;
-    assign host_32b_r_rarb_req = {((slave_err_axi_rid_bridge_id == 0) && slave_err_axi_rid_valid) && slave_err_axi_rvalid, ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid) && dma_axil_axi_rvalid, ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid) && stream_err_axi_rvalid, ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) && harness_csr_axi_rvalid, ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid) && stream_apb_axi_rvalid, ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid) && slvmon_apb_axi_rvalid, ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid) && obs_apb_axi_rvalid};
+    logic [5:0] host_32b_r_rarb_req;
+    assign host_32b_r_rarb_req = {((slave_err_axi_rid_bridge_id == 0) && slave_err_axi_rid_valid) && slave_err_axi_rvalid, ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid) && dma_axil_axi_rvalid, ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) && harness_csr_axi_rvalid, ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid) && stream_apb_axi_rvalid, ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid) && slvmon_apb_axi_rvalid, ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid) && obs_apb_axi_rvalid};
     logic [2:0] host_32b_r_rarb_lock, host_32b_r_rarb_rr;
     logic host_32b_r_rarb_locked;
-    wire [2:0] host_32b_r_rarb_pick = (host_32b_r_rarb_rr == 3'd0) ? (host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : 3'd6) : 
-        (host_32b_r_rarb_rr == 3'd1) ? (host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : 3'd0) : 
-        (host_32b_r_rarb_rr == 3'd2) ? (host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : 3'd1) : 
-        (host_32b_r_rarb_rr == 3'd3) ? (host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : 3'd2) : 
-        (host_32b_r_rarb_rr == 3'd4) ? (host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : 3'd3) : 
-        (host_32b_r_rarb_rr == 3'd5) ? (host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : 3'd4) : 
-        host_32b_r_rarb_req[6] ? 3'd6 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : 3'd5;
+    wire [2:0] host_32b_r_rarb_pick = (host_32b_r_rarb_rr == 3'd0) ? (host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : 3'd5) : 
+        (host_32b_r_rarb_rr == 3'd1) ? (host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : 3'd0) : 
+        (host_32b_r_rarb_rr == 3'd2) ? (host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[0] ? 3'd0 : 3'd1) : 
+        (host_32b_r_rarb_rr == 3'd3) ? (host_32b_r_rarb_req[3] ? 3'd3 : host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : 3'd2) : 
+        (host_32b_r_rarb_rr == 3'd4) ? (host_32b_r_rarb_req[4] ? 3'd4 : host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : 3'd3) : 
+        host_32b_r_rarb_req[5] ? 3'd5 : host_32b_r_rarb_req[0] ? 3'd0 : host_32b_r_rarb_req[1] ? 3'd1 : host_32b_r_rarb_req[2] ? 3'd2 : host_32b_r_rarb_req[3] ? 3'd3 : 3'd4;
     wire [2:0] host_32b_r_rarb_gnt = host_32b_r_rarb_locked ? host_32b_r_rarb_lock : host_32b_r_rarb_pick;
     wire host_32b_r_rarb_gnt_valid = host_32b_r_rarb_locked || (|host_32b_r_rarb_req);
     wire host_32b_r_rgnt_obs_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd0);
     wire host_32b_r_rgnt_slvmon_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd1);
     wire host_32b_r_rgnt_stream_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd2);
     wire host_32b_r_rgnt_harness_csr = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd3);
-    wire host_32b_r_rgnt_stream_err = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd4);
-    wire host_32b_r_rgnt_dma_axil = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd5);
-    wire host_32b_r_rgnt_slave_err = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd6);
-    wire host_32b_r_rarb_vld = (host_32b_r_rgnt_obs_apb && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_slvmon_apb && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_stream_apb && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_harness_csr && host_32b_r_rarb_req[3]) || (host_32b_r_rgnt_stream_err && host_32b_r_rarb_req[4]) || (host_32b_r_rgnt_dma_axil && host_32b_r_rarb_req[5]) || (host_32b_r_rgnt_slave_err && host_32b_r_rarb_req[6]);
+    wire host_32b_r_rgnt_dma_axil = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd4);
+    wire host_32b_r_rgnt_slave_err = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd5);
+    wire host_32b_r_rarb_vld = (host_32b_r_rgnt_obs_apb && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_slvmon_apb && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_stream_apb && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_harness_csr && host_32b_r_rarb_req[3]) || (host_32b_r_rgnt_dma_axil && host_32b_r_rarb_req[4]) || (host_32b_r_rgnt_slave_err && host_32b_r_rarb_req[5]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_32b_r_rarb_lock   <= '0;
@@ -1125,7 +1130,7 @@ module bridge_stream_mon_axil_mon_xbar
             host_32b_r_rarb_locked <= 1'b0;
         end else if (host_32b_r_rarb_vld && host_32b_rready) begin
             host_32b_r_rarb_locked <= 1'b0;
-            host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 3'd6) ? 3'd0 : host_32b_r_rarb_gnt + 1'b1;
+            host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 3'd5) ? 3'd0 : host_32b_r_rarb_gnt + 1'b1;
         end else if (host_32b_r_rarb_vld) begin
             host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;       // offered, not taken: hold
             host_32b_r_rarb_locked <= 1'b1;
@@ -1133,23 +1138,25 @@ module bridge_stream_mon_axil_mon_xbar
     )
 
     // ---- B response arbiter, master host 64b: round-robin per beat, lock until taken ----
-    logic [4:0] host_64b_b_rarb_req;
-    assign host_64b_b_rarb_req = {((slave_tally_cfg_axi_bid_bridge_id == 0) && slave_tally_cfg_axi_bid_valid) && slave_tally_cfg_axi_bvalid, ((stream_tally_cfg_axi_bid_bridge_id == 0) && stream_tally_cfg_axi_bid_valid) && stream_tally_cfg_axi_bvalid, ((comp_sram_axi_bid_bridge_id == 0) && comp_sram_axi_bid_valid) && comp_sram_axi_bvalid, ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid) && slave_tally_axi_bvalid, ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid) && stream_tally_axi_bvalid};
+    logic [5:0] host_64b_b_rarb_req;
+    assign host_64b_b_rarb_req = {((slave_tally_cfg_axi_bid_bridge_id == 0) && slave_tally_cfg_axi_bid_valid) && slave_tally_cfg_axi_bvalid, ((stream_tally_cfg_axi_bid_bridge_id == 0) && stream_tally_cfg_axi_bid_valid) && stream_tally_cfg_axi_bvalid, ((comp_sram_axi_bid_bridge_id == 0) && comp_sram_axi_bid_valid) && comp_sram_axi_bvalid, ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid) && slave_tally_axi_bvalid, ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid) && stream_tally_axi_bvalid, ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid) && stream_err_axi_bvalid};
     logic [2:0] host_64b_b_rarb_lock, host_64b_b_rarb_rr;
     logic host_64b_b_rarb_locked;
-    wire [2:0] host_64b_b_rarb_pick = (host_64b_b_rarb_rr == 3'd0) ? (host_64b_b_rarb_req[0] ? 3'd0 : host_64b_b_rarb_req[1] ? 3'd1 : host_64b_b_rarb_req[2] ? 3'd2 : host_64b_b_rarb_req[3] ? 3'd3 : 3'd4) : 
-        (host_64b_b_rarb_rr == 3'd1) ? (host_64b_b_rarb_req[1] ? 3'd1 : host_64b_b_rarb_req[2] ? 3'd2 : host_64b_b_rarb_req[3] ? 3'd3 : host_64b_b_rarb_req[4] ? 3'd4 : 3'd0) : 
-        (host_64b_b_rarb_rr == 3'd2) ? (host_64b_b_rarb_req[2] ? 3'd2 : host_64b_b_rarb_req[3] ? 3'd3 : host_64b_b_rarb_req[4] ? 3'd4 : host_64b_b_rarb_req[0] ? 3'd0 : 3'd1) : 
-        (host_64b_b_rarb_rr == 3'd3) ? (host_64b_b_rarb_req[3] ? 3'd3 : host_64b_b_rarb_req[4] ? 3'd4 : host_64b_b_rarb_req[0] ? 3'd0 : host_64b_b_rarb_req[1] ? 3'd1 : 3'd2) : 
-        host_64b_b_rarb_req[4] ? 3'd4 : host_64b_b_rarb_req[0] ? 3'd0 : host_64b_b_rarb_req[1] ? 3'd1 : host_64b_b_rarb_req[2] ? 3'd2 : 3'd3;
+    wire [2:0] host_64b_b_rarb_pick = (host_64b_b_rarb_rr == 3'd0) ? (host_64b_b_rarb_req[0] ? 3'd0 : host_64b_b_rarb_req[1] ? 3'd1 : host_64b_b_rarb_req[2] ? 3'd2 : host_64b_b_rarb_req[3] ? 3'd3 : host_64b_b_rarb_req[4] ? 3'd4 : 3'd5) : 
+        (host_64b_b_rarb_rr == 3'd1) ? (host_64b_b_rarb_req[1] ? 3'd1 : host_64b_b_rarb_req[2] ? 3'd2 : host_64b_b_rarb_req[3] ? 3'd3 : host_64b_b_rarb_req[4] ? 3'd4 : host_64b_b_rarb_req[5] ? 3'd5 : 3'd0) : 
+        (host_64b_b_rarb_rr == 3'd2) ? (host_64b_b_rarb_req[2] ? 3'd2 : host_64b_b_rarb_req[3] ? 3'd3 : host_64b_b_rarb_req[4] ? 3'd4 : host_64b_b_rarb_req[5] ? 3'd5 : host_64b_b_rarb_req[0] ? 3'd0 : 3'd1) : 
+        (host_64b_b_rarb_rr == 3'd3) ? (host_64b_b_rarb_req[3] ? 3'd3 : host_64b_b_rarb_req[4] ? 3'd4 : host_64b_b_rarb_req[5] ? 3'd5 : host_64b_b_rarb_req[0] ? 3'd0 : host_64b_b_rarb_req[1] ? 3'd1 : 3'd2) : 
+        (host_64b_b_rarb_rr == 3'd4) ? (host_64b_b_rarb_req[4] ? 3'd4 : host_64b_b_rarb_req[5] ? 3'd5 : host_64b_b_rarb_req[0] ? 3'd0 : host_64b_b_rarb_req[1] ? 3'd1 : host_64b_b_rarb_req[2] ? 3'd2 : 3'd3) : 
+        host_64b_b_rarb_req[5] ? 3'd5 : host_64b_b_rarb_req[0] ? 3'd0 : host_64b_b_rarb_req[1] ? 3'd1 : host_64b_b_rarb_req[2] ? 3'd2 : host_64b_b_rarb_req[3] ? 3'd3 : 3'd4;
     wire [2:0] host_64b_b_rarb_gnt = host_64b_b_rarb_locked ? host_64b_b_rarb_lock : host_64b_b_rarb_pick;
     wire host_64b_b_rarb_gnt_valid = host_64b_b_rarb_locked || (|host_64b_b_rarb_req);
-    wire host_64b_b_rgnt_stream_tally = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd0);
-    wire host_64b_b_rgnt_slave_tally = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd1);
-    wire host_64b_b_rgnt_comp_sram = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd2);
-    wire host_64b_b_rgnt_stream_tally_cfg = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd3);
-    wire host_64b_b_rgnt_slave_tally_cfg = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd4);
-    wire host_64b_b_rarb_vld = (host_64b_b_rgnt_stream_tally && host_64b_b_rarb_req[0]) || (host_64b_b_rgnt_slave_tally && host_64b_b_rarb_req[1]) || (host_64b_b_rgnt_comp_sram && host_64b_b_rarb_req[2]) || (host_64b_b_rgnt_stream_tally_cfg && host_64b_b_rarb_req[3]) || (host_64b_b_rgnt_slave_tally_cfg && host_64b_b_rarb_req[4]);
+    wire host_64b_b_rgnt_stream_err = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd0);
+    wire host_64b_b_rgnt_stream_tally = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd1);
+    wire host_64b_b_rgnt_slave_tally = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd2);
+    wire host_64b_b_rgnt_comp_sram = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd3);
+    wire host_64b_b_rgnt_stream_tally_cfg = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd4);
+    wire host_64b_b_rgnt_slave_tally_cfg = host_64b_b_rarb_gnt_valid && (host_64b_b_rarb_gnt == 3'd5);
+    wire host_64b_b_rarb_vld = (host_64b_b_rgnt_stream_err && host_64b_b_rarb_req[0]) || (host_64b_b_rgnt_stream_tally && host_64b_b_rarb_req[1]) || (host_64b_b_rgnt_slave_tally && host_64b_b_rarb_req[2]) || (host_64b_b_rgnt_comp_sram && host_64b_b_rarb_req[3]) || (host_64b_b_rgnt_stream_tally_cfg && host_64b_b_rarb_req[4]) || (host_64b_b_rgnt_slave_tally_cfg && host_64b_b_rarb_req[5]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_64b_b_rarb_lock   <= '0;
@@ -1157,7 +1164,7 @@ module bridge_stream_mon_axil_mon_xbar
             host_64b_b_rarb_locked <= 1'b0;
         end else if (host_64b_b_rarb_vld && host_64b_bready) begin
             host_64b_b_rarb_locked <= 1'b0;
-            host_64b_b_rarb_rr <= (host_64b_b_rarb_gnt == 3'd4) ? 3'd0 : host_64b_b_rarb_gnt + 1'b1;
+            host_64b_b_rarb_rr <= (host_64b_b_rarb_gnt == 3'd5) ? 3'd0 : host_64b_b_rarb_gnt + 1'b1;
         end else if (host_64b_b_rarb_vld) begin
             host_64b_b_rarb_lock   <= host_64b_b_rarb_gnt;       // offered, not taken: hold
             host_64b_b_rarb_locked <= 1'b1;
@@ -1165,23 +1172,25 @@ module bridge_stream_mon_axil_mon_xbar
     )
 
     // ---- R response arbiter, master host 64b: round-robin per beat, lock until taken ----
-    logic [4:0] host_64b_r_rarb_req;
-    assign host_64b_r_rarb_req = {((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid) && slave_tally_cfg_axi_rvalid, ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid) && stream_tally_cfg_axi_rvalid, ((comp_sram_axi_rid_bridge_id == 0) && comp_sram_axi_rid_valid) && comp_sram_axi_rvalid, ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid) && slave_tally_axi_rvalid, ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid) && stream_tally_axi_rvalid};
+    logic [5:0] host_64b_r_rarb_req;
+    assign host_64b_r_rarb_req = {((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid) && slave_tally_cfg_axi_rvalid, ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid) && stream_tally_cfg_axi_rvalid, ((comp_sram_axi_rid_bridge_id == 0) && comp_sram_axi_rid_valid) && comp_sram_axi_rvalid, ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid) && slave_tally_axi_rvalid, ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid) && stream_tally_axi_rvalid, ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid) && stream_err_axi_rvalid};
     logic [2:0] host_64b_r_rarb_lock, host_64b_r_rarb_rr;
     logic host_64b_r_rarb_locked;
-    wire [2:0] host_64b_r_rarb_pick = (host_64b_r_rarb_rr == 3'd0) ? (host_64b_r_rarb_req[0] ? 3'd0 : host_64b_r_rarb_req[1] ? 3'd1 : host_64b_r_rarb_req[2] ? 3'd2 : host_64b_r_rarb_req[3] ? 3'd3 : 3'd4) : 
-        (host_64b_r_rarb_rr == 3'd1) ? (host_64b_r_rarb_req[1] ? 3'd1 : host_64b_r_rarb_req[2] ? 3'd2 : host_64b_r_rarb_req[3] ? 3'd3 : host_64b_r_rarb_req[4] ? 3'd4 : 3'd0) : 
-        (host_64b_r_rarb_rr == 3'd2) ? (host_64b_r_rarb_req[2] ? 3'd2 : host_64b_r_rarb_req[3] ? 3'd3 : host_64b_r_rarb_req[4] ? 3'd4 : host_64b_r_rarb_req[0] ? 3'd0 : 3'd1) : 
-        (host_64b_r_rarb_rr == 3'd3) ? (host_64b_r_rarb_req[3] ? 3'd3 : host_64b_r_rarb_req[4] ? 3'd4 : host_64b_r_rarb_req[0] ? 3'd0 : host_64b_r_rarb_req[1] ? 3'd1 : 3'd2) : 
-        host_64b_r_rarb_req[4] ? 3'd4 : host_64b_r_rarb_req[0] ? 3'd0 : host_64b_r_rarb_req[1] ? 3'd1 : host_64b_r_rarb_req[2] ? 3'd2 : 3'd3;
+    wire [2:0] host_64b_r_rarb_pick = (host_64b_r_rarb_rr == 3'd0) ? (host_64b_r_rarb_req[0] ? 3'd0 : host_64b_r_rarb_req[1] ? 3'd1 : host_64b_r_rarb_req[2] ? 3'd2 : host_64b_r_rarb_req[3] ? 3'd3 : host_64b_r_rarb_req[4] ? 3'd4 : 3'd5) : 
+        (host_64b_r_rarb_rr == 3'd1) ? (host_64b_r_rarb_req[1] ? 3'd1 : host_64b_r_rarb_req[2] ? 3'd2 : host_64b_r_rarb_req[3] ? 3'd3 : host_64b_r_rarb_req[4] ? 3'd4 : host_64b_r_rarb_req[5] ? 3'd5 : 3'd0) : 
+        (host_64b_r_rarb_rr == 3'd2) ? (host_64b_r_rarb_req[2] ? 3'd2 : host_64b_r_rarb_req[3] ? 3'd3 : host_64b_r_rarb_req[4] ? 3'd4 : host_64b_r_rarb_req[5] ? 3'd5 : host_64b_r_rarb_req[0] ? 3'd0 : 3'd1) : 
+        (host_64b_r_rarb_rr == 3'd3) ? (host_64b_r_rarb_req[3] ? 3'd3 : host_64b_r_rarb_req[4] ? 3'd4 : host_64b_r_rarb_req[5] ? 3'd5 : host_64b_r_rarb_req[0] ? 3'd0 : host_64b_r_rarb_req[1] ? 3'd1 : 3'd2) : 
+        (host_64b_r_rarb_rr == 3'd4) ? (host_64b_r_rarb_req[4] ? 3'd4 : host_64b_r_rarb_req[5] ? 3'd5 : host_64b_r_rarb_req[0] ? 3'd0 : host_64b_r_rarb_req[1] ? 3'd1 : host_64b_r_rarb_req[2] ? 3'd2 : 3'd3) : 
+        host_64b_r_rarb_req[5] ? 3'd5 : host_64b_r_rarb_req[0] ? 3'd0 : host_64b_r_rarb_req[1] ? 3'd1 : host_64b_r_rarb_req[2] ? 3'd2 : host_64b_r_rarb_req[3] ? 3'd3 : 3'd4;
     wire [2:0] host_64b_r_rarb_gnt = host_64b_r_rarb_locked ? host_64b_r_rarb_lock : host_64b_r_rarb_pick;
     wire host_64b_r_rarb_gnt_valid = host_64b_r_rarb_locked || (|host_64b_r_rarb_req);
-    wire host_64b_r_rgnt_stream_tally = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd0);
-    wire host_64b_r_rgnt_slave_tally = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd1);
-    wire host_64b_r_rgnt_comp_sram = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd2);
-    wire host_64b_r_rgnt_stream_tally_cfg = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd3);
-    wire host_64b_r_rgnt_slave_tally_cfg = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd4);
-    wire host_64b_r_rarb_vld = (host_64b_r_rgnt_stream_tally && host_64b_r_rarb_req[0]) || (host_64b_r_rgnt_slave_tally && host_64b_r_rarb_req[1]) || (host_64b_r_rgnt_comp_sram && host_64b_r_rarb_req[2]) || (host_64b_r_rgnt_stream_tally_cfg && host_64b_r_rarb_req[3]) || (host_64b_r_rgnt_slave_tally_cfg && host_64b_r_rarb_req[4]);
+    wire host_64b_r_rgnt_stream_err = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd0);
+    wire host_64b_r_rgnt_stream_tally = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd1);
+    wire host_64b_r_rgnt_slave_tally = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd2);
+    wire host_64b_r_rgnt_comp_sram = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd3);
+    wire host_64b_r_rgnt_stream_tally_cfg = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd4);
+    wire host_64b_r_rgnt_slave_tally_cfg = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 3'd5);
+    wire host_64b_r_rarb_vld = (host_64b_r_rgnt_stream_err && host_64b_r_rarb_req[0]) || (host_64b_r_rgnt_stream_tally && host_64b_r_rarb_req[1]) || (host_64b_r_rgnt_slave_tally && host_64b_r_rarb_req[2]) || (host_64b_r_rgnt_comp_sram && host_64b_r_rarb_req[3]) || (host_64b_r_rgnt_stream_tally_cfg && host_64b_r_rarb_req[4]) || (host_64b_r_rgnt_slave_tally_cfg && host_64b_r_rarb_req[5]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_64b_r_rarb_lock   <= '0;
@@ -1189,7 +1198,7 @@ module bridge_stream_mon_axil_mon_xbar
             host_64b_r_rarb_locked <= 1'b0;
         end else if (host_64b_r_rarb_vld && host_64b_rready) begin
             host_64b_r_rarb_locked <= 1'b0;
-            host_64b_r_rarb_rr <= (host_64b_r_rarb_gnt == 3'd4) ? 3'd0 : host_64b_r_rarb_gnt + 1'b1;
+            host_64b_r_rarb_rr <= (host_64b_r_rarb_gnt == 3'd5) ? 3'd0 : host_64b_r_rarb_gnt + 1'b1;
         end else if (host_64b_r_rarb_vld) begin
             host_64b_r_rarb_lock   <= host_64b_r_rarb_gnt;       // offered, not taken: hold
             host_64b_r_rarb_locked <= 1'b1;
@@ -1275,17 +1284,19 @@ module bridge_stream_mon_axil_mon_xbar
     )
 
     // ---- B response arbiter, master monbus_wr 64b: round-robin per beat, lock until taken ----
-    logic [1:0] monbus_wr_64b_b_rarb_req;
-    assign monbus_wr_64b_b_rarb_req = {((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid) && comp_sram_axi_bvalid, ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid) && stream_tally_axi_bvalid};
-    logic [0:0] monbus_wr_64b_b_rarb_lock, monbus_wr_64b_b_rarb_rr;
+    logic [2:0] monbus_wr_64b_b_rarb_req;
+    assign monbus_wr_64b_b_rarb_req = {((comp_sram_axi_bid_bridge_id == 2) && comp_sram_axi_bid_valid) && comp_sram_axi_bvalid, ((stream_tally_axi_bid_bridge_id == 2) && stream_tally_axi_bid_valid) && stream_tally_axi_bvalid, ((stream_err_axi_bid_bridge_id == 2) && stream_err_axi_bid_valid) && stream_err_axi_bvalid};
+    logic [1:0] monbus_wr_64b_b_rarb_lock, monbus_wr_64b_b_rarb_rr;
     logic monbus_wr_64b_b_rarb_locked;
-    wire [0:0] monbus_wr_64b_b_rarb_pick = (monbus_wr_64b_b_rarb_rr == 1'd0) ? (monbus_wr_64b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
-        monbus_wr_64b_b_rarb_req[1] ? 1'd1 : 1'd0;
-    wire [0:0] monbus_wr_64b_b_rarb_gnt = monbus_wr_64b_b_rarb_locked ? monbus_wr_64b_b_rarb_lock : monbus_wr_64b_b_rarb_pick;
+    wire [1:0] monbus_wr_64b_b_rarb_pick = (monbus_wr_64b_b_rarb_rr == 2'd0) ? (monbus_wr_64b_b_rarb_req[0] ? 2'd0 : monbus_wr_64b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (monbus_wr_64b_b_rarb_rr == 2'd1) ? (monbus_wr_64b_b_rarb_req[1] ? 2'd1 : monbus_wr_64b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        monbus_wr_64b_b_rarb_req[2] ? 2'd2 : monbus_wr_64b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] monbus_wr_64b_b_rarb_gnt = monbus_wr_64b_b_rarb_locked ? monbus_wr_64b_b_rarb_lock : monbus_wr_64b_b_rarb_pick;
     wire monbus_wr_64b_b_rarb_gnt_valid = monbus_wr_64b_b_rarb_locked || (|monbus_wr_64b_b_rarb_req);
-    wire monbus_wr_64b_b_rgnt_stream_tally = monbus_wr_64b_b_rarb_gnt_valid && (monbus_wr_64b_b_rarb_gnt == 1'd0);
-    wire monbus_wr_64b_b_rgnt_comp_sram = monbus_wr_64b_b_rarb_gnt_valid && (monbus_wr_64b_b_rarb_gnt == 1'd1);
-    wire monbus_wr_64b_b_rarb_vld = (monbus_wr_64b_b_rgnt_stream_tally && monbus_wr_64b_b_rarb_req[0]) || (monbus_wr_64b_b_rgnt_comp_sram && monbus_wr_64b_b_rarb_req[1]);
+    wire monbus_wr_64b_b_rgnt_stream_err = monbus_wr_64b_b_rarb_gnt_valid && (monbus_wr_64b_b_rarb_gnt == 2'd0);
+    wire monbus_wr_64b_b_rgnt_stream_tally = monbus_wr_64b_b_rarb_gnt_valid && (monbus_wr_64b_b_rarb_gnt == 2'd1);
+    wire monbus_wr_64b_b_rgnt_comp_sram = monbus_wr_64b_b_rarb_gnt_valid && (monbus_wr_64b_b_rarb_gnt == 2'd2);
+    wire monbus_wr_64b_b_rarb_vld = (monbus_wr_64b_b_rgnt_stream_err && monbus_wr_64b_b_rarb_req[0]) || (monbus_wr_64b_b_rgnt_stream_tally && monbus_wr_64b_b_rarb_req[1]) || (monbus_wr_64b_b_rgnt_comp_sram && monbus_wr_64b_b_rarb_req[2]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             monbus_wr_64b_b_rarb_lock   <= '0;
@@ -1293,7 +1304,7 @@ module bridge_stream_mon_axil_mon_xbar
             monbus_wr_64b_b_rarb_locked <= 1'b0;
         end else if (monbus_wr_64b_b_rarb_vld && monbus_wr_64b_bready) begin
             monbus_wr_64b_b_rarb_locked <= 1'b0;
-            monbus_wr_64b_b_rarb_rr <= (monbus_wr_64b_b_rarb_gnt == 1'd1) ? 1'd0 : monbus_wr_64b_b_rarb_gnt + 1'b1;
+            monbus_wr_64b_b_rarb_rr <= (monbus_wr_64b_b_rarb_gnt == 2'd2) ? 2'd0 : monbus_wr_64b_b_rarb_gnt + 1'b1;
         end else if (monbus_wr_64b_b_rarb_vld) begin
             monbus_wr_64b_b_rarb_lock   <= monbus_wr_64b_b_rarb_gnt;       // offered, not taken: hold
             monbus_wr_64b_b_rarb_locked <= 1'b1;
@@ -1777,66 +1788,192 @@ module bridge_stream_mon_axil_mon_xbar
 
 
     // ================================================================
-    // Slave 5: stream_err (32b)
+    // Slave 5: stream_err (64b)
     // ================================================================
-    // Single master: host → stream_err
-    // Master width: 32b, Slave width: 32b
-    // Using 32b path from adapter
+    // Multi-master (2 masters) → stream_err
+    //   - host (rw)
+    //   - monbus_wr (wr)
 
-    // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_aw_to_stream_err = ((host_32b_aw.addr >= 32'h00030000) && (host_32b_aw.addr <= 32'h00030fff));
-    wire host_32b_aw_gnt_stream_err = host_32b_aw_to_stream_err && !(host_32b_aw_hold_stream_err || host_32b_wdest_full);
-    assign stream_err_axi_awid     = host_32b_aw_to_stream_err ? host_32b_aw.id : '0;
-    assign stream_err_axi_awaddr   = host_32b_aw_to_stream_err ? host_32b_aw.addr : '0;
-    assign stream_err_axi_awlen    = host_32b_aw_to_stream_err ? host_32b_aw.len : '0;
-    assign stream_err_axi_awsize   = host_32b_aw_to_stream_err ? host_32b_aw.size : '0;
-    assign stream_err_axi_awburst  = host_32b_aw_to_stream_err ? host_32b_aw.burst : '0;
-    assign stream_err_axi_awlock   = host_32b_aw_to_stream_err ? host_32b_aw.lock : '0;
-    assign stream_err_axi_awcache  = host_32b_aw_to_stream_err ? host_32b_aw.cache : '0;
-    assign stream_err_axi_awprot   = host_32b_aw_to_stream_err ? host_32b_aw.prot : '0;
-    assign stream_err_axi_awqos    = host_32b_aw_to_stream_err ? host_32b_aw.qos : '0;
-    assign stream_err_axi_awregion = host_32b_aw_to_stream_err ? host_32b_aw.region : '0;
-    assign stream_err_axi_awuser   = host_32b_aw_to_stream_err ? host_32b_aw.user : '0;
-    assign stream_err_axi_awvalid  = host_32b_aw_gnt_stream_err && host_32b_awvalid;
+    wire host_64b_aw_to_stream_err = ((host_64b_aw.addr >= 32'h00030000) && (host_64b_aw.addr <= 32'h00030fff));
+    wire host_64b_ar_to_stream_err = ((host_64b_ar.addr >= 32'h00030000) && (host_64b_ar.addr <= 32'h00030fff));
+    wire monbus_wr_64b_aw_to_stream_err = ((monbus_wr_64b_aw.addr >= 32'h00030000) && (monbus_wr_64b_aw.addr <= 32'h00030fff));
 
-    assign host_32b_w_sel_stream_err = host_32b_w_to_stream_err;
+    // AW request slots for stream_err: arbitration at the slave pins
+    assign host_64b_aw_slot_stream_err_in_valid = host_64b_aw_to_stream_err && host_64b_awvalid && !(host_64b_aw_hold_stream_err || host_64b_wdest_full);
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_64b_aw_slot_stream_err (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_64b_aw_slot_stream_err_in_valid), .wr_ready(host_64b_aw_slot_stream_err_in_ready), .wr_data(host_64b_aw),
+        .rd_valid(host_64b_aw_slot_stream_err_valid), .rd_ready(host_64b_aw_slot_stream_err_ready), .rd_data(host_64b_aw_slot_stream_err),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign monbus_wr_64b_aw_slot_stream_err_in_valid = monbus_wr_64b_aw_to_stream_err && monbus_wr_64b_awvalid && !(monbus_wr_64b_aw_hold_stream_err || monbus_wr_64b_wdest_full);
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_monbus_wr_64b_aw_slot_stream_err (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(monbus_wr_64b_aw_slot_stream_err_in_valid), .wr_ready(monbus_wr_64b_aw_slot_stream_err_in_ready), .wr_data(monbus_wr_64b_aw),
+        .rd_valid(monbus_wr_64b_aw_slot_stream_err_valid), .rd_ready(monbus_wr_64b_aw_slot_stream_err_ready), .rd_data(monbus_wr_64b_aw_slot_stream_err),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
 
-    // W channel (gated by the W destination FIFO head)
-    assign stream_err_axi_wdata  = host_32b_w_to_stream_err ? host_32b_w.data : '0;
-    assign stream_err_axi_wstrb  = host_32b_w_to_stream_err ? host_32b_w.strb : '0;
-    assign stream_err_axi_wlast  = host_32b_w_to_stream_err ? host_32b_w.last : '0;
-    assign stream_err_axi_wuser  = host_32b_w_to_stream_err ? host_32b_w.user : '0;
-    assign stream_err_axi_wvalid = host_32b_w_to_stream_err && host_32b_wvalid;
+    // ---- AW arbiter for stream_err: round-robin, lock until handshake ----
+    logic [1:0] stream_err_aw_arb_req;
+    assign stream_err_aw_arb_req = {monbus_wr_64b_aw_slot_stream_err_valid, host_64b_aw_slot_stream_err_valid};
+    logic [0:0] stream_err_aw_arb_lock, stream_err_aw_arb_rr;
+    logic stream_err_aw_arb_locked;
+    wire [0:0] stream_err_aw_arb_pick = (stream_err_aw_arb_rr == 1'd0) ? (stream_err_aw_arb_req[0] ? 1'd0 : 1'd1) : 
+        stream_err_aw_arb_req[1] ? 1'd1 : 1'd0;
+    wire stream_err_aw_arb_gnt_valid = stream_err_aw_arb_locked || (|stream_err_aw_arb_req);
+    wire [0:0] stream_err_aw_arb_gnt = stream_err_aw_arb_locked ? stream_err_aw_arb_lock : stream_err_aw_arb_pick;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_err_aw_arb_lock   <= '0;
+            stream_err_aw_arb_rr     <= '0;
+            stream_err_aw_arb_locked <= 1'b0;
+        end else begin
+            if (stream_err_axi_awvalid && stream_err_axi_awready) begin
+                stream_err_aw_arb_locked <= 1'b0;
+                stream_err_aw_arb_rr <= (stream_err_aw_arb_gnt == 1'd1) ? 1'd0 : stream_err_aw_arb_gnt + 1'b1;
+            end else if (stream_err_axi_awvalid) begin
+                stream_err_aw_arb_lock   <= stream_err_aw_arb_gnt;
+                stream_err_aw_arb_locked <= 1'b1;
+            end
+        end
+    )
+    wire host_64b_aw_gnt_stream_err = stream_err_aw_arb_gnt_valid && (stream_err_aw_arb_gnt == 1'd0) && stream_err_aw_arb_req[0];
+    wire monbus_wr_64b_aw_gnt_stream_err = stream_err_aw_arb_gnt_valid && (stream_err_aw_arb_gnt == 1'd1) && stream_err_aw_arb_req[1];
+    assign host_64b_aw_slot_stream_err_ready = host_64b_aw_gnt_stream_err && stream_err_axi_awready;
+    assign monbus_wr_64b_aw_slot_stream_err_ready = monbus_wr_64b_aw_gnt_stream_err && stream_err_axi_awready;
 
-    // Bready (master → slave) — gated on bid_valid so the path stays
-    // open through the entire B handshake, not just the AW phase.
-    assign stream_err_axi_bready = host_32b_b_rgnt_stream_err ? host_32b_bready : '0;
+    // AW channel (arbitrated mux across writing masters)
+    assign stream_err_axi_awid = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.id : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.id : '0);
+    assign stream_err_axi_awaddr = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.addr : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.addr : '0);
+    assign stream_err_axi_awlen = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.len : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.len : '0);
+    assign stream_err_axi_awsize = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.size : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.size : '0);
+    assign stream_err_axi_awburst = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.burst : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.burst : '0);
+    assign stream_err_axi_awlock = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.lock : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.lock : '0);
+    assign stream_err_axi_awcache = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.cache : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.cache : '0);
+    assign stream_err_axi_awprot = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.prot : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.prot : '0);
+    assign stream_err_axi_awqos = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.qos : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.qos : '0);
+    assign stream_err_axi_awregion = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.region : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.region : '0);
+    assign stream_err_axi_awuser = (host_64b_aw_gnt_stream_err ? host_64b_aw_slot_stream_err.user : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_64b_aw_slot_stream_err.user : '0);
+    assign stream_err_axi_awvalid = host_64b_aw_gnt_stream_err || monbus_wr_64b_aw_gnt_stream_err;
 
-    // Bridge ID (master → slave)
-    assign stream_err_axi_bridge_id_aw = host_32b_aw_to_stream_err ? host_bridge_id_aw : '0;
+    // W owner FIFO: slave-side AW pick order owns the W channel
+    // (16 deep: max_outstanding 16)
+    logic [0:0] stream_err_wowner_mem [16];
+    logic [4:0] stream_err_wowner_wptr, stream_err_wowner_rptr;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_err_wowner_wptr <= '0;
+            stream_err_wowner_rptr <= '0;
+        end else begin
+            if (stream_err_axi_awvalid && stream_err_axi_awready) begin
+                stream_err_wowner_wptr <= stream_err_wowner_wptr + 1'b1;
+            end
+            if (stream_err_axi_wvalid && stream_err_axi_wready && stream_err_axi_wlast) begin
+                stream_err_wowner_rptr <= stream_err_wowner_rptr + 1'b1;
+            end
+        end
+    )
+    // storage array: clock-only process, no reset (Synth 8-4767 -- see
+    // vault/handbook/design/sram-and-memories.md)
+    always_ff @(posedge aclk) begin
+        if (stream_err_axi_awvalid && stream_err_axi_awready) stream_err_wowner_mem[stream_err_wowner_wptr[3:0]] <= stream_err_aw_arb_gnt;
+    end
+    wire stream_err_wowner_valid = (stream_err_wowner_wptr != stream_err_wowner_rptr);
+    wire [0:0] stream_err_wowner_head = stream_err_wowner_mem[stream_err_wowner_rptr[3:0]];
+    assign host_64b_w_sel_stream_err = stream_err_wowner_valid && (stream_err_wowner_head == 1'd0) && host_64b_w_to_stream_err;
+    assign monbus_wr_64b_w_sel_stream_err = stream_err_wowner_valid && (stream_err_wowner_head == 1'd1) && monbus_wr_64b_w_to_stream_err;
 
-    // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_ar_to_stream_err = ((host_32b_ar.addr >= 32'h00030000) && (host_32b_ar.addr <= 32'h00030fff));
-    wire host_32b_ar_gnt_stream_err = host_32b_ar_to_stream_err;
-    assign stream_err_axi_arid     = host_32b_ar_to_stream_err ? host_32b_ar.id : '0;
-    assign stream_err_axi_araddr   = host_32b_ar_to_stream_err ? host_32b_ar.addr : '0;
-    assign stream_err_axi_arlen    = host_32b_ar_to_stream_err ? host_32b_ar.len : '0;
-    assign stream_err_axi_arsize   = host_32b_ar_to_stream_err ? host_32b_ar.size : '0;
-    assign stream_err_axi_arburst  = host_32b_ar_to_stream_err ? host_32b_ar.burst : '0;
-    assign stream_err_axi_arlock   = host_32b_ar_to_stream_err ? host_32b_ar.lock : '0;
-    assign stream_err_axi_arcache  = host_32b_ar_to_stream_err ? host_32b_ar.cache : '0;
-    assign stream_err_axi_arprot   = host_32b_ar_to_stream_err ? host_32b_ar.prot : '0;
-    assign stream_err_axi_arqos    = host_32b_ar_to_stream_err ? host_32b_ar.qos : '0;
-    assign stream_err_axi_arregion = host_32b_ar_to_stream_err ? host_32b_ar.region : '0;
-    assign stream_err_axi_aruser   = host_32b_ar_to_stream_err ? host_32b_ar.user : '0;
-    assign stream_err_axi_arvalid  = host_32b_ar_to_stream_err && host_32b_arvalid;
+    // W channel (owner-gated mux across writing masters)
+    assign stream_err_axi_wdata = ((host_64b_w_sel_stream_err && host_64b_wvalid) ? host_64b_w.data : '0) |
+        ((monbus_wr_64b_w_sel_stream_err && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.data : '0);
+    assign stream_err_axi_wstrb = ((host_64b_w_sel_stream_err && host_64b_wvalid) ? host_64b_w.strb : '0) |
+        ((monbus_wr_64b_w_sel_stream_err && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.strb : '0);
+    assign stream_err_axi_wlast = ((host_64b_w_sel_stream_err && host_64b_wvalid) ? host_64b_w.last : '0) |
+        ((monbus_wr_64b_w_sel_stream_err && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.last : '0);
+    assign stream_err_axi_wuser = ((host_64b_w_sel_stream_err && host_64b_wvalid) ? host_64b_w.user : '0) |
+        ((monbus_wr_64b_w_sel_stream_err && monbus_wr_64b_wvalid) ? monbus_wr_64b_w.user : '0);
+    assign stream_err_axi_wvalid = (host_64b_w_sel_stream_err && host_64b_wvalid) || (monbus_wr_64b_w_sel_stream_err && monbus_wr_64b_wvalid);
 
-    // Rready (master → slave) — gated on rid_valid so the path stays
-    // open through the entire R handshake, not just the AR phase.
-    assign stream_err_axi_rready = host_32b_r_rgnt_stream_err ? host_32b_rready : '0;
+    // Bready (slave -> the master whose response arbiter granted it)
+    assign stream_err_axi_bready = (host_64b_b_rgnt_stream_err ? host_64b_bready : '0) |
+        (monbus_wr_64b_b_rgnt_stream_err ? monbus_wr_64b_bready : '0);
 
-    // Bridge ID (master → slave)
-    assign stream_err_axi_bridge_id_ar = host_32b_ar_to_stream_err ? host_bridge_id_ar : '0;
+    // Bridge ID (writes) — the granted master's id
+    assign stream_err_axi_bridge_id_aw = (host_64b_aw_gnt_stream_err ? host_bridge_id_aw : '0) |
+        (monbus_wr_64b_aw_gnt_stream_err ? monbus_wr_bridge_id_aw : '0);
+
+    // AR request slots for stream_err: arbitration at the slave pins
+    assign host_64b_ar_slot_stream_err_in_valid = host_64b_ar_to_stream_err && host_64b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_host_64b_ar_slot_stream_err (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(host_64b_ar_slot_stream_err_in_valid), .wr_ready(host_64b_ar_slot_stream_err_in_ready), .wr_data(host_64b_ar),
+        .rd_valid(host_64b_ar_slot_stream_err_valid), .rd_ready(host_64b_ar_slot_stream_err_ready), .rd_data(host_64b_ar_slot_stream_err),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
+    // ---- AR arbiter for stream_err: round-robin, lock until handshake ----
+    logic [0:0] stream_err_ar_arb_req;
+    assign stream_err_ar_arb_req = {host_64b_ar_slot_stream_err_valid};
+    logic [0:0] stream_err_ar_arb_lock, stream_err_ar_arb_rr;
+    logic stream_err_ar_arb_locked;
+    wire [0:0] stream_err_ar_arb_pick = 1'd0;
+    wire stream_err_ar_arb_gnt_valid = stream_err_ar_arb_locked || (|stream_err_ar_arb_req);
+    wire [0:0] stream_err_ar_arb_gnt = stream_err_ar_arb_locked ? stream_err_ar_arb_lock : stream_err_ar_arb_pick;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            stream_err_ar_arb_lock   <= '0;
+            stream_err_ar_arb_rr     <= '0;
+            stream_err_ar_arb_locked <= 1'b0;
+        end else begin
+            if (stream_err_axi_arvalid && stream_err_axi_arready) begin
+                stream_err_ar_arb_locked <= 1'b0;
+                stream_err_ar_arb_rr <= (stream_err_ar_arb_gnt == 1'd0) ? 1'd0 : stream_err_ar_arb_gnt + 1'b1;
+            end else if (stream_err_axi_arvalid) begin
+                stream_err_ar_arb_lock   <= stream_err_ar_arb_gnt;
+                stream_err_ar_arb_locked <= 1'b1;
+            end
+        end
+    )
+    wire host_64b_ar_gnt_stream_err = stream_err_ar_arb_gnt_valid && (stream_err_ar_arb_gnt == 1'd0) && stream_err_ar_arb_req[0];
+    assign host_64b_ar_slot_stream_err_ready = host_64b_ar_gnt_stream_err && stream_err_axi_arready;
+
+    // AR channel (arbitrated mux across reading masters)
+    assign stream_err_axi_arid = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.id : '0);
+    assign stream_err_axi_araddr = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.addr : '0);
+    assign stream_err_axi_arlen = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.len : '0);
+    assign stream_err_axi_arsize = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.size : '0);
+    assign stream_err_axi_arburst = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.burst : '0);
+    assign stream_err_axi_arlock = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.lock : '0);
+    assign stream_err_axi_arcache = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.cache : '0);
+    assign stream_err_axi_arprot = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.prot : '0);
+    assign stream_err_axi_arqos = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.qos : '0);
+    assign stream_err_axi_arregion = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.region : '0);
+    assign stream_err_axi_aruser = (host_64b_ar_gnt_stream_err ? host_64b_ar_slot_stream_err.user : '0);
+    assign stream_err_axi_arvalid = host_64b_ar_gnt_stream_err;
+
+    // Rready (slave -> the master whose response arbiter granted it)
+    assign stream_err_axi_rready = (host_64b_r_rgnt_stream_err ? host_64b_rready : '0);
+
+    // Bridge ID (reads) — the granted master's id
+    assign stream_err_axi_bridge_id_ar = (host_64b_ar_gnt_stream_err ? host_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -2702,7 +2839,7 @@ module bridge_stream_mon_axil_mon_xbar
     wire host_256b_aw_to_subtractive = !((((host_256b_aw.addr >= 32'h00190000) && (host_256b_aw.addr <= 32'h00190fff))) || (((host_256b_aw.addr >= 32'h00180000) && (host_256b_aw.addr <= 32'h00180fff))) || ((host_256b_aw.addr <= 32'h00001fff)) || (((host_256b_aw.addr >= 32'h00010000) && (host_256b_aw.addr <= 32'h00010fff))) || (((host_256b_aw.addr >= 32'h00020000) && (host_256b_aw.addr <= 32'h0002ffff))) || (((host_256b_aw.addr >= 32'h00030000) && (host_256b_aw.addr <= 32'h00030fff))) || (((host_256b_aw.addr >= 32'h00040000) && (host_256b_aw.addr <= 32'h0007ffff))) || (((host_256b_aw.addr >= 32'h00080000) && (host_256b_aw.addr <= 32'h00080fff))) || (((host_256b_aw.addr >= 32'h00090000) && (host_256b_aw.addr <= 32'h00090fff))) || (((host_256b_aw.addr >= 32'h000c0000) && (host_256b_aw.addr <= 32'h000fffff))) || (((host_256b_aw.addr >= 32'h001a0000) && (host_256b_aw.addr <= 32'h001affff))) || (((host_256b_aw.addr >= 32'h00100000) && (host_256b_aw.addr <= 32'h0013ffff))) || (((host_256b_aw.addr >= 32'h00140000) && (host_256b_aw.addr <= 32'h0017ffff))));
     wire host_256b_ar_to_subtractive = !((((host_256b_ar.addr >= 32'h00190000) && (host_256b_ar.addr <= 32'h00190fff))) || (((host_256b_ar.addr >= 32'h00180000) && (host_256b_ar.addr <= 32'h00180fff))) || ((host_256b_ar.addr <= 32'h00001fff)) || (((host_256b_ar.addr >= 32'h00010000) && (host_256b_ar.addr <= 32'h00010fff))) || (((host_256b_ar.addr >= 32'h00020000) && (host_256b_ar.addr <= 32'h0002ffff))) || (((host_256b_ar.addr >= 32'h00030000) && (host_256b_ar.addr <= 32'h00030fff))) || (((host_256b_ar.addr >= 32'h00040000) && (host_256b_ar.addr <= 32'h0007ffff))) || (((host_256b_ar.addr >= 32'h00080000) && (host_256b_ar.addr <= 32'h00080fff))) || (((host_256b_ar.addr >= 32'h00090000) && (host_256b_ar.addr <= 32'h00090fff))) || (((host_256b_ar.addr >= 32'h000c0000) && (host_256b_ar.addr <= 32'h000fffff))) || (((host_256b_ar.addr >= 32'h001a0000) && (host_256b_ar.addr <= 32'h001affff))) || (((host_256b_ar.addr >= 32'h00100000) && (host_256b_ar.addr <= 32'h0013ffff))) || (((host_256b_ar.addr >= 32'h00140000) && (host_256b_ar.addr <= 32'h0017ffff))));
     wire stream_desc_256b_ar_to_subtractive = !((((stream_desc_256b_ar.addr >= 32'h00020000) && (stream_desc_256b_ar.addr <= 32'h0002ffff))));
-    wire monbus_wr_256b_aw_to_subtractive = !((((monbus_wr_256b_aw.addr >= 32'h00040000) && (monbus_wr_256b_aw.addr <= 32'h0007ffff))) || (((monbus_wr_256b_aw.addr >= 32'h001a0000) && (monbus_wr_256b_aw.addr <= 32'h001affff))));
+    wire monbus_wr_256b_aw_to_subtractive = !((((monbus_wr_256b_aw.addr >= 32'h00030000) && (monbus_wr_256b_aw.addr <= 32'h00030fff))) || (((monbus_wr_256b_aw.addr >= 32'h00040000) && (monbus_wr_256b_aw.addr <= 32'h0007ffff))) || (((monbus_wr_256b_aw.addr >= 32'h001a0000) && (monbus_wr_256b_aw.addr <= 32'h001affff))));
     wire slave_monbus_wr_256b_aw_to_subtractive = !((((slave_monbus_wr_256b_aw.addr >= 32'h000c0000) && (slave_monbus_wr_256b_aw.addr <= 32'h000fffff))) || (((slave_monbus_wr_256b_aw.addr >= 32'h001a0000) && (slave_monbus_wr_256b_aw.addr <= 32'h001affff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
@@ -2951,10 +3088,10 @@ module bridge_stream_mon_axil_mon_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> obs_apb, slvmon_apb, stream_apb, harness_csr, stream_err, dma_axil, slave_err (16 deep: max_outstanding)
+    // host 32b path -> obs_apb, slvmon_apb, stream_apb, harness_csr, dma_axil, slave_err (16 deep: max_outstanding)
     logic [2:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
-    wire [2:0] host_32b_wdest_enc = host_32b_aw_to_slvmon_apb ? 3'd1 : host_32b_aw_to_stream_apb ? 3'd2 : host_32b_aw_to_harness_csr ? 3'd3 : host_32b_aw_to_stream_err ? 3'd4 : host_32b_aw_to_dma_axil ? 3'd5 : host_32b_aw_to_slave_err ? 3'd6 : 3'd0;
+    wire [2:0] host_32b_wdest_enc = host_32b_aw_to_slvmon_apb ? 3'd1 : host_32b_aw_to_stream_apb ? 3'd2 : host_32b_aw_to_harness_csr ? 3'd3 : host_32b_aw_to_dma_axil ? 3'd4 : host_32b_aw_to_slave_err ? 3'd5 : 3'd0;
     wire host_32b_wdest_push = host_32b_awvalid && host_32b_awready;
     wire host_32b_wdest_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -2982,14 +3119,13 @@ module bridge_stream_mon_axil_mon_xbar
     assign host_32b_w_to_slvmon_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd1);
     assign host_32b_w_to_stream_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd2);
     assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 3'd3);
-    assign host_32b_w_to_stream_err = host_32b_wdest_valid && (host_32b_wdest_head == 3'd4);
-    assign host_32b_w_to_dma_axil = host_32b_wdest_valid && (host_32b_wdest_head == 3'd5);
-    assign host_32b_w_to_slave_err = host_32b_wdest_valid && (host_32b_wdest_head == 3'd6);
+    assign host_32b_w_to_dma_axil = host_32b_wdest_valid && (host_32b_wdest_head == 3'd4);
+    assign host_32b_w_to_slave_err = host_32b_wdest_valid && (host_32b_wdest_head == 3'd5);
 
-    // host 64b path -> stream_tally, slave_tally, comp_sram, stream_tally_cfg, slave_tally_cfg (16 deep: max_outstanding)
+    // host 64b path -> stream_err, stream_tally, slave_tally, comp_sram, stream_tally_cfg, slave_tally_cfg (16 deep: max_outstanding)
     logic [2:0] host_64b_wdest_mem [16];
     logic [4:0] host_64b_wdest_wptr, host_64b_wdest_rptr;
-    wire [2:0] host_64b_wdest_enc = host_64b_aw_to_slave_tally ? 3'd1 : host_64b_aw_to_comp_sram ? 3'd2 : host_64b_aw_to_stream_tally_cfg ? 3'd3 : host_64b_aw_to_slave_tally_cfg ? 3'd4 : 3'd0;
+    wire [2:0] host_64b_wdest_enc = host_64b_aw_to_stream_tally ? 3'd1 : host_64b_aw_to_slave_tally ? 3'd2 : host_64b_aw_to_comp_sram ? 3'd3 : host_64b_aw_to_stream_tally_cfg ? 3'd4 : host_64b_aw_to_slave_tally_cfg ? 3'd5 : 3'd0;
     wire host_64b_wdest_push = host_64b_awvalid && host_64b_awready;
     wire host_64b_wdest_pop  = host_64b_wvalid && host_64b_wready && host_64b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -3013,11 +3149,12 @@ module bridge_stream_mon_axil_mon_xbar
     wire host_64b_wdest_valid = (host_64b_wdest_wptr != host_64b_wdest_rptr);
     assign host_64b_wdest_full = (host_64b_wdest_wptr[4] != host_64b_wdest_rptr[4]) && (host_64b_wdest_wptr[3:0] == host_64b_wdest_rptr[3:0]);
     wire [2:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
-    assign host_64b_w_to_stream_tally = host_64b_wdest_valid && (host_64b_wdest_head == 3'd0);
-    assign host_64b_w_to_slave_tally = host_64b_wdest_valid && (host_64b_wdest_head == 3'd1);
-    assign host_64b_w_to_comp_sram = host_64b_wdest_valid && (host_64b_wdest_head == 3'd2);
-    assign host_64b_w_to_stream_tally_cfg = host_64b_wdest_valid && (host_64b_wdest_head == 3'd3);
-    assign host_64b_w_to_slave_tally_cfg = host_64b_wdest_valid && (host_64b_wdest_head == 3'd4);
+    assign host_64b_w_to_stream_err = host_64b_wdest_valid && (host_64b_wdest_head == 3'd0);
+    assign host_64b_w_to_stream_tally = host_64b_wdest_valid && (host_64b_wdest_head == 3'd1);
+    assign host_64b_w_to_slave_tally = host_64b_wdest_valid && (host_64b_wdest_head == 3'd2);
+    assign host_64b_w_to_comp_sram = host_64b_wdest_valid && (host_64b_wdest_head == 3'd3);
+    assign host_64b_w_to_stream_tally_cfg = host_64b_wdest_valid && (host_64b_wdest_head == 3'd4);
+    assign host_64b_w_to_slave_tally_cfg = host_64b_wdest_valid && (host_64b_wdest_head == 3'd5);
 
     // host 256b path -> desc_ram, subtractive (16 deep: max_outstanding)
     logic [0:0] host_256b_wdest_mem [16];
@@ -3049,10 +3186,10 @@ module bridge_stream_mon_axil_mon_xbar
     assign host_256b_w_to_desc_ram = host_256b_wdest_valid && (host_256b_wdest_head == 1'd0);
     assign host_256b_w_to_subtractive = host_256b_wdest_valid && (host_256b_wdest_head == 1'd1);
 
-    // monbus_wr 64b path -> stream_tally, comp_sram (16 deep: max_outstanding)
-    logic [0:0] monbus_wr_64b_wdest_mem [16];
+    // monbus_wr 64b path -> stream_err, stream_tally, comp_sram (16 deep: max_outstanding)
+    logic [1:0] monbus_wr_64b_wdest_mem [16];
     logic [4:0] monbus_wr_64b_wdest_wptr, monbus_wr_64b_wdest_rptr;
-    wire [0:0] monbus_wr_64b_wdest_enc = monbus_wr_64b_aw_to_comp_sram ? 1'd1 : 1'd0;
+    wire [1:0] monbus_wr_64b_wdest_enc = monbus_wr_64b_aw_to_stream_tally ? 2'd1 : monbus_wr_64b_aw_to_comp_sram ? 2'd2 : 2'd0;
     wire monbus_wr_64b_wdest_push = monbus_wr_64b_awvalid && monbus_wr_64b_awready;
     wire monbus_wr_64b_wdest_pop  = monbus_wr_64b_wvalid && monbus_wr_64b_wready && monbus_wr_64b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -3075,9 +3212,10 @@ module bridge_stream_mon_axil_mon_xbar
     end
     wire monbus_wr_64b_wdest_valid = (monbus_wr_64b_wdest_wptr != monbus_wr_64b_wdest_rptr);
     assign monbus_wr_64b_wdest_full = (monbus_wr_64b_wdest_wptr[4] != monbus_wr_64b_wdest_rptr[4]) && (monbus_wr_64b_wdest_wptr[3:0] == monbus_wr_64b_wdest_rptr[3:0]);
-    wire [0:0] monbus_wr_64b_wdest_head = monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_rptr[3:0]];
-    assign monbus_wr_64b_w_to_stream_tally = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 1'd0);
-    assign monbus_wr_64b_w_to_comp_sram = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 1'd1);
+    wire [1:0] monbus_wr_64b_wdest_head = monbus_wr_64b_wdest_mem[monbus_wr_64b_wdest_rptr[3:0]];
+    assign monbus_wr_64b_w_to_stream_err = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 2'd0);
+    assign monbus_wr_64b_w_to_stream_tally = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 2'd1);
+    assign monbus_wr_64b_w_to_comp_sram = monbus_wr_64b_wdest_valid && (monbus_wr_64b_wdest_head == 2'd2);
 
     // monbus_wr 256b path -> subtractive (16 deep: max_outstanding)
     logic [0:0] monbus_wr_256b_wdest_mem [16];
@@ -3177,7 +3315,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_aw_gnt_slvmon_apb ? slvmon_apb_axi_awready : '0) |
         (host_32b_aw_gnt_stream_apb ? stream_apb_axi_awready : '0) |
         (host_32b_aw_gnt_harness_csr ? harness_csr_axi_awready : '0) |
-        (host_32b_aw_gnt_stream_err ? stream_err_axi_awready : '0) |
         (host_32b_aw_gnt_dma_axil ? dma_axil_axi_awready : '0) |
         (host_32b_aw_gnt_slave_err ? slave_err_axi_awready : '0);
 
@@ -3186,7 +3323,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_w_sel_slvmon_apb ? slvmon_apb_axi_wready : '0) |
         (host_32b_w_sel_stream_apb ? stream_apb_axi_wready : '0) |
         (host_32b_w_sel_harness_csr ? harness_csr_axi_wready : '0) |
-        (host_32b_w_sel_stream_err ? stream_err_axi_wready : '0) |
         (host_32b_w_sel_dma_axil ? dma_axil_axi_wready : '0) |
         (host_32b_w_sel_slave_err ? slave_err_axi_wready : '0);
 
@@ -3195,7 +3331,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_b_rgnt_slvmon_apb ? slvmon_apb_axi_bid : '0) |
         (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bid : '0) |
         (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bid : '0) |
-        (host_32b_b_rgnt_stream_err ? stream_err_axi_bid : '0) |
         (host_32b_b_rgnt_dma_axil ? dma_axil_axi_bid : '0) |
         (host_32b_b_rgnt_slave_err ? slave_err_axi_bid : '0);
 
@@ -3204,7 +3339,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_b_rgnt_slvmon_apb ? slvmon_apb_axi_bresp : '0) |
         (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bresp : '0) |
         (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bresp : '0) |
-        (host_32b_b_rgnt_stream_err ? stream_err_axi_bresp : '0) |
         (host_32b_b_rgnt_dma_axil ? dma_axil_axi_bresp : '0) |
         (host_32b_b_rgnt_slave_err ? slave_err_axi_bresp : '0);
 
@@ -3213,7 +3347,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_b_rgnt_slvmon_apb ? slvmon_apb_axi_buser : '0) |
         (host_32b_b_rgnt_stream_apb ? stream_apb_axi_buser : '0) |
         (host_32b_b_rgnt_harness_csr ? harness_csr_axi_buser : '0) |
-        (host_32b_b_rgnt_stream_err ? stream_err_axi_buser : '0) |
         (host_32b_b_rgnt_dma_axil ? dma_axil_axi_buser : '0) |
         (host_32b_b_rgnt_slave_err ? slave_err_axi_buser : '0);
 
@@ -3222,7 +3355,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_b_rgnt_slvmon_apb ? slvmon_apb_axi_bvalid : '0) |
         (host_32b_b_rgnt_stream_apb ? stream_apb_axi_bvalid : '0) |
         (host_32b_b_rgnt_harness_csr ? harness_csr_axi_bvalid : '0) |
-        (host_32b_b_rgnt_stream_err ? stream_err_axi_bvalid : '0) |
         (host_32b_b_rgnt_dma_axil ? dma_axil_axi_bvalid : '0) |
         (host_32b_b_rgnt_slave_err ? slave_err_axi_bvalid : '0);
 
@@ -3231,7 +3363,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_ar_gnt_slvmon_apb ? slvmon_apb_axi_arready : '0) |
         (host_32b_ar_gnt_stream_apb ? stream_apb_axi_arready : '0) |
         (host_32b_ar_gnt_harness_csr ? harness_csr_axi_arready : '0) |
-        (host_32b_ar_gnt_stream_err ? stream_err_axi_arready : '0) |
         (host_32b_ar_gnt_dma_axil ? dma_axil_axi_arready : '0) |
         (host_32b_ar_gnt_slave_err ? slave_err_axi_arready : '0);
 
@@ -3240,7 +3371,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rid : '0) |
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rid : '0) |
         (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rid : '0) |
-        (host_32b_r_rgnt_stream_err ? stream_err_axi_rid : '0) |
         (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rid : '0) |
         (host_32b_r_rgnt_slave_err ? slave_err_axi_rid : '0);
 
@@ -3249,7 +3379,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rdata : 32'b0) |
-        (host_32b_r_rgnt_stream_err ? stream_err_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_slave_err ? slave_err_axi_rdata : 32'b0);
 
@@ -3258,7 +3387,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rresp : '0) |
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rresp : '0) |
         (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rresp : '0) |
-        (host_32b_r_rgnt_stream_err ? stream_err_axi_rresp : '0) |
         (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rresp : '0) |
         (host_32b_r_rgnt_slave_err ? slave_err_axi_rresp : '0);
 
@@ -3267,7 +3395,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rlast : '0) |
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rlast : '0) |
         (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rlast : '0) |
-        (host_32b_r_rgnt_stream_err ? stream_err_axi_rlast : '0) |
         (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rlast : '0) |
         (host_32b_r_rgnt_slave_err ? slave_err_axi_rlast : '0);
 
@@ -3276,7 +3403,6 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_ruser : '0) |
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_ruser : '0) |
         (host_32b_r_rgnt_harness_csr ? harness_csr_axi_ruser : '0) |
-        (host_32b_r_rgnt_stream_err ? stream_err_axi_ruser : '0) |
         (host_32b_r_rgnt_dma_axil ? dma_axil_axi_ruser : '0) |
         (host_32b_r_rgnt_slave_err ? slave_err_axi_ruser : '0);
 
@@ -3285,13 +3411,13 @@ module bridge_stream_mon_axil_mon_xbar
         (host_32b_r_rgnt_slvmon_apb ? slvmon_apb_axi_rvalid : '0) |
         (host_32b_r_rgnt_stream_apb ? stream_apb_axi_rvalid : '0) |
         (host_32b_r_rgnt_harness_csr ? harness_csr_axi_rvalid : '0) |
-        (host_32b_r_rgnt_stream_err ? stream_err_axi_rvalid : '0) |
         (host_32b_r_rgnt_dma_axil ? dma_axil_axi_rvalid : '0) |
         (host_32b_r_rgnt_slave_err ? slave_err_axi_rvalid : '0);
 
 
     // Master: host, Width path: 64b
     assign host_64b_awready = 
+        ((host_64b_aw_to_stream_err && !(host_64b_aw_hold_stream_err || host_64b_wdest_full)) ? host_64b_aw_slot_stream_err_in_ready : '0) |
         ((host_64b_aw_to_stream_tally && !(host_64b_aw_hold_stream_tally || host_64b_wdest_full)) ? host_64b_aw_slot_stream_tally_in_ready : '0) |
         ((host_64b_aw_to_slave_tally && !(host_64b_aw_hold_slave_tally || host_64b_wdest_full)) ? host_64b_aw_slot_slave_tally_in_ready : '0) |
         ((host_64b_aw_to_comp_sram && !(host_64b_aw_hold_comp_sram || host_64b_wdest_full)) ? host_64b_aw_slot_comp_sram_in_ready : '0) |
@@ -3299,6 +3425,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_aw_gnt_slave_tally_cfg ? slave_tally_cfg_axi_awready : '0);
 
     assign host_64b_wready = 
+        (host_64b_w_sel_stream_err ? stream_err_axi_wready : '0) |
         (host_64b_w_sel_stream_tally ? stream_tally_axi_wready : '0) |
         (host_64b_w_sel_slave_tally ? slave_tally_axi_wready : '0) |
         (host_64b_w_sel_comp_sram ? comp_sram_axi_wready : '0) |
@@ -3306,6 +3433,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_w_sel_slave_tally_cfg ? slave_tally_cfg_axi_wready : '0);
 
     assign host_64b_b.id = 
+        (host_64b_b_rgnt_stream_err ? stream_err_axi_bid : '0) |
         (host_64b_b_rgnt_stream_tally ? stream_tally_axi_bid : '0) |
         (host_64b_b_rgnt_slave_tally ? slave_tally_axi_bid : '0) |
         (host_64b_b_rgnt_comp_sram ? comp_sram_axi_bid : '0) |
@@ -3313,6 +3441,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_b_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_bid : '0);
 
     assign host_64b_b.resp = 
+        (host_64b_b_rgnt_stream_err ? stream_err_axi_bresp : '0) |
         (host_64b_b_rgnt_stream_tally ? stream_tally_axi_bresp : '0) |
         (host_64b_b_rgnt_slave_tally ? slave_tally_axi_bresp : '0) |
         (host_64b_b_rgnt_comp_sram ? comp_sram_axi_bresp : '0) |
@@ -3320,6 +3449,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_b_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_bresp : '0);
 
     assign host_64b_b.user = 
+        (host_64b_b_rgnt_stream_err ? stream_err_axi_buser : '0) |
         (host_64b_b_rgnt_stream_tally ? stream_tally_axi_buser : '0) |
         (host_64b_b_rgnt_slave_tally ? slave_tally_axi_buser : '0) |
         (host_64b_b_rgnt_comp_sram ? comp_sram_axi_buser : '0) |
@@ -3327,6 +3457,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_b_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_buser : '0);
 
     assign host_64b_bvalid = 
+        (host_64b_b_rgnt_stream_err ? stream_err_axi_bvalid : '0) |
         (host_64b_b_rgnt_stream_tally ? stream_tally_axi_bvalid : '0) |
         (host_64b_b_rgnt_slave_tally ? slave_tally_axi_bvalid : '0) |
         (host_64b_b_rgnt_comp_sram ? comp_sram_axi_bvalid : '0) |
@@ -3334,6 +3465,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_b_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_bvalid : '0);
 
     assign host_64b_arready = 
+        ((host_64b_ar_to_stream_err) ? host_64b_ar_slot_stream_err_in_ready : '0) |
         ((host_64b_ar_to_stream_tally) ? host_64b_ar_slot_stream_tally_in_ready : '0) |
         ((host_64b_ar_to_slave_tally) ? host_64b_ar_slot_slave_tally_in_ready : '0) |
         ((host_64b_ar_to_comp_sram) ? host_64b_ar_slot_comp_sram_in_ready : '0) |
@@ -3341,6 +3473,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_ar_gnt_slave_tally_cfg ? slave_tally_cfg_axi_arready : '0);
 
     assign host_64b_r.id = 
+        (host_64b_r_rgnt_stream_err ? stream_err_axi_rid : '0) |
         (host_64b_r_rgnt_stream_tally ? stream_tally_axi_rid : '0) |
         (host_64b_r_rgnt_slave_tally ? slave_tally_axi_rid : '0) |
         (host_64b_r_rgnt_comp_sram ? comp_sram_axi_rid : '0) |
@@ -3348,6 +3481,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_r_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_rid : '0);
 
     assign host_64b_r.data = 
+        (host_64b_r_rgnt_stream_err ? stream_err_axi_rdata : 64'b0) |
         (host_64b_r_rgnt_stream_tally ? stream_tally_axi_rdata : 64'b0) |
         (host_64b_r_rgnt_slave_tally ? slave_tally_axi_rdata : 64'b0) |
         (host_64b_r_rgnt_comp_sram ? comp_sram_axi_rdata : 64'b0) |
@@ -3355,6 +3489,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_r_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_rdata : 64'b0);
 
     assign host_64b_r.resp = 
+        (host_64b_r_rgnt_stream_err ? stream_err_axi_rresp : '0) |
         (host_64b_r_rgnt_stream_tally ? stream_tally_axi_rresp : '0) |
         (host_64b_r_rgnt_slave_tally ? slave_tally_axi_rresp : '0) |
         (host_64b_r_rgnt_comp_sram ? comp_sram_axi_rresp : '0) |
@@ -3362,6 +3497,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_r_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_rresp : '0);
 
     assign host_64b_r.last = 
+        (host_64b_r_rgnt_stream_err ? stream_err_axi_rlast : '0) |
         (host_64b_r_rgnt_stream_tally ? stream_tally_axi_rlast : '0) |
         (host_64b_r_rgnt_slave_tally ? slave_tally_axi_rlast : '0) |
         (host_64b_r_rgnt_comp_sram ? comp_sram_axi_rlast : '0) |
@@ -3369,6 +3505,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_r_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_rlast : '0);
 
     assign host_64b_r.user = 
+        (host_64b_r_rgnt_stream_err ? stream_err_axi_ruser : '0) |
         (host_64b_r_rgnt_stream_tally ? stream_tally_axi_ruser : '0) |
         (host_64b_r_rgnt_slave_tally ? slave_tally_axi_ruser : '0) |
         (host_64b_r_rgnt_comp_sram ? comp_sram_axi_ruser : '0) |
@@ -3376,6 +3513,7 @@ module bridge_stream_mon_axil_mon_xbar
         (host_64b_r_rgnt_slave_tally_cfg ? slave_tally_cfg_axi_ruser : '0);
 
     assign host_64b_rvalid = 
+        (host_64b_r_rgnt_stream_err ? stream_err_axi_rvalid : '0) |
         (host_64b_r_rgnt_stream_tally ? stream_tally_axi_rvalid : '0) |
         (host_64b_r_rgnt_slave_tally ? slave_tally_axi_rvalid : '0) |
         (host_64b_r_rgnt_comp_sram ? comp_sram_axi_rvalid : '0) |
@@ -3469,26 +3607,32 @@ module bridge_stream_mon_axil_mon_xbar
 
     // Master: monbus_wr, Width path: 64b
     assign monbus_wr_64b_awready = 
+        ((monbus_wr_64b_aw_to_stream_err && !(monbus_wr_64b_aw_hold_stream_err || monbus_wr_64b_wdest_full)) ? monbus_wr_64b_aw_slot_stream_err_in_ready : '0) |
         ((monbus_wr_64b_aw_to_stream_tally && !(monbus_wr_64b_aw_hold_stream_tally || monbus_wr_64b_wdest_full)) ? monbus_wr_64b_aw_slot_stream_tally_in_ready : '0) |
         ((monbus_wr_64b_aw_to_comp_sram && !(monbus_wr_64b_aw_hold_comp_sram || monbus_wr_64b_wdest_full)) ? monbus_wr_64b_aw_slot_comp_sram_in_ready : '0);
 
     assign monbus_wr_64b_wready = 
+        (monbus_wr_64b_w_sel_stream_err ? stream_err_axi_wready : '0) |
         (monbus_wr_64b_w_sel_stream_tally ? stream_tally_axi_wready : '0) |
         (monbus_wr_64b_w_sel_comp_sram ? comp_sram_axi_wready : '0);
 
     assign monbus_wr_64b_b.id = 
+        (monbus_wr_64b_b_rgnt_stream_err ? stream_err_axi_bid : '0) |
         (monbus_wr_64b_b_rgnt_stream_tally ? stream_tally_axi_bid : '0) |
         (monbus_wr_64b_b_rgnt_comp_sram ? comp_sram_axi_bid : '0);
 
     assign monbus_wr_64b_b.resp = 
+        (monbus_wr_64b_b_rgnt_stream_err ? stream_err_axi_bresp : '0) |
         (monbus_wr_64b_b_rgnt_stream_tally ? stream_tally_axi_bresp : '0) |
         (monbus_wr_64b_b_rgnt_comp_sram ? comp_sram_axi_bresp : '0);
 
     assign monbus_wr_64b_b.user = 
+        (monbus_wr_64b_b_rgnt_stream_err ? stream_err_axi_buser : '0) |
         (monbus_wr_64b_b_rgnt_stream_tally ? stream_tally_axi_buser : '0) |
         (monbus_wr_64b_b_rgnt_comp_sram ? comp_sram_axi_buser : '0);
 
     assign monbus_wr_64b_bvalid = 
+        (monbus_wr_64b_b_rgnt_stream_err ? stream_err_axi_bvalid : '0) |
         (monbus_wr_64b_b_rgnt_stream_tally ? stream_tally_axi_bvalid : '0) |
         (monbus_wr_64b_b_rgnt_comp_sram ? comp_sram_axi_bvalid : '0);
 

@@ -286,6 +286,21 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
             f"Slave 12 memory mismatch at 0x{test_addr:08x}: "
             f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     tb.log.info(f"Master 2 (monbus_wr) — writes")
+    # Master 2 → Slave 5 (stream_err)
+    for k, test_addr in enumerate(tb.connectivity_addrs(5, master_idx=2)):
+        # Non-pattern data: upper byte 0xDE so it can't be confused with any
+        # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+        # the slave ID). The rest tags (master, slave, offset index) so a
+        # misroute is readable straight off the failure message.
+        test_data = (0xDE000000 | (2 << 20) | (5 << 16) | (k & 0xFFFF))
+        tb.log.info(f"  W slave=5 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+        await tb.master_write(2, test_addr, test_data)
+        # Read back at master 2's width — only the bytes the master
+        # actually wrote should be compared; trailing bytes are still the seed.
+        actual = tb.slave_mem_read(5, test_addr, master_idx=2)
+        assert actual == test_data, (
+            f"Slave 5 memory mismatch at 0x{test_addr:08x}: "
+            f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 2 → Slave 6 (stream_tally)
     for k, test_addr in enumerate(tb.connectivity_addrs(6, master_idx=2)):
         # Non-pattern data: upper byte 0xDE so it can't be confused with any
@@ -1189,6 +1204,51 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
                     f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
                     f"got 0x{got:08x}, expected 0x{exp:08x}")
     tb.log.info(f"Master 2 (monbus_wr)")
+    # Slave 5 (stream_err): 0x00030000-0x00030fff
+    pages_2_5 = tb.slave_probe_pages(5, mode=mode)
+    in_page_2_5 = tb.page_probe_offsets(5, master_idx=2)
+    tb.log.info(f"  slave 5: {len(pages_2_5)} pages x "
+                f"{len(in_page_2_5)} probes/page")
+    for page_idx, page_base in enumerate(pages_2_5):
+        for probe_idx, probe_off in enumerate(in_page_2_5):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (2 << 20) | (5 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            seeded = tb.is_seeded(5, addr)
+            try:
+                await tb.master_write(2, addr, d)
+            except AxiResponseError as e:
+                # `resp is None` means it was never an AXI error response at
+                # all -- a timeout, a BFM fault -- and tolerating THAT would
+                # be the very hole this check closes, only wider. Re-raise.
+                if seeded or e.resp is None:
+                    raise
+                # Past the slave's seeded model. ONLY an SLVERR from the
+                # ADDRESSED slave is expected here (the shared out-of-range
+                # contract). A DECERR means the subtractive catch-all
+                # answered -- the address did not decode to slave
+                # 5 at all -- and a bare `except RuntimeError`
+                # swallowed that identically, so a decode defect confined to
+                # addresses above the seed cap passed the whole suite.
+                assert e.is_slverr, (
+                    f"M2->S5 probe at 0x{addr:08x} past the "
+                    f"seeded model answered {e}; expected SLVERR from the addressed "
+                    f"slave. A DECERR here means it decoded to the subtractive "
+                    f"catch-all instead.")
+                continue
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d.
+            if seeded:
+                got = tb.slave_mem_read(5, addr, master_idx=2)
+                assert got == d, (
+                    f"M2→S5 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
     # Slave 6 (stream_tally): 0x00040000-0x0007ffff
     pages_2_6 = tb.slave_probe_pages(6, mode=mode)
     in_page_2_6 = tb.page_probe_offsets(6, master_idx=2)
