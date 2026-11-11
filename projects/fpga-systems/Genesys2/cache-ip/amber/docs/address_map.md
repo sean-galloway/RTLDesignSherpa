@@ -68,7 +68,7 @@ bridge.
 
 | Offset | Name | Access | Description |
 | --- | --- | --- | --- |
-| `0x000` | CTRL | RW | `{we_mix[15:8], 7'b0, run}` |
+| `0x000` | CTRL | RW | `{8'b0, outstanding[23:16], we_mix[15:8], 7'b0, run}`; `outstanding` = requests kept in flight, 0 reads as 1, clamped to 16 (TASK-002) |
 | `0x004` | SEED | RW | Fibonacci LFSR seed (0 substitutes `0xDEAD_BEEF`) |
 | `0x008` | ADDR_BASE | RW | Base address for generated transactions |
 | `0x00C` | ADDR_MASK | RW | Wrap mask applied to LFSR index (`addr = base + (lfsr & mask)`) |
@@ -79,7 +79,7 @@ bridge.
 | `0x020` | ERR_FLAG | R | `{31'b0, err_flag}` (set on response timeout) |
 | `0x024` | LAT_MIN | R | Min per-request latency, cycles (accept → response; 0 before any response) |
 | `0x028` | LAT_MAX | R | Max per-request latency, cycles |
-| `0x02C` | RUN_CYCLES | R | Busy-cycle count for the run |
+| `0x02C` | RUN_CYCLES | R | Busy-cycle count for the run (run cycles / TRANS_COUNT = cycles per transaction) |
 | `0x030` | RSP_CRC_LO | R | CRC-32 over returned read data [31:0] |
 | `0x034` | RSP_CRC_HI | R | CRC-32 over returned read data [63:32] |
 | `0x038` | WDATA_CRC_LO | R | CRC-32 over issued write data [31:0] |
@@ -87,8 +87,16 @@ bridge.
 | `0x040` | LAT_SUM_LO | R | Latency sum [31:0] (mean = sum / TRANS_COUNT) |
 | `0x044` | LAT_SUM_HI | R | Latency sum [63:32] |
 | `0x048` - `0x064` | LAT_HIST0..7 | R | Log2 latency histogram: bucket *b* covers [2^b, 2^(b+1)−1], bucket 7 catches ≥128; buckets sum to TRANS_COUNT |
+| `0x068` | OUTST_MAX | R | Most requests in flight at once during the run |
+| `0x06C` | OUTST_SUM_LO | R | Sum of the in-flight count over run cycles [31:0] (sum / RUN_CYCLES = mean memory-level parallelism) |
+| `0x070` | OUTST_SUM_HI | R | Sum of the in-flight count over run cycles [63:32] |
+| `0x074` | STALL_CYCLES | R | Cycles the cache held `cpu_req_wr_ready` low against a valid request |
+| `0x078` | CREDIT_STALL | R | Cycles an address was ready but the outstanding credit held it back |
 
-All LAT_*/RUN_CYCLES registers are read-only and cleared on run start.
+All LAT_* / RUN_CYCLES / OUTST_* / *_STALL registers are read-only and
+cleared on run start. Latency is accept to response per request; with
+more than one request in flight the injector pops the accept timestamp
+of each response in order (both caches respond in accept order).
 
 : Table 2.3: cycle_injector register map
 

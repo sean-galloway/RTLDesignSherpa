@@ -1,67 +1,78 @@
-// Amber pair-rig Genesys2 -- cycle injector internals.
-// Source: rtl/amber_cycle_injector.sv.
+// Cache-ip pair-rig Genesys2 -- cycle injector internals (pipelined, TASK-002).
+// Source: rtl/amber_cycle_injector.sv (shared by the amber and jet rigs).
 // House style: vault/handbook/authoring/block-diagrams.md.
-// Flow geography: AXIL config/status top-down; cpu_req issues down the center;
-// cpu_rsp returns up the right edge; CRC accumulators sit on the data paths.
+// Flow geography: AXIL config enters top-left and drops into the CSRs; the
+// request flow runs down the center column (LFSR -> address pipeline -> credit
+// gate -> cpu_req at the bottom); the return flow re-enters at cpu_rsp (bottom
+// right) and climbs the right edge (timestamp ring -> run instrumentation ->
+// AXIL readback). Write-data CRC sits on the issue side, read-data CRC on the
+// return side. Every edge label is an xlabel (splines=ortho drops plain labels).
 digraph amber_cycle_injector {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.35", ranksep="0.60", splines=ortho,
-           label="Amber pair-rig Genesys2 -- cycle injector internals",
+           nodesep="0.45", ranksep="0.55", splines=ortho,
+           label="Cache-ip pair-rig Genesys2 -- cycle injector internals (pipelined)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="white", color="black", margin="0.12,0.06"];
-    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
 
-    axil [label="AXIL4-Lite slave\nconfig / status", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    regs [label="CSR registers\nCTRL, SEED, ADDR_BASE,\nADDR_MASK, TRANS_COUNT", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    lfsr [label="Fibonacci LFSR\nshifter_lfsr_fibonacci\nwidth 32, taps {23,3,2,1}", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    addr [label="Address generator\ndma_address_gen\nbase + (index & mask)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    fsm  [label="Stimulus FSM\nIDLE -> ADDR_WAIT -> ISSUE -> WAIT_RSP", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    // ---- interfaces ----
+    axil [label="AXIL4-Lite slave\nconfig / status", style="rounded,filled", fillcolor="#E2EFDA"];
+    req  [label="cpu_req GAXI master\n{addr, we, be, wdata} from the tag", width=2.8, style="rounded,filled", fillcolor="#E2EFDA", group=center];
+    rsp  [label="cpu_rsp GAXI\n{read data}, taken while inflight > 0", width=2.8, style="rounded,filled", fillcolor="#E2EFDA", group=right];
 
-    // request issue boundary
-    req [label="cpu_req GAXI master\n{addr, we, be, wdata}", fillcolor="white", width=2.8, style="rounded,filled", fillcolor="#E2EFDA"];
+    // ---- registered blocks ----
+    regs   [label="CSR registers\nCTRL {run, we_mix, outstanding},\nSEED, ADDR_BASE, ADDR_MASK, TRANS_COUNT", peripheries=2, fillcolor="#D6E4F0"];
+    status [label="Status registers\nSTATUS, ACC_COUNT, RSP_COUNT, ERR_FLAG", peripheries=2, fillcolor="#D6E4F0"];
+    lfsr   [label="Fibonacci LFSR\nshifter_lfsr_fibonacci\nwidth 32, taps {23,3,2,1}\none step per transaction", peripheries=2, fillcolor="#D6E4F0", group=center];
+    addr   [label="Address pipeline\ndma_address_gen (2 stages, 1/cycle)\naddr = base + (index & mask)\nLFSR value rides as the tag", peripheries=2, fillcolor="#D6E4F0", group=center];
+    credit [label="Credit gate\nissue while inflight < outstanding\n(inflight = accepts - responses)", peripheries=2, fillcolor="#D6E4F0", group=center];
+    timeout [label="Response timeout\n24-bit counter, armed while inflight > 0;\nabort drains the address pipeline", peripheries=2, fillcolor="#D6E4F0"];
+    wdatacrc [label="CRC-32 accumulator\ndataint_crc\nissued write data (accept order)", peripheries=2, fillcolor="#D6E4F0"];
+    rspcrc   [label="CRC-32 accumulator\ndataint_crc\nreturned read data (response order)", peripheries=2, fillcolor="#D6E4F0", group=right];
+    lat    [label="Run instrumentation\nlatency min/max/sum + log2 histogram(8),\nrun cycles, OUTST_MAX, OUTST_SUM,\nSTALL_CYCLES, CREDIT_STALL", peripheries=2, fillcolor="#D6E4F0", group=right];
 
-    // response return boundary
-    rsp [label="cpu_rsp GAXI\n{read data}", fillcolor="white", width=2.8, style="rounded,filled", fillcolor="#E2EFDA"];
+    // ---- storage ----
+    ring [label="Accept-timestamp ring\nMAX_OUTSTANDING x 32\npush r_cycle on accept, pop on response", shape=cylinder, fillcolor="#E8DFF5", group=right];
 
-    // CRC accumulators on their respective data paths
-    wdatacrc [label="CRC-32 accumulator\ndataint_crc\nissued write data", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    rspcrc   [label="CRC-32 accumulator\ndataint_crc\nreturned read data", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    // ---- ranks: request flow down the center, return flow up the right ----
+    { rank=same; axil; lat; }
+    { rank=same; regs; status; ring; }
+    { rank=same; lfsr; rspcrc; }
+    { rank=same; addr; wdatacrc; timeout; }
+    { rank=same; credit; }
+    { rank=same; req; rsp; }
 
-    // status back to CSR
-    status [label="Status registers\nSTATUS, ACC_COUNT,\nRSP_COUNT, ERR_FLAG", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    // ---- config flow ----
+    axil -> regs   [xlabel="AW/W"];
+    regs -> lfsr   [style=dashed, color="#777777", xlabel="seed, run"];
+    regs -> addr   [style=dashed, color="#777777", xlabel="base, mask"];
+    regs -> credit [style=dashed, color="#777777", xlabel="outstanding, we_mix"];
 
-    axil -> regs [label="AW/W"];
-    regs -> lfsr [style=dashed, color="#777777", label="seed, run"];
-    regs -> addr [style=dashed, color="#777777", label="base, mask"];
+    // ---- request flow (center column, top-down) ----
+    lfsr   -> addr   [xlabel="index + tag"];
+    addr   -> credit [xlabel="addr, tag (valid/ready)"];
+    credit -> req    [xlabel="cpu_req issue"];
+    credit -> wdatacrc [style=dashed, color="#777777", xlabel="wdata on accept"];
+    credit -> timeout  [style=dashed, color="#777777", xlabel="inflight / timeout -> abort"];
 
-    lfsr -> addr [label="index"];
-    addr -> fsm [label="generated addr"];
-    lfsr -> fsm [label="we_mix, data, be"];
+    // ---- return flow (right edge, climbing; drawn with dir=back) ----
+    ring   -> rsp    [dir=back, color="#1A7A1A", xlabel="response -> pop"];
+    rspcrc -> rsp    [dir=back, color="#1A7A1A", xlabel="rdata"];
+    lat    -> ring   [dir=back, color="#1A7A1A", xlabel="r_cycle - timestamp"];
+    credit -> rsp    [dir=back, style=dashed, color="#777777", xlabel="inflight - 1"];
+    ring   -> credit [dir=back, style=dashed, color="#777777", xlabel="accept -> push r_cycle"];
 
-    fsm -> req [label="cpu_req issue"];
-    req -> wdatacrc [style=dashed, color="#777777", constraint=false, label="wdata"];
+    // ---- status readback ----
+    status -> credit [dir=back, style=dashed, color="#777777", xlabel="done / busy / err"];
+    axil   -> status [dir=back, xlabel="AR/R"];
+    axil   -> lat    [dir=back, style=dashed, color="#777777", xlabel="LAT_* / RUN_CYCLES\nOUTST_* / *_STALL"];
 
-    rsp -> fsm [constraint=false, label="cpu_rsp"];
-    rsp -> rspcrc [style=dashed, color="#777777", constraint=false, label="rdata"];
-
-    fsm -> status [constraint=false, label="done/busy/err"];
-    status -> axil [constraint=false, label="AR/R"];
-
-    // timeout sideband
-    timeout [label="Response timeout\n24-bit counter", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
-    fsm -> timeout [style=dashed, color="#777777", constraint=false, label="wait count"];
-    timeout -> fsm [style=dashed, color="#777777", constraint=false, label="timeout -> err"];
-
-    // latency instrumentation (per run, cleared on run start)
-    lat [label="Latency instrumentation\nmin/max/sum + log2 histogram(8)\n+ run cycles", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    fsm -> lat [style=dashed, color="#777777", label="WAIT_RSP occupancy"];
-    lat -> axil [constraint=false, style=dashed, color="#777777", label="LAT_* / RUN_CYCLES"];
-
-    legend [shape=box, style=filled, fillcolor="white", color="black",
-            label="Parameters (fixed at build)\l\
+    note [shape=note, fillcolor="white", color="black", fontsize=9,
+          label="Parameters (fixed at build)\l\
 ADDR_WIDTH=32, BUS_WIDTH=64\l\
 INDEX_WIDTH=32, STRIDE=+1\l\
-CRC-32: POLY=0x04C11DB7, REFIN=1, REFOUT=1\l",
-            fontsize=9, align=left, shape=note];
+MAX_OUTSTANDING=16 (CTRL.outstanding clamp)\l\
+CRC-32: POLY=0x04C11DB7, REFIN=1, REFOUT=1\l"];
+    { rank=same; req; rsp; note; }
 }

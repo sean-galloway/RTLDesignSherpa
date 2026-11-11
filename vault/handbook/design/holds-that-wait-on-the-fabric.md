@@ -54,6 +54,38 @@ first dump said only "fabric waiting, cores idle"; the second said which bit
 of `sn_safe_o` was 0 and why the occupant could not move. Print the terms of
 the rule, not the state of the machine.
 
+**The same wait, one layer up (jet BUG-004, 2026-11-11).** Four days
+after the fix above, the first PIPELINED stimulus on the Genesys2 pair rig
+(the cycle injector of cache-ip common-ip TASK-002, eight requests in
+flight per cache) deadlocked the same rig with the fabric in F_AC: both
+cores' ARs held, no AC presented, both lookups live and held on their
+fill-launch registers. `jet_pair_fabric`'s safe-peer wait consumed the very
+occupancy bit `jet_control` had stopped waiting on -- exported as
+`lkup_live` for the fabric's registered-peer-state window -- and waited for
+it to clear before presenting the snoop. Same five links, with the grant
+rule now in the fabric instead of the core. Two lessons:
+
+- **A signal removed from one grant rule must be chased to every consumer.**
+  The occupancy bit left `jet_control`'s rule but was still exported by
+  name; the fabric's rule imported it with the same "bounded" belief. When
+  a term is struck from a rule for this reason, grep the signal and audit
+  each rule that reads it against the same question (who releases it?).
+- **A liveness argument is only as good as the stimulus that can reach the
+  posture.** Blocking injectors keep one request per cache in flight and
+  can never park a miss behind a held launch; the rig's random soak
+  pipelined bursts of at most three with 30 % probability and did not
+  reach it in 2,000 transactions. The deadlock needed sustained depth at
+  BOTH caches at once. Any interface that admits N in flight needs a
+  directed scenario that sustains N (pair-rig scenario (i),
+  `DeepPipelinedMisses`, eight back-to-back true misses per CPU) in the
+  GATE level, not only a randomized soak.
+
+The fix was again the grant rule: the fabric's pending bypass ("the peer
+has a request I hold, so it is waiting on me") no longer demands an idle
+peer lookup or an amber miss pseudo-state that jet reports only as a
+one-cycle event. jet-mesi-l1 BUG-004 has the dump and the soundness
+argument.
+
 Related: [[decision-stage-reads-the-snapshot]], [[valid-ready-contracts]],
 [[never-dismiss-failures-as-flaky]] (one seed in sixty, deterministic,
 pre-existing).

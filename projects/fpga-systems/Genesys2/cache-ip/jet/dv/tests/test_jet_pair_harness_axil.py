@@ -88,6 +88,16 @@ CI_RUN_CYCLES = 0x2C
 CI_LAT_SUM_LO = 0x40
 CI_LAT_SUM_HI = 0x44
 CI_LAT_HIST0 = 0x48         # .. 0x64, 8 log2 buckets
+# Cycle-injector parallelism counters (cache-ip common-ip TASK-002)
+CI_OUTST_MAX = 0x68
+CI_OUTST_SUM_LO = 0x6C
+CI_OUTST_SUM_HI = 0x70
+CI_STALL_CYCLES = 0x74
+CI_CREDIT_STALL = 0x78
+CI_MAX_OUTSTANDING = 16     # the RTL's MAX_OUTSTANDING (CTRL clamp)
+# Whether the cache under test is expected to take more than one request
+# in flight (jet: yes; amber is blocking and may hold at one or two).
+INJECTOR_EXPECT_PIPELINED = True
 TALLY_NUM_LATCH = 16
 
 
@@ -361,17 +371,21 @@ async def _load_default_profile(tb):
         await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 31) | (idx & 0xFF))
 
 
-async def _run_burst(tb, count: int):
-    """Program both injectors on the same 4 KB region and run to done."""
+async def _run_burst(tb, count: int, *, outstanding: int = 1):
+    """Program both injectors on the same 4 KB region and run to done.
+
+    outstanding = CTRL[23:16], requests the injector keeps in flight
+    (TASK-002); 1 is the original blocking behaviour."""
+    ctrl = ((outstanding & 0xFF) << 16) | (64 << 8)
     for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
                           (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
         await tb.write32(ci_base + CI_SEED, seed)
         await tb.write32(ci_base + CI_ADDR_BASE, 0x0000_0000)
         await tb.write32(ci_base + CI_ADDR_MASK, 0x0000_0FFF)
         await tb.write32(ci_base + CI_TRANS_COUNT, count)
-        await tb.write32(ci_base + CI_CTRL, 64 << 8)
-    await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, (64 << 8) | 0x01)
-    await tb.write32(ADDR_CYCLE_INJECTOR1 + CI_CTRL, (64 << 8) | 0x01)
+        await tb.write32(ci_base + CI_CTRL, ctrl)
+    await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, ctrl | 0x01)
+    await tb.write32(ADDR_CYCLE_INJECTOR1 + CI_CTRL, ctrl | 0x01)
 
     for _ in range(500_000):
         status = await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)
@@ -566,6 +580,104 @@ async def tally_latch_bank_test(dut):
                 f"proto={int(pkt.protocol)} event=0x{int(pkt.event_code):02x} "
                 f"raw=0x{raw:032x}")
     assert fill == 0, f"latch fill not re-armed: 0x{status:08x}"
+
+
+async def _ci_snapshot(tb, ci_base):
+    """Every injector counter the pipelined-run test compares."""
+    async def r64(lo, hi):
+        return ((await tb.read32(ci_base + hi)) << 32) | await tb.read32(ci_base + lo)
+    return {
+        "acc": await tb.read32(ci_base + CI_ACC_COUNT),
+        "rsp": await tb.read32(ci_base + CI_RSP_COUNT),
+        "err": await tb.read32(ci_base + CI_ERR_FLAG),
+        "rsp_crc": await r64(CI_RSP_CRC_LO, CI_RSP_CRC_HI),
+        "wdata_crc": await r64(CI_WDATA_CRC_LO, CI_WDATA_CRC_HI),
+        "lat_min": await tb.read32(ci_base + CI_LAT_MIN),
+        "lat_max": await tb.read32(ci_base + CI_LAT_MAX),
+        "lat_sum": await r64(CI_LAT_SUM_LO, CI_LAT_SUM_HI),
+        "run_cycles": await tb.read32(ci_base + CI_RUN_CYCLES),
+        "hist": [await tb.read32(ci_base + CI_LAT_HIST0 + 4 * i) for i in range(8)],
+        "outst_max": await tb.read32(ci_base + CI_OUTST_MAX),
+        "outst_sum": await r64(CI_OUTST_SUM_LO, CI_OUTST_SUM_HI),
+        "stall": await tb.read32(ci_base + CI_STALL_CYCLES),
+        "cstall": await tb.read32(ci_base + CI_CREDIT_STALL),
+    }
+
+
+@cocotb.test(timeout_time=5000, timeout_unit="ms")
+async def injector_pipeline_test(dut):
+    """Pipelined cycle injector (cache-ip common-ip TASK-002).
+
+    The same 256-transaction burst runs at depth 1 (the original blocking
+    behaviour), depth 8 and depth 255 (clamped to MAX_OUTSTANDING). The
+    issued sequence is depth-invariant, so both CRCs must match across the
+    three; the parallelism counters must be consistent with the depth; and
+    the pipelined runs must not take longer than the blocking one. On the
+    pre-TASK-002 RTL CTRL[23:16] was ignored and OUTST_MAX decoded to
+    0xDEAD_BEEF, so every assertion below is discriminating."""
+    clk_task = cocotb.start_soon(_manual_clock(dut))
+    tb = JetPairHarnessAXILTest(dut, clk_task)
+    await tb.reset()
+
+    count = 256
+    depths = (1, 8, 255)
+    snaps = {}
+    for depth in depths:
+        await _run_burst(tb, count=count, outstanding=depth)
+        snaps[depth] = {name: await _ci_snapshot(tb, base)
+                        for base, name in [(ADDR_CYCLE_INJECTOR0, "ci0"),
+                                           (ADDR_CYCLE_INJECTOR1, "ci1")]}
+        for name, s in snaps[depth].items():
+            dut._log.info(
+                f"depth {depth} {name}: acc={s['acc']} rsp={s['rsp']} err={s['err']} "
+                f"lat={s['lat_min']}/{s['lat_sum'] / count:.2f}/{s['lat_max']} "
+                f"run_cycles={s['run_cycles']} cpt={s['run_cycles'] / count:.2f} "
+                f"outst_max={s['outst_max']} mlp={s['outst_sum'] / max(s['run_cycles'], 1):.2f} "
+                f"stall={s['stall']} credit_stall={s['cstall']} "
+                f"rsp_crc=0x{s['rsp_crc']:08x} wdata_crc=0x{s['wdata_crc']:08x}")
+
+    for name in ("ci0", "ci1"):
+        base = snaps[1][name]
+        for depth in depths:
+            s = snaps[depth][name]
+            credit = min(max(depth, 1), CI_MAX_OUTSTANDING)
+            assert s["acc"] == count and s["rsp"] == count, \
+                f"{name} depth {depth}: acc/rsp {s['acc']}/{s['rsp']} != {count}"
+            assert s["err"] == 0, f"{name} depth {depth}: ERR_FLAG set"
+            assert sum(s["hist"]) == count, \
+                f"{name} depth {depth}: histogram total {sum(s['hist'])} != {count}"
+            assert count * s["lat_min"] <= s["lat_sum"] <= count * s["lat_max"], \
+                f"{name} depth {depth}: lat_sum {s['lat_sum']} outside min/max bounds"
+            assert 1 <= s["outst_max"] <= credit, \
+                f"{name} depth {depth}: OUTST_MAX {s['outst_max']} outside 1..{credit}"
+            assert s["outst_sum"] <= s["run_cycles"] * credit, \
+                f"{name} depth {depth}: OUTST_SUM {s['outst_sum']} exceeds run_cycles x credit"
+            # The issued sequence does not depend on the depth.
+            assert s["rsp_crc"] == base["rsp_crc"], \
+                f"{name} depth {depth}: rsp CRC 0x{s['rsp_crc']:08x} != depth-1 0x{base['rsp_crc']:08x}"
+            assert s["wdata_crc"] == base["wdata_crc"], \
+                f"{name} depth {depth}: wdata CRC 0x{s['wdata_crc']:08x} != depth-1 0x{base['wdata_crc']:08x}"
+            # No request completes faster than the idle-pipe resident-hit
+            # floor measured at depth 1.  Equality is NOT required: under a
+            # sustained pipelined stream a hit can meet a busy lookup stage
+            # and wait a cycle, so a run in which no hit ever found the pipe
+            # idle reports a floor one above (jet ci1 at depth 16: 4 vs 3,
+            # deterministic).  A lower minimum would mean a response was
+            # mis-timed (or a stray one counted).
+            assert s["lat_min"] >= base["lat_min"], \
+                f"{name} depth {depth}: lat_min {s['lat_min']} below the depth-1 floor {base['lat_min']}"
+            assert s["run_cycles"] <= base["run_cycles"], \
+                f"{name} depth {depth}: run_cycles {s['run_cycles']} > depth-1 {base['run_cycles']}"
+        assert base["outst_max"] == 1, \
+            f"{name}: depth 1 reached OUTST_MAX {base['outst_max']}"
+        # The credit stall counter is the injector throttling itself: at depth 1
+        # it must be the only thing that ever held an address back.
+        if INJECTOR_EXPECT_PIPELINED:
+            s8 = snaps[8][name]
+            assert s8["outst_max"] >= 2, \
+                f"{name} depth 8: the cache never had two requests in flight (OUTST_MAX {s8['outst_max']})"
+            assert s8["run_cycles"] < base["run_cycles"], \
+                f"{name} depth 8: no throughput gain ({s8['run_cycles']} vs {base['run_cycles']} cycles)"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

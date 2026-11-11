@@ -22,6 +22,9 @@ top_block = {
         'sw': 'rw',
         'type': 'reg',
         'we_mix': {'default': '0x00', 'offset': '15:8', 'sw': 'rw', 'type': 'field'},
+        # Requests kept in flight (TASK-002). 0 reads as 1 (the original
+        # blocking behaviour); clamped to the RTL's MAX_OUTSTANDING (16).
+        'outstanding': {'default': '0x00', 'offset': '23:16', 'sw': 'rw', 'type': 'field'},
     },
     'SEED': {
         'address': '0x004',
@@ -206,4 +209,23 @@ top_block = {
         'type': 'reg',
         'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
     } for i in range(8)},
+    # Parallelism counters (TASK-002), read-only, cleared on run start.
+    #   OUTST_MAX     most requests in flight at once
+    #   OUTST_SUM     sum of the in-flight count over run cycles
+    #                 (/ RUN_CYCLES = mean memory-level parallelism)
+    #   STALL_CYCLES  cycles the cache held cpu_req_wr_ready low against
+    #                 a valid request
+    #   CREDIT_STALL  cycles an address was ready but the credit held it
+    **{name: {
+        'address': f'0x{addr:03X}',
+        'default': '0x00000000',
+        'name': name,
+        'offset': f'0x{addr:03X}',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    } for name, addr in (('OUTST_MAX', 0x068), ('OUTST_SUM_LO', 0x06C),
+                         ('OUTST_SUM_HI', 0x070), ('STALL_CYCLES', 0x074),
+                         ('CREDIT_STALL', 0x078))},
 }

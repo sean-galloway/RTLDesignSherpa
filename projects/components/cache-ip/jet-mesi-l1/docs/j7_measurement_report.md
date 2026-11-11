@@ -217,6 +217,74 @@ bin counter — same gap as metric 2). What silicon does show:
 Jet DV (occupancy waveforms) or the cache_sim cross-check can supply the
 exact overlap fraction if it is ever needed; the bins carry the bound.
 
+## Pipelined injector (2026-11-11, cache-ip common-ip TASK-002)
+
+Every number above was taken with a blocking injector: one request in
+flight per cache, so the hit-latency distribution was measured but the
+throughput side of J1/J4 (hit-under-miss, miss overlap) never was. The
+injector is now credit-gated (CTRL[23:16] requests in flight, up to 16),
+with an accept-timestamp ring for per-request latency and four new
+counters (OUTST_MAX, OUTST_SUM, STALL_CYCLES, CREDIT_STALL). Depth 1
+reproduces the blocking behaviour. Both rigs were rebuilt (amber bin 11,
+jet bin 17) and swept at depths 1, 2, 4, 8, 16; the issued stream is
+depth-invariant (per-config `wdata_crc` identical at every depth and to the
+blocking baselines).
+
+**amber (bin11, `perf_sweep_bin11_20261111T212718Z.json`)** -- cycles per transaction (ci0) and mean MLP (ci0) per depth; 20,000 transactions per run, both injectors on the same region except disjoint64k:
+
+| config | d1 cyc/txn | d2 cyc/txn | d4 cyc/txn | d8 cyc/txn | d16 cyc/txn | d1 MLP | d2 MLP | d4 MLP | d8 MLP | d16 MLP | OUTST_MAX d16 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| smoke4k_we64 | 5.08 | 3.04 | 3.04 | 3.04 | 3.04 | 0.80 | 1.33 | 1.33 | 1.33 | 1.33 | 2/2 |
+| r4k_we0 | 5.02 | 3.04 | 3.04 | 3.04 | 3.04 | 0.80 | 1.33 | 1.33 | 1.33 | 1.33 | 2/2 |
+| r4k_we255 | 5.04 | 3.04 | 3.04 | 3.04 | 3.04 | 0.80 | 1.33 | 1.33 | 1.33 | 1.33 | 2/2 |
+| r1k_we64 | 5.02 | 3.03 | 3.03 | 3.03 | 3.03 | 0.80 | 1.33 | 1.33 | 1.33 | 1.33 | 2/2 |
+| r64b_we64 | 5.00 | 3.00 | 3.00 | 3.00 | 3.00 | 0.80 | 1.33 | 1.33 | 1.33 | 1.33 | 2/2 |
+| r16k_we64 | 5.32 | 3.27 | 3.27 | 3.27 | 3.27 | 0.81 | 1.31 | 1.31 | 1.31 | 1.31 | 2/2 |
+| r64k_we64 | 20.83 | 18.82 | 18.82 | 18.82 | 18.82 | 0.95 | 1.05 | 1.05 | 1.05 | 1.05 | 2/2 |
+| r64k_we255 | 30.49 | 28.49 | 28.49 | 28.49 | 28.49 | 0.97 | 1.04 | 1.04 | 1.04 | 1.04 | 2/2 |
+| r128k_we64 | 28.62 | 26.62 | 26.62 | 26.62 | 26.62 | 0.97 | 1.04 | 1.04 | 1.04 | 1.04 | 2/2 |
+| disjoint64k_we64 | 20.86 | 18.86 | 18.86 | 18.86 | 18.86 | 0.95 | 1.05 | 1.05 | 1.05 | 1.05 | 2/2 |
+| smoke4k_we64_repeat | 5.06 | 3.06 | 3.06 | 3.06 | 3.06 | 0.80 | 1.33 | 1.33 | 1.33 | 1.33 | 2/2 |
+
+**jet (bin17, `perf_sweep_bin17_20261111T213557Z.json`)** -- cycles per transaction (ci0) and mean MLP (ci0) per depth; 20,000 transactions per run, both injectors on the same region except disjoint64k:
+
+| config | d1 cyc/txn | d2 cyc/txn | d4 cyc/txn | d8 cyc/txn | d16 cyc/txn | d1 MLP | d2 MLP | d4 MLP | d8 MLP | d16 MLP | OUTST_MAX d16 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| smoke4k_we64 | 4.08 | 2.03 | 1.03 | 1.03 | 1.03 | 0.75 | 1.51 | 3.03 | 4.29 | 4.66 | 12/12 |
+| r4k_we0 | 4.02 | 2.03 | 1.03 | 1.02 | 1.02 | 0.75 | 1.51 | 3.03 | 7.02 | 11.00 | 12/3 |
+| r4k_we255 | 4.04 | 2.04 | 1.06 | 1.06 | 1.06 | 0.75 | 1.51 | 3.06 | 4.10 | 4.21 | 12/12 |
+| r1k_we64 | 4.02 | 2.02 | 1.05 | 1.05 | 1.05 | 0.75 | 1.51 | 3.05 | 4.04 | 4.07 | 12/12 |
+| r64b_we64 | 4.00 | 2.00 | 1.25 | 1.25 | 1.25 | 0.75 | 1.50 | 3.20 | 3.80 | 3.80 | 4/11 |
+| r16k_we64 | 4.31 | 2.21 | 1.21 | 1.19 | 1.18 | 0.77 | 1.55 | 3.17 | 4.88 | 5.66 | 12/12 |
+| r64k_we64 | 17.43 | 12.93 | 11.48 | 10.82 | 10.74 | 0.94 | 1.92 | 3.91 | 6.43 | 7.04 | 12/12 |
+| r64k_we255 | 21.18 | 14.32 | 12.10 | 11.04 | 10.90 | 0.95 | 1.93 | 3.92 | 6.38 | 6.97 | 12/12 |
+| r128k_we64 | 24.01 | 17.30 | 16.34 | 16.04 | 16.02 | 0.96 | 1.94 | 3.94 | 5.69 | 5.82 | 12/12 |
+| disjoint64k_we64 | 17.46 | 12.98 | 11.53 | 10.88 | 10.80 | 0.94 | 1.92 | 3.91 | 6.41 | 7.02 | 12/12 |
+| smoke4k_we64_repeat | 4.05 | 2.04 | 1.05 | 1.04 | 1.04 | 0.75 | 1.51 | 3.05 | 4.30 | 4.65 | 12/12 |
+
+- amber: one-deep skid, so depth 2 hides the injector turnaround (5.0 ->
+  3.0 cycles per hit) and nothing further is ever in flight; MLP ceiling
+  1.33 on hits, 1.05 on misses. The blocking baseline the comparison needs.
+- jet: one resident hit per cycle from depth 4 (1.03 cycles per
+  transaction); misses overlap to MLP 7.0 with 12 in flight -- the 64 KB
+  thrash 17.4 -> 10.7 cycles per transaction (-38 %), 128 KB 24.0 -> 16.0
+  (-33 %). The miss curve is flat from depth 8 to 16: the pair fabric's
+  single in-flight memory read is the next limiter.
+- Shared-region `rsp_crc` values differ from the blocking baselines because
+  they encode the race between the two injectors on the same addresses and
+  the pipelined injector's turnaround is a cycle shorter; `wdata_crc` and
+  the private-region `rsp_crc` (ci1, disjoint64k) are identical.
+- The first pipelined run deadlocked the pair fabric (jet BUG-004, fixed
+  in the fabric, pinned by pair-rig scenario (i)); the blocking injector
+  could not reach the posture.
+- Open observation: `r4k_we0` at depth >= 8 is asymmetric between the two
+  injectors (ci0 12 in flight at mean latency 11.2, ci1 at most 3 at
+  latency 3.00, both at one transaction per cycle); deterministic, no
+  error, not yet explained.
+
+Source JSON: `projects/fpga-systems/Genesys2/cache-ip/{amber,jet}/results/`
+files named in the table headers; `--outstanding 1 2 4 8 16` reproduces.
+
 ## Reproduction
 
 ```bash
@@ -233,5 +301,5 @@ from those files (filenames recorded alongside each table when filled).
 
 ---
 
-**Last Updated:** 2026-11-03
+**Last Updated:** 2026-11-11
 **Maintained By:** RTL Design Sherpa Project

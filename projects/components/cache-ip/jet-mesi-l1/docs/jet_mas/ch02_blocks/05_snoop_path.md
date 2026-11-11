@@ -120,3 +120,15 @@ same-line kill: amber replays a killed pass, jet cannot, so the pre-AR
 rule (above) makes the kill answer-neutral. The pair rig's
 `SimultaneousSameLineMisses` and `PairShipsInTheNight` scenarios pin both
 ends of that contract.
+
+The fabric's own safe-peer wait had to learn item 1 as well (jet BUG-004,
+2026-11-11). Its data-snoop term waited for the peer's lookup to be idle
+(`lkup_live`, the exported skid-occupancy bit) and its pending bypass
+required an amber miss pseudo-state that jet reports only for one cycle;
+under a pipelined request stream the peer's lookup is never idle while its
+own fill waits on the fabric, so the fabric waited on a lookup that was
+waiting on the fabric. The bypass now fires whenever the peer has a request
+the fabric itself holds (every fill such a peer can launch is pre-AR, hence
+answer-neutral under the pre-AR rule); the drain-on-this-line exclusion is
+unchanged. Pair-rig scenario (i) `DeepPipelinedMisses` (eight back-to-back
+true misses per CPU, shared then disjoint lines) pins it at every level.

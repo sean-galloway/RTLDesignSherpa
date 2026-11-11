@@ -108,78 +108,96 @@ CONFIGS = [
 ]
 
 
-def run_sweep(driver, *, count, configs=None, settle=0.25, say=print):
+def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
+              outstanding=(1,)):
+    """Walk CONFIGS at each injector depth in `outstanding` (TASK-002).
+
+    The issued sequence is depth-invariant, so every config's CRCs must be
+    identical across depths; run cycles, latency and the MLP counters are
+    what change."""
     names = set(configs) if configs else None
     driver.clear_and_load_profile(build_default_profile())
     driver.tally_clear()  # start from zeroed bins; each run below re-clears
     results = []
-    for name, mask, base0, base1, we_mix, do_latch in CONFIGS:
-        if names and name not in names:
-            continue
-        say(f"[sweep] {name}: count={count} mask=0x{mask:06x} "
-            f"bases=0x{base0:05x}/0x{base1:05x} we_mix={we_mix}")
+    for depth in outstanding:
+        for name, mask, base0, base1, we_mix, do_latch in CONFIGS:
+            if names and name not in names:
+                continue
+            say(f"[sweep] {name}: count={count} mask=0x{mask:06x} "
+                f"bases=0x{base0:05x}/0x{base1:05x} we_mix={we_mix} "
+                f"outstanding={depth}")
 
-        if do_latch:
-            driver.bus["tally_cfgw"].write("WATCH_CTRL", ARM=1, MASK=0x0001)
+            if do_latch:
+                driver.bus["tally_cfgw"].write("WATCH_CTRL", ARM=1, MASK=0x0001)
 
-        driver.configure_ci("ci0", seed=SEED0, addr_base=base0,
-                            addr_mask=mask, count=count, we_mix=we_mix)
-        driver.configure_ci("ci1", seed=SEED1, addr_base=base1,
-                            addr_mask=mask, count=count, we_mix=we_mix)
-        t0 = time.monotonic()
-        driver.start_all()
-        ok = driver.wait_done(timeout=180.0)
-        wall = time.monotonic() - t0
-        time.sleep(settle)  # let the MonBus path drain into the bins
+            driver.configure_ci("ci0", seed=SEED0, addr_base=base0,
+                                addr_mask=mask, count=count, we_mix=we_mix,
+                                outstanding=depth)
+            driver.configure_ci("ci1", seed=SEED1, addr_base=base1,
+                                addr_mask=mask, count=count, we_mix=we_mix,
+                                outstanding=depth)
+            t0 = time.monotonic()
+            driver.start_all()
+            ok = driver.wait_done(timeout=180.0)
+            wall = time.monotonic() - t0
+            time.sleep(settle)  # let the MonBus path drain into the bins
 
-        # Freeze for a coherent snapshot, read, then clear for the next run
-        # (tally_clear is RMW: the freeze level survives the clear).
-        driver.tally_freeze(True)
-        bins, unc = _read_bins(driver)
-        delta = bins
-        unc_ = unc
+            # Freeze for a coherent snapshot, read, then clear for the next run
+            # (tally_clear is RMW: the freeze level survives the clear).
+            driver.tally_freeze(True)
+            bins, unc = _read_bins(driver)
+            delta = bins
+            unc_ = unc
 
-        st0 = driver.ci_status("ci0")
-        st1 = driver.ci_status("ci1")
-        crc0 = driver.ci_crcs("ci0")
-        crc1 = driver.ci_crcs("ci1")
-        lat0 = driver.ci_latency("ci0")
-        lat1 = driver.ci_latency("ci1")
+            st0 = driver.ci_status("ci0")
+            st1 = driver.ci_status("ci1")
+            crc0 = driver.ci_crcs("ci0")
+            crc1 = driver.ci_crcs("ci1")
+            lat0 = driver.ci_latency("ci0")
+            lat1 = driver.ci_latency("ci1")
 
-        if do_latch:
-            latch = _latch_capture(driver)
+            if do_latch:
+                latch = _latch_capture(driver)
 
-        driver.tally_clear()
-        driver.tally_freeze(False)
+            driver.tally_clear()
+            driver.tally_freeze(False)
 
-        rec = {
-            "config": name, "count": count, "mask": f"0x{mask:06x}",
-            "base0": f"0x{base0:05x}", "base1": f"0x{base1:05x}",
-            "we_mix": we_mix, "done": ok, "wall_s": round(wall, 3),
-            "bins": bins, "unexpected": unc_,
-            "ci0": {**st0, **crc0, **lat0}, "ci1": {**st1, **crc1, **lat1},
-        }
-        if do_latch:
-            rec["latch"] = latch
-        results.append(rec)
+            rec = {
+                "config": name, "count": count, "mask": f"0x{mask:06x}",
+                "base0": f"0x{base0:05x}", "base1": f"0x{base1:05x}",
+                "we_mix": we_mix, "outstanding": depth, "done": ok,
+                "wall_s": round(wall, 3),
+                "bins": bins, "unexpected": unc_,
+                "ci0": {**st0, **crc0, **lat0}, "ci1": {**st1, **crc1, **lat1},
+            }
+            if do_latch:
+                rec["latch"] = latch
+            results.append(rec)
 
-        hits, misses, snoops, evicts, drops = delta[0], delta[1], delta[2], \
-            delta[3], delta[4]
-        fill_end, drain_end = delta[7], delta[9]
-        # Hit events fire once per SERVED access (post-miss replays re-hit),
-        # so bin0 = total accesses; true miss rate = miss/accesses.
-        lat_mean0 = lat0["lat_sum"] / count if count else 0
-        lat_mean1 = lat1["lat_sum"] / count if count else 0
-        say(f"  acc={hits} miss={misses} snoop={snoops} evict={evicts} "
-            f"drop={drops} fill_end={fill_end} drain_end={drain_end} "
-            f"unc={unc_} "
-            f"miss%={100.0 * misses / hits if hits else 0:.1f} "
-            f"lat0={lat0['lat_min']}/{lat_mean0:.1f}/{lat0['lat_max']} "
-            f"lat1={lat1['lat_min']}/{lat_mean1:.1f}/{lat1['lat_max']} "
-            f"cyc0={lat0['run_cycles']} cyc1={lat1['run_cycles']} "
-            f"wall={wall:.2f}s err={st0['err_flag'] or st1['err_flag']}")
-        if unc != 0 or st0["err_flag"] or st1["err_flag"] or not ok:
-            say(f"[sweep] WARNING {name}: unexpected/err/timeout flag set")
+            hits, misses, snoops, evicts, drops = delta[0], delta[1], delta[2], \
+                delta[3], delta[4]
+            fill_end, drain_end = delta[7], delta[9]
+            # Hit events fire once per SERVED access (post-miss replays re-hit),
+            # so bin0 = total accesses; true miss rate = miss/accesses.
+            lat_mean0 = lat0["lat_sum"] / count if count else 0
+            lat_mean1 = lat1["lat_sum"] / count if count else 0
+            cyc0, cyc1 = lat0["run_cycles"], lat1["run_cycles"]
+            mlp0 = lat0["outst_sum"] / cyc0 if cyc0 else 0
+            mlp1 = lat1["outst_sum"] / cyc1 if cyc1 else 0
+            say(f"  acc={hits} miss={misses} snoop={snoops} evict={evicts} "
+                f"drop={drops} fill_end={fill_end} drain_end={drain_end} "
+                f"unc={unc_} "
+                f"miss%={100.0 * misses / hits if hits else 0:.1f} "
+                f"lat0={lat0['lat_min']}/{lat_mean0:.1f}/{lat0['lat_max']} "
+                f"lat1={lat1['lat_min']}/{lat_mean1:.1f}/{lat1['lat_max']} "
+                f"cyc0={cyc0} cyc1={cyc1} "
+                f"cpt0={cyc0 / count if count else 0:.2f} "
+                f"mlp0={mlp0:.2f}/{lat0['outst_max']} "
+                f"mlp1={mlp1:.2f}/{lat1['outst_max']} "
+                f"stall0={lat0['stall_cycles']} cstall0={lat0['credit_stall']} "
+                f"wall={wall:.2f}s err={st0['err_flag'] or st1['err_flag']}")
+            if unc != 0 or st0["err_flag"] or st1["err_flag"] or not ok:
+                say(f"[sweep] WARNING {name}: unexpected/err/timeout flag set")
 
     return results
 
@@ -192,6 +210,8 @@ def main(argv=None):
     ap.add_argument("--count", type=int, default=20000)
     ap.add_argument("--configs", nargs="+", default=None,
                     help="run only these named configs")
+    ap.add_argument("--outstanding", nargs="+", type=int, default=[1],
+                    help="injector depths to sweep (1..16); default 1")
     ap.add_argument("--out", default=None,
                     help="JSON results path (default: results/perf_sweep_*.json")
     args = ap.parse_args(argv)
@@ -202,7 +222,8 @@ def main(argv=None):
     driver = AmberDriver(bridge)
     try:
         results = run_sweep(driver, count=args.count,
-                            configs=args.configs)
+                            configs=args.configs,
+                            outstanding=tuple(args.outstanding))
     finally:
         bridge.close()
 
@@ -214,7 +235,8 @@ def main(argv=None):
                            "..", "results", f"perf_sweep_{stamp}.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as fh:
-        json.dump({"count": args.count, "results": results}, fh, indent=2)
+        json.dump({"count": args.count, "outstanding": args.outstanding,
+                   "results": results}, fh, indent=2)
     print(f"[sweep] results written to {out}")
     return 0
 

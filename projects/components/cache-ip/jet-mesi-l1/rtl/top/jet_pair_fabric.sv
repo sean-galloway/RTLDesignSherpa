@@ -71,10 +71,14 @@
 //   presented during the commit window (sn_safe_o covers
 //   fill-done-unretired, the capture stream, and the upgrade hold-off),
 //   so the wait is a presentation-time optimization, not a correctness
-//   mechanism.  It cannot deadlock: a peer with an ungranted request has
-//   its AR held by this fabric and answers pre-AR (the kill-rule case);
-//   a peer mid-miss reaches its fill launch (the sideband pulse) in
-//   bounded time, after which the pending term releases the wait.
+//   mechanism.  Liveness: a peer with an ungranted request has its AR
+//   held by this fabric and answers pre-AR (the kill-rule case), so the
+//   pending term releases the wait regardless of the peer's lookup or
+//   pseudo-state (jet BUG-004: the wait once also demanded an idle peer
+//   lookup, which a pipelined request stream never grants while the
+//   peer's own fill waits on this fabric -- a circular wait); a peer
+//   mid-miss with nothing queued here reaches its fill launch (the
+//   sideband pulse) in bounded time, after which the same term applies.
 //
 //   Point of coherence: a PassDirty response means the peer owned the only
 //   correct copy; the forwarded line is also written to the shared memory
@@ -661,16 +665,39 @@ module jet_pair_fabric
             || (st == ST_REPLAY);
     endfunction
 
-    // the peer-pending bypass lets the AC fire while the peer parks in
-    // MISS_FILL or MISS_DRAIN with a fabric-held AR -- but NOT during the
-    // drain window on this very line (that fill's beats are flowing; a
-    // data-expecting snoop must wait for the commit)
+    // the peer-pending bypass lets the AC fire while the peer has a
+    // request THIS fabric holds (its AR queued here, ungranted) -- but NOT
+    // during the drain window on this very line (that fill's beats are
+    // flowing; a data-expecting snoop must wait for the commit).
+    //
+    // jet BUG-004 (2026-11-11): the bypass used to require the peer's
+    // lookup to be idle (!peer_lkup_now) and the peer's pseudo-state to be
+    // MISS_FILL / MISS_DRAIN.  Both terms were amber's: jet reports those
+    // two states only as one-cycle events (the fill accept, the drain
+    // start), so the bypass never applied to a jet in steady state, and a
+    // jet fed a PIPELINED request stream keeps a request at its lookup for
+    // as long as its own fill waits -- the fill-launch register is busy
+    // behind the fabric-held AR, the MSHRs fill, a cross-class access
+    // waits for a commit; every one of those holds resolves only through
+    // this fabric's grant.  Waiting for that lookup to go idle before
+    // presenting the AC was a circular wait: both caches parked with an AR
+    // held, a launch pending and a miss at the lookup, the fabric in F_AC
+    // forever (the pipelined cycle injector of cache-ip common-ip
+    // TASK-002 found it at depth 8; pair-rig scenario (i) pins it).
+    //
+    // Dropping the two terms is sound on jet: while the peer's request is
+    // held here, every fill the peer can launch is pre-AR (the single-
+    // outstanding engine's AR for this direction is only accepted at this
+    // direction's grant), and jet_control's pre-AR rule answers any snoop
+    // to a pre-AR entry at the Invalid row with no data, whatever the
+    // ACSNOOP encoding -- so a launch the kill rule did not see is
+    // answer-neutral.  The commit / capture / snoop-service windows are
+    // the responder's own (sn_safe_o holds the presented AC), and the
+    // drain-on-this-line window is excluded here as before.
     wire peer_drain_grant = drain_vld_q[1'(1 - grant_q)]
         && (drain_line_q[1'(1 - grant_q)] == grant_addr_q);
     wire peer_safe_data = (!peer_unsafe(peer_state_now) && !peer_lkup_now)
-        || (peer_pend_now && !peer_drain_grant && !peer_lkup_now
-            && ((peer_state_now == ST_MISS_FILL)
-                || (peer_state_now == ST_MISS_DRAIN)));
+        || (peer_pend_now && !peer_drain_grant);
     // issue-time kill: same rule against the CURRENT queue/drain state,
     // including a same-cycle sideband pulse (the fabric sees it live;
     // the registered queue lags it by a cycle). Only true misses trigger

@@ -44,7 +44,10 @@ amber's (Pattern-B cocotb GATE/FUNC/FULL grids, per amber D9):
    `jet_top`s + `jet_pair_fabric` + one shared sdpram; the per-cache
    event-stream scoreboard instantiated per side plus the fabric layer
    and the onyx-D7 ACE compliance checkers, plus the
-   `pair_ships_in_the_night` WB-snarf corner).
+   `pair_ships_in_the_night` WB-snarf corner and, since jet BUG-004, the
+   `DeepPipelinedMisses` scenario: eight back-to-back true misses per CPU
+   before any response is awaited, the posture a blocking driver can never
+   reach and the one that deadlocked the fabric's safe-peer wait).
 
 ## The BUG-001/002 lesson, applied at the start
 

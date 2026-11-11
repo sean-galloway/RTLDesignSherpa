@@ -77,23 +77,29 @@ class CycleInjector(Device):
     """One amber_cycle_injector instance, addressed entirely by name."""
 
     def configure(self, *, seed: int, addr_base: int, addr_mask: int,
-                  count: int, we_mix: int) -> int:
+                  count: int, we_mix: int, outstanding: int = 1) -> int:
         """Program configuration registers with run held low.
+
+        outstanding = requests the injector keeps in flight (1..16; the RTL
+        reads 0 as 1 and clamps above MAX_OUTSTANDING). 1 is the original
+        blocking behaviour.
 
         Returns the CTRL word that was staged, so the caller can start the
         injector later without a read-modify-write.
         """
+        if not 0 <= outstanding <= 255:
+            raise ValueError(f"outstanding {outstanding} outside 0..255")
         # Marginal-UART hardening: run=0 goes down FIRST, then config, then
         # TRANS_COUNT twice (a dropped first write could otherwise leave 0,
         # which some injector semantics treat as "run forever").
-        self.write("CTRL", run=0, we_mix=we_mix)
+        self.write("CTRL", run=0, we_mix=we_mix, outstanding=outstanding)
         self.write_word("SEED", seed)
         self.write_word("ADDR_BASE", addr_base)
         self.write_word("ADDR_MASK", addr_mask)
         self.write_word("TRANS_COUNT", count)
         self.write_word("TRANS_COUNT", count)
-        self.write("CTRL", run=0, we_mix=we_mix)
-        return (we_mix & 0xFF) << 8
+        self.write("CTRL", run=0, we_mix=we_mix, outstanding=outstanding)
+        return ((outstanding & 0xFF) << 16) | ((we_mix & 0xFF) << 8)
 
     def start(self, ctrl_shadow: int) -> None:
         """Set the run bit using the config-time CTRL shadow."""
@@ -123,12 +129,19 @@ class CycleInjector(Device):
         buckets are log2 (bucket b = [2^b, 2^(b+1)-1], bucket 7 = >=128)."""
         lo = self.read("LAT_SUM_LO")
         hi = self.read("LAT_SUM_HI")
+        olo = self.read("OUTST_SUM_LO")
+        ohi = self.read("OUTST_SUM_HI")
         return {
             "lat_min": self.read("LAT_MIN"),
             "lat_max": self.read("LAT_MAX"),
             "lat_sum": (hi << 32) | lo,
             "run_cycles": self.read("RUN_CYCLES"),
             "lat_hist": [self.read(f"LAT_HIST{i}") for i in range(8)],
+            # TASK-002 parallelism counters
+            "outst_max": self.read("OUTST_MAX"),
+            "outst_sum": (ohi << 32) | olo,
+            "stall_cycles": self.read("STALL_CYCLES"),
+            "credit_stall": self.read("CREDIT_STALL"),
         }
 
 
@@ -191,10 +204,11 @@ class AmberDriver:
     # Cycle injectors
     # ------------------------------------------------------------------
     def configure_ci(self, name: str, *, seed: int, addr_base: int,
-                     addr_mask: int, count: int, we_mix: int) -> None:
+                     addr_mask: int, count: int, we_mix: int,
+                     outstanding: int = 1) -> None:
         shadow = self.bus[name].configure(
             seed=seed, addr_base=addr_base, addr_mask=addr_mask,
-            count=count, we_mix=we_mix)
+            count=count, we_mix=we_mix, outstanding=outstanding)
         self._ctrl_shadow[name] = shadow
 
     def start_ci(self, name: str) -> None:

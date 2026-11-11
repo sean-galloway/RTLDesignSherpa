@@ -73,7 +73,7 @@ talks to the design over UART through a generated AXI4-Lite bridge.
 | --- | --- |
 | `rtl/jet_pair_genesys2_top.sv` | Board top: clocking, reset sync, LED heartbeat, harness instance. |
 | `rtl/jet_pair_harness.sv` | Integration harness: UART bridge, generated AXIL decoder, CSR, injectors, caches, fabric, memory, MonBus tally path. |
-| `rtl/amber_cycle_injector.sv` | Per-core stimulus engine: AXIL CSR slave, LFSR address/data generation, CRC-32 accumulators, per-run latency min/max/sum + log2 histogram + busy cycles. |
+| `rtl/amber_cycle_injector.sv` | Per-core stimulus engine: AXIL CSR slave, LFSR address/data generation through the house address-generator pipeline, credit-gated issue with 1..16 requests in flight (`CTRL.outstanding`), CRC-32 accumulators, per-run latency min/max/sum + log2 histogram, run cycles, and the parallelism counters OUTST_MAX / OUTST_SUM / STALL_CYCLES / CREDIT_STALL. |
 | `rtl/bridges/configs/bridge_jet_axil.toml` | 1-master × 6-slave AXIL bridge definition. |
 | `rtl/filelists/jet_pair_genesys2_top.f` | Top-level filelist closure. |
 | `host/jet_board.py` | Named-register host driver and smoke campaign. |

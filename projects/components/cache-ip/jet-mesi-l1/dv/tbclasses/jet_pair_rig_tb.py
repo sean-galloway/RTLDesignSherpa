@@ -52,9 +52,14 @@ What this suite pins (the pair-rig contract on jets):
       snapshot (DT+PD), the peer fills from it, the absorption lands.
   (g) Randomized dual-CPU lockstep soak (func/full).
   (h) MonBus present-vs-absent equivalence (USE_MONITOR=0 gate cell).
+  (i) Deep pipelined miss streams on BOTH CPUs (eight back-to-back true
+      misses each, shared lines then disjoint lines) -- liveness of the
+      fabric's safe-peer wait when the peer's lookup is itself waiting on
+      the fabric (jet BUG-004, found by the pipelined cycle injector of
+      cache-ip common-ip TASK-002).
 
 Levels (TEST_LEVEL):
-  gate  -- InitWalk + directed (a)-(f)
+  gate  -- InitWalk + directed (a)-(f) + (i)
   func  -- + RandomDualCpuLockstep (g)
   full  -- + dual-CPU soak
 
@@ -1690,6 +1695,93 @@ class JetPairRigTB(TBBase):
                     "(within 3 attempts)", hit, True)
         self._scenario('PairShipsInTheNight')
 
+    async def _s_deep_pipelined_misses(self):
+        """(i) Deep pipelined miss streams on BOTH CPUs (jet BUG-004).
+
+        Each CPU issues DEPTH back-to-back true misses before awaiting any
+        response, so every cache ends up with its fill AR held by the
+        fabric, a second launch parked in the fill-launch register and a
+        third miss held at the lookup (lkup_live stays high).  Round 0
+        shares the lines (c0 writes beat 0, c1 reads beat 1: every grant
+        snoops a peer in exactly that posture); round 1 uses disjoint lines
+        (the snoops all miss, the posture is the same).  The pre-fix fabric
+        waited for the peer's lookup to go idle before presenting the AC
+        while the peer's lookup was waiting on the fabric's grant: a
+        circular wait that the blocking injectors and the 1..3-deep random
+        bursts of (g) never produced.
+
+        The contract is liveness (every response arrives; _await_rsp hang
+        trace otherwise) plus a legal MESI pair per line and the writer's
+        store visible in every valid copy.  Lines are (tag, set) pairs
+        fresh to this run: tag k+1 (already allocated by (a)-(f), whose
+        scenarios only ever touch sets 1..6) at set 7+k / 8+k / 9+k for
+        the shared / c0-disjoint / c1-disjoint lines, one line per set per
+        cache per round so the scenario never evicts its own lines (a
+        2-way set cannot hold eight), and no fresh tag is drawn (the tag
+        budget is exhausted at WAYS=4)."""
+        depth = 8
+        full_be = (1 << self.STRB_W) - 1
+        assert self.SETS >= 16, "scenario (i) needs sets 7..16 (mod SETS) clear of (a)-(f)"
+
+        def _base(tag, sset):
+            return (tag << (self.SET_BITS + self.OFFSET_BITS)) \
+                | ((sset & self.SET_MASK) << self.OFFSET_BITS)
+
+        async def _stream(c, addrs, we, datas):
+            ns = []
+            for a, wd in zip(addrs, datas):
+                ns.append(await self._send(c, a, we, be=full_be,
+                                           wdata=wd if we else None))
+            return ns
+
+        for rnd, shared in enumerate((True, False)):
+            if shared:
+                l0 = [_base(k + 1, 7 + k) for k in range(depth)]
+                l1 = l0
+            else:
+                l0 = [_base(k + 1, 8 + k) for k in range(depth)]
+                l1 = [_base(k + 1, 9 + k) for k in range(depth)]
+            a0 = [b for b in l0]                                   # beat 0
+            a1 = [b + (1 % self.FILL_BEATS) * self.STRB_W for b in l1]
+            d0 = [0xC0DE_0000_0000_0000 | (rnd << 16) | (k + 1)
+                  for k in range(depth)]
+            t0 = cocotb.start_soon(_stream(0, a0, 1, d0))
+            t1 = cocotb.start_soon(_stream(1, a1, 0, [0] * depth))
+            ns0 = await t0
+            ns1 = await t1
+            for n in ns0:
+                await self._await_rsp(0, n, f'i{rnd}_c0')
+            for n in ns1:
+                await self._await_rsp(1, n, f'i{rnd}_c1')
+            self._score(f"i{rnd}: all {2 * depth} pipelined responses arrived",
+                        (len(self.rsp_log[0]) > ns0[-1],
+                         len(self.rsp_log[1]) > ns1[-1]), (True, True))
+            for _ in range(4):
+                await self._negedge_settled()
+            for k in range(depth):
+                line0 = self._line_of(l0[k])
+                line1 = self._line_of(l1[k])
+                st0 = self._installed_state(self.sides[0], line0)
+                st1 = self._installed_state(self.sides[1], line1)
+                if shared:
+                    owners = [s for s in (st0, st1) if s in ('M', 'E')]
+                    legal = (len(owners) == 0) or \
+                        ((st0 == 'I') != (st1 == 'I') and len(owners) == 1)
+                    self._score(f"i{rnd} line {k}: legal MESI pair "
+                                f"(c0={st0} c1={st1})", legal, True)
+                    for c, st, line in ((0, st0, line0), (1, st1, line1)):
+                        if st != 'I':
+                            content = self._content(self.sides[c], line)
+                            self._score(f"i{rnd} line {k}: c{c} ({st}) holds "
+                                        f"c0's store",
+                                        self._beat_of_line(content, 0), d0[k])
+                else:
+                    self._score(f"i{rnd} line {k}: writer owns its line "
+                                f"(c0={st0})", st0, 'M')
+                    self._score(f"i{rnd} line {k}: reader holds its line "
+                                f"(c1={st1})", st1 in ('E', 'S'), True)
+        self._scenario('DeepPipelinedMisses')
+
     # ------------------------------------------------------------------
     # randomized dual-CPU lockstep
     # ------------------------------------------------------------------
@@ -1798,6 +1890,7 @@ class JetPairRigTB(TBBase):
         await self._s_e_downgrade_read_shared()
         await self._s_simultaneous_misses()
         await self._s_ships_in_the_night()
+        await self._s_deep_pipelined_misses()
 
         if self.TEST_LEVEL in ('func', 'full'):
             await self._random_lockstep(self.FULL_TXN[self.TEST_LEVEL])
