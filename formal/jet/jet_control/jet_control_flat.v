@@ -599,9 +599,9 @@ module jet_rsp_seq (
 	input wire rsp_ready_i;
 	initial begin
 		if ((RSP_DEPTH < 2) || (RSP_DEPTH > 32))
-			$display("Error [%0t] .flat_build/prep/jet_rsp_seq.sv:122:13 - jet_rsp_seq.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_rsp_seq: RSP_DEPTH must be in 2..32 (J4)");
+			$display("Error [%0t] .flat_build/prep/jet_rsp_seq.sv:129:13 - jet_rsp_seq.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_rsp_seq: RSP_DEPTH must be in 2..32 (J4)");
 		if ((BUS_WIDTH < 8) || (BUS_WIDTH > 512))
-			$display("Error [%0t] .flat_build/prep/jet_rsp_seq.sv:124:13 - jet_rsp_seq.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_rsp_seq: BUS_WIDTH out of supported range");
+			$display("Error [%0t] .flat_build/prep/jet_rsp_seq.sv:131:13 - jet_rsp_seq.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_rsp_seq: BUS_WIDTH out of supported range");
 	end
 	reg [RSP_DEPTH - 1:0] r_valid;
 	(* ram_style = "distributed" *) reg [BUS_WIDTH - 1:0] r_data [0:RSP_DEPTH - 1];
@@ -609,14 +609,18 @@ module jet_rsp_seq (
 	reg [SEQ_W - 1:0] r_rel_tag;
 	reg [OCC_W - 1:0] r_occupancy;
 	wire w_release;
+	wire w_head_vld;
+	wire w_head_dep;
+	assign w_head_vld = r_valid[r_rel_tag];
+	assign w_head_dep = (cpl_i & (cpl_tag_i == r_rel_tag)) & ~w_head_vld;
 	assign w_release = rsp_ready_i & rsp_valid_o;
-	assign rsp_valid_o = r_valid[r_rel_tag];
-	assign rsp_data_o = r_data[r_rel_tag];
+	assign rsp_valid_o = w_head_vld | w_head_dep;
+	assign rsp_data_o = (w_head_vld ? r_data[r_rel_tag] : cpl_data_i);
 	function automatic signed [OCC_W - 1:0] sv2v_cast_8F697_signed;
 		input reg signed [OCC_W - 1:0] inp;
 		sv2v_cast_8F697_signed = inp;
 	endfunction
-	assign tag_gnt_o = tag_req_i & ((r_occupancy < sv2v_cast_8F697_signed(RSP_DEPTH)) | w_release);
+	assign tag_gnt_o = tag_req_i & ((r_occupancy < sv2v_cast_8F697_signed(RSP_DEPTH)) | (rsp_ready_i & w_head_vld));
 	assign tag_o = r_alloc_tag;
 	function automatic signed [SEQ_W - 1:0] sv2v_cast_A6A5F_signed;
 		input reg signed [SEQ_W - 1:0] inp;
@@ -641,7 +645,7 @@ module jet_rsp_seq (
 				else
 					r_rel_tag <= r_rel_tag + 1'b1;
 			end
-			if (cpl_i)
+			if (cpl_i & ~(w_head_dep & rsp_ready_i))
 				r_valid[cpl_tag_i] <= 1'b1;
 			if (tag_req_i && tag_gnt_o) begin
 				if (r_alloc_tag == sv2v_cast_A6A5F_signed(RSP_DEPTH - 1))

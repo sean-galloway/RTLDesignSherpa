@@ -35,7 +35,14 @@
 //   presented until lkup_ready -- the D-6 request skid sits between the
 //   frontend and the coherence core: the frontend handshakes into the
 //   skid (wr_ready = ctrl_req_ready, the pulse lands once), the skid
-//   holds the request presented until lkup_ready.  The frontend's ready
+//   holds the request presented until lkup_ready.  The skid is BYPASSED
+//   while it is empty (TASK-003 step 2): the arriving request stands at
+//   the lookup in its own handshake cycle, so the tag read overlaps the
+//   cycle the skid used to cost every request, and it enters the skid only
+//   when the lookup does not take it in that cycle -- from then on the
+//   skid presents it, same fields, until lkup_ready (the hold-until-
+//   accepted contract is unchanged; the request reaches the lookup a cycle
+//   sooner).  The frontend's ready
 //   is gated with the synchronized reset (without the gate the empty
 //   skid's wr_ready is high through the reset-sync tail, and a request
 //   handshaked there would be dropped by the FIFO's own reset) and with
@@ -157,8 +164,22 @@ module jet_cpu_plane
     logic                     skid_rd_valid;
     logic [CPU_REQ_W-1:0]     skid_rd_data;
     logic                     skid_wr_ready;
+    logic                     w_skid_bypass;   // the arriving request is presented to the lookup this cycle
+    logic [CPU_REQ_W-1:0]     w_fe_req_data;
+    logic [CPU_REQ_W-1:0]     w_lkup_data;
 
     assign ctrl_req_ready = skid_wr_ready & aresetn & ~ctrl_error;
+
+    // Skid bypass (TASK-003 step 2, 2026-11-10): an empty skid is
+    // transparent.  The arriving request stands at the lookup in its own
+    // handshake cycle (the tag read on port A happens in this cycle, so the
+    // classify follows the handshake by one cycle, not two); it enters the
+    // skid only when the lookup does not capture it here, and the skid then
+    // presents the same fields until lkup_ready.  A non-empty skid is never
+    // bypassed (issue order = skid order), and the frontend's ready stays
+    // the skid's room, so the write below never meets a full skid.
+    assign w_fe_req_data = {fe_req_addr, fe_req_we, fe_req_be, fe_req_wdata};
+    assign w_skid_bypass = fe_req_valid & ~skid_rd_valid;
 
     gaxi_fifo_sync #(
         .DATA_WIDTH (CPU_REQ_W),
@@ -166,9 +187,9 @@ module jet_cpu_plane
     ) u_req_skid (
         .axi_aclk    (aclk),
         .axi_aresetn (aresetn),
-        .wr_valid    (fe_req_valid),
+        .wr_valid    (fe_req_valid & ~(w_skid_bypass & lkup_ready)),
         .wr_ready    (skid_wr_ready),
-        .wr_data     ({fe_req_addr, fe_req_we, fe_req_be, fe_req_wdata}),
+        .wr_data     (w_fe_req_data),
         .rd_ready    (lkup_ready),
         .count       (),
         .rd_valid    (skid_rd_valid),
@@ -205,12 +226,14 @@ module jet_cpu_plane
     // queue can never overflow)
     assign rsp_room = u_frontend.stage_wr_ready;
 
-    // the skid-presented request fields (valid at the lookup window)
-    assign lkup_valid = skid_rd_valid;
-    assign lkup_addr  = skid_rd_data[CPU_REQ_W-1 -: ADDR_WIDTH];
-    assign lkup_we    = skid_rd_data[BUS_WIDTH + STRB_W];
-    assign lkup_be    = skid_rd_data[BUS_WIDTH + STRB_W - 1 -: STRB_W];
-    assign lkup_wdata = skid_rd_data[BUS_WIDTH-1:0];
+    // the request at the lookup window: the skid's head, or the arriving
+    // request while the skid is empty (bypass)
+    assign w_lkup_data = skid_rd_valid ? skid_rd_data : w_fe_req_data;
+    assign lkup_valid  = skid_rd_valid | w_skid_bypass;
+    assign lkup_addr   = w_lkup_data[CPU_REQ_W-1 -: ADDR_WIDTH];
+    assign lkup_we     = w_lkup_data[BUS_WIDTH + STRB_W];
+    assign lkup_be     = w_lkup_data[BUS_WIDTH + STRB_W - 1 -: STRB_W];
+    assign lkup_wdata  = w_lkup_data[BUS_WIDTH-1:0];
 
     // ------------------------------------------------------------------
     // Response sequencer (J4: in-issue-order release); the frontend's

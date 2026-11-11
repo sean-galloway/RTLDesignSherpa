@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-08
 **Priority:** P2
-**Status:** ACTIVE 2026-11-09 (step 1 in work)
+**Status:** CLOSED 2026-11-10 (lat_min 3 on bin 16, == the v2 baseline)
 **Owner:** jet
 
 ## Why
@@ -17,6 +17,8 @@ baseline's 3 and amber's 4:
 | v3 capture/classify pipeline (bin 3) | 5 | 140,464 | 407,409 |
 | BRAM sync-read data array (bin 5) | 6 | 160,608 | 417,246 |
 | bins 6-10 (RAM stores, snoop fix, reset tree) | 6 | 160,608 | 417,246 |
+| step 1: data-array address lead (bins 11-15, 2026-11-09) | 5 | 140,624 | 409,845 |
+| steps 2+3: transparent skid + head-deposit bypass (bin 16, 2026-11-10) | 3 | 100,624 | 369,845 |
 
 Two cycles are the v3 lookup split (ISSUE-001's fix); one is the registered
 data array read. Amber paid nothing for the same array because `l1_control`
@@ -166,3 +168,83 @@ The committed `jet_control_flat.v` is that second flat.
 Step 1 committed 2026-11-09 with BUG-001/002/003 closed. Step 2 (the
 classify/tag-read overlap, the remaining +2 against v2) is what keeps this
 task active.
+
+### 2026-11-10 steps 2+3: the two remaining cycles, without touching jet_control (bin 16)
+
+Step 2 as filed was "overlap classify with the tag read". Counting the
+resident read hit cycle by cycle on the v3 pipe showed the +2 against v2
+was not in `jet_control` at all: it was two empty FIFOs that each cost a
+cycle on the way through.
+
+| cycle | bin 15 (lat 5) | where the cycle went |
+|---|---|---|
+| c0 | CPU handshake, frontend pulse, skid write | |
+| c1 | skid presents to lkup; tag read, capture | **the request skid was empty** |
+| c2 | classify; data-array address lead (step 1) | |
+| c3 | data lands, read serve fires, deposit into `jet_rsp_seq` | |
+| c4 | ring `r_valid` visible, release into the frontend staging FIFO | **the response ring's head slot was empty** |
+| c5 | `cpu_rsp` valid | |
+
+- **Step 2, `jet_cpu_plane`: the request skid is transparent while empty.**
+  An arriving request is presented to the lookup in its own cycle
+  (`w_skid_bypass = fe_req_valid & ~skid_rd_valid`); the skid is written only
+  when the lookup does not accept it that cycle, so the hold-until-accepted
+  contract and `jet_control`'s capture logic are unchanged. c1 is gone.
+- **Step 3, `jet_rsp_seq`: head-deposit bypass.** A deposit whose tag is the
+  release head of an empty ring is offered as `rsp_valid_o` in the deposit
+  cycle, with `rsp_data_o` taken from `cpl_data_i`; if the consumer takes it,
+  `r_valid` is never set. The bypass is deliberately NOT offered to
+  `tag_gnt_o` (the grant keeps the deposit cone off the accept path). c4 is
+  gone.
+
+`jet_control.sv` and the shared `l1_cpu_frontend` are untouched. Both
+changes are the handbook's one-buffer-per-hop rule read for latency: an
+empty buffer still costs a cycle unless it is transparent
+(`vault/handbook/design/one-buffer-per-hop.md`, new section).
+
+DV on the final tree: jet lint at the 168-warning baseline; jet gate 19/19;
+jet FULL **149 passed, 0 failed** (10m16s); `jet_rsp_seq` unit test; jet-g2
+harness gate 2/2 with the 20k cosim; `jet_control_tb` taught the same-cycle
+bypass release (a deposit released in its own cycle never enters the
+deposit set -- `_bypass_rel` / `_record_deposit`).
+
+Formal, `formal/jet/jet_control`, flat regenerated with the rsp_seq bypass
+(the flat includes `jet_rsp_seq`): cover 7/7 and live cover 6/6, prove
+depth 64 PASS (4h46m), prove-live depth 176 PASS (4h11m). The committed
+`jet_control_flat.v` is that flat. Note for the next run: the sby status DB
+(`status.sqlite`, shared by the prove and cover tasks of one `.sby`) is
+corrupted when two tasks start together ("database disk image is
+malformed" at the end of cover); start them a few seconds apart.
+
+Bin 16 (steps 2+3 on bin 15's RTL, under the 0.200 ns budget): 21,714 LUT /
+24,268 FF, WNS **+0.468**, 0 failing endpoints. Board at 100 MHz: smoke
+PASS; from-reset disjoint64k ci0 0x6c206c22 / ci1 0x84d28860 (== the 20k
+cosim, == every bin since 10) at 371,047 cycles; full sweep err 0,
+unexpected 0 in all 11 configs (`results/perf_sweep_bin16_*.json`). In
+every config `lat_sum` and `run_cycles` fell by exactly 40,000 (2 cycles x
+20k transactions), the latency histogram moved one bucket down with
+identical populations, and every CRC matched bin 15:
+
+| config | lat_min | run cycles bin 15 -> 16 | v2 baseline | CRCs |
+|---|---|---|---|---|
+| r4k_we0 | 5 -> 3 | 140,624 -> 100,624 | 100,480 | same |
+| r16k_we64 | 5 -> 3 | 144,786 -> 104,786 | | same |
+| r64k_we64 | 5 -> 3 | 408,684 -> 368,684 | | same |
+| disjoint64k_we64 | 5 -> 3 | 409,845 -> 369,845 | 402,042 | same |
+| r64k_we255 / r128k_we64 | 5 -> 3 | -40,000 each | | same |
+
+The resident configs are back at v2 (+144 cycles); the thrash configs are
+now 8% under v2 because they keep step 1's lead and the MSHR overlap.
+
+Monitor side (ISSUE-002, the J7 error bar, owner: leave as is): the
+monbus tallies moved while every injector-side count stayed identical
+(acc 15,880 -> 11,346, jmon_drop 1,456 -> 821 on disjoint64k). Not chased
+here. One test lesson from it: the jet-g2 `tally_latch_bank` test cleared
+the latch bank while the 3-beat AXIL record egress was still draining
+end-of-run records, and the denser hit stream exposed it as a seed-
+dependent "latch fill not re-armed"; the test now settles the monbus
+(stable tally total across a gap) before every clear and decodes any stray
+slot it finds. Test defect, not RTL.
+
+Closed 2026-11-10. Every "Done when" line is met; the per-step table above
+carries the bin 16 row.

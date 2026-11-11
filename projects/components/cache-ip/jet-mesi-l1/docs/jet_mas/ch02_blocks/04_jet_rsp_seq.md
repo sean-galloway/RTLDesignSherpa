@@ -37,6 +37,13 @@ complete out of order internally.
 - The release pointer walks tags in order: a completed response whose
   predecessors have all released leaves the port; an incomplete head blocks
   only the port, never the internal completion paths.
+- A deposit to the empty head slot is presented in its deposit cycle (the
+  head-deposit bypass, TASK-003 step 3, 2026-11-10): `rsp_valid` rises with
+  the deposit and the word is the deposit's own, so with the CPU channel
+  ready the record leaves on the deposit edge and never occupies the slot.
+  Stored records release from their slots as before.  The bypass release is
+  not offered to the tag allocator as a same-cycle re-grant (a release from
+  a slot is), which keeps the deposit cone out of the lookup accept.
 
 ## Sizing
 

@@ -34,6 +34,31 @@ notice; the concurrent read-write family lost 23 percent (98.1 -> 75.4
 MB/s). A combinational resource on two independent channels' handshake
 paths is a coupling, not a saving; it stays a knob, default off.
 
+## The latency case: an empty buffer still costs a cycle unless it is transparent (jet TASK-003, 2026-11-10)
+
+The area rule has a latency twin.  jet's CPU plane put a 2-deep FIFO
+between the frontend's one-cycle request pulse and the lookup's
+hold-until-accepted contract (it adapts the two handshakes, and it is
+needed).  A FIFO presents a word the cycle after it is written, so every
+request paid a cycle in a buffer that held nothing: the tag read, which
+needs only the address, waited a cycle for a queue to turn over.  The
+response ring did the same at the other end: a deposit became visible the
+cycle after it landed, so a completed head sat one cycle in a slot before
+leaving.  Making both transparent while empty (present the arriving
+request to the lookup in its handshake cycle and write the FIFO only if
+the lookup does not take it; present a deposit to the empty head slot in
+its own cycle and never store it if the channel is ready) took the
+resident read hit from 5 cycles to 3 on the Genesys2 pair-rig harness
+with no change to either contract or to `jet_control`.  The FIFOs stayed:
+they still absorb the rate difference they were built for; they just no
+longer charge the common case for it.
+
+Check: for each buffer on the latency path, ask whether a word that finds
+it EMPTY waits in it.  If yes, and the consumer can take the word this
+cycle, the buffer wants a bypass.  The bypass puts the consumer's accept
+on the buffer's write-enable; on the Kintex-7 that was within the budget
+because the accept was already a registered-state cone.
+
 ## How to check a design against it
 
 1. Trace one beat each way and list every register stage that holds it.

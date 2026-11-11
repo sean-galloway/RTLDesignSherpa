@@ -12,8 +12,8 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -23,10 +23,11 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Active
 
-- **TASK-003** ([page](active/TASK-003.md)) — give jet its hit latency back: data-array address lead under the BRAM sync-read array (6 -> 5), then v3 classify/tag-read overlap (-> 3..4). Filed 2026-11-08 from the FPGA review sweeps. Active 2026-11-09: step 1 (address lead) in work.
+(none)
 
 ## Closed
 
+- **TASK-003** ([page](closed/TASK-003.md)) — give jet its hit latency back. Filed 2026-11-08 from the FPGA review sweeps (lat_min 6 vs v2's 3). Closed 2026-11-10: step 1 (data-array address lead under the BRAM sync-read array, bins 11-15) 6 -> 5; steps 2+3 (transparent empty request skid in `jet_cpu_plane`, head-deposit bypass in `jet_rsp_seq`, bin 16) 5 -> 3 == v2, `jet_control` untouched. Every CRC identical, jet FULL 149/149, formal prove/prove-live/cover PASS, WNS +0.468 at 100 MHz. Found on the way: BUG-001/002/003.
 - **TASK-001** — implement jet per the 2026-10-28 design spec (J1–J7 ruled):
   jet_pkg + jet_mshr + jet_wb_buffer + jet_rsp_seq + jet_control, DV ladder,
   formal liveness at tiny geometry, FULL soak grids, Genesys2 pair-rig

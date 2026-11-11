@@ -64,12 +64,19 @@
 //     occupancy change is zero and the freed tag is immediately reusable.
 //   - Deposit is never gated by rsp_ready_i (the deadlock-freedom property).
 //   - A deposit to the current (not-yet-valid) release pointer completes
-//     that record; it becomes visible the cycle after the deposit and is
-//     released on the next rising edge with rsp_ready_i high.  A deposit
-//     to a VALID head tag in its release cycle (the freed slot re-granted
-//     and immediately completed by the lookup stage) survives: the release
-//     retires the old record, the deposit creates the new one (the
-//     sequential block orders release before deposit for exactly this).
+//     that record AND presents it in the deposit cycle (the head-deposit
+//     bypass, TASK-003 step 3, 2026-11-10): rsp_valid_o rises with cpl_i
+//     and rsp_data_o carries cpl_data_i, so with rsp_ready_i high the
+//     record is released on the deposit edge and never occupies the slot
+//     (the slot's valid bit stays clear).  With rsp_ready_i low it lands
+//     as before and is released later from the slot.  The bypass release
+//     is NOT offered to the tag allocator as a same-cycle re-grant (only a
+//     release from the slot is): that keeps the deposit cone out of the
+//     accept path.  A deposit to a VALID head tag in its release cycle
+//     (the freed slot re-granted and immediately completed by the lookup
+//     stage) survives: the release retires the old record, the deposit
+//     creates the new one (the sequential block orders release before
+//     deposit for exactly this).
 //
 //------------------------------------------------------------------------------
 // Related Modules:
@@ -149,15 +156,24 @@ module jet_rsp_seq
     // Combinational response port and release event.
     // ------------------------------------------------------------------
     logic w_release;
-    assign w_release = rsp_ready_i & rsp_valid_o;
+    logic w_head_vld;   // the head slot holds a completed record
+    logic w_head_dep;   // this cycle's deposit completes the (empty) head slot
+    assign w_head_vld  = r_valid[r_rel_tag];
+    assign w_head_dep  = cpl_i & (cpl_tag_i == r_rel_tag) & ~w_head_vld;
+    assign w_release   = rsp_ready_i & rsp_valid_o;
 
-    assign rsp_valid_o = r_valid[r_rel_tag];
-    assign rsp_data_o  = r_data[r_rel_tag];
+    // head-deposit bypass: the completing head is presented in its deposit
+    // cycle; a stored head is presented from its slot
+    assign rsp_valid_o = w_head_vld | w_head_dep;
+    assign rsp_data_o  = w_head_vld ? r_data[r_rel_tag] : cpl_data_i;
 
     // ------------------------------------------------------------------
-    // Tag alloc: grant when a slot is free, including a slot freed this cycle.
+    // Tag alloc: grant when a slot is free, including a slot freed from the
+    // ring this cycle (a bypass release frees nothing: its slot was never
+    // occupied, and the occupancy it carried is returned at the edge).
     // ------------------------------------------------------------------
-    assign tag_gnt_o = tag_req_i & ((r_occupancy < OCC_W'(RSP_DEPTH)) | w_release);
+    assign tag_gnt_o = tag_req_i & ((r_occupancy < OCC_W'(RSP_DEPTH))
+                                    | (rsp_ready_i & w_head_vld));
     assign tag_o     = r_alloc_tag;
 
     // ------------------------------------------------------------------
@@ -186,11 +202,12 @@ module jet_rsp_seq
                     r_rel_tag <= r_rel_tag + 1'b1;
             end
 
-            // Deposit: write the completion record.  A deposit to an
-            // invalid head slot completes it; the release comes on a later
-            // edge (w_release is gated by rsp_valid_o, so a not-yet-
-            // deposited head never releases).
-            if (cpl_i) begin
+            // Deposit: write the completion record.  A deposit to the empty
+            // head slot that is released in this same cycle (the bypass)
+            // leaves the slot clear -- the record left on the wire; any
+            // other deposit marks its slot (a not-yet-deposited head never
+            // releases: w_release is gated by rsp_valid_o).
+            if (cpl_i & ~(w_head_dep & rsp_ready_i)) begin
                 r_valid[cpl_tag_i] <= 1'b1;
                 // (the word lands in the reset-free payload block below)
             end

@@ -192,6 +192,12 @@ class JetControlTB(TBBase):
         self.entries = []        # MSHR mirror, alloc order
         self.wb_expect = deque()  # (line, full-line int) capture order
         self.deposits = {}       # tag -> response data (outstanding)
+        # tags released straight off the deposit (jet_rsp_seq head-deposit
+        # bypass, TASK-003 step 3): the release watcher sees the release in
+        # the deposit's own cycle, possibly before the scenario coroutine
+        # has recorded the deposit -- the record then consumes this mark
+        # instead of adding an outstanding deposit
+        self._bypass_rel = set()
         self.release_count = 0
         self.next_tag = 0
         self.rel_tag = 0
@@ -587,15 +593,34 @@ class JetControlTB(TBBase):
                 continue
             if int(d.rsp_valid_o.value) and int(d.rsp_ready_i.value):
                 # releases leave in tag order, independent of deposit order
-                self._score("release: a deposit is outstanding",
-                            self.rel_tag in self.deposits, True)
-                if self.rel_tag in self.deposits:
-                    self._score(f"release: data tag {self.rel_tag}",
+                bypass = (int(d.cpl_valid_o.value)
+                          and int(d.cpl_tag_o.value) == self.rel_tag
+                          and self.rel_tag not in self.deposits)
+                if bypass:
+                    # the head-deposit bypass: released in the deposit's
+                    # own cycle, straight from cpl_data_o
+                    self._score(f"release: bypass data tag {self.rel_tag}",
                                 int(d.rsp_data_o.value),
-                                self.deposits.pop(self.rel_tag))
+                                int(d.cpl_data_o.value))
+                    self._bypass_rel.add(self.rel_tag)
+                else:
+                    self._score("release: a deposit is outstanding",
+                                self.rel_tag in self.deposits, True)
+                    if self.rel_tag in self.deposits:
+                        self._score(f"release: data tag {self.rel_tag}",
+                                    int(d.rsp_data_o.value),
+                                    self.deposits.pop(self.rel_tag))
                 self._note('release', {'tag': self.rel_tag})
                 self.rel_tag = (self.rel_tag + 1) % self.RSP_DEPTH
                 self.release_count += 1
+
+    def _record_deposit(self, tag, data):
+        """Record an outstanding deposit -- unless the release watcher
+        already saw it leave in its deposit cycle (the bypass mark)."""
+        if tag in self._bypass_rel:
+            self._bypass_rel.discard(tag)
+            return
+        self.deposits[tag] = data
 
     # ------------------------------------------------------------------
     # passive data-array model: EVERY muxed W-port write lands here
@@ -715,7 +740,7 @@ class JetControlTB(TBBase):
                     got_tags.append((tag, wcyc))
                     self._score(f"commit[{entry['idx']}]: no double deposit "
                                 f"tag {tag}", tag in self.deposits, False)
-                    self.deposits[tag] = data
+                    self._record_deposit(tag, data)
             if int(d.mshr_retire_o.value) \
                     and int(d.mshr_retire_idx_o.value) == entry['idx']:
                 retired = True
@@ -784,7 +809,7 @@ class JetControlTB(TBBase):
                             int(d.cpl_data_o.value), rec['wdata'])
                 self._score("cu commit: no double deposit",
                             rec['tag'] in self.deposits, False)
-                self.deposits[rec['tag']] = rec['wdata']
+                self._record_deposit(rec['tag'], rec['wdata'])
                 deposited = True
         self._score("cu commit: one D-4 store merge",
                     got_writes, [(rec['beat'], rec['be'], rec['wdata'])])
@@ -1042,7 +1067,7 @@ class JetControlTB(TBBase):
                 if rec['deposit'] is not None:
                     self._score(f"{label} no double deposit",
                                 rec['tag'] in self.deposits, False)
-                    self.deposits[rec['tag']] = rec['deposit']
+                    self._record_deposit(rec['tag'], rec['deposit'])
                 rec['srv_wait'] = await self._await_serve(rec, label)
                 return rec
             if int(d.lkup_stall_o.value):
@@ -1268,6 +1293,7 @@ class JetControlTB(TBBase):
         d.rst_n.value = 1
         self.entries = []
         self.deposits = {}
+        self._bypass_rel = set()
         self.next_tag = 0
         self.rel_tag = 0
         self.lru = LruModel(self.SETS, self.WAYS)
@@ -2217,7 +2243,7 @@ class JetControlTB(TBBase):
         self._score("prio: hit deposit data", int(d.cpl_data_o.value),
                     exp_data)
         self._score("prio: no double deposit", tag in self.deposits, False)
-        self.deposits[tag] = exp_data
+        self._record_deposit(tag, exp_data)
         self.lru.update(24, way_a)
         # model: the snoop downgraded C to S
         self.slot_state[(set_c, way_c)] = 'S'

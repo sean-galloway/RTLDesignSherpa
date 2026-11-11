@@ -384,6 +384,26 @@ async def _read_bins(tb, n: int = 8):
     return [await tb.read64(ADDR_TALLY_CNT + i * 8) for i in range(n)]
 
 
+async def _settle_monbus(tb, dut, polls: int = 64, gap: int = 128):
+    """Wait until the MonBus path has drained into the tally: the bin total
+    stops moving across two polls `gap` cycles apart.  The monitors queue
+    and drop behind a slow 3-beat record egress, so a dense burst leaves a
+    backlog that outlives the injectors' done by well over a thousand cycles
+    (jet TASK-003 step 2 made the hit stream dense enough to show it: the
+    latch bank re-filled with end-of-run packets after a clear issued
+    ~1000 cycles later).  A fixed cycle count is a guess; the bins are the
+    host-visible fact.  Returns the settled total."""
+    last = sum(await _read_bins(tb, 18))
+    for _ in range(polls):
+        for _ in range(gap):
+            await cocotb.triggers.RisingEdge(dut.aclk)
+        now = sum(await _read_bins(tb, 18))
+        if now == last:
+            return now
+        last = now
+    raise AssertionError("MonBus path never drained (bin total still moving)")
+
+
 @cocotb.test(timeout_time=5000, timeout_unit="ms")
 async def tally_clear_freeze_test(dut):
     """harness_csr CTRL[0]=tally_clear (write-1-pulse) and CTRL[1]=tally_freeze
@@ -410,7 +430,7 @@ async def tally_clear_freeze_test(dut):
 
     # Burst 1: events accumulate.
     await _run_burst(tb, count=48)
-    await settle()  # drain the MonBus path into the bins
+    await _settle_monbus(tb, dut)  # drain the MonBus path into the bins
     assert sum(await _read_bins(tb)) > 0, "burst 1 produced no tally events"
     unc0 = await read_unexpected()
 
@@ -440,7 +460,7 @@ async def tally_clear_freeze_test(dut):
     # Unfreeze: counting resumes.
     await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x0)
     await _run_burst(tb, count=48)
-    await settle()
+    await _settle_monbus(tb, dut)
     assert sum(await _read_bins(tb)) > 0, "tally did not resume after unfreeze"
 
 
@@ -517,12 +537,35 @@ async def tally_latch_bank_test(dut):
         ts = (ts_hi << 32) | ts_lo
         assert ts > 0, f"slot {slot} timestamp zero"
 
-    # tally_clear re-arms the bank (item 1's real payoff).
+    # tally_clear re-arms the bank (item 1's real payoff).  The clear
+    # protocol: the MonBus path must have drained first, or end-of-run
+    # packets still in flight re-fill the bank behind the clear.
+    await _settle_monbus(tb, dut)
+    cyc_clear = await tb.read64(ADDR_HARNESS_CSR + HCSR_CYCLE_LO)
     await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)
     for _ in range(256):
         await cocotb.triggers.RisingEdge(dut.aclk)
     status = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_STATUS)
-    assert (status & 0xFFFF) == 0, f"latch fill not re-armed: 0x{status:08x}"
+    fill = status & 0xFFFF
+    if fill:
+        # name the stray packets, not just their count: a slot filled after
+        # the clear is an event the caches emitted while the host believed
+        # them idle (decode through the shared parser, never inline)
+        from TBClasses.monbus import parse
+        for slot in range(min(fill, TALLY_NUM_LATCH)):
+            await tb.write32(ADDR_TALLY_CFGW + TALLY_LATCH_SEL, slot)
+            words = [await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_PKT0 + 8 * i)
+                     for i in range(4)]
+            ts = ((await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_TS_HI)) << 32) \
+                | await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_TS_LO)
+            raw = (words[3] << 96) | (words[2] << 64) | (words[1] << 32) | words[0]
+            pkt = parse(raw)
+            dut._log.error(
+                f"stray latch slot {slot}: ts={ts} (clear issued at cycle "
+                f"{cyc_clear}) type={pkt.get_packet_type_name()} "
+                f"proto={int(pkt.protocol)} event=0x{int(pkt.event_code):02x} "
+                f"raw=0x{raw:032x}")
+    assert fill == 0, f"latch fill not re-armed: 0x{status:08x}"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

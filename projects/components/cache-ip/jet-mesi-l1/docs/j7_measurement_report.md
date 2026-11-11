@@ -90,6 +90,12 @@ parameters. Cycle counts are clock-independent, so the data stands.)
 (The serve-pend v2 step adds one more hit-latency cycle; its sweep numbers
 land with the v3 measurement pass.)
 
+(2026-11-10: the v3 lookup split and the BRAM sync-read array had taken the
+hit to 6 cycles in the FPGA review bins; jet TASK-003 brought it back to 3
+-- data-array address lead, transparent empty request skid, response-ring
+head-deposit bypass -- with every sweep CRC unchanged. The tables below
+stand as measured; bin 16's resident configs are within 144 cycles of them.)
+
 Hit latency is 3 cycles on jet vs 4 on amber (pipeline depth), which already
 accounts for the all-hit row; the thrash rows add the non-blocking overlap.
 Fill counts match across rigs (e.g. r64k_we64: jet 21710 vs amber 22085

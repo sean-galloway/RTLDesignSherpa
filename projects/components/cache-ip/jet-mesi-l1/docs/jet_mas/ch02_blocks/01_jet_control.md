@@ -137,7 +137,13 @@ an unreachable transition drops the pipeline to ERROR, exactly as amber's
   high) deadlocks jet's hold-until-accepted lookup and closes a
   combinational loop through the classify; a 2-deep `gaxi_fifo_sync`
   (DECISION D-6) between the frontend and the lookup stage holds the
-  request until `lkup_ready_o`.  The response side backpressures
+  request until `lkup_ready_o`.  The skid is transparent while empty
+  (TASK-003 step 2, 2026-11-10): the arriving request stands at the
+  lookup in its own handshake cycle, where port A reads its set, and it
+  is written into the skid only if the lookup does not capture it there;
+  a non-empty skid is never bypassed.  The skid used to cost every
+  request a cycle before the tag read, even when it held nothing.  The
+  response side backpressures
   `jet_rsp_seq` with the frontend staging FIFO's room (read-only
   `stage_wr_ready` tap) so a backed-up CPU channel cannot overflow the
   depth-2 staging queue.
