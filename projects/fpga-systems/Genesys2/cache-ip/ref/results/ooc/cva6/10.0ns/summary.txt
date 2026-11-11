@@ -1,0 +1,12 @@
+top ref_cva6_dcache_top
+part xc7k325tffg900-2
+period_ns 10.0
+wns_ns 0.990
+worst_levels 14
+worst_start u_dcache/master_ports[0].i_cache_ctrl/state_q_reg[1]/C
+worst_end r_rsp_q_reg[2][49]/D
+lut 5669
+ff 1661
+ramb36 32
+ramb18 20
+lutram 0

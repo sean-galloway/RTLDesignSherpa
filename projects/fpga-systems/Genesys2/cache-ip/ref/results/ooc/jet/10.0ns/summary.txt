@@ -1,0 +1,12 @@
+top jet_top
+part xc7k325tffg900-2
+period_ns 10.0
+wns_ns 0.356
+worst_levels 16
+worst_start u_coh/u_control/r_lk_addr_reg[24]/C
+worst_end u_coh/u_data/g_way[3].mem_reg_2_1/ADDRBWRADDR[12]
+lut 5892
+ff 5258
+ramb36 16
+ramb18 0
+lutram 1879

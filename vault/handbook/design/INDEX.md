@@ -33,6 +33,7 @@ summary: RTL rules with the failures that taught them.
 - [[priority-logic-depth]] - serialized scans vs parallel selects
 - [[static-loop-bounds]] - a loop bounded by a runtime value simulates and lints clean; Vivado refuses it (arbiter_matrix, 2026-10-18)
 - [[select-on-function-call]] - `f(x)[0]` is not IEEE 1800: Verilator takes it silently, Vivado stops (axi_stress_mst, 2026-10-19)
+- [[typed-ports-empty-module]] - `parameter type` ports: Verilator elaborates, Vivado 2025.1 synthesizes the module EMPTY with no message and its instances die as black boxes at opt_design (CVA6 tc_sram_wrapper, 2026-11-11); ports are plain vectors
 - [[area-measure-by-hierarchy]] - after every synthesis pass, the hierarchy report and the worst path pick the next edit; five passes of axi_monitor_lite
 - [[always-comb-block-fusion]] - a block is one scheduling node; mixing independent signals invents dependencies and fakes combinational loops
 - [[credit-tokens-count-every-event]] - a token/credit counter ADDS every increment source in the cycle; an OR between two sources is an off-by-one that silently shifts the pairing forever (pumice BUG-033: a lost release token made every command leave only when the next one arrived)

@@ -1,0 +1,49 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Wed Nov 11 15:33:31 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/cache-ip/ref/build-bringup/fpga/reports/ooc/cva6/10.0ns/utilization_hier.txt
+| Design       : ref_cva6_dcache_top
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++------------------------------------+-----------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|              Instance              |            Module           | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++------------------------------------+-----------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| ref_cva6_dcache_top                |                       (top) |       5375 |       5375 |       0 |    0 | 1661 |     32 |     20 |          0 |
+|   (ref_cva6_dcache_top)            |                       (top) |         67 |         67 |       0 |    0 |  285 |      0 |      0 |          0 |
+|   u_dcache                         |                std_nbdcache |       5308 |       5308 |       0 |    0 | 1376 |     32 |     20 |          0 |
+|     i_miss_handler                 |                miss_handler |       3181 |       3181 |       0 |    0 | 1228 |      0 |      0 |          0 |
+|       (i_miss_handler)             |                miss_handler |         71 |         71 |       0 |    0 |  669 |      0 |      0 |          0 |
+|       i_lfsr                       |                   lfsr_8bit |       1607 |       1607 |       0 |    0 |    8 |      0 |      0 |          0 |
+|       i_miss_axi_adapter           | axi_adapter__parameterized0 |       1482 |       1482 |       0 |    0 |  535 |      0 |      0 |          0 |
+|     master_ports[0].i_cache_ctrl   |                  cache_ctrl |        239 |        239 |       0 |    0 |   35 |      0 |      0 |          0 |
+|     master_ports[1].i_cache_ctrl   |                cache_ctrl_0 |        503 |        503 |       0 |    0 |  111 |      0 |      0 |          0 |
+|     sram_block[3].data_sram        |                      sram_5 |        256 |        256 |       0 |    0 |    0 |      8 |      0 |          0 |
+|       gen_cut[1].i_tc_sram_wrapper |          tc_sram_wrapper_10 |         64 |         64 |       0 |    0 |    0 |      1 |      0 |          0 |
+|         i_tc_sram                  |                  tc_sram_23 |         64 |         64 |       0 |    0 |    0 |      1 |      0 |          0 |
+|       gen_cut[3].i_tc_sram_wrapper |          tc_sram_wrapper_12 |         64 |         64 |       0 |    0 |    0 |      1 |      0 |          0 |
+|         i_tc_sram                  |                  tc_sram_21 |         64 |         64 |       0 |    0 |    0 |      1 |      0 |          0 |
+|       gen_cut[5].i_tc_sram_wrapper |          tc_sram_wrapper_14 |         64 |         64 |       0 |    0 |    0 |      1 |      0 |          0 |
+|         i_tc_sram                  |                  tc_sram_19 |         64 |         64 |       0 |    0 |    0 |      1 |      0 |          0 |
+|       gen_cut[7].i_tc_sram_wrapper |          tc_sram_wrapper_16 |         64 |         64 |       0 |    0 |    0 |      1 |      0 |          0 |
+|         i_tc_sram                  |                  tc_sram_17 |         64 |         64 |       0 |    0 |    0 |      1 |      0 |          0 |
+|     valid_dirty_sram               |        sram__parameterized1 |       1082 |       1082 |       0 |    0 |    0 |      0 |      4 |          0 |
+|       gen_cut[0].i_tc_sram_wrapper |             tc_sram_wrapper |       1082 |       1082 |       0 |    0 |    0 |      0 |      4 |          0 |
+|         i_tc_sram                  |                     tc_sram |       1082 |       1082 |       0 |    0 |    0 |      0 |      4 |          0 |
++------------------------------------+-----------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

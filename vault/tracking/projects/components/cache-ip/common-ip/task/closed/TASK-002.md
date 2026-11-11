@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-11
 **Priority:** P1
-**Status:** ACTIVE 2026-11-11
+**Status:** CLOSED 2026-11-11 (commit 561a3e747) -- both rigs rebuilt and swept at depths 1, 2, 4, 8, 16; jet BUG-004 found and fixed on the way.
 **Owner:** cache-ip
 
 ## Why

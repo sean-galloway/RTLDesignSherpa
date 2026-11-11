@@ -1,0 +1,12 @@
+top ref_hpdcache_top
+part xc7k325tffg900-2
+period_ns 10.0
+wns_ns 1.372
+worst_levels 10
+worst_start u_hpdcache/hpdcache_ctrl_i/hpdcache_memctrl_i/gen_dir_sram[2].dir_sram/gen_sram.i_sram/r_mem_reg/CLKARDCLK
+worst_end u_hpdcache/hpdcache_ctrl_i/hpdcache_memctrl_i/gen_data_sram_row[1].gen_data_sram_col[0].data_sram/gen_sram.ram_i/r_mem_reg_2/ADDRBWRADDR[12]
+lut 3510
+ff 4944
+ramb36 8
+ramb18 4
+lutram 0

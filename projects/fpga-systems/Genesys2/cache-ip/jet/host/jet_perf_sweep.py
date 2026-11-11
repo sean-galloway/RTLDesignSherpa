@@ -109,7 +109,7 @@ CONFIGS = [
 
 
 def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
-              outstanding=(1,)):
+              outstanding=(1,), ci1_idle=False):
     """Walk CONFIGS at each injector depth in `outstanding` (TASK-002).
 
     The issued sequence is depth-invariant, so every config's CRCs must be
@@ -133,9 +133,12 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
             driver.configure_ci("ci0", seed=SEED0, addr_base=base0,
                                 addr_mask=mask, count=count, we_mix=we_mix,
                                 outstanding=depth)
+            # --ci1-idle: the second injector runs zero transactions (done at
+            # start), so the first cache sees no peer traffic -- the single-
+            # core, like-for-like point against the reference rig (TASK-003)
             driver.configure_ci("ci1", seed=SEED1, addr_base=base1,
-                                addr_mask=mask, count=count, we_mix=we_mix,
-                                outstanding=depth)
+                                addr_mask=mask, count=0 if ci1_idle else count,
+                                we_mix=we_mix, outstanding=depth)
             t0 = time.monotonic()
             driver.start_all()
             ok = driver.wait_done(timeout=180.0)
@@ -165,7 +168,7 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
             rec = {
                 "config": name, "count": count, "mask": f"0x{mask:06x}",
                 "base0": f"0x{base0:05x}", "base1": f"0x{base1:05x}",
-                "we_mix": we_mix, "outstanding": depth, "done": ok,
+                "we_mix": we_mix, "outstanding": depth, "ci1_idle": ci1_idle, "done": ok,
                 "wall_s": round(wall, 3),
                 "bins": bins, "unexpected": unc_,
                 "ci0": {**st0, **crc0, **lat0}, "ci1": {**st1, **crc1, **lat1},
@@ -214,6 +217,9 @@ def main(argv=None):
                     help="run only these named configs")
     ap.add_argument("--outstanding", nargs="+", type=int, default=[1],
                     help="injector depths to sweep (1..16); default 1")
+    ap.add_argument("--ci1-idle", action="store_true",
+                    help="run injector 1 with zero transactions: single-core numbers "
+                         "for the reference comparison (TASK-003)")
     ap.add_argument("--out", default=None,
                     help="JSON results path (default: results/perf_sweep_*.json")
     args = ap.parse_args(argv)
@@ -225,7 +231,8 @@ def main(argv=None):
     try:
         results = run_sweep(driver, count=args.count,
                             configs=args.configs,
-                            outstanding=tuple(args.outstanding))
+                            outstanding=tuple(args.outstanding),
+                            ci1_idle=args.ci1_idle)
     finally:
         bridge.close()
 

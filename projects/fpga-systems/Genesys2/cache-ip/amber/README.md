@@ -130,6 +130,15 @@ The smoke test:
 python3 host/amber_perf_sweep.py
 ```
 
+`--outstanding 1 2 4 8 16` sweeps the injector depth (common-ip TASK-002);
+`--ci1-idle` runs injector 1 with zero transactions, the single-core point
+the reference comparison uses (common-ip TASK-003,
+`projects/components/cache-ip/docs/reference_l1_comparison.md`). The
+injector's read addresses never coincide with its write addresses (address
+and write-enable derive from the same LFSR bits), so a sweep's read CRC
+reflects the memory's initial content, not the cache's data path; data
+integrity is the DV suites' job, the sweep measures time.
+
 The sweep is the stream-perf-analog for amber: it walks the working set
 from 64 B (one line, maximal coherence ping-pong) through 128 KB (4x
 capacity, thrash) at several write mixes. Each run is a clean tally window:

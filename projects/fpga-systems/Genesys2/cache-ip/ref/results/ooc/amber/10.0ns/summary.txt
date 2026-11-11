@@ -1,0 +1,12 @@
+top amber_top
+part xc7k325tffg900-2
+period_ns 10.0
+wns_ns 0.123
+worst_levels 19
+worst_start u_coh/u_control/state_q_reg[2]/C
+worst_end u_coh/u_monlite/u_out_q/gen_auto.mem_reg_0_3_6_11/RAMA_D1/I
+lut 3709
+ff 2944
+ramb36 16
+ramb18 0
+lutram 1169

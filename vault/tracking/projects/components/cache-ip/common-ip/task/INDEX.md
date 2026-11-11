@@ -12,21 +12,23 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-003** ([page](open/TASK-003.md)) — reference L1 caches on the pair rig: HPDcache (non-blocking peer of jet) and the CVA6 write-back dcache (blocking peer of amber), behind the pipelined injector, same memory model, same part and clock; comparison report. Filed 2026-11-11, starts after TASK-002.
+(none)
 
 ## Active
 
 (none)
 
 ## Closed
+
+- **TASK-003** ([page](closed/TASK-003.md)) — reference L1 caches on the pair rig: HPDcache (non-blocking peer of jet) and the CVA6 write-back dcache (blocking peer of amber), behind the pipelined injector, same memory model, same part and clock; comparison report. Filed, started and closed 2026-11-11: HPDcache rig bin 2 and CVA6 WB rig bin 2 swept single-core at depths 1-16, out-of-context rows for all four, report in projects/components/cache-ip/docs/.
 
 - **TASK-002** ([page](closed/TASK-002.md)) — pipelined cycle injector: credit-gated issue (CTRL[23:16]), accept-timestamp latency ring, OUTST_MAX / OUTST_SUM / STALL_CYCLES counters, host `--outstanding`, pipelined-run harness tests, both rigs rebuilt. Filed, started and closed 2026-11-11 (owner: the injector MUST be pipelined): amber bin 11 / jet bin 17 swept at depths 1-16, jet one hit per cycle from depth 4, misses to MLP 7; found jet BUG-004.
 

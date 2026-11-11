@@ -248,3 +248,21 @@ store's words directly (`l1_control_tb._victim_line` reads
 `u_control.victim_line_mem[b]`) -- the latter is the only option in a harness
 whose drain owns the beat-index port (amber_eviction_macro_test: a TB sweep
 there fought the drain and read the drain's beat, not the line).
+
+## A two-dimensional packed entry type is "a RAM from a record" to Vivado (2026-11-11)
+
+HPDcache's behavioural SRAM macros declare the array as `typedef logic
+[NDATA-1:0][DATA_SIZE-1:0] mem_t [DEPTH]` and write it byte by byte through
+both packed indices. Verilator simulates it as a memory; Vivado 2025.1 logs
+one line -- `[Synth 8-11357] Potential Runtime issue for 3D-RAM or RAM from
+Record/Structs for RAM mem_reg with 131072 registers` -- and builds every
+entry from flip-flops: the reference rig's first bitstream had 283,782
+registers and the placer refused the design (cache-ip common-ip TASK-003,
+ref bin 1). The same macro with the entry flattened to one vector
+(`logic [NDATA*DATA_SIZE-1:0] mem [DEPTH]`, byte-enable loop over the flat
+vector, NO_CHANGE read in the else branch) infers block RAM: 8 RAMB36 + 4
+RAMB18 for the 32 KB data array and its directory. Rule: a memory array's
+entry is one packed vector; cast structured write data to it at the port
+(`W'(wdata)`), never index two packed dimensions inside the write. The
+message is an INFO-level warning, so grep the synthesis log for `8-11357`
+whenever a memory's register count looks like its bit count.

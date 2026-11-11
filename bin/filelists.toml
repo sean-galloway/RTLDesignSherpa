@@ -417,6 +417,19 @@ filelist_dirs = [
     "projects/fpga-systems/Genesys2/cache-ip/jet/dv/filelists",
 ]
 
+# Genesys 2 reference-cache rig (cache-ip common-ip TASK-003): the jet harness
+# with the vendored HPDcache or CVA6 write-back dcache in the cache slot. Its
+# rtl/ holds the wrappers and the block-RAM SRAM stand-ins the vendored caches
+# need on Vivado; the rig reuses the jet bridge and host stack.
+[[area]]
+name = "genesys2_ref"
+kind = "board"
+rtl_roots = ["projects/fpga-systems/Genesys2/cache-ip/ref/rtl"]
+filelist_dirs = [
+    "projects/fpga-systems/Genesys2/cache-ip/ref/rtl/filelists",
+    "projects/fpga-systems/Genesys2/cache-ip/ref/dv/filelists",
+]
+
 # Genesys 2 fabric benchmark (PRD: projects/fpga-systems/Genesys2/fabric-benchmark/PRD.md).
 # The Leg A data fabric is bridge-GENERATED; regen.sh regenerates it and the
 # per-leg fb_data_fabric wrappers from the one TOML. The leg filelists name the
