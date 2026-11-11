@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-10
 **Priority:** P2
-**Status:** CLOSED 2026-11-10 -- `stream_err` is a 64-bit 4 KB `sdpram_slave_axil_axil` on the mon bridge (connectivity `monbus_wr -> stream_err`, bridge respun); the error window is resolved by name (`bridge_windows.monbus_err_window()`), `comp_sram` is the trace window entire; fabric-benchmark's `fb_harness` elaborates again (stale `s_axil_err_*` pins gone, slot SLVERR). Gates: fb dv 16/16; stream bridges dv 8/8, build-mon 50 (err_window PASSED on the new SRAM), build-obs 46, build-perf 76, all 0 rerun, serial from clean. The Genesys 2 bitstreams are NOT rebuilt here -- the next board build picks the new window up; the host tools already follow the name.
+**Status:** CLOSED 2026-11-10 -- `stream_err` is a 64-bit 4 KB `sdpram_slave_axil_axil` on the mon bridge (connectivity `monbus_wr -> stream_err`, bridge respun); the error window is resolved by name (`bridge_windows.monbus_err_window()`), `comp_sram` is the trace window entire; fabric-benchmark's `fb_harness` elaborates again (stale `s_axil_err_*` pins gone, slot SLVERR). Gates: fb dv 16/16; stream bridges dv 8/8, build-mon 50 (err_window PASSED on the new SRAM), build-obs 46, build-perf 76, all 0 rerun, serial from clean. Bitstream rebuilt 2026-11-11 (`build-mon make bitstream`, 8ch all-cones, 60 MHz): timing met, WNS +3.147 ns, 83,337 LUT; not programmed or board-run, so `stable/` (the sign-off slot with its board results) is untouched -- the new .bit sits in `build-mon/fpga/bitstream/` and as a dated copy in the hold dir.
 **Owner:** stream
 **Found by:** owner, 2026-11-10: "fix the stream and rapids FPGA harnesses for the missing ports. Also ensure the error packets go to their own SRAM and that the tests know where to look"
 
@@ -87,3 +87,14 @@ behind the error window, CSR readback, a test that routes Completions there).
   rerun**. The one skip in build-mon and build-obs is
   `test_stream_mon_perf[desc_perf]`, which skips by design while
   `USE_DESC_AXI_MONITOR=0` (set `DESC_AXI_MON=1` to run it).
+
+## Bitstream rebuild (2026-11-11, owner: "build for completeness")
+
+`build-mon make bitstream` (prebuild regen left the bridge unchanged), 14 min:
+`stream_mon_8ch_allcones_obsmaster_obsslave.bit`, all constraints met, WNS
++3.147 ns / WHS +0.031 ns at 60 MHz, 83,337 LUT / 79,826 FF / 7,146 LUT as
+memory / 27.5 BRAM. Not programmed and not board-run here, so `stable/` (one
+slot, board results measured on its bitstream) is deliberately not replaced;
+the .bit is in `build-mon/fpga/bitstream/` and a dated copy sits in
+`/mnt/data/fpga-hold/genesys2/stream_mon/`. The fabric-benchmark legs were
+not rebuilt (seven bitstreams; their harness only lost dead pins).

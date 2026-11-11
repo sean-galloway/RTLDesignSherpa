@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-10
 **Priority:** P2
-**Status:** CLOSED 2026-11-11 -- both Genesys 2 rapids harnesses capture the error window in their own 512 x 64 memory (AW/W pairing FIFO, nothing dropped), read back through `ERRCAP_SEL/LO/HI`, with `ERR_REC_CNT` and `ERR_WIN_BASE/LIMIT` CSRs; MON_CAPTURE is trace-only; `byte_sequences.monbus_err_window()` and `cocotb_test_err_window` in both flows (12 landed / 12 read back, all Completions). Gates: byte `make sim` 86 passed, beats dv 5 passed, 0 rerun, serial from clean. Bitstreams not rebuilt here.
+**Status:** CLOSED 2026-11-11 -- both Genesys 2 rapids harnesses capture the error window in their own 512 x 64 memory (AW/W pairing FIFO, nothing dropped), read back through `ERRCAP_SEL/LO/HI`, with `ERR_REC_CNT` and `ERR_WIN_BASE/LIMIT` CSRs; MON_CAPTURE is trace-only; `byte_sequences.monbus_err_window()` and `cocotb_test_err_window` in both flows (12 landed / 12 read back, all Completions). Gates: byte `make sim` 86 passed, beats dv 5 passed, 0 rerun, serial from clean. Monitor bitstreams rebuilt 2026-11-11 (byte `bitstream-mon` WNS +0.113 ns, beats monitors-on WNS +0.298 ns at 100 MHz, both met, neither board-run; below).
 **Owner:** rapids
 **Found by:** owner, 2026-11-10: "fix the stream and rapids FPGA harnesses for the missing ports. Also ensure the error packets go to their own SRAM and that the tests know where to look" (twin of stream TASK-024)
 
@@ -82,3 +82,25 @@ error-packet check read the error records out of the trace capture.
   rerun** (11 h 52 min; `test_rapids_byte_harness_err_window` PASSED among
   them); beats flow `pytest dv` **5 passed, 0 rerun** (29 min, err_window
   included).
+
+## Bitstream rebuild (2026-11-11, owner: "build for completeness")
+
+The monitor variants, the ones in which the error window exists (`GEN_MON=1`),
+rebuilt serially after the stream build; each flow's `verify-sim` gate passed
+first.
+
+| build | result |
+|---|---|
+| byte `make bitstream-mon` (USE_AXI_MONITORS=1 GEN_MON=1 MON_CAPTURE=1, 8ch, 256-bit) | 13 min; `bitstream/rapids_byte_mon.bit`, metrics in `reports/build/metrics_mon.json`; all constraints met, **WNS +0.113 ns** / WHS +0.059 ns at 100 MHz; 77,376 LUT / 59,438 FF / 82.5 BRAM |
+| beats `make bitstream BOARD=genesys2 USE_AXI_MONITORS=1 GEN_MON=1` | 18 min; `bitstream/rapids_char.bit`, copied to `rapids_char_mon.bit` by the area's naming habit; all constraints met, WNS +0.298 ns / WHS +0.055 ns at 100 MHz; 76,493 LUT / 73,210 FF / 44.5 BRAM |
+
+Neither was programmed or board-run (the Genesys 2 is STREAM's; rapids board
+runs were waived in TASK-039). The plain `std` / `perf` variants were not
+rebuilt: the harness change they carry is the six new CSRs only.
+
+**Timing margin flag.** Neither rapids rig constrains clock uncertainty (no
+`set_clock_uncertainty` in either XDC), so the byte mon build's +0.113 ns is
+inside the ~0.2 ns placement spread the owner budgets elsewhere
+(cache-ip rigs, 1322ff59c): it met, but not predictably. Whether to add the
+budget to the rapids XDCs (and then fix structurally what fails) is a
+separate decision; nothing in this task changed the critical path by design.

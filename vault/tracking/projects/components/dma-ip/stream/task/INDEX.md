@@ -32,7 +32,7 @@ by construction rather than by discipline.
 
 ## Closed
 
-- **TASK-024** — CLOSED 2026-11-10: the monbus error window is its own SRAM on the Genesys 2 harness (`stream_err`, 64-bit, 4 KB, bridge respun; host tools and tests resolve it by name; `comp_sram` is trace only) and the fabric-benchmark harness elaborates again (stale `s_axil_err_*` pins); gates serial from clean, 0 rerun; bitstreams not rebuilt
+- **TASK-024** — CLOSED 2026-11-10: the monbus error window is its own SRAM on the Genesys 2 harness (`stream_err`, 64-bit, 4 KB, bridge respun; host tools and tests resolve it by name; `comp_sram` is trace only) and the fabric-benchmark harness elaborates again (stale `s_axil_err_*` pins); gates serial from clean, 0 rerun; mon bitstream rebuilt 2026-11-11 (timing met), not board-run
 - **TASK-022** — descriptor-driven 2D/strided addressing (`USE_ROW_COL_MAJOR_ADDRESSING`, was TASKS.md TASK-101); built 2026-07-06, top-tested 2026-07-29 with BUG-010 fixed; migrated 2026-11-07
 - **TASK-023** — STREAM v1.0 ledger (APB config, `stream_top_ch8`, integration tests; TASKS.md TASK-001..003) and the old enhancement-ideas list, disposed; closed 2025-11-30, migrated 2026-11-07
 - **TASK-019** — CLOSED 2026-10-25: `monbus_axil4_group_1wr` on both STREAM tops and stream-g; `MON_GROUP_ERR_*` window + `MON_ERR_REC_COUNT`; records read from memory in sim (top monbus test) and on the Genesys 2 harness (error window = top 4 KB of comp_sram, `dump_monbus.py`); books MAS 0.104 / HAS 0.101 / board 1.5; rapids twin TASK-039
