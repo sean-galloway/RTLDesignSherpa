@@ -95,8 +95,16 @@ first.
 | beats `make bitstream BOARD=genesys2 USE_AXI_MONITORS=1 GEN_MON=1` | 18 min; `bitstream/rapids_char.bit`, copied to `rapids_char_mon.bit` by the area's naming habit; all constraints met, WNS +0.298 ns / WHS +0.055 ns at 100 MHz; 76,493 LUT / 73,210 FF / 44.5 BRAM |
 
 Neither was programmed or board-run (the Genesys 2 is STREAM's; rapids board
-runs were waived in TASK-039). The plain `std` / `perf` variants were not
-rebuilt: the harness change they carry is the six new CSRs only.
+runs were waived in TASK-039).
+
+The plain variants followed on the owner's "both" (2026-11-11), serially,
+verify-sim first; all met, none board-run:
+
+| build | result |
+|---|---|
+| byte `bitstream-std` | `rapids_byte_std.bit`, WNS +0.580 / WHS +0.033 ns, 65,291 LUT |
+| byte `bitstream-perf` | `rapids_byte_perf.bit`, WNS +0.440 / WHS +0.059 ns, 58,510 LUT |
+| beats `bitstream BOARD=genesys2` (monitors off) | `rapids_char.bit`, WNS +0.449 / WHS +0.046 ns, 56,514 LUT |
 
 **Timing margin flag.** Neither rapids rig constrains clock uncertainty (no
 `set_clock_uncertainty` in either XDC), so the byte mon build's +0.113 ns is

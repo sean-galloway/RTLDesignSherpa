@@ -96,5 +96,19 @@ behind the error window, CSR readback, a test that routes Completions there).
 memory / 27.5 BRAM. Not programmed and not board-run here, so `stable/` (one
 slot, board results measured on its bitstream) is deliberately not replaced;
 the .bit is in `build-mon/fpga/bitstream/` and a dated copy sits in
-`/mnt/data/fpga-hold/genesys2/stream_mon/`. The fabric-benchmark legs were
-not rebuilt (seven bitstreams; their harness only lost dead pins).
+`/mnt/data/fpga-hold/genesys2/stream_mon/`.
+
+The seven fabric-benchmark legs followed on the owner's "both" (2026-11-11),
+in parallel as the area built them on 2026-10-23, after one `bin/regen.sh`
+(it rewrote only the LiteX crossbar's timestamp header; reverted, body
+identical). Every leg met timing; none was programmed or board-run.
+
+| leg | WNS / WHS (ns) | LUT |
+|---|---|---|
+| a (bridge generator) | +0.705 / +0.035 | 79,502 |
+| a2 (bridge, xbar preset) | +0.242 / +0.051 | 76,679 |
+| b1 (Xilinx AXI Crossbar) | +0.755 / +0.009 | 77,057 |
+| b2 (SmartConnect BD) | +0.703 / +0.006 | 82,418 |
+| c1 (Forencich) | +0.495 / +0.035 | 76,920 |
+| c2 (PULP) | +0.636 / +0.022 | 77,279 |
+| c3 (LiteX) | +0.518 / +0.010 | 75,544 |
