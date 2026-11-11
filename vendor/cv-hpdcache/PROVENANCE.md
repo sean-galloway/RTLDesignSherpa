@@ -22,7 +22,7 @@ TASK-003, rig `projects/fpga-systems/Genesys2/cache-ip/ref`).
   variants are not used); the memory-to-AXI
   adapters `rtl/src/utils/hpdcache_mem_to_axi_{read,write}.sv` (they import
   the PULP `axi_pkg`, taken from `vendor/pulp-axi`); the Verilator waiver
-  file `rtl/src/hpdcache.vlt`; upstream `README.md`, `LICENSE`.
+  file `rtl/src/hpdcache.vlt`; upstream `LICENSE`.
 - **Dropped:** `rtl/tb`, `rtl/fv`, `rtl/lint`, `rtl/syn`, `rtl/src/target`
   (the CVA6 wrapper), the ECC SRAM macros and `utils/ecc`, the L1.5 /
   OpenPiton adapters, `docs`, CI, and upstream's `README.md` (its relative
