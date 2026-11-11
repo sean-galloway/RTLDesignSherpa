@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-10
 **Priority:** P2
-**Status:** CLOSED 2026-11-10 -- generator patched, every bridge in the repo regenerated (532 generated .sv across the bridge batch and nine fpga-systems areas), mechanical check passed, every suite green from a clean build except the two ECC loop UART sims, which the owner deferred part-way (11 + 1 tests passed, none failed); Synth 8-4767 bridge arrays 17 -> 0 on both controllers (below).
+**Status:** CLOSED 2026-11-10 -- generator patched, every bridge in the repo regenerated (532 generated .sv across the bridge batch and nine fpga-systems areas), mechanical check passed, every suite green from a clean build, the two ECC loop UART sims included (bch 14, reed-solomon 18; finished the same evening after a part-way deferral); Synth 8-4767 bridge arrays 17 -> 0 on both controllers (below).
 **Owner:** bridge
 **Where:** `bin/bridge_pkg/emit_utils.py` (`mem_write_lines`), `bin/bridge_pkg/generators/{crossbar,slave_adapter,adapter}_generator.py`; every `rtl/bridges/generated/` tree the generator feeds
 **Found by:** memory-controllers ISSUE-001 (the FPGA microarchitecture review, 2026-11-05), resolution row 2b; MC-005 phases 1 and 2 cleared the hand-written arrays on 2026-11-06 and left 17 per controller, all bridge-generated
@@ -115,8 +115,8 @@ already-behind consumers.
 | bridge-stress `dv/tests` | 61 passed |
 | jet `dv/tests` | 4 passed |
 | amber `dv/tests` | 4 passed |
-| bch `build-loop` (`make sim`) | not run to completion: 11 tests passed in 2 h 20 min when the owner deferred the ECC loops (2026-11-10, "we can fix ecc later"); the bch and reed-solomon bridges carry the same generator change as the 530 other files, byte-verified by the mechanical check |
-| reed-solomon `build-loop` (`make sim`) | not run to completion: 1 test passed in 15 min when deferred (same note) |
+| bch `build-loop` (`make sim`) | 14 passed (2 h 30 min). The owner deferred the ECC loops part-way on 2026-11-10 ("we can fix ecc later") and this row briefly read "11 passed when deferred"; the run had in fact finished (only its wrapper script was stopped) |
+| reed-solomon `build-loop` (`make sim`) | 18 passed (1 h 22 min), rerun from clean 2026-11-10 evening on the owner's "handle the ecc now". The first run showed one F at `debug_walk` after 7 passed: that was the simulator killed by PID when the loops were deferred (pid in the session transcript), not a test failure; `debug_walk` passes on the rerun |
 | stream `build-mon` | 50 passed, 1 skipped, 2 rerun (stream BUG-023, below); rerun after the fix 50 passed, 0 rerun |
 | stream `build-obs` | 46 passed, 1 skipped |
 | stream `build-perf` | 76 passed |
