@@ -79,6 +79,34 @@
 //
 //   CLOSE_ON_DRAIN is exact: a column carries auto-precharge when no same-row
 //   entry (schedulable or still filling) sits behind it in its bank.
+//
+//   DUAL_ISSUE row lane (memory-controllers MC-014, 2026-11-12). The one
+//   command slot per MC cycle was measured as granite's ceiling on the
+//   bank-parallel miss families: eight columns plus one ACT per burst through
+//   one slot, the plane firing in 97 percent of cycles (MC-013). The lane is
+//   a second winner register, ROW commands only (a demand ACT or PRE), picked
+//   from the same registered request set beside the main winner and fired
+//   beside a main-lane COLUMN or an idle main lane -- never beside a main-lane
+//   row, refresh, init or maintenance command, never to the main winner's
+//   bank, so a word carries one row command at most and tRRD / tFAW still see
+//   one ACT per cycle. Rules, all mirrored from the FR-FCFS core's lane
+//   (mc_cmd_arbiter, pumice TASK-047):
+//     * rideable = a row request whose bank has no column request (the
+//       stale-masked set) and is not the main winner's; ACT before PRE, the
+//       age tie-break and the rotor inside the class. The main select treats
+//       "a row can ride" as "after a row command": it keeps taking columns,
+//       so a rideable row no longer costs a column slot. A row that cannot
+//       ride (its bank has columns, or there is no column to ride beside)
+//       still takes the main slot as before.
+//     * the lane's pair is stale-masked for its whole life in the lane and
+//       the cycle after its fire, exactly as a main-lane row command is.
+//     * it HOLDS on a timer (class still applies, lookahead within the pipe)
+//       and is RELEASED otherwise; the decode re-presents it. A lane fire
+//       raises the pair's next-op hint when the main lane raised none that
+//       cycle (one hint register); otherwise the lookahead decode lands it.
+//     * DUAL_ISSUE = 0 is bit-identical to the single-issue core (the
+//       equivalence proof in formal/mc_common/mc_bank_pick); dual_issue_en_i
+//       is the runtime enable on a DUAL_ISSUE build.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -135,6 +163,8 @@ module mc_bank_pick
     // MB/s total against 394-403, no low state.
     parameter bit DIR_OWNS_ROWS = 1'b0,
     parameter int DIR_HOLD_IDLE = 0,
+    // The row lane (see the header). 0 = single issue, bit-identical.
+    parameter bit DUAL_ISSUE = 1'b0,
 
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
@@ -143,6 +173,7 @@ module mc_bank_pick
     input  logic                      aclk,
     input  logic                      aresetn,
     input  page_policy_e              page_policy_i,
+    input  logic                      dual_issue_en_i,   // DUAL_ISSUE runtime enable
 
     // ---- runtime page policy (mc_page_policy): per-bank auto-precharge
     //      override and the background idle-timeout close request ----------
@@ -292,6 +323,13 @@ module mc_bank_pick
     output logic [COL_WIDTH-1:0]      cmd_col_o,
     output logic                      cmd_ap_o,
     output logic [MAINT_EXTRA_WIDTH-1:0] cmd_extra_o,
+    // ---- DUAL_ISSUE row lane: fires this cycle beside the command above
+    //      (or alone, cmd_valid_o low), always to another bank; constant 0
+    //      without the lane ----
+    output logic                      row2_act_o,
+    output logic                      row2_pre_o,
+    output logic [BKW-1:0]            row2_bank_o,
+    output logic [ROW_WIDTH-1:0]      row2_row_o,
 
     // ---- stall-cause attribution ----
     output logic [31:0]               stall_bp_o,
@@ -538,6 +576,26 @@ module mc_bank_pick
     logic             r_hint_vld;
     logic [PAIRW-1:0] r_hint_pair;
     cls_e             r_hint_cls;
+
+    // ---- DUAL_ISSUE row lane: the second winner register and its pick ----
+    // r2_*: the lane's held row command {vld, pair, class}. w2_*: this
+    // cycle's pick (registers only, like the main pick) and this cycle's
+    // fire (the live gate, beside the main fire). Driven in the lane block
+    // below; every term reads 0 without the lane.
+    logic             w_dual;
+    logic             r2_vld;
+    logic [PAIRW-1:0] r2_pair;
+    cls_e             r2_cls;
+    logic [NPAIR-1:0] w2_cand, w2_sel, w2_pick_onehot, w2_excl;
+    logic             w2_ride;                 // a rideable row request exists: the main select keeps columns
+    logic             w2_load;
+    logic [PAIRW-1:0] w2_pick_pair;
+    cls_e             w2_pick_cls;
+    logic             w2_fire, w2_hold, w2_act_fire, w2_pre_fire;
+    logic [NPAIR-1:0] w2_stale_nxt;            // the lane's share of next cycle's stale mask
+    logic             w2_hint_vld;
+    cls_e             w2_hint_cls;
+    assign w_dual = DUAL_ISSUE && dual_issue_en_i;
 
     // Short-hop speculation (register-only): when the held winner is a column
     // whose candidate is the last of its row and the following PRE's timer is
@@ -791,7 +849,10 @@ module mc_bank_pick
         w_oh_cdir = rr_onehot(w_req_col_dir,  w_req_aged, w_below_mask);
         w_oh_col  = rr_onehot(w_req_col,      w_req_aged, w_below_mask);
         w_oh_row  = rr_onehot(w_req_row_pref, w_req_aged, w_below_mask);
-        if (r_last_was_row) begin
+        // DUAL_ISSUE: a row request that can ride the lane does not take the
+        // column's slot -- the select behaves as it does after a row command
+        // (columns first). One that cannot ride still takes the slot below.
+        if (r_last_was_row || w2_ride) begin
             if (w_hint_ok && w_hint_is_col)    begin w_sel = w_hint_vec;     w_sel_src = SRC_HINT; end
             else if (|w_req_col_dir)           begin w_sel = w_req_col_dir;  w_sel_src = SRC_CDIR; end
             else if (|w_req_col && w_xdir_ok)  begin w_sel = w_req_col;      w_sel_src = SRC_COL;  end
@@ -908,6 +969,66 @@ module mc_bank_pick
             end
         end
     end
+
+    // ---- DUAL_ISSUE row lane: pick (registers only) ---------------------
+    // Rideable: a row request (after the stale mask and the sink check, the
+    // same w_req_row the main select reads) whose bank has NO column request
+    // in either direction and is not the main winner's. A bank with columns
+    // pending is streaming an open row: an ACT there is impossible and a PRE
+    // there is the courtesy case the main slot keeps. The main lane's own
+    // fresh row pick (SRC_ROW, or a row-class hint) is excluded too, so the
+    // two lanes never load one pair in the same cycle. ACT before PRE (the
+    // arbiter's order), then the age tie-break and the rotor inside the
+    // class -- the same rr_onehot the main sets use.
+    generate if (DUAL_ISSUE) begin : g_lane2_pick
+        logic [NUM_BANKS-1:0] w2_bank_busy, w2_win_bank_oh;
+        logic [NPAIR-1:0]     w2_req_ok, w2_act_set, w2_pre_set;
+        logic [1:0]           w2_cls_v;
+        // The candidate set and the "a row can ride" flag the main select
+        // reads are built from REGISTERS and inputs alone (the same terms
+        // w_req_ok / w_req_col / w_req_row are made of, restated here), so
+        // this block feeds the main select without reading it: no block-
+        // level cycle between the two picks.
+        always_comb begin
+            for (int p = 0; p < NPAIR; p++)
+                w2_req_ok[p] = r_req[p] && !r_self_stale[p]
+                             && (!r_is_col[p] || (p[0] ? wr_commit_ready_now_i : rd_issue_ready_i));
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                w2_bank_busy[b]   = (w2_req_ok[2*b] && r_is_col[2*b]) || (w2_req_ok[2*b+1] && r_is_col[2*b+1]);
+                w2_win_bank_oh[b] = r_win_vld && (BKW'(r_win_pair >> 1) == BKW'(b));
+            end
+            for (int p = 0; p < NPAIR; p++)
+                w2_cand[p] = w2_req_ok[p] && !r_is_col[p] && !w2_bank_busy[p >> 1] && !w2_win_bank_oh[p >> 1];
+            w2_ride = w_dual && (|w2_cand);
+        end
+        // the pick itself reads the main select's source to stay off its pair
+        always_comb begin
+            case (w_sel_src)
+                SRC_ROW:  w2_excl = w_oh_row;
+                SRC_HINT: w2_excl = w_hint_is_col ? '0 : w_hint_vec;
+                default:  w2_excl = '0;
+            endcase
+            for (int p = 0; p < NPAIR; p++) begin
+                w2_act_set[p] = w2_cand[p] && (r_cls[p] == CL_ACT);
+                w2_pre_set[p] = w2_cand[p] && (r_cls[p] == CL_PRE);
+            end
+            w2_sel  = ((|w2_act_set) ? w2_act_set : w2_pre_set) & ~w2_excl;
+            if (|(w2_sel & w_req_aged)) w2_sel = w2_sel & w_req_aged;
+            w2_pick_onehot = rr_onehot(w2_sel, w_req_aged, w_below_mask);
+            w2_load        = w_dual && (|w2_sel);
+            w2_pick_pair   = '0;
+            w2_cls_v       = '0;
+            for (int p = 0; p < NPAIR; p++) begin
+                if (w2_pick_onehot[p]) w2_pick_pair = PAIRW'(p);
+                w2_cls_v |= {2{w2_pick_onehot[p]}} & 2'(r_cls[p]);
+            end
+            w2_pick_cls = cls_e'(w2_cls_v);
+        end
+    end else begin : g_no_lane2_pick
+        assign w2_cand = '0;  assign w2_excl = '0;  assign w2_ride = 1'b0;
+        assign w2_sel = '0;   assign w2_pick_onehot = '0;
+        assign w2_load = 1'b0; assign w2_pick_pair = '0; assign w2_pick_cls = CL_NONE;
+    end endgenerate
 
     // ======================================================================
     // Stage 3: fire -- the live JEDEC authority
@@ -1138,6 +1259,48 @@ module mc_bank_pick
     assign w_to_fire   = w_fire && !w_ovr_vld && !w_dmd_ok;
     assign cmd_timeout_pre_o = w_to_fire;
 
+    // ---- DUAL_ISSUE row lane: fire (the live gate, beside the main fire) ---
+    // The lane fires only into a free slot (cmd_ready_i), with no override
+    // active (init, refresh, ZQ, maintenance), beside a main-lane COLUMN or
+    // an idle main lane (never a main row command or the timeout PRE: one row
+    // command per word, one ACT per cycle for tRRD / tFAW), never to the main
+    // winner's bank, and re-checks its class and the live timers exactly as
+    // the main fire does. It HOLDS while the class applies, the bank is not
+    // demand-blocked and the lookahead says the timer opens within the pipe;
+    // otherwise it is released and the decode re-presents it.
+    logic [BKW-1:0] w2_bank;
+    logic           w2_is_wr, w2_hit, w2_row_act, w2_class_ok, w2_timer_ok, w2_la_ok, w2_blocked, w2_clash, w2_ok;
+    mc_head_rec_t   w2_rec;
+    always_comb begin
+        w2_bank     = BKW'(r2_pair >> 1);
+        w2_is_wr    = r2_pair[0];
+        w2_rec      = w_cand[r2_pair];
+        w2_hit      = w_hit [r2_pair];
+        w2_row_act  = bank_row_active_i[RK0][w2_bank];
+        w2_blocked  = w_ref_dmd_block[w2_bank] || w_rfc_dmd_block[w2_bank];
+        w2_clash    = w_win_vld && (w2_bank == w_sel_bank);
+        w2_class_ok = 1'b0; w2_timer_ok = 1'b0; w2_la_ok = 1'b0;
+        if (r2_cls == CL_ACT) begin
+            w2_class_ok = w2_rec.vld && !w2_row_act && !w_rfc_busy && !maint_busy_i;
+            w2_timer_ok = bank_act_ready_i[RK0][w2_bank] && tfaw_ok_i[RK0] && trrd_ok_i[RK0];
+            w2_la_ok    = bank_act_ready_la_i[RK0][w2_bank];
+        end else if (r2_cls == CL_PRE) begin
+            w2_class_ok = w2_rec.vld && w2_row_act && !w2_hit;
+            w2_timer_ok = bank_pre_ready_i[RK0][w2_bank];
+            w2_la_ok    = bank_pre_ready_la_i[RK0][w2_bank];
+        end
+        w2_ok   = w_dual && r2_vld && w2_class_ok && !w2_blocked && !w2_clash;
+        w2_fire = w2_ok && w2_timer_ok && cmd_ready_i && !w_ovr_vld
+               && (!w_fire || w_col_fire_now);
+        w2_hold = w2_ok && !w2_fire && w2_la_ok;
+        w2_act_fire = w2_fire && (r2_cls == CL_ACT);
+        w2_pre_fire = w2_fire && (r2_cls == CL_PRE);
+        // the lane's pair is masked while it sits in the lane (held or just
+        // loaded) and the cycle after it fires, as a main-lane row command is
+        w2_stale_nxt = (w2_hold ? (NPAIR'(1) << r2_pair) : w2_load ? w2_pick_onehot : '0)
+                     | (w2_fire ? (NPAIR'(1) << r2_pair) : '0);
+    end
+
     // ---- payload ----------------------------------------------------------
     // the backend's flat slot fields as arrays (wires only; see the index note below)
     logic [ROW_WIDTH-1:0] w_wr_slot_row [NUM_ENTRIES], w_rd_slot_row [NUM_ENTRIES];
@@ -1150,6 +1313,19 @@ module mc_bank_pick
             w_rd_slot_col[i] = rd_slot_col_i[i*COL_WIDTH +: COL_WIDTH];
         end
     end
+    // the row lane's outputs (its ACT row is the same slot lookup as the main lane's)
+    generate if (DUAL_ISSUE) begin : g_lane2_out
+        logic [PTRW-1:0] w2_slot;
+        assign w2_slot    = PTRW'(w2_rec.slot);
+        assign row2_act_o  = w2_act_fire;
+        assign row2_pre_o  = w2_pre_fire;
+        assign row2_bank_o = w2_bank;
+        assign row2_row_o  = w2_is_wr ? w_wr_slot_row[w2_slot] : w_rd_slot_row[w2_slot];
+    end else begin : g_no_lane2_out
+        assign row2_act_o = 1'b0; assign row2_pre_o = 1'b0;
+        assign row2_bank_o = '0;  assign row2_row_o = '0;
+        wire _unused_lane2 = &{1'b0, w2_fire, w2_hold, w2_stale_nxt, w2_is_wr};
+    end endgenerate
     // Auto-precharge: the runtime page policy owns it when enabled (static
     // open / close / fixed_open); otherwise the build policy, or the exact
     // close-on-drain term.
@@ -1261,6 +1437,17 @@ module mc_bank_pick
         end
         // hops shorter than the pipe are the arbiter's speculation, not a hint
         w_hint_vld = w_hint_vld && !((LA > 0) && (w_hop_t <= 8'(LA_SHORT)));
+        // DUAL_ISSUE: the lane's fire hints its pair's next op the same way
+        // (ACT -> COL, PRE -> ACT), taken when the main lane raised no hint
+        // this cycle (the register below). A lane hop shorter than the pipe
+        // has no speculation: the lookahead decode lands it.
+        w2_hint_vld = 1'b0;
+        w2_hint_cls = CL_NONE;
+        if (w2_act_fire && (t_rcd_i <= 8'(LA)) && !((LA > 0) && (t_rcd_i <= 8'(LA_SHORT)))) begin
+            w2_hint_vld = 1'b1; w2_hint_cls = CL_COL;
+        end else if (w2_pre_fire && (t_rp_i <= 8'(LA)) && !((LA > 0) && (t_rp_i <= 8'(LA_SHORT)))) begin
+            w2_hint_vld = 1'b1; w2_hint_cls = CL_ACT;
+        end
     end
 
     // ---- direction register next state ----------------------------------
@@ -1319,7 +1506,19 @@ module mc_bank_pick
             r_rd_col_more <= 1'b0;
             r_actfire0      <= 1'b0;
             r_actfire0_bank <= '0;
+            r2_vld      <= 1'b0;
+            r2_pair     <= '0;
+            r2_cls      <= CL_NONE;
         end else begin
+            // DUAL_ISSUE: the lane's winner -- held while it waits on a timer,
+            // else this cycle's lane pick (nothing without the lane)
+            if (w2_hold) begin
+                r2_vld  <= 1'b1;
+            end else begin
+                r2_vld  <= w2_load;
+                r2_pair <= w2_pick_pair;
+                r2_cls  <= w2_pick_cls;
+            end
             // the effective winner for next cycle, resolved here: the held
             // winner while it waits on a timer, else the short-hop
             // speculation on it, else the arbiter's fresh pick
@@ -1344,7 +1543,8 @@ module mc_bank_pick
                              : w_spec_vld
                              ? (((w_spec_cls != CL_COL) || !w_sel_cand.behind_same_row) ? (NPAIR'(1) << w_win_pair) : '0)
                              : (w_pick_onehot & w_stale_if))
-                          | ((w_col_fire_now && w_sel_cand.behind_empty) ? (NPAIR'(1) << w_win_pair) : '0);
+                          | ((w_col_fire_now && w_sel_cand.behind_empty) ? (NPAIR'(1) << w_win_pair) : '0)
+                          | w2_stale_nxt;
             if (w_dmd_fire) r_last_was_row <= !w_fis_col;
             // rotor: past the fired pair; unchanged while the winner waits
             if (w_dmd_fire) r_rotor <= w_win_pair + PAIRW'(1);
@@ -1376,17 +1576,18 @@ module mc_bank_pick
             // pop shadow (one cycle, one-hot)
             r_shadow <= w_col_fire_now ? (NPAIR'(1) << w_win_pair) : '0;
 
-            // next-op hint (one cycle)
-            r_hint_vld  <= w_hint_vld;
-            r_hint_pair <= w_win_pair;
-            r_hint_cls  <= w_hint_cls;
+            // next-op hint (one cycle); the lane's when the main lane has none
+            r_hint_vld  <= w_hint_vld || w2_hint_vld;
+            r_hint_pair <= w_hint_vld ? w_win_pair : w2_hint_vld ? r2_pair : w_win_pair;
+            r_hint_cls  <= w_hint_vld ? w_hint_cls : w2_hint_vld ? w2_hint_cls : w_hint_cls;
 
             r_wrfire0 <= w_col_fire_now &&  w_sel_is_wr;
             r_rdfire0 <= w_col_fire_now && !w_sel_is_wr;
             r_wr_col_more <= w_col_fire_now &&  w_sel_is_wr && w_win_bsr;
             r_rd_col_more <= w_col_fire_now && !w_sel_is_wr && w_win_bsr;
-            r_actfire0      <= w_dmd_fire && w_fis_act;
-            r_actfire0_bank <= w_sel_bank;
+            // a lane ACT never fires beside a main-lane ACT: one bank suffices
+            r_actfire0      <= (w_dmd_fire && w_fis_act) || w2_act_fire;
+            r_actfire0_bank <= w2_act_fire ? w2_bank : w_sel_bank;
         end
     )
 

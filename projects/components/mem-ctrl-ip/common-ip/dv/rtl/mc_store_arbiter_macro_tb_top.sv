@@ -426,6 +426,7 @@ module mc_store_arbiter_macro_tb_top
             .aclk               (aclk),
             .aresetn            (aresetn),
             .page_policy_i      (PAGE_POLICY_OPEN),
+            .dual_issue_en_i    (1'b0),          // no row lane in this bench (MC-014)
             .ap_mode_en_i       (1'b0),
             .ap_close_i         ('0),
             .ap_conflict_only_i (1'b0),
@@ -509,6 +510,10 @@ module mc_store_arbiter_macro_tb_top
             .cmd_col_o          (core_cmd_col),
             .cmd_ap_o           (core_cmd_ap),
             .cmd_extra_o        (),
+            .row2_act_o         (),
+            .row2_pre_o         (),
+            .row2_bank_o        (),
+            .row2_row_o         (),
             .stall_bp_o         (),
             .stall_refresh_o    (),
             .stall_turnaround_o (),

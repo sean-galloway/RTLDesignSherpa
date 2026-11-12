@@ -19,13 +19,18 @@ $(GOLD_FLAT): mc_bank_pick_gold.sv filelists/gold.f
 		$$(grep -v '^+incdir+' $(FLAT_BUILD)/gold.f) > $@.tmp
 	@mv $@.tmp $@
 
-.PHONY: equiv equiv_n4 cover all clean
-all: equiv equiv_n4 cover
+.PHONY: equiv equiv_n4 cover dual dual_cover all clean
+all: equiv equiv_n4 cover dual dual_cover
 equiv: $(FLAT) $(GOLD_FLAT)
 	sby -f bank_pick.sby equiv
 equiv_n4: $(FLAT) $(GOLD_FLAT)
 	sby -f bank_pick.sby equiv_n4
 cover: $(FLAT) $(GOLD_FLAT)
 	sby -f bank_pick.sby cover
+# the DUAL_ISSUE row lane's word invariants (MC-014), DUT alone at DUAL_ISSUE = 1
+dual: $(FLAT) $(GOLD_FLAT)
+	sby -f bank_pick.sby dual
+dual_cover: $(FLAT) $(GOLD_FLAT)
+	sby -f bank_pick.sby dual_cover
 clean:
-	rm -rf *_flat.v .flat_build bank_pick_equiv bank_pick_equiv_n4 bank_pick_cover
+	rm -rf *_flat.v .flat_build bank_pick_equiv bank_pick_equiv_n4 bank_pick_cover bank_pick_dual bank_pick_dual_cover

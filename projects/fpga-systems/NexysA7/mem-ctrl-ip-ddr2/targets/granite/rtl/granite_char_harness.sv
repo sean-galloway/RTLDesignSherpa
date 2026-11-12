@@ -81,6 +81,7 @@ module granite_char_harness
     // NUM_ENTRIES 8 on the FIFO store, bank queues pool-deep (BANK_FIFO_DEPTH 0)
     parameter int NUM_ENTRIES        = 8,
     parameter int STORE_BACKEND      = 1,
+    parameter bit DUAL_ISSUE         = 1'b0,  // the pick core's row lane (memory-controllers MC-014)
     parameter int BANK_FIFO_DEPTH    = 0,  // 0 = NUM_ENTRIES
     parameter bit HEAD2_EN           = 1'b1,  // 0 = one head record per bank (FIFO store)
     parameter bit FIXED_TIMINGS      = 1'b0  // 1 = T_* constants replace the TIMINGS CSRs
@@ -603,6 +604,7 @@ module granite_char_harness
         .DFI_WD_FIFO_DEPTH (DFI_WD_FIFO_DEPTH),
         .DFI_RD_FIFO_DEPTH (DFI_RD_FIFO_DEPTH),
         .STORE_BACKEND     (STORE_BACKEND),
+        .DUAL_ISSUE        (DUAL_ISSUE),
         .BANK_FIFO_DEPTH   (BANK_FIFO_DEPTH),
         .HEAD2_EN          (HEAD2_EN),
         .FIXED_TIMINGS     (FIXED_TIMINGS)

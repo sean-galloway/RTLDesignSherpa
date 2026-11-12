@@ -1,27 +1,35 @@
 # memory-controllers — task lane
 
-**Next ID: MC-015** — never recycle a number.
+**Next ID: MC-016** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 2 | in progress right now |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 4 | in progress right now |
 | [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
+- **MC-015** -- the write stream pays one command slot per AXI burst at the
+  intake, both controllers: with MC-014's lane on, granite reads reach 773 /
+  775 on `col_major_interleaved` / `row_thrash` and writes stay at 686 / 687
+  (7 WRs a cycle apart, then a gap of 2, per burst; identical with the lane
+  off). Not the scheduler: upstream, per AXI burst. Filed 2026-11-12.
+
+## Active
+
 - **MC-014** -- a row lane on granite's bank-pick core (dual issue): the
   2026-11-12 sim traced the sku100 bank-parallel miss cells to one command
   slot per MC cycle (97 % occupancy, ACT every 9 cycles); pumice's lane on the
-  same DFI path recovers +13 % reads. Priced +92..+145 MB/s. Filed 2026-11-12.
+  same DFI path recovers +13 % reads. Priced +92..+145 MB/s. Filed and started
+  2026-11-12: `mc_bank_pick` DUAL_ISSUE lane, plane / granite_core / top /
+  CSR plumbing built; sim then board.
 - **MC-013** -- model-driven policy exploration on the Ramulator 2 DDR2 model.
   Item 1 (dual issue) done 2026-11-12: the slot is the measured ceiling, see
-  MC-014. Left: write drain, refresh placement, per-bank vs pooled queues, a
-  cocotb trace exporter. Filed 2026-11-11.
-
-## Active
+  MC-014. Active 2026-11-12 on items 2-5: write drain, refresh placement,
+  per-bank vs pooled queues, a cocotb trace exporter. Filed 2026-11-11.
 
 - **MC-011** -- the 0.2 ns clock-uncertainty budget is in both board XDCs;
   sweep 1: pumice sys75 closes by 0.100 under budget on the worst of three

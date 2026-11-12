@@ -55,6 +55,12 @@ module granite_core
     //   0 = mc_xddr2_entry_store + mc_bank_head_records: the flat pool with
     //       the N x N age matrix (4 785 LUT at N = 8 in context, report 5.10).
     parameter int STORE_BACKEND  = 1,
+    // DUAL_ISSUE (memory-controllers MC-014): the pick core's row lane -- a
+    // demand ACT / PRE in the same DFI word as a column, on DFI_PHASE.row_phase.
+    // Runtime enable SCHED_POLICY.dual_issue; the lane runs only on DDR2 with
+    // row_phase off both column phases and one column command per DFI word
+    // (the same gate as pumice_core). 0 = single issue, bit-identical.
+    parameter bit DUAL_ISSUE     = 1'b0,
     parameter int BANK_FIFO_DEPTH = 0,   // FIFO store queue depth per (direction, bank); 0 = NUM_ENTRIES (pool-only admission, the measured default)
     parameter bit HEAD2_EN        = 1'b1,// FIFO store: 0 = one head record per bank (no pop-shadow record; measured trade, mc_bank_fifo_store)
     // LPDDR2 training plane (ZQ calibration, DQ calibration) built in. 1 =
@@ -177,6 +183,8 @@ module granite_core
     input  logic [7:0]                 lp_mr1_op_i, lp_mr2_op_i, lp_mr3_op_i,
     input  logic                       init_restart_i,
     input  logic [PHW-1:0]             rd_phase_i, wr_phase_i,
+    input  logic [PHW-1:0]             row_phase_i,     // DFI_PHASE.row_phase: every non-column command (the row lane rides it)
+    input  logic                       dual_issue_en_i, // SCHED_POLICY.dual_issue (DUAL_ISSUE builds)
     input  logic [7:0]                 t_phy_wrlat_i, t_rddata_en_i,
     input  logic [1:0]                 gear_i,
     input  logic [3:0]                 bl_i,
@@ -266,7 +274,8 @@ module granite_core
 );
 
     localparam int PTRW = (NUM_ENTRIES > 1) ? $clog2(NUM_ENTRIES) : 1;
-    localparam int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1;
+    localparam int CMD_DW = $bits(dram_op_e) + RKW + BKW + ROW_WIDTH + COL_WIDTH + 1 + 1
+                          + (DUAL_ISSUE ? (2 + BKW + ROW_WIDTH) : 0);
     localparam int WD_DW  = 1 + DFI_STRB_WIDTH + DFI_DATA_WIDTH;
     localparam int RD_DW  = 1 + 2 + DFI_DATA_WIDTH;
 
@@ -356,7 +365,24 @@ module granite_core
     logic [COL_WIDTH-1:0]      w_cmd_col;
     logic                      w_cmd_ap, w_cmd_mrr;
     logic [CMD_DW-1:0]         w_cmd_data;
-    assign w_cmd_data = {w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
+    // DUAL_ISSUE row lane, valid with w_cmd_v (the word's top bits)
+    logic                      w_cmd2_act, w_cmd2_pre;
+    logic [BKW-1:0]            w_cmd2_bank;
+    logic [ROW_WIDTH-1:0]      w_cmd2_row;
+    generate if (DUAL_ISSUE) begin : g_cmd2_word
+        assign w_cmd_data = {w_cmd2_act, w_cmd2_pre, w_cmd2_bank, w_cmd2_row,
+                             w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
+    end else begin : g_cmd1_word
+        assign w_cmd_data = {w_cmd_mrr, w_cmd_ap, w_cmd_col, w_cmd_row, w_cmd_bank, w_cmd_rank, w_cmd_op};
+        wire _unused_cmd2 = &{1'b0, w_cmd2_act, w_cmd2_pre, w_cmd2_bank, w_cmd2_row, row_phase_i, dual_issue_en_i};
+    end endgenerate
+    // DUAL_ISSUE effective enable (pumice_core's gate): DDR2 only (an LPDDR2
+    // command fills the CA word), the row phase clear of both column phases,
+    // one column command per DFI word. Static CSRs.
+    logic w_dual_en;
+    assign w_dual_en = DUAL_ISSUE && dual_issue_en_i && (memtype_i == MEMTYPE_DDR2)
+                    && (row_phase_i != rd_phase_i) && (row_phase_i != wr_phase_i)
+                    && (w_n_subcmd == SUBW_MAX'(1));
 
     // ---- scheduler <-> training plane ----
     logic                      w_trn_req, w_trn_grant;
@@ -881,6 +907,7 @@ module granite_core
         .HAS_MODE_REGISTER (1'b0),
         .MAINT_EXTRA_WIDTH(1),
         .CLOSE_ON_DRAIN(1'b1),
+        .DUAL_ISSUE    (DUAL_ISSUE),
         .SCHED_CORE    (SCHED_CORE),
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
@@ -891,7 +918,7 @@ module granite_core
         .aclk               (aclk),
         .aresetn            (aresetn),
         .page_policy_i      (page_policy_i),
-        .dual_issue_en_i    (1'b0),           // FR-FCFS row lane: not on the pick core
+        .dual_issue_en_i    (w_dual_en),      // the pick core's row lane (MC-014)
         .fast_rd_en_i       (1'b1),           // FAST_RD_RELEASE always on when built (GRANITE_FAST_RD_RELEASE)
         .memtype_i          (memtype_i),
         .page_mode_i        (page_mode_i),
@@ -1018,10 +1045,10 @@ module granite_core
         .cmd_col_o          (w_cmd_col),
         .cmd_ap_o           (w_cmd_ap),
         .cmd_extra_o        (w_cmd_mrr),
-        .cmd2_act_o         (),
-        .cmd2_pre_o         (),
-        .cmd2_bank_o        (),
-        .cmd2_row_o         (),
+        .cmd2_act_o         (w_cmd2_act),
+        .cmd2_pre_o         (w_cmd2_pre),
+        .cmd2_bank_o        (w_cmd2_bank),
+        .cmd2_row_o         (w_cmd2_row),
         .maint_req_i        (w_trn_req),
         .maint_grant_o      (w_trn_grant),
         .maint_op_i         (w_trn_op),
@@ -1149,7 +1176,8 @@ module granite_core
         .CMD_HISTORY_EN  (0),
         .HIST_T_RFC      (0),
         .HIST_T_RTW      (0),
-        .HIST_T_WTR      (0)
+        .HIST_T_WTR      (0),
+        .DUAL_ISSUE      (DUAL_ISSUE)
     ) u_dfi_plane (
         .ctl_clk            (aclk),
         .ctl_rstn           (aresetn),
@@ -1171,7 +1199,7 @@ module granite_core
         .memtype_i          (memtype_i),
         .rd_phase_i         (rd_phase_i),
         .wr_phase_i         (wr_phase_i),
-        .row_phase_i        ('0),             // every non-column command on phase 0
+        .row_phase_i        (row_phase_i),    // every non-column command; the row lane rides it
         .t_phy_wrlat_i      (t_phy_wrlat_i),
         .t_rddata_en_i      (t_rddata_en_i),
         .gear_i             (gear_i),

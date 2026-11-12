@@ -33,7 +33,9 @@ page-policy/bank-parallelism separation are the scheduler's real behaviour.
 Requires granite_core `.BANK_FIFO(1'b1)` for the per-bank in-order core; with
 it at the committed `1'b0` this measures the FRFCFS research core instead (a
 valid control). Knobs: TEST_TREFI (default 585 = board), TEST_TXN (256),
-TEST_GAP (0), TEST_BURST_LEN (8), TEST_FAMILIES, PERF_DUMP.
+TEST_GAP (0), TEST_BURST_LEN (8), TEST_FAMILIES, PERF_DUMP, TEST_DUAL (1 = build
+the pick core's row lane, memory-controllers MC-014, and run it:
+SCHED_POLICY.dual_issue on, DFI_PHASE.row_phase 1; its own sim_build tag).
 """
 
 import dataclasses
@@ -103,6 +105,9 @@ async def _cmd_probe(dut, log):
     One command per MC cycle is all the plane can accept, so the fraction of
     cycles with a fire is the command slot's occupancy (memory-controllers
     MC-013: is the single slot what caps the bank-parallel miss families?).
+    The DUAL_ISSUE row lane (MC-014, a2_act / a2_pre) is logged as ACT2 / PRE2
+    in the same cycle as the main fire it rides beside; the slot statistic
+    counts a cycle once (the word), the kind counts show the lane's share.
     Sampled in ReadOnly so the combinational strobes are settled."""
     try:
         sp = dut.u_dut.u_dut.u_ctrl.u_core.u_sched_plane
@@ -111,6 +116,8 @@ async def _cmd_probe(dut, log):
     except AttributeError as e:
         dut._log.info("PERF_CMD_TRACE: scheduler plane probe absent (%r)", e)
         return
+    s_act2 = getattr(sp, "a2_act", None)
+    s_pre2 = getattr(sp, "a2_pre", None)
     cyc = 0
     while True:
         await RisingEdge(dut.aclk)
@@ -127,6 +134,10 @@ async def _cmd_probe(dut, log):
                 log.append(("PRE", cyc))
             elif int(s_acc.value):
                 log.append(("OTHER", cyc))
+            if s_act2 is not None and int(s_act2.value):
+                log.append(("ACT2", cyc))
+            elif s_pre2 is not None and int(s_pre2.value):
+                log.append(("PRE2", cyc))
         except Exception:
             pass
 
@@ -140,8 +151,12 @@ def _slot_occupancy(log, bin_cycles=1024):
         return {}
     kinds = {}
     bins = {}
+    seen = set()
     for k, c in log:
         kinds[k] = kinds.get(k, 0) + 1
+        if c in seen:          # a lane fire beside a main fire: one word, one slot
+            continue
+        seen.add(c)
         b = c // bin_cycles
         bins[b] = bins.get(b, 0) + 1
     occ = sorted((n / bin_cycles for n in bins.values()), reverse=True)
@@ -677,9 +692,17 @@ async def cocotb_test_granite_perf(dut):
         if age_thr:
             drv.set_sched_policy(age_thresh=int(age_thr, 0))
             out["age_thresh"] = int(age_thr, 0)
+        # TEST_DUAL: the pick core's row lane (a DUAL_ISSUE build; memory-
+        # controllers MC-014): SCHED_POLICY.dual_issue on, every row command on
+        # DFI_PHASE.row_phase 1 beside the columns on rd/wr_phase 0.
+        dual = os.environ.get("TEST_DUAL", "0") == "1"
+        if dual:
+            drv.set_sched_policy(dual_issue=True)
+            out["dual_issue"] = 1
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
-                          gear_ratio=GEAR_RATIO, bl=DRAM_BL)
+                          gear_ratio=GEAR_RATIO, bl=DRAM_BL,
+                          row_phase=(1 if dual else None))
         # Real DDR2-650 timings derived at the 75 MHz board clock (like the board).
         # The derived tRTW follows the SAME alignment the controller was
         # configured with above (TEST_T_RDDATA_EN / TEST_RDDATA_DELAY /
@@ -756,7 +779,7 @@ async def cocotb_test_granite_perf(dut):
     fams = r["families"]
 
     if tracing and cmd_log:
-        gaps = {k: _gap_stats(cmd_log, k) for k in ("RD", "WR", "ACT", "PRE", "OTHER")}
+        gaps = {k: _gap_stats(cmd_log, k) for k in ("RD", "WR", "ACT", "PRE", "OTHER", "ACT2", "PRE2")}
         dut._log.info("cmd-gap stats: %s",
                       {k: {kk: vv for kk, vv in v.items() if kk != "gaps"}
                        for k, v in gaps.items()})
@@ -835,12 +858,15 @@ def _run_granite_perf(request, over=None):
         repo_root=repo_root, filelist_path=_FILELIST)
 
     tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
+    if _g("TEST_DUAL", "0") == "1":
+        tag += "_dual"        # a different netlist: its own build tree
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
         "DUT": dut_name,
+        "TEST_DUAL": _g("TEST_DUAL", "0"),
         # the sim process derives its clock constants from this
         "TEST_FPGA_CLK_HZ": str(clk_hz),
         "COCOTB_LOG_LEVEL": "INFO",
@@ -899,6 +925,8 @@ def _run_granite_perf(request, over=None):
               # defaults are the board build (FIFO store, 8 slots, pool-deep bank queues)
               "NUM_ENTRIES": _g("TEST_NUM_ENTRIES", "8"),
               "STORE_BACKEND": _g("TEST_STORE_BACKEND", "1"),
+              # TEST_DUAL=1 builds the pick core's row lane (MC-014)
+              **({"DUAL_ISSUE": "1"} if _g("TEST_DUAL", "0") == "1" else {}),
               "BANK_FIFO_DEPTH": _g("TEST_BANK_FIFO_DEPTH", "0"),
               "HEAD2_EN": _g("TEST_HEAD2_EN", "1"),
               "DFI_CDC_EN": _g("TEST_DFI_CDC_EN", "0"),

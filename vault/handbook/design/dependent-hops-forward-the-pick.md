@@ -166,3 +166,41 @@ took. The lane fires on the live image, never beside a main-lane row command
 and never to the main lane's bank. The formal wrapper's `dual` task checks
 that contract, and removing any one of its three fire terms fails it.
 
+## The same lane on the per-bank pick core (memory-controllers MC-014, 2026-11-12)
+
+`mc_bank_pick` grew the lane a week later, after the Ramulator comparison and
+a slot-occupancy trace had named the single command slot as granite's ceiling
+on the bank-parallel miss families (97 percent of MC cycles firing, an ACT
+every 9 cycles; [[dram-cycle-model]]). The pick core has no pre-pick
+registers or guard shadows to extend; what it has is one registered request
+set, one effective-winner register and a stale mask, so the lane is a second
+winner register fed from the same request set, and every rule of the
+arbiter's lane maps onto those three things:
+
+- *rideable* = a row request whose bank has no column request in the
+  stale-masked set and is not the main winner's (the arbiter's `f2_free`),
+  ACT before PRE, the age tie-break and the rotor inside the class. The main
+  select treats "a row can ride" exactly as "the last fire was a row
+  command" -- columns first -- so a rideable row stops costing a column slot,
+  and one that cannot ride keeps the slot it had.
+- the lane's pair is *stale-masked* for its whole life in the lane plus the
+  cycle after its fire, the same two-cycle window a main-lane row command
+  gets; without it the main select re-picks the pair whose ACT is firing on
+  the lane and drops it at the fire stage, a slot per row.
+- it fires beside a main COLUMN or an idle main lane only, never to the main
+  winner's bank, on the live gate (row image, bank readiness, tRRD / tFAW),
+  and *holds* while the class applies and the lookahead opens within the
+  pipe -- the main winner's own hold rule.
+- its fire feeds the one hint register when the main lane raised no hint
+  that cycle, and the ACT-fire history the refresh grant reads. One hint
+  register was enough: a column fire with auto-precharge (the hybrid policy's
+  common case) raises none.
+
+Two things made the lane cheap to trust. The lane-off core is proved
+bit-identical to the golden copy by the existing lockstep task, so the
+single-issue product is untouched by construction; and a `dual` task proves
+the word invariants (one row command per word, beside a column or alone,
+another bank, the live gate) on free inputs, so the DFI command path's
+contract holds whatever the environment presents. Sim: `col_major_interleaved`
+reads 686 -> 773 MB/s, `row_thrash` 687 -> 775, `random` 656 -> 722, within
+1 percent of the ideal on the pure families; `col_major` unchanged.

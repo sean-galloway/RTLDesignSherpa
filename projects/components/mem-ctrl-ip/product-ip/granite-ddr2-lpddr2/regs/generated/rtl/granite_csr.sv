@@ -375,6 +375,10 @@ module granite_csr (
                 logic [3:0] next;
                 logic load_next;
             } bl;
+            struct {
+                logic [2:0] next;
+                logic load_next;
+            } row_phase;
         } DFI_PHASE;
         struct {
             struct {
@@ -419,6 +423,10 @@ module granite_csr (
                 logic next;
                 logic load_next;
             } qos_en;
+            struct {
+                logic next;
+                logic load_next;
+            } dual_issue;
             struct {
                 logic [7:0] next;
                 logic load_next;
@@ -760,6 +768,9 @@ module granite_csr (
             struct {
                 logic [3:0] value;
             } bl;
+            struct {
+                logic [2:0] value;
+            } row_phase;
         } DFI_PHASE;
         struct {
             struct {
@@ -794,6 +805,9 @@ module granite_csr (
             struct {
                 logic value;
             } qos_en;
+            struct {
+                logic value;
+            } dual_issue;
             struct {
                 logic [7:0] value;
             } age_thresh;
@@ -1850,6 +1864,29 @@ module granite_csr (
         end
     end
     assign hwif_out.DFI_PHASE.bl.value = field_storage.DFI_PHASE.bl.value;
+    // Field: granite_csr.DFI_PHASE.row_phase
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DFI_PHASE.row_phase.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DFI_PHASE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DFI_PHASE.row_phase.value & ~decoded_wr_biten[15:13]) | (decoded_wr_data[15:13] & decoded_wr_biten[15:13]);
+            load_next_c = '1;
+        end
+        field_combo.DFI_PHASE.row_phase.next = next_c;
+        field_combo.DFI_PHASE.row_phase.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DFI_PHASE.row_phase.value <= 3'h0;
+        end else begin
+            if(field_combo.DFI_PHASE.row_phase.load_next) begin
+                field_storage.DFI_PHASE.row_phase.value <= field_combo.DFI_PHASE.row_phase.next;
+            end
+        end
+    end
+    assign hwif_out.DFI_PHASE.row_phase.value = field_storage.DFI_PHASE.row_phase.value;
     // Field: granite_csr.PHY_TIMING.t_phy_wrlat
     always_comb begin
         automatic logic [7:0] next_c;
@@ -2080,6 +2117,29 @@ module granite_csr (
         end
     end
     assign hwif_out.SCHED_POLICY.qos_en.value = field_storage.SCHED_POLICY.qos_en.value;
+    // Field: granite_csr.SCHED_POLICY.dual_issue
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.dual_issue.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.dual_issue.value & ~decoded_wr_biten[12:12]) | (decoded_wr_data[12:12] & decoded_wr_biten[12:12]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.dual_issue.next = next_c;
+        field_combo.SCHED_POLICY.dual_issue.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.dual_issue.value <= 1'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.dual_issue.load_next) begin
+                field_storage.SCHED_POLICY.dual_issue.value <= field_combo.SCHED_POLICY.dual_issue.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.dual_issue.value = field_storage.SCHED_POLICY.dual_issue.value;
     // Field: granite_csr.SCHED_POLICY.age_thresh
     always_comb begin
         automatic logic [7:0] next_c;
@@ -3038,7 +3098,8 @@ module granite_csr (
     assign readback_array[15][6:4] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.wr_phase.value : '0;
     assign readback_array[15][8:7] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 2'h2 : '0;
     assign readback_array[15][12:9] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.bl.value : '0;
-    assign readback_array[15][31:13] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 19'h0 : '0;
+    assign readback_array[15][15:13] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.row_phase.value : '0;
+    assign readback_array[15][31:16] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 16'h0 : '0;
     assign readback_array[16][7:0] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_phy_wrlat.value : '0;
     assign readback_array[16][15:8] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_rddata_en.value : '0;
     assign readback_array[16][16:16] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.memtype.value : '0;
@@ -3052,7 +3113,8 @@ module granite_csr (
     assign readback_array[17][9:8] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.access_pref.value : '0;
     assign readback_array[17][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 1'h0 : '0;
     assign readback_array[17][11:11] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.qos_en.value : '0;
-    assign readback_array[17][15:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[17][12:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.dual_issue.value : '0;
+    assign readback_array[17][15:13] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 3'h0 : '0;
     assign readback_array[17][23:16] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.age_thresh.value : '0;
     assign readback_array[17][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
     assign readback_array[18][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;

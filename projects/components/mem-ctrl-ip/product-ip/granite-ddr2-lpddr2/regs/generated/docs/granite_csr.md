@@ -574,7 +574,8 @@ when DFI_RATE &lt; the field width.</p>
 | 6:4 | wr_phase |  rw  | 0x0 |  — |
 | 8:7 |gear_ratio|   r  | 0x2 |  — |
 | 12:9|    bl    |  rw  | 0x8 |  — |
-|31:13|   RSVD   |   r  | 0x0 |  — |
+|15:13| row_phase|  rw  | 0x0 |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
 
 #### rd_phase field
 
@@ -591,6 +592,10 @@ when DFI_RATE &lt; the field width.</p>
 #### bl field
 
 <p>JEDEC burst length (MR0 device beats): 4/8/16</p>
+
+#### row_phase field
+
+<p>Non-column (row) command DFI sub-phase</p>
 
 #### RSVD field
 
@@ -669,7 +674,8 @@ request. All hw-readable so they drive the controller core.</p>
 | 9:8 |access_pref|  rw  | 0x0 |  — |
 |  10 |  RSVD_10  |   r  | 0x0 |  — |
 |  11 |   qos_en  |  rw  | 0x0 |  — |
-|15:12| RSVD_15_12|   r  | 0x0 |  — |
+|  12 | dual_issue|  rw  | 0x0 |  — |
+|15:13| RSVD_15_13|   r  | 0x0 |  — |
 |23:16| age_thresh|  rw  | 0x0 |  — |
 |31:24| RSVD_31_24|   r  | 0x0 |  — |
 
@@ -701,7 +707,11 @@ request. All hw-readable so they drive the controller core.</p>
 
 <p>1 = factor AxQOS into the pick (highest ready first, age tie-break)</p>
 
-#### RSVD_15_12 field
+#### dual_issue field
+
+<p>Dual issue (memory-controllers MC-014): a ready demand ACT or PRE to another bank rides the same DFI word as a column (on DFI_PHASE.row_phase) instead of taking a command slot of its own; a row command that can ride the lane no longer takes a column's slot (one whose bank has columns pending still does). Takes effect only on a DUAL_ISSUE build, on DDR2, with row_phase different from rd_phase and wr_phase and one column command per DFI word. Filed from the 2026-11-12 sim: the single slot per MC cycle is the measured ceiling on the bank-parallel miss families (97 percent occupancy, an ACT every 9 cycles).</p>
+
+#### RSVD_15_13 field
 
 <p>Reserved</p>
 

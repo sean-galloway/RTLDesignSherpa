@@ -71,6 +71,7 @@ module granite_top_geared
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO, same-clock builds only (DFI_CDC_EN = 0); with the crossing on
                                             // granite_core uses the whole window, RD_RET_DEPTH x BURST_WORDS (pumice ISSUE-026)
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
+    parameter bit DUAL_ISSUE      = 1'b0, // the pick core's row lane (granite_core; memory-controllers MC-014)
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
     parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)
     parameter bit FIXED_TIMINGS  = 1'b0,  // 1 = T_* constants replace the TIMINGS CSRs (report 5.10 item 3)
@@ -494,6 +495,7 @@ module granite_top_geared
         .DFI_WD_FIFO_DEPTH (DFI_WD_FIFO_DEPTH),
         .DFI_RD_FIFO_DEPTH (DFI_RD_FIFO_DEPTH),
         .STORE_BACKEND    (STORE_BACKEND),
+        .DUAL_ISSUE       (DUAL_ISSUE),
         .BANK_FIFO_DEPTH  (BANK_FIFO_DEPTH),
         .HEAD2_EN         (HEAD2_EN),
         .FIXED_TIMINGS    (FIXED_TIMINGS),
@@ -559,6 +561,8 @@ module granite_top_geared
         .init_restart_i     (hwif_out.CTRL.init_force_restart.value),
         .rd_phase_i         (hwif_out.DFI_PHASE.rd_phase.value[PHW-1:0]),
         .wr_phase_i         (hwif_out.DFI_PHASE.wr_phase.value[PHW-1:0]),
+        .row_phase_i        (hwif_out.DFI_PHASE.row_phase.value[PHW-1:0]),
+        .dual_issue_en_i    (hwif_out.SCHED_POLICY.dual_issue.value),
         .t_phy_wrlat_i      (hwif_out.PHY_TIMING.t_phy_wrlat.value),
         .t_rddata_en_i      (hwif_out.PHY_TIMING.t_rddata_en.value),
         .gear_i             (2'(GEAR_RATIO)),

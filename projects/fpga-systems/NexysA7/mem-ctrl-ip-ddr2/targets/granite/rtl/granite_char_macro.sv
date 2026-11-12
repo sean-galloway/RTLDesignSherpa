@@ -65,6 +65,7 @@ module granite_char_macro
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
                                             // return in the same-clock form where the ring is always ready; 2 loses beats where dfi_clk runs at 2x aclk
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
+    parameter bit DUAL_ISSUE      = 1'b0, // the pick core's row lane (memory-controllers MC-014); the proxy drives it from TEST_DUAL
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
     parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)
     parameter bit FIXED_TIMINGS   = 1'b0, // 1 = granite_core T_* constants replace the TIMINGS CSRs
@@ -430,6 +431,7 @@ module granite_char_macro
         .DFI_WD_FIFO_DEPTH (DFI_WD_FIFO_DEPTH),
         .DFI_RD_FIFO_DEPTH (DFI_RD_FIFO_DEPTH),
         .STORE_BACKEND   (STORE_BACKEND),
+        .DUAL_ISSUE      (DUAL_ISSUE),
         .BANK_FIFO_DEPTH (BANK_FIFO_DEPTH),
         .HEAD2_EN        (HEAD2_EN),
         .FIXED_TIMINGS   (FIXED_TIMINGS)

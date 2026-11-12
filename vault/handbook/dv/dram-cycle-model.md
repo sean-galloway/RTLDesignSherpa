@@ -103,6 +103,25 @@ And **a probe that finds nothing is not a probe**: the trace had pointed at a
 retired per-bank scheduler for weeks and logged "absent" every run; nobody
 read the line because the run passed.
 
+## The lane, built (2026-11-12, the same day)
+
+The fix the two measurements pointed at took an afternoon once the slot was
+named: a row-only second issue lane on the pick core (memory-controllers
+MC-014, `mc_bank_pick` `DUAL_ISSUE`, the FR-FCFS core's lane re-made with the
+pick core's own rules). Sim at the same point, lane off -> on:
+`col_major_interleaved` reads 686 -> 773, `row_thrash` 687 -> 775, `random`
+656 -> 722, against the model's 781 / 781 / 773; `col_major` unchanged
+(`char_results/sim_mc014_granite_row_lane_2026-11-12.md`). The reads landed
+within 1 percent of the ideal on the two pure families, which is the model's
+column confirmed a third way.
+
+What the lane did NOT move is the other method point: the writes stayed at
+686. The model had said the write and read ideals were equal; the trace
+shows the write stream paying one slot per AXI burst with or without the
+lane, a bubble the slot cost had hidden. **One cell can hide another of the
+same size.** Fixing the named one revealed the next (MC-015), and the
+model's "both directions reach 781" is what says it is worth chasing.
+
 The method point: **run the model twice, once ideal and once at the RTL's own
 granularity**. The difference between the two columns is what the RTL cannot
 recover without changing how it counts; the difference between the second

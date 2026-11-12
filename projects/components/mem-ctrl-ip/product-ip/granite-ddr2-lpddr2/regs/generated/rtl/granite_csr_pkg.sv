@@ -411,9 +411,14 @@ package granite_csr_pkg;
     } granite_csr__DFI_PHASE__bl__out_t;
 
     typedef struct {
+        logic [2:0] value;
+    } granite_csr__DFI_PHASE__row_phase__out_t;
+
+    typedef struct {
         granite_csr__DFI_PHASE__rd_phase__out_t rd_phase;
         granite_csr__DFI_PHASE__wr_phase__out_t wr_phase;
         granite_csr__DFI_PHASE__bl__out_t bl;
+        granite_csr__DFI_PHASE__row_phase__out_t row_phase;
     } granite_csr__DFI_PHASE__out_t;
 
     typedef struct {
@@ -464,6 +469,10 @@ package granite_csr_pkg;
     } granite_csr__SCHED_POLICY__qos_en__out_t;
 
     typedef struct {
+        logic value;
+    } granite_csr__SCHED_POLICY__dual_issue__out_t;
+
+    typedef struct {
         logic [7:0] value;
     } granite_csr__SCHED_POLICY__age_thresh__out_t;
 
@@ -474,6 +483,7 @@ package granite_csr_pkg;
         granite_csr__SCHED_POLICY__col_sel__out_t col_sel;
         granite_csr__SCHED_POLICY__access_pref__out_t access_pref;
         granite_csr__SCHED_POLICY__qos_en__out_t qos_en;
+        granite_csr__SCHED_POLICY__dual_issue__out_t dual_issue;
         granite_csr__SCHED_POLICY__age_thresh__out_t age_thresh;
     } granite_csr__SCHED_POLICY__out_t;
 

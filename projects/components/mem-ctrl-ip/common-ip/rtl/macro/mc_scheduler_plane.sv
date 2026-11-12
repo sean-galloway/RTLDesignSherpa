@@ -53,10 +53,11 @@ module mc_scheduler_plane
     parameter bit HAS_ZQ      = 1'b0,
     parameter int MAINT_EXTRA_WIDTH = 1,
     parameter bit CLOSE_ON_DRAIN = 1'b1,
-    // DUAL_ISSUE (pumice TASK-047, FR-FCFS core only): the arbiter's row lane.
-    // A demand ACT / PRE rides the command word beside a column (cmd2_*_o);
-    // the DFI command path puts it on its own phase. dual_issue_en_i is the
-    // runtime enable. 0 = single issue, bit-identical.
+    // DUAL_ISSUE: the pick core's row lane (pumice TASK-047 on the FR-FCFS
+    // arbiter; memory-controllers MC-014 on mc_bank_pick). A demand ACT / PRE
+    // rides the command word beside a column (cmd2_*_o); the DFI command path
+    // puts it on its own phase. dual_issue_en_i is the runtime enable.
+    // 0 = single issue, bit-identical.
     parameter bit DUAL_ISSUE     = 1'b0,
     parameter bit RUNTIME_PICK_MODES = 1'b1, // 0 on the FPGA SKU: SCHED_POLICY pick knobs are constants (MC-009 c)
     // Pick core: MC_SCHED_BANK_PICK = mc_bank_pick, the family core on the
@@ -788,11 +789,13 @@ module mc_scheduler_plane
             .HAS_STALL_STATS(HAS_STALL_STATS),
             .RFC_W       (RFC_W),
             .DIR_OWNS_ROWS(DIR_OWNS_ROWS),
-            .DIR_HOLD_IDLE(DIR_HOLD_IDLE)
+            .DIR_HOLD_IDLE(DIR_HOLD_IDLE),
+            .DUAL_ISSUE  (DUAL_ISSUE)
         ) u_bank_pick (
             .aclk               (aclk),
             .aresetn            (aresetn),
             .page_policy_i      (page_policy_i),
+            .dual_issue_en_i    (dual_issue_en_i),
             .ap_mode_en_i       (w_pp_ap_en),
             .ap_close_i         (w_pp_ap_close),
             .ap_conflict_only_i (w_pp_ap_conflict),
@@ -876,6 +879,10 @@ module mc_scheduler_plane
             .cmd_col_o          (a_cmd_col),
             .cmd_ap_o           (a_cmd_ap),
             .cmd_extra_o        (a_cmd_extra),
+            .row2_act_o         (a2_act),
+            .row2_pre_o         (a2_pre),
+            .row2_bank_o        (a2_bank),
+            .row2_row_o         (a2_row),
             .stall_bp_o         (stall_bp_o),
             .stall_refresh_o    (stall_refresh_o),
             .stall_turnaround_o (stall_turnaround_o),
@@ -890,8 +897,6 @@ module mc_scheduler_plane
             .dbg_dir_batch_o    (dbg_dir_batch_o)
         );
         assign a_cmd_bg = '0;
-        assign a2_act = 1'b0; assign a2_pre = 1'b0;
-        assign a2_bank = '0;  assign a2_row = '0;
         // research-core-only inputs
         wire _unused_pick = &{1'b0, sched_order_mode_i, sched_row_sel_i, sched_col_sel_i,
                               sched_access_pref_i, sched_wr_high_wm_i, sched_wr_low_wm_i,
@@ -902,8 +907,7 @@ module mc_scheduler_plane
                               rd_sch_bank_i, rd_sch_row_i, rd_sch_col_i, rd_sch_older_i,
                               rd_sch_age_exceed_i, rd_sch_qos_i, rd_sch_head_rel_i,
                               wr_sch_valid_i, rd_sch_valid_i, wr_commit_ready_i,
-                              wr_sch_pend_i, rd_sch_pend_i, w_pp_drain_ok,
-                              dual_issue_en_i};
+                              wr_sch_pend_i, rd_sch_pend_i, w_pp_drain_ok};
     end else begin : g_arbiter
     assign wr_commit_cand_o = 1'b0;
     assign rd_issue_cand_o  = 1'b0;
