@@ -2,7 +2,7 @@
 
 # memory-controllers — bugs
 
-**Next ID: BUG-003** — never recycle a number, even when its item closed.
+**Next ID: BUG-004** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction in the shared `common-ip` RTL, affecting more than
 one controller. If you cannot state the expected behaviour, it is an ISSUE, not
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started (the BUG-000 template is not counted) |
+| [open/](open/) | 1 | accepted, not started (the BUG-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -22,7 +22,11 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-None.
+- **BUG-003** — the board host's DDR2 ns table (`pumice_device.py::DDR2_MT47H64M16_NS`)
+  carries tRRD 7.5 ns, the JESD79-2F 1 KB-page value; the x16 part is a 2 KB page
+  and its tRRD is 10 ns. Same cycle count at both board clocks, one MC cycle
+  short at the DDR2-800 span config. Found by the MC-012 JEDEC check 2026-11-11.
+  [open/BUG-003.md](open/BUG-003.md).
 
 ## Active
 

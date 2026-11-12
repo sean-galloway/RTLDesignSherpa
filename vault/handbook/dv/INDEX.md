@@ -17,6 +17,9 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
   defects that made a correct arbiter look broken; never quiet it by name
 - [[measure-over-the-window]] - phase assertions read that phase's deltas; a
   cumulative metric scores whatever ran before it
+- [[dram-cycle-model]] - Ramulator 2 + this repo's DDR2 class replays the board's
+  char streams through an ideal controller; same requests, same window rule,
+  the part's own ns limits; what the model cannot say
 - [[async-output-capture]] - run a monitor coroutine while you drive; polling
   between stimulus steps found 5 of 12 descriptors and looked like an RTL bug
 - [[blocking-send-deadlock]] - master.send() returns on acceptance; a DUT that

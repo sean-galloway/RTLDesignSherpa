@@ -1,25 +1,24 @@
 # memory-controllers — task lane
 
-**Next ID: MC-013** — never recycle a number.
+**Next ID: MC-014** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 3 | in progress right now |
-| [closed/](closed/) | 8 | done (kept for history) |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 2 | in progress right now |
+| [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-(none)
+- **MC-013** -- model-driven policy exploration on the Ramulator 2 DDR2 model:
+  dual issue on granite first (the model prices it at +92..+165 MB/s on the
+  interleaved family), then write drain, refresh placement, per-bank vs pooled
+  queues, and a cocotb trace exporter. Filed 2026-11-11.
 
 ## Active
 
-- **MC-012** -- Ramulator 2 in `vendor/ramulator2` (2.1, pinned 7bead6cb,
-  builds and runs); no DDR2 upstream, a DDR2 device class drafted from the
-  DDR3 one; next the class into the build and checked against JESD79-2F, then
-  a granite-shaped config on the char patterns. Active 2026-11-10.
 - **MC-011** -- the 0.2 ns clock-uncertainty budget is in both board XDCs;
   sweep 1: pumice sys75 closes by 0.100 under budget on the worst of three
   placements, granite sys75 by 0.817, granite sys100 does not close (-0.335
@@ -35,6 +34,14 @@
   close 75 MHz on the board. Deferred 2026-11-08.
 
 ## Closed
+
+- **MC-012** -- Ramulator 2 pinned and built from `references/ramulator2/fetch.sh`;
+  DDR2 / DDR2_BL8 device classes checked against JESD79-2F (found BUG-003);
+  the board's char streams replayed through the ideal controller beside the
+  measured sku100 cells: granite at the refresh ceiling on row hits, the
+  `col_major` gap is the 2 CK timer granularity exactly, the bank-parallel
+  miss families sit 12-21 % under the ideal (single command slot per MC
+  cycle the candidate). Closed 2026-11-11.
 
 - **MC-005** -- storage arrays out of `ALWAYS_FF_RST` into reset-free
   `always_ff` (ISSUE-001 row 2b): phases 1-2 (common-ip + harness, -2,042 /

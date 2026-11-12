@@ -1,0 +1,44 @@
+diff --git a/src/ramulator/dram/CMakeLists.txt b/src/ramulator/dram/CMakeLists.txt
+index ce8046f..f1f0148 100644
+--- a/src/ramulator/dram/CMakeLists.txt
++++ b/src/ramulator/dram/CMakeLists.txt
+@@ -27,6 +27,8 @@ target_sources(
+   commands/PMAJ3.h  commands/PNOT.h
+   commands/populate.h
+ 
++  impl/DDR2.cpp
++  impl/DDR2_BL8.cpp
+   impl/DDR3.cpp
+   impl/DDR4.cpp
+   impl/DDR4_PUM.cpp
+diff --git a/src/ramulator/frontend/CMakeLists.txt b/src/ramulator/frontend/CMakeLists.txt
+index e2b4a1d..6966bbc 100644
+--- a/src/ramulator/frontend/CMakeLists.txt
++++ b/src/ramulator/frontend/CMakeLists.txt
+@@ -9,6 +9,7 @@ target_sources(
+   impl/memory_trace/readwrite_trace.cpp
+   impl/memory_trace/latency_throughput_trace.cpp
+   impl/memory_trace/pum_trace.cpp
++  impl/memory_trace/timed_loadstore_trace.cpp
+ 
+   impl/processor/simpleO3/simpleO3.cpp
+   impl/processor/simpleO3/core.h      impl/processor/simpleO3/core.cpp
+diff --git a/tests/smoke/testcases/__init__.py b/tests/smoke/testcases/__init__.py
+index 93ebc4f..cfd63c6 100644
+--- a/tests/smoke/testcases/__init__.py
++++ b/tests/smoke/testcases/__init__.py
+@@ -1,5 +1,6 @@
+ """Per-standard testcase data for smoke tests."""
+ 
++from tests.smoke.testcases.ddr2 import CONFIG as DDR2_CONFIG
+ from tests.smoke.testcases.ddr3 import CONFIG as DDR3_CONFIG
+ from tests.smoke.testcases.ddr4 import CONFIG as DDR4_CONFIG
+ from tests.smoke.testcases.ddr4_pum import CONFIG as DDR4_PUM_CONFIG
+@@ -14,6 +15,7 @@ from tests.smoke.testcases.gddr6 import CONFIG as GDDR6_CONFIG
+ from tests.smoke.testcases.gddr7 import CONFIG as GDDR7_CONFIG
+ 
+ STANDARDS = {
++    "DDR2": DDR2_CONFIG,
+     "DDR3": DDR3_CONFIG,
+     "DDR4": DDR4_CONFIG,
+     "DDR4_PUM": DDR4_PUM_CONFIG,

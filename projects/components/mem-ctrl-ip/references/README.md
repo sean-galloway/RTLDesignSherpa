@@ -111,4 +111,12 @@ File naming: `<Topic>__<FirstAuthor><Year>.pdf`.
   authoritative bibliographies but could not be obtained from any legitimate
   open source at archive time; follow the DOI links for the paywalled versions.
 
+## Cycle model (not a paper)
+
+`ramulator2/` holds the recipe that pins and builds Ramulator 2 into
+`vendor/ramulator2`, the DDR2 device classes upstream lacks, and the tool that
+replays the board's characterization streams through it. Method and the
+comparability rules: `vault/handbook/dv/dram-cycle-model.md`; work item
+memory-controllers MC-012.
+
 *Archive compiled 2026-10-10. 6 PDFs, ~5.3 MB.*
