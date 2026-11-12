@@ -1,10 +1,10 @@
 # memory-controllers — task lane
 
-**Next ID: MC-014** — never recycle a number.
+**Next ID: MC-015** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 2 | in progress right now |
 | [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -12,10 +12,14 @@
 
 ## Open
 
-- **MC-013** -- model-driven policy exploration on the Ramulator 2 DDR2 model:
-  dual issue on granite first (the model prices it at +92..+165 MB/s on the
-  interleaved family), then write drain, refresh placement, per-bank vs pooled
-  queues, and a cocotb trace exporter. Filed 2026-11-11.
+- **MC-014** -- a row lane on granite's bank-pick core (dual issue): the
+  2026-11-12 sim traced the sku100 bank-parallel miss cells to one command
+  slot per MC cycle (97 % occupancy, ACT every 9 cycles); pumice's lane on the
+  same DFI path recovers +13 % reads. Priced +92..+145 MB/s. Filed 2026-11-12.
+- **MC-013** -- model-driven policy exploration on the Ramulator 2 DDR2 model.
+  Item 1 (dual issue) done 2026-11-12: the slot is the measured ceiling, see
+  MC-014. Left: write drain, refresh placement, per-bank vs pooled queues, a
+  cocotb trace exporter. Filed 2026-11-11.
 
 ## Active
 

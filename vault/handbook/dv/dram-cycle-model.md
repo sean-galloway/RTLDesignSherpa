@@ -78,8 +78,30 @@ rounded up to 2 CK, the granularity of the RTL's MC-cycle timers.
   MC cycle per burst at every burst length -- the shape of one command slot
   per burst, which is what a one-DRAM-command-per-MC-cycle issue path costs
   when ACT and PRE share the slot with a column command that already fills
-  every MC cycle at BL4. That is a hypothesis with a cheap test (the existing
-  DUAL_ISSUE row lane), filed as memory-controllers MC-013, not a conclusion.
+  every MC cycle at BL4. Filed as memory-controllers MC-013; confirmed the
+  next day, below.
+
+## The slot, measured (2026-11-12)
+
+The model named the slot; the RTL sim confirmed it without building anything.
+The row lane could not be tried on granite (its store forces the bank-pick
+core, which has no lane), so the granite perf proxy's command trace was
+repointed at the scheduler plane's `evt_*` strobes and made to report **slot
+occupancy**, the fraction of MC cycles with a fire per 1024-cycle bin. On
+`col_major_interleaved` and `row_thrash` the plane fires in 97 % of cycles and
+the ACT recurs every 9 cycles exactly: eight columns plus one ACT per burst,
+auto-precharged, through one command per cycle, 8/9 of peak less refresh =
+the measured cell. Pumice, which has the lane on the same DFI command path,
+gains +13 % reads with it and leaves the timer-bound `col_major` alone
+(`char_results/sim_mc013_command_slot_dual_issue_2026-11-12.md`; the RTL item
+is MC-014).
+
+Two method points. **Measure the resource the model accuses before building
+the fix**: a one-line occupancy statistic over the fire strobes settled in an
+afternoon what a row lane on the pick core would have taken a week to show.
+And **a probe that finds nothing is not a probe**: the trace had pointed at a
+retired per-bank scheduler for weeks and logged "absent" every run; nobody
+read the line because the run passed.
 
 The method point: **run the model twice, once ideal and once at the RTL's own
 granularity**. The difference between the two columns is what the RTL cannot

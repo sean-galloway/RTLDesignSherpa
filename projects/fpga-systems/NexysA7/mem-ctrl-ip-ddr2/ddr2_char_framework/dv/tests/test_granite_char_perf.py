@@ -97,28 +97,61 @@ _FAMILIES = {
 
 
 async def _cmd_probe(dut, log):
-    """PERF_CMD_TRACE=1: log every scheduler column/row command fire as
-    (kind, cycle). Localizes the single-bank issue-rate bubble by the gap
-    between consecutive same-kind fires."""
+    """PERF_CMD_TRACE=1: log every scheduler command fire as (kind, cycle)
+    from the scheduler plane's evt_* strobes (both pick cores drive them),
+    plus the plane's pre-FIFO accept so maintenance commands (REF) count too.
+    One command per MC cycle is all the plane can accept, so the fraction of
+    cycles with a fire is the command slot's occupancy (memory-controllers
+    MC-013: is the single slot what caps the bank-parallel miss families?).
+    Sampled in ReadOnly so the combinational strobes are settled."""
     try:
-        core = dut.u_dut.u_dut.u_ctrl.u_core
-        bs = core.u_sched_plane.g_bank_sched.u_bank_sched
-    except AttributeError:
-        dut._log.info("PERF_CMD_TRACE: per-bank scheduler absent (BANK_FIFO=0)")
+        sp = dut.u_dut.u_dut.u_ctrl.u_core.u_sched_plane
+        s_act, s_rd, s_wr, s_pre = sp.evt_act, sp.evt_rd, sp.evt_wr, sp.evt_pre
+        s_acc = sp.cmd_accept_o
+    except AttributeError as e:
+        dut._log.info("PERF_CMD_TRACE: scheduler plane probe absent (%r)", e)
         return
     cyc = 0
     while True:
-        # Registered fire-history strobes: stable at the edge (no ReadOnly), and
-        # the gap between consecutive strobes equals the gap between the fires.
         await RisingEdge(dut.aclk)
+        await ReadOnly()
         cyc += 1
         try:
-            if int(bs.r_rdfire0.value):
+            if int(s_rd.value):
                 log.append(("RD", cyc))
-            elif int(bs.r_wrfire0.value):
+            elif int(s_wr.value):
                 log.append(("WR", cyc))
+            elif int(s_act.value):
+                log.append(("ACT", cyc))
+            elif int(s_pre.value):
+                log.append(("PRE", cyc))
+            elif int(s_acc.value):
+                log.append(("OTHER", cyc))
         except Exception:
             pass
+
+
+def _slot_occupancy(log, bin_cycles=1024):
+    """Command-slot occupancy from the fire log: fires per bin_cycles bin.
+    Reports the kind counts, the busiest bin, the number of bins at or above
+    90 % and the mean over the bins that saw any traffic. A busiest bin near
+    1.0 says the plane issued a command in (nearly) every MC cycle there."""
+    if not log:
+        return {}
+    kinds = {}
+    bins = {}
+    for k, c in log:
+        kinds[k] = kinds.get(k, 0) + 1
+        b = c // bin_cycles
+        bins[b] = bins.get(b, 0) + 1
+    occ = sorted((n / bin_cycles for n in bins.values()), reverse=True)
+    busy = [o for o in occ if o >= 0.5]
+    return {"kinds": kinds, "bin_cycles": bin_cycles, "n_bins_active": len(occ),
+            "max_occ": round(occ[0], 4),
+            "bins_ge_0p9": sum(1 for o in occ if o >= 0.9),
+            "bins_ge_0p95": sum(1 for o in occ if o >= 0.95),
+            "mean_occ_busy_bins": round(sum(busy) / len(busy), 4) if busy else 0.0,
+            "top8": [round(o, 4) for o in occ[:8]]}
 
 
 async def _pick_probe(dut, path, n_cycles=160):
@@ -723,10 +756,12 @@ async def cocotb_test_granite_perf(dut):
     fams = r["families"]
 
     if tracing and cmd_log:
-        gaps = {k: _gap_stats(cmd_log, k) for k in ("RD", "WR", "ACT", "PRE")}
+        gaps = {k: _gap_stats(cmd_log, k) for k in ("RD", "WR", "ACT", "PRE", "OTHER")}
         dut._log.info("cmd-gap stats: %s",
                       {k: {kk: vv for kk, vv in v.items() if kk != "gaps"}
                        for k, v in gaps.items()})
+        gaps["slot"] = _slot_occupancy(cmd_log)
+        dut._log.info("cmd-slot occupancy: %s", gaps["slot"])
         gp = os.environ.get("PERF_DUMP", "") + ".gaps.json"
         if gp:
             with open(gp, "w") as fh:
