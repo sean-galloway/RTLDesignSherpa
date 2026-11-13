@@ -32,6 +32,7 @@ module ddr2_char_uart_tb_top
     parameter int SCHED_CORE      = 0,    // -G from DV: pumice pick core, 1 = BANK_PICK, 0 = FRFCFS
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // -G from DV: pumice close-on-drain A/B (TASK-044)
     parameter bit DUAL_ISSUE      = 1'b0, // -G from DV: pumice scheduler row lane (TASK-047)
+    parameter int WR_CAM_DEPTH    = 8,    // -G from DV: pumice write pool (TEST_WR_CAM_DEPTH; memory-controllers MC-015)
     // -G from DV (CHAR_FPGA_SKU=1): pumice FPGA SKU knobs, all off on the board SKU (MC-006)
     parameter bit WR_MERGE_EN     = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
     parameter bit RD_MERGE_EN     = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
@@ -151,6 +152,7 @@ module ddr2_char_uart_tb_top
         .SCHED_CORE       (SCHED_CORE),
         .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
         .DUAL_ISSUE       (DUAL_ISSUE),
+        .WR_CAM_DEPTH     (WR_CAM_DEPTH),
         .WR_MERGE_EN      (WR_MERGE_EN),
         .RD_MERGE_EN      (RD_MERGE_EN),
         .HAS_SNARF        (HAS_SNARF),

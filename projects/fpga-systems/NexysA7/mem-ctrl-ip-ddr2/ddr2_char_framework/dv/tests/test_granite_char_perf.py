@@ -37,7 +37,11 @@ TEST_GAP (0), TEST_BURST_LEN (8), TEST_FAMILIES, PERF_DUMP, PERF_AXI_TRACE (a
 directory: the accepted AXI request stream per pass as Ramulator traces,
 perf_axi_trace.py), TEST_DUAL (1 = build
 the pick core's row lane, memory-controllers MC-014, and run it:
-SCHED_POLICY.dual_issue on, DFI_PHASE.row_phase 1; its own sim_build tag).
+SCHED_POLICY.dual_issue on, DFI_PHASE.row_phase 1; its own sim_build tag),
+TEST_NUM_ENTRIES (the store pool per direction, board 8; memory-controllers
+MC-015 found the write ceiling there), PERF_W_HOPS (a path: every valid/ready
+hop of the write path sampled per cycle, handshake gaps and stall counts per
+hop, PERF_W_HOPS_CYCLES deep -- the MC-015 probe).
 """
 
 import dataclasses
@@ -230,6 +234,84 @@ async def _store_trace(dut, path, n_cycles=120):
             rows.append(v)
     with open(path, "w") as fh:
         json.dump(rows, fh)
+
+
+async def _w_hops_probe(dut, path, n_cycles=12000):
+    """PERF_W_HOPS=<path>: every valid/ready hop of the write path, sampled per
+    cycle from the first W handshake at the controller port (memory-controllers
+    MC-015: which hop owns the one cycle per AXI write burst). Per hop: the
+    handshake count, the histogram of gaps between handshakes, cycles with
+    valid and no ready (the hop below stalls), cycles without valid (the hop
+    above starves); plus a raw window of the first 48 cycles as one character
+    per hop per cycle (H handshake, V valid-not-ready, R ready-not-valid, .)."""
+    ctl = dut.u_dut.u_dut.u_ctrl
+    spec = [("s_aw", "s_axi_awvalid", "s_axi_awready"), ("s_w", "s_axi_wvalid", "s_axi_wready"),
+            ("na_aw", "u_core.u_axi_plane.g_narrow.u_narrow.m_awvalid", "u_core.u_axi_plane.g_narrow.u_narrow.m_awready"),
+            ("na_w", "u_core.u_axi_plane.g_narrow.u_narrow.m_wvalid", "u_core.u_axi_plane.g_narrow.u_narrow.m_wready"),
+            ("sp_aw", "u_core.u_axi_plane.u_wr_split.m_awvalid", "u_core.u_axi_plane.u_wr_split.m_awready"),
+            ("sp_w", "u_core.u_axi_plane.u_wr_split.m_wvalid", "u_core.u_axi_plane.u_wr_split.m_wready"),
+            ("in_aw", "u_core.u_axi_plane.u_wr_intake.fub_awvalid", "u_core.u_axi_plane.u_wr_intake.fub_awready"),
+            ("in_w", "u_core.u_axi_plane.u_wr_intake.fub_wvalid", "u_core.u_axi_plane.u_wr_intake.fub_wready"),
+            ("awpush", "u_core.u_axi_plane.u_wr_intake.aw_push_valid_o", "u_core.u_axi_plane.u_wr_intake.aw_push_ready_i"),
+            ("wdpop", "u_core.u_axi_plane.u_wr_intake.wdata_valid_o", "u_core.u_axi_plane.u_wr_intake.wdata_ready_i"),
+            ("st_aw", "u_core.g_fifo_store.u_fifo_store.aw_push_valid_i", "u_core.g_fifo_store.u_fifo_store.aw_push_ready_o"),
+            ("st_wd", "u_core.g_fifo_store.u_fifo_store.wd_valid_i", "u_core.g_fifo_store.u_fifo_store.wd_ready_o"),
+            ("fill", "u_core.g_fifo_store.u_fifo_store.w_fill_done", None),
+            ("evt_wr", "u_core.u_sched_plane.evt_wr", None)]
+
+    def _res(dotted):
+        h = ctl
+        for part in dotted.split("."):
+            h = getattr(h, part)
+        return h
+    hops, missing = [], []
+    for name, v, r in spec:
+        try:
+            hops.append((name, _res(v), _res(r) if r else None))
+        except AttributeError:
+            missing.append(name)
+    flag_spec = ["r_awh_vld", "r_awh_last", "w_mg_ok", "w_mg_found", "w_wr_have_free", "w_wr_cap_ok",
+                 "w_bq_full", "w_fill_vld", "r_fo_cnt", "r_bq_cnt"]
+    flags = []
+    for nm in flag_spec:
+        try:
+            flags.append((nm, _res("u_core.g_fifo_store.u_fifo_store." + nm)))
+        except AttributeError:
+            missing.append(nm)
+    stats = {n: dict(hs=0, gaps={}, v_not_r=0, no_v=0, last=None) for n, _, _ in hops}
+    raw, cyc, started = [], 0, False
+    while cyc < n_cycles:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        row = ""
+        for n, v, r in hops:
+            vv = int(v.value)
+            rr = 1 if r is None else int(r.value)
+            hs = vv and rr
+            if n == "s_w" and hs:
+                started = True
+            if started:
+                st = stats[n]
+                if hs:
+                    st["hs"] += 1
+                    if st["last"] is not None:
+                        g = cyc - st["last"]
+                        st["gaps"][g] = st["gaps"].get(g, 0) + 1
+                    st["last"] = cyc
+                elif vv:
+                    st["v_not_r"] += 1
+                else:
+                    st["no_v"] += 1
+            row += "H" if hs else "V" if vv else "R" if rr else "."
+        if started:
+            if len(raw) < 48:
+                raw.append(row + "|" + ",".join(f"{nm}={int(sig.value)}" for nm, sig in flags))
+            cyc += 1
+    for st in stats.values():
+        st.pop("last")
+        st["gaps"] = {str(k): v for k, v in sorted(st["gaps"].items())}
+    with open(path, "w") as fh:
+        json.dump(dict(hops=[n for n, _, _ in hops], missing=missing, cycles=cyc, stats=stats, raw=raw), fh, indent=1)
 
 
 async def _lat_probe(dut, path, max_cycles=400000):
@@ -807,6 +889,9 @@ async def cocotb_test_granite_perf(dut):
         cocotb.start_soon(_lat_probe(dut, os.environ["PERF_LAT_PROBE"]))
     if os.environ.get("PERF_STORE_TRACE"):
         cocotb.start_soon(_store_trace(dut, os.environ["PERF_STORE_TRACE"]))
+    if os.environ.get("PERF_W_HOPS"):
+        cocotb.start_soon(_w_hops_probe(dut, os.environ["PERF_W_HOPS"],
+                                        int(os.environ.get("PERF_W_HOPS_CYCLES", "12000"))))
 
     r = await bridge(prog)()
     if mism_log:
@@ -917,6 +1002,8 @@ def _run_granite_perf(request, over=None):
         "PERF_PICK_PROBE": _g("PERF_PICK_PROBE", ""),
         "PERF_LAT_PROBE": _g("PERF_LAT_PROBE", ""),
         "PERF_STORE_TRACE": _g("PERF_STORE_TRACE", ""),
+        "PERF_W_HOPS": _g("PERF_W_HOPS", ""),
+        "PERF_W_HOPS_CYCLES": _g("PERF_W_HOPS_CYCLES", "12000"),
         "TEST_MAX_OUT": _g("TEST_MAX_OUT", "0"),
         "PERF_DRAM_TRACE": _g("PERF_DRAM_TRACE", ""),
         "TEST_PAGE_MODE": _g("TEST_PAGE_MODE", ""),

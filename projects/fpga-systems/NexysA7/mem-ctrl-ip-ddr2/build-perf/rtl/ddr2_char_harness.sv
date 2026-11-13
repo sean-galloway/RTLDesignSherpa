@@ -36,6 +36,7 @@ module ddr2_char_harness
     parameter int SCHED_CORE      = 0,    // pumice pick core: 1 = BANK_PICK, 0 = FRFCFS
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // pumice: last same-row column carries auto-precharge (TASK-044; 0 = the BUG-027-era A/B)
     parameter bit DUAL_ISSUE      = 1'b0, // pumice: build the scheduler's row lane (TASK-047)
+    parameter int WR_CAM_DEPTH    = 8,    // pumice: write-side CAM / store entries (the write pool; memory-controllers MC-015 sizes it in sim)
     // pumice FPGA SKU knobs (memory-controllers MC-006): combiners, snarf
     // forward, narrow pack. Default on (research configuration); the board
     // top sets all four off under PUMICE_FPGA_SKU, the sim under CHAR_FPGA_SKU.
@@ -749,7 +750,7 @@ module ddr2_char_harness
         // (16-way) shrinks that ~16x. The board is DRAM-bandwidth-limited, not
         // reorder-depth-limited, so shallow reorder is the right lean-tier point;
         // deep reorder belongs to an enhanced variant.
-        .WR_CAM_DEPTH     (8),
+        .WR_CAM_DEPTH     (WR_CAM_DEPTH),
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .RD_DBG_FIFO_DEPTH(RD_DBG_FIFO_DEPTH),
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),

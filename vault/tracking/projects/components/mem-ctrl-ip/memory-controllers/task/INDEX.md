@@ -4,9 +4,9 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 2 | in progress right now |
-| [closed/](closed/) | 11 | done (kept for history) |
+| [closed/](closed/) | 12 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -17,11 +17,6 @@
   queue on `mixed` (320 vs 360) and equal everywhere else; granite's two-head
   store sits between -- model it first, then decide. Filed 2026-11-12 from
   MC-013 item 4.
-- **MC-015** -- the write stream pays one command slot per AXI burst at the
-  intake, both controllers: with MC-014's lane on, granite reads reach 773 /
-  775 on `col_major_interleaved` / `row_thrash` and writes stay at 686 / 687
-  (7 WRs a cycle apart, then a gap of 2, per burst; identical with the lane
-  off). Not the scheduler: upstream, per AXI burst. Filed 2026-11-12.
 
 ## Active
 
@@ -41,6 +36,14 @@
 
 ## Closed
 
+- **MC-015** -- "one command slot per AXI write burst" was the FIFO store's
+  8-entry write pool: eight slots at a nine-cycle turnaround = 8/9 of a command
+  per cycle (686 of 781). A per-hop valid/ready probe (`PERF_W_HOPS`) named it
+  in one run. Pool 16 in sim: granite 686 -> 766-769 writes on
+  `col_major_interleaved` / `row_thrash`, pumice 682 -> 768 (same pool);
+  board sys100 `GRANITE_NUM_ENTRIES=16` +0.034 ns / 0 EP, +913 LUT, writes
+  688 -> 768-770 level with reads, `mixed` swaps shape between presets
+  (-> MC-016). SKU default stays 8, the owner's call. Closed 2026-11-13.
 - **MC-014** -- a row lane on granite's bank-pick core (dual issue):
   `mc_bank_pick` DUAL_ISSUE, the plane's `a2_*`, granite_core / top / CSR
   plumbing, `GRANITE_DUAL_ISSUE=1` board builds. Sim reads 686 -> 774 / 687

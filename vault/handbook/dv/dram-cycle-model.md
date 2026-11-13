@@ -165,6 +165,41 @@ method points each one left:
   resting a conclusion on it* -- the one family where the rebuild was wrong was
   the one with two channels in flight.
 
+## The hidden write cell, found (2026-11-13, MC-015)
+
+The lane left the writes at 686 and the task was filed as "one command slot
+per AXI burst": seven WRs a cycle apart then a gap of two, per 8-beat burst.
+A per-cycle probe on every valid/ready hop of the write path
+(`PERF_W_HOPS` in the granite proxy) put the stall in the FIFO store in one
+run -- `w_wr_have_free = 0`, the write pool full -- and the pool holds eight
+entries. Eight slots at a nine-cycle turnaround is 8/9 of a command per
+cycle, which is 686 of 781. The period was the pool, not the burst; the
+burst is eight BL4 sub-commands by coincidence. Pool 16 in sim: 766-769
+writes on the bank-parallel families, level with the reads, zero mismatches,
+on granite AND pumice (same pool, same eight); `col_major` unchanged; `mixed`
+reads -11 percent, the direction register holding writes longer, filed under
+MC-016 (`char_results/sim_mc015_write_pool_2026-11-13.md`).
+
+Three method points:
+
+- **A period equal to a burst length is not a per-burst mechanism.** The
+  write path has three things of size eight (the burst, the pool, the bank
+  count). The task listed three per-burst candidates, all read statically
+  and all cleared -- an hour that settled nothing a 12 000-cycle probe did
+  not settle in three minutes WITH the gating term named. When a statistic
+  names a count, enumerate everything in the design with that count before
+  naming a mechanism.
+- **Sample valid AND ready at every hop, not the handshake.** The handshake
+  count is identical at every hop of one stream (it must be); ownership of
+  the stall is in which side is low. "Valid without ready" per hop pointed
+  down the chain to the store on the first run.
+- **Little's law before microarchitecture.** Slots over turnaround is the
+  throughput; a pipeline whose every stage is a deliberate register (the
+  100 MHz work) is fixed by capacity, not by a shorter pipe. The write
+  pool's turnaround was never measured because the pool was never
+  suspected; the model's "both directions reach 781" (above) is what said
+  the gap was worth a probe at all.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

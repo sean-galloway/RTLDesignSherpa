@@ -38,7 +38,8 @@ Knobs: TEST_TREFI (585 = board), TEST_TXN (256), TEST_GAP (0), TEST_BURST_LEN
 PERF_CMD_TRACE, PERF_PICK_TRACE (per-cycle pick-core rows, _START/_N),
 PERF_ARB_TRACE (per-cycle FR-FCFS arbiter rows to <PERF_DUMP>.arb.txt, _START/_N),
 TEST_ACCESS_PREF (SCHED_POLICY.access_pref, FR-FCFS core), TEST_DUAL (1 = build
-pumice's TASK-047 row lane and run it: SCHED_POLICY.dual_issue, row_phase 1), TEST_SCHED_CORE
+pumice's TASK-047 row lane and run it: SCHED_POLICY.dual_issue, row_phase 1), TEST_WR_CAM_DEPTH
+(the write pool, macro default 8; memory-controllers MC-015; its own sim_build tag), TEST_SCHED_CORE
 (1 = BANK_PICK, 0 = FRFCFS). TEST_FAMILIES may include `mixed` (perf_mixed_family.py:
 bank-paired threads one row apart, reads and writes concurrent; needs TEST_NUM_GEN >= 2).
 Geometry defaults to the BOARD: rate-2 / 32b beat / x16 / BL4
@@ -956,6 +957,8 @@ def test_ddr2_char_perf(request):
     tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
     if os.environ.get("TEST_DUAL", "0") == "1":
         tag += "_dual"        # a different netlist: its own build tree
+    if os.environ.get("TEST_WR_CAM_DEPTH"):
+        tag += "_wc" + os.environ["TEST_WR_CAM_DEPTH"]   # another netlist: the write pool size
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -1022,6 +1025,8 @@ def test_ddr2_char_perf(request):
               # TEST_CLOSE_ON_DRAIN=0/1 overrides pumice's close-on-drain (TASK-044 A/B); unset = the RTL default
               **({"CLOSE_ON_DRAIN": os.environ["TEST_CLOSE_ON_DRAIN"]} if os.environ.get("TEST_CLOSE_ON_DRAIN") else {}),
               **({"DUAL_ISSUE": "1"} if os.environ.get("TEST_DUAL", "0") == "1" else {}),
+              # TEST_WR_CAM_DEPTH: the write pool (memory-controllers MC-015); unset = the macro default (8)
+              **({"WR_CAM_DEPTH": os.environ["TEST_WR_CAM_DEPTH"]} if os.environ.get("TEST_WR_CAM_DEPTH") else {}),
               # CHAR_RESEARCH_CFG=1: the research configuration (combiners, snarf, narrow pack, pick modes on); the FPGA SKU is the default
               **({"WR_MERGE_EN": "1", "RD_MERGE_EN": "1", "HAS_SNARF": "1", "NARROW_EN": "1", "RUNTIME_PICK_MODES": "1"}
                  if os.environ.get("CHAR_RESEARCH_CFG", "0") == "1" else {}),
