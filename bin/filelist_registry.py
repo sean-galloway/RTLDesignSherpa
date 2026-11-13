@@ -134,6 +134,7 @@ ROOT_VARS = {
     "DELTA_ROOT": "projects/components/fabric-gen-ip/delta",
     "AMBER_ROOT": "projects/components/cache-ip/amber-mesi-l1",
     "JET_ROOT": "projects/components/cache-ip/jet-mesi-l1",
+    "JET_PRIME_ROOT": "projects/components/cache-ip/jet-prime-mesi-l1",
     "CACHE_COMMON_ROOT": "projects/components/cache-ip/common-ip",
     "GATLING_ROOT": "projects/components/riscv-ip/gatling-rv32i",
     "RV32I_COMMON_ROOT": "projects/components/riscv-ip/common-rv32i",

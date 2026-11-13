@@ -25,9 +25,14 @@ RESULTS = {
     "jet":      f"{RIGS}/jet/results/perf_sweep_bin*_single_*.json",
     "HPDcache": f"{RIGS}/ref/results/perf_sweep_bin*_single_*.json",
     "CVA6 WB":  f"{RIGS}/ref/results/perf_sweep_cva6_bin*_single_*.json",
+    # jet-prime (jet's RTL, forked) in the same slot with NO pair fabric:
+    # the jet-prime TASK-001 step-1 row, which splits jet's miss cost into
+    # fabric and cache.
+    "jet-prime direct": f"{RIGS}/ref/results/perf_sweep_jetp_bin*_single_*.json",
 }
 OOC = {
     "amber": "amber", "jet": "jet", "HPDcache": "hpd", "CVA6 WB": "cva6",
+    "jet-prime direct": "jetp",
 }
 OOC_DIR = f"{CACHE_IP}/results/ooc"
 COLS = list(RESULTS)

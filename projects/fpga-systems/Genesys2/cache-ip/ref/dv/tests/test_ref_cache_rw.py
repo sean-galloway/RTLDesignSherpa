@@ -154,7 +154,7 @@ async def cocotb_test_ref_cache_rw(dut):
     assert bad == 0, f"{bad} read-after-write mismatches"
 
 
-REF_CACHES = {"hpd": 0, "cva6": 1}
+REF_CACHES = {"hpd": 0, "cva6": 1, "jetp": 2}   # jetp: jet-prime straight onto memory
 
 
 @pytest.mark.parametrize("ref_cache", list(REF_CACHES), ids=list(REF_CACHES))

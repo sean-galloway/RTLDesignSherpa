@@ -75,6 +75,42 @@ module ref_cache_tb #(
                 .o_miss(evt_a), .o_rsp_error(o_rsp_error)
             );
             assign evt_b = 1'b0;
+        end else if (REF_CACHE_SEL == 2) begin : gen_jetp
+            // jet-prime direct (no fabric): snoop port idle, sideband and MonBus open.
+            /* verilator lint_off UNUSEDSIGNAL */
+            logic        jp_acready, jp_crvalid, jp_cdvalid, jp_cdlast, jp_coh_v, jp_mon_v, jp_init, jp_live, jp_busy;
+            logic [l1_pkg::AMBER_CRRESP_WIDTH-1:0] jp_crresp;
+            logic [BUS_WIDTH-1:0] jp_cddata;
+            logic [ADDR_WIDTH-1:0] jp_coh_addr;
+            logic [2:0]   jp_coh_type;
+            logic [127:0] jp_mon_pkt;
+            logic [63:0]  jp_mon_ts;
+            logic [3:0]   jp_ctrl;
+            /* verilator lint_on UNUSEDSIGNAL */
+            logic [63:0] r_time;
+            always_ff @(posedge clk or negedge rst_n)
+                if (!rst_n) r_time <= '0; else r_time <= r_time + 1'b1;
+            jet_prime_top #(
+                .ADDR_WIDTH(ADDR_WIDTH), .SETS(128), .WAYS(4), .LINE_BYTES(64), .BUS_WIDTH(BUS_WIDTH),
+                .AXI_ID_WIDTH(AXI_ID_WIDTH), .AXI_USER_WIDTH(UW)
+            ) u_ref (
+                .aclk(clk), .aresetn(rst_n),
+                .cpu_req_wr_valid(cpu_req_wr_valid), .cpu_req_wr_ready(cpu_req_wr_ready),
+                .cpu_req_wr_data(cpu_req_wr_data), .cpu_rsp_rd_valid(cpu_rsp_rd_valid),
+                .cpu_rsp_rd_ready(cpu_rsp_rd_ready), .cpu_rsp_rd_data(cpu_rsp_rd_data),
+                `REF_AXI_PORTS,
+                .m_axi_acaddr('0), .m_axi_acsnoop(4'h0), .m_axi_acprot(3'h0), .m_axi_acvalid(1'b0),
+                .m_axi_acready(jp_acready), .m_axi_crresp(jp_crresp), .m_axi_crvalid(jp_crvalid),
+                .m_axi_crready(1'b1), .m_axi_cddata(jp_cddata), .m_axi_cdlast(jp_cdlast),
+                .m_axi_cdvalid(jp_cdvalid), .m_axi_cdready(1'b1),
+                .coh_req_valid(jp_coh_v), .coh_req_addr(jp_coh_addr), .coh_req_type(jp_coh_type),
+                .i_mon_time(r_time), .mon_valid(jp_mon_v), .mon_ready(1'b1),
+                .mon_packet(jp_mon_pkt), .mon_timestamp(jp_mon_ts),
+                .init_busy(jp_init), .ctrl_state(jp_ctrl), .lkup_live(jp_live), .busy(jp_busy)
+            );
+            assign evt_a = 1'b0;
+            assign evt_b = 1'b0;
+            assign o_rsp_error = 1'b0;
         end else begin : gen_hpd
             ref_hpdcache_top #(
                 .ADDR_WIDTH(ADDR_WIDTH), .SETS(128), .WAYS(4), .LINE_BYTES(64), .BUS_WIDTH(BUS_WIDTH),

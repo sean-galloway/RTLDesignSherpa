@@ -25,7 +25,7 @@ set build_root   [expr {[info exists ::env(FPGA_BUILD_ROOT)] \
                         ? [file normalize $::env(FPGA_BUILD_ROOT)] \
                         : [file normalize "$script_dir/../.."]}]
 
-foreach var {REPO_ROOT JET_ROOT CACHE_COMMON_ROOT CONVERTERS_ROOT MISC_ROOT} {
+foreach var {REPO_ROOT JET_ROOT JET_PRIME_ROOT CACHE_COMMON_ROOT CONVERTERS_ROOT MISC_ROOT} {
     if {![info exists ::env($var)]} {
         puts stderr "ERROR: environment variable $var is not set. Run via the Makefile."
         exit 1

@@ -8,7 +8,7 @@
 `timescale 1ns / 1ps
 
 module ref_harness_host_tb #(
-    parameter int REF_CACHE_SEL = 0   // 0 HPDcache, 1 CVA6 write-back dcache
+    parameter int REF_CACHE_SEL = 0   // 0 HPDcache, 1 CVA6 write-back dcache, 2 jet-prime direct
 ) (
     input  logic aclk,
     input  logic aresetn,

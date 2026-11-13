@@ -559,7 +559,7 @@ async def injector_pipeline_test(dut):
                 f"{name} depth 8: no throughput gain ({s8['run_cycles']} vs {base['run_cycles']} cycles)"
 
 
-REF_CACHES = {"hpd": 0, "cva6": 1}   # REF_CACHE_SEL: HPDcache, CVA6 write-back dcache
+REF_CACHES = {"hpd": 0, "cva6": 1, "jetp": 2}   # REF_CACHE_SEL: HPDcache, CVA6 write-back dcache, jet-prime direct
 
 
 @pytest.mark.parametrize("ref_cache", list(REF_CACHES), ids=list(REF_CACHES))

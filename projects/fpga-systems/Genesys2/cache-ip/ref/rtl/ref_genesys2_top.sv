@@ -24,7 +24,7 @@ module ref_genesys2_top #(
     parameter int LINE_BYTES     = l1_pkg::AMBER_LINE_BYTES,
     parameter int BUS_WIDTH      = l1_pkg::AMBER_BUS_WIDTH,
     parameter int MEM_DEPTH_KB   = 512,
-    parameter int REF_CACHE_SEL  = 0        // 0 HPDcache, 1 CVA6 write-back dcache
+    parameter int REF_CACHE_SEL  = 0        // 0 HPDcache, 1 CVA6 write-back dcache, 2 jet-prime direct
 ) (
     input  logic       sysclk_p,      // 200 MHz LVDS (+)
     input  logic       sysclk_n,      // 200 MHz LVDS (-)

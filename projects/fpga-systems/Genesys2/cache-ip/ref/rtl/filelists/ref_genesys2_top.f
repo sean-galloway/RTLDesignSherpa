@@ -22,6 +22,10 @@
 -f $REF_FRAMEWORK_ROOT/rtl/filelists/ref_hpdcache_top.f
 -f $REF_FRAMEWORK_ROOT/rtl/filelists/ref_cva6_dcache_top.f
 
+# the house jet fork, straight onto memory (REF_CACHE_SEL 2; jet-prime TASK-001)
+-f $JET_PRIME_ROOT/rtl/filelists/jet_prime_pkg.f
+-f $JET_PRIME_ROOT/rtl/filelists/jet_prime_top.f
+
 # UART -> AXIL, the shared jet bridge, the house AXI4 block-RAM slave
 -f $CONVERTERS_ROOT/rtl/filelists/uart_axil_bridge.f
 -f $JET_FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_jet_axil.f

@@ -49,6 +49,7 @@ canonical anywhere a directory names one.
 | [`common-ip/`](common-ip/) | — | Shared home for the MESI L1 core (package, twelve leaf FUBs, `l1_core`, their filelists) — instantiated by amber today, jet on its first RTL | `l1_*` (shared blocks) | [README](common-ip/README.md) |
 | [`amber-mesi-l1/`](amber-mesi-l1/) | **amber** | Blocking MESI snoopy L1 cache — the research baseline | `amber_*` | [README](amber-mesi-l1/README.md) · [HAS](amber-mesi-l1/docs/amber_has/amber_has_index.md) |
 | [`jet-mesi-l1/`](jet-mesi-l1/) | **jet** | Lockup-free (MSHR) MESI snoopy L1 — the non-blocking follow-on to amber | `jet_*` | [README](jet-mesi-l1/README.md) · [HAS](jet-mesi-l1/docs/jet_has/jet_has_index.md) |
+| [`jet-prime-mesi-l1/`](jet-prime-mesi-l1/) | **jet-prime** | jet forked whole (2026-11-12) to be made faster than OpenHW HPDcache: multiple outstanding fills, a per-line pipelined pair fabric; jet stays the frozen baseline | `jet_prime_*` | [README](jet-prime-mesi-l1/README.md) · [PRD](jet-prime-mesi-l1/PRD.md) |
 | [`onyx-ace-ccu/`](onyx-ace-ccu/) | **onyx** | Snoop-based ACE coherency unit — the coherence manager over the house AXI4 fabric | `onyx_*` | [README](onyx-ace-ccu/README.md) · [HAS](onyx-ace-ccu/docs/onyx_has/onyx_has_index.md) |
 | [`basalt-moesi-l2/`](basalt-moesi-l2/) | **basalt** | Future shared L2 — banked, below the coherency point on onyx's memory side (direction; pencil [PRD](basalt-moesi-l2/PRD.md), no RTL until onyx v1) | `basalt_*` | [README](basalt-moesi-l2/README.md) · [PRD](basalt-moesi-l2/PRD.md) |
 

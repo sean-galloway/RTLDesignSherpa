@@ -9,6 +9,7 @@ RDS_ROOT  := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-topleve
 
 # Roots this build's filelist closure resolves against.
 export JET_ROOT          ?= $(RDS_ROOT)/projects/components/cache-ip/jet-mesi-l1
+export JET_PRIME_ROOT    ?= $(RDS_ROOT)/projects/components/cache-ip/jet-prime-mesi-l1
 export AMBER_ROOT        ?= $(RDS_ROOT)/projects/components/cache-ip/amber-mesi-l1
 export CACHE_COMMON_ROOT ?= $(RDS_ROOT)/projects/components/cache-ip/common-ip
 export CONVERTERS_ROOT   ?= $(RDS_ROOT)/projects/components/utility-ip/converters
@@ -25,12 +26,17 @@ export AMBER_FRAMEWORK_ROOT ?= $(FRAMEWORK_ROOT)/../amber
 TCL_DIR   := $(FRAMEWORK_ROOT)/fpga/tcl
 export FPGA_CONSTRAINTS_DIR := $(FRAMEWORK_ROOT)/fpga/constraints
 
-# REF_CACHE_SEL picks the reference in the cache slot: 0 = HPDcache (flow
-# ref_hpd_bringup), 1 = CVA6 write-back dcache (flow ref_cva6_bringup). The
-# flow name keeps the two bitstreams and report sets apart.
+# REF_CACHE_SEL picks the cache in the slot: 0 = HPDcache (flow
+# ref_hpd_bringup), 1 = CVA6 write-back dcache (flow ref_cva6_bringup),
+# 2 = jet-prime straight onto memory, no pair fabric (flow ref_jetp_bringup;
+# jet-prime TASK-001 step 1). The flow name keeps the bitstreams and report
+# sets apart.
 REF_CACHE_SEL ?= 0
 export REF_CACHE_SEL
-FLOW      := ref_$(if $(filter 1,$(REF_CACHE_SEL)),cva6,hpd)_bringup
+flow_sel_0 := hpd
+flow_sel_1 := cva6
+flow_sel_2 := jetp
+FLOW      := ref_$(flow_sel_$(REF_CACHE_SEL))_bringup
 BOARD     ?= genesys2
 export BOARD
 
@@ -63,7 +69,7 @@ include $(RDS_ROOT)/make/fpga_flow.mk
 LINT_GENERICS += -GREF_CACHE_SEL=$(REF_CACHE_SEL)
 
 # ---- cache-only area / Fmax (TASK-003 comparison) ----------------------------
-# make ooc CACHE=hpd|cva6|jet|amber [PERIOD=10.0]: out-of-context synth+route
+# make ooc CACHE=hpd|cva6|jet|jetp|amber [PERIOD=10.0]: out-of-context synth+route
 # of one cache module via fpga/tcl/ooc_cache.tcl; reports under
 # ../results/ooc/<cache>/<period>ns/ (summary.txt has lut/ff/ramb/wns; outside
 # fpga/, which `make clean` wipes -- the first run lost three rows that way).
@@ -74,10 +80,12 @@ ooc_top_hpd    := ref_hpdcache_top
 ooc_top_cva6   := ref_cva6_dcache_top
 ooc_top_jet    := jet_top
 ooc_top_amber  := amber_top
+ooc_top_jetp   := jet_prime_top
 ooc_fl_hpd     := $(FRAMEWORK_ROOT)/rtl/filelists/ref_hpdcache_top.f
 ooc_fl_cva6    := $(FRAMEWORK_ROOT)/rtl/filelists/ref_cva6_dcache_top.f
 ooc_fl_jet     := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jet_top.f
 ooc_fl_amber   := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_amber_top.f
+ooc_fl_jetp    := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jet_prime_top.f
 .PHONY: ooc
 ooc:
 	mkdir -p $(OOC_OUT)

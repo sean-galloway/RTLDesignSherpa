@@ -1,7 +1,9 @@
 # amber, jet and two reference L1s on one rig
 
 **Status:** 2026-11-11, complete for the four caches (cache-ip common-ip
-TASK-003, closed). Re-run `ref/bin/ref_compare.py` after any new sweep.
+TASK-003, closed); 2026-11-12, fifth column -- jet-prime (jet's RTL, forked)
+in the reference slot with NO pair fabric (jet-prime TASK-001 step 1). Re-run
+`ref/bin/ref_compare.py` after any new sweep.
 **Rig:** Genesys 2 (Kintex-7 325T-2), 100 MHz, the cache-ip pair harness
 with the pipelined cycle injector (common-ip TASK-002), the house 512 KB
 AXI4 block-RAM memory, one UART host stack.
@@ -18,6 +20,7 @@ same injector on the same part at the same clock:
 | jet | `projects/components/cache-ip/jet-mesi-l1` | lockup-free MESI L1, 8 MSHRs, in-order response sequencer | yes (snoop side idle in these runs) |
 | HPDcache | `vendor/cv-hpdcache` (OpenHW / CEA, commit 40d2897) behind `ref_hpdcache_top` | non-blocking L1, 8 MSHR ways, 8-entry write buffer, write-back, fast loads | no |
 | CVA6 WB | `vendor/cva6-dcache` (OpenHW, commit 742dc82, `std_nbdcache`) behind `ref_cva6_dcache_top` | blocking write-back L1 (the one HPDcache is measured against in CVA6S+) | no |
+| jet-prime direct | `projects/components/cache-ip/jet-prime-mesi-l1` (jet forked at 2be919254, identical RTL) in the reference slot, `REF_CACHE_SEL=2` | jet with no pair fabric: straight onto memory, ACE snoop port tied off, same LRU / monitors / MSHR_COUNT 8 as the jet rig | yes, but nothing to be coherent with |
 
 Why these two: HPDcache is the closest open design to jet's point (a
 lockup-free L1 with an MSHR file, published on this very board in the
@@ -85,60 +88,61 @@ Sources (newest single-core sweep per rig; injector 1 idle):
 - jet: `perf_sweep_bin17_single_20261111T224949Z.json`
 - HPDcache: `perf_sweep_bin2_single_20261111T225823Z.json`
 - CVA6 WB: `perf_sweep_cva6_bin2_single_20261111T233015Z.json`
+- jet-prime direct: `perf_sweep_jetp_bin1_single_20261112T173844Z.json`
 
 Error flags / unfinished runs across all sources: 0
 
 ### Cycles per transaction (injector 0, 20,000 transactions)
 
-| config | depth | amber | jet | HPDcache | CVA6 WB |
-|---|---|---|---|---|---|
-| r4k_we0 | 1 | 5.00 | 4.00 | 3.00 | 3.00 |
-| r4k_we0 | 4 | 3.00 | 1.00 | 1.00 | 1.00 |
-| r4k_we0 | 16 | 3.00 | 1.00 | 1.00 | 1.00 |
-| r4k_we255 | 1 | 5.03 | 4.03 | 3.00 | 3.99 |
-| r4k_we255 | 4 | 3.03 | 1.05 | 1.01 | 2.99 |
-| r4k_we255 | 16 | 3.03 | 1.04 | 1.01 | 2.99 |
-| smoke4k_we64 | 1 | 5.08 | 4.08 | 3.07 | 3.29 |
-| smoke4k_we64 | 4 | 3.00 | 1.01 | 1.12 | 1.62 |
-| smoke4k_we64 | 16 | 3.00 | 1.01 | 1.12 | 1.62 |
-| r16k_we64 | 1 | 5.24 | 4.23 | 3.20 | 3.36 |
-| r16k_we64 | 4 | 3.18 | 1.13 | 1.22 | 1.71 |
-| r16k_we64 | 16 | 3.18 | 1.11 | 1.20 | 1.72 |
-| r64k_we64 | 1 | 20.89 | 17.42 | 13.73 | 10.79 |
-| r64k_we64 | 4 | 18.86 | 11.40 | 8.22 | 9.85 |
-| r64k_we64 | 16 | 18.86 | 10.65 | 7.64 | 9.88 |
-| r64k_we255 | 1 | 30.50 | 21.13 | 13.65 | 14.68 |
-| r64k_we255 | 4 | 28.50 | 12.01 | 10.53 | 14.22 |
-| r64k_we255 | 16 | 28.50 | 10.79 | 10.51 | 14.25 |
-| r128k_we64 | 1 | 29.01 | 24.02 | 18.83 | 15.23 |
-| r128k_we64 | 4 | 27.01 | 16.08 | 11.37 | 14.61 |
-| r128k_we64 | 16 | 27.01 | 15.74 | 10.90 | 14.60 |
+| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime direct |
+|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | 5.00 | 4.00 | 3.00 | 3.00 | 4.00 |
+| r4k_we0 | 4 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| r4k_we0 | 16 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| r4k_we255 | 1 | 5.03 | 4.03 | 3.00 | 3.99 | 4.03 |
+| r4k_we255 | 4 | 3.03 | 1.05 | 1.01 | 2.99 | 1.04 |
+| r4k_we255 | 16 | 3.03 | 1.04 | 1.01 | 2.99 | 1.04 |
+| smoke4k_we64 | 1 | 5.08 | 4.08 | 3.07 | 3.29 | 4.06 |
+| smoke4k_we64 | 4 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 |
+| smoke4k_we64 | 16 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 |
+| r16k_we64 | 1 | 5.24 | 4.23 | 3.20 | 3.36 | 4.18 |
+| r16k_we64 | 4 | 3.18 | 1.13 | 1.22 | 1.71 | 1.11 |
+| r16k_we64 | 16 | 3.18 | 1.11 | 1.20 | 1.72 | 1.08 |
+| r64k_we64 | 1 | 20.89 | 17.42 | 13.73 | 10.79 | 14.88 |
+| r64k_we64 | 4 | 18.86 | 11.40 | 8.22 | 9.85 | 8.90 |
+| r64k_we64 | 16 | 18.86 | 10.65 | 7.64 | 9.88 | 8.13 |
+| r64k_we255 | 1 | 30.50 | 21.13 | 13.65 | 14.68 | 18.59 |
+| r64k_we255 | 4 | 28.50 | 12.01 | 10.53 | 14.22 | 9.54 |
+| r64k_we255 | 16 | 28.50 | 10.79 | 10.51 | 14.25 | 8.29 |
+| r128k_we64 | 1 | 29.01 | 24.02 | 18.83 | 15.23 | 20.27 |
+| r128k_we64 | 4 | 27.01 | 16.08 | 11.37 | 14.61 | 12.35 |
+| r128k_we64 | 16 | 27.01 | 15.74 | 10.90 | 14.60 | 12.00 |
 
 ### Mean latency, accept to response (cycles)
 
-| config | depth | amber | jet | HPDcache | CVA6 WB |
-|---|---|---|---|---|---|
-| r4k_we0 | 1 | 4.00 | 3.00 | 2.00 | 2.00 |
-| r4k_we0 | 4 | 4.00 | 3.00 | 2.00 | 2.00 |
-| r4k_we0 | 16 | 4.00 | 3.00 | 2.00 | 2.00 |
-| r4k_we255 | 1 | 4.03 | 3.03 | 2.00 | 1.01 |
-| r4k_we255 | 4 | 4.03 | 3.19 | 2.00 | 1.01 |
-| r4k_we255 | 16 | 4.03 | 4.38 | 2.00 | 1.01 |
-| smoke4k_we64 | 1 | 4.08 | 3.08 | 2.06 | 1.78 |
-| smoke4k_we64 | 4 | 4.00 | 3.03 | 2.00 | 1.75 |
-| smoke4k_we64 | 16 | 4.00 | 4.01 | 2.00 | 1.75 |
-| r16k_we64 | 1 | 4.24 | 3.23 | 2.18 | 1.85 |
-| r16k_we64 | 4 | 4.18 | 3.54 | 2.25 | 1.82 |
-| r16k_we64 | 16 | 4.18 | 6.17 | 2.44 | 1.82 |
-| r64k_we64 | 1 | 19.89 | 16.42 | 11.41 | 6.99 |
-| r64k_we64 | 4 | 19.86 | 44.61 | 18.11 | 7.51 |
-| r64k_we64 | 16 | 19.86 | 75.16 | 22.49 | 7.55 |
-| r64k_we255 | 1 | 29.50 | 20.13 | 11.34 | 1.10 |
-| r64k_we255 | 4 | 29.50 | 47.04 | 16.69 | 1.09 |
-| r64k_we255 | 16 | 29.50 | 75.39 | 17.52 | 1.10 |
-| r128k_we64 | 1 | 28.01 | 23.02 | 15.89 | 10.02 |
-| r128k_we64 | 4 | 28.01 | 63.33 | 23.29 | 10.89 |
-| r128k_we64 | 16 | 28.01 | 91.97 | 26.74 | 10.91 |
+| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime direct |
+|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 |
+| r4k_we0 | 4 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 |
+| r4k_we0 | 16 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 |
+| r4k_we255 | 1 | 4.03 | 3.03 | 2.00 | 1.01 | 3.03 |
+| r4k_we255 | 4 | 4.03 | 3.19 | 2.00 | 1.01 | 3.17 |
+| r4k_we255 | 16 | 4.03 | 4.38 | 2.00 | 1.01 | 4.35 |
+| smoke4k_we64 | 1 | 4.08 | 3.08 | 2.06 | 1.78 | 3.06 |
+| smoke4k_we64 | 4 | 4.00 | 3.03 | 2.00 | 1.75 | 3.03 |
+| smoke4k_we64 | 16 | 4.00 | 4.01 | 2.00 | 1.75 | 4.01 |
+| r16k_we64 | 1 | 4.24 | 3.23 | 2.18 | 1.85 | 3.18 |
+| r16k_we64 | 4 | 4.18 | 3.54 | 2.25 | 1.82 | 3.42 |
+| r16k_we64 | 16 | 4.18 | 6.17 | 2.44 | 1.82 | 5.89 |
+| r64k_we64 | 1 | 19.89 | 16.42 | 11.41 | 6.99 | 13.88 |
+| r64k_we64 | 4 | 19.86 | 44.61 | 18.11 | 7.51 | 34.60 |
+| r64k_we64 | 16 | 19.86 | 75.16 | 22.49 | 7.55 | 57.89 |
+| r64k_we255 | 1 | 29.50 | 20.13 | 11.34 | 1.10 | 17.59 |
+| r64k_we255 | 4 | 29.50 | 47.04 | 16.69 | 1.09 | 37.16 |
+| r64k_we255 | 16 | 29.50 | 75.39 | 17.52 | 1.10 | 58.11 |
+| r128k_we64 | 1 | 28.01 | 23.02 | 15.89 | 10.02 | 19.27 |
+| r128k_we64 | 4 | 28.01 | 63.33 | 23.29 | 10.89 | 48.41 |
+| r128k_we64 | 16 | 28.01 | 91.97 | 26.74 | 10.91 | 70.76 |
 
 ### Resident-hit floor and achieved parallelism
 
@@ -148,6 +152,7 @@ Error flags / unfinished runs across all sources: 0
 | jet | 3 | 7.06 | 12 |
 | HPDcache | 2 | 2.94 | 12 |
 | CVA6 WB | 2 | 0.76 | 2 |
+| jet-prime direct | 3 | 7.12 | 12 |
 
 ### Cache alone, out of context (xc7k325t-2, 10 ns clock, synth + place + route)
 
@@ -157,6 +162,7 @@ Error flags / unfinished runs across all sources: 0
 | jet | 5892 | 5258 | 16 | 0 | 1879 | +0.356 | 16 |
 | HPDcache | 3510 | 4944 | 8 | 4 | 0 | +1.372 | 10 |
 | CVA6 WB | 5669 | 1661 | 32 | 20 | 0 | +0.990 | 14 |
+| jet-prime direct | 5892 | 5258 | 16 | 0 | 1879 | +0.356 | 16 |
 <!-- end generated -->
 
 ## Reading
@@ -200,6 +206,25 @@ measures the same way.
   the two non-blocking ones are within 3 % of each other here.
 - **128 KB (four times the cache), depth 16:** HPDcache 10.9, CVA6 14.6,
   jet 15.7, amber 27.0.
+- **jet without the fabric (jet-prime direct, 2026-11-12).** Same RTL as
+  jet, same injector, same memory, no `jet_pair_fabric` between them. At
+  depth 16: `r64k_we64` 8.13 (jet 10.65, HPDcache 7.64), `r64k_we255` 8.29
+  (jet 10.79, HPDcache 10.51), `r128k_we64` 12.00 (jet 15.74, HPDcache
+  10.90); at depth 1 the single miss costs 13.9 mean cycles against jet's
+  16.4 and HPDcache's 11.4. Read it two ways. The fabric costs a single
+  core 2.5 cycles per transaction at every depth on the 64 KB thrash --
+  about 5 cycles per miss, a quarter of jet's miss cost -- and on the
+  write-heavy thrash it is the whole gap: without it jet is 21 % under
+  HPDcache (the fabric's one-write-burst-at-a-time port is what held jet
+  to a tie). What remains against HPDcache on the read-lean thrash is 6 %
+  (8.13 vs 7.64), and it is the cache's own: MLP 7.1 with a mean latency
+  of 58 cycles says seven misses still queue behind one fill engine that
+  retires them at about 15 cycles each (eight beats plus overhead), where
+  HPDcache retires at 14 with three in flight. Hit floor (3) and hit rows
+  (1.00 from depth 4) are unchanged, as they must be for identical RTL.
+  The step-2 target is now quantified: concurrent fills, not the fabric,
+  take jet-prime under HPDcache on reads; the fabric work (step 3) is what
+  keeps it there with a peer attached.
 - **Area, cache alone at 10 ns.** HPDcache is the smallest in LUTs (3,510)
   and the fastest (WNS +1.37 ns, ten logic levels on its worst path) and
   keeps its arrays in 8 RAMB36 + 4 RAMB18. jet is 5,892 LUT / 5,258 FF /
@@ -214,11 +239,14 @@ measures the same way.
   observers the references do not.
 
 What this says about jet and amber: against the non-blocking reference,
-jet's hit path is equal and its miss path is 30-40 % behind at depth 16,
-with the fabric round trip the first suspect; against the blocking
-reference, amber is 1.7x slower on hits (its skid-then-block port) and 2x on
-misses (CVA6's miss handler overlaps the write-back with the refill; amber
-drains then fills). Both gaps have a named mechanism to go after.
+jet's hit path is equal and its miss path is 30-40 % behind at depth 16;
+the jet-prime direct column splits that into the fabric's 2.5 cycles per
+transaction (measured, not suspected) and the cache's own 0.5 on reads,
+and shows the fabric alone holding jet to a tie on writes. Against the
+blocking reference, amber is 1.7x slower on hits (its skid-then-block port)
+and 2x on misses (CVA6's miss handler overlaps the write-back with the
+refill; amber drains then fills). Both gaps have a named mechanism to go
+after; jet's is jet-prime TASK-001.
 
 ## Reproduction
 
@@ -227,11 +255,12 @@ drains then fills). Both gaps have a named mechanism to go after.
 cd projects/fpga-systems/Genesys2/cache-ip/ref/build-bringup
 make bitstream smoke REF_CACHE_SEL=0            # HPDcache rig
 make bitstream smoke REF_CACHE_SEL=1            # CVA6 write-back rig
+make bitstream smoke REF_CACHE_SEL=2            # jet-prime, no fabric
 python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --ci1-idle --outstanding 1 2 4 8 16 --out ../results/<name>.json
-make ooc CACHE=hpd ; make ooc CACHE=cva6 ; make ooc CACHE=jet ; make ooc CACHE=amber
+make ooc CACHE=hpd ; make ooc CACHE=cva6 ; make ooc CACHE=jet ; make ooc CACHE=jetp ; make ooc CACHE=amber
 python3 ../bin/ref_compare.py                   # the tables above
 ```
 
 Simulation gates: `make clean-all && make run-all-gate-parallel` in
 `projects/fpga-systems/Genesys2/cache-ip/ref/dv/tests` (harness AXIL tests
-and the read-after-write check, both selections).
+and the read-after-write check, all three selections).

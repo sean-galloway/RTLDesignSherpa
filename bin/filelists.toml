@@ -101,6 +101,20 @@ filelist_dirs = [
 ]
 
 [[area]]
+name = "jet-prime"
+kind = "component"
+# cache-ip family. jet forked whole (RTL, DV, formal) at 2be919254 on
+# 2026-11-12 as jet-prime (jet-prime TASK-001: beat HPDcache on the
+# single-cache rig), module prefix jet_prime_, root var JET_PRIME_ROOT. jet
+# itself is frozen as the measured baseline; the shared common-ip slice is
+# still reached by -f include, never copied.
+rtl_roots = ["projects/components/cache-ip/jet-prime-mesi-l1/rtl"]
+filelist_dirs = [
+    "projects/components/cache-ip/jet-prime-mesi-l1/rtl/filelists",
+    "projects/components/cache-ip/jet-prime-mesi-l1/rtl/filelists/plane",
+]
+
+[[area]]
 name = "cache-common"
 kind = "library"
 # cache-ip family shared home, created 2026-10-11 (owner directive): the MESI

@@ -6,14 +6,18 @@
 //   (cache-ip common-ip TASK-003): the jet pair harness minus coherence.
 //   Host (UART) -> uart_axil_bridge -> bridge_jet_axil -> {
 //      harness_csr, cycle_injector0, cycle_injector1, tally_cnt/cfgw/cfgr }
-//   Injector 0 drives the reference cache -- REF_CACHE_SEL 0: ref_hpdcache_top
+//   Injector 0 drives the cache in the slot -- REF_CACHE_SEL 0: ref_hpdcache_top
 //   (the vendored OpenHW HPDcache), 1: ref_cva6_dcache_top (the vendored CVA6
-//   write-back std_nbdcache) -- straight onto the sdpram_slave_axi4_axi4 memory. The reference L1s are not coherent, so
-//   there is ONE cache: injector 1 keeps its CSR slot (the jet host stack
-//   runs unchanged) and talks to ref_null_cache; the three MonBus tally
-//   apertures land on ref_axil_stub (no tally, reads return 0). The same
-//   bridge, injector, memory, UART and clocking as the jet rig, so a
-//   number measured here is like-for-like with jet's and amber's ci0.
+//   write-back std_nbdcache), 2: jet_prime_top (the house jet fork, jet-prime
+//   TASK-001 step 1: jet's RTL with NO pair fabric, its ACE snoop port tied
+//   off, the same geometry and MSHR count as the jet rig) -- straight onto
+//   the sdpram_slave_axi4_axi4 memory. There is ONE cache: injector 1 keeps
+//   its CSR slot (the jet host stack runs unchanged) and talks to
+//   ref_null_cache; the three MonBus tally apertures land on ref_axil_stub
+//   (no tally, reads return 0). The same bridge, injector, memory, UART and
+//   clocking as the jet rig, so a number measured here is like-for-like
+//   with jet's and amber's ci0; the SEL 2 row against the jet rig's row
+//   isolates what the pair fabric costs a single core.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -54,7 +58,8 @@ module ref_harness
     parameter int REF_REORDER_DEPTH = 16,
     // which reference sits in the cache slot: 0 = HPDcache (non-blocking,
     // jet's peer), 1 = CVA6 write-back std_nbdcache (blocking, amber's peer)
-    parameter int REF_CACHE_SEL     = 0,
+    parameter int REF_CACHE_SEL     = 0,     // 0 HPDcache, 1 CVA6 WB, 2 jet-prime direct
+    parameter int REF_JETP_MSHR_COUNT = 8,   // SEL 2: J1 MSHR count (the jet rig's bin 17 value)
 
     // When 1, expose the bridge's AXIL host interface directly on the
     // port list and bypass the uart_axil_bridge. This lets cocotb/house
@@ -695,6 +700,120 @@ module ref_harness
             .m_axi_bready   (mem_bready),
             .o_miss          (ref_evt_read_miss),
             .o_rsp_error     (ref_rsp_error)
+        );
+        end else if (REF_CACHE_SEL == 2) begin : gen_ref_jetp
+            // jet-prime straight onto memory: no pair fabric, the ACE snoop
+            // port idle (acvalid low, CR/CD drained), the D-8 coherence
+            // sideband and MonBus unobserved (mon_ready high so the monlite
+            // transports never back-pressure the cache). Same parameters as
+            // the jet rig's u_jet0 (LRU, monitors on, MSHR_COUNT from the
+            // rig knob) so the only difference from the jet row is the fabric.
+            assign ref_evt_read_miss  = 1'b0;   // jet reports misses on MonBus, not as pins
+            assign ref_evt_write_miss = 1'b0;
+            assign ref_rsp_error      = 1'b0;
+            /* verilator lint_off UNUSEDSIGNAL */
+            logic                        jetp_acready, jetp_crvalid, jetp_cdvalid, jetp_cdlast;
+            logic [AMBER_CRRESP_WIDTH-1:0] jetp_crresp;
+            logic [BUS_WIDTH-1:0]        jetp_cddata;
+            logic                        jetp_coh_req_valid;
+            logic [ADDR_WIDTH-1:0]       jetp_coh_req_addr;
+            logic [2:0]                  jetp_coh_req_type;
+            logic                        jetp_mon_valid, jetp_init_busy, jetp_lkup_live, jetp_busy;
+            logic [127:0]                jetp_mon_packet;
+            logic [63:0]                 jetp_mon_timestamp;
+            logic [3:0]                  jetp_ctrl_state;
+            /* verilator lint_on UNUSEDSIGNAL */
+        jet_prime_top #(
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .SETS           (SETS),
+            .WAYS           (WAYS),
+            .LINE_BYTES     (LINE_BYTES),
+            .BUS_WIDTH      (BUS_WIDTH),
+            .REPL_POLICY    (int'(AMBER_REPL_LRU)),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .AXI_USER_WIDTH (AXI_USER_WIDTH),
+            .USE_MONITOR    (1'b1),
+            .MSHR_COUNT     (REF_JETP_MSHR_COUNT)
+        ) u_ref0 (
+            .aclk            (aclk),
+            .aresetn         (aresetn),
+            .cpu_req_wr_valid(ci0_req_valid),
+            .cpu_req_wr_ready(ci0_req_ready),
+            .cpu_req_wr_data (ci0_req_data),
+            .cpu_rsp_rd_valid(ci0_rsp_valid),
+            .cpu_rsp_rd_ready(ci0_rsp_ready),
+            .cpu_rsp_rd_data (ci0_rsp_data),
+            .m_axi_arid     (mem_arid),
+            .m_axi_araddr   (mem_araddr),
+            .m_axi_arlen    (mem_arlen),
+            .m_axi_arsize   (mem_arsize),
+            .m_axi_arburst  (mem_arburst),
+            .m_axi_arlock   (mem_arlock),
+            .m_axi_arcache  (mem_arcache),
+            .m_axi_arprot   (mem_arprot),
+            .m_axi_arqos    (mem_arqos),
+            .m_axi_arregion (mem_arregion),
+            .m_axi_aruser   (mem_aruser),
+            .m_axi_arvalid  (mem_arvalid),
+            .m_axi_arready  (mem_arready),
+            .m_axi_rid      (mem_rid),
+            .m_axi_rdata    (mem_rdata),
+            .m_axi_rresp    (mem_rresp),
+            .m_axi_rlast    (mem_rlast),
+            .m_axi_ruser    (mem_ruser),
+            .m_axi_rvalid   (mem_rvalid),
+            .m_axi_rready   (mem_rready),
+            .m_axi_awid     (mem_awid),
+            .m_axi_awaddr   (mem_awaddr),
+            .m_axi_awlen    (mem_awlen),
+            .m_axi_awsize   (mem_awsize),
+            .m_axi_awburst  (mem_awburst),
+            .m_axi_awlock   (mem_awlock),
+            .m_axi_awcache  (mem_awcache),
+            .m_axi_awprot   (mem_awprot),
+            .m_axi_awqos    (mem_awqos),
+            .m_axi_awregion (mem_awregion),
+            .m_axi_awuser   (mem_awuser),
+            .m_axi_awvalid  (mem_awvalid),
+            .m_axi_awready  (mem_awready),
+            .m_axi_wdata    (mem_wdata),
+            .m_axi_wstrb    (mem_wstrb),
+            .m_axi_wlast    (mem_wlast),
+            .m_axi_wuser    (mem_wuser),
+            .m_axi_wvalid   (mem_wvalid),
+            .m_axi_wready   (mem_wready),
+            .m_axi_bid      (mem_bid),
+            .m_axi_bresp    (mem_bresp),
+            .m_axi_buser    (mem_buser),
+            .m_axi_bvalid   (mem_bvalid),
+            .m_axi_bready   (mem_bready),
+            // ACE snoop responder: no snooper on this rig
+            .m_axi_acaddr   ('0),
+            .m_axi_acsnoop  (4'h0),
+            .m_axi_acprot   (3'h0),
+            .m_axi_acvalid  (1'b0),
+            .m_axi_acready  (jetp_acready),
+            .m_axi_crresp   (jetp_crresp),
+            .m_axi_crvalid  (jetp_crvalid),
+            .m_axi_crready  (1'b1),
+            .m_axi_cddata   (jetp_cddata),
+            .m_axi_cdlast   (jetp_cdlast),
+            .m_axi_cdvalid  (jetp_cdvalid),
+            .m_axi_cdready  (1'b1),
+            // D-8 coherence sideband: nobody listens
+            .coh_req_valid  (jetp_coh_req_valid),
+            .coh_req_addr   (jetp_coh_req_addr),
+            .coh_req_type   (jetp_coh_req_type),
+            // MonBus: produced, never consumed
+            .i_mon_time     (r_cycle_ctr),
+            .mon_valid      (jetp_mon_valid),
+            .mon_ready      (1'b1),
+            .mon_packet     (jetp_mon_packet),
+            .mon_timestamp  (jetp_mon_timestamp),
+            .init_busy      (jetp_init_busy),
+            .ctrl_state     (jetp_ctrl_state),
+            .lkup_live      (jetp_lkup_live),
+            .busy           (jetp_busy)
         );
         end else begin : gen_ref_hpd
         ref_hpdcache_top #(
