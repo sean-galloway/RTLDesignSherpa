@@ -187,10 +187,11 @@ arbiter's lane maps onto those three things:
   cycle after its fire, the same two-cycle window a main-lane row command
   gets; without it the main select re-picks the pair whose ACT is firing on
   the lane and drops it at the fire stage, a slot per row.
-- it fires beside a main COLUMN or an idle main lane only, never to the main
-  winner's bank, on the live gate (row image, bank readiness, tRRD / tFAW),
-  and *holds* while the class applies and the lookahead opens within the
-  pipe -- the main winner's own hold rule.
+- it fires beside a main COLUMN only (the arbiter's lane may also fire into an
+  idle main slot; this one may not -- see the timing paragraph below), never
+  to the main winner's bank, on the live gate (row image, bank readiness,
+  tRRD / tFAW), and *holds* while the class applies and the lookahead opens
+  within the pipe -- the main winner's own hold rule.
 - its fire feeds the one hint register when the main lane raised no hint
   that cycle, and the ACT-fire history the refresh grant reads. One hint
   register was enough: a column fire with auto-precharge (the hybrid policy's
@@ -204,3 +205,68 @@ another bank, the live gate) on free inputs, so the DFI command path's
 contract holds whatever the environment presents. Sim: `col_major_interleaved`
 reads 686 -> 773 MB/s, `row_thrash` 687 -> 775, `random` 656 -> 722, within
 1 percent of the ideal on the pure families; `col_major` unchanged.
+
+**The lane must not hang off the main pick's tail** (the sys100 build of
+2026-11-12, -1.715 ns, 462 failing endpoints on a core that closed at +0.147
+without it). Two things the first lane did looked harmless at the RTL and
+were each a critical path:
+
+- it excluded the main select's FRESH row pick from its own candidates
+  (`w_sel_src` -> `w_oh_row`), so the lane's rotor ran AFTER the main select
+  cone: 15-18 levels, 11.8 ns, 68 percent route. The cut: no same-cycle
+  exclusion. The two lanes may load one pair; the fire stage's clash term
+  (the REGISTERED main winner's bank) blocks the lane for that cycle and it
+  re-picks. A fresh main row pick only happens when no column can fire, a
+  cycle the lane could not have used anyway -- so the exclusion bought
+  nothing the clash term does not, at the price of the whole select cone.
+- its fire was ORed into the plane's command valid (the arbiter's lane may
+  fire alone, so the plane's push valid is `main || lane`), which put the lane
+  gate -- itself a function of the main fire -- on the fire cone into the DFI
+  path: -1.49 ns on the formatter's address register. The cut: the pick core's
+  lane fires beside a main column only (`w_col_fire_now`), its `a2_*` imply
+  the main valid, and the plane keeps them out of the push valid for that
+  core. The idle-slot fire was worth nothing measurable (sim 772 vs 773).
+
+Two more builds found two more terms, each a smaller cone, each the same
+mistake in a milder form:
+
+- the candidate set excluded the REGISTERED main winner's bank
+  (`r_win_pair >> 1 == b`, sixteen compares): -0.549 ns, 26 of 29 failing
+  endpoints. Cut: no exclusion at the pick; the fire stage's clash term
+  already keeps the lane off that bank for the cycle.
+- "a bank is busy" asked the store whether its pending column could issue NOW
+  (`wr_commit_ready_now_i`, the drain queue's full flag): -0.105 ns, the last
+  5 lane endpoints. Cut: busy = a column request PENDING there, ready or not.
+  A bank whose column merely waits for its data is still not one to re-open
+  from the lane.
+
+And one cut had a consequence the formal task could not see (it asserts fire
+invariants, not liveness): once the lane fired only beside a main column, a
+HELD lane pair -- stale-masked from the main select for its whole life in the
+lane -- had no way out when no column was available: the main could not take
+it, the lane could not fire it, and the row waited for a refresh to shake
+things loose. `mixed` in sim fell from 262 / 331 to 16 / 16 MB/s with every
+beat correct. The mask rule became: a held pair is masked only while a column
+request is pending somewhere (while the main lane has something else to take
+and the pair will ride beside it); with nothing pending the main select takes
+the held pair as its own row pick and the clash term makes the lane re-pick.
+*Every "the lane owns this request" rule needs the matching "and here is how
+the main lane gets it back" rule*, and a liveness failure shows up as a
+bandwidth number, not a checker -- which is why the lane's sim set carries
+`mixed` (two directions, conflicts in every bank) and not only the pure streams.
+
+The fifth build closed at +0.059 ns under the budget with the main pick as
+the worst path, and the board gave `col_major_interleaved` reads 688 -> 774,
+`row_thrash` 688 -> 774, `random` 661 -> 729, `mixed` 330 -> 649 with the lane
+on, every other cell and every lane-off cell unchanged
+(`char_results/board_mc014_granite_row_lane_sku100_2026-11-12.md`).
+
+The rule behind all of it: *a second winner is a second pipeline, and it
+joins the first only at registers*. Its candidates come from the registered
+request set alone (not the registered winner, not the store's readiness),
+its exclusions happen at its own fire stage, its fire rides a fire the main
+lane already decided. Any term read from the main select's combinational
+output, or from a late input the main select also waits on, puts that cone in
+series with the lane. The formal `dual` task now asserts the lane fires beside
+a column only (`a_beside_col`), which is what lets the plane drop it from the
+valid.

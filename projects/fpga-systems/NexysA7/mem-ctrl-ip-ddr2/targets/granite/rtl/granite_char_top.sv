@@ -350,6 +350,12 @@ module granite_char_top #(
 `else
         .RD_DBG_FIFO_DEPTH  (0),
 `endif
+        // The pick core's row lane (memory-controllers MC-014): `GRANITE_DUAL_ISSUE
+        // builds it (create_project.tcl env GRANITE_DUAL_ISSUE=1); the runtime
+        // enable is SCHED_POLICY.dual_issue with DFI_PHASE.row_phase = 1.
+`ifdef GRANITE_DUAL_ISSUE
+        .DUAL_ISSUE         (1'b1),
+`endif
         .ROW_WIDTH          (ROW_WIDTH),
 `ifdef GRANITE_SYS_66
         .FPGA_CLK_HZ        (66_666_667)

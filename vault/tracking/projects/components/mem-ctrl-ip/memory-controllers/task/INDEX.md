@@ -5,8 +5,8 @@
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 3 | in progress right now |
-| [closed/](closed/) | 10 | done (kept for history) |
+| [active/](active/) | 2 | in progress right now |
+| [closed/](closed/) | 11 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -25,16 +25,6 @@
 
 ## Active
 
-- **MC-014** -- a row lane on granite's bank-pick core (dual issue): the
-  2026-11-12 sim traced the sku100 bank-parallel miss cells to one command
-  slot per MC cycle (97 % occupancy, ACT every 9 cycles); pumice's lane on the
-  same DFI path recovers +13 % reads. Priced +92..+145 MB/s. Filed and started
-  2026-11-12: `mc_bank_pick` DUAL_ISSUE lane, plane / granite_core / top /
-  CSR plumbing built; sim reads 773 / 775 / 722 (within 1 % of the ideal on
-  the pure families). Board half in progress: the first sys100 build with the
-  lane missed by 1.7 ns (the lane pick behind the main select, the lane fire
-  on the command-valid cone); both cut 2026-11-12, rebuild and board runs.
-
 - **MC-011** -- the 0.2 ns clock-uncertainty budget is in both board XDCs;
   sweep 1: pumice sys75 closes by 0.100 under budget on the worst of three
   placements, granite sys75 by 0.817, granite sys100 does not close (-0.335
@@ -51,6 +41,15 @@
 
 ## Closed
 
+- **MC-014** -- a row lane on granite's bank-pick core (dual issue):
+  `mc_bank_pick` DUAL_ISSUE, the plane's `a2_*`, granite_core / top / CSR
+  plumbing, `GRANITE_DUAL_ISSUE=1` board builds. Sim reads 686 -> 774 / 687
+  -> 773 / 656 -> 721 on col_major_interleaved / row_thrash / random (within
+  1 % of the model's best policy); five sys100 builds to +0.059 ns under the
+  budget (four register-only cuts, one hold-mask liveness fix the board
+  confirmed); board cells with the lane on in
+  `char_results/board_mc014_granite_row_lane_sku100_2026-11-12.md`. Writes
+  unchanged (MC-015). Closed 2026-11-12.
 - **MC-013** -- model-driven policy exploration on the Ramulator 2 DDR2 model,
   five items: the command slot (-> MC-014, built), write drain (granite is at
   the deep end already), refresh placement (0.6 % recoverable, the rest is

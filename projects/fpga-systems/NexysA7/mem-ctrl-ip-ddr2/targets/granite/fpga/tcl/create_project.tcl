@@ -215,6 +215,17 @@ if {[info exists ::env(GRANITE_SYS_100)] && $::env(GRANITE_SYS_100) ne "" && $::
     set _freq_note "100.00 MHz (GRANITE_SYS_100 -- granite timing-push profile)"
     puts "verilog_define: GRANITE_SYS_100 (100 MHz sys profile)"
 }
+# GRANITE_DUAL_ISSUE=1: build the pick core's row lane (memory-controllers
+# MC-014): a second, row-only command slot beside the column on the DFI word.
+# The runtime enable is SCHED_POLICY.dual_issue with DFI_PHASE.row_phase off
+# both column phases (the host's TEST_DUAL_ISSUE=1 sets both). Default off:
+# the lane is bit-identical when unbuilt, and the 2026-11-09 sku100 cells are
+# the control it is measured against.
+if {[info exists ::env(GRANITE_DUAL_ISSUE)] && $::env(GRANITE_DUAL_ISSUE) eq "1"} {
+    lappend current_defines "GRANITE_DUAL_ISSUE"
+    set _freq_note "$_freq_note, DUAL_ISSUE row lane"
+    puts "verilog_define: GRANITE_DUAL_ISSUE (bank-pick row lane built; runtime SCHED_POLICY.dual_issue)"
+}
 if {$_dfi4 ne ""} {
     lappend current_defines $_dfi4
     if {$_dfi4 eq "GRANITE_DFI4_100"} {

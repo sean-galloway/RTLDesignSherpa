@@ -114,13 +114,15 @@ module formal_bank_pick_dual #(
         a_one_row:      assert (!(row2_act && row2_pre));
         a_enable:       assert (!lane_fire || dual_issue_en);
         a_slot:         assert (!lane_fire || cmd_ready);
-        // beside a column or alone -- never beside a main-lane row / override
-        // command (every non-column op is one), never the timeout PRE
-        a_beside_col:   assert (!lane_fire || !cmd_valid || main_col);
+        // beside a main-lane COLUMN only -- never alone (the 2026-11-12 cut:
+        // the lane stays off the plane's command-valid cone), never beside a
+        // main-lane row / override command (every non-column op is one),
+        // never the timeout PRE
+        a_beside_col:   assert (!lane_fire || main_col);
         a_no_main_act:  assert (!row2_act || !evt_act);
         a_no_main_pre:  assert (!lane_fire || !evt_pre);
         a_no_to_pre:    assert (!lane_fire || !cmd_timeout_pre);
-        a_other_bank:   assert (!lane_fire || !cmd_valid || (row2_bank != cmd_bank));
+        a_other_bank:   assert (!lane_fire || (row2_bank != cmd_bank));
         // the live gate, re-checked at the fire
         a_act_gate:     assert (!row2_act || (!row_active[row2_bank] && act_rdy[row2_bank] && tfaw_ok && trrd_ok));
         a_pre_gate:     assert (!row2_pre || (row_active[row2_bank] && pre_rdy[row2_bank]));
@@ -128,11 +130,11 @@ module formal_bank_pick_dual #(
         a_main_act_gate: assert (!evt_act || (act_rdy[evt_bank] && tfaw_ok && trrd_ok));
     end
 
-    // the lane does fire, both classes, beside a column and alone
+    // the lane does fire, both classes, beside a read and beside a write
     always @(posedge clk) if (rst_n) begin
         c_act_beside_col: cover (row2_act && main_col);
         c_pre_beside_col: cover (row2_pre && main_col);
-        c_act_alone:      cover (row2_act && !cmd_valid);
-        c_pre_alone:      cover (row2_pre && !cmd_valid);
+        c_act_beside_rd:  cover (row2_act && cmd_valid && ((cmd_op == OP_RD) || (cmd_op == OP_RDA)));
+        c_act_beside_wr:  cover (row2_act && cmd_valid && ((cmd_op == OP_WR) || (cmd_op == OP_WRA)));
     end
 endmodule

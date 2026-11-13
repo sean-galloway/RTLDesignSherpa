@@ -1,0 +1,10 @@
+slack_ns,levels,startpoint,endpoint
+-0.105,17,u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/u_wr_drain_q/fifo_control_inst/wr_full_reg/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r2_cls_reg[0]/D
+-0.090,14,u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/u_wr_drain_q/fifo_control_inst/wr_full_reg/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r2_pair_reg[0]/D
+-0.061,10,u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/wr_head_o_reg[2][vld]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_page_policy.u_page_policy/g_timeout.r_idle_reg[4][1]/CE
+-0.061,10,u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/wr_head_o_reg[2][vld]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_page_policy.u_page_policy/g_timeout.r_idle_reg[4][2]/CE
+-0.061,10,u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/wr_head_o_reg[2][vld]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_page_policy.u_page_policy/g_timeout.r_idle_reg[4][3]/CE
+-0.061,10,u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/wr_head_o_reg[2][vld]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_page_policy.u_page_policy/g_timeout.r_idle_reg[4][5]/CE
+-0.041,14,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_req_reg[9]/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r_win_cls_reg[0]/D
+-0.021,16,u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/u_wr_drain_q/fifo_control_inst/wr_full_reg/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r2_cls_reg[1]/D
+-0.002,13,u_harness/u_dut/u_ctrl/u_core/g_fifo_store.u_fifo_store/u_wr_drain_q/fifo_control_inst/wr_full_reg/C,u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick/r2_pair_reg[1]/D

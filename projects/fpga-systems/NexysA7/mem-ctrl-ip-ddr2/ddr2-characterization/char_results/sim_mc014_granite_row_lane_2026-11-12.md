@@ -67,9 +67,11 @@ as memory-controllers MC-015 with the trace evidence.
   `formal/mc_common/mc_bank_pick` (20-cycle lockstep against the golden copy
   on free inputs) still pass with the lane's code present at `DUAL_ISSUE = 0`;
   the new `dual` task proves the lane's word invariants at `DUAL_ISSUE = 1`
-  (one row command per word, only beside a column or alone, never the main
+  (one row command per word, beside a main column only -- the evening's
+  timing cuts removed the idle-slot fire, see
+  `board_mc014_granite_row_lane_sku100_2026-11-12.md` -- never the main
   winner's bank, the live gate re-checked); `dual_cover` reaches both classes
-  beside a column and alone.
+  beside a column, and an ACT beside a read and beside a write.
 - Regressions on the shared RTL: granite top (25 passed, 5 skipped, 1 xfailed,
   the standing marks), pumice fub / macro / top / phy (220 + 32 passed), the
   common-ip store-arbiter contract bench (the direct `mc_bank_pick`

@@ -1077,7 +1077,12 @@ module mc_scheduler_plane
     logic [CMD_W1-1:0] w_cmd1_wr_data;
     logic              w_push_valid;
     dram_op_e          w_push_op;
-    assign w_push_valid   = a_cmd_valid || a2_act || a2_pre;
+    // The FR-FCFS core's lane may fire alone (the word's main op is then NOP);
+    // the pick core's lane fires only beside a main column, so its a2_* imply
+    // a_cmd_valid and stay OUT of the push valid: with them in, the lane sat on
+    // the command-valid cone into the DFI path and the granite sys100 build
+    // missed by 1.5 ns there (memory-controllers MC-014, 2026-11-12).
+    assign w_push_valid   = (SCHED_CORE == MC_SCHED_BANK_PICK) ? a_cmd_valid : (a_cmd_valid || a2_act || a2_pre);
     assign w_push_op      = a_cmd_valid ? a_cmd_op : OP_NOP;
     assign w_cmd1_wr_data = {a_cmd_ap, a_cmd_col, a_cmd_row, a_cmd_bg, a_cmd_bank, a_cmd_rank, a_cmd_extra, w_push_op};
     generate if (DUAL_ISSUE) begin : g_cmd2_pack
