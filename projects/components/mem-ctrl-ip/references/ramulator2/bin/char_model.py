@@ -38,6 +38,15 @@ place (references/ramulator2/fetch.sh):
   python3 .../char_model.py compare --model <that csv> \\
       --measured projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2-characterization/char_results \\
       --granite sku100_2026-11-09 --litedram hx100_2026-10-31 --out <md>
+
+MC-013 added the controller-side axes the configs below sweep (write-drain
+watermarks, refresh scatter, the per-bank FIFO + round-robin scheduler
+`BankFIFO-RR` from the overlay) and `run-trace`, which replays a request stream
+CAPTURED from a cocotb sim (perf_axi_trace.py in the ddr2_char_framework
+tests writes it off the controller's AXI port) instead of one rebuilt here:
+
+  python3 .../char_model.py run-trace --config open32 --name col_ilv_bl8 \\
+      --wr <dir>/col_ilv_wr.trace --rd <dir>/col_ilv_rd.trace --out <csv>
 """
 from __future__ import annotations
 
@@ -245,8 +254,14 @@ class ModelConfig:
     read_buffer: int = 32
     write_buffer: int = 32
     refresh: bool = True
-    scheduler: str = "FRFCFS"          # FRFCFS | FRFCFS-RowHit
+    scheduler: str = "FRFCFS"          # FRFCFS | FRFCFS-RowHit | BankFIFO-RR (overlay: per-bank FIFOs, rotor across banks)
+    column_first: bool = False         # BankFIFO-RR: a ready column command beats a ready row command
     mc_granular: bool = False          # round every constraint up to 2 CK (the RTL's MC-cycle counters)
+    wr_low_wm: float = 0.2             # GenericDDR write-drain hysteresis, fractions of the write queue:
+    wr_high_wm: float = 0.8            #   drain writes above high (or when no read waits), back to reads below low
+    scatter_interval: int = 0          # AllBank refresh: stagger the scope nodes by this many cycles (0 = all at once)
+    ref_burst: int = 1                 # n > 1: n REFs issued back to back every n tREFI (nRFC and nREFI both x n), the
+                                       #   JEDEC postpone / pull-in credit (DDR2: up to 8) spent as one burst
     note: str = ""
 
 
@@ -267,6 +282,41 @@ CONFIGS = {
 }
 
 
+def _wm(base: str, lo: float, hi: float) -> ModelConfig:
+    """MC-013 item 2: the write-drain hysteresis at (lo, hi) on an existing config."""
+    b = CONFIGS[base]
+    name = f"{base}_wm{int(round(lo * 100)):02d}_{int(round(hi * 100)):02d}"
+    return replace(b, name=name, wr_low_wm=lo, wr_high_wm=hi,
+                   note=f"as {base} with the write drain entered above {hi:.2f} and left below {lo:.2f} of the write queue")
+
+
+CONFIGS.update({c.name: c for c in [
+    # item 2: write drain -- shallow / deep / late / near-full hysteresis on both queue depths
+    _wm("open32", 0.05, 0.25), _wm("open32", 0.40, 0.90), _wm("open32", 0.70, 0.95), _wm("open32", 0.03, 0.97),
+    _wm("open8", 0.05, 0.25), _wm("open8", 0.40, 0.90), _wm("open8", 0.70, 0.95), _wm("open8", 0.03, 0.97),
+    # item 3: refresh placement -- AllBank refresh staggered across the scope nodes by nREFI / 8 (1560 / 8 CK at
+    # 200 MHz CK); one rank is one scope node, so this must reproduce open32 exactly (the check that it does)
+    replace(CONFIGS["open32"], name="open32_scatter", scatter_interval=195,
+            note="as open32 with AllBank refresh scattered across the refresh-scope nodes (one rank: inert by construction)"),
+    # the row-hit-first FR-FCFS upstream ships (a pooled queue that will not preempt an open row's hits)
+    replace(CONFIGS["open32"], name="open32_rowhit", scheduler="FRFCFS-RowHit",
+            note="as open32 with upstream's FRFCFS-RowHit scheduler (a row hit is never preempted by a row miss)"),
+    # item 3: eight refreshes as one burst every 8 tREFI -- what REF_CTRL.refresh_burst would buy if it were live:
+    # the same tRFC per tREFI, one row close / reopen per eight refreshes instead of per refresh
+    replace(CONFIGS["open32"], name="open32_refburst8", ref_burst=8,
+            note="as open32 with the refreshes issued eight at a time every 8 tREFI (the DDR2 postpone credit as one burst)"),
+    # item 4: per-bank FIFOs with a round-robin pick (granite's store + pick shape) against the pooled FR-FCFS CAM
+    replace(CONFIGS["open32"], name="open32_bankrr", scheduler="BankFIFO-RR",
+            note="as open32 with per-bank FIFO queues and a round-robin pick across the ready bank heads (BankFIFO-RR)"),
+    replace(CONFIGS["open32"], name="open32_bankrr_col", scheduler="BankFIFO-RR", column_first=True,
+            note="as open32_bankrr with a ready column command preferred over a ready row command"),
+    replace(CONFIGS["open8"], name="open8_bankrr", scheduler="BankFIFO-RR",
+            note="as open8 with per-bank FIFO queues and a round-robin pick across the ready bank heads (BankFIFO-RR)"),
+    replace(CONFIGS["open8"], name="open8_bankrr_col", scheduler="BankFIFO-RR", column_first=True,
+            note="as open8_bankrr with a ready column command preferred over a ready row command"),
+]})
+
+
 def _mc_granular_class(base):
     """A DDR2 variant whose constraint latencies round up to 2 CK (Ramulator's
     command_slot_cycles). It keeps the base class's name because the C++ side
@@ -279,12 +329,31 @@ def _mc_granular_class(base):
     return cls
 
 
+def _ref_burst_class(base, n: int):
+    """A DDR2 variant whose refresh is n REFab back to back every n tREFI: nRFC and nREFI
+    both scaled by n (the class resolves them from the density, so the override lands after
+    that). The REF->ACT->RD reopen then happens once per n refreshes; the bus time in REF is
+    unchanged. It is the DDR2 postpone credit (JESD79-2F: up to 8 REFs) spent as one burst."""
+    def resolve_secondary_timings(cls, timing_dict, org_dict):
+        base.resolve_secondary_timings.__func__(cls, timing_dict, org_dict)
+        timing_dict["nRFC"] *= n
+        timing_dict["nREFI"] *= n
+    attrs = {"name": base.name, "resolve_secondary_timings": classmethod(resolve_secondary_timings),
+             "__doc__": f"DDR2 with {n} refreshes per burst"}
+    cls = type(base.__name__ + f"_REFx{n}", (base,), attrs)
+    cls.org_presets = base.org_presets
+    cls.timing_presets = base.timing_presets
+    return cls
+
+
 def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False):
     import ramulator  # noqa: WPS433  (vendor module)
 
     dram_cls = ramulator.dram.DDR2_BL8 if bl8 else ramulator.dram.DDR2
     if cfg.mc_granular:
         dram_cls = _mc_granular_class(dram_cls)
+    if cfg.ref_burst > 1:
+        dram_cls = _ref_burst_class(dram_cls, cfg.ref_burst)
     dram = dram_cls(org_preset=cfg.org_preset, timing_preset=cfg.timing_preset)
     if cfg.row_policy == "open":
         row_policy = ramulator.row_policy.Open()
@@ -292,14 +361,19 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False):
         row_policy = ramulator.row_policy.ClosedCAP(cap=cfg.cap)
     else:
         raise ValueError(cfg.row_policy)
-    refresh = (ramulator.refresh_manager.AllBank(scope="Rank") if cfg.refresh
-               else ramulator.refresh_manager.NoRefresh())
-    scheduler = {"FRFCFS": ramulator.scheduler.FRFCFS,
-                 "FRFCFS-RowHit": ramulator.scheduler.FRFCFSRowHit}[cfg.scheduler]()
+    refresh = (ramulator.refresh_manager.AllBank(scope="Rank", scatter_interval=cfg.scatter_interval)
+               if cfg.refresh else ramulator.refresh_manager.NoRefresh())
+    if cfg.scheduler == "BankFIFO-RR":
+        # the overlay's scheduler (overlay/src/.../scheduler/impl/bank_fifo_rr.cpp); codegen names the class
+        scheduler = ramulator.scheduler.BankFIFORR(column_first=cfg.column_first)
+    else:
+        scheduler = {"FRFCFS": ramulator.scheduler.FRFCFS,
+                     "FRFCFS-RowHit": ramulator.scheduler.FRFCFSRowHit}[cfg.scheduler]()
     ctrl = ramulator.controller.GenericDDR(
         dram=dram, scheduler=scheduler, refresh_manager=refresh, row_policy=row_policy,
         addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
         read_buffer_size=cfg.read_buffer, write_buffer_size=cfg.write_buffer,
+        wr_low_watermark=cfg.wr_low_wm, wr_high_watermark=cfg.wr_high_wm,
     )
     # frontend = the MC clock (one AXI beat per tick), memory system = CK at 2x
     frontend = ramulator.frontend.TimedLoadStoreTrace(clock_ratio=1, path=trace_path)
@@ -338,6 +412,78 @@ def run_pass(cfg: ModelConfig, trace_path: str) -> Tuple[dict, dict]:
     return st["frontend"], st["memory_system"]["controller"]
 
 
+def _both_dirs_row(fe: dict, c: dict) -> dict:
+    """The CSV columns of ONE pass that carried both directions (the mixed family, a captured trace)."""
+    return dict(wr_cycles=_window(fe, "write"), rd_cycles=_window(fe, "read"),
+                rd_avg_latency_cyc=round(c["avg_read_latency"] / 2, 2),
+                wr_row_hits=c["write_row_hits"], wr_row_misses=c["write_row_misses"],
+                wr_row_conflicts=c["write_row_conflicts"],
+                rd_row_hits=c["read_row_hits"], rd_row_misses=c["read_row_misses"],
+                rd_row_conflicts=c["read_row_conflicts"],
+                wr_coalesced=c["num_write_reqs_coalesced"], rd_forwarded=c["num_read_reqs_forwarded"],
+                wr_stall_ticks=fe["stall_ticks"], rd_stall_ticks=fe["stall_ticks"])
+
+
+def _two_pass_row(wr: Tuple[dict, dict], rd: Tuple[dict, dict]) -> dict:
+    """The CSV columns of a write pass and a read pass run separately (the stride families)."""
+    (wfe, wc), (rfe, rc) = wr, rd
+    return dict(wr_cycles=_window(wfe, "write"), rd_cycles=_window(rfe, "read"),
+                rd_avg_latency_cyc=round(rc["avg_read_latency"] / 2, 2),
+                wr_row_hits=wc["write_row_hits"], wr_row_misses=wc["write_row_misses"],
+                wr_row_conflicts=wc["write_row_conflicts"],
+                rd_row_hits=rc["read_row_hits"], rd_row_misses=rc["read_row_misses"],
+                rd_row_conflicts=rc["read_row_conflicts"],
+                wr_coalesced=wc["num_write_reqs_coalesced"], rd_forwarded=rc["num_read_reqs_forwarded"],
+                wr_stall_ticks=wfe["stall_ticks"], rd_stall_ticks=rfe["stall_ticks"])
+
+
+def trace_bytes(path: str) -> Tuple[int, int]:
+    """(store bytes, load bytes) a TimedLoadStoreTrace file moves: one TX_BYTES transaction per line."""
+    st = ld = 0
+    with open(path) as f:
+        for ln in f:
+            parts = ln.split()
+            if len(parts) != 3:
+                continue
+            if parts[1] == "ST":
+                st += 1
+            elif parts[1] == "LD":
+                ld += 1
+    return st * TX_BYTES, ld * TX_BYTES
+
+
+def run_trace_files(cfg: ModelConfig, name: str, *, wr: Optional[str] = None, rd: Optional[str] = None,
+                    both: Optional[str] = None) -> dict:
+    """One CSV row from CAPTURED traces (MC-013 item 5): either a write trace and a read trace run as two
+    passes, or one trace carrying both directions. The bandwidth definition is unchanged: bytes the trace
+    moves per direction over that direction's first-send to last-complete window."""
+    t0 = time.time()
+    row = dict(config=cfg.name, scenario=name, family="trace", burst_len=0, threads=0, clk_mhz=MC_CLK_MHZ)
+    if both:
+        wb, rb = trace_bytes(both)
+        fe, c = run_pass(cfg, both)
+        row.update(_both_dirs_row(fe, c), txn_count=(wb + rb) // TX_BYTES, bytes_moved=max(wb, rb))
+        notes = [f"captured trace {os.path.basename(both)}: {wb // TX_BYTES} ST + {rb // TX_BYTES} LD beats, union "
+                 f"{_bw(wb + rb, fe['cycles'])} MB/s over {fe['cycles']} cycles"]
+    else:
+        if not (wr and rd):
+            raise ValueError("run_trace_files needs --both, or --wr and --rd")
+        wb, _ = trace_bytes(wr)
+        _, rb = trace_bytes(rd)
+        row.update(_two_pass_row(run_pass(cfg, wr), run_pass(cfg, rd)),
+                   txn_count=(wb + rb) // TX_BYTES, bytes_moved=max(wb, rb))
+        notes = [f"captured traces {os.path.basename(wr)} ({wb // TX_BYTES} ST beats) and "
+                 f"{os.path.basename(rd)} ({rb // TX_BYTES} LD beats)"]
+    row["wr_bw_mb_s"] = _bw(wb, row["wr_cycles"])
+    row["rd_bw_mb_s"] = _bw(rb, row["rd_cycles"])
+    if row["wr_coalesced"] or row["rd_forwarded"]:
+        notes.append(f"controller coalesced {row['wr_coalesced']} writes / forwarded "
+                     f"{row['rd_forwarded']} reads (the board does neither)")
+    row["elapsed_s"] = round(time.time() - t0, 1)
+    row["notes"] = "; ".join(notes)
+    return row
+
+
 def run_scenario(cfg: ModelConfig, sc: Scenario, tmpdir: str) -> dict:
     t0 = time.time()
     w_walks, r_walks = injector_walks(sc)
@@ -350,14 +496,7 @@ def run_scenario(cfg: ModelConfig, sc: Scenario, tmpdir: str) -> dict:
         write_trace(path, [interleave_bursts(w_walks, sc.burst_len, "ST"),
                            interleave_bursts(r_walks, sc.burst_len, "LD")])
         fe, c = run_pass(cfg, path)
-        row.update(wr_cycles=_window(fe, "write"), rd_cycles=_window(fe, "read"),
-                   rd_avg_latency_cyc=round(c["avg_read_latency"] / 2, 2),
-                   wr_row_hits=c["write_row_hits"], wr_row_misses=c["write_row_misses"],
-                   wr_row_conflicts=c["write_row_conflicts"],
-                   rd_row_hits=c["read_row_hits"], rd_row_misses=c["read_row_misses"],
-                   rd_row_conflicts=c["read_row_conflicts"],
-                   wr_coalesced=c["num_write_reqs_coalesced"], rd_forwarded=c["num_read_reqs_forwarded"],
-                   wr_stall_ticks=fe["stall_ticks"], rd_stall_ticks=fe["stall_ticks"])
+        row.update(_both_dirs_row(fe, c))
         notes.append(f"{sc.threads} writers + {sc.threads} readers from one GO, union "
                      f"{_bw(2 * per_dir_bytes, fe['cycles'])} MB/s over {fe['cycles']} cycles")
     else:
@@ -365,16 +504,7 @@ def run_scenario(cfg: ModelConfig, sc: Scenario, tmpdir: str) -> dict:
         rpath = os.path.join(tmpdir, f"{sc.name}_rd.trace")
         write_trace(wpath, [interleave_bursts(w_walks, sc.burst_len, "ST")])
         write_trace(rpath, [interleave_bursts(r_walks, sc.burst_len, "LD")])
-        wfe, wc = run_pass(cfg, wpath)
-        rfe, rc = run_pass(cfg, rpath)
-        row.update(wr_cycles=_window(wfe, "write"), rd_cycles=_window(rfe, "read"),
-                   rd_avg_latency_cyc=round(rc["avg_read_latency"] / 2, 2),
-                   wr_row_hits=wc["write_row_hits"], wr_row_misses=wc["write_row_misses"],
-                   wr_row_conflicts=wc["write_row_conflicts"],
-                   rd_row_hits=rc["read_row_hits"], rd_row_misses=rc["read_row_misses"],
-                   rd_row_conflicts=rc["read_row_conflicts"],
-                   wr_coalesced=wc["num_write_reqs_coalesced"], rd_forwarded=rc["num_read_reqs_forwarded"],
-                   wr_stall_ticks=wfe["stall_ticks"], rd_stall_ticks=rfe["stall_ticks"])
+        row.update(_two_pass_row(run_pass(cfg, wpath), run_pass(cfg, rpath)))
     row["wr_bw_mb_s"] = _bw(per_dir_bytes, row["wr_cycles"])
     row["rd_bw_mb_s"] = _bw(per_dir_bytes, row["rd_cycles"])
     if row["wr_coalesced"] or row["rd_forwarded"]:
@@ -392,6 +522,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         scenarios = [s for s in scenarios if s.name in set(args.only)]
     if args.scale != 1.0:
         scenarios = [replace(s, txn_count=max(1, int(s.txn_count * args.scale))) for s in scenarios]
+    if args.txn:
+        scenarios = [replace(s, txn_count=args.txn) for s in scenarios]
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="char_model_") as tmp, open(args.out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
@@ -405,6 +537,23 @@ def cmd_run(args: argparse.Namespace) -> int:
                   f"(rd hits/miss/conf {row['rd_row_hits']}/{row['rd_row_misses']}/{row['rd_row_conflicts']}, "
                   f"{row['elapsed_s']} s)", flush=True)
     print(f"wrote {args.out}")
+    return 0
+
+
+def cmd_run_trace(args: argparse.Namespace) -> int:
+    cfg = CONFIGS[args.config]
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    print(f"{cfg.name} {args.name} ...", flush=True)
+    row = run_trace_files(cfg, args.name, wr=args.wr, rd=args.rd, both=args.both)
+    new = not os.path.exists(args.out) or args.overwrite
+    with open(args.out, "w" if new else "a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        if new:
+            w.writeheader()
+        w.writerow(row)
+    print(f"    wr {row['wr_bw_mb_s']} / rd {row['rd_bw_mb_s']} MB/s  "
+          f"(rd hits/miss/conf {row['rd_row_hits']}/{row['rd_row_misses']}/{row['rd_row_conflicts']}, "
+          f"{row['elapsed_s']} s)  -> {args.out}", flush=True)
     return 0
 
 
@@ -499,8 +648,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     r.add_argument("--suite", choices=sorted(SUITES), default="all")
     r.add_argument("--only", nargs="*", help="scenario names to run (default all in the suite)")
     r.add_argument("--scale", type=float, default=1.0, help="multiply every txn_count (1.0 = the board's counts)")
+    r.add_argument("--txn", type=int, default=0, help="set every txn_count (e.g. a sim's TEST_TXN); wins over --scale")
     r.add_argument("--out", required=True)
     r.set_defaults(func=cmd_run)
+    t = sub.add_parser("run-trace", help="run CAPTURED TimedLoadStoreTrace file(s) through one model configuration")
+    t.add_argument("--config", choices=sorted(CONFIGS), default="open32")
+    t.add_argument("--name", required=True, help="the scenario name for the CSV row")
+    t.add_argument("--wr", help="write-pass trace (with --rd)")
+    t.add_argument("--rd", help="read-pass trace (with --wr)")
+    t.add_argument("--both", help="one trace carrying both directions (the mixed family)")
+    t.add_argument("--out", required=True, help="CSV to append to (created with a header if absent)")
+    t.add_argument("--overwrite", action="store_true", help="start the CSV afresh")
+    t.set_defaults(func=cmd_run_trace)
     c = sub.add_parser("compare", help="model CSV(s) beside measured granite / LiteDRAM CSVs as markdown")
     c.add_argument("--model", nargs="+", required=True)
     c.add_argument("--measured", required=True, help="the char_results directory")

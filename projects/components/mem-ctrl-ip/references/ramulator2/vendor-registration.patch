@@ -1,3 +1,15 @@
+diff --git a/src/ramulator/controller/CMakeLists.txt b/src/ramulator/controller/CMakeLists.txt
+index a8a3ac5..134ff20 100644
+--- a/src/ramulator/controller/CMakeLists.txt
++++ b/src/ramulator/controller/CMakeLists.txt
+@@ -9,6 +9,7 @@ target_sources(
+   scheduler/i_scheduler.h
+   scheduler/impl/frfcfs.cpp
+   scheduler/impl/frfcfs_rowhit.cpp
++  scheduler/impl/bank_fifo_rr.cpp
+ 
+   refresh/i_refresh_manager.h
+   refresh/impl/all_bank.cpp
 diff --git a/src/ramulator/dram/CMakeLists.txt b/src/ramulator/dram/CMakeLists.txt
 index ce8046f..f1f0148 100644
 --- a/src/ramulator/dram/CMakeLists.txt

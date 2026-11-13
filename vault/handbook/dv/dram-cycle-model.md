@@ -127,6 +127,44 @@ granularity**. The difference between the two columns is what the RTL cannot
 recover without changing how it counts; the difference between the second
 column and the measurement is what scheduling work can still buy.
 
+## Four policies priced, one filed (2026-11-12, MC-013 items 2-5)
+
+With the model in place a policy question costs 30 seconds of compute, so the
+rest of MC-013 ran the same afternoon
+(`char_results/sim_mc013_policies_2026-11-12.md`). What came out, and the
+method points each one left:
+
+- **Write-drain hysteresis** moves `mixed` by -20..+8 percent across its
+  range, and the best point is the deepest drain -- the policy granite's
+  direction register already implements. *Price the knob the RTL already has
+  before adding one: the model's sweep said "keep what you have", which is a
+  result, not a null.*
+- **Refresh**: 1.67 of the 2.4 percent is tRFC and no scheduler moves it;
+  bursting eight REFs recovers the other 0.6. *Decompose a cost into its floor
+  and its recoverable part before chasing it* -- the DDR2 class makes the
+  floor one line of arithmetic (nRFC / nREFI). Also: `scatter_interval` is a
+  phase shift at one rank; a knob that staggers NODES does nothing with one
+  node, so read the implementation's unit before sweeping it.
+- **Queue shape** (`BankFIFO-RR`, a 90-line scheduler in the overlay): per-bank
+  FIFOs tie the pooled queue on every single-direction family and lose 11
+  percent on `mixed` -- filed as MC-016 with that number. The surprise was the
+  control: **upstream's plain FR-FCFS is the WORST policy on `row_thrash` and
+  `random`** (743 reads where row-hit-first or per-bank reach 782), because its
+  arrival-order tie-break preempts an open row with a ready miss elsewhere.
+  *The "ideal controller" has a policy too.* The 2026-11-11 compare used it as
+  the ceiling on those two families and was 5 percent low; the ceiling is the
+  best policy the model has (`open32_rowhit` there), and a column in a compare
+  table should say which one it is.
+- **The captured trace** (`perf_axi_trace.py` off the controller's own AXI port,
+  `char_model.py run-trace`): the three single-direction rebuilds replay to the
+  MB/s, so MC-012's stride-table streams stand; `mixed` does not, because the
+  port accepts write bursts and read bursts on two channels in parallel and the
+  rebuilt trace alternated beats. The model's mixed ideal is 363-370, not 337,
+  and granite's `mixed` gap is 10 percent, not 2. *A rebuilt stimulus is a
+  hypothesis about the interface; capture it once from the real port before
+  resting a conclusion on it* -- the one family where the rebuild was wrong was
+  the one with two channels in flight.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

@@ -117,3 +117,59 @@ def test_mixed_trace_interleaves_the_two_directions_beat_by_beat(tmp_path):
 def test_bandwidth_is_the_board_definition():
     # bytes over cycles times the MC clock in MHz == MB/s
     assert cm._bw(4194240, 543066) == pytest.approx(772.33, abs=0.01)
+
+
+# ---- MC-013: the policy axes and the captured-trace path ---------------------
+
+def test_mc013_configs_carry_their_axes():
+    assert cm.CONFIGS["open32_wm05_25"].wr_low_wm == 0.05 and cm.CONFIGS["open32_wm05_25"].wr_high_wm == 0.25
+    assert cm.CONFIGS["open8_wm70_95"].read_buffer == 8
+    assert cm.CONFIGS["open32_scatter"].scatter_interval == 195
+    assert cm.CONFIGS["open32_bankrr"].scheduler == "BankFIFO-RR" and not cm.CONFIGS["open32_bankrr"].column_first
+    assert cm.CONFIGS["open32_bankrr_col"].column_first
+    for name, c in cm.CONFIGS.items():
+        assert c.name == name and c.note, name
+
+
+def test_wm_naming_is_percent_pairs():
+    assert cm._wm("open32", 0.4, 0.9).name == "open32_wm40_90"
+    assert cm._wm("open8", 0.03, 0.97).name == "open8_wm03_97"
+
+
+def test_trace_bytes_counts_one_transaction_per_line(tmp_path):
+    p = tmp_path / "t.trace"
+    p.write_text("0 ST 0\n1 ST 8\n2 LD 16\n\n# not a line\n")
+    assert cm.trace_bytes(str(p)) == (2 * cm.TX_BYTES, 1 * cm.TX_BYTES)
+
+
+def test_run_trace_files_needs_both_or_a_pair():
+    with pytest.raises(ValueError):
+        cm.run_trace_files(cm.CONFIGS["open32"], "x", wr="only_one.trace")
+
+
+def test_axi_trace_exporter_writes_the_frontend_contract(tmp_path):
+    """perf_axi_trace.py (the cocotb side) emits what TimedLoadStoreTrace reads: a beat per line,
+    ticks consecutive in acceptance order, ST / LD, byte addresses stepping by 1 << AxSIZE."""
+    cocotb = pytest.importorskip("cocotb")  # noqa: F841  (the exporter imports its trigger)
+    pat = _load("perf_axi_trace", os.path.join(
+        REPO_ROOT, "projects", "fpga-systems", "NexysA7", "mem-ctrl-ip-ddr2", "ddr2_char_framework",
+        "dv", "tests", "perf_axi_trace.py"))
+    exp = pat.AxiTraceExporter(None, awvalid=None, awready=None, awaddr=None, awlen=None, awsize=None,
+                               arvalid=None, arready=None, araddr=None, arlen=None, arsize=None)
+    path = str(tmp_path / "fam_wr.trace")
+    assert exp._burst("ST", 0x1000, 7, 3) is None and exp.end() == {}     # no bracket: nothing captured
+    exp.begin(path)
+    exp._cycle = 100
+    exp._burst("ST", 0x1000, 7, 3)
+    exp._cycle = 109
+    exp._burst("LD", 0x2000, 1, 3)
+    info = exp.end()
+    lines = [ln.split() for ln in open(path).read().splitlines()]
+    assert [int(l[0]) for l in lines] == list(range(10))
+    assert [l[1] for l in lines] == ["ST"] * 8 + ["LD"] * 2
+    assert [int(l[2]) for l in lines[:8]] == [0x1000 + 8 * i for i in range(8)]
+    assert int(lines[8][2]) == 0x2000 and int(lines[9][2]) == 0x2008
+    assert info["st_beats"] == 8 and info["ld_beats"] == 2 and info["st_bursts"] == 1 and info["ld_bursts"] == 1
+    assert info["first_cycle"] == 100 and info["last_cycle"] == 109
+    assert cm.trace_bytes(path) == (8 * cm.TX_BYTES, 2 * cm.TX_BYTES)
+    assert os.path.exists(path + ".meta.json")

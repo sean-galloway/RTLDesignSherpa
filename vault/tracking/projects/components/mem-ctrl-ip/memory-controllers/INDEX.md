@@ -15,7 +15,7 @@ states is `git mv`, so an item is in exactly one state by construction.
 
 | Lane | For | Next ID |
 |---|---|---|
-| [task/](task/INDEX.md) | planned work we decided to do | `MC-013` |
+| [task/](task/INDEX.md) | planned work we decided to do | `MC-017` |
 | [bug/](bug/INDEX.md) | defects in the shared `common-ip` RTL, more than one controller | `BUG-003` |
 | [issue/](issue/INDEX.md) | undiagnosed problems spanning controllers | `ISSUE-002` |
 

@@ -123,12 +123,16 @@ def programs(n_gen, geom, dc, *, blen, txn, gap, seed, region):
 
 def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
             hist_mean, diag=None, host_diag=None, always_diag=False,
-            timeout_s=120, seed=PERF_SEED):
+            timeout_s=120, seed=PERF_SEED, phase_hook=None):
     """Run the mixed family and return the record the proxies log.
 
     Keys match the stride families (wr_/rd_ cycles, bw, util, lat, mismatched,
     wr_ok / rd_ok) and add `mixed_cycles` / `mixed_bw_mb_s` for the union
     window and `layout` for the placement actually programmed.
+
+    phase_hook(name), if given, is called at "prepass" (the untimed fill of
+    the read region), "timed" (just before the one GO) and "done" (both
+    engines finished): a sim probe brackets the measured stream with it.
     """
     assert n_gen >= MIN_GENS, f"mixed needs >= {MIN_GENS} generators (TEST_NUM_GEN={n_gen})"
     beat_bytes = 1 << dc.AXI_SIZE_8
@@ -138,6 +142,8 @@ def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
     rd_prog = programs(n_gen, geom, dc, blen=blen, txn=txn, gap=gap, seed=seed, region=1)
 
     # Untimed pre-pass: put the read region's expected data in the DRAM.
+    if phase_hook:
+        phase_hook("prepass")
     drv.freeze_trace(True)
     for p in rd_prog:
         drv.program_wr_engine(**p)
@@ -154,9 +160,13 @@ def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
     drv.clear_stats()
     drv.timer_clear()
     drv.freeze_trace(False)
+    if phase_hook:
+        phase_hook("timed")
     drv.go(wr_mask=mask, rd_mask=mask)
     wr_ok = pm.wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
     rd_ok = pm.wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
+    if phase_hook:
+        phase_hook("done")
     if (not (wr_ok and rd_ok) or always_diag) and diag is not None and host_diag is not None:
         diag["mixed"] = host_diag(drv)
     drv.freeze_trace(True)

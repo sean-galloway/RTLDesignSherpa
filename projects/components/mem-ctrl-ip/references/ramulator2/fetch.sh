@@ -4,7 +4,7 @@
 # The clone lands in vendor/ramulator2 (gitignored, like every third-party
 # source here). Upstream has no DDR2, so this repo carries an overlay: the
 # DDR2 / DDR2_BL8 device classes, a timestamped trace frontend, their tests,
-# and a 3-file registration patch for the upstream CMake source lists and the
+# and a 4-file registration patch for the upstream CMake source lists and the
 # smoke-test table. Re-running is safe: the clone is reset to the pin, the
 # overlay re-applied, the build incremental.
 #

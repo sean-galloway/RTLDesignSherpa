@@ -33,7 +33,9 @@ page-policy/bank-parallelism separation are the scheduler's real behaviour.
 Requires granite_core `.BANK_FIFO(1'b1)` for the per-bank in-order core; with
 it at the committed `1'b0` this measures the FRFCFS research core instead (a
 valid control). Knobs: TEST_TREFI (default 585 = board), TEST_TXN (256),
-TEST_GAP (0), TEST_BURST_LEN (8), TEST_FAMILIES, PERF_DUMP, TEST_DUAL (1 = build
+TEST_GAP (0), TEST_BURST_LEN (8), TEST_FAMILIES, PERF_DUMP, PERF_AXI_TRACE (a
+directory: the accepted AXI request stream per pass as Ramulator traces,
+perf_axi_trace.py), TEST_DUAL (1 = build
 the pick core's row lane, memory-controllers MC-014, and run it:
 SCHED_POLICY.dual_issue on, DFI_PHASE.row_phase 1; its own sim_build tag).
 """
@@ -66,6 +68,7 @@ import pumice_char as pc                                  # noqa: E402
 import pumice_master as pm                                # noqa: E402
 import perf_mixed_family as pmf                           # noqa: E402
 import perf_half_rot_family as phr                        # noqa: E402
+import perf_axi_trace as pat                              # noqa: E402
 import half_burst_family as hbf                           # noqa: E402  (build-perf/host, shared with the board)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -446,6 +449,34 @@ async def cocotb_test_granite_perf(dut):
     diag = {}
     always_diag = os.environ.get("PERF_ALWAYS_DIAG", "0") == "1"
 
+    # PERF_AXI_TRACE=<dir>: the request stream the controller's AXI port
+    # accepted, per measured pass, as Ramulator TimedLoadStoreTrace files
+    # (<dir>/<family>_wr.trace, _rd.trace; mixed in one <family>.trace) for
+    # char_model.py run-trace (memory-controllers MC-013 item 5).
+    axi_trace_dir = os.environ.get("PERF_AXI_TRACE", "")
+    axi_exp = None
+    if axi_trace_dir:
+        os.makedirs(axi_trace_dir, exist_ok=True)
+        ctl = dut.u_dut.u_dut.u_ctrl
+        axi_exp = pat.AxiTraceExporter(
+            dut.aclk,
+            awvalid=ctl.s_axi_awvalid, awready=ctl.s_axi_awready, awaddr=ctl.s_axi_awaddr,
+            awlen=ctl.s_axi_awlen, awsize=ctl.s_axi_awsize,
+            arvalid=ctl.s_axi_arvalid, arready=ctl.s_axi_arready, araddr=ctl.s_axi_araddr,
+            arlen=ctl.s_axi_arlen, arsize=ctl.s_axi_arsize)
+        cocotb.start_soon(axi_exp.run())
+
+    def _trace(name, on):
+        if axi_exp is None:
+            return
+        if on:
+            axi_exp.begin(os.path.join(axi_trace_dir, name + ".trace"))
+        else:
+            info = axi_exp.end()
+            dut._log.info("axi trace %s: %d ST + %d LD beats, accept cycles %d..%d -> %s",
+                          name, info.get("st_beats", 0), info.get("ld_beats", 0),
+                          info.get("first_cycle", -1), info.get("last_cycle", -1), info.get("path"))
+
     def _store_probe():
         """Registered state of granite_core's storage backend (public-flat-rw):
         occupancy, fill order, drain queue, the ready terms -- where a write
@@ -575,10 +606,13 @@ async def cocotb_test_granite_perf(dut):
                                     gap=gap, clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0,
                                     diag=diag, host_diag=_host_diag, always_diag=always_diag)
         if fam_key == "mixed":
-            # no AR->R latency histogram on this proxy: report 0.0 for it
+            # no AR->R latency histogram on this proxy: report 0.0 for it.
+            # The trace bracket skips the untimed pre-pass: only the timed
+            # phase (both directions from one GO) is the mixed stream.
             return pmf.measure(drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
                                clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0, diag=diag,
-                               host_diag=_host_diag, always_diag=always_diag)
+                               host_diag=_host_diag, always_diag=always_diag,
+                               phase_hook=lambda ph: _trace(fam_key, ph == "timed") if ph in ("timed", "done") else None)
         window = pmf.family_programs(fam_key, n_gen, geom, dc, blen=blen, txn=txn, gap=gap)
         if window is not None:
             fam, stride, wrap = fam_key, window[0]["stride_0"], window[0]["wrap_mask_0"]
@@ -611,8 +645,10 @@ async def cocotb_test_granite_perf(dut):
         drv.clear_stats()
         drv.timer_clear()
         drv.freeze_trace(False)
+        _trace(fam_key + "_wr", True)
         drv.start_wr(mask)
         wr_ok = pm.wait_engine(drv, "wr", timeout_s=120, ignore_error=True)
+        _trace(fam_key + "_wr", False)
         if not wr_ok or always_diag:
             diag["wr_" + fam_key] = _host_diag(drv)
         drv.freeze_trace(True)
@@ -626,8 +662,10 @@ async def cocotb_test_granite_perf(dut):
         drv.clear_stats()
         drv.timer_clear()
         drv.freeze_trace(False)
+        _trace(fam_key + "_rd", True)
         drv.start_rd(mask)
         rd_ok = pm.wait_engine(drv, "rd", timeout_s=120, ignore_error=True)
+        _trace(fam_key + "_rd", False)
         if not rd_ok or always_diag:
             diag["rd_" + fam_key] = _host_diag(drv)
         drv.freeze_trace(True)

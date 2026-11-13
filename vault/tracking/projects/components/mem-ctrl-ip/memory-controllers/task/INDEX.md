@@ -1,17 +1,22 @@
 # memory-controllers — task lane
 
-**Next ID: MC-016** — never recycle a number.
+**Next ID: MC-017** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 4 | in progress right now |
-| [closed/](closed/) | 9 | done (kept for history) |
+| [open/](open/) | 2 | accepted, not started |
+| [active/](active/) | 3 | in progress right now |
+| [closed/](closed/) | 10 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
+- **MC-016** -- a cross-bank row-hit-first pick for granite's `mixed` window:
+  the model prices strict per-bank FIFOs 11 % under a pooled row-hit-first
+  queue on `mixed` (320 vs 360) and equal everywhere else; granite's two-head
+  store sits between -- model it first, then decide. Filed 2026-11-12 from
+  MC-013 item 4.
 - **MC-015** -- the write stream pays one command slot per AXI burst at the
   intake, both controllers: with MC-014's lane on, granite reads reach 773 /
   775 on `col_major_interleaved` / `row_thrash` and writes stay at 686 / 687
@@ -25,11 +30,10 @@
   slot per MC cycle (97 % occupancy, ACT every 9 cycles); pumice's lane on the
   same DFI path recovers +13 % reads. Priced +92..+145 MB/s. Filed and started
   2026-11-12: `mc_bank_pick` DUAL_ISSUE lane, plane / granite_core / top /
-  CSR plumbing built; sim then board.
-- **MC-013** -- model-driven policy exploration on the Ramulator 2 DDR2 model.
-  Item 1 (dual issue) done 2026-11-12: the slot is the measured ceiling, see
-  MC-014. Active 2026-11-12 on items 2-5: write drain, refresh placement,
-  per-bank vs pooled queues, a cocotb trace exporter. Filed 2026-11-11.
+  CSR plumbing built; sim reads 773 / 775 / 722 (within 1 % of the ideal on
+  the pure families). Board half in progress: the first sys100 build with the
+  lane missed by 1.7 ns (the lane pick behind the main select, the lane fire
+  on the command-valid cone); both cut 2026-11-12, rebuild and board runs.
 
 - **MC-011** -- the 0.2 ns clock-uncertainty budget is in both board XDCs;
   sweep 1: pumice sys75 closes by 0.100 under budget on the worst of three
@@ -46,6 +50,13 @@
   close 75 MHz on the board. Deferred 2026-11-08.
 
 ## Closed
+
+- **MC-013** -- model-driven policy exploration on the Ramulator 2 DDR2 model,
+  five items: the command slot (-> MC-014, built), write drain (granite is at
+  the deep end already), refresh placement (0.6 % recoverable, the rest is
+  tRFC), per-bank vs pooled queues (`BankFIFO-RR` in the overlay; `mixed`
+  -11 % -> MC-016), a cocotb AXI trace exporter (the rebuilt streams
+  confirmed, `mixed` switched to captured). Closed 2026-11-12.
 
 - **MC-012** -- Ramulator 2 pinned and built from `references/ramulator2/fetch.sh`;
   DDR2 / DDR2_BL8 device classes checked against JESD79-2F (found BUG-003);
