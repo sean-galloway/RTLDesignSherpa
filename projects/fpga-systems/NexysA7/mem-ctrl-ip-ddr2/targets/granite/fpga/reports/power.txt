@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Fri Nov 13 07:00:51 2026
+| Date             : Sun Nov 15 14:13:58 2026
 | Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/targets/granite/fpga/reports/power.txt
 | Design           : granite_char_top
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 1.013        |
+| Total On-Chip Power (W)  | 1.017        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.905        |
+| Dynamic (W)              | 0.910        |
 | Device Static (W)        | 0.107        |
 | Effective TJA (C/W)      | 4.6          |
 | Max Ambient (C)          | 80.4         |
@@ -53,20 +53,20 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.086 |        9 |       --- |             --- |
-| Slice Logic              |     0.056 |    83454 |       --- |             --- |
-|   LUT as Logic           |     0.046 |    34948 |     63400 |           55.12 |
+| Slice Logic              |     0.056 |    83551 |       --- |             --- |
+|   LUT as Logic           |     0.046 |    35047 |     63400 |           55.28 |
 |   LUT as Distributed RAM |     0.006 |     2310 |     19000 |           12.16 |
 |   CARRY4                 |     0.002 |     1178 |     15850 |            7.43 |
-|   Register               |     0.002 |    32922 |    126800 |           25.96 |
-|   F7/F8 Muxes            |    <0.001 |     1536 |     63400 |            2.42 |
+|   Register               |     0.002 |    32918 |    126800 |           25.96 |
+|   F7/F8 Muxes            |    <0.001 |     1522 |     63400 |            2.40 |
 |   Others                 |     0.000 |      599 |       --- |             --- |
-| Signals                  |     0.089 |    61889 |       --- |             --- |
+| Signals                  |     0.089 |    62010 |       --- |             --- |
 | Block RAM                |     0.005 |        2 |       135 |            1.48 |
 | MMCM                     |     0.097 |        1 |         6 |           16.67 |
 | DSPs                     |     0.000 |       32 |       240 |           13.33 |
-| I/O                      |     0.573 |       82 |       210 |           39.05 |
+| I/O                      |     0.577 |       82 |       210 |           39.05 |
 | Static Power             |     0.107 |          |           |                 |
-| Total                    |     1.013 |          |           |                 |
+| Total                    |     1.017 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -76,11 +76,11 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.262 |       0.245 |      0.018 |       NA    | Unspecified | NA         |
-| Vccaux    |       1.800 |     0.119 |       0.101 |      0.018 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.263 |       0.245 |      0.018 |       NA    | Unspecified | NA         |
+| Vccaux    |       1.800 |     0.120 |       0.101 |      0.018 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.005 |       0.001 |      0.004 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
-| Vcco18    |       1.800 |     0.268 |       0.264 |      0.004 |       NA    | Unspecified | NA         |
+| Vcco18    |       1.800 |     0.269 |       0.265 |      0.004 |       NA    | Unspecified | NA         |
 | Vcco15    |       1.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco135   |       1.350 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco12    |       1.200 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -151,8 +151,8 @@ Table of Contents
 +-----------------------------+-----------+
 | Name                        | Power (W) |
 +-----------------------------+-----------+
-| granite_char_top            |     0.905 |
-|   u_a7ddrphy                |     0.396 |
+| granite_char_top            |     0.910 |
+|   u_a7ddrphy                |     0.399 |
 |     IOBUF                   |     0.016 |
 |     IOBUFDS                 |     0.032 |
 |       OBUFTDS               |     0.002 |
@@ -175,7 +175,7 @@ Table of Contents
 |     IOBUF_9                 |     0.016 |
 |     OBUFDS                  |     0.008 |
 |   u_harness                 |     0.227 |
-|     u_bridge                |     0.015 |
+|     u_bridge                |     0.016 |
 |       u_chargen_apb_adapter |     0.004 |
 |       u_ddr2_apb_adapter    |     0.004 |
 |       u_host_adapter        |     0.003 |
@@ -187,10 +187,10 @@ Table of Contents
 |     u_dfi_mon_ram           |     0.023 |
 |       u_core                |     0.021 |
 |     u_dfi_rddata_delay      |     0.003 |
-|     u_dut                   |     0.157 |
+|     u_dut                   |     0.160 |
 |       u_csr_shim            |     0.003 |
-|       u_ctrl                |     0.045 |
-|       u_engines             |     0.110 |
+|       u_ctrl                |     0.046 |
+|       u_engines             |     0.111 |
 |     u_harness_csr           |     0.002 |
 |     u_uart                  |     0.002 |
 +-----------------------------+-----------+

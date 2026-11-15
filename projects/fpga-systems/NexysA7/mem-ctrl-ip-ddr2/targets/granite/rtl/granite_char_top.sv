@@ -275,6 +275,9 @@ module granite_char_top #(
 `ifdef GRANITE_NUM_ENTRIES
         .NUM_ENTRIES        (`GRANITE_NUM_ENTRIES),
 `endif
+`ifdef GRANITE_DIR_BATCH_MAX
+        .DIR_BATCH_MAX      (`GRANITE_DIR_BATCH_MAX),   // the pick core's direction batch cap (memory-controllers MC-017; package 255)
+`endif
 `ifdef GRANITE_STORE_BACKEND
         .STORE_BACKEND      (`GRANITE_STORE_BACKEND),
 `endif

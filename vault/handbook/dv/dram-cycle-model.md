@@ -231,6 +231,43 @@ an afternoon and closed the task without RTL; what it left:
   zero here, and granite's 20-24 percent under its own shape is the
   direction rule (MC-017).
 
+## The direction register, measured and fixed (2026-11-15, MC-017)
+
+MC-016 left granite's `mixed` window 20-24 percent under the model's own
+shape with a read waiting 52 000 cycles. MC-017 counted the direction
+register's flips, swept the cap the task named, and fixed the mechanism in
+`mc_bank_pick` (`char_results/sim_mc017_direction_register_2026-11-15.md`).
+What it left:
+
+- **Count the flips before touching the rule.** A per-flip log with the
+  cause and the batch length (`PERF_DIR_FLIPS`) said in one run that the
+  cap handed the bus over every time and the handover failed every time
+  (136 of 143 read turns ended in five cycles with zero columns). The cap
+  sweep the task was filed for became a table that confirmed a non-lever.
+- **Trigger a probe on an event count, not a cycle number.** The absolute
+  cycle of a window moves between runs of the same test; the n-th direction
+  flip does not. `PERF_PICK_PROBE_FLIP` replaced two wasted probe runs.
+- **A fix that holds one path opens the next.** Gating the ungated hint
+  moved the take-back to the drain branch; holding the drain moved it one
+  cycle past the idle window. Each step was re-probed, not re-guessed; the
+  lane-on residue was a one-cycle race between the register's decision and
+  the fire that would have reset its idle counter.
+- **Re-check the other build of the same block.** A fall-through gate that
+  looked right with the row lane on cost the lane-off window 40 percent,
+  because the lane-off design uses the main slot for what the lane does.
+  Every pick-core change now runs `TEST_DUAL` both ways before it is read.
+- **Register-only terms, and the block boundary is a timing rule.** Reading
+  the select's gate inside the lane's register-only block was a Verilator
+  block-level cycle (UNOPTFLAT) and would have been a cone the 100 MHz
+  budget could not take; the lane block exports per-direction terms and the
+  select combines them.
+- **Fairness has a price on a synthetic window, and the model prices it.**
+  The old register ran the writes alone and then the reads alone; a fair
+  alternation pays the turnarounds and the writers' per-burst row switch on
+  every turn (-9 percent union at pool 8 with the lane, +1 / +2 elsewhere,
+  worst read wait 520 us -> 5 us). Carry the union AND the worst wait to the
+  owner, not one cell.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

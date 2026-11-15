@@ -72,6 +72,7 @@ module granite_top_geared
                                             // granite_core uses the whole window, RD_RET_DEPTH x BURST_WORDS (pumice ISSUE-026)
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
     parameter bit DUAL_ISSUE      = 1'b0, // the pick core's row lane (granite_core; memory-controllers MC-014)
+    parameter int DIR_BATCH_MAX   = GRANITE_DIR_BATCH_MAX, // the direction register's column batch cap (0 = none); the package value, overridable for a sweep (memory-controllers MC-017)
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
     parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)
     parameter bit FIXED_TIMINGS  = 1'b0,  // 1 = T_* constants replace the TIMINGS CSRs (report 5.10 item 3)
@@ -519,7 +520,7 @@ module granite_top_geared
         // the direction batch cap the register reports (SCHED_WR_WM.
         // wr_batch_max); it was tied to 0 (= no cap) here, so a direction
         // with work never yielded (granite TASK-003, 2026-10-30)
-        .sched_wr_batch_max_i(8'(GRANITE_DIR_BATCH_MAX)),
+        .sched_wr_batch_max_i(8'(DIR_BATCH_MAX)),
         .sched_wr_low_wm_i  (hwif_out.SCHED_WR_WM.wr_low_wm.value),
         .sched_prio_sub_i   (hwif_out.SCHED_POLICY.prio_sub.value),
         .sched_qos_en_i     (hwif_out.SCHED_POLICY.qos_en.value),

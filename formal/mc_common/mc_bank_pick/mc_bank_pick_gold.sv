@@ -7,6 +7,15 @@
 // this form on every output. Never edit this file to follow the RTL -- a
 // change that needs the golden copy changed is a change of behaviour, and the
 // equivalence proof is what says so. Replace it deliberately, with a note.
+// 2026-11-15 (memory-controllers MC-017): the one behaviour change since --
+// a column hint of the direction that does not hold the register obeys the
+// direction gate (w_hint_ok's last term) and the drain flip of the direction
+// register obeys the idle hold (w_dir_hold_idle) and is not "drained" while it has
+// a row request -- is applied here identically, so
+// the proof keeps checking the MC-011 register resolution and nothing else.
+// The third MC-017 change (the lane's "a column is pending" test) lives inside
+// DUAL_ISSUE, which this copy predates and the equiv tasks compile out; the
+// dual / dual_cover tasks cover the lane on the DUT alone.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -482,6 +491,8 @@ module mc_bank_pick_gold
     logic             w_rd_col_any, w_wr_col_any;
     logic             w_rd_col_pend, w_wr_col_pend;   // columns coming in a direction (pre stale mask)
     logic             w_cur_queued;                   // the current direction has a queued head (DIR_HOLD_IDLE)
+    logic             w_rd_row_any, w_wr_row_any;     // a row request (ACT / PRE) of that direction is live (MC-017)
+    logic             w_dir_hold_idle;                // ... and it has fired within DIR_HOLD_IDLE cycles: the register holds (MC-017)
     logic [7:0]       r_dir_idle;                     // cycles since the current direction last fired
     logic             r_rd_col_more, r_wr_col_more;   // last cycle's column fire left a same-row entry behind it
     logic             w_xdir_ok;                      // the other direction's columns may be taken
@@ -610,6 +621,11 @@ module mc_bank_pick_gold
             w_req_row    [p] = w_req_ok[p] && (r_cls[p] != CL_COL);
             w_req_aged   [p] = w_req_ok[p] && r_aged[p];
         end
+        w_rd_row_any = 1'b0; w_wr_row_any = 1'b0;
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            if (w_req_row[2*b])   w_rd_row_any = 1'b1;
+            if (w_req_row[2*b+1]) w_wr_row_any = 1'b1;
+        end
         w_oth_req_any = 1'b0;
         for (int b = 0; b < NUM_BANKS; b++)
             if (r_req[2*b + (r_dir ? 0 : 1)]) w_oth_req_any = 1'b1;
@@ -647,8 +663,8 @@ module mc_bank_pick_gold
         // while it has pending columns, until the batch cap (255 on granite,
         // GRANITE_DIR_BATCH_MAX, read back in a read-only CSR) lets the
         // other direction in.
-        w_xdir_ok = !((r_dir ? w_wr_col_pend : w_rd_col_pend)
-                      || ((DIR_HOLD_IDLE > 0) && w_cur_queued && (r_dir_idle < 8'(DIR_HOLD_IDLE))))
+        w_dir_hold_idle = (DIR_HOLD_IDLE > 0) && w_cur_queued && (r_dir_idle < 8'(DIR_HOLD_IDLE));
+        w_xdir_ok = !((r_dir ? w_wr_col_pend : w_rd_col_pend) || w_dir_hold_idle)
                     || w_dir_batch_done;
         // Row commands follow the direction too, until the batch cap. With
         // an auto-precharge close the bank empties by itself and BOTH
@@ -674,6 +690,11 @@ module mc_bank_pick_gold
         w_row_pref_any = 1'b0;
         for (int p = 0; p < NPAIR; p++)
             if (r_req[p] && (r_cls[p] != CL_COL) && w_row_pref_mask[p]) w_row_pref_any = 1'b1;
+        // (MC-017 tried gating this fall-through while the register is held,
+        // so the other direction's ACT could not re-open a bank the holder
+        // was about to close: fair, but the lane-off mixed window fell 524 ->
+        // 321 MB/s -- the other direction's row commands under the holder's
+        // columns ARE the lane-off form of the row lane. Left as it was.)
         w_req_row_pref = w_row_pref_any ? (w_req_row & w_row_pref_mask) : w_req_row;
 
         // the hint is a request of its own class (a column hint whose sink
@@ -685,7 +706,22 @@ module mc_bank_pick_gold
                         // yields at the batch cap when the other direction
                         // is waiting; it would otherwise chain one
                         // direction's rows past the cap indefinitely
-                        && !(w_dir_batch_done && (r_hint_pair[0] == r_dir) && w_oth_req_any);
+                        && !(w_dir_batch_done && (r_hint_pair[0] == r_dir) && w_oth_req_any)
+                        // and a COLUMN hint of the direction that does not
+                        // hold the register obeys the direction gate the
+                        // plain column set obeys (memory-controllers MC-017,
+                        // 2026-11-15): on the mixed window every cap flip
+                        // handed the reads the register and the writes took
+                        // it back within five cycles through this path --
+                        // the owner's PRE had closed the read's row in the
+                        // flip cycle, its ACT on the same bank won the row
+                        // fall-through while the read's own ACT request was
+                        // a cycle behind, and the ACT's hinted column fired
+                        // ungated: 136 of 143 read turns ended with zero
+                        // columns, the reads ran after the writes (sim pool
+                        // 8: 476 / 300, union 601). Row hints are not gated:
+                        // the row preference mask already orders them.
+                        && (!w_hint_is_col || (r_hint_pair[0] == r_dir) || w_xdir_ok);
         w_hint_vec    = NPAIR'(1) << r_hint_pair;
 
         // Request set. The two classes ALTERNATE: after a row command prefer
@@ -1174,7 +1210,30 @@ module mc_bank_pick_gold
             w_dir_nxt       = w_sel_is_wr;
             w_dir_batch_nxt = 8'd1;
         end else if ((r_dir ? !w_wr_col_pend : !w_rd_col_pend)
-                     && (r_dir ? w_rd_col_any : w_wr_col_any)) begin
+                     && (r_dir ? w_rd_col_any : w_wr_col_any)
+                     // "drained" is not "has not fired its first column yet":
+                     // a direction just handed the register finds its rows
+                     // closed (the owner closed them) and has no column
+                     // pending for the PRE / ACT it needs first, while the old
+                     // direction's columns sit ready -- this branch turned the
+                     // bus straight back, 1 972 of 1 979 read turns with zero
+                     // columns on the mixed window once the hint was gated
+                     // (memory-controllers MC-017, 2026-11-15). The idle hold
+                     // that already gates the other direction's columns in
+                     // w_xdir_ok gates the drain flip too: a direction with
+                     // queued heads that fired a command within DIR_HOLD_IDLE
+                     // cycles keeps the register. The cap flip below is not
+                     // held: it is the holder's own turn ending.
+                     && !w_dir_hold_idle
+                     // ... and a direction with a live row request, or whose
+                     // row command is the winner this cycle (its request bit
+                     // is stale-masked while it is picked), is working toward
+                     // its column, not drained: with the lane on, the read
+                     // turn's first command (the PRE of the bank the writer's
+                     // row held) fired in the cycle the idle hold ran out, one
+                     // cycle late for the rule above alone.
+                     && !((r_dir ? w_wr_row_any : w_rd_row_any)
+                          || (w_win_vld && (w_sel_is_wr == r_dir) && !w_fis_col))) begin
             w_dir_nxt       = ~r_dir;
             w_dir_batch_nxt = '0;
         end else if (r_batch_done && (r_dir ? w_rd_col_any : w_wr_col_any)) begin

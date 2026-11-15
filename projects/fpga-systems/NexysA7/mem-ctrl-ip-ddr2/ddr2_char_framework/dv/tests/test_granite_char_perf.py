@@ -41,7 +41,12 @@ SCHED_POLICY.dual_issue on, DFI_PHASE.row_phase 1; its own sim_build tag),
 TEST_NUM_ENTRIES (the store pool per direction, board 8; memory-controllers
 MC-015 found the write ceiling there), PERF_W_HOPS (a path: every valid/ready
 hop of the write path sampled per cycle, handshake gaps and stall counts per
-hop, PERF_W_HOPS_CYCLES deep -- the MC-015 probe).
+hop, PERF_W_HOPS_CYCLES deep -- the MC-015 probe), TEST_DIR_BATCH_MAX (the
+pick core's direction batch cap, board 255 = GRANITE_DIR_BATCH_MAX; its own
+sim_build tag suffix, as TEST_NUM_ENTRIES now has), PERF_DIR_FLIPS (a path:
+every direction flip of the pick core with its cause and the batch it ended,
+the hold lengths per direction, PERF_DIR_FLIPS_CYCLES deep -- the MC-017
+probe).
 """
 
 import dataclasses
@@ -176,31 +181,120 @@ def _slot_occupancy(log, bin_cycles=1024):
             "top8": [round(o, 4) for o in occ[:8]]}
 
 
-async def _pick_probe(dut, path, n_cycles=160):
+async def _dir_flips_probe(dut, path, n_cycles=400000):
+    """PERF_DIR_FLIPS=<path>: the pick core's direction register for the whole
+    run (memory-controllers MC-017). Every flip is logged with its cycle, the
+    cause the pick recorded (0 = a column of the other direction fired, 1 =
+    the held direction drained, 2 = the batch cap) and the column batch that
+    ended; the summary gives the flips by cause, the batch-length histogram,
+    the hold lengths (cycles between flips) per direction and the share of
+    cycles each direction held the register. Written every 20 000 cycles so
+    the file survives the test ending first; the flip log itself is kept (up to
+    20 000 entries: [cycle, cause, batch, new direction])."""
+    try:
+        bp = dut.u_dut.u_dut.u_ctrl.u_core.u_sched_plane.g_bank_pick.u_bank_pick
+    except AttributeError:
+        return
+    flips = []            # [cycle, cause, batch, new_dir]
+    hold = {0: [], 1: []}  # cycles the register stayed in a direction, keyed by that direction
+    occ = [0, 0]
+    last_flip = None
+    cyc = 0
+
+    def dump():
+        hist = {}
+        for _, _, b, _ in flips:
+            hist[b] = hist.get(b, 0) + 1
+        by_cause = {c: sum(1 for f in flips if f[1] == c) for c in (0, 1, 2)}
+
+        def stats(xs):
+            if not xs:
+                return {"n": 0}
+            xs2 = sorted(xs)
+            return {"n": len(xs2), "min": xs2[0], "p50": xs2[len(xs2) // 2], "max": xs2[-1],
+                    "mean": round(sum(xs2) / len(xs2), 1)}
+        out = {"cycles": cyc, "flips": len(flips), "by_cause": by_cause,
+               "batch_hist": {str(k): v for k, v in sorted(hist.items())},
+               "hold_rd": stats(hold[0]), "hold_wr": stats(hold[1]),
+               "occ_rd": occ[0], "occ_wr": occ[1],
+               "flips_log": flips[:20000]}
+        with open(path, "w") as fh:
+            json.dump(out, fh)
+
+    while cyc < n_cycles:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        cyc += 1
+        try:
+            d = int(bp.r_dir.value)
+            occ[d] += 1
+            if int(bp.r_dir_flip.value):
+                cause = int(bp.r_dir_cause.value)
+                batch = int(bp.r_dir_end_batch.value)
+                if last_flip is not None:
+                    hold[1 - d].append(cyc - last_flip)
+                last_flip = cyc
+                flips.append([cyc, cause, batch, d])
+        except Exception:  # noqa: BLE001
+            pass
+        if cyc % 20000 == 0:
+            dump()
+    dump()
+
+
+async def _pick_probe(dut, path, n_cycles=160, from_cycle=0, from_flip=0):
     """PERF_PICK_PROBE=<path>: the pick's direction state for n_cycles from the
     first cycle a direction batch reaches its cap (r_dir_batch >= the cap)
     while the other direction has a request -- where the cap should turn the
-    bus round."""
+    bus round -- or, with PERF_PICK_PROBE_FROM=<cycle>, from that aclk cycle
+    (a cycle the PERF_DIR_FLIPS log named; MC-017), or, with
+    PERF_PICK_PROBE_FLIP=<n>, from six cycles before the n-th direction flip
+    (1-based, counted from reset: the absolute cycle of a window moves between
+    runs, the flip count does not)."""
     try:
         bp = dut.u_dut.u_dut.u_ctrl.u_core.u_sched_plane.g_bank_pick.u_bank_pick
     except AttributeError:
         return
     names = ["r_dir", "r_dir_batch", "w_dir_batch_done", "w_rd_col_any", "w_wr_col_any",
              "w_rd_col_pend", "w_wr_col_pend", "w_oth_req_any", "w_xdir_ok", "r_last_was_row",
-             "r_req", "w_req_ok", "w_req_col", "w_sel", "w_pick_vld", "r_hint_vld", "r_hint_pair",
-             "w_hint_ok", "w_wr_sink_ok", "w_fire", "w_dmd_ok", "w_col_fire_now"]
-    rows, started = [], False
+             "r_req", "w_req_ok", "w_req_col", "w_req_col_dir", "w_req_row_pref", "w_sel", "w_sel_src",
+             "w_pick_vld", "w_pick_pair", "r_hint_vld", "r_hint_pair", "r_hint_cls",
+             "w_hint_ok", "w_wr_sink_ok", "w_fire", "w_dmd_ok", "w_col_fire_now", "w_sel_is_wr",
+             "r_dir_idle", "w_cur_queued", "r_win_vld", "r_win_pair", "r_win_cls", "w_hold_next",
+             "w_spec_vld", "r_batch_done", "r_dir_flip",
+             # the row lane (DUAL_ISSUE; absent = None)
+             "r2_vld", "r2_pair", "r2_cls", "w2_ride", "w2_load", "w2_pick_pair", "w2_fire", "w2_hold",
+             "w2_ok", "w2_class_ok", "w2_timer_ok", "w2_clash", "w2_col_cur", "w2_col_oth", "w2_any_col_ok",
+             "w_dmd_fire", "w_class_ok", "w_timer_ok", "w_req_row", "r_self_stale", "w_dual"]
+    rows, started, cyc, flips, pre = [], False, 0, 0, []
     while len(rows) < n_cycles:
         await RisingEdge(dut.aclk)
         await ReadOnly()
-        v = {}
+        cyc += 1
+        if from_cycle and cyc < from_cycle:
+            continue
+        if from_flip and not started:
+            try:
+                flip = int(bp.r_dir_flip.value)
+            except Exception:  # noqa: BLE001
+                flip = 0
+            if flip:
+                flips += 1
+            if flips < from_flip:
+                # a six-deep pre-buffer so the flip's cause is in the record
+                pre.append(cyc)
+                pre = pre[-6:]
+                continue
+        v = {"cycle": cyc}
         for nm in names:
             try:
                 v[nm] = int(getattr(bp, nm).value)
             except Exception:  # noqa: BLE001
                 v[nm] = None
         if not started:
-            started = bool(v["w_dir_batch_done"]) and bool(v["w_oth_req_any"])
+            started = bool(from_cycle) or bool(from_flip) or (bool(v["w_dir_batch_done"]) and bool(v["w_oth_req_any"]))
+            if started and from_flip:
+                v["pre_cycles"] = pre
         if started:
             rows.append(v)
     with open(path, "w") as fh:
@@ -884,7 +978,10 @@ async def cocotb_test_granite_perf(dut):
     if gate_path:
         cocotb.start_soon(_gate_trace(dut, gate_path))
     if os.environ.get("PERF_PICK_PROBE"):
-        cocotb.start_soon(_pick_probe(dut, os.environ["PERF_PICK_PROBE"]))
+        cocotb.start_soon(_pick_probe(dut, os.environ["PERF_PICK_PROBE"],
+                                      int(os.environ.get("PERF_PICK_PROBE_CYCLES", "160")),
+                                      int(os.environ.get("PERF_PICK_PROBE_FROM", "0")),
+                                      int(os.environ.get("PERF_PICK_PROBE_FLIP", "0"))))
     if os.environ.get("PERF_LAT_PROBE"):
         cocotb.start_soon(_lat_probe(dut, os.environ["PERF_LAT_PROBE"]))
     if os.environ.get("PERF_STORE_TRACE"):
@@ -892,6 +989,9 @@ async def cocotb_test_granite_perf(dut):
     if os.environ.get("PERF_W_HOPS"):
         cocotb.start_soon(_w_hops_probe(dut, os.environ["PERF_W_HOPS"],
                                         int(os.environ.get("PERF_W_HOPS_CYCLES", "12000"))))
+    if os.environ.get("PERF_DIR_FLIPS"):
+        cocotb.start_soon(_dir_flips_probe(dut, os.environ["PERF_DIR_FLIPS"],
+                                           int(os.environ.get("PERF_DIR_FLIPS_CYCLES", "400000"))))
 
     r = await bridge(prog)()
     if mism_log:
@@ -983,6 +1083,10 @@ def _run_granite_perf(request, over=None):
     tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
     if _g("TEST_DUAL", "0") == "1":
         tag += "_dual"        # a different netlist: its own build tree
+    if _g("TEST_NUM_ENTRIES", "8") != "8":
+        tag += "_n" + _g("TEST_NUM_ENTRIES", "8")        # the pool is a netlist parameter (MC-015 rebuilt by hand)
+    if _g("TEST_DIR_BATCH_MAX", "255") != "255":
+        tag += "_b" + _g("TEST_DIR_BATCH_MAX", "255")    # the batch cap too (MC-017)
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -1000,10 +1104,15 @@ def _run_granite_perf(request, over=None):
         "PERF_CMD_TRACE": _g("PERF_CMD_TRACE", "0"),
         "PERF_GATE_TRACE": _g("PERF_GATE_TRACE", ""),
         "PERF_PICK_PROBE": _g("PERF_PICK_PROBE", ""),
+        "PERF_PICK_PROBE_CYCLES": _g("PERF_PICK_PROBE_CYCLES", "160"),
+        "PERF_PICK_PROBE_FROM": _g("PERF_PICK_PROBE_FROM", "0"),
+        "PERF_PICK_PROBE_FLIP": _g("PERF_PICK_PROBE_FLIP", "0"),
         "PERF_LAT_PROBE": _g("PERF_LAT_PROBE", ""),
         "PERF_STORE_TRACE": _g("PERF_STORE_TRACE", ""),
         "PERF_W_HOPS": _g("PERF_W_HOPS", ""),
         "PERF_W_HOPS_CYCLES": _g("PERF_W_HOPS_CYCLES", "12000"),
+        "PERF_DIR_FLIPS": _g("PERF_DIR_FLIPS", ""),
+        "PERF_DIR_FLIPS_CYCLES": _g("PERF_DIR_FLIPS_CYCLES", "400000"),
         "TEST_MAX_OUT": _g("TEST_MAX_OUT", "0"),
         "PERF_DRAM_TRACE": _g("PERF_DRAM_TRACE", ""),
         "TEST_PAGE_MODE": _g("TEST_PAGE_MODE", ""),
@@ -1052,6 +1161,8 @@ def _run_granite_perf(request, over=None):
               "STORE_BACKEND": _g("TEST_STORE_BACKEND", "1"),
               # TEST_DUAL=1 builds the pick core's row lane (MC-014)
               **({"DUAL_ISSUE": "1"} if _g("TEST_DUAL", "0") == "1" else {}),
+              # the direction register's column batch cap (MC-017; board 255)
+              "DIR_BATCH_MAX": _g("TEST_DIR_BATCH_MAX", "255"),
               "BANK_FIFO_DEPTH": _g("TEST_BANK_FIFO_DEPTH", "0"),
               "HEAD2_EN": _g("TEST_HEAD2_EN", "1"),
               "DFI_CDC_EN": _g("TEST_DFI_CDC_EN", "0"),

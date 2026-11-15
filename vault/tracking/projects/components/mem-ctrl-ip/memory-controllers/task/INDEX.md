@@ -4,20 +4,14 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 2 | in progress right now |
-| [closed/](closed/) | 13 | done (kept for history) |
+| [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-- **MC-017** -- granite's `mixed` window is a direction-policy question: one
-  direction holds the bus for ~50 000 cycles (`rd_lat_max` 52k in sim at
-  pool 8 and 16); granite's union is 20-24 % under the model's strict
-  per-bank FIFO at the same depth while that FIFO is 3-12 % under the best
-  pooled queue. Count the flips, sweep `GRANITE_DIR_BATCH_MAX` at both pool
-  sizes, propose a default or record why not. Filed 2026-11-15 from MC-016.
 
 ## Active
 
@@ -37,6 +31,19 @@
 
 ## Closed
 
+- **MC-017** -- the `mixed` window's direction register: every cap flip
+  handed the register to the waiting direction for five cycles and no
+  columns (136 of 143 read turns; a write column, hinted ungated after the
+  owner's PRE / ACT on the shared bank, took it back with a fresh 255). The
+  cap sweep (16-255) was not the lever. Four register-only terms in
+  `mc_bank_pick` (hint direction gate, drain flip under the idle hold and
+  not while a row request / row winner is live, the lane counts only
+  gate-allowed columns) make every turn carry its batch: `mixed` 272 / 272
+  on the board at both presets (was 318 / 649 and 473 / 286), worst read
+  wait 52 000 -> 520 cycles, single-direction cells unchanged, +0.012 ns
+  under budget. Union -5..-14 % lane on, +1..+6 % lane off on this window.
+  Formal x5, granite / pumice / common-ip / char fw suites pass. Closed
+  2026-11-15.
 - **MC-016** -- "model the two-head store first": the second head is not a
   scheduling peek (read only in the pop shadow; its hit is the stored
   same-row bit), and a real one would buy nothing at AxLEN 8 -- a

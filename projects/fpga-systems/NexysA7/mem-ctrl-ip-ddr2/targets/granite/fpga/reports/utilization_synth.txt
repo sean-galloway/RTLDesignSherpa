@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Fri Nov 13 06:53:02 2026
+| Date         : Sun Nov 15 13:53:10 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/targets/granite/fpga/reports/utilization_synth.txt
 | Design       : granite_char_top
@@ -31,16 +31,16 @@ Table of Contents
 +----------------------------+-------+-------+------------+-----------+-------+
 |          Site Type         |  Used | Fixed | Prohibited | Available | Util% |
 +----------------------------+-------+-------+------------+-----------+-------+
-| Slice LUTs*                | 37484 |     0 |          0 |     63400 | 59.12 |
-|   LUT as Logic             | 35158 |     0 |          0 |     63400 | 55.45 |
+| Slice LUTs*                | 37619 |     0 |          0 |     63400 | 59.34 |
+|   LUT as Logic             | 35293 |     0 |          0 |     63400 | 55.67 |
 |   LUT as Memory            |  2326 |     0 |          0 |     19000 | 12.24 |
 |     LUT as Distributed RAM |  2326 |     0 |            |           |       |
 |     LUT as Shift Register  |     0 |     0 |            |           |       |
-| Slice Registers            | 33186 |     0 |          0 |    126800 | 26.17 |
-|   Register as Flip Flop    | 33186 |     0 |          0 |    126800 | 26.17 |
+| Slice Registers            | 33185 |     0 |          0 |    126800 | 26.17 |
+|   Register as Flip Flop    | 33185 |     0 |          0 |    126800 | 26.17 |
 |   Register as Latch        |     0 |     0 |          0 |    126800 |  0.00 |
-| F7 Muxes                   |  1173 |     0 |          0 |     31700 |  3.70 |
-| F8 Muxes                   |   363 |     0 |          0 |     15850 |  2.29 |
+| F7 Muxes                   |  1183 |     0 |          0 |     31700 |  3.73 |
+| F8 Muxes                   |   339 |     0 |          0 |     15850 |  2.14 |
 +----------------------------+-------+-------+------------+-----------+-------+
 * Warning! The Final LUT count, after physical optimizations and full implementation, is typically lower. Run opt_design after synthesis, if not already completed, for a more realistic count.
 Warning! LUT value is adjusted to account for LUT combining.
@@ -60,7 +60,7 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 0     |            _ |       Reset |            - |
 | 0     |          Yes |           - |            - |
 | 730   |          Yes |           - |          Set |
-| 16972 |          Yes |           - |        Reset |
+| 16971 |          Yes |           - |        Reset |
 | 203   |          Yes |         Set |            - |
 | 15281 |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
@@ -158,21 +158,21 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +------------+-------+---------------------+
 |  Ref Name  |  Used | Functional Category |
 +------------+-------+---------------------+
-| FDCE       | 16972 |        Flop & Latch |
+| FDCE       | 16971 |        Flop & Latch |
 | FDRE       | 15281 |        Flop & Latch |
-| LUT6       | 14094 |                 LUT |
-| LUT3       | 11735 |                 LUT |
-| LUT4       |  7738 |                 LUT |
-| LUT5       |  6887 |                 LUT |
-| LUT2       |  3467 |                 LUT |
+| LUT6       | 14281 |                 LUT |
+| LUT3       | 11709 |                 LUT |
+| LUT4       |  7736 |                 LUT |
+| LUT5       |  6853 |                 LUT |
+| LUT2       |  3465 |                 LUT |
 | RAMD64E    |  1612 |  Distributed Memory |
+| MUXF7      |  1183 |               MuxFx |
 | CARRY4     |  1178 |          CarryLogic |
-| MUXF7      |  1173 |               MuxFx |
 | RAMD32     |  1046 |  Distributed Memory |
 | FDPE       |   730 |        Flop & Latch |
-| MUXF8      |   363 |               MuxFx |
+| MUXF8      |   339 |               MuxFx |
 | RAMS32     |   332 |  Distributed Memory |
-| LUT1       |   330 |                 LUT |
+| LUT1       |   328 |                 LUT |
 | FDSE       |   203 |        Flop & Latch |
 | OBUF       |    57 |                  IO |
 | OSERDESE2  |    43 |                  IO |

@@ -62,6 +62,7 @@ module granite_char_uart_tb_top
     parameter int NUM_ENTRIES     = 8,
     parameter int STORE_BACKEND   = 1,
     parameter bit DUAL_ISSUE      = 1'b0,// the pick core's row lane (TEST_DUAL; memory-controllers MC-014)
+    parameter int DIR_BATCH_MAX      = 255,   // the pick core's direction batch cap (TEST_DIR_BATCH_MAX; memory-controllers MC-017)
     parameter int BANK_FIFO_DEPTH = 0,   // 0 = NUM_ENTRIES
     parameter bit HEAD2_EN        = 1'b1,// 0 = one head record per bank (FIFO store)
     parameter bit DFI_CDC_EN      = 1'b0,// the macro ties dfi_clk to mc_clk: no DFI crossing (board default)
@@ -154,6 +155,7 @@ module granite_char_uart_tb_top
         .NUM_ENTRIES     (NUM_ENTRIES),
         .STORE_BACKEND   (STORE_BACKEND),
         .DUAL_ISSUE      (DUAL_ISSUE),
+        .DIR_BATCH_MAX     (DIR_BATCH_MAX),
         .BANK_FIFO_DEPTH (BANK_FIFO_DEPTH),
         .HEAD2_EN        (HEAD2_EN),
         .DFI_CDC_EN      (DFI_CDC_EN),

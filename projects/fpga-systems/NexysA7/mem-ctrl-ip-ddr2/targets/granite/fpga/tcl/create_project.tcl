@@ -157,7 +157,8 @@ lappend current_defines "USE_ASYNC_RESET"
 lappend current_defines "DDR2_CHAR_SYNTH"
 # granite storage / timing knobs (mem-ctrl recovery Phase 3 report 5.10 / 5.11):
 # GRANITE_FIXED_TIMINGS=1 builds the T_* constants in place of the TIMINGS CSRs;
-# GRANITE_NUM_ENTRIES and GRANITE_BANK_FIFO_DEPTH size the FIFO store;
+# GRANITE_NUM_ENTRIES and GRANITE_BANK_FIFO_DEPTH size the FIFO store; GRANITE_DIR_BATCH_MAX
+# is the pick core's direction batch cap (memory-controllers MC-017; package 255);
 # GRANITE_HEAD2_EN=0 is the one-record-per-bank variant. Unset =
 # the shipped build. (The 2026-10-23 B/C builds set these in the environment
 # before this block existed and came out byte-identical to the default.)
@@ -172,7 +173,7 @@ if {[info exists ::env(GRANITE_RESEARCH_CFG)] && $::env(GRANITE_RESEARCH_CFG) ne
 if {[info exists ::env(GRANITE_FPGA_SKU)] && $::env(GRANITE_FPGA_SKU) ne ""} {
     puts "GRANITE_FPGA_SKU is the default since 2026-11-08; the env knob does nothing"
 }
-foreach knob {GRANITE_FIXED_TIMINGS GRANITE_STORE_BACKEND GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN GRANITE_DFI_CDC_EN GRANITE_HAS_SNARF GRANITE_INTAKE_FIFO_DEPTH GRANITE_AXI_SKID_DEPTH GRANITE_SHARED_ADDR_MAP GRANITE_HAS_PAGE_POLICY GRANITE_DFI_CMD_FIFO_DEPTH GRANITE_DFI_WD_FIFO_DEPTH GRANITE_DFI_RD_FIFO_DEPTH GRANITE_BANK_TW GRANITE_BANK_CAP_MIXED GRANITE_HAS_AGE GRANITE_PP_TIMEOUT_CLOSE GRANITE_STORE_MERGE_EN GRANITE_HAS_MON} {
+foreach knob {GRANITE_FIXED_TIMINGS GRANITE_STORE_BACKEND GRANITE_NUM_ENTRIES GRANITE_DIR_BATCH_MAX GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN GRANITE_DFI_CDC_EN GRANITE_HAS_SNARF GRANITE_INTAKE_FIFO_DEPTH GRANITE_AXI_SKID_DEPTH GRANITE_SHARED_ADDR_MAP GRANITE_HAS_PAGE_POLICY GRANITE_DFI_CMD_FIFO_DEPTH GRANITE_DFI_WD_FIFO_DEPTH GRANITE_DFI_RD_FIFO_DEPTH GRANITE_BANK_TW GRANITE_BANK_CAP_MIXED GRANITE_HAS_AGE GRANITE_PP_TIMEOUT_CLOSE GRANITE_STORE_MERGE_EN GRANITE_HAS_MON} {
     if {[info exists ::env($knob)] && $::env($knob) ne ""} {
         lappend current_defines "$knob=$::env($knob)"
         puts "verilog_define: $knob=$::env($knob)"
