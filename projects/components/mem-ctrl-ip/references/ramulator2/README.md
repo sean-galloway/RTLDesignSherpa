@@ -5,7 +5,8 @@ Work item: memory-controllers MC-012.
 
 - `fetch.sh` -- clone + pin `vendor/ramulator2` (gitignored), apply the overlay, build; `--test` runs the suites.
 - `overlay/` -- the DDR2 / DDR2_BL8 device classes, the `TimedLoadStoreTrace` frontend, the
-  `BankFIFO-RR` scheduler (per-bank FIFOs with a rotor: granite's store shape, MC-013 item 4), their tests
+  `BankFIFO-RR` scheduler (per-bank FIFOs with a rotor: granite's store shape, MC-013 item 4; `peek_depth` lets a
+  bank's row-conflict head yield to a younger row hit within its first N entries, MC-016), their tests
   (copied verbatim into the clone by `fetch.sh`; the build's codegen writes the Python wrappers).
 - `vendor-registration.patch` -- the four upstream files that list sources (three CMake lists, the smoke table).
 - `bin/char_model.py` -- replay the board's characterization families through the model (`run`), or a

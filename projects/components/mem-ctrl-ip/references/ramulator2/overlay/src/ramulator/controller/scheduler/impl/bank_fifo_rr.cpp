@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include <vector>
 
 #include "ramulator/base/param.h"
@@ -18,22 +19,90 @@ namespace Ramulator {
 //     wins over a row command, as the pick core's select does; off, the first
 //     ready head in rotor order wins whatever its command;
 //   * with no ready head the oldest head is returned, as FR-FCFS does: the
-//     controller re-checks timing and issues nothing this cycle.
+//     controller re-checks timing and issues nothing this cycle;
+//   * peek_depth (MC-016): a bank whose head is a row CONFLICT (its next
+//     command closes the open row) offers instead the oldest row hit among its
+//     first peek_depth entries, if one exists and no older entry in that window
+//     carries the same address. 1 is the strict FIFO above; 2 is the shape of
+//     granite's two-head record if the pick could fire the second record on
+//     its own hit (it cannot today: the second record is read only in the pop
+//     shadow, see mc_bank_fifo_store); the queue depth is the per-bank
+//     pooled hit-first bound. A head that is a miss on a closed bank keeps
+//     its place: nothing behind it can be a hit.
 class BankFIFORRScheduler : public IScheduler, public Implementation {
   RAMULATOR_REGISTER_IMPLEMENTATION(IScheduler, BankFIFORRScheduler, "BankFIFO-RR")
 
   ControllerBase* m_ctrl = nullptr;
   bool m_column_first = false;
+  int m_peek_depth = 1;
   int m_last_bank = -1;
   std::vector<ReqBuffer::iterator> m_heads;
   std::vector<bool> m_has_head;
+  // the first peek_depth entries of each bank's FIFO, oldest first
+  std::vector<std::vector<ReqBuffer::iterator>> m_window;
 
   void init() override {
     RAMULATOR_PARSE_PARAM(m_column_first, bool, "column_first").default_val(false);
+    RAMULATOR_PARSE_PARAM(m_peek_depth, int, "peek_depth").default_val(1);
+    if (m_peek_depth < 1) {
+      throw std::runtime_error("BankFIFO-RR: peek_depth must be >= 1");
+    }
     m_ctrl = cast_parent<ControllerBase>();
     const size_t num_banks = m_ctrl->m_device.m_bank_nodes.size();
     m_heads.resize(num_banks);
     m_has_head.assign(num_banks, false);
+    m_window.assign(num_banks, {});
+    for (auto& w : m_window) {
+      w.reserve(m_peek_depth);
+    }
+  }
+
+  // Keep `it` in the bank's window if it is among the peek_depth oldest.
+  void offer_to_window(std::vector<ReqBuffer::iterator>& w, ReqBuffer::iterator it) {
+    size_t pos = w.size();
+    while (pos > 0 && it->arrive < w[pos - 1]->arrive) {
+      pos--;
+    }
+    if (pos >= static_cast<size_t>(m_peek_depth)) {
+      return;
+    }
+    if (w.size() < static_cast<size_t>(m_peek_depth)) {
+      w.push_back(it);
+    }
+    for (size_t k = w.size() - 1; k > pos; k--) {
+      w[k] = w[k - 1];
+    }
+    w[pos] = it;
+  }
+
+  // The head the bank offers: its oldest entry, unless that is a row conflict
+  // and a younger entry in the window is a row hit with no same-address entry
+  // ahead of it in the window.
+  ReqBuffer::iterator bank_head(const std::vector<ReqBuffer::iterator>& w) {
+    auto head = w[0];
+    if (w.size() < 2) {
+      return head;
+    }
+    const auto& meta = m_ctrl->m_device.m_spec->command_meta;
+    if (!meta[head->command].is_closing) {
+      return head;  // a hit, or an ACT on a closed bank: nothing behind it is a hit
+    }
+    for (size_t k = 1; k < w.size(); k++) {
+      if (!meta[w[k]->command].is_accessing) {
+        continue;
+      }
+      bool blocked = false;
+      for (size_t j = 0; j < k; j++) {
+        if (w[j]->addr == w[k]->addr) {
+          blocked = true;
+          break;
+        }
+      }
+      if (!blocked) {
+        return w[k];
+      }
+    }
+    return head;
   }
 
   ReqBuffer::iterator get_best_request(ReqBuffer& buffer, RequestFilterRef filter) override {
@@ -42,8 +111,12 @@ class BankFIFORRScheduler : public IScheduler, public Implementation {
     }
     const int num_banks = static_cast<int>(m_heads.size());
     std::fill(m_has_head.begin(), m_has_head.end(), false);
+    for (auto& w : m_window) {
+      w.clear();
+    }
 
-    // Pass 1: the head of every bank's FIFO = its oldest eligible request.
+    // Pass 1: the first peek_depth entries of every bank's FIFO, oldest first
+    // (peek_depth 1: the head alone).
     for (auto it = buffer.begin(); it != buffer.end(); it++) {
       it->command = m_ctrl->get_preq_command(it->final_command, it->addr_vec);
       if (filter && !filter(*it)) {
@@ -53,8 +126,11 @@ class BankFIFORRScheduler : public IScheduler, public Implementation {
       if (bank < 0 || bank >= num_banks) {
         continue;
       }
-      if (!m_has_head[bank] || it->arrive < m_heads[bank]->arrive) {
-        m_heads[bank] = it;
+      offer_to_window(m_window[bank], it);
+    }
+    for (int bank = 0; bank < num_banks; bank++) {
+      if (!m_window[bank].empty()) {
+        m_heads[bank] = bank_head(m_window[bank]);
         m_has_head[bank] = true;
       }
     }

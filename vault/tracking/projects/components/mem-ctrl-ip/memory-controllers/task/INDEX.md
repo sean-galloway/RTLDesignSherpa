@@ -1,22 +1,23 @@
 # memory-controllers — task lane
 
-**Next ID: MC-017** — never recycle a number.
+**Next ID: MC-018** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 2 | in progress right now |
-| [closed/](closed/) | 12 | done (kept for history) |
+| [closed/](closed/) | 13 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-- **MC-016** -- a cross-bank row-hit-first pick for granite's `mixed` window:
-  the model prices strict per-bank FIFOs 11 % under a pooled row-hit-first
-  queue on `mixed` (320 vs 360) and equal everywhere else; granite's two-head
-  store sits between -- model it first, then decide. Filed 2026-11-12 from
-  MC-013 item 4.
+- **MC-017** -- granite's `mixed` window is a direction-policy question: one
+  direction holds the bus for ~50 000 cycles (`rd_lat_max` 52k in sim at
+  pool 8 and 16); granite's union is 20-24 % under the model's strict
+  per-bank FIFO at the same depth while that FIFO is 3-12 % under the best
+  pooled queue. Count the flips, sweep `GRANITE_DIR_BATCH_MAX` at both pool
+  sizes, propose a default or record why not. Filed 2026-11-15 from MC-016.
 
 ## Active
 
@@ -36,6 +37,13 @@
 
 ## Closed
 
+- **MC-016** -- "model the two-head store first": the second head is not a
+  scheduling peek (read only in the pop shadow; its hit is the stored
+  same-row bit), and a real one would buy nothing at AxLEN 8 -- a
+  `peek_depth` on the overlay's `BankFIFO-RR` is bit-identical to the strict
+  FIFO at depths 2 / 4 / 8 on `mixed` at pool 8 / 16 / 32 (the entries behind
+  a head are its own burst). Granite's `mixed` gap is the direction rule, not
+  the queue shape (-> MC-017). No RTL. Closed 2026-11-15.
 - **MC-015** -- "one command slot per AXI write burst" was the FIFO store's
   8-entry write pool: eight slots at a nine-cycle turnaround = 8/9 of a command
   per cycle (686 of 781). A per-hop valid/ready probe (`PERF_W_HOPS`) named it

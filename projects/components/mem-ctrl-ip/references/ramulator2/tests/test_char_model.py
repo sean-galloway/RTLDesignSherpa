@@ -127,6 +127,12 @@ def test_mc013_configs_carry_their_axes():
     assert cm.CONFIGS["open32_scatter"].scatter_interval == 195
     assert cm.CONFIGS["open32_bankrr"].scheduler == "BankFIFO-RR" and not cm.CONFIGS["open32_bankrr"].column_first
     assert cm.CONFIGS["open32_bankrr_col"].column_first
+    assert cm.CONFIGS["open32_bankrr_col"].peek_depth == 1          # the strict FIFO, MC-013's column
+    # MC-016: the two-head store, the four-deep peek and the whole-queue bound, each with column_first
+    assert cm.CONFIGS["open32_bankrr_2h"].peek_depth == 2 and cm.CONFIGS["open32_bankrr_2h"].column_first
+    assert cm.CONFIGS["open8_bankrr_4h"].peek_depth == 4 and cm.CONFIGS["open8_bankrr_4h"].read_buffer == 8
+    assert cm.CONFIGS["open16_bankrr_allh"].peek_depth == 16 and cm.CONFIGS["open16_bankrr_allh"].write_buffer == 16
+    assert cm.CONFIGS["open16_rowhit"].scheduler == "FRFCFS-RowHit" and cm.CONFIGS["open16_rowhit"].read_buffer == 16
     for name, c in cm.CONFIGS.items():
         assert c.name == name and c.note, name
 

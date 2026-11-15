@@ -256,6 +256,8 @@ class ModelConfig:
     refresh: bool = True
     scheduler: str = "FRFCFS"          # FRFCFS | FRFCFS-RowHit | BankFIFO-RR (overlay: per-bank FIFOs, rotor across banks)
     column_first: bool = False         # BankFIFO-RR: a ready column command beats a ready row command
+    peek_depth: int = 1                # BankFIFO-RR: a bank offers a younger row hit from its first peek_depth entries when its
+                                       #   head is a row conflict (1 = the strict FIFO; MC-016's two-head store is 2)
     mc_granular: bool = False          # round every constraint up to 2 CK (the RTL's MC-cycle counters)
     wr_low_wm: float = 0.2             # GenericDDR write-drain hysteresis, fractions of the write queue:
     wr_high_wm: float = 0.8            #   drain writes above high (or when no read waits), back to reads below low
@@ -271,6 +273,9 @@ CONFIGS = {
     # queues the depth of granite's storage-lite seam (GRANITE_SEAM_N = 8 per direction)
     "open8": ModelConfig("open8", read_buffer=8, write_buffer=8,
                          note="as open32 with 8-deep queues (granite's seam depth)"),
+    # the MC-015 pool (GRANITE_NUM_ENTRIES=16 on the board build)
+    "open16": ModelConfig("open16", read_buffer=16, write_buffer=16,
+                          note="as open32 with 16-deep queues (granite's pool at 16, MC-015)"),
     # close the page after every column access: the board's close_page preset
     "closed32": ModelConfig("closed32", row_policy="closed_cap", cap=1,
                             note="FR-FCFS, close after one column access (auto-precharge), 32-deep queues"),
@@ -314,6 +319,37 @@ CONFIGS.update({c.name: c for c in [
             note="as open8 with per-bank FIFO queues and a round-robin pick across the ready bank heads (BankFIFO-RR)"),
     replace(CONFIGS["open8"], name="open8_bankrr_col", scheduler="BankFIFO-RR", column_first=True,
             note="as open8_bankrr with a ready column command preferred over a ready row command"),
+]})
+
+
+def _peek(base: str, depth: int) -> ModelConfig:
+    """MC-016: BankFIFO-RR with column_first and a bank head that yields to a younger row hit within its
+    first `depth` entries when the head is a row conflict. depth 0 = the whole queue (an upper bound:
+    a per-bank pooled hit-first pick); the name carries the depth (`_2h`, `_4h`, `_allh`)."""
+    b = CONFIGS[base]
+    d = b.read_buffer if depth == 0 else depth
+    tag = "allh" if depth == 0 else f"{depth}h"
+    what = ("any younger row hit in the queue" if depth == 0
+            else f"a younger row hit among its first {depth} entries")
+    return replace(b, name=f"{base}_bankrr_{tag}", scheduler="BankFIFO-RR", column_first=True, peek_depth=d,
+                   note=f"as {base}_bankrr_col with a bank head that is a row conflict yielding to {what}")
+
+
+CONFIGS.update({c.name: c for c in [
+    # MC-016: the row-hit-first pooled queue and the strict per-bank FIFO at the 16-deep pool too
+    replace(CONFIGS["open8"], name="open8_rowhit", scheduler="FRFCFS-RowHit",
+            note="as open8 with upstream's FRFCFS-RowHit scheduler"),
+    replace(CONFIGS["open16"], name="open16_rowhit", scheduler="FRFCFS-RowHit",
+            note="as open16 with upstream's FRFCFS-RowHit scheduler"),
+    replace(CONFIGS["open16"], name="open16_bankrr_col", scheduler="BankFIFO-RR", column_first=True,
+            note="as open16 with per-bank FIFO queues, a round-robin pick and a ready column preferred over a ready row"),
+    # MC-016: the two-head store (a bank's second entry fires when the head is a row conflict and it is a hit),
+    # a four-deep peek, and the whole queue as the per-bank upper bound, at every pool depth
+    # 8 and 16 bracket the AXI burst: the trace is one request per beat, so at AxLEN 8 the seven entries
+    # behind a head are its own burst's beats (the same row); a hit behind a conflict is at least 8 deep
+    _peek("open32", 2), _peek("open32", 4), _peek("open32", 8), _peek("open32", 16), _peek("open32", 0),
+    _peek("open16", 2), _peek("open16", 4), _peek("open16", 8), _peek("open16", 0),
+    _peek("open8", 2), _peek("open8", 4), _peek("open8", 0),
 ]})
 
 
@@ -365,7 +401,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False):
                if cfg.refresh else ramulator.refresh_manager.NoRefresh())
     if cfg.scheduler == "BankFIFO-RR":
         # the overlay's scheduler (overlay/src/.../scheduler/impl/bank_fifo_rr.cpp); codegen names the class
-        scheduler = ramulator.scheduler.BankFIFORR(column_first=cfg.column_first)
+        scheduler = ramulator.scheduler.BankFIFORR(column_first=cfg.column_first, peek_depth=cfg.peek_depth)
     else:
         scheduler = {"FRFCFS": ramulator.scheduler.FRFCFS,
                      "FRFCFS-RowHit": ramulator.scheduler.FRFCFSRowHit}[cfg.scheduler]()

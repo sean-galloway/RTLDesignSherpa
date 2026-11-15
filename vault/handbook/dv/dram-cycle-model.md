@@ -200,6 +200,37 @@ Three method points:
   suspected; the model's "both directions reach 781" (above) is what said
   the gap was worth a probe at all.
 
+## The two-head store, modelled -- and the premise read first (2026-11-15, MC-016)
+
+MC-016 asked for a model of granite's two-head store before any RTL
+(`char_results/sim_mc016_two_head_model_2026-11-15.md`). The model step took
+an afternoon and closed the task without RTL; what it left:
+
+- **Read the consumer before modelling the producer.** The task's premise,
+  "the pick can see one record past a conflicting head", came from the
+  store's port list. `mc_bank_pick` reads the second record in one
+  expression under one condition (the pop shadow); its hit is a stored
+  same-row bit. One grep said the RTL is the model's strict FIFO already,
+  and the model was then built to answer the next question (what a real
+  peek would buy) instead of approximating a mechanism that does not exist.
+- **A peek is measured in bursts, not entries.** The overlay's `BankFIFO-RR`
+  got a `peek_depth`; depths 2, 4 and 8 are bit-identical to the strict FIFO
+  on `mixed` at every pool depth, because one store entry is one beat and an
+  AxLEN-8 burst is eight entries of one row. Size any lookahead on a
+  beat-granular queue against AxLEN before sizing it against the pool.
+- **Compare unions on a two-direction window.** MC-013 put granite's 330
+  read cell beside the model's 370 and read a 10 percent gap; both
+  directions' bytes over the longer window read 524 against 740, and the
+  board CSV had carried that union in its notes column all along. The
+  per-direction cells of a mixed window are each measured over their own
+  window and are not the model's shared one.
+- **Say which half of a model's gap transfers.** The pooled queue's gain
+  over the strict FIFO is frontend stall on Ramulator's single in-order
+  stream (conflicts equal, stall ticks five times higher); the RTL's AXI
+  port has two channels. The half that transfers -- the conflicts -- is
+  zero here, and granite's 20-24 percent under its own shape is the
+  direction rule (MC-017).
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the
