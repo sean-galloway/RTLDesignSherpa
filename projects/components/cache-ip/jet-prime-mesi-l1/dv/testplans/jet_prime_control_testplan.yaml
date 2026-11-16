@@ -10,15 +10,20 @@
 # the array hit -- the bounded anti-livelock hold-off, and snoop priority
 # over new CPU accepts) run against the REAL l1_tag_array / l1_data_array
 # / l1_repl / jet_prime_mshr / jet_prime_wb_buffer / jet_prime_rsp_seq with fill/drain
-# engines as handshake-timing-only stubs (the fill stub accepts launches
-# promptly and serves bursts serially in launch order -- the
-# single-AXI4-ID contract) and the TB driving the l1_snoop_resp
-# core-facing snoop contract directly.  Single geometry cell
-# (MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128, WAYS=4); the J7 sweeps are
-# experiments, not unit-TB cells.  GATE runs the full scenario set once;
-# FUNC repeats it with perturbed fill/drain stub latencies plus CD
-# backpressure mid-stream (timing robustness of the launch-hold,
-# stall-release, commit/lookup port-arbitration, and snoop-service paths).
+# engines as handshake-timing-only stubs (the fill stub models
+# jet_prime_fill: launches accepted while fewer than fill_inflight fills
+# are outstanding, each fill's AR issued per entry, bursts served one at a
+# time in a chosen completion order -- in launch order, reversed, or
+# random -- with the done naming the entry; TASK-001 step 2) and the TB
+# driving the l1_snoop_resp core-facing snoop contract directly.  Single
+# geometry cell (MSHR_COUNT=8, VICTIM_DEPTH=2, SETS=128, WAYS=4); the J7
+# sweeps are experiments, not unit-TB cells.  GATE runs the full scenario
+# set once (in-order completion); FUNC repeats it with perturbed
+# fill/drain stub latencies plus CD backpressure mid-stream (timing
+# robustness of the launch-hold, stall-release, commit/lookup
+# port-arbitration, and snoop-service paths), then a third time with the
+# memory side completing fills in RANDOM order and the done landing with
+# the last beat (the engine's own alignment).
 
 module: jet_prime_control
 rtl_files:
@@ -28,8 +33,10 @@ test_files:
 
 # Contract: MAS ch02_blocks/01 + ch02_blocks/05.  One request, one window:
 # tag read (port A) + MSHR CAM + WB match + set claim count classify in
-# the same cycle; one fill completion at a time: D-4 merge, tag install,
-# deferred snoop effect, response deposits, retire.  One snoop at a time:
+# the same cycle; one fill completion at a time, in completion order (the
+# done queue; fills complete in any order, one read ID per entry): D-4
+# merge, tag install, deferred snoop effect, response deposits, retire.
+# One snoop at a time:
 # the grant-cycle CRRESP resolves the three answer sources (WB snarf >
 # pending-fill bypass > array port B), the CD stream serves the selected
 # source (the WB from a grant-cycle snapshot), and the state effect lands
@@ -188,6 +195,26 @@ scenarios:
       keeps the post-fill row's IsShared (never the Invalid row), with
       zero beats landed included; with every beat landed the full M-row
       decode and the fill data stream.
+    status: covered
+  - name: snoop_pre_ar_per_entry
+    level: all
+    what: The pre-AR rule is per entry (TASK-001 step 2).  Two read misses
+      launch; entry A's AR issues, entry B's is held in the transport.  A
+      snoop to B's line is answered at the Invalid row with no effect
+      while a snoop to A's line in the same window is answered from the
+      pending fill (post-fill S row, PF_GUARD-masked).  Releasing B's AR
+      lets both fills complete and install (B is resident afterwards).
+    status: covered
+  - name: fill_concurrent_ooo
+    level: all
+    what: Several fills in flight, completing in any order (TASK-001 step
+      2).  Four read misses to distinct sets launch back to back, each
+      accepted the cycle it is presented and none held behind an earlier
+      fill's done; with every AR issued and nothing done, the burst server
+      serves them in REVERSE order.  The DUT commits them in that
+      completion order (done queue), each commit landing its own entry's
+      beats, tag and deposit; the CPU releases still leave in request
+      order (J4) and every line is resident afterwards.
     status: covered
   - name: snoop_snarf_bresp_race
     level: all
@@ -390,6 +417,12 @@ coverage_points:
 
 gaps:
   - Out-of-range geometry elaboration ($error) fails the build by design.
+  - The fill stub serves one burst at a time (one beat stream, as the
+    memory port); beats of two fills never interleave at the control seam
+    here.  jet_prime_fill's per-slot demux under interleaved R is pinned
+    in test_jet_prime_fill (full); the control's per-entry beat marks
+    under interleaving are exercised by the core/parity tests at full
+    depth.
   - A snoop to the in-flight upgrade's own line before the CLEAN_UNIQUE
     grant is served at the installed S; the effect is not carried into the
     CU commit (amber's killed-upgrade replay needs a CU-commit refetch path

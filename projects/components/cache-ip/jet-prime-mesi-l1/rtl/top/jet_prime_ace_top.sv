@@ -106,6 +106,11 @@ module jet_prime_ace_top
     parameter bit USE_MONITOR    = 1'b1,
     parameter int MSHR_COUNT     = jet_prime_pkg::MSHR_COUNT,
     parameter int VICTIM_DEPTH   = jet_prime_pkg::VICTIM_DEPTH,
+    // fills in flight on the memory port at once (jet_prime_fill, TASK-001
+    // step 2): 1 = the single-outstanding engine jet shipped with (the
+    // pair rig keeps it there until the fabric is rebuilt, step 3);
+    // MSHR_COUNT + 1 = every entry and the upgrade concurrently
+    parameter int FILL_INFLIGHT  = MSHR_COUNT + 1,
     localparam int STRB_W      = BUS_WIDTH / 8,
     localparam int RSP_DEPTH   = MSHR_COUNT + 2,
     localparam int SEQ_W       = $clog2(RSP_DEPTH),
@@ -408,7 +413,8 @@ module jet_prime_ace_top
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
         .USE_MONITOR    (USE_MONITOR),
         .MSHR_COUNT     (MSHR_COUNT),
-        .VICTIM_DEPTH   (VICTIM_DEPTH)
+        .VICTIM_DEPTH   (VICTIM_DEPTH),
+        .FILL_INFLIGHT  (FILL_INFLIGHT)
     ) u_coh (
         .aclk              (aclk),
         .aresetn           (w_aresetn),
@@ -481,6 +487,7 @@ module jet_prime_ace_top
         .fub_axi_bvalid    (fub_bvalid),
         .fub_axi_bready    (fub_bready),
         .fill_ar_done      (m_axi_arvalid & m_axi_arready),
+        .fill_ar_id        (m_axi_arid),
         .coh_req_valid     (coh_req_valid),
         .coh_req_addr      (coh_req_addr),
         .coh_req_type      (coh_req_type),
@@ -706,7 +713,7 @@ module jet_prime_ace_top
     // pattern)
     // ------------------------------------------------------------------
     // pragma translate_off
-    // The launch adapter never lets a fill's beats race the victim
+    // The launch gate never lets a fill's beats race the victim
     // capture (MAS ch02/01 fill-engine contract): no accept while a
     // capture streams, and never on the cycle a dirty-victim capture
     // opens (cap_busy_o rises one cycle later).
@@ -719,17 +726,26 @@ module jet_prime_ace_top
                                    & u_coh.ctrl_mshr_alloc_wb_valid)))
         else $error("jet_prime_ace_top: fill launch accepted on a dirty-victim alloc cycle");
 
-    // The engine is idle exactly when the adapter is not busy.
+    // The engine accepts only a presented launch, and never past its
+    // in-flight cap (jet_prime_fill, TASK-001 step 2).
     assert property (@(posedge aclk) disable iff (!w_aresetn)
-        (u_coh.w_fill_accept |-> !u_coh.r_eng_busy))
-        else $error("jet_prime_ace_top: fill launch accepted while the engine is busy");
+        (u_coh.w_fill_accept |-> u_coh.w_fill_start))
+        else $error("jet_prime_ace_top: fill accept with no launch presented");
 
-    // A held launch is always the pending record's (no same-cycle alloc).
     assert property (@(posedge aclk) disable iff (!w_aresetn)
-        ((u_coh.w_fill_accept & (u_coh.ctrl_fill_cls != JET_CLS_CU)
-          & ~(u_coh.ctrl_mshr_alloc & u_coh.mshr_alloc_gnt))
-         |-> u_coh.r_pend_valid))
-        else $error("jet_prime_ace_top: held fill launch with no pending alloc record");
+        (u_coh.w_fill_accept
+         |-> (u_coh.u_fill.r_inflight < (u_coh.u_fill.SLOT_W+1)'(FILL_INFLIGHT))))
+        else $error("jet_prime_ace_top: fill launch accepted over FILL_INFLIGHT");
+
+    // A data fill's beats land in the launching entry's claimed way (the
+    // launch carried jet_prime_control's claim; the engine returns it).
+    assert property (@(posedge aclk) disable iff (!w_aresetn)
+        (u_coh.eng_fill_beat_valid
+         |-> ((u_coh.eng_fill_beat_set
+               == u_coh.u_control.r_claim_set[u_coh.eng_fill_beat_idx])
+              && (u_coh.eng_fill_beat_way
+                  == u_coh.u_control.r_claim_way[u_coh.eng_fill_beat_idx]))))
+        else $error("jet_prime_ace_top: fill beat outside the entry's claimed (set, way)");
 
     // The on-chip launch stream feeding the fabric plane's l1_ace_issue
     // never drops a fill launch: every accept presents a read-channel

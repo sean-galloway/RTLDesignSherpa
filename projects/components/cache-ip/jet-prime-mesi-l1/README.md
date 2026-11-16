@@ -52,10 +52,15 @@ pipelined fabric, with the DV and formal to carry them.
   reached by `-f` include, exactly as jet reaches it.
 - **No HAS/MAS copy.** jet's books
   ([HAS](../jet-mesi-l1/docs/jet_has/jet_has_index.md),
-  [MAS](../jet-mesi-l1/docs/jet_mas/jet_mas_index.md)) describe jet-prime
-  until the architecture diverges (TASK-001 step 2); module headers keep
-  their `Documentation:` pointers into them. A second identical copy is the
-  one nobody edits.
+  [MAS](../jet-mesi-l1/docs/jet_mas/jet_mas_index.md)) describe everything
+  jet-prime has not changed; module headers keep their `Documentation:`
+  pointers into them. A second identical copy is the one nobody edits.
+  What jet-prime changes is written up as deltas under
+  [`docs/delta/`](docs/delta/), one chapter per divergence:
+  [01 the fill engine](docs/delta/01_fill_engine.md) (TASK-001 step 2:
+  `jet_prime_fill`, one AXI4 read ID per MSHR entry, fills completing in
+  any order; the pair rig stays at one fill in flight until the fabric is
+  rebuilt in step 3).
 - Board measurement: the reference rig's cache slot,
   `projects/fpga-systems/Genesys2/cache-ip/ref` with `REF_CACHE_SEL=2`
   (jet-prime straight onto memory, snoop port tied off).

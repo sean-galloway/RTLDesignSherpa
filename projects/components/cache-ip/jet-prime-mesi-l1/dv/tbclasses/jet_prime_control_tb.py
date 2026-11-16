@@ -169,6 +169,23 @@ class JetControlTB(TBBase):
         self.fill_accept_latency = 0
         self.fill_beat_latency = 2
         self.fill_done_latency = 3
+        # fill engine model (jet_prime_fill, TASK-001 step 2): launches are
+        # accepted while fewer than fill_inflight fills are outstanding;
+        # each accepted fill's AR issues fill_ar_latency cycles later (in
+        # accept order, one per cycle; lines in fill_ar_hold wait until
+        # released); bursts are served one at a time by the burst server
+        # in fill_order ('inorder' | 'reverse' | 'random' -- the memory
+        # side's completion order), held while fill_burst_hold; the done
+        # pulse lands with the last beat when fill_done_with_last and the
+        # done latency is 0 (the engine's own alignment), else
+        # fill_done_latency cycles after it -- a scenario that raises the
+        # latency to open a post-beats window keeps it in every pass
+        self.fill_inflight = self.MSHR_COUNT + 1
+        self.fill_ar_latency = 0
+        self.fill_ar_hold = set()
+        self.fill_order = 'inorder'
+        self.fill_burst_hold = False
+        self.fill_done_with_last = False
         self.drain_latency = 6
         # PassDirty knob: consumed by the fill stub for the NEXT fill served
         self.pass_dirty_next = False
@@ -209,7 +226,8 @@ class JetControlTB(TBBase):
 
         # stub state
         self._fills_started = []   # (line, cls) in launch order
-        self._fill_serve_q = deque()  # accepted fills awaiting their burst
+        self._fill_ar_q = deque()     # accepted fills awaiting their AR issue
+        self._fill_serve_q = deque()  # AR-issued fills awaiting their burst
         self._fills_in_flight = 0
 
         # commit tracking: fills become commits in completion order; the
@@ -299,6 +317,7 @@ class JetControlTB(TBBase):
         await self.start_clock('clk', freq=period_ns, units='ns')
         self._drive_idle()
         cocotb.start_soon(self._fill_accept_stub())
+        cocotb.start_soon(self._fill_ar_stub())
         cocotb.start_soon(self._fill_serve_stub())
         cocotb.start_soon(self._drain_stub())
         cocotb.start_soon(self._release_watch())
@@ -329,7 +348,10 @@ class JetControlTB(TBBase):
         d.fill_beat_idx_i.value = 0
         d.fill_beat_num_i.value = 0
         d.fill_done_i.value = 0
+        d.fill_done_idx_i.value = 0
+        d.fill_done_cls_i.value = 0
         d.fill_ar_done_i.value = 0
+        d.fill_ar_done_idx_i.value = 0
         d.fillbeat_wr_en.value = 0
         d.fillbeat_wr_addr.value = 0
         d.fillbeat_wr_way.value = 0
@@ -420,16 +442,17 @@ class JetControlTB(TBBase):
     # partner stubs (timing only)
     # ------------------------------------------------------------------
     async def _fill_accept_stub(self):
-        """Fill engine accept side: a launch is accepted after
-        fill_accept_latency and queued for the serial burst server
-        (single AXI4 read ID: bursts and completions run in launch order,
-        but launches are accepted promptly -- AR pipelining -- so the
-        one-deep launch-hold register never serializes allocs)."""
+        """Fill engine accept side (jet_prime_fill): a launch is accepted
+        after fill_accept_latency while fewer than fill_inflight fills are
+        outstanding (one AXI4 read ID per entry -- the engine never waits
+        for an earlier fill's done), and queued for the AR issuer."""
         d = self.dut
         while True:
             await self._drive_pt()
             await self._settle()
             if not int(d.fill_start_o.value):
+                continue
+            if self._fills_in_flight >= self.fill_inflight:
                 continue
             addr = int(d.fill_addr_o.value)
             cls = int(d.fill_cls_o.value)
@@ -441,11 +464,16 @@ class JetControlTB(TBBase):
                 await self._settle()
                 self._score("fill: start held until accept",
                             int(d.fill_start_o.value), 1)
+            # the launch names the entry and its claimed set/way (the
+            # engine places the beats itself)
+            launch_idx = int(d.fill_idx_o.value)
+            launch_set = int(d.fill_set_o.value)
+            launch_way = int(d.fill_way_o.value)
             d.fill_accept_i.value = 1
             await self._drive_pt()
             d.fill_accept_i.value = 0
             # PassDirty (RRESP[2]) is consumed by the burst server; the
-            # DUT samples it at fill_done (amber l1_fill contract)
+            # DUT samples it at fill_done
             pd = self.pass_dirty_next
             self.pass_dirty_next = False
             entry = None
@@ -456,29 +484,76 @@ class JetControlTB(TBBase):
                 entry = cands[0]
                 entry['fill_accepted'] = True
                 entry['pass_dirty'] = pd
-            self._fill_serve_q.append((line, cls, entry))
+                self._score(f"fill launch carries the entry index "
+                            f"line={line:#x}", launch_idx, entry['idx'])
+                self._score(f"fill launch carries the claimed set "
+                            f"line={line:#x}", launch_set, entry['set'])
+                self._score(f"fill launch carries the claimed way "
+                            f"line={line:#x}", launch_way, entry['way'])
+            self._fill_ar_q.append((line, cls, entry))
             self._fills_in_flight += 1
 
+    async def _fill_ar_stub(self):
+        """AR issuer: each accepted fill's AR handshakes on the memory side
+        fill_ar_latency cycles after its accept, in accept order, one per
+        cycle (the transport carries one AR handshake a cycle).  A data
+        fill's handshake pulses fill_ar_done_i with the entry index (the
+        pre-AR rule's per-entry progress input); a CU's AR is not an
+        entry's.  Lines in fill_ar_hold wait at the head until released
+        (a scenario's pre-AR window for one entry while others proceed)."""
+        d = self.dut
+        pending = deque()   # (cycle accepted, line, cls, entry)
+        while True:
+            await self._drive_pt()
+            d.fill_ar_done_i.value = 0
+            while self._fill_ar_q:
+                pending.append((self.cyc,) + self._fill_ar_q.popleft())
+            if pending:
+                acc, line, cls, entry = pending[0]
+                if (self.cyc - acc >= self.fill_ar_latency
+                        and line not in self.fill_ar_hold):
+                    pending.popleft()
+                    if entry is not None:
+                        d.fill_ar_done_i.value = 1
+                        d.fill_ar_done_idx_i.value = entry['idx']
+                        entry['ar_issued'] = True
+                    self._note('fill_ar', {'line': line, 'cls': cls})
+                    self._fill_serve_q.append((line, cls, entry))
+            await self._settle()
+
+    def _pick_burst(self):
+        if self.fill_order == 'reverse':
+            return self._fill_serve_q.pop()
+        if self.fill_order == 'random':
+            k = random.randrange(len(self._fill_serve_q))
+            item = self._fill_serve_q[k]
+            del self._fill_serve_q[k]
+            return item
+        return self._fill_serve_q.popleft()
+
     async def _fill_serve_stub(self):
-        """Fill engine burst server: one burst at a time, in accept order.
-        Delivers FILL_BEATS beats into the victim way (never before the
+        """Fill engine burst server: one burst at a time (the memory port
+        returns one line at a time), picked from the AR-issued fills in
+        fill_order -- the memory side's completion order, which with one
+        read ID per entry need not be the accept order.  Delivers
+        FILL_BEATS beats into the entry's claimed way (never before the
         victim capture completes -- the fill-engine contract), strobes the
-        MSHR beat marks, then fill_done (carrying PassDirty) after
-        fill_done_latency.  Each fill_done enqueues the commit the DUT
-        must now perform."""
+        MSHR beat marks, then fill_done naming the entry and class (with
+        PassDirty) either with the last beat or fill_done_latency cycles
+        later.  Each fill_done enqueues the commit the DUT must now
+        perform, in done order."""
         d = self.dut
         while True:
             await self._drive_pt()
             await self._settle()
-            if not self._fill_serve_q:
+            if not self._fill_serve_q or self.fill_burst_hold:
                 continue
-            line, cls, entry = self._fill_serve_q.popleft()
-            # the burst start IS the stub's model of the engine's AR
-            # acceptance (single-outstanding, in accept order): pulse the
-            # pre-AR rule's progress input for exactly one cycle
-            d.fill_ar_done_i.value = 1
-            await self._drive_pt()
-            d.fill_ar_done_i.value = 0
+            line, cls, entry = self._pick_burst()
+            # the done rides the last beat (the engine's own alignment)
+            # only when the pass asks for it AND no scenario has raised the
+            # done latency to open a post-beats window
+            with_last = (self.fill_done_with_last and entry is not None
+                         and self.fill_done_latency == 0)
             if entry is not None:
                 # never write fill beats while a victim capture is reading
                 # the data array (the fill-engine contract)
@@ -508,18 +583,20 @@ class JetControlTB(TBBase):
                     d.fill_beat_idx_i.value = entry['idx']
                     d.fill_beat_num_i.value = b
                     self._note('fill_beat', {'line': line, 'beat': b})
+                    if with_last and b == self.FILL_BEATS - 1:
+                        self._raise_done(line, cls, entry)
                     await self._drive_pt()
                 d.fillbeat_wr_en.value = 0
                 d.fillbeat_wr_be.value = 0
                 d.fill_beat_valid_i.value = 0
-            for _ in range(self.fill_done_latency):
+            if not with_last:
+                # the done is driven at a drive point: a CU (no beat loop)
+                # needs at least one from the pick's settle point
+                for _ in range(max(self.fill_done_latency,
+                                   1 if entry is None else 0)):
+                    await self._drive_pt()
+                self._raise_done(line, cls, entry)
                 await self._drive_pt()
-            d.fill_done_i.value = 1
-            self._note('fill_done', {'line': line, 'cls': cls})
-            if entry is not None:
-                entry['fill_done'] = True
-            self._fills_in_flight -= 1
-            await self._drive_pt()
             d.fill_done_i.value = 0
             d.fill_pass_dirty_i.value = 0
             # enqueue the commit one cycle after the done: a merge accept
@@ -530,6 +607,16 @@ class JetControlTB(TBBase):
                 self._commit_queue.append({'entry': entry})
             else:
                 self._commit_queue.append({'cu': True})
+
+    def _raise_done(self, line, cls, entry):
+        d = self.dut
+        d.fill_done_i.value = 1
+        d.fill_done_cls_i.value = cls
+        d.fill_done_idx_i.value = entry['idx'] if entry is not None else 0
+        self._note('fill_done', {'line': line, 'cls': cls})
+        if entry is not None:
+            entry['fill_done'] = True
+        self._fills_in_flight -= 1
 
     async def _drain_stub(self):
         """Drain engine timing model: drain_start -> drain_latency ->
@@ -769,6 +856,7 @@ class JetControlTB(TBBase):
         self.slot_state[(entry['set'], entry['way'])] = \
             entry['pend'] or exp_state
         entry['committed'] = True
+        entry['commit_cyc'] = self.cyc
         self._note('commit', {'line': entry['line'], 'idx': entry['idx']})
 
     async def _watch_cu_commit(self):
@@ -1168,8 +1256,8 @@ class JetControlTB(TBBase):
                 'idx': int(d.mshr_alloc_idx_o.value),
                 'line': line, 'set': set_idx, 'way': way,
                 'fill_cls': CLS_RU if we else CLS_RNSD,
-                'fill_accepted': False, 'fill_done': False,
-                'committed': False,
+                'fill_accepted': False, 'ar_issued': False,
+                'fill_done': False, 'committed': False,
                 'pass_dirty': False, 'pend': None, 'fill_line_data': None,
                 'requesters': [{'tag': tag, 'we': we, 'beat': beat,
                                 'be': be, 'wdata': wdata}],
@@ -1298,7 +1386,10 @@ class JetControlTB(TBBase):
         self.rel_tag = 0
         self.lru = LruModel(self.SETS, self.WAYS)
         self._fills_started = []
+        self._fill_ar_q = deque()
         self._fill_serve_q = deque()
+        self.fill_ar_hold = set()
+        self.fill_burst_hold = False
         await self._await_init(stray_check=False)
 
     # ------------------------------------------------------------------
@@ -2024,10 +2115,11 @@ class JetControlTB(TBBase):
         await self._await_commit(entry, label='pfg:commit')
         # (c) RNSD fill launched with ZERO beats landed: ReadShared
         # answers the post-fill S row ({IS}) -- never the Invalid row --
-        # with no effect (a fixed-point snoop).  The wait for the fill
-        # accept makes the case post-AR (the Task-9 pre-AR rule answers
-        # an unlaunched fill at the Invalid row -- pinned by
-        # snoop_pre_ar_entry); the zero-beat post-fill row is this pin.
+        # with no effect (a fixed-point snoop).  The wait for the fill's
+        # AR handshake makes the case post-AR (the Task-9 pre-AR rule
+        # answers a fill whose AR has not been accepted at the Invalid row
+        # -- pinned by snoop_pre_ar_entry / snoop_pre_ar_per_entry); the
+        # zero-beat post-fill row is this pin.
         rd = await self._req(self._compose_addr(0x111, 14), 0, 0xFF, 0,
                              label='pfg:rd_miss')
         self._score("pfg: read miss allocs RNSD", rd['cls']['alloc'], 1)
@@ -2035,10 +2127,10 @@ class JetControlTB(TBBase):
         for _ in range(self.REQ_TIMEOUT * 4):
             await self._drive_pt()
             await self._settle()
-            if entry2['fill_accepted']:
+            if entry2['ar_issued']:
                 break
         else:
-            raise RuntimeError("pfg: the fill was never accepted")
+            raise RuntimeError("pfg: the fill's AR never issued")
         res = await self._snoop(entry2['line'], SN_READ_SHARED, 'pfg:rs0',
                                 ref='S', deliver=False)
         self._score("pfg: zero-beat answer is the S row (never Invalid)",
@@ -2088,6 +2180,118 @@ class JetControlTB(TBBase):
                     "invalidated)", rd['cls']['hit'], 1)
         await self._wait_releases(r0, 2)
         self.scenarios['snoop_pre_ar_entry'] = True
+
+    async def _scen_fill_concurrent_ooo(self):
+        """fill_concurrent_ooo (TASK-001 step 2): several fills are in
+        flight at once and complete in any order.  Four read misses to
+        distinct sets launch back to back -- each accepted the cycle it is
+        presented, none held behind an earlier fill's done (the one-deep
+        launch register frees at the accept) -- and the burst server, held
+        until all four are issued, then serves them in REVERSE order.  The
+        DUT must commit them in that completion order (done queue), each
+        commit landing its own entry's beats, tag and deposit, and the CPU
+        releases still leave in request order (J4)."""
+        r0 = self.release_count
+        d = self.dut
+        K = 4
+        saved = (self.fill_accept_latency, self.fill_order,
+                 self.fill_burst_hold)
+        self.fill_accept_latency = 0
+        self.fill_burst_hold = True
+        self.fill_order = 'reverse'
+        recs = []
+        for i in range(K):
+            rec = await self._req(self._compose_addr(0x140 + i, 40 + i),
+                                  0, 0xFF, 0, label=f'ooo:miss{i}')
+            self._score(f"ooo: miss{i} allocs", rec['cls']['alloc'], 1)
+            self._score(f"ooo: miss{i} not held behind an earlier fill",
+                        rec['stalls'] + rec['yields'], 0)
+            recs.append(rec)
+        ents = self.entries[-K:]
+        # every launch accepted and AR-issued with nothing done
+        for _ in range(self.REQ_TIMEOUT):
+            await self._drive_pt()
+            await self._settle()
+            if all(e['ar_issued'] for e in ents):
+                break
+        else:
+            raise RuntimeError("ooo: the fills were never all issued")
+        self._score("ooo: all fills in flight together",
+                    self._fills_in_flight, K)
+        self._score("ooo: nothing done yet",
+                    sum(1 for e in ents if e['fill_done']), 0)
+        self._score("ooo: occupancy", int(d.mshr_occupancy_o.value), K)
+        # release the server: bursts complete last-launched first
+        self.fill_burst_hold = False
+        for e in ents:
+            await self._await_commit(e, label='ooo:commit')
+        order = sorted(range(K), key=lambda i: ents[i]['commit_cyc'])
+        self._score("ooo: commits follow the completion order (reverse "
+                    "of launch)", order, list(reversed(range(K))))
+        await self._wait_releases(r0, K)
+        for i in range(K):
+            hit = await self._req(self._compose_addr(0x140 + i, 40 + i, 3),
+                                  0, 0xFF, 0, label=f'ooo:hit{i}')
+            self._score(f"ooo: line {i} resident after its commit",
+                        hit['cls']['hit'], 1)
+        await self._wait_releases(r0, 2 * K)
+        (self.fill_accept_latency, self.fill_order,
+         self.fill_burst_hold) = saved
+        self.scenarios['fill_concurrent_ooo'] = True
+
+    async def _scen_snoop_pre_ar_per_entry(self):
+        """snoop_pre_ar_per_entry (TASK-001 step 2): the pre-AR rule is
+        per entry.  Two read misses launch; entry A's AR issues, entry B's
+        is held in the transport.  A snoop to B's line is answered at the
+        Invalid row with no effect (pre-AR), while a snoop to A's line in
+        the same window is answered from the pending fill (the post-fill S
+        row, PF_GUARD-masked with no beat landed).  Releasing B's AR lets
+        both fills complete and install."""
+        r0 = self.release_count
+        saved = (self.fill_burst_hold,)
+        self.fill_burst_hold = True   # no beats land during the window
+        ra = await self._req(self._compose_addr(0x150, 44), 0, 0xFF, 0,
+                             label='prear2:missA')
+        self._score("prear2: miss A allocs", ra['cls']['alloc'], 1)
+        ea = self.entries[-1]
+        self.fill_ar_hold.add(self._line_of(self._compose_addr(0x151, 45)))
+        rb = await self._req(self._compose_addr(0x151, 45), 0, 0xFF, 0,
+                             label='prear2:missB')
+        self._score("prear2: miss B allocs", rb['cls']['alloc'], 1)
+        eb = self.entries[-1]
+        for _ in range(self.REQ_TIMEOUT):
+            await self._drive_pt()
+            await self._settle()
+            if ea['ar_issued'] and eb['fill_accepted']:
+                break
+        else:
+            raise RuntimeError("prear2: A's AR never issued")
+        self._score("prear2: B accepted but pre-AR", eb['ar_issued'], False)
+        # B: pre-AR -> the Invalid row, no effect
+        res = await self._snoop(eb['line'], SN_READ_UNIQUE, 'prear2:ru_B',
+                                ref='I', deliver=False)
+        self._score("prear2: B answered at the Invalid row",
+                    res['crresp'], _sn_crresp('I', SN_READ_UNIQUE))
+        self._score("prear2: B records no effect", eb['pend'], None)
+        # A: post-AR -> the pending-fill S row (no beat landed: guarded)
+        res = await self._snoop(ea['line'], SN_READ_SHARED, 'prear2:rs_A',
+                                ref='S', deliver=False)
+        self._score("prear2: A answered at the post-fill S row",
+                    res['crresp'], 0b01000)
+        self._snoop_eff_model(ea, 'S', SN_READ_SHARED)
+        # release B's AR and the bursts; both commit and install
+        self.fill_ar_hold.discard(eb['line'])
+        self.fill_burst_hold = False
+        await self._await_commit(ea, label='prear2:commitA')
+        await self._await_commit(eb, label='prear2:commitB')
+        await self._wait_releases(r0, 2)
+        hb = await self._req(self._compose_addr(0x151, 45, 2), 0, 0xFF, 0,
+                             label='prear2:hitB')
+        self._score("prear2: B installed (not invalidated)",
+                    hb['cls']['hit'], 1)
+        await self._wait_releases(r0, 3)
+        (self.fill_burst_hold,) = saved
+        self.scenarios['snoop_pre_ar_per_entry'] = True
 
     async def _scen_snoop_snarf_bresp_race(self):
         """snoop_snarf_bresp_race (Review Focus 3): a snoop matching a WB
@@ -2536,6 +2740,8 @@ class JetControlTB(TBBase):
         await self._scen_snoop_hit_pending_entry()
         await self._scen_snoop_pf_guard()
         await self._scen_snoop_pre_ar_entry()
+        await self._scen_snoop_pre_ar_per_entry()
+        await self._scen_fill_concurrent_ooo()
         await self._scen_snoop_snarf_bresp_race()
         await self._scen_snoop_priority()
         await self._scen_anti_livelock_window()
@@ -2556,6 +2762,23 @@ class JetControlTB(TBBase):
             self.fill_done_latency = 6
             self.drain_latency = 8
             self.sn_cd_gap = True
+            self.scenarios = {}
+            await self._reset_pipeline()
+            await self._run_all()
+            # third pass: the engine's own alignment (done with the last
+            # beat), the memory side completing fills in random order
+            # (one read ID per entry, TASK-001 step 2), launches accepted
+            # at once -- every scenario under concurrent, out-of-order
+            # fills
+            self.log.info("jet_prime_control: FUNC third pass, random "
+                          "fill completion order + done with the last beat")
+            self.fill_accept_latency = 0
+            self.fill_beat_latency = 1
+            self.fill_done_latency = 0
+            self.fill_done_with_last = True
+            self.fill_order = 'random'
+            self.drain_latency = 6
+            self.sn_cd_gap = False
             self.scenarios = {}
             await self._reset_pipeline()
             await self._run_all()

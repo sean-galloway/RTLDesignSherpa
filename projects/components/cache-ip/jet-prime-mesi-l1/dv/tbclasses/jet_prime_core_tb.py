@@ -3,7 +3,7 @@ jet_prime_top full-core testbench (Task 8)
 
 The pair-rig top integration: jet_prime_control + jet_prime_mshr + jet_prime_wb_buffer +
 jet_prime_rsp_seq composed with the REAL common-ip slice (l1_cpu_frontend,
-l1_tag_array, l1_data_array, l1_repl, l1_fill, l1_drain, l1_snoop_resp,
+l1_tag_array, l1_data_array, l1_repl, jet_prime_fill, l1_drain, l1_snoop_resp,
 l1_monlite) and the house axi4_master_*_monlite transports + monbus
 arbiter.  The harness (dv/tb/jet_prime_core_th.sv) is a pure structural
 wrapper: the DUT boundary IS jet_prime_top's external shape.  The memory side
@@ -186,9 +186,13 @@ class JetCoreTB(L1ControlTB):
         self.entries = {}          # line -> entry dict (pending fills)
         self.entry_by_idx = {}     # mshr idx -> line
         self.unlaunched = deque()  # alloc order (launch order == alloc)
-        # fill-completion order: {'kind':'entry','e':...,'done':bool} /
-        # {'kind':'cu','done':bool}
+        # fills in flight, launch order: {'kind':'entry','e':...,'done':bool}
+        # / {'kind':'cu','done':bool}.  Completion is by entry index (one
+        # read ID per entry, jet_prime_fill): a done moves its item from
+        # launch_q to done_q, and the commit pipeline consumes done_q in
+        # order (the DUT's done queue).
         self.launch_q = deque()
+        self.done_q = deque()
         self.upgr = {'valid': False, 'line': None, 'set': 0, 'way': 0,
                      'killed': False}
         self.wb = {}               # line -> content bytes (capture snapshot)
@@ -636,21 +640,26 @@ class JetCoreTB(L1ControlTB):
                 self._mon_snoop_grant(u, uc)
 
             # 3b. fill AR acceptance (the Task-9 pre-AR rule's progress
-            #     input): the engine's outstanding AR belongs to the
-            #     oldest un-done entry launch.  Observed AFTER the grant:
-            #     a grant in the AR-handshake cycle still sees pre-AR
-            #     (r_ar_done registers at the cycle's end).
+            #     input): ARID names the entry (the CU slot, MSHR_COUNT,
+            #     names no entry).  Observed AFTER the grant: a grant in
+            #     the AR-handshake cycle still sees pre-AR (r_ar_done
+            #     registers at the cycle's end).
             if int(d.m_axi_arvalid.value) and int(d.m_axi_arready.value):
-                for item in self.launch_q:
-                    if not item['done'] and item['kind'] == 'entry':
-                        item['e']['ar'] = True
-                        # fabric resolution: the fill's data source is the
-                        # memory image at the read's issue (the fabric stub
-                        # serves the AR from the memory model), merged with
-                        # the requester slots at the commit
-                        if item['e']['src'] is None:
-                            item['e']['src'] = self._mem_line(item['e']['line'])
-                        break
+                arid = int(d.m_axi_arid.value)
+                item = self._launch_item(arid)
+                if arid < self.MSHR_COUNT and item is None:
+                    self._score("AR for an entry with no launch in flight",
+                                arid, None)
+                elif item is not None:
+                    self._score(f"AR for entry {arid} already accepted",
+                                item['e']['ar'], False)
+                    item['e']['ar'] = True
+                    # fabric resolution: the fill's data source is the
+                    # memory image at the read's issue (the fabric stub
+                    # serves the AR from the memory model), merged with
+                    # the requester slots at the commit
+                    if item['e']['src'] is None:
+                        item['e']['src'] = self._mem_line(item['e']['line'])
 
             # 4. fill beats (registered into beats_rcvd at the cycle's
             #    end -- after the grant resolution)
@@ -663,15 +672,22 @@ class JetCoreTB(L1ControlTB):
                 else:
                     e = self.entries[line]
                     e['beats'].add(num)
-                    got = int(u.u_coh.u_fill.fill_beat_data.value)
+                    got = int(u.u_coh.u_fill.fill_beat_data_o.value)
+                    bset = int(u.u_coh.u_fill.fill_beat_set_o.value)
+                    bway = int(u.u_coh.u_fill.fill_beat_way_o.value)
                     self._tr('fill_beat', line=line, idx=idx, num=num,
-                             set=int(u.u_coh.r_flight_set.value),
-                             way=int(u.u_coh.r_flight_way.value), data=got)
+                             set=bset, way=bway, data=got)
+                    self._score(f"fill beat set line={line:#x} b{num}",
+                                bset, e['set'])
+                    self._score(f"fill beat way line={line:#x} b{num}",
+                                bway, e['way'])
+                    self._score(f"fill beat order line={line:#x} b{num}",
+                                num, len(e['beats']) - 1)
                     self._score(f"fill beat data line={line:#x} b{num}",
                                 got, self._beat_of_line(
                                     self._mem_line(line), num))
 
-            # 5. fill_done: oldest un-done launch completes; PassDirty
+            # 5. fill_done: the named entry (or the CU) completes; PassDirty
             if int(uc.fill_done_i.value):
                 self._mon_fill_done(uc)
 
@@ -751,11 +767,11 @@ class JetCoreTB(L1ControlTB):
                     self._score("retire of an unknown entry", idx, None)
                 else:
                     self.entries.pop(line, None)
-                if not self.launch_q or self.launch_q[0]['kind'] != 'entry':
+                if not self.done_q or self.done_q[0]['kind'] != 'entry':
                     self._score("retire while the commit head is not an "
                                 "entry", 1, 0)
                 else:
-                    e = self.launch_q.popleft()['e']
+                    e = self.done_q.popleft()['e']
                     self._score("retire matches the commit head",
                                 line, e['line'])
                 self.committing = None
@@ -875,20 +891,45 @@ class JetCoreTB(L1ControlTB):
         self.entry_by_idx[idx] = line
         self.unlaunched.append(e)
 
+    def _launch_item(self, idx):
+        """The in-flight launch of MSHR entry idx (None for the CU slot
+        or an entry with no launch outstanding)."""
+        for item in self.launch_q:
+            if item['kind'] == 'entry' and item['e']['idx'] == idx:
+                return item
+        return None
+
     def _mon_fill_done(self, uc):
         pd = int(uc.fill_pass_dirty_i.value)
-        self._tr('fill_done', pd=pd, launch_q=' '.join(
-            f"{c['e']['line']:#x}{'*' if c['done'] else ''}"
-            if c['kind'] == 'entry' else 'cu' for c in self.launch_q))
-        # the oldest un-done launch completes (in-order, single read ID)
-        for c in self.launch_q:
-            if not c['done']:
-                c['done'] = True
-                if c['kind'] == 'entry':
-                    c['e']['done'] = True
-                    c['e']['pd'] = pd
-                return
-        self._score("fill_done with no outstanding launch", 1, 0)
+        idx = int(uc.fill_done_idx_i.value)
+        cls = int(uc.fill_done_cls_i.value)
+        self._tr('fill_done', pd=pd, idx=idx, cls=cls, launch_q=' '.join(
+            f"{c['e']['line']:#x}" if c['kind'] == 'entry' else 'cu'
+            for c in self.launch_q))
+        # the named launch completes (one read ID per entry: any order)
+        # and joins the done queue the commit pipeline consumes in order
+        if cls == JET_CLS_CU:
+            for c in self.launch_q:
+                if c['kind'] == 'cu':
+                    self.launch_q.remove(c)
+                    c['done'] = True
+                    self.done_q.append(c)
+                    return
+            self._score("CU fill_done with no CU launch in flight", 1, 0)
+            return
+        item = self._launch_item(idx)
+        if item is None:
+            self._score("fill_done for an entry with no launch in flight",
+                        idx, None)
+            return
+        self._score(f"fill_done entry {idx} class", cls, item['e']['cls'])
+        self._score(f"fill_done entry {idx} after every beat",
+                    len(item['e']['beats']), self.FILL_BEATS)
+        self.launch_q.remove(item)
+        item['done'] = True
+        item['e']['done'] = True
+        item['e']['pd'] = pd
+        self.done_q.append(item)
 
     def _mon_tag_wr(self, uc, init):
         way_oh = int(uc.tag_a_wr_way_onehot_o.value)
@@ -908,7 +949,7 @@ class JetCoreTB(L1ControlTB):
             return   # the D-3 walk: every slot to I (model starts there)
         if cmt == C_INSTALL:
             # the fill commit's install write
-            head = self.launch_q[0] if self.launch_q else None
+            head = self.done_q[0] if self.done_q else None
             if head is None or head['kind'] != 'entry':
                 self._score("C_INSTALL with no entry at the commit head",
                             1, 0)
@@ -983,8 +1024,8 @@ class JetCoreTB(L1ControlTB):
                 self.way_data.pop((u['set'], way), None)
             self.upgr = {'valid': False, 'line': None, 'set': 0, 'way': 0,
                          'killed': False}
-            if self.launch_q and self.launch_q[0]['kind'] == 'cu':
-                self.launch_q.popleft()
+            if self.done_q and self.done_q[0]['kind'] == 'cu':
+                self.done_q.popleft()
             else:
                 self._score("CU install but the commit head is not CU",
                             1, 0)

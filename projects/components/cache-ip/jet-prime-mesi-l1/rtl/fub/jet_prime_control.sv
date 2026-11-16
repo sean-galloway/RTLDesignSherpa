@@ -12,8 +12,9 @@
 //   (the tag read on port A, the MSHR CAM match, the WB-buffer match, and
 //   the set's victim-way claim count all visible in the same cycle, the
 //   PoS), classified HIT / MERGE / MISS_ALLOC / STALL with the J6 stall
-//   sub-reasons.  Commit: on fill_done for the head of the completion
-//   queue (fill-engine order = launch order, single AXI4 read ID), the
+//   sub-reasons.  Commit: on the head of the done queue (fills complete in
+//   any order -- one AXI4 read ID per MSHR entry, jet_prime_fill -- and
+//   queue in completion order), the
 //   four MAS steps in order -- D-4 store-data merge onto the just-filled
 //   beats, tag install (S for RNSD unless PassDirty, M otherwise: amber's
 //   #106 rule; M for a write fill), deferred snoop effect applied AFTER
@@ -100,9 +101,13 @@
 //
 //   Commit pipeline (one fill completion at a time, in completion order):
 //   a small FSM walks C_MERGE -> C_INSTALL -> [C_PEND] -> C_DEPOSIT ->
-//   C_RETIRE.  The completing entry is identified by the launch-order
-//   completion queue (single AXI4 read ID: fills, including the
-//   no-data CLEAN_UNIQUE upgrades, complete in launch order).  At the
+//   C_RETIRE.  The completing entry is identified by the done queue:
+//   jet_prime_fill reports each completion with its entry index and class
+//   (one AXI4 read ID per entry, so fills -- including the no-data
+//   CLEAN_UNIQUE upgrade -- complete in whatever order the memory side
+//   returns them), and the queue hands them to the commit in that order
+//   (TASK-001 step 2; jet's launch-order completion queue assumed a
+//   single read ID).  At the
 //   commit start the entry's line/pend_eff/merge-list are snapshot from
 //   the jet_prime_mshr commit read port (one cycle; merges hold that cycle --
 //   the port is otherwise the lookup stage's merge-room probe).  The
@@ -134,14 +139,17 @@
 //     port A read : commit read-beat capture > read hits (held)
 //
 //   Fill-engine contract: the engine must not write an entry's fill beats
-//   before that entry's victim capture has completed.  Since captures run
-//   in alloc order and fills launch in the same order, the simple engine
-//   rule is: start no beat stream while cap_busy_o is high.  jet_prime_control
-//   owns the launch but cannot gate the engine's W-port drives, so the
-//   contract is enforced at the launch: jet_prime_top's fill-launch adapter
-//   accepts a launch only when the engine is idle AND cap_busy_o is low
-//   AND the cycle is not a dirty-victim alloc (Task 8; the unit TB's stub
-//   models the same rule).
+//   before that entry's victim capture has completed.  jet_prime_control
+//   owns the launch but not the engine's W-port drives, so the contract is
+//   enforced at the launch: the plane (jet_prime_coh_core) gates the
+//   engine's start with cap_busy_o low AND the cycle not a dirty-victim
+//   alloc.  Allocs hold while a launch pends, so the capture running when
+//   a launch is refused is always the launching entry's own; an earlier
+//   entry's beats landing during a later entry's capture hit a different
+//   claimed (set, way) by the claim-aware victim check.  Several fills are
+//   in flight at once (jet_prime_fill, one read ID per entry); the launch
+//   register still holds one unaccepted launch at a time (the unit TB's
+//   stub models the same rules).
 //
 //   The snoop path (Task 7, MAS ch02_blocks/05): one snoop at a time on
 //   the l1_snoop_resp core-facing contract (the AC accept cycle is the
@@ -160,8 +168,9 @@
 //   shadow this module keeps as the record's only driver).  Task 9 adds
 //   the pre-AR boundary to that
 //   answer (the amber BUG-002 analog): an entry whose fill AR has not
-//   been accepted yet -- launch unaccepted, or the engine's AR
-//   outstanding (fill_ar_done_i low) -- is answered at the Invalid row
+//   been accepted on the memory side yet -- launch unaccepted, or its AR
+//   still in the transport (per-entry r_ar_done low; the AR handshake
+//   carries the entry's read ID) -- is answered at the Invalid row
 //   with no data and no effect.  On the pair rig the fabric holds such an
 //   AR until the snooping transaction completes, so the fill's data
 //   necessarily post-dates the snoop; since jet has no replay path, the
@@ -416,20 +425,32 @@ module jet_prime_control
     output logic                        sn_cdvalid_o,
     input  logic                        sn_cdready_i,
 
-    // fill engine launch + beat-stream observation + completion
+    // fill engine launch (jet_prime_fill: start held until accept; the
+    // launch carries the entry and its claimed set/way so the engine can
+    // place the beats itself)
     output logic                        fill_start_o,
     output logic [ADDR_WIDTH-1:0]       fill_addr_o,
     output logic [1:0]                  fill_cls_o,
+    output logic [MW-1:0]               fill_idx_o,
+    output logic [SET_W-1:0]            fill_set_o,
+    output logic [WAY_W-1:0]            fill_way_o,
     input  logic                        fill_accept_i,
-    input  logic                        fill_pass_dirty_i,
+    // beat-stream observation (any in-flight entry, any interleaving)
     input  logic                        fill_beat_valid_i,
     input  logic [MW-1:0]               fill_beat_idx_i,
     input  logic [BEAT_W-1:0]           fill_beat_num_i,
+    // completion: with the entry's last beat (a CU with its no-data beat),
+    // in whatever order the fills complete; PassDirty accumulated over
+    // the burst
     input  logic                        fill_done_i,
-    // the in-flight fill's AR acceptance on the memory side (the
-    // transport/m_axi handshake, from the rig top): the pre-AR snoop
-    // rule's progress input -- see the snoop-path note in the header
+    input  logic [MW-1:0]               fill_done_idx_i,
+    input  logic [1:0]                  fill_done_cls_i,
+    input  logic                        fill_pass_dirty_i,
+    // a data fill's AR acceptance on the memory side (the transport/m_axi
+    // handshake, from the rig top, decoded to the entry by its read ID):
+    // the pre-AR snoop rule's progress input -- see the snoop-path note
     input  logic                        fill_ar_done_i,
+    input  logic [MW-1:0]               fill_ar_done_idx_i,
 
     // commit pipeline observability
     output logic                        cmt_busy_o,
@@ -531,12 +552,10 @@ module jet_prime_control
     logic [ADDR_WIDTH-1:0]   r_fill_addr;
     logic [1:0]              r_fill_cls;
     logic [MW-1:0]           r_fill_idx;
-    // in-flight fill's AR acceptance (Task 9, the pre-AR rule): set by
-    // fill_ar_done_i, cleared at fill_done_i.  The engine is
-    // single-outstanding and ARs issue in launch (completion-queue)
-    // order, so the AR in flight belongs to the oldest un-done
-    // completion-queue fill.
-    logic                    r_ar_done;
+    // per-entry AR acceptance (Task 9, the pre-AR rule): set by
+    // fill_ar_done_i for fill_ar_done_idx_i, cleared at the entry's
+    // retire (so a reused entry starts pre-AR)
+    logic [MSHR_COUNT-1:0]   r_ar_done;
     // drain arbiter: present drain_start when the WB head is valid and no
     // drain is outstanding (the real l1_drain samples it in D_IDLE, Task 8)
     logic                    r_drain_busy;
@@ -566,17 +585,14 @@ module jet_prime_control
     // per-entry fill-done flags: an entry whose fill completed is
     // committing (or queued to) -- merges onto it are the commit stall
     logic [MSHR_COUNT-1:0]   r_efill_done;
-    // fill-completion queue (launch order == completion order, single
-    // AXI4 read ID): which entry/upgrade each fill_done_i belongs to
+    // done queue (completion order): which entry/upgrade completed, with
+    // its class and PassDirty, awaiting the commit pipeline
     logic [FQ_W-1:0]         r_fq_head;
     logic [FQ_W-1:0]         r_fq_tail;
-    logic [FQ_W-1:0]         r_fq_done_ptr;
     logic [FQ_W:0]           r_fq_cnt;
-    logic [FQ_W:0]           r_fq_undone;
     logic [MW-1:0]           r_fq_idx  [FQ_DEPTH];
     logic [1:0]              r_fq_cls  [FQ_DEPTH];
     logic                    r_fq_pd   [FQ_DEPTH];
-    logic                    r_fq_done [FQ_DEPTH];
     // requester sideband: per entry, per merge-list slot, the data the
     // commit needs -- the D-4 store payload for writes, the beat for reads
     // Written once per cycle (alloc and merge are exclusive), read once per
@@ -952,19 +968,14 @@ module jet_prime_control
     // has no replay path, so recording a pend_eff here would silently
     // drop a write fill's merge at the commit (the killed-write-fill
     // demote corner) -- answering I keeps the corner off the rig.  An
-    // entry is pre-AR while its launch is unaccepted (the hold register
-    // or the presenting fast path) and while the engine's AR for it is
-    // outstanding (the oldest un-done completion-queue fill).
+    // entry is pre-AR until its own AR handshakes on the memory side
+    // (per-entry r_ar_done, set by the ID-decoded handshake, cleared at
+    // the retire): that covers the unaccepted launch (hold register or
+    // fast path) and an AR queued in the transport behind other fills.
     logic [MW-1:0] w_launch_idx;
     logic          w_mshr_pre_ar;
     assign w_launch_idx = r_fill_pend ? r_fill_idx : mshr_alloc_idx_i;
-    assign w_mshr_pre_ar =
-        mshr_sn_match_i
-        & ((fill_start_o & (fill_cls_o != JET_CLS_CU)
-            & (mshr_sn_match_idx_i == w_launch_idx))
-           | ((r_fq_undone != '0) & ~r_ar_done
-              & (r_fq_cls[r_fq_done_ptr] != JET_CLS_CU)
-              & (mshr_sn_match_idx_i == r_fq_idx[r_fq_done_ptr])));
+    assign w_mshr_pre_ar = mshr_sn_match_i & ~r_ar_done[mshr_sn_match_idx_i];
     assign w_src_mshr  = ~w_src_wb & mshr_sn_match_i & ~w_mshr_pre_ar;
     // A pre-AR pending fill to the snoop line supersedes the array: the
     // tag still shows the old (doomed) copy, but the line is being re-
@@ -1017,11 +1028,10 @@ module jet_prime_control
     // safe (AC-accept) windows: all bounded; the commit window expression
     // is "some fill is done but its commit hasn't retired" (covers the
     // active commit too -- the pop lands at the retire), plus the grant
-    // cycle of a CU completion (fill_done_i marks the oldest un-done fill
-    // -- the completion queue resolves its class combinationally)
-    assign w_any_done      = (r_fq_cnt != r_fq_undone);
-    assign w_cu_completing = fill_done_i
-                             & (r_fq_cls[r_fq_done_ptr] == JET_CLS_CU);
+    // cycle of a CU completion (the engine reports the completing fill's
+    // class with the done)
+    assign w_any_done      = (r_fq_cnt != '0);
+    assign w_cu_completing = fill_done_i & (fill_done_cls_i == JET_CLS_CU);
     assign sn_safe_o  = ~r_init_busy & (r_sn_state == SN_IDLE)
                         & ~w_any_done & ~w_cap_active & ~w_cu_completing
                         // a pended write hit's array/tag write has not
@@ -1153,9 +1163,9 @@ module jet_prime_control
     logic [TAG_W-1:0]  w_cmt_tag;
     logic [TAG_W-1:0]  w_upgr_tag;
 
-    // a fill_done_i always lands on the oldest un-done in-flight fill
-    // (in-order completion); the commit starts when the head is done
-    assign w_fq_head_done = (r_fq_cnt != '0) & r_fq_done[r_fq_head];
+    // the done queue holds completed fills only; the commit starts when
+    // it is non-empty
+    assign w_fq_head_done = (r_fq_cnt != '0);
 
     // the snapshot cycle drives the jet_prime_mshr commit read port with the
     // head entry's index (the lookup stage owns the port otherwise)
@@ -1467,10 +1477,9 @@ module jet_prime_control
     )
 
     // ------------------------------------------------------------------
-    // Fill launch (held until fill_accept_i) + completion-queue push.
-    // Fills complete in launch order (single AXI4 read ID), so the queue
-    // tells the commit pipeline which entry/upgrade each fill_done_i
-    // belongs to.
+    // Fill launch (held until fill_accept_i).  The launch carries the
+    // entry index and its claimed set/way (jet_prime_fill places the beats
+    // itself); the done queue is pushed at fill_done_i (sequential block).
     // ------------------------------------------------------------------
     logic                  w_launch;
     logic [ADDR_WIDTH-1:0] w_launch_addr;
@@ -1485,8 +1494,12 @@ module jet_prime_control
     assign fill_start_o = r_fill_pend | w_launch;
     assign fill_addr_o  = r_fill_pend ? r_fill_addr : w_launch_addr;
     assign fill_cls_o   = r_fill_pend ? r_fill_cls  : w_launch_cls;
+    assign fill_idx_o   = w_launch_idx;
+    assign fill_set_o   = r_fill_pend ? r_claim_set[r_fill_idx] : w_req_set;
+    assign fill_way_o   = r_fill_pend ? r_claim_way[r_fill_idx]
+                                      : repl_victim_way_i;
 
-    assign w_fq_push = fill_start_o & fill_accept_i;
+    assign w_fq_push = fill_done_i;
     assign w_fq_pop  = w_cmt_retire | (r_cmt_state == C_CU_DEPOSIT);
 
     // ------------------------------------------------------------------
@@ -1702,7 +1715,7 @@ module jet_prime_control
             r_fill_addr  <= '0;
             r_fill_cls   <= '0;
             r_fill_idx   <= '0;
-            r_ar_done    <= 1'b0;
+            r_ar_done    <= '0;
             r_drain_busy <= 1'b0;
             r_upgr_valid <= 1'b0;
             r_upgr_line  <= '0;
@@ -1718,9 +1731,7 @@ module jet_prime_control
             r_efill_done <= '0;
             r_fq_head    <= '0;
             r_fq_tail    <= '0;
-            r_fq_done_ptr <= '0;
             r_fq_cnt     <= '0;
-            r_fq_undone  <= '0;
             r_cmt_state  <= C_IDLE;
             r_cmt_idx    <= '0;
             r_cmt_line   <= '0;
@@ -1752,7 +1763,6 @@ module jet_prime_control
                 r_fq_idx[q]  <= '0;
                 r_fq_cls[q]  <= '0;
                 r_fq_pd[q]   <= 1'b0;
-                r_fq_done[q] <= 1'b0;
             end
         end else begin
             // D-3 init walk: one set per cycle
@@ -1791,14 +1801,11 @@ module jet_prime_control
             end else if (fill_accept_i) begin
                 r_fill_pend <= 1'b0;
             end
-            // in-flight fill's AR acceptance (the pre-AR rule's progress
-            // input): the AR handshake belongs to the oldest un-done
-            // completion-queue fill; the next fill's AR cannot issue
-            // before the current fill's done (single-outstanding engine)
-            if (fill_done_i) begin
-                r_ar_done <= 1'b0;
-            end else if (fill_ar_done_i) begin
-                r_ar_done <= 1'b1;
+            // per-entry AR acceptance (the pre-AR rule's progress input):
+            // set by the ID-decoded memory-side handshake, cleared when
+            // the entry retires (below, with the claim)
+            if (fill_ar_done_i) begin
+                r_ar_done[fill_ar_done_idx_i] <= 1'b1;
             end
             // drain arbiter stub
             if (drain_start_o) begin
@@ -1851,33 +1858,24 @@ module jet_prime_control
             if (w_cmt_retire) begin
                 r_claim_vld[r_cmt_idx]  <= 1'b0;
                 r_efill_done[r_cmt_idx] <= 1'b0;
+                r_ar_done[r_cmt_idx]    <= 1'b0;
             end
             // requester sideband (r_req_*): written in the reset-free
             // payload block below -- slot 0 at the alloc, the append slot
             // (the pre-append merge count) at a merge
-            // fill-completion queue: push at the launch accept, mark done
-            // at fill_done_i (oldest un-done, in order), pop at the
-            // commit's retire (or the CU deposit)
+            // done queue: push at fill_done_i (the engine's entry index,
+            // class and PassDirty), pop at the commit's retire (or the CU
+            // deposit)
             if (w_fq_push) begin
-                r_fq_idx[r_fq_tail]  <= r_fill_pend ? r_fill_idx
-                                                    : mshr_alloc_idx_i;
-                r_fq_cls[r_fq_tail]  <= r_fill_pend ? r_fill_cls
-                                                    : w_launch_cls;
-                r_fq_done[r_fq_tail] <= 1'b0;
+                r_fq_idx[r_fq_tail] <= fill_done_idx_i;
+                r_fq_cls[r_fq_tail] <= fill_done_cls_i;
+                r_fq_pd[r_fq_tail]  <= fill_pass_dirty_i;
+                if (fill_done_cls_i != JET_CLS_CU)
+                    r_efill_done[fill_done_idx_i] <= 1'b1;
                 if (r_fq_tail == FQ_W'(FQ_DEPTH - 1))
                     r_fq_tail <= '0;
                 else
                     r_fq_tail <= r_fq_tail + 1'b1;
-            end
-            if (fill_done_i) begin
-                r_fq_done[r_fq_done_ptr] <= 1'b1;
-                r_fq_pd[r_fq_done_ptr]   <= fill_pass_dirty_i;
-                if (r_fq_cls[r_fq_done_ptr] != JET_CLS_CU)
-                    r_efill_done[r_fq_idx[r_fq_done_ptr]] <= 1'b1;
-                if (r_fq_done_ptr == FQ_W'(FQ_DEPTH - 1))
-                    r_fq_done_ptr <= '0;
-                else
-                    r_fq_done_ptr <= r_fq_done_ptr + 1'b1;
             end
             if (w_fq_pop) begin
                 if (r_fq_head == FQ_W'(FQ_DEPTH - 1))
@@ -1889,11 +1887,6 @@ module jet_prime_control
                 2'b10:   r_fq_cnt <= r_fq_cnt + 1'b1;
                 2'b01:   r_fq_cnt <= r_fq_cnt - 1'b1;
                 default: ;  // 00: no event; 11: push+pop net to hold
-            endcase
-            case ({w_fq_push, fill_done_i})
-                2'b10:   r_fq_undone <= r_fq_undone + 1'b1;
-                2'b01:   r_fq_undone <= r_fq_undone - 1'b1;
-                default: ;
             endcase
             // snoop service: the grant latches the context (a WB snarf
             // snapshots the whole line -- the entry may retire mid-stream
@@ -2120,15 +2113,24 @@ module jet_prime_control
         (mshr_alloc_o |-> mshr_alloc_gnt_i))
         else $error("jet_prime_control: alloc driven but refused by the MSHR file");
 
-    // fill_done always matches an outstanding un-done fill (in-order
-    // completion, single AXI4 read ID).
+    // fill_done always names a live, not-yet-done entry (or the in-flight
+    // upgrade for a CU).
     assert property (@(posedge clk) disable iff (!rst_n)
-        (fill_done_i |-> (r_fq_undone != '0)))
-        else $error("jet_prime_control: fill_done with no outstanding un-done fill");
+        (fill_done_i |-> ((fill_done_cls_i == JET_CLS_CU)
+                          ? r_upgr_valid
+                          : (r_claim_vld[fill_done_idx_i]
+                             & ~r_efill_done[fill_done_idx_i]))))
+        else $error("jet_prime_control: fill_done for an entry not in flight");
 
-    // The completion queue never overflows: an MSHR entry is free (so the
-    // head was popped, freeing its queue slot) before an alloc can launch
-    // a fill, and the single upgrade's slot frees with the tracker.
+    // An AR handshake names a live entry whose AR was not yet accepted.
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (fill_ar_done_i |-> (r_claim_vld[fill_ar_done_idx_i]
+                             & ~r_ar_done[fill_ar_done_idx_i])))
+        else $error("jet_prime_control: AR handshake for an entry not awaiting one");
+
+    // The done queue never overflows: every entry contributes at most one
+    // completion (its slot frees at the retire's pop) and the single
+    // upgrade one (freed at the CU deposit's pop).
     assert property (@(posedge clk) disable iff (!rst_n)
         ((w_fq_push & ~w_fq_pop) |-> (r_fq_cnt < (FQ_W+1)'(FQ_DEPTH))))
         else $error("jet_prime_control: fill-completion queue overflow");

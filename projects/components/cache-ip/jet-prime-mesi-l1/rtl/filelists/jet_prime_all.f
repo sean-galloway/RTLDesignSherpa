@@ -8,6 +8,7 @@
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_wb_buffer.f
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_rsp_seq.f
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_control.f
+-f $JET_PRIME_ROOT/rtl/filelists/jet_prime_fill.f
 
 # Task 4: the jet planes + the recomposed pair-rig top (the plane
 # filelists come in through jet_prime_top.f / jet_prime_ace_top.f)

@@ -1,0 +1,121 @@
+# Testplan for jet_prime_fill (the multi-outstanding fill engine)
+# jet-prime TASK-001 step 2: one AXI4 read ID per MSHR entry (plus the
+# no-data upgrade slot), R demuxed by ID, beats placed by the launch's
+# claimed set/way, completion with the slot's last beat in whatever order
+# the memory side returns the bursts.  Pin-level stimulus on the launch
+# seam against the house AXI4 slave read BFM (MemoryModel-backed), scored
+# per launch by the TB's own monitor.  Two cells: the engine at its full
+# depth (FILL_INFLIGHT = MSHR_COUNT + 1) and at FILL_INFLIGHT = 1, the
+# single-outstanding contract the pair fabric relies on until step 3.
+
+module: jet_prime_fill
+rtl_files:
+  - projects/components/cache-ip/jet-prime-mesi-l1/rtl/fub/jet_prime_fill.sv
+test_files:
+  - projects/components/cache-ip/jet-prime-mesi-l1/dv/tests/test_jet_prime_fill.py
+
+# Contract: docs/delta/01_fill_engine.md.  fill_accept_o = start & AR
+# register free & in-flight room & slot free; ARID = slot; ARLEN =
+# FILL_BEATS-1 (0 for a CU); beats presented from a DEPTH-4 staging queue
+# with the slot's own beat counter, set and way; fill_done_o with the last
+# beat naming the entry, class and accumulated PassDirty.
+
+parameters:
+  - name: MSHR_COUNT
+    default: jet_prime_pkg.MSHR_COUNT (8)
+    description: J1 outstanding misses; SLOTS = MSHR_COUNT + 1
+  - name: FILL_INFLIGHT
+    default: MSHR_COUNT + 1
+    description: accepted-not-done fills at once, 1..SLOTS (1 = jet's single-outstanding engine)
+  - name: ADDR_WIDTH / SETS / WAYS / LINE_BYTES / BUS_WIDTH
+    default: l1_pkg defaults (32/128/4/64/64)
+    description: geometry shared with the arrays (FILL_BEATS = 8)
+  - name: AXI_ID_WIDTH / AXI_USER_WIDTH
+    default: 8 / 1
+    description: fub_axi id/user widths; 2**AXI_ID_WIDTH must cover SLOTS
+
+scenarios:
+  - name: single_fill
+    level: all
+    what: One RNSD launch is accepted the cycle it is presented, issues one
+      line-aligned INCR burst (ARID = the entry, ARLEN = 7, ARSIZE = the
+      bus), lands FILL_BEATS beats in order with the memory image and the
+      launch's set/way, and completes with the last beat; busy drops after.
+    status: covered
+  - name: cu_no_data
+    level: all
+    what: A CLEAN_UNIQUE launch issues a single-beat read (ARLEN = 0) on
+      the upgrade slot's ID (MSHR_COUNT), presents no beat, and completes
+      with class CU on its one response.
+    status: covered
+  - name: concurrent_fills
+    level: all
+    what: Four data fills to distinct slots launch back to back against a
+      slow responder.  At FILL_INFLIGHT >= 4 every launch is accepted
+      before the first done and the in-flight gauge reaches 4; at
+      FILL_INFLIGHT = 1 the second launch is held until the first done and
+      the gauge never exceeds 1.  Every burst is scored whatever its order.
+    status: covered
+  - name: slot_reuse
+    level: all
+    what: A slot relaunches right after its done (entry retired and
+      reallocated); the second burst is scored on its own line, set and way.
+    status: covered
+  - name: random_fills
+    level: gate 40 / func 300 / full 1500 launches
+    what: Random launches to any free slot (10 % CU on the upgrade slot),
+      random lines, the responder profile rotating fast/normal/slow.  At
+      func the responder completes bursts out of order (the TB requires at
+      least one completion to overtake an earlier-accepted fill); at full
+      it also interleaves R beats of different IDs.  Every beat's slot,
+      order, set/way and data, every done's class and alignment, the
+      in-flight cap and the one-done-per-launch count are scored.
+    status: covered
+
+coverage_points:
+  - line: 160
+    type: initial
+    content: "elaboration range checks (geometry, MSHR_COUNT, FILL_INFLIGHT, ID width)"
+    covered: true
+    note: elaborates clean at both cells; the $error branches fire only on
+      an out-of-range elaboration (by design not exercised).
+  - line: 210
+    type: assign
+    content: "launch accept (AR register free, in-flight room, slot free)"
+    covered: true
+    tests: [single_fill, concurrent_fills, random_fills]
+  - line: 235
+    type: instance
+    content: "R-beat staging queue (gaxi_fifo_sync DEPTH 4; rready = wr_ready)"
+    covered: true
+    tests: [single_fill, random_fills]
+  - line: 258
+    type: assign
+    content: "beat presentation: slot demux, per-slot beat number, set/way, data"
+    covered: true
+    tests: [single_fill, concurrent_fills, random_fills]
+  - line: 266
+    type: assign
+    content: "completion: with the last beat, class decode, PassDirty accumulate"
+    covered: true
+    tests: [single_fill, cu_no_data, random_fills]
+  - line: 280
+    type: assign
+    content: "AR channel: ARID = slot, ARLEN data/no-data, ARSIZE, INCR, ARCACHE"
+    covered: true
+    tests: [single_fill, cu_no_data]
+  - line: 300
+    type: always_ff
+    content: "AR register load/drain, slot open at accept, beat count / pd / close at last, in-flight counter"
+    covered: true
+    tests: [all scenarios]
+
+gaps:
+  - PassDirty (RRESP[2]) is never raised by the AXI4 slave BFM (plain
+    memory answers OKAY), so the accumulate path is checked only for 0;
+    the control-side PassDirty handling is pinned in test_jet_prime_control
+    (commit_installs_tag, PassDirty knob).
+  - RRESP error codes are accepted and ignored by design (as l1_fill); no
+    error-response scenario.
+  - Out-of-range FILL_INFLIGHT / MSHR_COUNT / ID-width elaboration ($error)
+    fails the build by design.

@@ -177,7 +177,8 @@ class Side:
         self.entries = {}        # line -> entry dict (pending fills)
         self.entry_by_idx = {}   # mshr idx -> line
         self.unlaunched = deque()   # alloc order (launch order == alloc)
-        self.launch_q = deque()  # fill-completion order ('entry'/'cu')
+        self.launch_q = deque()  # fills in flight, launch order ('entry'/'cu')
+        self.done_q = deque()    # completed fills, done order (the DUT's done queue)
         self.upgr = {'valid': False, 'line': None, 'set': 0, 'way': 0,
                      'killed': False}
         self.wb = {}             # line -> capture-time content snapshot
@@ -579,7 +580,7 @@ class JetPairRigTB(TBBase):
                 if int(uc.fill_beat_valid_i.value):
                     self._mon_fill_beat(c, a, uc)
 
-                # 5. fill_done: oldest un-done launch completes
+                # 5. fill_done: the named entry (or the CU) completes
                 if int(uc.fill_done_i.value):
                     self._mon_fill_done(c, uc)
 
@@ -607,7 +608,7 @@ class JetPairRigTB(TBBase):
                 #     grant in the AR-handshake cycle still sees pre-AR)
                 if int(getattr(d, f'm{c}_arvalid').value) \
                         and int(getattr(d, f'm{c}_arready').value):
-                    self._mon_ar_accept(c)
+                    self._mon_ar_accept(c, int(getattr(d, f'm{c}_arid').value))
 
                 # 11. ACE channel observation (compliance + fabric scoring)
                 self._on_ace_channels(c)
@@ -873,7 +874,11 @@ class JetPairRigTB(TBBase):
             return
         e = side.entries[line]
         e['beats'].add(num)
-        got = int(a.u_coh.u_fill.fill_beat_data.value)
+        got = int(a.u_coh.u_fill.fill_beat_data_o.value)
+        self._score(f"fill beat{c} set line={line:#x} b{num}",
+                    int(a.u_coh.u_fill.fill_beat_set_o.value), e['set'])
+        self._score(f"fill beat{c} way line={line:#x} b{num}",
+                    int(a.u_coh.u_fill.fill_beat_way_o.value), e['way'])
         if e['src'] is None:
             self._score(f"fill beat{c} line={line:#x} b{num}: no data "
                         f"source bound (fabric resolution missing)", 1, 0)
@@ -881,15 +886,41 @@ class JetPairRigTB(TBBase):
             self._score(f"fill beat{c} data line={line:#x} b{num}",
                         got, self._beat_of_line(e['src'], num))
 
+    def _launch_item(self, side, idx):
+        """The in-flight launch of MSHR entry idx on this side (None for
+        the CU slot or an entry with no launch outstanding)."""
+        for item in side.launch_q:
+            if item['kind'] == 'entry' and item['e']['idx'] == idx:
+                return item
+        return None
+
     def _mon_fill_done(self, c, uc):
         side = self.sides[c]
-        for item in side.launch_q:
-            if not item['done']:
-                item['done'] = True
-                if item['kind'] == 'entry':
-                    item['e']['done'] = True
-                return
-        self._score(f"fill_done{c} with no outstanding launch", 1, 0)
+        idx = int(uc.fill_done_idx_i.value)
+        cls = int(uc.fill_done_cls_i.value)
+        # the named launch completes (one read ID per entry: any order)
+        # and joins the done queue the commit pipeline consumes in order
+        if cls == JET_CLS_CU:
+            for item in side.launch_q:
+                if item['kind'] == 'cu':
+                    side.launch_q.remove(item)
+                    item['done'] = True
+                    side.done_q.append(item)
+                    return
+            self._score(f"CU fill_done{c} with no CU launch in flight", 1, 0)
+            return
+        item = self._launch_item(side, idx)
+        if item is None:
+            self._score(f"fill_done{c} for an entry with no launch in "
+                        f"flight", idx, None)
+            return
+        self._score(f"fill_done{c} entry {idx} class", cls, item['e']['cls'])
+        self._score(f"fill_done{c} entry {idx} after every beat",
+                    len(item['e']['beats']), self.FILL_BEATS)
+        side.launch_q.remove(item)
+        item['done'] = True
+        item['e']['done'] = True
+        side.done_q.append(item)
 
     def _mon_launch(self, c, uc):
         side = self.sides[c]
@@ -923,7 +954,7 @@ class JetPairRigTB(TBBase):
             return   # the D-3 walk: every slot to I (model starts there)
         if cmt == C_INSTALL:
             # the fill commit's install write
-            head = side.launch_q[0] if side.launch_q else None
+            head = side.done_q[0] if side.done_q else None
             if head is None or head['kind'] != 'entry':
                 self._score(f"C_INSTALL{c} with no entry at the commit "
                             f"head", 1, 0)
@@ -1023,8 +1054,8 @@ class JetPairRigTB(TBBase):
                                  u['beat'], u['be'], u['wdata'])
             side.upgr = {'valid': False, 'line': None, 'set': 0, 'way': 0,
                          'killed': False}
-            if side.launch_q and side.launch_q[0]['kind'] == 'cu':
-                side.launch_q.popleft()
+            if side.done_q and side.done_q[0]['kind'] == 'cu':
+                side.done_q.popleft()
             else:
                 self._score(f"CU install{c} but the commit head is not "
                             f"CU", 1, 0)
@@ -1107,24 +1138,29 @@ class JetPairRigTB(TBBase):
             self._score(f"retire{c} of an unknown entry", idx, None)
         else:
             side.entries.pop(line, None)
-        if not side.launch_q or side.launch_q[0]['kind'] != 'entry':
+        if not side.done_q or side.done_q[0]['kind'] != 'entry':
             self._score(f"retire{c} while the commit head is not an "
                         f"entry", 1, 0)
         else:
-            e = side.launch_q.popleft()['e']
+            e = side.done_q.popleft()['e']
             self._score(f"retire{c} matches the commit head", line,
                         e['line'])
         side.committing = None
 
-    def _mon_ar_accept(self, c):
-        """The engine's outstanding AR was accepted (by the fabric): the
-        oldest un-done entry launch is no longer pre-AR."""
+    def _mon_ar_accept(self, c, arid):
+        """An AR was accepted (by the fabric): ARID names the entry, which
+        is no longer pre-AR.  The CU slot (MSHR_COUNT) names no entry."""
         side = self.sides[c]
-        for item in side.launch_q:
-            if not item['done'] and item['kind'] == 'entry':
-                item['e']['ar'] = True
-                return
-        # a CU's AR (no entry): nothing to mark
+        if arid >= self.MSHR_COUNT:
+            return
+        item = self._launch_item(side, arid)
+        if item is None:
+            self._score(f"AR{c} for an entry with no launch in flight",
+                        arid, None)
+            return
+        self._score(f"AR{c} for entry {arid} already accepted",
+                    item['e']['ar'], False)
+        item['e']['ar'] = True
 
     def _mon_response(self, c):
         side = self.sides[c]
@@ -1353,12 +1389,12 @@ class JetPairRigTB(TBBase):
                     f"srv_we {int(uc.r_srv_we.value)} "
                     f"cmt_state {int(uc.r_cmt_state.value)} "
                     f"fq_cnt {int(uc.r_fq_cnt.value)} "
-                    f"fq_undone {int(uc.r_fq_undone.value)} "
                     f"fill_pend {int(uc.r_fill_pend.value)} "
                     f"fill_start {int(uc.fill_start_o.value)} "
                     f"fill_accept {int(uc.fill_accept_i.value)} "
-                    f"eng_busy {int(self._jet(c).u_coh.r_eng_busy.value)} "
-                    f"ar_done {int(uc.r_ar_done.value)}")
+                    f"eng_busy {int(self._jet(c).u_coh.eng_fill_busy.value)} "
+                    f"eng_inflight {int(self._jet(c).u_coh.u_fill.r_inflight.value)} "
+                    f"ar_done {int(uc.r_ar_done.value):#x}")
             self.log.info(
                 f"HANG fabric: grant_q {int(f.grant_q.value)} "
                 f"peer_safe {int(f.peer_safe.value)} "

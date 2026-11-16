@@ -8,8 +8,9 @@
 // Purpose:
 //   Coherence-core plane for the jet lockup-free MESI L1 (cache-ip plane
 //   restructure, Task 4): the jet control blocks (jet_prime_control + jet_prime_mshr
-//   + jet_prime_wb_buffer), the UNCHANGED common-ip slice (l1_tag_array,
-//   l1_data_array, l1_repl, l1_fill, l1_drain, l1_monlite), the J7
+//   + jet_prime_wb_buffer + jet_prime_fill, the multi-outstanding fill engine
+//   of TASK-001 step 2), the UNCHANGED common-ip slice (l1_tag_array,
+//   l1_data_array, l1_repl, l1_drain, l1_monlite), the J7
 //   jet_prime_monlite observer, and the integration logic that binds them.
 //   The CPU plane (jet_prime_cpu_plane) and the fabric planes (l1_axi4_plane /
 //   l1_ace_plane) are separate named boundaries; this module consumes
@@ -42,7 +43,7 @@
 //     |-- u_data         l1_data_array    port A CPU/fill beats, port B
 //     |--                                  victim capture + snoop CD
 //     |-- u_repl         l1_repl          victim-way select + policy state
-//     |-- u_fill         l1_fill          AXI4 read sequencing -> fub_axi_*
+//     |-- u_fill         jet_prime_fill   multi-ID AXI4 read fills -> fub_axi_*
 //     |-- u_drain        l1_drain         AXI4 write sequencing -> fub_axi_*
 //     |-- u_monlite      l1_monlite       drop-and-count MonBus observer
 //     `-- u_jet_prime_monlite  jet_prime_monlite      J7 MSHR/occupancy observer
@@ -50,26 +51,24 @@
 //   Integration glue that is NOT pure wiring (all of it the launch level,
 //   none of it touching common-ip), moved verbatim from the jet tops:
 //
-//   * Fill-launch adapter.  jet_prime_control's fill contract is start-held-
-//     until-accept; l1_fill has no accept output (it is a
-//     single-outstanding F_IDLE -> F_AR -> F_R -> F_DONE engine).  The
-//     adapter accepts a presented launch exactly when the engine is idle
-//     AND no victim capture is streaming (cap_busy_o) AND no dirty-victim
-//     capture opens this very cycle (alloc with wb_valid) -- the MAS
-//     ch02/01 fill-engine contract ("start no beat stream while
-//     cap_busy_o is high") enforced at the launch, since l1_fill cannot
-//     be gated.  The adapter tracks the in-flight fill's MSHR identity
-//     (alloc-order, one-deep pending record: an alloc can only exist
-//     unlaunched while the launch register holds it, and the classify
-//     holds new allocs in that window) to route the engine's beats to
-//     jet_prime_control as {entry index, beat number}.
+//   * Fill-launch gate.  jet_prime_control's fill contract is start-held-
+//     until-accept; jet_prime_fill accepts when its AR register is free and
+//     it has in-flight room (FILL_INFLIGHT).  The plane lets a launch
+//     reach the engine only when no victim capture is streaming
+//     (cap_busy_o) AND no dirty-victim capture opens this very cycle
+//     (alloc with wb_valid) -- the MAS ch02/01 fill-engine contract
+//     ("an entry's beats never land before its victim is captured")
+//     enforced at the launch.  The launch carries the entry index and its
+//     claimed set/way, and every beat comes back from the engine with
+//     them, so the plane keeps no in-flight record (TASK-001 step 2
+//     retired the one-deep adapter).
 //
-//   * Fill-class map: jet's 2-bit JET_CLS_* onto l1_fill's 3-bit
-//     amber_ace_req_t (RNSD -> READ_NOT_SHARED_DIRTY, RU -> READ_UNIQUE,
-//     CU -> CLEAN_UNIQUE).
+//   * Fill-class map: jet's 2-bit JET_CLS_* onto the 3-bit
+//     amber_ace_req_t for the coherence sideband (RNSD ->
+//     READ_NOT_SHARED_DIRTY, RU -> READ_UNIQUE, CU -> CLEAN_UNIQUE).
 //
-//   * Data-array W-port mux: fill beats (adapter way/set + engine
-//     beat/data) win over jet_prime_control's commit-merge/write-hit port --
+//   * Data-array W-port mux: fill beats (engine set/way/beat/data) win
+//     over jet_prime_control's commit-merge/write-hit port --
 //     the MAS fill > commit > hit order; jet_prime_control yields while a beat
 //     is presented, so the two never actually contend (same landed idiom
 //     as l1_core's mux and the jet_prime_control unit harness).
@@ -93,9 +92,8 @@
 //     classes are a future monlite extension (MAS ch04).
 //
 //   Fill beats land in the data array at {claimed set, beat} of the
-//   in-flight entry's claimed victim way; the claim context lives in
-//   jet_prime_control and the adapter (read-only hierarchical taps, the
-//   sanctioned l1_core pattern).
+//   entry's claimed victim way; the claim context rides the launch into
+//   jet_prime_fill and returns with each beat.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -113,14 +111,15 @@
 //     module consumes the synchronized reset.
 //   - The fub_axi_* ports are the raw engine-side master pins; the
 //     fabric plane closes the monlite transports.
-//   - fill_ar_done is the top-level tap of the fabric plane's m_axi AR
-//     handshake (the engines' fill-launch progress marker).
+//   - fill_ar_done / fill_ar_id are the top-level tap of the fabric
+//     plane's m_axi AR handshake and its read ID (the per-entry pre-AR
+//     progress marker in jet_prime_control).
 //
 //------------------------------------------------------------------------------
 // Related Modules:
 //   - Instantiated by: jet_prime_top, jet_prime_ace_top
 //   - Instantiates: jet_prime_control, jet_prime_mshr, jet_prime_wb_buffer, l1_tag_array,
-//     l1_data_array, l1_repl, l1_fill, l1_drain, l1_monlite, jet_prime_monlite
+//     l1_data_array, l1_repl, jet_prime_fill, l1_drain, l1_monlite, jet_prime_monlite
 //   - Package: jet_prime_pkg, l1_pkg
 //
 //==============================================================================
@@ -140,6 +139,10 @@ module jet_prime_coh_core
     parameter bit USE_MONITOR    = 1'b1,
     parameter int MSHR_COUNT     = jet_prime_pkg::MSHR_COUNT,
     parameter int VICTIM_DEPTH   = jet_prime_pkg::VICTIM_DEPTH,
+    // fills in flight on the memory port at once (jet_prime_fill): 1 is the
+    // single-outstanding engine jet shipped with, MSHR_COUNT + 1 every
+    // entry and the upgrade together
+    parameter int FILL_INFLIGHT  = MSHR_COUNT + 1,
     // Data array in block RAM (registered read, one-cycle address lead in
     // jet_prime_control) -- the FPGA default; 0 keeps the combinational LUTRAM
     // read for a comparison build.
@@ -206,7 +209,7 @@ module jet_prime_coh_core
     input  logic                        ctrl_cdready,
 
     // ------------------------------------------------------------------
-    // fub_axi read master side (l1_fill -> the fabric plane's transports)
+    // fub_axi read master side (jet_prime_fill -> the fabric plane's transports)
     // ------------------------------------------------------------------
     output logic [IW-1:0]               fub_axi_arid,
     output logic [ADDR_WIDTH-1:0]       fub_axi_araddr,
@@ -259,9 +262,10 @@ module jet_prime_coh_core
 
     // ------------------------------------------------------------------
     // Fill-launch progress: the top taps the fabric plane's m_axi AR
-    // handshake (jet_prime_control's r_ar_done marker)
+    // handshake and its read ID (jet_prime_control's per-entry r_ar_done)
     // ------------------------------------------------------------------
     input  logic                        fill_ar_done,
+    input  logic [IW-1:0]               fill_ar_id,
 
     // ------------------------------------------------------------------
     // Pair-rig coherence sideband (DECISION D-8; one pulse per fill
@@ -433,45 +437,51 @@ module jet_prime_coh_core
     logic                       ctrl_fill_start;
     logic [ADDR_WIDTH-1:0]      ctrl_fill_addr;
     logic [1:0]                 ctrl_fill_cls;
+    logic [MW-1:0]              ctrl_fill_idx;
+    logic [SET_W-1:0]           ctrl_fill_set;
+    logic [WAY_W-1:0]           ctrl_fill_way;
+    logic                       w_fill_start;
     logic                       w_fill_accept;
-    logic                       eng_fill_done;
-    logic                       eng_fill_pass_dirty;
-    logic                       eng_fill_inflight;
+    logic                       eng_fill_busy;
     logic                       eng_fill_beat_valid;
+    logic [MW-1:0]              eng_fill_beat_idx;
+    logic [BEAT_W-1:0]          eng_fill_beat_num;
+    logic [SET_W-1:0]           eng_fill_beat_set;
+    logic [WAY_W-1:0]           eng_fill_beat_way;
     logic [BUS_WIDTH-1:0]       eng_fill_beat_data;
-    logic [BEAT_W-1:0]          eng_fill_beat_idx;
+    logic                       eng_fill_done;
+    logic [MW-1:0]              eng_fill_done_idx;
+    logic [1:0]                 eng_fill_done_cls;
+    logic                       eng_fill_done_pd;
+    logic                       w_ar_done_data;
+    logic [MW-1:0]              w_ar_done_idx;
 
     // ------------------------------------------------------------------
-    // Fill-launch adapter (the MAS ch02/01 engine contract, enforced at
-    // the launch since l1_fill cannot be gated):
-    //   accept a presented launch exactly when
-    //     - the engine is idle (single-outstanding FSM: the adapter's
-    //       busy register tracks F_IDLE occupancy exactly -- set at the
-    //       accept, cleared at fill_done, both in lockstep with the
-    //       engine's own state transitions), AND
-    //     - no victim capture is streaming (cap_busy_o), AND
-    //     - no dirty-victim capture opens this very cycle (the alloc's
-    //       wb_valid: cap_busy_o only rises next cycle, and an immediate
-    //       launch could put the first fill beat ahead of the capture's
-    //       last read of the doomed victim's way).
-    //   The in-flight fill's MSHR identity rides r_flight_*: captured at
-    //   the accept from the same-cycle alloc pins (fast path) or the
-    //   one-deep pending record (held-launch path; allocs are held while
-    //   a launch pends, so one record suffices).  CU launches carry no
-    //   entry and no beats.
+    // Fill-launch gate (the MAS ch02/01 engine contract, enforced at the
+    // launch): the engine sees a presented launch only when
+    //   - no victim capture is streaming (cap_busy_o), AND
+    //   - no dirty-victim capture opens this very cycle (the alloc's
+    //     wb_valid: cap_busy_o only rises next cycle, and an immediate
+    //     launch could put the first fill beat ahead of the capture's
+    //     last read of the doomed victim's way).
+    // Allocs hold while a launch pends, so the capture that refuses a
+    // launch is always the launching entry's own; beats of earlier
+    // entries already in flight land in other claimed (set, way)s.
+    // jet_prime_fill then accepts when its AR register is free and it has
+    // in-flight room (FILL_INFLIGHT).  The launch carries the entry index
+    // and claimed set/way from jet_prime_control; the engine returns them
+    // with every beat, so the plane keeps no in-flight record.
     // ------------------------------------------------------------------
-    logic                  r_eng_busy;
-    logic                  r_pend_valid;
-    logic [MW-1:0]         r_pend_idx;
-    logic [SET_W-1:0]      r_pend_set;
-    logic [WAY_W-1:0]      r_pend_way;
-    logic [MW-1:0]         r_flight_idx;
-    logic [SET_W-1:0]      r_flight_set;
-    logic [WAY_W-1:0]      r_flight_way;
-    logic [2:0]            eng_fill_class;
+    logic [2:0]            eng_fill_class;   // sideband class (amber_ace_req_t)
 
-    assign w_fill_accept = ctrl_fill_start & ~r_eng_busy & ~ctrl_cap_busy
-                           & ~(ctrl_mshr_alloc & ctrl_mshr_alloc_wb_valid);
+    assign w_fill_start = ctrl_fill_start & ~ctrl_cap_busy
+                          & ~(ctrl_mshr_alloc & ctrl_mshr_alloc_wb_valid);
+
+    // the memory-side AR handshake decoded to the entry: ARID is the
+    // engine's slot; the upgrade's slot (MSHR_COUNT) is not an entry and
+    // the pre-AR rule ignores it
+    assign w_ar_done_data = fill_ar_done & (fill_ar_id < IW'(MSHR_COUNT));
+    assign w_ar_done_idx  = MW'(fill_ar_id);
 
     always_comb begin
         unique case (ctrl_fill_cls)
@@ -480,50 +490,6 @@ module jet_prime_coh_core
             default:      eng_fill_class = AMBER_ACE_READ_NOT_SHARED_DIRTY;
         endcase
     end
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_eng_busy   <= 1'b0;
-            r_pend_valid <= 1'b0;
-            r_pend_idx   <= '0;
-            r_pend_set   <= '0;
-            r_pend_way   <= '0;
-            r_flight_idx <= '0;
-            r_flight_set <= '0;
-            r_flight_way <= '0;
-        end else begin
-            // alloc record (the launch may be held; the classify blocks
-            // further allocs while the launch register is occupied, so one
-            // pending record is exact)
-            if (ctrl_mshr_alloc & mshr_alloc_gnt) begin
-                r_pend_valid <= 1'b1;
-                r_pend_idx   <= mshr_alloc_idx;
-                r_pend_set   <= ctrl_mshr_alloc_set;
-                r_pend_way   <= ctrl_mshr_alloc_victim_way;
-            end
-            if (w_fill_accept) begin
-                r_eng_busy <= 1'b1;
-                if (ctrl_fill_cls != JET_CLS_CU) begin
-                    if (ctrl_mshr_alloc & mshr_alloc_gnt) begin
-                        // fast path: the alloc's own launch, same cycle
-                        r_flight_idx <= mshr_alloc_idx;
-                        r_flight_set <= ctrl_mshr_alloc_set;
-                        r_flight_way <= ctrl_mshr_alloc_victim_way;
-                    end else begin
-                        r_flight_idx <= r_pend_idx;
-                        r_flight_set <= r_pend_set;
-                        r_flight_way <= r_pend_way;
-                    end
-                    // the pending record is consumed by this accept (on
-                    // the fast path the same-cycle alloc's record is
-                    // never launched-from-held)
-                    r_pend_valid <= 1'b0;
-                end
-            end else if (eng_fill_done) begin
-                r_eng_busy <= 1'b0;
-            end
-        end
-    )
 
     // ------------------------------------------------------------------
     // Data-array W-port mux: fill beats > control (commit store merge /
@@ -539,7 +505,7 @@ module jet_prime_coh_core
 
     always_comb begin
         for (int w = 0; w < WAYS; w++) begin
-            fill_way_onehot[w] = (r_flight_way == WAY_W'(w));
+            fill_way_onehot[w] = (eng_fill_beat_way == WAY_W'(w));
         end
     end
 
@@ -547,7 +513,7 @@ module jet_prime_coh_core
     assign dat_wr_way_onehot = eng_fill_beat_valid ? fill_way_onehot
                                                    : ctrl_dat_a_wr_way_onehot;
     assign dat_wr_addr       = eng_fill_beat_valid
-                               ? {r_flight_set, eng_fill_beat_idx}
+                               ? {eng_fill_beat_set, eng_fill_beat_num}
                                : ctrl_dat_a_wr_addr;
     assign dat_wr_wdata      = eng_fill_beat_valid ? eng_fill_beat_data
                                                    : ctrl_dat_a_wr_wdata;
@@ -689,13 +655,19 @@ module jet_prime_coh_core
         .fill_start_o            (ctrl_fill_start),
         .fill_addr_o             (ctrl_fill_addr),
         .fill_cls_o              (ctrl_fill_cls),
+        .fill_idx_o              (ctrl_fill_idx),
+        .fill_set_o              (ctrl_fill_set),
+        .fill_way_o              (ctrl_fill_way),
         .fill_accept_i           (w_fill_accept),
-        .fill_pass_dirty_i       (eng_fill_pass_dirty),
         .fill_beat_valid_i       (eng_fill_beat_valid),
-        .fill_beat_idx_i         (r_flight_idx),
-        .fill_beat_num_i         (eng_fill_beat_idx),
+        .fill_beat_idx_i         (eng_fill_beat_idx),
+        .fill_beat_num_i         (eng_fill_beat_num),
         .fill_done_i             (eng_fill_done),
-        .fill_ar_done_i          (fill_ar_done)
+        .fill_done_idx_i         (eng_fill_done_idx),
+        .fill_done_cls_i         (eng_fill_done_cls),
+        .fill_pass_dirty_i       (eng_fill_done_pd),
+        .fill_ar_done_i          (w_ar_done_data),
+        .fill_ar_done_idx_i      (w_ar_done_idx)
     );
 
     // ------------------------------------------------------------------
@@ -861,28 +833,39 @@ module jet_prime_coh_core
     );
 
     // ------------------------------------------------------------------
-    // Fill engine (AXI4 read sequencing -> raw fub_axi_* pins)
+    // Fill engine (multi-ID AXI4 read fills -> raw fub_axi_* pins)
     // ------------------------------------------------------------------
-    l1_fill #(
+    jet_prime_fill #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .SETS           (SETS),
+        .WAYS           (WAYS),
         .LINE_BYTES     (LINE_BYTES),
         .BUS_WIDTH      (BUS_WIDTH),
+        .MSHR_COUNT     (MSHR_COUNT),
+        .FILL_INFLIGHT  (FILL_INFLIGHT),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_USER_WIDTH (AXI_USER_WIDTH)
     ) u_fill (
         .clk               (aclk),
         .rst_n             (aresetn),
-        .fill_start        (w_fill_accept),
-        .fill_addr         (ctrl_fill_addr),
-        .fill_req_class    (eng_fill_class),
-        .fill_done         (eng_fill_done),
-        .fill_pass_dirty   (eng_fill_pass_dirty),
-        .fill_inflight     (eng_fill_inflight),
-        .fill_beat_valid   (eng_fill_beat_valid),
-        .fill_beat_data    (eng_fill_beat_data),
-        .fill_beat_idx     (eng_fill_beat_idx),
-        .fill_last         (),
+        .fill_start_i      (w_fill_start),
+        .fill_addr_i       (ctrl_fill_addr),
+        .fill_cls_i        (ctrl_fill_cls),
+        .fill_idx_i        (ctrl_fill_idx),
+        .fill_set_i        (ctrl_fill_set),
+        .fill_way_i        (ctrl_fill_way),
+        .fill_accept_o     (w_fill_accept),
+        .fill_beat_valid_o (eng_fill_beat_valid),
+        .fill_beat_idx_o   (eng_fill_beat_idx),
+        .fill_beat_num_o   (eng_fill_beat_num),
+        .fill_beat_set_o   (eng_fill_beat_set),
+        .fill_beat_way_o   (eng_fill_beat_way),
+        .fill_beat_data_o  (eng_fill_beat_data),
+        .fill_done_o       (eng_fill_done),
+        .fill_done_idx_o   (eng_fill_done_idx),
+        .fill_done_cls_o   (eng_fill_done_cls),
+        .fill_done_pd_o    (eng_fill_done_pd),
+        .fill_busy_o       (eng_fill_busy),
         .fub_axi_arid      (fub_axi_arid),
         .fub_axi_araddr    (fub_axi_araddr),
         .fub_axi_arlen     (fub_axi_arlen),
@@ -1016,7 +999,7 @@ module jet_prime_coh_core
     // ------------------------------------------------------------------
     assign init_busy = ctrl_init_busy;
     assign busy      = ctrl_init_busy | ctrl_cap_busy | ctrl_cmt_busy
-                       | r_eng_busy | (mshr_occupancy != '0)
+                       | eng_fill_busy | (mshr_occupancy != '0)
                        | (wb_occupancy != '0);
 
     // ------------------------------------------------------------------
@@ -1266,8 +1249,7 @@ module jet_prime_coh_core
 
     /* verilator lint_off UNUSEDSIGNAL */
     logic unused_core_mon;
-    assign unused_core_mon = &{1'b0, eng_fill_inflight, ctrl_lkup_merge,
-                               ctrl_lkup_wr_yield};
+    assign unused_core_mon = &{1'b0, ctrl_lkup_merge, ctrl_lkup_wr_yield};
     /* verilator lint_on UNUSEDSIGNAL */
 
     // ------------------------------------------------------------------

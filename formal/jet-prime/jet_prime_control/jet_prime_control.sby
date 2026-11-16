@@ -27,7 +27,7 @@ cover: smtbmc boolector
 [script]
 read_verilog -formal -sv jet_prime_control_flat.v
 read -formal -sv formal_jet_prime_control.sv
-expose jet_prime_control/r_cmt_state jet_prime_control/r_sn_state jet_prime_control/r_sn_src jet_prime_control/r_sn_allb jet_prime_control/r_upgr_valid jet_prime_control/r_upgr_line jet_prime_control/r_upgr_set jet_prime_control/r_upgr_way jet_prime_control/r_upgr_killed jet_prime_control/r_fill_pend jet_prime_control/r_fill_idx jet_prime_control/r_ar_done jet_prime_control/r_claim_vld jet_prime_control/r_fq_undone jet_prime_control/w_src_wb jet_prime_control/w_src_mshr jet_prime_control/w_src_array jet_prime_control/w_sn_ref jet_prime_control/w_sn_deliver jet_prime_control/w_mshr_pre_ar
+expose jet_prime_control/r_cmt_state jet_prime_control/r_sn_state jet_prime_control/r_sn_src jet_prime_control/r_sn_allb jet_prime_control/r_upgr_valid jet_prime_control/r_upgr_line jet_prime_control/r_upgr_set jet_prime_control/r_upgr_way jet_prime_control/r_upgr_killed jet_prime_control/r_fill_pend jet_prime_control/r_fill_idx jet_prime_control/r_ar_done jet_prime_control/r_claim_vld jet_prime_control/r_fq_cnt jet_prime_control/w_src_wb jet_prime_control/w_src_mshr jet_prime_control/w_src_array jet_prime_control/w_sn_ref jet_prime_control/w_sn_deliver jet_prime_control/w_mshr_pre_ar
 prep -top formal_jet_prime_control
 # memories -> discrete FFs: the tag model / leaf arrays as SMT arrays grow
 # a store chain per step and collapse solver throughput at depth (the

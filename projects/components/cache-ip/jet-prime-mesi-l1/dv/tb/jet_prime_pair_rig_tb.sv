@@ -216,7 +216,12 @@ module jet_prime_pair_rig_tb
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
         .USE_MONITOR    (USE_MONITOR),
         .MSHR_COUNT     (MSHR_COUNT),
-        .VICTIM_DEPTH   (VICTIM_DEPTH)
+        .VICTIM_DEPTH   (VICTIM_DEPTH),
+        // one fill in flight per cache: jet_prime_pair_fabric's kill rule
+        // and 4-deep request queue are argued for a single-outstanding
+        // engine per direction (TASK-001 step 3 rebuilds the fabric and
+        // lifts this)
+        .FILL_INFLIGHT  (1)
     ) u_jet0 (
         .aclk            (clk),
         .aresetn         (rst_n),
@@ -307,7 +312,12 @@ module jet_prime_pair_rig_tb
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
         .USE_MONITOR    (USE_MONITOR),
         .MSHR_COUNT     (MSHR_COUNT),
-        .VICTIM_DEPTH   (VICTIM_DEPTH)
+        .VICTIM_DEPTH   (VICTIM_DEPTH),
+        // one fill in flight per cache: jet_prime_pair_fabric's kill rule
+        // and 4-deep request queue are argued for a single-outstanding
+        // engine per direction (TASK-001 step 3 rebuilds the fabric and
+        // lifts this)
+        .FILL_INFLIGHT  (1)
     ) u_jet1 (
         .aclk            (clk),
         .aresetn         (rst_n),

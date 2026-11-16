@@ -1,0 +1,79 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Thu Nov 12 09:43:49 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/cache-ip/ref/results/ooc/jetp/10.0ns/utilization_hier.txt
+| Design       : jet_prime_top
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-------------------------------------------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|                           Instance                          |                Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-------------------------------------------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| jet_prime_top                                               |                               (top) |       6008 |       4924 |    1084 |    0 | 5258 |     16 |      0 |          0 |
+|   (jet_prime_top)                                           |                               (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   u_coh                                                     |                  jet_prime_coh_core |       3989 |       3065 |     924 |    0 | 2743 |     16 |      0 |          0 |
+|     (u_coh)                                                 |                  jet_prime_coh_core |          6 |          6 |       0 |    0 |  289 |      0 |      0 |          0 |
+|     u_control                                               |                   jet_prime_control |       1410 |       1264 |     146 |    0 |  803 |      0 |      0 |          0 |
+|     u_data                                                  |                       l1_data_array |        128 |        128 |       0 |    0 |    0 |     16 |      0 |          0 |
+|     u_fill                                                  |                             l1_fill |         73 |         29 |      44 |    0 |   41 |      0 |      0 |          0 |
+|       u_stage                                               |      gaxi_fifo_sync__parameterized1 |         62 |         18 |      44 |    0 |    8 |      0 |      0 |          0 |
+|     u_jet_prime_monlite                                     |                   jet_prime_monlite |        715 |        617 |      98 |    0 |  596 |      0 |      0 |          0 |
+|       (u_jet_prime_monlite)                                 |                   jet_prime_monlite |        166 |        166 |       0 |    0 |  588 |      0 |      0 |          0 |
+|       u_out_q                                               |   gaxi_fifo_sync__parameterized2_15 |        551 |        453 |      98 |    0 |    8 |      0 |      0 |          0 |
+|         (u_out_q)                                           |   gaxi_fifo_sync__parameterized2_15 |        533 |        435 |      98 |    0 |    0 |      0 |      0 |          0 |
+|     u_monlite                                               |                          l1_monlite |        410 |        326 |      84 |    0 |  194 |      0 |      0 |          0 |
+|       (u_monlite)                                           |                          l1_monlite |        138 |        138 |       0 |    0 |  186 |      0 |      0 |          0 |
+|       u_out_q                                               |      gaxi_fifo_sync__parameterized2 |        277 |        193 |      84 |    0 |    8 |      0 |      0 |          0 |
+|         (u_out_q)                                           |      gaxi_fifo_sync__parameterized2 |        254 |        170 |      84 |    0 |    0 |      0 |      0 |          0 |
+|     u_mshr                                                  |                      jet_prime_mshr |        510 |        510 |       0 |    0 |  592 |      0 |      0 |          0 |
+|     u_repl                                                  |                             l1_repl |         77 |         61 |      16 |    0 |  128 |      0 |      0 |          0 |
+|     u_tag                                                   |                        l1_tag_array |        499 |         51 |     448 |    0 |    0 |      0 |      0 |          0 |
+|     u_wb                                                    |                 jet_prime_wb_buffer |        173 |         85 |      88 |    0 |   66 |      0 |      0 |          0 |
+|   u_cpu                                                     |                 jet_prime_cpu_plane |        294 |        134 |     160 |    0 |   34 |      0 |      0 |          0 |
+|     u_frontend                                              |                     l1_cpu_frontend |         50 |          6 |      44 |    0 |    6 |      0 |      0 |          0 |
+|       u_rsp_stage                                           |      gaxi_fifo_sync__parameterized0 |         50 |          6 |      44 |    0 |    6 |      0 |      0 |          0 |
+|     u_req_skid                                              |                      gaxi_fifo_sync |        137 |         65 |      72 |    0 |    6 |      0 |      0 |          0 |
+|       (u_req_skid)                                          |                      gaxi_fifo_sync |         72 |          0 |      72 |    0 |    0 |      0 |      0 |          0 |
+|       fifo_control_inst                                     |                        fifo_control |         60 |         60 |       0 |    0 |    2 |      0 |      0 |          0 |
+|     u_rsp                                                   |                   jet_prime_rsp_seq |        107 |         63 |      44 |    0 |   22 |      0 |      0 |          0 |
+|   u_fab                                                     |                       l1_axi4_plane |       1197 |       1197 |       0 |    0 | 1473 |      0 |      0 |          0 |
+|     u_wr_monlite                                            |              axi4_master_wr_monlite |        253 |        253 |       0 |    0 |  336 |      0 |      0 |          0 |
+|       u_core                                                |                      axi4_master_wr |        249 |        249 |       0 |    0 |  330 |      0 |      0 |          0 |
+|         aw_channel                                          |    gaxi_skid_buffer__parameterized2 |         35 |         35 |       0 |    0 |   58 |      0 |      0 |          0 |
+|         w_channel                                           |    gaxi_skid_buffer__parameterized4 |        207 |        207 |       0 |    0 |  266 |      0 |      0 |          0 |
+|     u_monbus_arbiter                                        |                      monbus_arbiter |        231 |        231 |       0 |    0 |  413 |      0 |      0 |          0 |
+|       gen_input_skid[0].gen_input_skid_enabled.u_input_skid |  gaxi_skid_buffer__parameterized6_7 |         41 |         41 |       0 |    0 |  134 |      0 |      0 |          0 |
+|       gen_input_skid[1].gen_input_skid_enabled.u_input_skid |  gaxi_skid_buffer__parameterized6_8 |         41 |         41 |       0 |    0 |  134 |      0 |      0 |          0 |
+|       gen_output_skid_enabled.u_output_skid                 |  gaxi_skid_buffer__parameterized6_9 |         76 |         76 |       0 |    0 |  138 |      0 |      0 |          0 |
+|       u_arbiter                                             |                 arbiter_round_robin |         73 |         73 |       0 |    0 |    7 |      0 |      0 |          0 |
+|     u_rd_monlite                                            |              axi4_master_rd_monlite |        246 |        246 |       0 |    0 |  332 |      0 |      0 |          0 |
+|       u_core                                                |                      axi4_master_rd |        242 |        242 |       0 |    0 |  326 |      0 |      0 |          0 |
+|         ar_channel                                          |  gaxi_skid_buffer__parameterized2_3 |         35 |         35 |       0 |    0 |   60 |      0 |      0 |          0 |
+|         r_channel                                           |    gaxi_skid_buffer__parameterized3 |        207 |        207 |       0 |    0 |  266 |      0 |      0 |          0 |
+|     u_snoop                                                 |                       l1_snoop_resp |        467 |        467 |       0 |    0 |  390 |      0 |      0 |          0 |
+|       u_transport                                           |                 axi4ace_snoop_slave |        467 |        467 |       0 |    0 |  354 |      0 |      0 |          0 |
+|         ac_channel                                          |                    gaxi_skid_buffer |        234 |        234 |       0 |    0 |   66 |      0 |      0 |          0 |
+|         cd_channel                                          |    gaxi_skid_buffer__parameterized1 |        209 |        209 |       0 |    0 |  266 |      0 |      0 |          0 |
+|   u_monbus_arbiter                                          |      monbus_arbiter__parameterized0 |        547 |        547 |       0 |    0 | 1004 |      0 |      0 |          0 |
+|     gen_input_skid[0].gen_input_skid_enabled.u_input_skid   |    gaxi_skid_buffer__parameterized6 |         73 |         73 |       0 |    0 |  258 |      0 |      0 |          0 |
+|     gen_input_skid[1].gen_input_skid_enabled.u_input_skid   |  gaxi_skid_buffer__parameterized6_0 |         43 |         43 |       0 |    0 |  138 |      0 |      0 |          0 |
+|     gen_input_skid[2].gen_input_skid_enabled.u_input_skid   |  gaxi_skid_buffer__parameterized6_1 |         83 |         83 |       0 |    0 |  298 |      0 |      0 |          0 |
+|     gen_output_skid_enabled.u_output_skid                   |  gaxi_skid_buffer__parameterized6_2 |        108 |        108 |       0 |    0 |  298 |      0 |      0 |          0 |
+|     u_arbiter                                               | arbiter_round_robin__parameterized0 |        241 |        241 |       0 |    0 |   12 |      0 |      0 |          0 |
++-------------------------------------------------------------+-------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

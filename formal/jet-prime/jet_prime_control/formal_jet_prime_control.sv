@@ -16,11 +16,11 @@
 // answers honest).  The tag arrays stay outside: the wrapper carries an
 // abstract tag store (a 16x2 store, reset Invalid, applying every port-A
 // write -- an exact model of l1_tag_array at this geometry).  The data
-// arrays are free inputs: no property claims data values.  l1_fill /
-// l1_drain are rig-top integrations (jet_prime_top), so the harness drives
-// their handshake pins as free inputs under the documented engine
-// contract (the assumption table below mirrors jet_prime_top's fill-launch
-// adapter and the l1_fill/l1_drain handshake rules).
+// arrays are free inputs: no property claims data values.  jet_prime_fill /
+// l1_drain are plane integrations (jet_prime_coh_core), so the harness
+// drives their handshake pins as free inputs under the documented engine
+// contract (the assumption table below mirrors jet_prime_coh_core's
+// fill-launch gate and the jet_prime_fill/l1_drain handshake rules).
 //
 // The snoop peer is modeled as a want line plus a presenting shim: the
 // transport (l1_snoop_resp) accepts an AC only while sn_safe_o, so the
@@ -39,14 +39,17 @@
 //
 // Assumption inventory (environment obligations; each recorded):
 //   - house reset protocol;
-//   - A-fill-accept: the launch adapter accepts a presented launch
-//     combinationally when (and only when) the engine is idle, no victim
-//     capture streams, and the cycle is not a dirty-victim alloc -- the
-//     exact jet_prime_top rule;
-//   - A-fill-flight: beats only for the in-flight entry, in order 0..7,
-//     only after the fill's AR is accepted; a data fill's done comes after
-//     all 8 beats, a CU's with none; AR accepted within 4 cycles of the
-//     launch accept, done within 15 (a fair, single-outstanding engine);
+//   - A-fill-accept: the launch gate accepts a presented launch
+//     combinationally when (and only when) no victim capture streams and
+//     the cycle is not a dirty-victim alloc -- the exact jet_prime_coh_core
+//     rule (jet_prime_fill's AR register and in-flight room never hold a
+//     launch in this environment);
+//   - A-fill-flight: several fills in flight (one read ID per entry, plus
+//     the upgrade's slot); beats only for an entry in flight, after its
+//     AR, in order 0..7; a data fill's done names its entry and class and
+//     comes with or after its 8th beat, a CU's with none; completion in
+//     any order; AR within 4 cycles of the accept, done within 24 (a fair
+//     engine whose three slots share one beat stream);
 //   - A-fill-pd: PassDirty at done only on an RNSD flight;
 //   - A-drain: done only while a drain is outstanding, forced within 10
 //     cycles of the start (a fair l1_drain);
@@ -89,7 +92,10 @@ module formal_jet_prime_control (
     input  logic        fill_beat_idx,
     input  logic [2:0]  fill_beat_num,
     input  logic        fill_done,
+    input  logic        fill_done_idx,
+    input  logic [1:0]  fill_done_cls,
     input  logic        fill_ar_done,
+    input  logic        fill_ar_done_idx,
 
     // drain engine (free, fair)
     input  logic        drain_done,
@@ -197,6 +203,9 @@ module formal_jet_prime_control (
     logic        dut_fill_start;
     logic [31:0] dut_fill_addr;
     logic [1:0]  dut_fill_cls;
+    logic        dut_fill_idx;
+    logic [3:0]  dut_fill_set;
+    logic        dut_fill_way;
     logic        dut_cmt_busy;
     logic        dut_ctrl_error;
 
@@ -212,9 +221,9 @@ module formal_jet_prime_control (
     logic        obs_upgr_killed;
     logic        obs_fill_pend;
     logic        obs_fill_idx;
-    logic        obs_ar_done;
+    logic [1:0]  obs_ar_done;
     logic [1:0]  obs_claim_vld;
-    logic [2:0]  obs_fq_undone;
+    logic [2:0]  obs_fq_cnt;
     logic        obs_src_wb;
     logic        obs_src_mshr;
     logic        obs_src_array;
@@ -416,13 +425,19 @@ module formal_jet_prime_control (
         .fill_start_o            (dut_fill_start),
         .fill_addr_o             (dut_fill_addr),
         .fill_cls_o              (dut_fill_cls),
+        .fill_idx_o              (dut_fill_idx),
+        .fill_set_o              (dut_fill_set),
+        .fill_way_o              (dut_fill_way),
         .fill_accept_i           (fill_accept),
-        .fill_pass_dirty_i       (fill_pass_dirty),
         .fill_beat_valid_i       (fill_beat_valid),
         .fill_beat_idx_i         (fill_beat_idx),
         .fill_beat_num_i         (fill_beat_num),
         .fill_done_i             (fill_done),
+        .fill_done_idx_i         (fill_done_idx),
+        .fill_done_cls_i         (fill_done_cls),
+        .fill_pass_dirty_i       (fill_pass_dirty),
         .fill_ar_done_i          (fill_ar_done),
+        .fill_ar_done_idx_i      (fill_ar_done_idx),
         .cmt_busy_o              (dut_cmt_busy),
         .ctrl_error_o            (dut_ctrl_error),
         .r_cmt_state             (obs_cmt_state),
@@ -438,7 +453,7 @@ module formal_jet_prime_control (
         .r_fill_idx              (obs_fill_idx),
         .r_ar_done               (obs_ar_done),
         .r_claim_vld             (obs_claim_vld),
-        .r_fq_undone             (obs_fq_undone),
+        .r_fq_cnt                (obs_fq_cnt),
         .w_src_wb                (obs_src_wb),
         .w_src_mshr              (obs_src_mshr),
         .w_src_array             (obs_src_array),
@@ -579,75 +594,107 @@ module formal_jet_prime_control (
     end
 
     // ------------------------------------------------------------------
-    // Fill-engine model (the jet_prime_top launch-adapter contract + a fair
-    // single-outstanding engine; A-fill-* in the header table)
+    // Fill-engine model (jet_prime_fill behind jet_prime_coh_core's launch
+    // gate: several fills in flight, one read ID per entry, completion in
+    // any order; A-fill-* in the header table).  Slots 0/1 are the two
+    // MSHR entries, slot 2 the no-data CLEAN_UNIQUE upgrade.
     // ------------------------------------------------------------------
-    reg        r_eng_busy;
-    reg        r_flight_idx;
-    reg [1:0]  r_flight_cls;
-    reg [3:0]  r_beat_cnt;
-    reg [4:0]  r_since_accept;
-    reg        r_ar_done_sh;
+    localparam SL_CU = 2'd2;
+    reg [2:0]  r_sl_busy;          // accepted, not done
+    reg [2:0]  r_sl_ar;            // memory-side AR handshake seen
+    reg [1:0]  r_sl_cls  [3];
+    reg [3:0]  r_sl_beats [3];     // beats presented so far
+    reg [4:0]  r_sl_age  [3];      // cycles since the accept (saturating)
 
-    wire w_eng_acceptable = dut_fill_start & ~r_eng_busy & ~dut_cap_busy
+    wire [1:0] w_launch_sl = (dut_fill_cls == CLS_CU) ? SL_CU
+                                                      : {1'b0, dut_fill_idx};
+    wire [1:0] w_done_sl   = (fill_done_cls == CLS_CU) ? SL_CU
+                                                       : {1'b0, fill_done_idx};
+    // the launch gate: accept combinationally iff no capture streams and
+    // the cycle is not a dirty-victim alloc (the exact jet_prime_coh_core
+    // rule; the engine's AR register and FILL_INFLIGHT room never hold a
+    // launch in this environment -- a fast transport)
+    wire w_eng_acceptable = dut_fill_start & ~dut_cap_busy
                             & ~(dut_mshr_alloc & dut_alloc_wb_valid);
 
+    integer sl;
     always @(posedge clk) begin
         if (!rst_n) begin
-            r_eng_busy     <= 1'b0;
-            r_flight_idx   <= 1'b0;
-            r_flight_cls   <= CLS_RNSD;
-            r_beat_cnt     <= 4'd0;
-            r_since_accept <= 5'd0;
-            r_ar_done_sh   <= 1'b0;
-        end else if (fill_accept) begin
-            r_eng_busy     <= 1'b1;
-            r_flight_idx   <= obs_fill_pend ? obs_fill_idx : mshr_alloc_idx;
-            r_flight_cls   <= dut_fill_cls;
-            r_beat_cnt     <= 4'd0;
-            r_since_accept <= 5'd0;
-            r_ar_done_sh   <= 1'b0;
-        end else if (r_eng_busy) begin
-            if (r_since_accept != 5'h1F)
-                r_since_accept <= r_since_accept + 5'd1;
-            if (fill_beat_valid && (r_beat_cnt != 4'hF))
-                r_beat_cnt <= r_beat_cnt + 4'd1;
-            if (fill_ar_done) r_ar_done_sh <= 1'b1;
-            if (fill_done)    r_eng_busy   <= 1'b0;
+            r_sl_busy <= 3'b0;
+            r_sl_ar   <= 3'b0;
+            for (sl = 0; sl < 3; sl = sl + 1) begin
+                r_sl_cls[sl]   <= CLS_RNSD;
+                r_sl_beats[sl] <= 4'd0;
+                r_sl_age[sl]   <= 5'd0;
+            end
+        end else begin
+            for (sl = 0; sl < 3; sl = sl + 1) begin
+                if (r_sl_busy[sl] && (r_sl_age[sl] != 5'h1F))
+                    r_sl_age[sl] <= r_sl_age[sl] + 5'd1;
+            end
+            if (fill_beat_valid)
+                r_sl_beats[fill_beat_idx] <= r_sl_beats[fill_beat_idx] + 4'd1;
+            if (fill_ar_done)
+                r_sl_ar[fill_ar_done_idx] <= 1'b1;
+            if (fill_done)
+                r_sl_busy[w_done_sl] <= 1'b0;
+            if (fill_accept) begin
+                r_sl_busy[w_launch_sl]  <= 1'b1;
+                r_sl_ar[w_launch_sl]    <= 1'b0;
+                r_sl_cls[w_launch_sl]   <= dut_fill_cls;
+                r_sl_beats[w_launch_sl] <= 4'd0;
+                r_sl_age[w_launch_sl]   <= 5'd0;
+            end
         end
     end
 
     always @(posedge clk) begin
         if (rst_n) begin
-            // the launch adapter: accept combinationally iff the engine is
-            // idle, no capture streams, and the cycle is not a dirty-victim
-            // alloc (the exact jet_prime_top rule)
             as_accept_exact: assume (fill_accept == w_eng_acceptable);
-            // the flight: beats only in flight, only after the AR, only for
-            // a data fill, in order, at most FILL_BEATS of them
+            // beats: only for an entry in flight, after its AR, in order,
+            // at most FILL_BEATS of them (one beat a cycle, any slot)
             as_beat_busy: assume (!fill_beat_valid
-                || (r_eng_busy && r_ar_done_sh && (r_flight_cls != CLS_CU)));
-            as_beat_idx: assume (!fill_beat_valid
-                || ((fill_beat_idx == r_flight_idx)
-                    && (fill_beat_num == r_beat_cnt[2:0])));
-            as_beat_room: assume (!fill_beat_valid || (r_beat_cnt < 4'd8));
-            // done: only in flight, after the AR, with all beats (data
-            // fill) or none (CU), forced within 15 cycles of the accept
-            as_done_busy:  assume (!fill_done || r_eng_busy);
-            as_done_rlast: assume (!fill_done
-                || ((r_flight_cls == CLS_CU) ? (r_beat_cnt == 4'd0)
-                                             : (r_beat_cnt == 4'd8)));
-            as_done_ar:    assume (!fill_done || r_ar_done_sh);
-            as_done_fair:  assume (!r_eng_busy || (r_since_accept < 5'd15)
-                                   || fill_done);
-            // the AR: once per flight, within 4 cycles of the accept
+                || (r_sl_busy[fill_beat_idx] && r_sl_ar[fill_beat_idx]
+                    && (r_sl_beats[fill_beat_idx] < 4'd8)));
+            as_beat_num: assume (!fill_beat_valid
+                || (fill_beat_num == r_sl_beats[fill_beat_idx][2:0]));
+            // done: a slot in flight, its own class, after its AR; a data
+            // fill with its 8th beat landed (or landing this cycle -- the
+            // engine's own alignment), a CU with none
+            as_done_busy: assume (!fill_done || r_sl_busy[w_done_sl]);
+            as_done_cls:  assume (!fill_done
+                || (fill_done_cls == r_sl_cls[w_done_sl]));
+            as_done_ar:   assume (!fill_done || (fill_done_cls == CLS_CU)
+                || r_sl_ar[w_done_sl]);
+            as_done_beats: assume (!fill_done
+                || ((fill_done_cls == CLS_CU)
+                    ? (r_sl_beats[w_done_sl] == 4'd0)
+                    : ((r_sl_beats[w_done_sl] == 4'd8)
+                       || ((r_sl_beats[w_done_sl] == 4'd7) && fill_beat_valid
+                           && (fill_beat_idx == fill_done_idx)))));
+            // the AR: once per data fill, naming an entry in flight
             as_ar_scope: assume (!fill_ar_done
-                                 || (r_eng_busy && !r_ar_done_sh));
-            as_ar_fair:  assume (!r_eng_busy || r_ar_done_sh
-                                 || (r_since_accept < 5'd4) || fill_ar_done);
-            // PassDirty is only meaningful for an RNSD flight
+                || (r_sl_busy[{1'b0, fill_ar_done_idx}]
+                    && !r_sl_ar[{1'b0, fill_ar_done_idx}]
+                    && (r_sl_cls[{1'b0, fill_ar_done_idx}] != CLS_CU)));
+            // fairness per slot: the AR within 4 cycles of the accept, the
+            // done within 24 (three fills' bursts share one beat stream:
+            // 8 + 8 + the CU's beat, plus the AR waits)
+            as_ar_fair0: assume (!r_sl_busy[0] || r_sl_ar[0]
+                || (r_sl_age[0] < 5'd4)
+                || (fill_ar_done && (fill_ar_done_idx == 1'b0)));
+            as_ar_fair1: assume (!r_sl_busy[1] || r_sl_ar[1]
+                || (r_sl_age[1] < 5'd4)
+                || (fill_ar_done && (fill_ar_done_idx == 1'b1)));
+            as_done_fair0: assume (!r_sl_busy[0] || (r_sl_age[0] < 5'd24)
+                || (fill_done && (w_done_sl == 2'd0)));
+            as_done_fair1: assume (!r_sl_busy[1] || (r_sl_age[1] < 5'd24)
+                || (fill_done && (w_done_sl == 2'd1)));
+            as_done_fair2: assume (!r_sl_busy[2] || (r_sl_age[2] < 5'd24)
+                || (fill_done && (w_done_sl == SL_CU)));
+            // PassDirty is only meaningful for an RNSD done
             as_pd_scope: assume (!(fill_done && fill_pass_dirty)
-                                 || (r_flight_cls == CLS_RNSD));
+                                 || (fill_done_cls == CLS_RNSD));
         end
     end
 
@@ -938,7 +985,17 @@ module formal_jet_prime_control (
                                        || obs_claim_vld[fill_beat_idx]);
             ap_retire_has_claim: assert (!dut_mshr_retire
                                          || obs_claim_vld[dut_mshr_retire_idx]);
-            ap_done_has_flight: assert (!fill_done || (obs_fq_undone != 3'd0));
+            // a data fill's done names a live entry; the done queue never
+            // overflows (two entries + the upgrade)
+            ap_done_has_claim: assert (!fill_done || (fill_done_cls == CLS_CU)
+                                       || obs_claim_vld[fill_done_idx]);
+            ap_fq_bounded:     assert (obs_fq_cnt <= 3'd3);
+            // a held launch names the entry whose claim is live (the fast
+            // path presents in the alloc cycle, before the claim registers)
+            ap_launch_has_claim: assert (!(dut_fill_start
+                                           && (dut_fill_cls != CLS_CU)
+                                           && !dut_mshr_alloc)
+                                         || obs_claim_vld[dut_fill_idx]);
             // structural sanity
             ap_sn_cmt_excl: assert (!((obs_sn_state != SN_IDLE))
                                     || (obs_cmt_state == C_IDLE));

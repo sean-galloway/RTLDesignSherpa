@@ -780,13 +780,19 @@ module jet_prime_control (
 	fill_start_o,
 	fill_addr_o,
 	fill_cls_o,
+	fill_idx_o,
+	fill_set_o,
+	fill_way_o,
 	fill_accept_i,
-	fill_pass_dirty_i,
 	fill_beat_valid_i,
 	fill_beat_idx_i,
 	fill_beat_num_i,
 	fill_done_i,
+	fill_done_idx_i,
+	fill_done_cls_i,
+	fill_pass_dirty_i,
 	fill_ar_done_i,
+	fill_ar_done_idx_i,
 	cmt_busy_o,
 	ctrl_error_o
 );
@@ -934,30 +940,36 @@ module jet_prime_control (
 	output wire fill_start_o;
 	output wire [32 - 1:0] fill_addr_o;
 	output wire [1:0] fill_cls_o;
+	output wire [MW - 1:0] fill_idx_o;
+	output wire [SET_W - 1:0] fill_set_o;
+	output wire [WAY_W - 1:0] fill_way_o;
 	input wire fill_accept_i;
-	input wire fill_pass_dirty_i;
 	input wire fill_beat_valid_i;
 	input wire [MW - 1:0] fill_beat_idx_i;
 	input wire [BEAT_W - 1:0] fill_beat_num_i;
 	input wire fill_done_i;
+	input wire [MW - 1:0] fill_done_idx_i;
+	input wire [1:0] fill_done_cls_i;
+	input wire fill_pass_dirty_i;
 	input wire fill_ar_done_i;
+	input wire [MW - 1:0] fill_ar_done_idx_i;
 	output wire cmt_busy_o;
 	output wire ctrl_error_o;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:448:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:469:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:450:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:471:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:452:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:473:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:454:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:475:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:456:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:477:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
 		if ((2 < 2) || (2 > 16))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:458:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:479:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
 		if ((2 < 1) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:460:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:481:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
 	end
 	localparam [2:0] STALL_NONE = 3'd0;
 	localparam [2:0] STALL_MSHR_FULL = 3'd1;
@@ -1005,7 +1017,7 @@ module jet_prime_control (
 	reg [32 - 1:0] r_fill_addr;
 	reg [1:0] r_fill_cls;
 	reg [MW - 1:0] r_fill_idx;
-	reg r_ar_done;
+	reg [2 - 1:0] r_ar_done;
 	reg r_drain_busy;
 	reg r_upgr_valid;
 	reg [LINE_W - 1:0] r_upgr_line;
@@ -1023,13 +1035,10 @@ module jet_prime_control (
 	reg [2 - 1:0] r_efill_done;
 	reg [FQ_W - 1:0] r_fq_head;
 	reg [FQ_W - 1:0] r_fq_tail;
-	reg [FQ_W - 1:0] r_fq_done_ptr;
 	reg [FQ_W:0] r_fq_cnt;
-	reg [FQ_W:0] r_fq_undone;
 	reg [MW - 1:0] r_fq_idx [0:FQ_DEPTH - 1];
 	reg [1:0] r_fq_cls [0:FQ_DEPTH - 1];
 	reg r_fq_pd [0:FQ_DEPTH - 1];
-	reg r_fq_done [0:FQ_DEPTH - 1];
 	(* ram_style = "distributed" *) reg r_req_we [0:(2 * 2) - 1];
 	(* ram_style = "distributed" *) reg [BEAT_W - 1:0] r_req_beat [0:(2 * 2) - 1];
 	(* ram_style = "distributed" *) reg [STRB_W - 1:0] r_req_be [0:(2 * 2) - 1];
@@ -1246,7 +1255,7 @@ module jet_prime_control (
 	wire [MW - 1:0] w_launch_idx;
 	wire w_mshr_pre_ar;
 	assign w_launch_idx = (r_fill_pend ? r_fill_idx : mshr_alloc_idx_i);
-	assign w_mshr_pre_ar = mshr_sn_match_i & (((fill_start_o & (fill_cls_o != 2'b10)) & (mshr_sn_match_idx_i == w_launch_idx)) | ((((r_fq_undone != {(FQ_W >= 0 ? FQ_W + 1 : 1 - FQ_W) {1'sb0}}) & ~r_ar_done) & (r_fq_cls[r_fq_done_ptr] != 2'b10)) & (mshr_sn_match_idx_i == r_fq_idx[r_fq_done_ptr])));
+	assign w_mshr_pre_ar = mshr_sn_match_i & ~r_ar_done[mshr_sn_match_idx_i];
 	assign w_src_mshr = (~w_src_wb & mshr_sn_match_i) & ~w_mshr_pre_ar;
 	assign w_src_array = (((~w_src_wb & ~w_src_mshr) & ~w_mshr_pre_ar) & w_sn_thit) & ~w_sn_tclaimed;
 	assign w_sn_src = (w_src_wb ? SRC_WB : (w_src_mshr ? SRC_MSHR : (w_src_array ? SRC_ARRAY : SRC_NONE)));
@@ -1343,8 +1352,8 @@ module jet_prime_control (
 	assign w_crresp_raw = l1_pkg_amber_snoop_crresp(w_sn_ref, sn_type_i);
 	assign w_sn_crresp = (w_sn_deliver ? w_crresp_raw : w_crresp_raw & CRRESP_NO_DT);
 	assign sn_crresp_o = w_sn_crresp;
-	assign w_any_done = r_fq_cnt != r_fq_undone;
-	assign w_cu_completing = fill_done_i & (r_fq_cls[r_fq_done_ptr] == 2'b10);
+	assign w_any_done = r_fq_cnt != {(FQ_W >= 0 ? FQ_W + 1 : 1 - FQ_W) {1'sb0}};
+	assign w_cu_completing = fill_done_i & (fill_done_cls_i == 2'b10);
 	assign sn_safe_o = ((((~r_init_busy & (r_sn_state == SN_IDLE)) & ~w_any_done) & ~w_cap_active) & ~w_cu_completing) & ~(r_srv_vld & r_srv_we);
 	assign w_sn_gnt = sn_req_i & sn_safe_o;
 	assign sn_ready_o = w_sn_gnt;
@@ -1399,7 +1408,7 @@ module jet_prime_control (
 	wire [SET_W - 1:0] w_cmt_set;
 	wire [TAG_W - 1:0] w_cmt_tag;
 	wire [TAG_W - 1:0] w_upgr_tag;
-	assign w_fq_head_done = (r_fq_cnt != {(FQ_W >= 0 ? FQ_W + 1 : 1 - FQ_W) {1'sb0}}) & r_fq_done[r_fq_head];
+	assign w_fq_head_done = r_fq_cnt != {(FQ_W >= 0 ? FQ_W + 1 : 1 - FQ_W) {1'sb0}};
 	assign w_cmt_snap = ((r_cmt_state == C_IDLE) & w_fq_head_done) & (r_fq_cls[r_fq_head] != 2'b10);
 	assign w_slot_done = r_cmt_k == r_cmt_count;
 	function automatic [31:0] sv2v_cast_32;
@@ -1605,7 +1614,10 @@ module jet_prime_control (
 	assign fill_start_o = r_fill_pend | w_launch;
 	assign fill_addr_o = (r_fill_pend ? r_fill_addr : w_launch_addr);
 	assign fill_cls_o = (r_fill_pend ? r_fill_cls : w_launch_cls);
-	assign w_fq_push = fill_start_o & fill_accept_i;
+	assign fill_idx_o = w_launch_idx;
+	assign fill_set_o = (r_fill_pend ? r_claim_set[r_fill_idx] : w_req_set);
+	assign fill_way_o = (r_fill_pend ? r_claim_way[r_fill_idx] : repl_victim_way_i);
+	assign w_fq_push = fill_done_i;
 	assign w_fq_pop = w_cmt_retire | (r_cmt_state == C_CU_DEPOSIT);
 	assign cpl_valid_o = w_cmt_cpl | w_srv_fire;
 	assign cpl_tag_o = (w_cmt_cpl ? w_cmt_cpl_tag : r_srv_seq);
@@ -1700,7 +1712,7 @@ module jet_prime_control (
 			r_fill_addr <= 1'sb0;
 			r_fill_cls <= 1'sb0;
 			r_fill_idx <= 1'sb0;
-			r_ar_done <= 1'b0;
+			r_ar_done <= 1'sb0;
 			r_drain_busy <= 1'b0;
 			r_upgr_valid <= 1'b0;
 			r_upgr_line <= 1'sb0;
@@ -1716,9 +1728,7 @@ module jet_prime_control (
 			r_efill_done <= 1'sb0;
 			r_fq_head <= 1'sb0;
 			r_fq_tail <= 1'sb0;
-			r_fq_done_ptr <= 1'sb0;
 			r_fq_cnt <= 1'sb0;
-			r_fq_undone <= 1'sb0;
 			r_cmt_state <= C_IDLE;
 			r_cmt_idx <= 1'sb0;
 			r_cmt_line <= 1'sb0;
@@ -1757,7 +1767,6 @@ module jet_prime_control (
 						r_fq_idx[q] <= 1'sb0;
 						r_fq_cls[q] <= 1'sb0;
 						r_fq_pd[q] <= 1'b0;
-						r_fq_done[q] <= 1'b0;
 					end
 			end
 		end
@@ -1791,10 +1800,8 @@ module jet_prime_control (
 			end
 			else if (fill_accept_i)
 				r_fill_pend <= 1'b0;
-			if (fill_done_i)
-				r_ar_done <= 1'b0;
-			else if (fill_ar_done_i)
-				r_ar_done <= 1'b1;
+			if (fill_ar_done_i)
+				r_ar_done[fill_ar_done_idx_i] <= 1'b1;
 			if (drain_start_o)
 				r_drain_busy <= 1'b1;
 			else if (drain_done_i)
@@ -1826,25 +1833,18 @@ module jet_prime_control (
 			if (w_cmt_retire) begin
 				r_claim_vld[r_cmt_idx] <= 1'b0;
 				r_efill_done[r_cmt_idx] <= 1'b0;
+				r_ar_done[r_cmt_idx] <= 1'b0;
 			end
 			if (w_fq_push) begin
-				r_fq_idx[r_fq_tail] <= (r_fill_pend ? r_fill_idx : mshr_alloc_idx_i);
-				r_fq_cls[r_fq_tail] <= (r_fill_pend ? r_fill_cls : w_launch_cls);
-				r_fq_done[r_fq_tail] <= 1'b0;
+				r_fq_idx[r_fq_tail] <= fill_done_idx_i;
+				r_fq_cls[r_fq_tail] <= fill_done_cls_i;
+				r_fq_pd[r_fq_tail] <= fill_pass_dirty_i;
+				if (fill_done_cls_i != 2'b10)
+					r_efill_done[fill_done_idx_i] <= 1'b1;
 				if (r_fq_tail == sv2v_cast_6D0AE_signed(FQ_DEPTH - 1))
 					r_fq_tail <= 1'sb0;
 				else
 					r_fq_tail <= r_fq_tail + 1'b1;
-			end
-			if (fill_done_i) begin
-				r_fq_done[r_fq_done_ptr] <= 1'b1;
-				r_fq_pd[r_fq_done_ptr] <= fill_pass_dirty_i;
-				if (r_fq_cls[r_fq_done_ptr] != 2'b10)
-					r_efill_done[r_fq_idx[r_fq_done_ptr]] <= 1'b1;
-				if (r_fq_done_ptr == sv2v_cast_6D0AE_signed(FQ_DEPTH - 1))
-					r_fq_done_ptr <= 1'sb0;
-				else
-					r_fq_done_ptr <= r_fq_done_ptr + 1'b1;
 			end
 			if (w_fq_pop) begin
 				if (r_fq_head == sv2v_cast_6D0AE_signed(FQ_DEPTH - 1))
@@ -1855,12 +1855,6 @@ module jet_prime_control (
 			case ({w_fq_push, w_fq_pop})
 				2'b10: r_fq_cnt <= r_fq_cnt + 1'b1;
 				2'b01: r_fq_cnt <= r_fq_cnt - 1'b1;
-				default:
-					;
-			endcase
-			case ({w_fq_push, fill_done_i})
-				2'b10: r_fq_undone <= r_fq_undone + 1'b1;
-				2'b01: r_fq_undone <= r_fq_undone - 1'b1;
 				default:
 					;
 			endcase

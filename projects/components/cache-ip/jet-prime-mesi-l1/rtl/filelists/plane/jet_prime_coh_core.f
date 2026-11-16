@@ -3,9 +3,9 @@
 #
 # Coherence-core plane for the jet MESI L1 (plane restructure, Task 4):
 # the jet control closure (jet_prime_control + jet_prime_mshr + jet_prime_wb_buffer), the
-# UNCHANGED common-ip slice (arrays, repl, fill/drain engines), the
+# common-ip slice (arrays, repl, drain engine), jet_prime_fill, the
 # l1_monlite + jet_prime_monlite observers, and the integration glue
-# (fill-launch adapter, data-array W-port mux, coh_req drain-collision
+# (fill-launch gate, data-array W-port mux, coh_req drain-collision
 # replay, mon_state pseudo-state encoder). Own RTL: the plane itself;
 # foreign sources only via their own filelists.
 
@@ -16,17 +16,19 @@
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_pkg.f
 
-# jet control closure (the lookup/commit core + its two files; the J4
-# response sequencer lives in the CPU plane)
+# jet control closure (the lookup/commit core + its two files + the
+# multi-outstanding fill engine; the J4 response sequencer lives in the
+# CPU plane)
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_mshr.f
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_wb_buffer.f
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_control.f
+-f $JET_PRIME_ROOT/rtl/filelists/jet_prime_fill.f
 
-# Common-ip slice: arrays + replacement + fill/drain engines
+# Common-ip slice: arrays + replacement + the drain engine (the fill
+# engine is jet-prime's own since TASK-001 step 2)
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_tag_array.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_data_array.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_repl.f
--f $CACHE_COMMON_ROOT/rtl/filelists/l1_fill.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_drain.f
 
 # MonBus observers (the cache-event monlite + the J7 jet observer)

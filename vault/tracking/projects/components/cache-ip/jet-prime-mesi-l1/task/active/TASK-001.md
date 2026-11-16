@@ -1,7 +1,7 @@
 # TASK-001: beat HPDcache -- jet-prime's miss path, measured and rebuilt
 
 **Priority:** P2
-**Status:** active 2026-11-12 -- fork done, step 1 (jet-prime without the pair fabric) measured; steps 2-4 open
+**Status:** active 2026-11-12 -- fork done, step 1 (jet-prime without the pair fabric) measured 11-12, step 2 (multiple outstanding fills) built and measured 11-15; steps 3-4 open
 **Owner:** TBD
 
 Filed 2026-11-12 (Sean: "Make a jet-prime and do 1"). The reference
@@ -97,4 +97,66 @@ depth on `r64k_we64` and `r64k_we255`, with the resident-hit row still at
   there with a peer attached. Tables and reading:
   `projects/components/cache-ip/docs/reference_l1_comparison.md`.
 
-Next: step 2.
+### 2026-11-15 -- step 2: multiple outstanding fills
+
+- **Built.** `jet_prime_fill` (`rtl/fub/jet_prime_fill.sv`) replaces the
+  shared single-outstanding `l1_fill` in `jet_prime_coh_core`: one AXI4
+  read ID per MSHR entry plus the no-data upgrade slot, R demuxed by ID
+  into a DEPTH-4 staging queue, each beat presented with the entry's
+  claimed set/way (the plane's one-deep launch adapter is gone), done with
+  the slot's last beat in whatever order the memory returns the bursts.
+  `jet_prime_control`: the launch-order completion queue (single read ID)
+  became a done queue pushed by the engine's `{idx, cls, pd}` report, and
+  the pre-AR snoop rule became per entry (`r_ar_done[MSHR_COUNT]`, set by
+  the ID-decoded memory-side AR handshake, cleared at retire). Parameter
+  `FILL_INFLIGHT` on the tops (default MSHR_COUNT + 1); the pair rig
+  instantiates both caches at 1 because `jet_prime_pair_fabric`'s kill rule
+  and 4-deep request queue are argued for a single-outstanding engine per
+  direction (step 3 rebuilds the fabric and lifts it). Write-up:
+  `docs/delta/01_fill_engine.md` (the first jet-prime chapter that is not
+  jet's). No common-ip change.
+- **DV.** New `test_jet_prime_fill` (engine vs the AXI4 slave BFM: in-order
+  at gate, out-of-order at func, interleaved R at full; cells at full depth
+  and at `FILL_INFLIGHT=1`). The control TB's fill stub models the engine
+  (several accepted, per-entry AR, bursts in a chosen order), two new
+  scenarios (`fill_concurrent_ooo`, `snoop_pre_ar_per_entry`), and a third
+  func/full pass runs every scenario under random completion order with
+  the done riding the last beat. Core / parity / pair-rig TBs track fills
+  by entry and commit in done order. Gate 21/21; FULL 155/155 (8:58; 149 + the six jet_prime_fill cells); ref-g2
+  lint at `REF_CACHE_SEL=2` clean.
+- **Formal.** The control harness's environment is the new engine (three
+  slots, per-slot fairness: AR within 4, done within 24; completion in any
+  order); liveness age bound 112 -> 128 (two fills' bursts share one beat
+  stream), BMC depth 176 -> 192. Safety prove PASS (boolector, 12:20 wall; step 1 ran about 4 h -- the
+  three-slot engine model triples the state the induction carries); liveness BMC to depth 192 PASS (15:41; step 1 depth 176 ran 3:16); both covers PASS, 23/23 safety and 7/7 liveness
+  points reached. Formal total 28 h wall for the step; the proof cost is now the long pole of a jet-prime step and is worth
+  a look before step 3 adds the fabric model.
+- **Board.** `ref_jetp_bringup` bin 2: 8,559 LUT / 7,182 FF (step 1: 8,339 / 6,996), WNS +0.532 ns at 100 MHz; smoke init+smoke
+  PASS, ci0 `rsp_crc` 1814064162 (the jet rig's CRC, unchanged from step 1); sweep `ref/results/perf_sweep_jetp_bin2_single_20261115T200018Z.json`, 55/55 runs, err 0. OOC jetp:
+  6,047 LUT / 5,394 FF (jet 5,892 / 5,258), 16 RAMB36, 1,888 LUTRAM, WNS +0.118 ns; the worst path runs from the staging queue's read pointer through the slot set lookup into the data-array address -- a watch item (a registered queue output is the fix if it bites) (step 1 row kept as `results/ooc/jetp_step1`).
+- **Result, cycles per transaction at depth 16 (jet / jet-prime s1 /
+  jet-prime s2 / HPDcache):** `r64k_we64` 10.65 / 8.13 / 5.71 / 7.64;
+  `r64k_we255` 10.79 / 8.29 / 8.14 / 10.51; `r128k_we64` 15.74 / 12.00 /
+  8.00 / 10.90. Depth 4: 6.89 / 9.10 / 8.91 against HPDcache's 8.22 /
+  10.53 / 11.37. Depth 1 unchanged (14.88 vs HPDcache 13.73). MLP on
+  `r64k_we64` d16 7.1 -> 10.8 (OUTST_MAX 12, the injector's ceiling);
+  hit floor 3 and the 1.00 hit rows unchanged.
+- **Reading.** From depth 4 up jet-prime is under HPDcache on every miss
+  configuration: 25 % on the read-lean thrash, 23 % on the write-heavy
+  one, 27 % at four times the cache -- the done criterion's two
+  configurations at depths 4 and 16, on the single-cache rig. Depth 1
+  (one miss at a time) keeps its ~1-cycle gap: that is the AR register
+  plus the lookup pipeline, not the engine. The read-lean row is now at
+  the memory port: 5.71 cycles per transaction at a 50 % miss rate is
+  11.4 cycles per line against the 8-beat floor. The write-heavy row moved
+  least (8.29 -> 8.14); the likely limiter (not measured here) is the
+  dirty-victim path -- one capture at a time with the launch held behind
+  it -- and the one write channel, not fills. So the next lever on the
+  single-cache rig is probably the capture/launch serialization (measure
+  first); the next lever against HPDcache on the PAIR rig is the fabric
+  (step 3): adding its measured 2.5 cycles per transaction to 5.71
+  estimates the pair-rig jet-prime at ~8.2 on `r64k_we64`, 7 % behind
+  HPDcache, until it is pipelined.
+
+Next: step 3 (the per-line pipelined pair fabric) -- lift `FILL_INFLIGHT`
+on the pair rig with it.

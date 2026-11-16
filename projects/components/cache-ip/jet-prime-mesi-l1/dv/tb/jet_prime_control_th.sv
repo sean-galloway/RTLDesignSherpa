@@ -107,19 +107,27 @@ module jet_prime_control_th
     output logic                        lkup_wr_yield_o,
     output logic                        ctrl_error_o,
 
-    // fill engine stub (handshake timing only; PassDirty carried to done)
+    // fill engine stub (handshake timing only: several fills in flight,
+    // completion by entry index in any order, PassDirty carried to done)
     input  logic                        fill_accept_i,
     input  logic                        fill_pass_dirty_i,
     input  logic                        fill_beat_valid_i,
     input  logic [MW-1:0]               fill_beat_idx_i,
     input  logic [BEAT_W-1:0]           fill_beat_num_i,
     input  logic                        fill_done_i,
-    // the burst server's burst-start pulse (the stub's model of the
-    // engine's AR acceptance -- the pre-AR rule's progress input)
+    input  logic [MW-1:0]               fill_done_idx_i,
+    input  logic [1:0]                  fill_done_cls_i,
+    // the burst server's AR-issue pulse per entry (the stub's model of the
+    // engine's memory-side AR acceptance -- the pre-AR rule's progress
+    // input)
     input  logic                        fill_ar_done_i,
+    input  logic [MW-1:0]               fill_ar_done_idx_i,
     output logic                        fill_start_o,
     output logic [ADDR_WIDTH-1:0]       fill_addr_o,
     output logic [1:0]                  fill_cls_o,
+    output logic [MW-1:0]               fill_idx_o,
+    output logic [SET_W-1:0]            fill_set_o,
+    output logic [WAY_W-1:0]            fill_way_o,
 
     // fill-beat array writes (the stub's W-port stream; also the TB's
     // data-array backdoor for line setup)
@@ -464,13 +472,19 @@ module jet_prime_control_th
         .fill_start_o            (fill_start_o),
         .fill_addr_o             (fill_addr_o),
         .fill_cls_o              (fill_cls_o),
+        .fill_idx_o              (fill_idx_o),
+        .fill_set_o              (fill_set_o),
+        .fill_way_o              (fill_way_o),
         .fill_accept_i           (fill_accept_i),
-        .fill_pass_dirty_i       (fill_pass_dirty_i),
         .fill_beat_valid_i       (fill_beat_valid_i),
         .fill_beat_idx_i         (fill_beat_idx_i),
         .fill_beat_num_i         (fill_beat_num_i),
         .fill_done_i             (fill_done_i),
-        .fill_ar_done_i          (fill_ar_done_i)
+        .fill_done_idx_i         (fill_done_idx_i),
+        .fill_done_cls_i         (fill_done_cls_i),
+        .fill_pass_dirty_i       (fill_pass_dirty_i),
+        .fill_ar_done_i          (fill_ar_done_i),
+        .fill_ar_done_idx_i      (fill_ar_done_idx_i)
     );
 
     // ------------------------------------------------------------------

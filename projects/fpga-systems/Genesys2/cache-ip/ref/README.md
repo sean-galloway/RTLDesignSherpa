@@ -3,8 +3,9 @@
 The jet pair harness with ONE cache in the slot and no coherence fabric, so
 the OpenHW HPDcache (`REF_CACHE_SEL=0`), the CVA6 write-back dcache
 (`REF_CACHE_SEL=1`) and the house jet-prime straight onto memory
-(`REF_CACHE_SEL=2`, jet-prime TASK-001 step 1: jet's RTL without the pair
-fabric, snoop port tied off) can be measured behind the same pipelined cycle
+(`REF_CACHE_SEL=2`, jet-prime TASK-001: the cache without the pair fabric,
+snoop port tied off -- step 1 was jet's RTL as forked, step 2 adds
+`jet_prime_fill`'s concurrent fills) can be measured behind the same pipelined cycle
 injector, memory, UART stack and clock as amber and jet. Work item: cache-ip common-ip TASK-003
 (`vault/tracking/projects/components/cache-ip/common-ip/task/`); results and
 every place the comparison is not like-for-like:
