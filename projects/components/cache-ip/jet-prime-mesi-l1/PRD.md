@@ -42,9 +42,9 @@ jet is frozen as the measured baseline; jet-prime carries the change.
 |---|---|---|
 | JP1 | Cycles per transaction below HPDcache's at every depth 1..16 on `r64k_we64` and `r64k_we255` on the reference rig (same injector, memory, bridge, UART, 100 MHz). | open |
 | JP2 | Resident hits stay at 1.0 cycle per transaction from depth 4; hit latency stays at jet's 3 cycles at depth 1. | open |
-| JP3 | Several fills in flight per cache (one AXI ID per outstanding miss, R demuxed by ID); the response order contract (J4) unchanged. | built 2026-11-15 (step 2, `jet_prime_fill`; [delta 01](docs/delta/01_fill_engine.md)). The pair rig runs it at one fill in flight until JP4. |
-| JP4 | The pair fabric serializes per line, not globally: distinct lines proceed concurrently; same-line conflicts keep grant-after-completion. | open |
-| JP5 | jet's FULL grid, pair-rig DV and `jet_control` formal (prove, prove-live, cover) stay green on the fork at every step; new concurrency gets its own pair-rig scenarios and a formal safety argument for JP4. | open (step 2 carried by `test_jet_prime_fill`, the control TB's concurrent/out-of-order pass and the reworked formal engine model; the pair-rig concurrency scenarios wait on JP4) |
+| JP3 | Several fills in flight per cache (one AXI ID per outstanding miss, R demuxed by ID); the response order contract (J4) unchanged. | built 2026-11-15 (step 2, `jet_prime_fill`; [delta 01](docs/delta/01_fill_engine.md)); the pair rig runs it at full depth since JP4. |
+| JP4 | The pair fabric serializes per line, not globally: distinct lines proceed concurrently; same-line conflicts keep grant-after-completion. | built 2026-11-16 (step 3, `jet_prime_pair_fabric` rebuilt around a transaction table; completion = the requester's retire, carried by the new `coh_done` sideband; [delta 02](docs/delta/02_pair_fabric.md)). |
+| JP5 | jet's FULL grid, pair-rig DV and `jet_control` formal (prove, prove-live, cover) stay green on the fork at every step; new concurrency gets its own pair-rig scenarios and a formal safety argument for JP4. | open (steps 2 and 3 carried by `test_jet_prime_fill`, the control TB's concurrent/out-of-order pass, the pair-rig lockstep model's transaction-table layer and the reworked formal engine model; the formal safety argument for the fabric's per-line rule is step 4) |
 | JP6 | Genesys2 at 100 MHz with positive slack on the reference-rig build and the pair-rig build. | open |
 
 ## 3. Non-goals

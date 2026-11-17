@@ -315,6 +315,7 @@ module formal_jet_prime_control_live (
         .mshr_beat_num_o         (dut_mshr_beat_num),
         .mshr_retire_o           (dut_mshr_retire),
         .mshr_retire_idx_o       (dut_mshr_retire_idx),
+        .cu_done_o               (),
         .wb_cap_o                (dut_wb_cap),
         .wb_cap_line_o           (dut_wb_cap_line),
         .wb_cap_beat_o           (dut_wb_cap_beat),

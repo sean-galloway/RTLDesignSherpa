@@ -14,8 +14,10 @@
 //   wiring plus the rig-level mon_time free-running counter (observer
 //   timestamp only; coherence never samples it).  The TB drives both CPU
 //   GAXI ports and observes through hierarchical taps (the sanctioned
-//   read-only pattern); the fabric's safe-peer wait consumes each cache's
-//   ctrl_state observability output.
+//   read-only pattern).  Step 3 (2026-11-16): the fabric is the pipelined
+//   jet_prime_pair_fabric -- it consumes each cache's retire sideband
+//   (coh_done_*) instead of the ctrl_state / lkup_live observability
+//   outputs, and both caches run the fill engine at full depth.
 //
 // Documentation: projects/components/cache-ip/jet-mesi-l1/docs/jet_mas/ch01_overview/01_architecture.md
 // Subsystem: jet-prime (forked from jet at 2be919254, 2026-11-12 -- jet-prime TASK-001)
@@ -41,8 +43,8 @@
 //
 //   Each jet_prime_top carries its own D-7 monbus_arbiter; the two merged
 //   MonBus output pairs (mon0_*, mon1_*) are observation-only top ports.
-//   The D-8 coherence sidebands feed the fabric; the fabric drives the ACE
-//   AC channel of the peer.  The shared memory's AXIL surfaces are left
+//   The D-8 coherence and retire sidebands feed the fabric; the fabric
+//   drives the ACE AC channel of the peer.  The shared memory's AXIL surfaces are left
 //   unconnected; the config clear port is tied off (the TB backdoor-writes
 //   initial content through the sdpram_core r_mem, the same
 //   quiescent-phase discipline as the landed suites).
@@ -56,9 +58,7 @@
 // Notes:
 //   - Clock/reset naming follows the house TH idiom (clk / rst_n); the
 //     jet_prime_top aclk/aresetn ports are joined to them here (jet_prime_top
-//     synchronizes the boundary internally, so the fabric's peer_state
-//     view lags the port reset release by the N=3 sync -- both caches
-//     share it).
+//     synchronizes the boundary internally; both caches share it).
 //   - Everything here is wiring + the mon_time counter; all other
 //     registers belong to the DUTs.
 //
@@ -78,6 +78,12 @@ module jet_prime_pair_rig_tb
     parameter bit USE_MONITOR    = 1'b1,
     parameter int MSHR_COUNT     = jet_prime_pkg::MSHR_COUNT,
     parameter int VICTIM_DEPTH   = jet_prime_pkg::VICTIM_DEPTH,
+    // every entry and the upgrade in flight (step 2's engine depth; the
+    // pipelined fabric of step 3 carries it)
+    parameter int FILL_INFLIGHT  = MSHR_COUNT + 1,
+    // the fabric's transaction table: both caches' entries and upgrades
+    parameter int FAB_SLOTS      = 2 * (MSHR_COUNT + 1),
+    parameter int SNOOP_INFLIGHT = 2,
     parameter int MEM_DEPTH      = 16384,
     localparam int STRB_W       = BUS_WIDTH / 8,
     localparam int IW           = AXI_ID_WIDTH,
@@ -192,15 +198,18 @@ module jet_prime_pair_rig_tb
     logic                     s0_cdvalid, s1_cdvalid;
     logic                     s0_cdready, s1_cdready;
 
-    // D-8 coherence sidebands
+    // D-8 coherence sidebands + the retire sidebands (step 3)
     logic                     coh0_valid, coh1_valid;
     logic [ADDR_WIDTH-1:0]    coh0_addr, coh1_addr;
     logic [2:0]               coh0_type, coh1_type;
+    logic                     done0_valid, done1_valid;
+    logic [IW-1:0]            done0_id, done1_id;
 
-    // status
+    // status (observability nets the TB taps through the cache instances)
+    /* verilator lint_off UNUSEDSIGNAL */
     logic                     init_busy0, init_busy1;
     logic [3:0]               ctrl_state0, ctrl_state1;
-    logic                   lkup_live0, lkup_live1;
+    /* verilator lint_on UNUSEDSIGNAL */
 
     // ------------------------------------------------------------------
     // The two caches
@@ -217,11 +226,7 @@ module jet_prime_pair_rig_tb
         .USE_MONITOR    (USE_MONITOR),
         .MSHR_COUNT     (MSHR_COUNT),
         .VICTIM_DEPTH   (VICTIM_DEPTH),
-        // one fill in flight per cache: jet_prime_pair_fabric's kill rule
-        // and 4-deep request queue are argued for a single-outstanding
-        // engine per direction (TASK-001 step 3 rebuilds the fabric and
-        // lifts this)
-        .FILL_INFLIGHT  (1)
+        .FILL_INFLIGHT  (FILL_INFLIGHT)
     ) u_jet0 (
         .aclk            (clk),
         .aresetn         (rst_n),
@@ -290,6 +295,8 @@ module jet_prime_pair_rig_tb
         .coh_req_valid   (coh0_valid),
         .coh_req_addr    (coh0_addr),
         .coh_req_type    (coh0_type),
+        .coh_done_valid  (done0_valid),
+        .coh_done_id     (done0_id),
         .i_mon_time      (mon_time_q),
         .mon_valid       (mon0_valid),
         .mon_ready       (mon0_ready),
@@ -297,7 +304,6 @@ module jet_prime_pair_rig_tb
         .mon_timestamp   (mon0_timestamp),
         .init_busy       (init_busy0),
         .ctrl_state      (ctrl_state0),
-        .lkup_live       (lkup_live0),
         .busy            ()
     );
 
@@ -313,11 +319,7 @@ module jet_prime_pair_rig_tb
         .USE_MONITOR    (USE_MONITOR),
         .MSHR_COUNT     (MSHR_COUNT),
         .VICTIM_DEPTH   (VICTIM_DEPTH),
-        // one fill in flight per cache: jet_prime_pair_fabric's kill rule
-        // and 4-deep request queue are argued for a single-outstanding
-        // engine per direction (TASK-001 step 3 rebuilds the fabric and
-        // lifts this)
-        .FILL_INFLIGHT  (1)
+        .FILL_INFLIGHT  (FILL_INFLIGHT)
     ) u_jet1 (
         .aclk            (clk),
         .aresetn         (rst_n),
@@ -386,6 +388,8 @@ module jet_prime_pair_rig_tb
         .coh_req_valid   (coh1_valid),
         .coh_req_addr    (coh1_addr),
         .coh_req_type    (coh1_type),
+        .coh_done_valid  (done1_valid),
+        .coh_done_id     (done1_id),
         .i_mon_time      (mon_time_q),
         .mon_valid       (mon1_valid),
         .mon_ready       (mon1_ready),
@@ -393,7 +397,6 @@ module jet_prime_pair_rig_tb
         .mon_timestamp   (mon1_timestamp),
         .init_busy       (init_busy1),
         .ctrl_state      (ctrl_state1),
-        .lkup_live       (lkup_live1),
         .busy            ()
     );
 
@@ -447,7 +450,9 @@ module jet_prime_pair_rig_tb
         .LINE_BYTES     (LINE_BYTES),
         .BUS_WIDTH      (BUS_WIDTH),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
-        .AXI_USER_WIDTH (AXI_USER_WIDTH)
+        .AXI_USER_WIDTH (AXI_USER_WIDTH),
+        .FAB_SLOTS      (FAB_SLOTS),
+        .SNOOP_INFLIGHT (SNOOP_INFLIGHT)
     ) u_fabric (
         .clk               (clk),
         .rst_n             (rst_n),
@@ -569,10 +574,10 @@ module jet_prime_pair_rig_tb
         .c1_coh_req_valid  (coh1_valid),
         .c1_coh_req_addr   (coh1_addr),
         .c1_coh_req_type   (coh1_type),
-        .peer0_state       (ctrl_state0),
-        .peer1_state       (ctrl_state1),
-        .peer0_lkup_live   (lkup_live0),
-        .peer1_lkup_live   (lkup_live1),
+        .c0_coh_done_valid (done0_valid),
+        .c0_coh_done_id    (done0_id),
+        .c1_coh_done_valid (done1_valid),
+        .c1_coh_done_id    (done1_id),
         .mem_arid          (mem_arid),
         .mem_araddr        (mem_araddr),
         .mem_arlen         (mem_arlen),
@@ -617,14 +622,14 @@ module jet_prime_pair_rig_tb
         .mem_buser         (mem_buser),
         .mem_bvalid        (mem_bvalid),
         .mem_bready        (mem_bready),
-        .dbg_state         (),
-        .dbg_grant_dir     (),
+        .dbg_busy          (),
+        .dbg_slot_vld      (),
         .dbg_pend_vld      (),
-        .dbg_buf_vld       (),
         .dbg_abs_pend      (),
-        .dbg_kill          (),
-        .dbg_acsnoop       (),
-        .dbg_grant_addr    ()
+        .dbg_grant         (),
+        .dbg_grant_dir     (),
+        .dbg_grant_addr    (),
+        .dbg_grant_slot    ()
     );
 
     // ------------------------------------------------------------------

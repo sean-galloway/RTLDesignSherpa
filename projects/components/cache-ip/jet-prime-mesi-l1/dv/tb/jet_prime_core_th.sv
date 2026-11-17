@@ -220,8 +220,9 @@ module jet_prime_core_th
         .mon_packet      (mon_packet),
         .mon_timestamp   (mon_timestamp),
         .init_busy       (init_busy),
+        .coh_done_valid  (),
+        .coh_done_id     (),
         .ctrl_state      (ctrl_state),
-        .lkup_live       (),
         .busy            (busy)
     );
 

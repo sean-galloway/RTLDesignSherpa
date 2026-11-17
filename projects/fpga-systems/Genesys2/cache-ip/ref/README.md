@@ -6,7 +6,10 @@ the OpenHW HPDcache (`REF_CACHE_SEL=0`), the CVA6 write-back dcache
 (`REF_CACHE_SEL=2`, jet-prime TASK-001: the cache without the pair fabric,
 snoop port tied off -- step 1 was jet's RTL as forked, step 2 adds
 `jet_prime_fill`'s concurrent fills) can be measured behind the same pipelined cycle
-injector, memory, UART stack and clock as amber and jet. Work item: cache-ip common-ip TASK-003
+injector, memory, UART stack and clock as amber and jet. `REF_CACHE_SEL=3`
+is the one two-cache selection: the jet-prime PAIR through the pipelined
+`jet_prime_pair_fabric` (step 3), a cache behind each injector, so its
+ci1-idle row against SEL 2 is the fabric's cost to a single core. Work item: cache-ip common-ip TASK-003
 (`vault/tracking/projects/components/cache-ip/common-ip/task/`); results and
 every place the comparison is not like-for-like:
 `projects/components/cache-ip/docs/reference_l1_comparison.md`.
@@ -16,7 +19,7 @@ every place the comparison is not like-for-like:
   `ref_cva6_dcache_top.sv`, the block-RAM SRAM stand-ins the vendored caches
   need on Vivado, `ref_null_cache.sv`, `ref_axil_stub.sv`.
 - `dv/tests/` -- `make clean-all && make run-all-gate-parallel`.
-- `build-bringup/` -- `make bitstream smoke REF_CACHE_SEL=0|1|2`; `make ooc
+- `build-bringup/` -- `make bitstream smoke REF_CACHE_SEL=0|1|2|3`; `make ooc
   CACHE=hpd|cva6|jet|jetp|amber` for the cache-only area row.
 - `bin/ref_compare.py` -- the comparison tables from the sweep JSONs.
 - Host stack: the jet rig's (`../jet/host`, `../jet/bin`); same bridge map.

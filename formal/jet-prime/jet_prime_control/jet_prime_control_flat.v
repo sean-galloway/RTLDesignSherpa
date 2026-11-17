@@ -736,6 +736,7 @@ module jet_prime_control (
 	mshr_beat_num_o,
 	mshr_retire_o,
 	mshr_retire_idx_o,
+	cu_done_o,
 	wb_cap_o,
 	wb_cap_line_o,
 	wb_cap_beat_o,
@@ -895,6 +896,7 @@ module jet_prime_control (
 	output wire [BEAT_W - 1:0] mshr_beat_num_o;
 	output wire mshr_retire_o;
 	output wire [MW - 1:0] mshr_retire_idx_o;
+	output wire cu_done_o;
 	output wire wb_cap_o;
 	output wire [LINE_W - 1:0] wb_cap_line_o;
 	output wire wb_cap_beat_o;
@@ -957,19 +959,19 @@ module jet_prime_control (
 	output wire ctrl_error_o;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:469:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:472:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:471:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:474:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:473:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:476:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:475:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:478:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:477:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:480:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
 		if ((2 < 2) || (2 > 16))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:479:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:482:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
 		if ((2 < 1) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:481:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:484:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
 	end
 	localparam [2:0] STALL_NONE = 3'd0;
 	localparam [2:0] STALL_MSHR_FULL = 3'd1;
@@ -1685,6 +1687,7 @@ module jet_prime_control (
 	assign mshr_beat_num_o = fill_beat_num_i;
 	assign mshr_retire_o = w_cmt_retire;
 	assign mshr_retire_idx_o = r_cmt_idx;
+	assign cu_done_o = r_cmt_state == C_CU_DEPOSIT;
 	assign cmt_busy_o = (r_cmt_state != C_IDLE) | w_fq_head_done;
 	assign wb_cap_o = (w_accept_alloc & w_victim_dirty) | w_cap_active;
 	assign wb_cap_line_o = (w_cap_active ? r_cap_line : {w_victim_tag, w_req_set});

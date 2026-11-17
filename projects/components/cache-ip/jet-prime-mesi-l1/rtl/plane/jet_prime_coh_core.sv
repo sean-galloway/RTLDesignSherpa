@@ -274,6 +274,12 @@ module jet_prime_coh_core
     output logic                        coh_req_valid,
     output logic [ADDR_WIDTH-1:0]       coh_req_addr,
     output logic [2:0]                  coh_req_type,
+    // the retire sideband (step 3): one pulse per retired MSHR entry /
+    // completed upgrade, named by the fill's read ID (the entry index;
+    // MSHR_COUNT for the upgrade slot) -- the pair fabric releases its
+    // per-line lock on it
+    output logic                        coh_done_valid,
+    output logic [IW-1:0]               coh_done_id,
 
     // ------------------------------------------------------------------
     // MonBus observation (l1_monlite cache events + the J7 jet_prime_monlite
@@ -377,6 +383,7 @@ module jet_prime_coh_core
     logic [BEAT_W-1:0]          ctrl_mshr_beat_num;
     logic                       ctrl_mshr_retire;
     logic [MW-1:0]              ctrl_mshr_retire_idx;
+    logic                       ctrl_cu_done;
     // MSHR: file -> control
     logic                       mshr_alloc_gnt;
     logic [MW-1:0]              mshr_alloc_idx;
@@ -611,6 +618,7 @@ module jet_prime_coh_core
         .mshr_beat_num_o         (ctrl_mshr_beat_num),
         .mshr_retire_o           (ctrl_mshr_retire),
         .mshr_retire_idx_o       (ctrl_mshr_retire_idx),
+        .cu_done_o               (ctrl_cu_done),
         .wb_cap_o                (ctrl_wb_cap),
         .wb_cap_line_o           (ctrl_wb_cap_line),
         .wb_cap_beat_o           (ctrl_wb_cap_beat),
@@ -991,6 +999,21 @@ module jet_prime_coh_core
             coh_req_valid <= w_coh_req_valid;
             coh_req_addr  <= w_coh_req_addr;
             coh_req_type  <= w_coh_req_type;
+        end
+    )
+
+    // Retire sideband, registered like the request pulse: the entry's
+    // index is its read ID (jet_prime_fill: ARID = slot = entry; the
+    // upgrade rides slot MSHR_COUNT).  A retire and a CU deposit never
+    // coincide (one commit FSM).
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            coh_done_valid <= 1'b0;
+            coh_done_id    <= '0;
+        end else begin
+            coh_done_valid <= ctrl_mshr_retire | ctrl_cu_done;
+            coh_done_id    <= ctrl_mshr_retire ? IW'(ctrl_mshr_retire_idx)
+                                               : IW'(MSHR_COUNT);
         end
     )
 

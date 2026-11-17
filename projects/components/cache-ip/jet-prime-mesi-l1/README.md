@@ -59,10 +59,14 @@ pipelined fabric, with the DV and formal to carry them.
   [`docs/delta/`](docs/delta/), one chapter per divergence:
   [01 the fill engine](docs/delta/01_fill_engine.md) (TASK-001 step 2:
   `jet_prime_fill`, one AXI4 read ID per MSHR entry, fills completing in
-  any order; the pair rig stays at one fill in flight until the fabric is
-  rebuilt in step 3).
-- Board measurement: the reference rig's cache slot,
-  `projects/fpga-systems/Genesys2/cache-ip/ref` with `REF_CACHE_SEL=2`
-  (jet-prime straight onto memory, snoop port tied off).
+  any order) and [02 the pipelined pair fabric](docs/delta/02_pair_fabric.md)
+  (step 3: `jet_prime_pair_fabric` serializes per line from a transaction
+  table, the memory read alongside the snoop, a retire sideband from the
+  cache instead of the pseudo-state inputs).
+- Board measurement: the reference rig,
+  `projects/fpga-systems/Genesys2/cache-ip/ref`, with `REF_CACHE_SEL=2`
+  (one jet-prime straight onto memory, snoop port tied off) or
+  `REF_CACHE_SEL=3` (the jet-prime pair through the fabric, one cache per
+  injector).
 
 Binding requirements: [PRD.md](PRD.md).

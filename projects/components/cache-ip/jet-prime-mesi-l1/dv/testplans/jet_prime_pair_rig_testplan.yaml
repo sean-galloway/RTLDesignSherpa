@@ -1,14 +1,15 @@
-# Testplan for the jet pair rig (Task 9)
-# Maps the spec's "amber_pair_fabric hosts two jets" deliverable to the
-# pair-rig DV: two jet_prime_top caches + the jet_prime_pair_fabric snoopy manager +
-# one shared sdpram_slave_axi4_axi4 memory, coherent end-to-end.  The
+# Testplan for the jet-prime pair rig (Task 9; TASK-001 step 3)
+# Two jet_prime_top caches + the pipelined jet_prime_pair_fabric + one
+# shared sdpram_slave_axi4_axi4 memory, coherent end-to-end.  The
 # scoreboard is the JetCoreTB event-stream machinery instantiated per
 # cache (oracle lockstep at every snoop grant, commit tag-write parity,
-# issue-order response scoring) plus the fabric layer (coh_req queue
-# tracking, grant/kill observation on the dbg taps, PassDirty absorption
-# into the memory model) and the per-cache ACE compliance checker
-# (CR only after CDLAST, check_cr_order per transaction -- the onyx D7
-# subset).
+# issue-order response scoring) plus the fabric layer (request queues,
+# the live transactions keyed by direction and line, every AC scored
+# against the live transaction on its line, CR/CD per peer in AC order,
+# the memory read tracked by slot, PassDirty absorption into the memory
+# model, slot release after the retire) and the per-cache ACE compliance
+# checker (CR only after CDLAST, check_cr_order per transaction -- the
+# onyx D7 subset).
 
 module: jet_prime_pair_fabric
 rtl_files:
@@ -16,13 +17,16 @@ rtl_files:
 test_files:
   - projects/components/cache-ip/jet-prime-mesi-l1/dv/tests/test_jet_prime_pair_rig.py
 
-# Contract: amber's pair-rig scenario suite re-run on two jets, plus the
-# jet-specific ships-in-the-night corner (a pre-BRESP WriteBack meeting a
-# clean-invalidating snoop to the same line, answered from the WB buffer
-# snapshot).  The fabric kill rule fires on the peer's ungranted same-line
-# fills exactly as in amber; on jet those fills are pre-AR (the fabric
-# holds their AR), so the jet_prime_control pre-AR rule answers them at the
-# Invalid row with no effect and no data loss (jet has no replay path).
+# Contract (docs/delta/02_pair_fabric.md): amber's pair-rig scenario suite
+# re-run on two jet-primes, plus the jet-specific ships-in-the-night corner
+# (a pre-BRESP WriteBack meeting a clean-invalidating snoop to the same
+# line, answered from the WB buffer snapshot).  The fabric serializes per
+# line from the request pulse to the requester's retire; a same-line loser
+# stays pre-AR (the fabric holds its AR) and the jet_prime_control pre-AR
+# rule answers it at the Invalid row with no effect and no data loss (jet
+# has no replay path) -- there is no kill rule.  The memory read is issued
+# alongside the snoop once the peer accepted the AC; a DataTransfer verdict
+# drops (or suppresses) it.
 
 parameters:
   - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
@@ -49,8 +53,9 @@ scenarios:
   - name: PassDirtyForwarding
     level: all
     what: M -> remote-fill PassDirty forwarding -- fill data comes from
-      the peer's CD, not the (poisoned) memory; the memory AR is
-      suppressed; the fabric absorbs the forwarded line to memory.
+      the peer's CD, not the (poisoned) memory; the memory read issued
+      alongside the snoop is dropped (or suppressed by the early verdict);
+      the fabric absorbs the forwarded line to memory.
     status: covered
   - name: UpgradeInvalidatesPeer
     level: all
@@ -70,9 +75,10 @@ scenarios:
   - name: SimultaneousSameLineMisses
     level: all
     what: Simultaneous same-line misses from both CPUs serialize fairly
-      (round-robin grants) and both complete with correct data; the
-      peer's pre-AR pending fill answers the snoop at the Invalid row
-      with no effect (no replay needed on jet).
+      (round-robin grants; the loser waits for the winner's RETIRE, the
+      per-line rule) and both complete with correct data; the peer's
+      pre-AR pending fill answers the snoop at the Invalid row with no
+      effect (no replay needed on jet).
     status: covered
   - name: PairShipsInTheNight
     level: all
@@ -81,6 +87,17 @@ scenarios:
       from the WB buffer snapshot (DT+PD), the buffer entry retires at
       BRESP, and the forwarded data reaches the peer and (via the
       absorption) the memory.
+    status: covered
+  - name: DeepPipelinedMisses
+    level: all
+    what: Eight back-to-back true misses per CPU before any response is
+      awaited, a shared-line round (c0 writes beat 0, c1 reads beat 1 of
+      the same lines) then a disjoint-line round -- liveness under
+      sustained depth at both caches (jet BUG-004's posture) and, on the
+      pipelined fabric, concurrent fills with several memory reads
+      outstanding and same-line conflicts serialized per line; every
+      response arrives, a legal MESI pair per line, the writer's store in
+      every valid copy.
     status: covered
   - name: RandomDualCpuLockstep
     level: func+

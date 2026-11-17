@@ -19,20 +19,27 @@ fabric layer ported from AmberPairRigTB):
   * jet has no replay path, so the amber killed-pass machinery is
     replaced by the pre-AR rule (jet_prime_control, Task 9): a snoop matching
     an MSHR entry whose fill AR has not been accepted yet answers at the
-    Invalid row with no effect and no data (the fill's data necessarily
-    post-dates the snoop on this serializing fabric).  The fabric's kill
-    rule still fires (a queued same-line peer fill is always pre-AR --
-    the fabric itself holds its AR), so a killed snoop and a normal
-    snoop produce the same I-row answer; the TB scores the fabric's
-    dbg_kill against its queue model regardless.
-  * Fabric layer: coh_req pulses latch per-direction pending queues; the
-    serialized grant is observed on the fabric dbg taps; the snoop
-    resolution is recorded at the peer's observed grant (oracle_step on
-    the peer's CURRENT model state) and bound to the requester's fill as
-    its data source.  PassDirty resolutions absorb the forwarded line
-    into the memory model (the fabric keeps the sdpram the point of
-    coherence); WRITE_BACK pulses update the memory model from the WB
-    capture snapshot.
+    Invalid row with no effect and no data.  The pipelined fabric (step 3)
+    keeps a same-line loser pre-AR by holding its AR until the winner's
+    transaction has RETIRED, so the pre-AR answer is exactly what the
+    loser gives; the fabric no longer converts snoops to MakeInvalid.
+  * Fabric layer (step 3, the pipelined jet_prime_pair_fabric): coh_req
+    pulses enter per-direction request queues; a grant (dbg_grant taps)
+    moves the queue head into the live transaction set, keyed by
+    (direction, line) -- the fabric's per-line serialization makes that
+    key unique.  AC handshakes at a cache are matched to the live
+    transaction of the other direction on that line and scored
+    (snoop type, address); the snoop resolution is recorded at the peer's
+    observed grant (oracle_step on the peer's CURRENT model state) and
+    bound to the requester's fill as its data source; CR/CD are scored
+    per peer in AC order.  The memory read issued alongside the snoop is
+    tracked by slot (its read ID): a DataTransfer resolution must see it
+    dropped (or suppressed), never forwarded.  PassDirty resolutions
+    absorb the forwarded line into the memory model (the fabric keeps the
+    sdpram the point of coherence); WRITE_BACK pulses update the memory
+    model from the WB capture snapshot.  The transaction leaves the live
+    set at the requester's retire (the coh_done sideband the fabric
+    releases its lock on).
   * Memory model: line content initialized identically to the sdpram
     backdoor; audited against the sdpram r_mem at quiescence and per
     drain.
@@ -53,10 +60,10 @@ What this suite pins (the pair-rig contract on jets):
   (g) Randomized dual-CPU lockstep soak (func/full).
   (h) MonBus present-vs-absent equivalence (USE_MONITOR=0 gate cell).
   (i) Deep pipelined miss streams on BOTH CPUs (eight back-to-back true
-      misses each, shared lines then disjoint lines) -- liveness of the
-      fabric's safe-peer wait when the peer's lookup is itself waiting on
-      the fabric (jet BUG-004, found by the pipelined cycle injector of
-      cache-ip common-ip TASK-002).
+      misses each, shared lines then disjoint lines) -- liveness under
+      sustained depth at both caches (jet BUG-004's posture; on the
+      pipelined fabric also the concurrent-fills path: several memory
+      reads outstanding, same-line conflicts serialized per line).
 
 Levels (TEST_LEVEL):
   gate  -- InitWalk + directed (a)-(f) + (i)
@@ -130,21 +137,7 @@ FAB_SNOOP_BY_TYPE = {ACE_READ_SHARED: FAB_SNOOP_RS,
                      ACE_CLEAN_UNIQUE: FAB_SNOOP_MI,
                      ACE_MAKE_UNIQUE: FAB_SNOOP_MI,
                      ACE_READ_NOT_SHARED_DIRTY: FAB_SNOOP_RS}
-# the fabric's true-miss classes (the kill rule matches these)
-TRUE_MISS_TYPES = (ACE_READ_SHARED, ACE_READ_NOT_SHARED_DIRTY,
-                   ACE_READ_UNIQUE)
 
-# fabric FSM states (jet_prime_pair_fabric dbg encoding)
-FAB_F_IDLE = 0
-FAB_F_AC = 1
-FAB_F_RESP = 2
-FAB_F_REPLAY_AR = 3
-FAB_F_REPLAY_R = 4
-FAB_F_PASS_AR = 5
-FAB_F_PASS_R = 6
-FAB_F_DONE = 7
-FAB_F_NODATA_AR = 8
-FAB_F_NODATA_R = 9
 
 # ACE framework mapping for the compliance checker
 FRAMEWORK_SNOOPS = {
@@ -231,6 +224,7 @@ class JetPairRigTB(TBBase):
         self.USE_MONITOR = int(os.environ.get('USE_MONITOR', '1'))
         self.MSHR_COUNT = int(os.environ.get('MSHR_COUNT', '8'))
         self.VICTIM_DEPTH = int(os.environ.get('VICTIM_DEPTH', '2'))
+        self.SNOOP_INFLIGHT = int(os.environ.get('SNOOP_INFLIGHT', '2'))
         # hits move the policy state only under LRU (l1_repl's FIFO and
         # RANDOM branches ignore repl_hit; jet fires repl_update at the
         # alloc for every policy)
@@ -251,15 +245,20 @@ class JetPairRigTB(TBBase):
         # golden models
         self.sides = [Side(i, self) for i in range(2)]
         self.mem = {}            # memory model: line -> bytearray
-        # per-direction pending-request queues, mirroring the fabric's
-        # PEND_DEPTH FIFO
+        # fabric model: per-direction request queues (the sideband pulses
+        # not yet granted), the live transactions keyed by (dir, line),
+        # the per-peer snoops accepted and not yet answered (AC order),
+        # and the slot -> transaction map for the memory read IDs
         self.ft_queue = [[], []]
-        self.cur_ft = None       # in-flight fabric transaction (serial)
+        self.ft_live = {}
+        self.ft_snq = [[], []]
+        self.slot_ft = {}
+        self._prev_slot_vld = 0
         self.stats = {
-            'grants': [0, 0], 'kills': 0, 'kill_pred_ok': 0,
-            'kill_pred_bad': 0, 'dt_forwards': 0, 'pass_throughs': 0,
-            'absorbs': 0, 'mem_ar': 0, 'wb_bursts': 0, 'upgrades': 0,
-            'first_grant': [],
+            'grants': [0, 0], 'dt_forwards': 0, 'pass_throughs': 0,
+            'absorbs': 0, 'mem_ar': 0, 'r_dropped': 0, 'ar_suppressed': 0,
+            'wb_bursts': 0, 'upgrades': 0, 'first_grant': [],
+            'max_live': 0,
         }
 
         # observation
@@ -270,11 +269,9 @@ class JetPairRigTB(TBBase):
         self.checks = 0
         self.mismatches = 0
         self.scenarios = {}
-        self._prev_fab_state = -1
         self._ace_seq = [0, 0]
         self._cd_seq = [0, 0]
         self._cd_started = [False, False]
-        self._cur_snoop_type = [None, None]
         self._cd_beats = [0, 0]
         self.ace_checkers = [ACEComplianceChecker(log=self.log),
                              ACEComplianceChecker(log=self.log)]
@@ -532,11 +529,6 @@ class JetPairRigTB(TBBase):
             await Timer(100, units='ps')
             self.cyc += 1
 
-            fab_state = int(d.u_fabric.dbg_state.value)
-            if fab_state != self._prev_fab_state:
-                self._on_fab_state(fab_state)
-                self._prev_fab_state = fab_state
-
             for c in range(2):
                 a = self._jet(c)
                 uc = a.u_coh.u_control
@@ -623,12 +615,35 @@ class JetPairRigTB(TBBase):
                         and int(getattr(d, f'mon{c}_ready').value):
                     self._mon_pkts[c] += 1
 
-            # memory-side AR observation (suppression counting)
+            # slot release: the fabric is done with the transaction (before
+            # the grant: the freed slot may be re-allocated this very cycle)
+            slot_vld = int(d.u_fabric.dbg_slot_vld.value)
+            freed = self._prev_slot_vld & ~slot_vld
+            for sl in list(self.slot_ft):
+                if (freed >> sl) & 1:
+                    self._on_slot_free(sl)
+            self._prev_slot_vld = slot_vld
+
+            # fabric grant: the direction's queue head becomes a live
+            # transaction (after the caches: a live pulse may be granted
+            # the cycle it arrives, and its coh_req handler must run first)
+            if int(d.u_fabric.dbg_grant.value):
+                self._on_fab_grant(int(d.u_fabric.dbg_grant_dir.value),
+                                   int(d.u_fabric.dbg_grant_addr.value),
+                                   int(d.u_fabric.dbg_grant_slot.value))
+
+            # memory-side AR / R observation: the read ID is the slot
             if int(d.u_fabric.mem_arvalid.value) \
                     and int(d.u_fabric.mem_arready.value):
                 self.stats['mem_ar'] += 1
                 self.events.append((self.cyc, 'mem_ar',
                                     int(d.u_fabric.mem_araddr.value)))
+                self._on_mem_ar(int(d.u_fabric.mem_arid.value),
+                                int(d.u_fabric.mem_araddr.value))
+            if int(d.u_fabric.mem_rvalid.value) \
+                    and int(d.u_fabric.mem_rready.value):
+                self._on_mem_r(int(d.u_fabric.mem_rid.value),
+                               int(d.u_fabric.mem_rlast.value))
 
     # ------------------------------------------------------------------
     # per-cache monitor handlers
@@ -757,9 +772,9 @@ class JetPairRigTB(TBBase):
         """A fabric snoop is granted inside cache c: resolve it against the
         model in the RTL's match order (WB snarf > MSHR pending fill --
         with the Task-9 pre-AR rule -- > in-flight upgrade > array), score
-        the grant-cycle CRRESP, and record the fabric transaction's actual
-        resolution (the fabric is serial: the in-flight transaction always
-        targets this cache)."""
+        the grant-cycle CRRESP, and record the resolution on the live
+        fabric transaction of the OTHER direction on this line (the
+        fabric's per-line serialization makes it unique)."""
         side = self.sides[c]
         addr = int(uc.sn_addr_i.value)
         line = self._line_of(addr)
@@ -840,29 +855,36 @@ class JetPairRigTB(TBBase):
         self._score(f"snoop{c} {name} line={line:#x} crresp (grant)",
                     got_crresp, res.crresp)
 
-        # the fabric transaction's actual resolution: this grant resolves
-        # cur_ft (the granting cache IS the transaction's peer)
-        if self.cur_ft is not None and c == 1 - self.cur_ft['dir']:
-            self.cur_ft['resolution'] = res.crresp
-            if (res.crresp >> CRRESP_DT) & 1:
-                self.cur_ft['data_actual'] = cd
-                if (res.crresp >> CRRESP_PD) & 1:
-                    # PassDirty: the fabric absorbs the forwarded line
-                    # into the shared memory (the point of coherence);
-                    # the line stays resident (downgrade) or leaves
-                    # (invalidate) -- its content is now in memory either
-                    # way
-                    self.mem[line] = bytearray(cd)
-                    self.stats['absorbs'] += 1
-            else:
-                self.cur_ft['data_actual'] = self._mem_line(line)
-            # bind the data source to the requester's entry (the fill
-            # beats -- which follow the AR accept, which follows this
-            # resolution -- are scored against it)
-            req_side = self.sides[self.cur_ft['dir']]
-            e = req_side.entries.get(self.cur_ft['line'])
-            if e is not None:
-                e['src'] = self.cur_ft['data_actual']
+        # the fabric transaction's actual resolution: the live transaction
+        # of the other direction on this line (the granting cache IS its
+        # peer)
+        ft = self.ft_live.get((1 - c, line))
+        if ft is None:
+            self._score(f"snoop{c} line={line:#x}: no live fabric "
+                        f"transaction of the peer on this line", 1, 0)
+            return
+        if ft['resolution'] is not None:
+            self._score(f"ft{ft['cyc']}: snooped twice", 1, 0)
+        ft['resolution'] = res.crresp
+        if (res.crresp >> CRRESP_DT) & 1:
+            ft['data_actual'] = cd
+            if (res.crresp >> CRRESP_PD) & 1:
+                # PassDirty: the fabric absorbs the forwarded line into
+                # the shared memory (the point of coherence); the line
+                # stays resident (downgrade) or leaves (invalidate) --
+                # its content is now in memory either way
+                self.mem[line] = bytearray(cd)
+                self.stats['absorbs'] += 1
+        else:
+            ft['data_actual'] = self._mem_line(line)
+        # bind the data source to the requester's entry (the fill beats
+        # are scored against it; with the AR alongside the snoop the
+        # memory beats may already be in flight -- the fabric holds them
+        # until this verdict, so none reaches the requester before it)
+        req_side = self.sides[ft['dir']]
+        e = req_side.entries.get(ft['line'])
+        if e is not None:
+            e['src'] = ft['data_actual']
 
     def _mon_fill_beat(self, c, a, uc):
         side = self.sides[c]
@@ -1059,7 +1081,9 @@ class JetPairRigTB(TBBase):
             else:
                 self._score(f"CU install{c} but the commit head is not "
                             f"CU", 1, 0)
-            self._take_ft(c, u['line'])
+            # the upgrade completes at the deposit that follows this
+            # install: the fabric's lock on the line drops there
+            self._on_ft_retire(c, u['line'])
         elif sn == SN_EFFECT:
             # the deferred snoop effect on an array hit
             if not side.exp_sn_tagwr:
@@ -1146,6 +1170,9 @@ class JetPairRigTB(TBBase):
             self._score(f"retire{c} matches the commit head", line,
                         e['line'])
         side.committing = None
+        # the fabric's per-line lock drops on this retire (coh_done)
+        if line is not None:
+            self._on_ft_retire(c, line)
 
     def _mon_ar_accept(self, c, arid):
         """An AR was accepted (by the fabric): ARID names the entry, which
@@ -1191,34 +1218,106 @@ class JetPairRigTB(TBBase):
         if req_type == ACE_CLEAN_UNIQUE:
             self.stats['upgrades'] += 1
 
-    def _on_fab_state(self, st):
-        d = self.dut
-        if st == FAB_F_AC:
-            # grant latched: the direction's QUEUE HEAD becomes the
-            # transaction (the RTL pops its pending FIFO in F_IDLE)
-            g = int(d.u_fabric.dbg_grant_dir.value)
-            if not self.ft_queue[g]:
-                self._score("fabric grant without a pending coh_req",
-                            g, None)
-                return
-            self.cur_ft = self.ft_queue[g].pop(0)
-            self.stats['grants'][g] += 1
-            if len(self.stats['first_grant']) == 0 or \
-                    self.stats['first_grant'][-1] != g:
-                self.stats['first_grant'].append(g)
-        elif st == FAB_F_DONE:
-            if self.cur_ft is not None:
-                if self.cur_ft['resolution'] is not None \
-                        and (self.cur_ft['resolution'] >> CRRESP_DT) & 1:
-                    self.stats['dt_forwards'] += 1
-                else:
-                    self.stats['pass_throughs'] += 1
-                self.cur_ft = None
+    def _on_fab_grant(self, g, addr, slot):
+        """The direction's queue head becomes a live transaction in the
+        fabric's table slot (a live pulse may be granted the cycle it
+        arrives; the per-cache handlers ran first, so it is at the queue
+        head either way).  The line must not be live already -- the
+        per-line rule -- and the grant is in request order."""
+        line = self._line_of(addr)
+        if not self.ft_queue[g]:
+            self._score("fabric grant without a pending coh_req", g, None)
+            return
+        ft = self.ft_queue[g].pop(0)
+        self._score(f"ft{ft['cyc']}: granted in request order (line)",
+                    line, ft['line'])
+        self._score(f"ft{ft['cyc']}: no live transaction on the line",
+                    (g, line) in self.ft_live
+                    or (1 - g, line) in self.ft_live, False)
+        ft.update({'slot': slot, 'grant_cyc': self.cyc, 'ac_done': False,
+                   'cr_done': False, 'mem_ar': False, 'mem_done': False,
+                   'rack': False, 'cd_beats': 0})
+        self.ft_live[(g, line)] = ft
+        self._score(f"ft{ft['cyc']}: slot {slot} free at the grant",
+                    slot in self.slot_ft, False)
+        self.slot_ft[slot] = ft
+        self.stats['grants'][g] += 1
+        self.stats['max_live'] = max(self.stats['max_live'],
+                                     len(self.ft_live))
+        if len(self.stats['first_grant']) == 0 or \
+                self.stats['first_grant'][-1] != g:
+            self.stats['first_grant'].append(g)
+
+    def _on_mem_ar(self, arid, addr):
+        ft = self.slot_ft.get(arid)
+        if ft is None:
+            self._score(f"memory AR with an unknown slot id {arid}", 1, 0)
+            return
+        self._score(f"ft{ft['cyc']}: memory AR line", self._line_of(addr),
+                    ft['line'])
+        self._score(f"ft{ft['cyc']}: memory AR once", ft['mem_ar'], False)
+        self._score(f"ft{ft['cyc']}: no memory read for an upgrade",
+                    ft['type'] == ACE_CLEAN_UNIQUE, False)
+        self._score(f"ft{ft['cyc']}: memory AR only after the AC was "
+                    f"accepted", ft['ac_done'], True)
+        # the AR may issue in the very cycle the DT verdict lands; after
+        # that cycle a DT verdict suppresses it
+        if ft['cr_done'] and ft['resolution'] is not None \
+                and (ft['resolution'] >> CRRESP_DT) & 1 \
+                and ft.get('cr_cyc') != self.cyc:
+            self._score(f"ft{ft['cyc']}: memory AR after a DataTransfer "
+                        f"verdict", 1, 0)
+        ft['mem_ar'] = True
+
+    def _on_mem_r(self, rid, last):
+        ft = self.slot_ft.get(rid)
+        if ft is None:
+            self._score(f"memory R beat with an unknown slot id {rid}", 1, 0)
+            return
+        # a beat is consumed only once the verdict is in
+        self._score(f"ft{ft['cyc']}: memory beat consumed after the "
+                    f"verdict", ft['cr_done'], True)
+        if last:
+            ft['mem_done'] = True
+            if ft['resolution'] is not None \
+                    and (ft['resolution'] >> CRRESP_DT) & 1:
+                self.stats['r_dropped'] += 1
+
+    def _on_slot_free(self, slot):
+        ft = self.slot_ft.pop(slot)
+        if ft['resolution'] is None:
+            self._score(f"ft{ft['cyc']}: slot freed without a snoop "
+                        f"verdict", 1, 0)
+            return
+        dt = (ft['resolution'] >> CRRESP_DT) & 1
+        self._score(f"ft{ft['cyc']}: slot freed after the retire",
+                    ft['rack'], True)
+        if ft['type'] != ACE_CLEAN_UNIQUE:
+            if dt:
+                self._score(f"ft{ft['cyc']}: DataTransfer fill's memory "
+                            f"read dropped or suppressed",
+                            ft['mem_ar'] == ft['mem_done'], True)
+                if not ft['mem_ar']:
+                    self.stats['ar_suppressed'] += 1
+                self.stats['dt_forwards'] += 1
+            else:
+                self._score(f"ft{ft['cyc']}: pass-through read completed",
+                            (ft['mem_ar'], ft['mem_done']), (True, True))
+                self.stats['pass_throughs'] += 1
+
+    def _on_ft_retire(self, c, line):
+        ft = self.ft_live.pop((c, line), None)
+        if ft is None:
+            self._score(f"retire{c} line={line:#x}: no live fabric "
+                        f"transaction", 1, 0)
+            return
+        ft['rack'] = True
+        self._score(f"ft{ft['cyc']}: retired after the snoop verdict",
+                    ft['resolution'] is not None, True)
 
     def _take_ft(self, c, line):
-        """The fabric transaction for this line must have completed
-        (F_DONE precedes the commit by construction); jet has no killed
-        passes, so there is nothing to discard."""
+        """jet has no killed passes, so a commit discards nothing of the
+        fabric's; the transaction leaves the live set at the retire."""
         return None
 
     def _on_ace_channels(self, c):
@@ -1236,85 +1335,71 @@ class JetPairRigTB(TBBase):
         crvalid = int(getattr(d, f's{c}_crvalid').value)
         crready = int(getattr(d, f's{c}_crready').value)
 
-        # AC handshake: the fabric launches a snoop on this cache
+        # AC handshake: the fabric launches a snoop on this cache for the
+        # live transaction of the other direction on that line
         if acvalid and acready:
             snoop = int(getattr(d, f's{c}_acsnoop').value)
             acaddr = int(getattr(d, f's{c}_acaddr').value)
-            self._cur_snoop_type[c] = FRAMEWORK_SNOOPS.get(
-                SNOOP_NAME_BY_FAB.get(snoop))
-            if self.cur_ft is not None and self.cur_ft['dir'] != c:
-                ft = self.cur_ft
-                # the kill rule: a same-line TRUE MISS sits in the peer's
-                # queue (or pulses this very cycle) -- on jet that fill
-                # is always pre-AR (the fabric holds its AR), so the kill
-                # and the normal map produce the same I-row answer
-                live = [e for e in self.ft_queue[c]
-                        if e['type'] in TRUE_MISS_TYPES]
-                raw_v = int(self._jet(c).coh_req_valid.value)
-                raw_t = int(self._jet(c).coh_req_type.value)
-                if raw_v and raw_t in TRUE_MISS_TYPES:
-                    live.append({'line': self._line_of(
-                        int(self._jet(c).coh_req_addr.value))})
-                kill_pred = any(e['line'] == ft['line'] for e in live)
-                rtl_kill = bool(int(d.u_fabric.dbg_kill.value))
-                if ft['type'] == ACE_CLEAN_UNIQUE:
-                    # CU maps to MakeInvalid by construction; the kill
-                    # bit is don't-care
-                    exp_snoop = FAB_SNOOP_MI
-                else:
-                    if rtl_kill != kill_pred:
-                        self.stats['kill_pred_bad'] += 1
-                    else:
-                        self.stats['kill_pred_ok'] += 1
-                    if kill_pred:
-                        self.stats['kills'] += 1
-                    exp_snoop = FAB_SNOOP_MI if kill_pred \
-                        else FAB_SNOOP_BY_TYPE[ft['type']]
-                self._score(f"ft{ft['cyc']}: acsnoop", snoop, exp_snoop)
+            line = self._line_of(acaddr)
+            ft = self.ft_live.get((1 - c, line))
+            if ft is None:
+                self._score(f"AC at cache{c} line={line:#x}: no live "
+                            f"fabric transaction of the peer", 1, 0)
+            else:
+                self._score(f"ft{ft['cyc']}: snooped once", ft['ac_done'],
+                            False)
+                ft['ac_done'] = True
+                ft['snoop_type'] = FRAMEWORK_SNOOPS.get(
+                    SNOOP_NAME_BY_FAB.get(snoop))
+                self._score(f"ft{ft['cyc']}: acsnoop", snoop,
+                            FAB_SNOOP_BY_TYPE[ft['type']])
                 self._score(f"ft{ft['cyc']}: acaddr line-aligned",
                             acaddr & (self.LINE_BYTES - 1), 0)
-                self._score(f"ft{ft['cyc']}: acaddr", acaddr,
-                            self._base_of(ft['line']))
+                self.ft_snq[c].append(ft)
+                self._score(f"ft{ft['cyc']}: snoops outstanding at "
+                            f"cache{c} within SNOOP_INFLIGHT",
+                            len(self.ft_snq[c]) <= self.SNOOP_INFLIGHT, True)
+        head = self.ft_snq[c][0] if self.ft_snq[c] else None
+        head_base = self._base_of(head['line']) if head is not None else 0
+        head_type = head.get('snoop_type') if head is not None else None
         # CD beats (count; content is scored via the requester's fill)
         if cdvalid and cdready:
             self._cd_beats[c] += 1
             if not self._cd_started[c]:
                 self._cd_started[c] = True
-                res = self.cur_ft.get('resolution') \
-                    if self.cur_ft is not None else None
+                res = head.get('resolution') if head is not None else None
                 if res is not None and (res >> CRRESP_DT) & 1:
                     self.ace_checkers[c].set_expected_cd_beats(
                         self.FILL_BEATS)
             last = int(getattr(d, f's{c}_cdlast').value)
             self.ace_checkers[c].check_cd_order(
-                self._cd_seq[c], last,
-                self._base_of(self.cur_ft['line'])
-                if self.cur_ft is not None else 0,
-                self._cur_snoop_type[c])
+                self._cd_seq[c], last, head_base, head_type)
             if last:
                 self._cd_seq[c] += 1
                 self._cd_started[c] = False
-        # CR handshake: score against the recorded resolution
+        # CR handshake: the oldest outstanding snoop at this cache (the
+        # responder serves in AC order); score against the recorded
+        # resolution
         if crvalid and crready:
             crresp = int(getattr(d, f's{c}_crresp').value)
-            if self.cur_ft is not None and self.cur_ft['dir'] != c:
-                res = self.cur_ft.get('resolution')
-                self._score(f"ft{self.cur_ft['cyc']}: crresp", crresp,
-                            res)
+            if head is None:
+                self._score(f"CR at cache{c} with no snoop outstanding",
+                            1, 0)
+            else:
+                self.ft_snq[c].pop(0)
+                res = head.get('resolution')
+                self._score(f"ft{head['cyc']}: crresp", crresp, res)
                 exp_beats = self.FILL_BEATS \
                     if res is not None and (res >> CRRESP_DT) & 1 else 0
-                self._score(f"ft{self.cur_ft['cyc']}: cd beats",
+                self._score(f"ft{head['cyc']}: cd beats",
                             self._cd_beats[c], exp_beats)
+                head['cr_done'] = True
+                head['cr_cyc'] = self.cyc
             self.ace_checkers[c].check_cr_order(
-                self._ace_seq[c],
-                self._base_of(self.cur_ft['line'])
-                if self.cur_ft is not None else 0,
-                self._cur_snoop_type[c])
-            if self._cur_snoop_type[c] is not None:
+                self._ace_seq[c], head_base, head_type)
+            if head_type is not None:
                 self.ace_checkers[c].check_crresp_validity(
-                    CRRESP(crresp), self._cur_snoop_type[c],
-                    self._base_of(self.cur_ft['line'])
-                    if self.cur_ft is not None else 0)
+                    CRRESP(crresp), head_type, head_base)
             self._ace_seq[c] += 1
             self._cd_beats[c] = 0
 
@@ -1354,10 +1439,10 @@ class JetPairRigTB(TBBase):
         for _ in range(10):
             await self._negedge_settled()
             self.log.info(
-                f"HANG c{self.cyc} fstate {int(f.dbg_state.value)} "
+                f"HANG c{self.cyc} fbusy {int(f.dbg_busy.value)} "
+                f"slots {int(f.dbg_slot_vld.value):#x} "
                 f"pend {int(f.dbg_pend_vld.value):02b} "
-                f"buf {int(f.dbg_buf_vld.value):02b} "
-                f"absp {int(f.dbg_abs_pend.value):02b} "
+                f"absp {int(f.dbg_abs_pend.value)} "
                 f"c0st {int(self._jet(0).ctrl_state.value):x} "
                 f"c1st {int(self._jet(1).ctrl_state.value):x} "
                 f"c0ar {int(d.m0_arvalid.value)}{int(d.m0_arready.value)} "
@@ -1396,15 +1481,21 @@ class JetPairRigTB(TBBase):
                     f"eng_inflight {int(self._jet(c).u_coh.u_fill.r_inflight.value)} "
                     f"ar_done {int(uc.r_ar_done.value):#x}")
             self.log.info(
-                f"HANG fabric: grant_q {int(f.grant_q.value)} "
-                f"peer_safe {int(f.peer_safe.value)} "
-                f"pend_cnt0 {int(f.pend_cnt_q[0].value)} "
-                f"pend_cnt1 {int(f.pend_cnt_q[1].value)} "
-                f"s0cr {int(d.s0_crvalid.value)} s1cr {int(d.s1_crvalid.value)}")
+                f"HANG fabric: pend_cnt {int(f.r_pend_cnt[0].value)}/"
+                f"{int(f.r_pend_cnt[1].value)} "
+                f"arw {int(f.r_arw_vld.value):02b} "
+                f"snq {int(f.r_snq_cnt[0].value)}/{int(f.r_snq_cnt[1].value)} "
+                f"sni {int(f.r_sni_cnt[0].value)}/{int(f.r_sni_cnt[1].value)} "
+                f"rpl {int(f.r_rpl_vld.value):02b} "
+                f"wstate {int(f.r_wstate.value)} "
+                f"mem_ar {int(d.u_fabric.mem_arvalid.value)}{int(d.u_fabric.mem_arready.value)} "
+                f"mem_r {int(d.u_fabric.mem_rvalid.value)}{int(d.u_fabric.mem_rready.value)} "
+                f"s0cr {int(d.s0_crvalid.value)} s1cr {int(d.s1_crvalid.value)} "
+                f"live {[(k[0], hex(k[1])) for k in self.ft_live]}")
         raise RuntimeError(
             f"{label}: response {n} on cache{c} timeout; "
             f"ctrl_state={int(self._jet(c).ctrl_state.value):#x} "
-            f"fab={int(self.dut.u_fabric.dbg_state.value):#x}")
+            f"fab_slots={int(self.dut.u_fabric.dbg_slot_vld.value):#x}")
 
     async def _txn(self, c, addr, we, be=None, wdata=None, label=''):
         n = await self._send(c, addr, we, be, wdata, label)
@@ -1475,15 +1566,23 @@ class JetPairRigTB(TBBase):
             mem_words[base_word + b].value = self._beat_of_line(stale, b)
 
         # cache0 read miss: fill MUST come from cache1's CD, not memory
-        ar_count0 = self.stats['mem_ar']
+        # (the memory read issued alongside the snoop is dropped, or never
+        # issued if the verdict got there first)
+        dt0 = self.stats['dt_forwards']
+        drop0 = self.stats['r_dropped'] + self.stats['ar_suppressed']
         await self._txn(0, addr, 0, label='a_rd')
         s0 = self.sides[0]
         exp = self._beat_of_line(self._content(s1, line), 0)
         got = self.rsp_log[0][-1][1]
         self._score("a: cache0 got peer bytes, not stale memory",
                     got, exp)
-        self._score("a: memory AR suppressed for the fill",
-                    self.stats['mem_ar'], ar_count0)
+        for _ in range(12):
+            await self._negedge_settled()
+        self._score("a: one DataTransfer forward",
+                    self.stats['dt_forwards'], dt0 + 1)
+        self._score("a: its memory read dropped or suppressed",
+                    self.stats['r_dropped'] + self.stats['ar_suppressed'],
+                    drop0 + 1)
         self._score("a: cache0 installed S",
                     self._installed_state(s0, line), 'S')
         self._score("a: cache1 downgraded S",
@@ -1873,14 +1972,20 @@ class JetPairRigTB(TBBase):
                         bytes(self.mem[line]))
 
     def _check_fabric_stats(self):
-        self._score("fabric: no unresolved transaction",
-                    self.cur_ft is None, True)
-        self._score("fabric: kill predictions correct",
-                    self.stats['kill_pred_bad'], 0)
+        self._score("fabric: no live transaction left",
+                    list(self.ft_live.keys()), [])
+        self._score("fabric: no request left queued",
+                    [len(q) for q in self.ft_queue], [0, 0])
+        self._score("fabric: no snoop left outstanding",
+                    [len(q) for q in self.ft_snq], [0, 0])
         self._score("fabric: pending queue never overflowed",
-                    int(self.dut.u_fabric.pend_ovf_q.value), 0)
+                    int(self.dut.u_fabric.r_pend_ovf.value), 0)
         self._score("fabric: at least one coherence grant",
                     sum(self.stats['grants']) > 0, True)
+        self._score("fabric: every DataTransfer fill's memory read was "
+                    "dropped or suppressed",
+                    self.stats['r_dropped'] + self.stats['ar_suppressed'],
+                    self.stats['dt_forwards'])
         for c in range(2):
             rep = self.ace_checkers[c].get_compliance_report()
             self._score(f"ACE compliance violations (cache{c})",
@@ -1894,7 +1999,7 @@ class JetPairRigTB(TBBase):
         for _ in range(40):
             await self._negedge_settled()
         self._score("quiescent: fabric idle",
-                    int(self.dut.u_fabric.dbg_state.value), FAB_F_IDLE)
+                    int(self.dut.u_fabric.dbg_busy.value), 0)
         self._score("quiescent: no pending",
                     int(self.dut.u_fabric.dbg_pend_vld.value), 0)
         for c in range(2):
@@ -1934,9 +2039,12 @@ class JetPairRigTB(TBBase):
             if self.USE_MONITOR == 0:
                 self._scenario('MonbusPresentVsAbsent')
 
+        # quiesce first: the fabric's last slot frees (and the absorption
+        # lands) some cycles after the last response, and the stat and
+        # memory audits count at the slot release
+        await self._quiescence()
         self._check_fabric_stats()
         await self._memory_audit()
-        await self._quiescence()
         return self.mismatches == 0
 
     def get_test_report(self):

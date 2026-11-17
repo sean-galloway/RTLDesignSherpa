@@ -194,6 +194,11 @@ module jet_prime_top
     output logic                        coh_req_valid,
     output logic [ADDR_WIDTH-1:0]       coh_req_addr,
     output logic [2:0]                  coh_req_type,
+    // the retire sideband (step 3): one pulse per retired entry / completed
+    // upgrade, named by the fill's read ID; the pipelined pair fabric holds
+    // its per-line lock until it (jet-prime delta 02)
+    output logic                        coh_done_valid,
+    output logic [IW-1:0]               coh_done_id,
 
     // ------------------------------------------------------------------
     // Rig-level timestamp source + merged MonBus (D-7)
@@ -209,13 +214,6 @@ module jet_prime_top
     // ------------------------------------------------------------------
     output logic                        init_busy,
     output logic [3:0]                  ctrl_state,
-    // a request is present at the lookup THIS cycle (the CPU plane's skid
-    // occupancy -- a plain register bit, not the classify cone).  The pair
-    // fabric gates its registered peer-state view with this live bit so a
-    // request arriving between the fabric's state sample and its AC issue
-    // still blocks the issue (ISSUE-001 v2; the live bit is what keeps the
-    // kill-rule corner closed).
-    output logic                        lkup_live,
     output logic                        busy
 );
 
@@ -259,10 +257,6 @@ module jet_prime_top
     // J4 response sequencer's tag/cpl partner pins
     // ------------------------------------------------------------------
     logic                     lkup_valid;
-
-    // the fabric's live per-peer "request at the lookup" term (ISSUE-001
-    // v2): the skid's valid is a register bit, NOT the classify cone
-    assign lkup_live = lkup_valid;
     logic [ADDR_WIDTH-1:0]    lkup_addr;
     logic                     lkup_we;
     logic [STRB_W-1:0]        lkup_be;
@@ -491,6 +485,8 @@ module jet_prime_top
         .coh_req_valid     (core_coh_req_valid),
         .coh_req_addr      (core_coh_req_addr),
         .coh_req_type      (core_coh_req_type),
+        .coh_done_valid    (coh_done_valid),
+        .coh_done_id       (coh_done_id),
         .mon_time          (i_mon_time),
         .mon_valid         (core_mon_valid),
         .mon_ready         (core_mon_ready),

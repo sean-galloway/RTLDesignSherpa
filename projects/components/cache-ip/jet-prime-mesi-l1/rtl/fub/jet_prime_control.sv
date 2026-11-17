@@ -365,6 +365,9 @@ module jet_prime_control
     output logic [BEAT_W-1:0]           mshr_beat_num_o,
     output logic                        mshr_retire_o,
     output logic [MW-1:0]               mshr_retire_idx_o,
+    // the upgrade's completion cycle (C_CU_DEPOSIT): with mshr_retire_o,
+    // the plane's retire sideband to the pair fabric (step 3)
+    output logic                        cu_done_o,
 
     // WB buffer (jet_prime_wb_buffer)
     output logic                        wb_cap_o,
@@ -1681,6 +1684,7 @@ module jet_prime_control
     assign mshr_beat_num_o         = fill_beat_num_i;
     assign mshr_retire_o           = w_cmt_retire;
     assign mshr_retire_idx_o       = r_cmt_idx;
+    assign cu_done_o               = (r_cmt_state == C_CU_DEPOSIT);
     assign cmt_busy_o              = (r_cmt_state != C_IDLE) | w_fq_head_done;
 
     // ------------------------------------------------------------------

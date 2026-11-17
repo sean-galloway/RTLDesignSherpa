@@ -6,109 +6,132 @@
 //
 // Module: jet_prime_pair_fabric
 // Purpose:
-//   The minimal 2-master snoopy manager the plain-AXI4 jet pair rig needs
-//   -- the amber_pair_fabric structure hosting two jets (the spec's
-//   "amber_pair_fabric hosts two jets" deliverable, jet-named; onyx proper
-//   waits per amber D10 / onyx v0.2). ONE coherence transaction at a time:
-//   system-wide serialization is sufficient -- and required for coherence,
-//   because a granted peer snoop must observe the winner's COMMITTED line
-//   state, which only grant-after-completion ordering guarantees.  (The
-//   jets are NOT blocking/single-outstanding at the CPU port -- the MSHRs
-//   pipeline lookups and merges -- but their memory-side fills serialize
-//   through the one l1_fill engine per cache and this fabric, so the
-//   serial transaction model is unchanged.)  Fair round-robin between the
-//   two caches at the grant point and at the shared-memory write port.
+//   The 2-master snoopy manager of the plain-AXI4 jet-prime pair rig,
+//   rebuilt as a pipelined fabric (jet-prime TASK-001 step 3). jet's
+//   fabric ran ONE coherence transaction at a time: grant, snoop the
+//   peer, then (and only then) the memory read, then the next grant.
+//   This fabric serializes PER LINE instead: a transaction table holds
+//   every request in flight, a request waits only behind an in-flight
+//   transaction on its own line (grant-after-completion survives for
+//   same-line conflicts only), the memory read is issued alongside the
+//   snoop and its data dropped when the peer supplies the line, and
+//   several memory reads are outstanding at once (one AXI read ID per
+//   table slot). Fair round-robin between the two caches at the grant
+//   and at the shared-memory write port.
 //
-// Documentation: projects/components/cache-ip/jet-mesi-l1/docs/jet_mas/ch01_overview/01_architecture.md
-// Subsystem: jet-prime (forked from jet at 2be919254, 2026-11-12 -- jet-prime TASK-001)
+// Documentation: projects/components/cache-ip/jet-prime-mesi-l1/docs/delta/02_pair_fabric.md
+// Subsystem: jet-prime (forked from jet at 2be919254, 2026-11-12 -- jet-prime TASK-001;
+//            rebuilt pipelined in step 3, 2026-11-16)
 //
 // Author: sean galloway
 // Created: 2026-10-29
 
 `timescale 1ns / 1ps
+`include "reset_defs.svh"
 
 //==============================================================================
 // Module: jet_prime_pair_fabric
 //==============================================================================
 // Description:
 //   Per direction, the fabric takes the cache's D-8 coherence sideband
-//   (coh_req_valid/addr/type: one pulse per fill launch -- READ_NOT_SHARED_DIRTY /
-//   READ_UNIQUE on a miss, CLEAN_UNIQUE on an upgrade -- and per dirty
-//   write-back launch, WRITE_BACK) and:
+//   (coh_req_valid/addr/type: one pulse per fill launch --
+//   READ_NOT_SHARED_DIRTY / READ_UNIQUE on a miss, CLEAN_UNIQUE on an
+//   upgrade -- and per dirty write-back launch, WRITE_BACK) and the
+//   cache's retire sideband (coh_done_valid/id: the MSHR entry retired, or
+//   MSHR_COUNT for the upgrade), and:
 //
-//     fill / upgrade : drive AC to the PEER -> gather CR/CD (the jet
-//                      responder presents CR only after the final CD beat,
-//                      onyx-D4) -> DataTransfer: the CD line is buffered
-//                      (depth-1 per direction) and the requester's R beats
-//                      are sourced from the buffer (the memory AR is
-//                      suppressed); no DataTransfer: the AR passes through
-//                      to the shared sdpram_slave_axi4_axi4 memory.
+//     fill / upgrade : allocate a table slot when no slot holds the line;
+//                      take the requester's AR (the request becomes
+//                      post-AR at the cache only now); drive AC to the
+//                      PEER; once the AC is accepted, issue the memory AR
+//                      (data fills only; a CleanUnique has no data).  The
+//                      CR verdict routes the data: no DataTransfer -> the
+//                      memory R beats pass through to the requester;
+//                      DataTransfer -> the CD line is buffered in the slot
+//                      and replayed to the requester, the memory beats
+//                      are consumed and dropped (or the AR suppressed if
+//                      the verdict is in before it issued); PassDirty ->
+//                      the buffered line is also written to the shared
+//                      memory (the point of coherence).  The slot is
+//                      freed when the requester has every beat, the
+//                      memory read (if any) is drained, the absorption
+//                      (if any) has its BRESP, and the requester's retire
+//                      pulse for the entry has been seen.
 //     write-back     : pure write-port pass-through (AW/W/B), arbitrated
-//                      onto the single memory write port.
+//                      onto the single memory write port with the
+//                      absorptions.
 //
 //   Snoop map (IHI0022 ACSNOOP[3:0]): READ_SHARED /
 //   READ_NOT_SHARED_DIRTY -> SNOOP_READ_SHARED (4'h1), READ_UNIQUE ->
 //   SNOOP_READ_UNIQUE (4'h7), CLEAN_UNIQUE -> SNOOP_MAKE_INVALID (4'hC).
 //
-//   Kill rule: while a coherence transaction is in flight the peer's own
-//   same-line fill request stays pending (its AR is held).  In amber this
-//   converted the snoop to MakeInvalid because a data-expecting snoop
-//   against amber's pending-fill bypass would deadlock (the bypass gates
-//   CD beats on fill data the fabric is holding), and amber's blocking
-//   pipeline replayed the killed pass.  The rule is kept verbatim here;
-//   on jet it is ANSWER-NEUTRAL by construction: a queued peer fill is
-//   always pre-AR (this fabric itself holds its AR), and jet_prime_control's
-//   pre-AR rule (Task 9, the amber BUG-002 analog -- jet has no replay
-//   path, so a kill must never invalidate an in-flight fill) answers any
-//   snoop to such an entry at the Invalid row with no effect and no
-//   data, whatever the ACSNOOP encoding.  The loser's own grant then
-//   re-resolves against the winner's committed line.
+//   Per-line serialization, pulse to retire.  A request whose line is
+//   held by a valid slot (either direction) waits ungranted; its AR stays
+//   at the cache, so the entry is pre-AR, and jet_prime_control's pre-AR
+//   rule answers any snoop to it at the Invalid row with no effect -- the
+//   loser's own grant re-resolves against the winner's committed line.
+//   The lock is held until the winner's RETIRE (the coh_done sideband),
+//   not its last beat: between the last R beat and the retire the
+//   winner's entry is post-AR with beats landing, and a snoop there would
+//   be answered from the pending-fill bypass with the post-fill state and
+//   no data (PF_GUARD) -- an answer that orders the snoop AFTER a fill
+//   that must stay ordered before it.  The responder's own sn_safe hold
+//   (any done-unretired fill) covers most of that window; the retire
+//   sideband closes it exactly, and the amber-era kill rule, drain guard
+//   and peer-state wait go with it.
 //
-//   Safe-peer wait: acvalid is held until the peer's FSM is snoop-safe
-//   (peer_state input = the peer jet_prime_top's ctrl_state observability
-//   output): not in INIT, the miss states, FILL_WRITE or REPLAY.  On jet
-//   this wait is belt-and-suspenders: the responder itself holds an AC
-//   presented during the commit window (sn_safe_o covers
-//   fill-done-unretired, the capture stream, and the upgrade hold-off),
-//   so the wait is a presentation-time optimization, not a correctness
-//   mechanism.  Liveness: a peer with an ungranted request has its AR
-//   held by this fabric and answers pre-AR (the kill-rule case), so the
-//   pending term releases the wait regardless of the peer's lookup or
-//   pseudo-state (jet BUG-004: the wait once also demanded an idle peer
-//   lookup, which a pipelined request stream never grants while the
-//   peer's own fill waits on this fabric -- a circular wait); a peer
-//   mid-miss with nothing queued here reaches its fill launch (the
-//   sideband pulse) in bounded time, after which the same term applies.
+//   The AR alongside the snoop.  The memory read starts as soon as the
+//   peer has ACCEPTED the AC (not when the CR is back), so with an idle
+//   peer the CR arrives a cycle or two before the first memory beat and
+//   nothing stalls; a beat arriving before its verdict holds the memory R
+//   channel (rready low) for the bounded remainder of the snoop
+//   service.  Issuing at AC-accept rather than at grant keeps that stall
+//   bounded by the responder, not by the peer's commit backlog.  The one
+//   hazard the earlier order (snoop, then AR) prevented for free is a
+//   write-back landing in memory between the memory read and the snoop:
+//   a WB AW to a line therefore holds while a slot on that line has no
+//   CR yet (and, as before, while an absorption to it is pending).
 //
 //   Point of coherence: a PassDirty response means the peer owned the only
 //   correct copy; the forwarded line is also written to the shared memory
-//   (AWID 8'hA0|dir) once the buffer holds it. While an absorption is
-//   pending, pass-through ARs and write-back AWs to the same line hold
-//   (per-direction pending-absorption address registers) -- the memory
-//   image of such a line is stale until the absorption lands. A write-back
-//   matching a pending absorption orders behind it (the write-back carries
-//   strictly newer bytes).
+//   (AWID 8'hA0|dir) from the slot buffer.  While the absorption is
+//   pending the slot keeps the line locked, so no read or write-back to
+//   that line reaches memory before it lands.
 //
-//   Fairness / liveness: round-robin at the coherence grant and at the
-//   memory write port; one memory read in flight at a time (both caches
-//   issue ID 0, so the R channel is demuxed by ownership, never
-//   interleaved); one write burst in flight at a time (B routed by owner).
+//   Liveness: every wait resolves on an agent that does not wait on this
+//   fabric -- the CR (the responder grants whenever its own commits have
+//   retired; commits need only landed beats), the requester's rready and
+//   retire (local), the memory, and the write port's round-robin.  The
+//   requester's AR register is held behind a same-line conflict for the
+//   winner's lifetime (bounded), which also holds that cache's later
+//   launches -- the cost of keeping the loser pre-AR.
 //
 //------------------------------------------------------------------------------
-// Parameters: geometry per l1_pkg (the fabric moves lines; SETS/WAYS are
-//   package context only).
+// Parameters:
+//   FAB_SLOTS      -- transaction table depth (shared by both caches); also
+//                     the memory read IDs in use (0 .. FAB_SLOTS-1).  Sized
+//                     at 2 * (MSHR_COUNT + 1) nothing ever waits for a slot.
+//   SNOOP_INFLIGHT -- ACs accepted by one peer and not yet answered (the
+//                     responder serves one at a time; its transport skids
+//                     the next).  1 = one snoop per peer at a time.
+//   Geometry per l1_pkg (the fabric moves lines; SETS/WAYS are package
+//   context only).
 //------------------------------------------------------------------------------
 //
 // Notes:
 //   - Single clock / active-low reset (clk / rst_n).
-//   - The peer_state inputs are the peer caches' ctrl_state observability
-//     outputs (jet_prime_top ctrl_state -- on jet a pseudo-state encoded from
-//     the jet events in the amber-family encoding) -- bring-up-fabric
-//     visibility, not a production onyx interface.
+//   - The slot line buffers are one array per peer indexed {slot, beat}:
+//     one write port each (that peer's CD beat), two read ports (replay,
+//     absorption) -- distributed RAM, payload-only (no reset).
+//   - The memory read ID is the slot index; the requester sees its own
+//     ARID back (kept in the slot).  Beats of different slots may
+//     interleave on a cache's R channel (AXI4 permits it per ID; the
+//     jet_prime_fill engine demuxes by ID).
 //
 //------------------------------------------------------------------------------
 // Related Modules:
-//   - Instantiated by: the Task 9 pair rig (jet_prime_pair_rig_tb)
+//   - Instantiated by: the pair rig (jet_prime_pair_rig_tb) and the Genesys2
+//     reference harness at REF_CACHE_SEL=3
 //   - Consumes: two jet_prime_top memory sides + D-8 sidebands + ACE responders
 //   - Package: l1_pkg (ACE request classes)
 //
@@ -130,11 +153,16 @@ module jet_prime_pair_fabric
     parameter int BUS_WIDTH      = AMBER_BUS_WIDTH,
     parameter int AXI_ID_WIDTH   = 8,
     parameter int AXI_USER_WIDTH = 1,
+    parameter int FAB_SLOTS      = 16,
+    parameter int SNOOP_INFLIGHT = 2,
     localparam int STRB_W           = BUS_WIDTH / 8,
     localparam int FILL_BEATS       = LINE_BYTES / STRB_W,
     localparam int BEAT_INDEX_WIDTH = $clog2(FILL_BEATS),
     localparam int IW               = AXI_ID_WIDTH,
-    localparam int UW               = AXI_USER_WIDTH
+    localparam int UW               = AXI_USER_WIDTH,
+    localparam int SLOT_W           = (FAB_SLOTS > 1) ? $clog2(FAB_SLOTS) : 1,
+    localparam int OFFSET_W         = $clog2(LINE_BYTES),
+    localparam int LINE_W           = ADDR_WIDTH - OFFSET_W
 )(
     input  logic                        clk,
     input  logic                        rst_n,
@@ -267,6 +295,8 @@ module jet_prime_pair_fabric
 
     // ------------------------------------------------------------------
     // D-8 coherence sideband inputs (one pulse per fill / upgrade / WB)
+    // and the retire sideband (one pulse per retired entry / completed
+    // upgrade; the id is the entry's read ID, MSHR_COUNT for the upgrade)
     // ------------------------------------------------------------------
     input  logic                        c0_coh_req_valid,
     input  logic [ADDR_WIDTH-1:0]       c0_coh_req_addr,
@@ -274,25 +304,10 @@ module jet_prime_pair_fabric
     input  logic                        c1_coh_req_valid,
     input  logic [ADDR_WIDTH-1:0]       c1_coh_req_addr,
     input  logic [2:0]                  c1_coh_req_type,
-
-    // ------------------------------------------------------------------
-    // Peer FSM visibility (the caches' ctrl_state; the safe-peer wait).
-    // ISSUE-001 v2: the state is REGISTERED at this fabric's input (the
-    // live cone from the peer's cpu_req skid through its classify into the
-    // AC skid was the worst 100 MHz path).  peerN_lkup_live is the peer's
-    // LIVE "a request is present at the lookup" bit (a skid occupancy
-    // register, shallow): the only dangerous transition a 1-cycle-old
-    // state view can miss is IDLE -> classify-outcome in the accept cycle,
-    // and lkup_live covers exactly that cycle.  All later cycles of a
-    // miss/hit are multi-cycle pseudo-states, so the registered view
-    // carries them.  The kill rule's relative timing is preserved: the
-    // peer's coh pulse is itself registered at the source, so the pulse
-    // and the state view shift together.
-    // ------------------------------------------------------------------
-    input  logic [3:0]                  peer0_state,
-    input  logic [3:0]                  peer1_state,
-    input  logic                        peer0_lkup_live,
-    input  logic                        peer1_lkup_live,
+    input  logic                        c0_coh_done_valid,
+    input  logic [IW-1:0]               c0_coh_done_id,
+    input  logic                        c1_coh_done_valid,
+    input  logic [IW-1:0]               c1_coh_done_id,
 
     // ------------------------------------------------------------------
     // Shared-memory AXI4 master side (to sdpram_slave_axi4_axi4)
@@ -346,14 +361,14 @@ module jet_prime_pair_fabric
     // ------------------------------------------------------------------
     // Debug / observability taps (unused in the datapath)
     // ------------------------------------------------------------------
-    output logic [3:0]                  dbg_state,
-    output logic                        dbg_grant_dir,
+    output logic                        dbg_busy,         // any slot valid
+    output logic [FAB_SLOTS-1:0]        dbg_slot_vld,
     output logic [1:0]                  dbg_pend_vld,
-    output logic [1:0]                  dbg_buf_vld,
-    output logic [1:0]                  dbg_abs_pend,
-    output logic                        dbg_kill,
-    output logic [3:0]                  dbg_acsnoop,
-    output logic [ADDR_WIDTH-1:0]       dbg_grant_addr
+    output logic                        dbg_abs_pend,     // an absorption not yet landed
+    output logic                        dbg_grant,        // a grant this cycle
+    output logic                        dbg_grant_dir,
+    output logic [ADDR_WIDTH-1:0]       dbg_grant_addr,
+    output logic [SLOT_W-1:0]           dbg_grant_slot
 );
 
     // ------------------------------------------------------------------
@@ -366,6 +381,12 @@ module jet_prime_pair_fabric
             $error("jet_prime_pair_fabric: LINE_BYTES / BUS_WIDTH*8 must be a power of two >= 2");
         if ((BUS_WIDTH % 8) != 0)
             $error("jet_prime_pair_fabric: BUS_WIDTH must be a multiple of 8");
+        if (FAB_SLOTS < 2 || (1 << SLOT_W) < FAB_SLOTS)
+            $error("jet_prime_pair_fabric: FAB_SLOTS must be >= 2");
+        if ((1 << IW) < FAB_SLOTS)
+            $error("jet_prime_pair_fabric: 2**AXI_ID_WIDTH must cover FAB_SLOTS (the memory read IDs)");
+        if (SNOOP_INFLIGHT < 1)
+            $error("jet_prime_pair_fabric: SNOOP_INFLIGHT must be >= 1");
     end
 
     // ------------------------------------------------------------------
@@ -379,17 +400,6 @@ module jet_prime_pair_fabric
     // request classes differ only in upstream ARSNOOP; peer resolution
     // and PassDirty handling are identical for this 2-cache fabric).
 
-    localparam logic [3:0] ST_IDLE        = 4'h0;
-    localparam logic [3:0] ST_LOOKUP      = 4'h2;
-    localparam logic [3:0] ST_HIT_RD      = 4'h3;
-    localparam logic [3:0] ST_HIT_WR      = 4'h4;
-    localparam logic [3:0] ST_INIT        = 4'h1;   // l1_pkg ctrl_state_t
-    localparam logic [3:0] ST_MISS_VICTIM = 4'h5;
-    localparam logic [3:0] ST_MISS_DRAIN  = 4'h6;
-    localparam logic [3:0] ST_MISS_FILL   = 4'h7;
-    localparam logic [3:0] ST_FILL_WRITE  = 4'h8;
-    localparam logic [3:0] ST_REPLAY      = 4'h9;
-
     function automatic logic [3:0] map_snoop(input logic [2:0] req_type);
         case (req_type)
             AMBER_ACE_READ_SHARED,
@@ -399,185 +409,49 @@ module jet_prime_pair_fabric
         endcase
     endfunction
 
-    // ------------------------------------------------------------------
-    // Request sideband pulse latches: the pending registers ARE the
-    // per-direction request queue (one outstanding per blocking cache).
-    // WRITE_BACK pulses are not coherence requests.
-    // ------------------------------------------------------------------
-    // Per-direction pending-request FIFO. An upgrade completes at the
-    // cache without waiting for the fabric (the D-8 sideband is an
-    // observation output), so a cache can raise its NEXT request while
-    // its previous one is still queued here -- the queue must hold more
-    // than one entry per direction or requests would be silently
-    // overwritten (found by the randomized dual-CPU soak).
-    localparam int PEND_DEPTH = 4;
-    logic [2:0]              pend_cnt_q [2];
-    logic [ADDR_WIDTH-1:0]   pend_line_q [2][PEND_DEPTH];
-    logic [2:0]              pend_type_q [2][PEND_DEPTH];
-    logic [1:0]              pend_ovf_q;   // overflow: debug only (TB-checked)
-    // per-direction drain guard: the just-completed transaction's line,
-    // for the cycles between the fabric's F_DONE and the peer's fill
-    // commit -- a data-expecting snoop on that line would hit the
-    // pending-fill bypass (pf-gated CD on a fabric-held AR) and deadlock,
-    // so the kill rule and the safe-peer wait must see it
-    logic [1:0]              drain_vld_q;
-    logic [ADDR_WIDTH-1:0]   drain_line_q [2];
-
-    wire [1:0] coh_pulse_vld;
-    assign coh_pulse_vld[0] = c0_coh_req_valid
-        && (c0_coh_req_type != 3'(AMBER_ACE_WRITE_BACK));
-    assign coh_pulse_vld[1] = c1_coh_req_valid
-        && (c1_coh_req_type != 3'(AMBER_ACE_WRITE_BACK));
-
-    // ------------------------------------------------------------------
-    // Grant selection: fair round-robin over pending, buffer-free requests
-    // ------------------------------------------------------------------
-    logic                       rr_q;             // grant round-robin
-    logic [1:0]                 buf_vld_q;
-
-    logic      g_take [2];
-    logic      g_dir;
-    // Upgrade-priority scheduling: an upgrade completes at the cache
-    // without waiting for this fabric (the D-8 sideband is an observation
-    // output), so upgrades arrive faster than fills and the per-direction
-    // queue would grow unboundedly if fills could hog the serial grant.
-    // A CLEAN_UNIQUE head is granted first (round-robin between two);
-    // fills drain in the idle slots -- upgrades occupy the fabric ~5
-    // cycles of every ~10-cycle arrival period, leaving ample fill slots.
-    logic g_up [2];
-    always_comb begin
-        for (int i = 0; i < 2; i++) begin
-            g_take[i] = (pend_cnt_q[i] != 3'd0) && !buf_vld_q[i];
-            g_up[i]   = g_take[i]
-                && (pend_type_q[i][0] == 3'(AMBER_ACE_CLEAN_UNIQUE));
-        end
-        if (g_up[1'(rr_q)])
-            g_dir = rr_q;
-        else if (g_up[1'(1 - rr_q)])
-            g_dir = 1 - rr_q;
-        else if (g_take[1'(rr_q)])
-            g_dir = rr_q;
-        else if (g_take[1'(1 - rr_q)])
-            g_dir = 1 - rr_q;
-        else
-            g_dir = rr_q;
-    end
-    wire g_valid = g_take[0] || g_take[1];
-    wire g_peer  = 1 - g_dir;
-
-    // Kill rule (evaluated at AC-ISSUE time, not at grant): the peer
-    // holds a same-line TRUE MISS it cannot serve data for -- either an
-    // ungranted fill request (AR held by this fabric) or a just-completed
-    // transaction still landing beats at the cache (pf-gated bypass either
-    // way). Upgrades do NOT arm the bypass, so a snoop to an upgrade-
-    // pending line is serviced from the installed state and must not be
-    // killed. Evaluating combinationally at issue closes the skew where
-    // the peer's fill launched in the cycle before the grant -- a same-
-    // cycle pulse is visible here, so the snoop converts to MakeInvalid
-    // exactly when it must. g_kill below is the grant-time PREDICTION
-    // (debug tap); the issue-time value selects the actual ACSNOOP and
-    // the AC valid gating.
-    function automatic logic peer_pending_true_miss_match(
-        input logic [0:0]               dir,
-        input logic [ADDR_WIDTH-1:0]    addr
-    );
-        peer_pending_true_miss_match = 1'b0;
-        for (int k = 0; k < PEND_DEPTH; k++) begin
-            if (k < pend_cnt_q[dir]
-                && (pend_line_q[dir][k] == addr)
-                && ((pend_type_q[dir][k] == 3'(AMBER_ACE_READ_SHARED))
-                    || (pend_type_q[dir][k] == 3'(AMBER_ACE_READ_NOT_SHARED_DIRTY))
-                    || (pend_type_q[dir][k] == 3'(AMBER_ACE_READ_UNIQUE))))
-                peer_pending_true_miss_match = 1'b1;
-        end
+    function automatic logic is_nodata(input logic [2:0] req_type);
+        return (req_type == 3'(AMBER_ACE_CLEAN_UNIQUE))
+            || (req_type == 3'(AMBER_ACE_MAKE_UNIQUE));
     endfunction
 
-    wire g_kill = peer_pending_true_miss_match(1'(g_peer),
-                                               pend_line_q[1'(g_dir)][0]);
+    /* verilator lint_off UNUSEDSIGNAL */
+    function automatic logic [LINE_W-1:0] line_of(input logic [ADDR_WIDTH-1:0] addr);
+        return addr[ADDR_WIDTH-1 -: LINE_W];   // the offset bits are not the line
+    endfunction
+    /* verilator lint_on UNUSEDSIGNAL */
 
-    // ------------------------------------------------------------------
-    // Coherence FSM: one transaction at a time
-    // ------------------------------------------------------------------
-    localparam logic [3:0] F_IDLE      = 4'd0;
-    localparam logic [3:0] F_AC        = 4'd1;
-    localparam logic [3:0] F_RESP      = 4'd2;
-    localparam logic [3:0] F_REPLAY_AR = 4'd3;
-    localparam logic [3:0] F_REPLAY_R  = 4'd4;
-    localparam logic [3:0] F_PASS_AR   = 4'd5;
-    localparam logic [3:0] F_PASS_R    = 4'd6;
-    localparam logic [3:0] F_DONE      = 4'd7;
-    localparam logic [3:0] F_NODATA_AR = 4'd8;   // accept no-data AR
-    localparam logic [3:0] F_NODATA_R  = 4'd9;   // return single RLAST beat
-
-    logic [3:0]                  state_q;
-    logic                       grant_q;          // requester cache (0/1)
-    logic [ADDR_WIDTH-1:0]      grant_addr_q;     // line-aligned request line
-    logic [2:0]                 grant_type_q;     // amber_ace_req_t class
-    logic                       no_data_txn_q;    // CleanUnique / MakeUnique
-    logic                       kill_q;           // MakeInvalid (kill rule)
-    logic [3:0]                 acsnoop_q;
-    logic [LINE_BYTES*8-1:0]    line_buf_q [2];
-    logic [1:0]                 abs_pend_vld_q;
-    logic [ADDR_WIDTH-1:0]      abs_pend_addr_q [2];
-    logic [1:0]                 abs_req_q;        // absorb engine kick
-
-    logic [BEAT_INDEX_WIDTH-1:0] beat_q;
-    logic [IW-1:0]              replay_rid_q;
-    logic [AMBER_CRRESP_WIDTH-1:0] crresp_q;
-    logic                       r_owner_q;
-    logic [7:0]                 beat_count_q;
-
-    // ------------------------------------------------------------------
-    // Write port: write-back pass-through + PassDirty absorption, one
-    // burst in flight system-wide, fair round-robin
-    // ------------------------------------------------------------------
-    localparam logic [2:0] W_IDLE = 3'd0;
-    localparam logic [2:0] W_AW   = 3'd1;
-    localparam logic [2:0] W_W    = 3'd2;
-    localparam logic [2:0] W_B    = 3'd3;
-
-    logic [2:0]                 wstate_q;
-    logic [1:0]                 w_owner_q;
-    logic                       w_is_abs_q;
-    logic [1:0]                 w_rr_q;
-    logic [BEAT_INDEX_WIDTH-1:0] w_beat_q;
+    localparam int SNQ_W   = SLOT_W + 1;                 // snoop queue count
+    localparam int SNI_W   = $clog2(SNOOP_INFLIGHT + 1); // issued count
+    localparam int SNI_IW  = (SNOOP_INFLIGHT > 1) ? $clog2(SNOOP_INFLIGHT) : 1; // issued index
+    localparam int PEND_DEPTH = 4;
+    localparam int BUF_AW  = SLOT_W + BEAT_INDEX_WIDTH;  // {slot, beat}
 
     // ------------------------------------------------------------------
     // Cache-side channel aggregation
     // ------------------------------------------------------------------
     logic [1:0] c_arvalid, c_arready, c_rready;
-    logic [IW-1:0]       c_arid [2];
+    logic [IW-1:0]         c_arid [2];
     logic [ADDR_WIDTH-1:0] c_araddr [2];
-    logic [7:0]          c_arlen [2];
-    logic [2:0]          c_arsize [2];
-    logic [1:0]          c_arburst [2];
-    logic                  c_arlock [2];
+    logic [7:0]            c_arlen [2];
     logic [3:0]            c_arcache [2];
     logic [2:0]            c_arprot [2];
-    logic [3:0]            c_arqos [2];
-    logic [3:0]            c_arregion [2];
     logic [UW-1:0]         c_aruser [2];
 
     assign c_arvalid = {c1_arvalid, c0_arvalid};
     assign c_rready  = {c1_rready, c0_rready};
-    assign c_arid[0] = c0_arid;       assign c_arid[1] = c1_arid;
-    assign c_araddr[0] = c0_araddr;   assign c_araddr[1] = c1_araddr;
-    assign c_arlen[0] = c0_arlen;     assign c_arlen[1] = c1_arlen;
-    assign c_arsize[0] = c0_arsize;   assign c_arsize[1] = c1_arsize;
-    assign c_arburst[0] = c0_arburst; assign c_arburst[1] = c1_arburst;
-    assign c_arlock[0] = c0_arlock;   assign c_arlock[1] = c1_arlock;
-    assign c_arcache[0] = c0_arcache; assign c_arcache[1] = c1_arcache;
-    assign c_arprot[0] = c0_arprot;   assign c_arprot[1] = c1_arprot;
-    assign c_arqos[0] = c0_arqos;     assign c_arqos[1] = c1_arqos;
-    assign c_arregion[0] = c0_arregion; assign c_arregion[1] = c1_arregion;
-    assign c_aruser[0] = c0_aruser;   assign c_aruser[1] = c1_aruser;
+    assign c_arid[0] = c0_arid;         assign c_arid[1] = c1_arid;
+    assign c_araddr[0] = c0_araddr;     assign c_araddr[1] = c1_araddr;
+    assign c_arlen[0] = c0_arlen;       assign c_arlen[1] = c1_arlen;
+    assign c_arcache[0] = c0_arcache;   assign c_arcache[1] = c1_arcache;
+    assign c_arprot[0] = c0_arprot;     assign c_arprot[1] = c1_arprot;
+    assign c_aruser[0] = c0_aruser;     assign c_aruser[1] = c1_aruser;
 
-    logic [1:0] c_awvalid, c_awready, c_wvalid, c_wready, c_bready;
-    logic [IW-1:0]       c_awid [2];
+    logic [1:0] c_awvalid, c_wvalid, c_bready;
+    logic [IW-1:0]         c_awid [2];
     logic [ADDR_WIDTH-1:0] c_awaddr [2];
-    logic [7:0]          c_awlen [2];
-    logic [2:0]          c_awsize [2];
-    logic [1:0]          c_awburst [2];
+    logic [7:0]            c_awlen [2];
+    logic [2:0]            c_awsize [2];
+    logic [1:0]            c_awburst [2];
     logic                  c_awlock [2];
     logic [3:0]            c_awcache [2];
     logic [2:0]            c_awprot [2];
@@ -587,657 +461,756 @@ module jet_prime_pair_fabric
     logic [BUS_WIDTH-1:0]  c_wdata [2];
     logic [STRB_W-1:0]     c_wstrb [2];
     logic                  c_wlast [2];
-    logic [UW-1:0]         c_wuser [2];
 
     assign c_awvalid = {c1_awvalid, c0_awvalid};
     assign c_wvalid  = {c1_wvalid, c0_wvalid};
     assign c_bready  = {c1_bready, c0_bready};
-    assign c_awid[0] = c0_awid;       assign c_awid[1] = c1_awid;
-    assign c_awaddr[0] = c0_awaddr;   assign c_awaddr[1] = c1_awaddr;
-    assign c_awlen[0] = c0_awlen;     assign c_awlen[1] = c1_awlen;
-    assign c_awsize[0] = c0_awsize;   assign c_awsize[1] = c1_awsize;
-    assign c_awburst[0] = c0_awburst; assign c_awburst[1] = c1_awburst;
-    assign c_awlock[0] = c0_awlock;   assign c_awlock[1] = c1_awlock;
-    assign c_awcache[0] = c0_awcache; assign c_awcache[1] = c1_awcache;
-    assign c_awprot[0] = c0_awprot;   assign c_awprot[1] = c1_awprot;
-    assign c_awqos[0] = c0_awqos;     assign c_awqos[1] = c1_awqos;
+    assign c_awid[0] = c0_awid;         assign c_awid[1] = c1_awid;
+    assign c_awaddr[0] = c0_awaddr;     assign c_awaddr[1] = c1_awaddr;
+    assign c_awlen[0] = c0_awlen;       assign c_awlen[1] = c1_awlen;
+    assign c_awsize[0] = c0_awsize;     assign c_awsize[1] = c1_awsize;
+    assign c_awburst[0] = c0_awburst;   assign c_awburst[1] = c1_awburst;
+    assign c_awlock[0] = c0_awlock;     assign c_awlock[1] = c1_awlock;
+    assign c_awcache[0] = c0_awcache;   assign c_awcache[1] = c1_awcache;
+    assign c_awprot[0] = c0_awprot;     assign c_awprot[1] = c1_awprot;
+    assign c_awqos[0] = c0_awqos;       assign c_awqos[1] = c1_awqos;
     assign c_awregion[0] = c0_awregion; assign c_awregion[1] = c1_awregion;
-    assign c_awuser[0] = c0_awuser;   assign c_awuser[1] = c1_awuser;
-    assign c_wdata[0] = c0_wdata;     assign c_wdata[1] = c1_wdata;
-    assign c_wstrb[0] = c0_wstrb;     assign c_wstrb[1] = c1_wstrb;
-    assign c_wlast[0] = c0_wlast;     assign c_wlast[1] = c1_wlast;
-    assign c_wuser[0] = c0_wuser;     assign c_wuser[1] = c1_wuser;
+    assign c_awuser[0] = c0_awuser;     assign c_awuser[1] = c1_awuser;
+    assign c_wdata[0] = c0_wdata;       assign c_wdata[1] = c1_wdata;
+    assign c_wstrb[0] = c0_wstrb;       assign c_wstrb[1] = c1_wstrb;
+    assign c_wlast[0] = c0_wlast;       assign c_wlast[1] = c1_wlast;
 
-    // ------------------------------------------------------------------
-    // Pending-absorption address match: a read or write must not touch a
-    // line whose absorption has not landed
-    // ------------------------------------------------------------------
-    function automatic logic abs_match(input logic [ADDR_WIDTH-1:0] addr);
-        return (abs_pend_vld_q[0] && (abs_pend_addr_q[0] == addr))
-            || (abs_pend_vld_q[1] && (abs_pend_addr_q[1] == addr));
-    endfunction
-
-    // ------------------------------------------------------------------
-    // Safe-peer wait: the AC may only be presented when the peer's FSM can
-    // grant the snoop immediately (IDLE), or when the peer is in a miss
-    // state with an ungranted request that the kill rule has converted to
-    // MakeInvalid. LOOKUP / HIT_RD / HIT_WR are treated as unsafe because
-    // the ACE snoop transport skids the AC handshake: a peer that misses
-    // in LOOKUP can reach MISS_FILL with the bypass armed before the
-    // skidded snoop is granted, deadlocking a data-expecting snoop on the
-    // same line. The pending override is therefore restricted to the
-    // miss states where the kill rule is evaluated.
-    // ------------------------------------------------------------------
-    // Registered peer-state view + the peer's live lkup bit (see the port
-    // comment): the safe-peer decision below never touches the peer's
-    // combinational classify cone.
-    logic [3:0] peer0_state_q, peer1_state_q;
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            peer0_state_q <= 4'(ST_INIT);
-            peer1_state_q <= 4'(ST_INIT);
-        end else begin
-            peer0_state_q <= peer0_state;
-            peer1_state_q <= peer1_state;
-        end
-    end
-
-    logic [3:0] peer_state_now;
-    logic       peer_pend_now;
-    logic       peer_lkup_now;
-    always_comb begin
-        if (grant_q == 1'b0) begin
-            peer_state_now = peer1_state_q;   // snooping cache 1
-            peer_lkup_now  = peer1_lkup_live;
-            peer_pend_now  = (pend_cnt_q[1] != 3'd0) || coh_pulse_vld[1];
-        end else begin
-            peer_state_now = peer0_state_q;   // snooping cache 0
-            peer_lkup_now  = peer0_lkup_live;
-            peer_pend_now  = (pend_cnt_q[0] != 3'd0) || coh_pulse_vld[0];
-        end
-    end
-
-    function automatic logic peer_unsafe(input logic [3:0] st);
-        return (st == ST_INIT) || (st == ST_LOOKUP)
-            || (st == ST_HIT_RD) || (st == ST_HIT_WR)
-            || (st == ST_MISS_VICTIM) || (st == ST_MISS_DRAIN)
-            || (st == ST_MISS_FILL) || (st == ST_FILL_WRITE)
-            || (st == ST_REPLAY);
-    endfunction
-
-    // the peer-pending bypass lets the AC fire while the peer has a
-    // request THIS fabric holds (its AR queued here, ungranted) -- but NOT
-    // during the drain window on this very line (that fill's beats are
-    // flowing; a data-expecting snoop must wait for the commit).
-    //
-    // jet BUG-004 (2026-11-11): the bypass used to require the peer's
-    // lookup to be idle (!peer_lkup_now) and the peer's pseudo-state to be
-    // MISS_FILL / MISS_DRAIN.  Both terms were amber's: jet reports those
-    // two states only as one-cycle events (the fill accept, the drain
-    // start), so the bypass never applied to a jet in steady state, and a
-    // jet fed a PIPELINED request stream keeps a request at its lookup for
-    // as long as its own fill waits -- the fill-launch register is busy
-    // behind the fabric-held AR, the MSHRs fill, a cross-class access
-    // waits for a commit; every one of those holds resolves only through
-    // this fabric's grant.  Waiting for that lookup to go idle before
-    // presenting the AC was a circular wait: both caches parked with an AR
-    // held, a launch pending and a miss at the lookup, the fabric in F_AC
-    // forever (the pipelined cycle injector of cache-ip common-ip
-    // TASK-002 found it at depth 8; pair-rig scenario (i) pins it).
-    //
-    // Dropping the two terms is sound on jet: while the peer's request is
-    // held here, every fill the peer can launch is pre-AR (the single-
-    // outstanding engine's AR for this direction is only accepted at this
-    // direction's grant), and jet_prime_control's pre-AR rule answers any snoop
-    // to a pre-AR entry at the Invalid row with no data, whatever the
-    // ACSNOOP encoding -- so a launch the kill rule did not see is
-    // answer-neutral.  The commit / capture / snoop-service windows are
-    // the responder's own (sn_safe_o holds the presented AC), and the
-    // drain-on-this-line window is excluded here as before.
-    wire peer_drain_grant = drain_vld_q[1'(1 - grant_q)]
-        && (drain_line_q[1'(1 - grant_q)] == grant_addr_q);
-    wire peer_safe_data = (!peer_unsafe(peer_state_now) && !peer_lkup_now)
-        || (peer_pend_now && !peer_drain_grant);
-    // issue-time kill: same rule against the CURRENT queue/drain state,
-    // including a same-cycle sideband pulse (the fabric sees it live;
-    // the registered queue lags it by a cycle). Only true misses trigger
-    // a kill; upgrades are answered from the installed state.
-    wire [1:0] issue_pulse = coh_pulse_vld;
-    wire issue_peer_pulse_same
-        = issue_pulse[1'(1 - grant_q)]
-          && ((1 - grant_q) == 1'b0 ? c0_coh_req_addr : c1_coh_req_addr)
-             == grant_addr_q
-          && (((1 - grant_q) == 1'b0 ? c0_coh_req_type : c1_coh_req_type)
-              == 3'(AMBER_ACE_READ_SHARED)
-              || ((1 - grant_q) == 1'b0 ? c0_coh_req_type : c1_coh_req_type)
-                 == 3'(AMBER_ACE_READ_NOT_SHARED_DIRTY)
-              || ((1 - grant_q) == 1'b0 ? c0_coh_req_type : c1_coh_req_type)
-                 == 3'(AMBER_ACE_READ_UNIQUE));
-    // NB: the DRAIN window is deliberately NOT a kill condition. A kill
-    // is only sound while the peer's fill cannot commit (its AR held by
-    // this fabric); during the drain the fill completes independently,
-    // and an AC issued here can sit in the peer's skid past the commit --
-    // a MakeInvalid serviced against a COMMITTED line would discard
-    // installed dirty data. Drain-same-line instead waits (peer_safe).
-    wire issue_kill
-        = peer_pending_true_miss_match(1'(1 - grant_q), grant_addr_q)
-          || issue_peer_pulse_same;
-    wire [3:0] issue_acsnoop = issue_kill ? ACSNOOP_MAKE_INVALID
-                              : map_snoop(grant_type_q);
-    // a MakeInvalid snoop carries no data dependency: it is servable in
-    // any peer state (it kills a pending fill instead of gathering data),
-    // so it issues without the safe-peer wait -- this keeps the upgrade
-    // drain rate at or above the cache's upgrade arrival rate
-    // a kill issues without the data-side safe wait only when the peer
-    // is not mid-commit on this very line (the drain window must wait:
-    // the fill completes independently, and a kill serviced after the
-    // commit would discard installed dirty data)
-    wire peer_safe = (issue_kill && !peer_drain_grant) || peer_safe_data;
-
-    // ------------------------------------------------------------------
-    // Snoop channel muxing
-    // ------------------------------------------------------------------
     logic [1:0] acready, crvalid, cdvalid, cdlast;
-    logic [1:0][AMBER_CRRESP_WIDTH-1:0] crresp_w;
-    logic [1:0][BUS_WIDTH-1:0] cddata_w;
+    logic [AMBER_CRRESP_WIDTH-1:0] crresp_w [2];
+    logic [BUS_WIDTH-1:0]          cddata_w [2];
+    assign acready = {s1_acready, s0_acready};
+    assign crvalid = {s1_crvalid, s0_crvalid};
+    assign cdvalid = {s1_cdvalid, s0_cdvalid};
+    assign cdlast  = {s1_cdlast, s0_cdlast};
+    assign crresp_w[0] = s0_crresp;     assign crresp_w[1] = s1_crresp;
+    assign cddata_w[0] = s0_cddata;     assign cddata_w[1] = s1_cddata;
 
-    assign acready  = {s1_acready, s0_acready};
-    assign crvalid  = {s1_crvalid, s0_crvalid};
-    assign cdvalid  = {s1_cdvalid, s0_cdvalid};
-    assign cdlast   = {s1_cdlast, s0_cdlast};
-    assign crresp_w = {s1_crresp, s0_crresp};
-    assign cddata_w = {s1_cddata, s0_cddata};
+    logic [1:0]            coh_req_vld;
+    logic [ADDR_WIDTH-1:0] coh_req_addr [2];
+    logic [2:0]            coh_req_type [2];
+    assign coh_req_vld[0] = c0_coh_req_valid && (c0_coh_req_type != 3'(AMBER_ACE_WRITE_BACK));
+    assign coh_req_vld[1] = c1_coh_req_valid && (c1_coh_req_type != 3'(AMBER_ACE_WRITE_BACK));
+    assign coh_req_addr[0] = c0_coh_req_addr; assign coh_req_addr[1] = c1_coh_req_addr;
+    assign coh_req_type[0] = c0_coh_req_type; assign coh_req_type[1] = c1_coh_req_type;
 
-    wire snoop_ac_accept = acready[1'(1 - grant_q)] && (state_q == F_AC)
-                           && peer_safe;
-    wire snoop_cd_beat   = cdvalid[1'(1 - grant_q)] && (state_q == F_RESP);
-    wire snoop_cd_last   = cdlast[1'(1 - grant_q)];
-    wire snoop_cr_accept = crvalid[1'(1 - grant_q)] && (state_q == F_RESP);
-
-    assign s0_acaddr  = grant_addr_q;
-    assign s1_acaddr  = grant_addr_q;
-    assign s0_acsnoop = issue_acsnoop;
-    assign s1_acsnoop = issue_acsnoop;
-    assign s0_acprot  = 3'b000;
-    assign s1_acprot  = 3'b000;
-    assign s0_acvalid = (state_q == F_AC) && (grant_q == 1'b1) && peer_safe;
-    assign s1_acvalid = (state_q == F_AC) && (grant_q == 1'b0) && peer_safe;
-    assign s0_crready = (state_q == F_RESP);
-    assign s1_crready = (state_q == F_RESP);
-    assign s0_cdready = (state_q == F_RESP);
-    assign s1_cdready = (state_q == F_RESP);
+    logic [1:0]    coh_done_vld;
+    logic [IW-1:0] coh_done_id [2];
+    assign coh_done_vld   = {c1_coh_done_valid, c0_coh_done_valid};
+    assign coh_done_id[0] = c0_coh_done_id;   assign coh_done_id[1] = c1_coh_done_id;
 
     // ------------------------------------------------------------------
-    // Cache AR / memory AR / cache R muxing
+    // Transaction table
     // ------------------------------------------------------------------
-    assign c_arready[0] = ((state_q == F_REPLAY_AR) && (grant_q == 1'b0))
-                       || ((state_q == F_PASS_AR) && (grant_q == 1'b0)
-                           && !abs_match(c0_araddr))
-                       || ((state_q == F_NODATA_AR) && (grant_q == 1'b0));
-    assign c_arready[1] = ((state_q == F_REPLAY_AR) && (grant_q == 1'b1))
-                       || ((state_q == F_PASS_AR) && (grant_q == 1'b1)
-                           && !abs_match(c1_araddr))
-                       || ((state_q == F_NODATA_AR) && (grant_q == 1'b1));
+    logic [FAB_SLOTS-1:0]  r_vld;
+    logic [FAB_SLOTS-1:0]  r_dir;
+    logic [LINE_W-1:0]     r_line   [FAB_SLOTS];
+    logic [2:0]            r_type   [FAB_SLOTS];
+    logic [FAB_SLOTS-1:0]  r_nodata;
+    logic [FAB_SLOTS-1:0]  r_ar_taken;
+    logic [IW-1:0]         r_arid   [FAB_SLOTS];
+    logic [3:0]            r_arcache[FAB_SLOTS];
+    logic [2:0]            r_arprot [FAB_SLOTS];
+    logic [UW-1:0]         r_aruser [FAB_SLOTS];
+    logic [FAB_SLOTS-1:0]  r_ac_done;
+    logic [FAB_SLOTS-1:0]  r_cr_done;
+    logic [FAB_SLOTS-1:0]  r_dt;
+    logic [FAB_SLOTS-1:0]  r_pd;
+    logic [FAB_SLOTS-1:0]  r_mem_issued;
+    logic [FAB_SLOTS-1:0]  r_mem_done;
+    logic [FAB_SLOTS-1:0]  r_rpl_done;
+    logic [FAB_SLOTS-1:0]  r_abs_issued;
+    logic [FAB_SLOTS-1:0]  r_abs_done;
+    logic [FAB_SLOTS-1:0]  r_rack;
+
+    // the requester has every beat it will get from this transaction
+    logic [FAB_SLOTS-1:0]  w_delivered;
+    logic [FAB_SLOTS-1:0]  w_free_now;
+    always_comb begin
+        for (int s = 0; s < FAB_SLOTS; s++) begin
+            w_delivered[s] = (r_dt[s] | r_nodata[s]) ? r_rpl_done[s] : r_mem_done[s];
+            w_free_now[s]  = r_vld[s] & r_cr_done[s] & w_delivered[s]
+                             & (~r_mem_issued[s] | r_mem_done[s])
+                             & (~r_pd[s] | r_abs_done[s])
+                             & r_rack[s];
+        end
+    end
+
+    // ------------------------------------------------------------------
+    // Per-direction pending-request queue (the sideband pulses, in order;
+    // a request waits here ungranted while its line is held or the table
+    // is full).  The cache's read transport skids its ARs, so a cache can
+    // run a few launches ahead of the AR this fabric holds (the pulses and
+    // the ARs stay in launch order); the depth covers the skid, and the
+    // overflow flag is a TB-checked debug tap.
+    // ------------------------------------------------------------------
+    logic [2:0]              r_pend_cnt  [2];
+    logic [ADDR_WIDTH-1:0]   r_pend_addr [2][PEND_DEPTH];
+    logic [2:0]              r_pend_type [2][PEND_DEPTH];
+    logic [1:0]              r_pend_ovf;   // debug only (TB-checked)
+
+    // the request considered for a grant this cycle: the queue head, or
+    // the live pulse when the queue is empty (bypass: one cycle saved on
+    // every uncontended miss)
+    logic [1:0]              w_cand_vld;
+    logic [ADDR_WIDTH-1:0]   w_cand_addr [2];
+    logic [2:0]              w_cand_type [2];
+    logic [1:0]              w_cand_live;
+    always_comb begin
+        for (int d = 0; d < 2; d++) begin
+            if (r_pend_cnt[d] != 3'd0) begin
+                w_cand_vld[d]  = 1'b1;
+                w_cand_live[d] = 1'b0;
+                w_cand_addr[d] = r_pend_addr[d][0];
+                w_cand_type[d] = r_pend_type[d][0];
+            end else begin
+                w_cand_vld[d]  = coh_req_vld[d];
+                w_cand_live[d] = 1'b1;
+                w_cand_addr[d] = coh_req_addr[d];
+                w_cand_type[d] = coh_req_type[d];
+            end
+        end
+    end
+
+    // per-line lock: any valid slot on the candidate's line
+    logic [1:0] w_cand_locked;
+    always_comb begin
+        for (int d = 0; d < 2; d++) begin
+            w_cand_locked[d] = 1'b0;
+            for (int s = 0; s < FAB_SLOTS; s++) begin
+                if (r_vld[s] && (r_line[s] == line_of(w_cand_addr[d])))
+                    w_cand_locked[d] = 1'b1;
+            end
+        end
+    end
+
+    // free slot (lowest index)
+    logic              w_slot_free;
+    logic [SLOT_W-1:0] w_slot_idx;
+    always_comb begin
+        w_slot_free = 1'b0;
+        w_slot_idx  = '0;
+        for (int s = FAB_SLOTS - 1; s >= 0; s--) begin
+            if (!r_vld[s]) begin
+                w_slot_free = 1'b1;
+                w_slot_idx  = SLOT_W'(s);
+            end
+        end
+    end
+
+    // an AR waits to be taken for this direction (granted last cycle or
+    // earlier, AR not yet handshaken): no second grant to the direction
+    // until it is -- the cache presents ARs in launch order and the next
+    // launch cannot happen before this AR is taken, so the pairing is
+    // exact
+    logic [1:0]        r_arw_vld;
+    logic [SLOT_W-1:0] r_arw_slot [2];
+
+    logic [1:0] w_cand_ok;
+    logic       r_rr;
+    logic       w_grant;
+    logic       w_grant_dir;
+    always_comb begin
+        for (int d = 0; d < 2; d++)
+            w_cand_ok[d] = w_cand_vld[d] & ~w_cand_locked[d] & w_slot_free & ~r_arw_vld[d];
+        if (w_cand_ok[r_rr])
+            w_grant_dir = r_rr;
+        else
+            w_grant_dir = ~r_rr;
+        w_grant = w_cand_ok[0] | w_cand_ok[1];
+    end
+
+    // ------------------------------------------------------------------
+    // Cache AR take: arready from registers only (the slot granted a cycle
+    // or more ago); the AR's line must be the slot's (sim-checked)
+    // ------------------------------------------------------------------
+    assign c_arready[0] = r_arw_vld[0];
+    assign c_arready[1] = r_arw_vld[1];
     assign c0_arready = c_arready[0];
     assign c1_arready = c_arready[1];
+    wire [1:0] w_ar_take = c_arvalid & c_arready;
 
-    assign mem_arid     = c_arid[1'(grant_q)];
-    assign mem_araddr   = c_araddr[1'(grant_q)];
-    assign mem_arlen    = c_arlen[1'(grant_q)];
-    assign mem_arsize   = c_arsize[1'(grant_q)];
-    assign mem_arburst  = c_arburst[1'(grant_q)];
-    assign mem_arlock   = c_arlock[1'(grant_q)];
-    assign mem_arcache  = c_arcache[1'(grant_q)];
-    assign mem_arprot   = c_arprot[1'(grant_q)];
-    assign mem_arqos    = c_arqos[1'(grant_q)];
-    assign mem_arregion = c_arregion[1'(grant_q)];
-    assign mem_aruser   = c_aruser[1'(grant_q)];
-    assign mem_arvalid  = (state_q == F_PASS_AR) && c_arvalid[1'(grant_q)]
-                          && !abs_match(c_araddr[1'(grant_q)]);
+    // ------------------------------------------------------------------
+    // Snoop queues: per peer p, the slots (dir = 1-p) awaiting an AC in
+    // grant order, and the ACs accepted but not yet answered (CR pairs by
+    // order; the responder serves one at a time, its transport skids the
+    // next)
+    // ------------------------------------------------------------------
+    logic [SLOT_W-1:0] r_snq [2][FAB_SLOTS];
+    logic [SNQ_W-1:0]  r_snq_cnt [2];
+    logic [SLOT_W-1:0] r_sni [2][SNOOP_INFLIGHT];
+    logic [SNI_W-1:0]  r_sni_cnt [2];
+    logic [BEAT_INDEX_WIDTH-1:0] r_cd_beat [2];
 
-    logic [IW-1:0]       r_rid;
-    logic [BUS_WIDTH-1:0] r_rdata;
-    logic [1:0]          r_rresp;
-    logic                r_rlast;
-    logic [UW-1:0]       r_ruser;
-    logic                r_rvalid;
-
+    logic [1:0] w_ac_vld, w_ac_hs, w_cr_hs, w_cd_hs;
+    logic [SLOT_W-1:0] w_ac_slot [2];
+    logic [SLOT_W-1:0] w_sni_head [2];
     always_comb begin
-        if (state_q == F_REPLAY_R) begin
-            r_rid    = replay_rid_q;
-            r_rdata  = line_buf_q[1'(grant_q)][32'(beat_q) * BUS_WIDTH
-                                           +: BUS_WIDTH];
-            r_rresp  = 2'b00;
-            r_rlast  = (beat_q == BEAT_INDEX_WIDTH'(FILL_BEATS - 1));
-            r_ruser  = '0;
-            r_rvalid = 1'b1;
-        end else if (state_q == F_PASS_R) begin
-            r_rid    = mem_rid;
-            r_rdata  = mem_rdata;
-            r_rresp  = mem_rresp;
-            r_rlast  = mem_rlast;
-            r_ruser  = mem_ruser;
-            r_rvalid = mem_rvalid;
-        end else if (state_q == F_NODATA_R) begin
-            // CleanUnique / MakeUnique: one no-data R beat with RLAST
-            r_rid    = replay_rid_q;
-            r_rdata  = '0;
-            r_rresp  = 2'b00;
-            r_rlast  = 1'b1;
-            r_ruser  = '0;
-            r_rvalid = 1'b1;
-        end else begin
-            r_rid    = '0;
-            r_rdata  = '0;
-            r_rresp  = '0;
-            r_rlast  = 1'b0;
-            r_ruser  = '0;
-            r_rvalid = 1'b0;
+        for (int p = 0; p < 2; p++) begin
+            w_ac_slot[p]  = r_snq[p][0];
+            w_ac_vld[p]   = (r_snq_cnt[p] != '0) && (r_sni_cnt[p] < SNI_W'(SNOOP_INFLIGHT));
+            w_ac_hs[p]    = w_ac_vld[p] & acready[p];
+            w_sni_head[p] = r_sni[p][0];
+            w_cr_hs[p]    = crvalid[p] & (r_sni_cnt[p] != '0);
+            w_cd_hs[p]    = cdvalid[p] & (r_sni_cnt[p] != '0);
         end
     end
 
-    assign c0_rid    = r_rid;
-    assign c1_rid    = r_rid;
-    assign c0_rdata  = r_rdata;
-    assign c1_rdata  = r_rdata;
-    assign c0_rresp  = r_rresp;
-    assign c1_rresp  = r_rresp;
-    assign c0_rlast  = r_rlast;
-    assign c1_rlast  = r_rlast;
-    assign c0_ruser  = r_ruser;
-    assign c1_ruser  = r_ruser;
-    assign c0_rvalid = r_rvalid && (grant_q == 1'b0);
-    assign c1_rvalid = r_rvalid && (grant_q == 1'b1);
-    assign mem_rready = (state_q == F_PASS_R) && c_rready[1'(r_owner_q)];
+    assign s0_acaddr  = {r_line[w_ac_slot[0]], OFFSET_W'(0)};
+    assign s1_acaddr  = {r_line[w_ac_slot[1]], OFFSET_W'(0)};
+    assign s0_acsnoop = map_snoop(r_type[w_ac_slot[0]]);
+    assign s1_acsnoop = map_snoop(r_type[w_ac_slot[1]]);
+    assign s0_acprot  = 3'b000;
+    assign s1_acprot  = 3'b000;
+    assign s0_acvalid = w_ac_vld[0];
+    assign s1_acvalid = w_ac_vld[1];
+    // CR / CD accepted whenever a snoop is outstanding at that peer (the
+    // buffer write and the verdict land in the same cycle)
+    assign s0_crready = (r_sni_cnt[0] != '0);
+    assign s1_crready = (r_sni_cnt[1] != '0);
+    assign s0_cdready = (r_sni_cnt[0] != '0);
+    assign s1_cdready = (r_sni_cnt[1] != '0);
 
     // ------------------------------------------------------------------
-    // Write port arbitration: {cache0 wb, cache1 wb, absorb0, absorb1},
-    // fair round-robin; a write-back to a line with a pending absorption
-    // holds (the absorption is older and must land first)
+    // Memory AR issue: a slot whose AR is taken, whose AC the peer has
+    // accepted, with data to fetch and no DataTransfer verdict yet.
+    // Lowest index first (every candidate issues within FAB_SLOTS cycles).
     // ------------------------------------------------------------------
-    logic [1:0] wb_blocked;
-    assign wb_blocked[0] = c0_awvalid && abs_match(c0_awaddr);
-    assign wb_blocked[1] = c1_awvalid && abs_match(c1_awaddr);
-
-    logic [3:0] w_cand;
-    assign w_cand = {abs_req_q[1], abs_req_q[0],
-                     (c1_awvalid && !wb_blocked[1]),
-                     (c0_awvalid && !wb_blocked[0])};
-
-    logic [1:0] w_sel;
+    logic              w_mar_vld;
+    logic [SLOT_W-1:0] w_mar_slot;
     always_comb begin
-        w_sel = w_rr_q;
-        for (int k = 0; k < 4; k++) begin
-            if (w_cand[(32'(w_rr_q) + k) % 4])
-                w_sel = 2'((32'(w_rr_q) + k) % 4);
+        w_mar_vld  = 1'b0;
+        w_mar_slot = '0;
+        for (int s = FAB_SLOTS - 1; s >= 0; s--) begin
+            if (r_vld[s] && r_ar_taken[s] && !r_nodata[s] && !r_mem_issued[s]
+                && r_ac_done[s] && !(r_cr_done[s] && r_dt[s])) begin
+                w_mar_vld  = 1'b1;
+                w_mar_slot = SLOT_W'(s);
+            end
         end
     end
-    wire        w_valid   = |w_cand;
-    wire        w_is_abs  = (w_sel >= 2'd2);
-    wire [1:0]  w_dir     = w_is_abs ? (w_sel - 2'd2) : w_sel;
+    wire w_mar_hs = w_mar_vld & mem_arready;
 
-    // registered owner for the burst in flight
-    wire        cur_is_abs = (wstate_q == W_IDLE) ? w_is_abs : w_is_abs_q;
-    wire [1:0]  cur_dir    = (wstate_q == W_IDLE) ? w_dir : w_owner_q;
-
-    assign mem_awid     = cur_is_abs ? IW'(8'hA0 | 8'(cur_dir))
-                                     : c_awid[1'(cur_dir)];
-    assign mem_awaddr   = cur_is_abs ? abs_pend_addr_q[1'(cur_dir)]
-                                     : c_awaddr[1'(cur_dir)];
-    assign mem_awlen    = cur_is_abs ? 8'(FILL_BEATS - 1) : c_awlen[1'(cur_dir)];
-    assign mem_awsize   = cur_is_abs ? 3'($clog2(STRB_W)) : c_awsize[1'(cur_dir)];
-    assign mem_awburst  = cur_is_abs ? 2'b01 : c_awburst[1'(cur_dir)];
-    assign mem_awlock   = cur_is_abs ? 1'b0 : c_awlock[1'(cur_dir)];
-    assign mem_awcache  = cur_is_abs ? 4'b0000 : c_awcache[1'(cur_dir)];
-    assign mem_awprot   = cur_is_abs ? 3'b000 : c_awprot[1'(cur_dir)];
-    assign mem_awqos    = cur_is_abs ? 4'b0000 : c_awqos[1'(cur_dir)];
-    assign mem_awregion = cur_is_abs ? 4'b0000 : c_awregion[1'(cur_dir)];
-    assign mem_awuser   = cur_is_abs ? '0 : c_awuser[1'(cur_dir)];
-    assign mem_awvalid  = (wstate_q == W_AW);
-
-    logic [BUS_WIDTH-1:0] w_data;
-    logic [STRB_W-1:0]    w_strb;
-    logic                 w_last;
-    assign w_data = cur_is_abs
-        ? line_buf_q[1'(cur_dir)][32'(w_beat_q) * BUS_WIDTH +: BUS_WIDTH]
-        : c_wdata[1'(cur_dir)];
-    assign w_strb = cur_is_abs ? {STRB_W{1'b1}} : c_wstrb[1'(cur_dir)];
-    assign w_last = cur_is_abs
-        ? (w_beat_q == BEAT_INDEX_WIDTH'(FILL_BEATS - 1))
-        : c_wlast[1'(cur_dir)];
-    assign mem_wdata = w_data;
-    assign mem_wstrb = w_strb;
-    assign mem_wlast = w_last;
-    assign mem_wuser = '0;
-    assign mem_wvalid = (wstate_q == W_W);
-
-    assign c0_awready = (wstate_q == W_AW) && !cur_is_abs
-                        && (cur_dir == 2'd0) && mem_awready;
-    assign c1_awready = (wstate_q == W_AW) && !cur_is_abs
-                        && (cur_dir == 2'd1) && mem_awready;
-    assign c0_wready  = (wstate_q == W_W) && !cur_is_abs && (cur_dir == 2'd0)
-                        && mem_wready;
-    assign c1_wready  = (wstate_q == W_W) && !cur_is_abs && (cur_dir == 2'd1)
-                        && mem_wready;
-
-    assign c0_bvalid = (wstate_q == W_B) && !cur_is_abs && (cur_dir == 2'd0)
-                       && mem_bvalid;
-    assign c1_bvalid = (wstate_q == W_B) && !cur_is_abs && (cur_dir == 2'd1)
-                       && mem_bvalid;
-    assign c0_bid    = mem_bid;
-    assign c1_bid    = mem_bid;
-    assign c0_bresp  = mem_bresp;
-    assign c1_bresp  = mem_bresp;
-    assign c0_buser  = mem_buser;
-    assign c1_buser  = mem_buser;
-    assign mem_bready = (wstate_q == W_B)
-                        && (cur_is_abs || c_bready[1'(cur_dir)]);
+    assign mem_arid     = IW'(w_mar_slot);
+    assign mem_araddr   = {r_line[w_mar_slot], OFFSET_W'(0)};
+    assign mem_arlen    = 8'(FILL_BEATS - 1);
+    assign mem_arsize   = 3'($clog2(STRB_W));
+    assign mem_arburst  = 2'b01;
+    assign mem_arlock   = 1'b0;
+    assign mem_arcache  = r_arcache[w_mar_slot];
+    assign mem_arprot   = r_arprot[w_mar_slot];
+    assign mem_arqos    = 4'b0000;
+    assign mem_arregion = 4'b0000;
+    assign mem_aruser   = r_aruser[w_mar_slot];
+    assign mem_arvalid  = w_mar_vld;
 
     // ------------------------------------------------------------------
-    // Coherence FSM (owns: pend/buf/abs bookkeeping, snoop and AR/R flow)
+    // Memory R: the beat's slot (rid) decides -- forward (no DT), drop
+    // (DT, the replay carries the line), or hold until the verdict
     // ------------------------------------------------------------------
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            state_q            <= F_IDLE;
-            grant_q            <= 1'b0;
-            grant_addr_q       <= '0;
-            grant_type_q       <= '0;
-            no_data_txn_q      <= 1'b0;
-            kill_q             <= 1'b0;
-            acsnoop_q          <= '0;
-            rr_q               <= 1'b0;
-            pend_cnt_q[0]      <= '0;
-            pend_cnt_q[1]      <= '0;
-            pend_ovf_q         <= '0;
-            drain_vld_q        <= '0;
-            drain_line_q[0]    <= '0;
-            drain_line_q[1]    <= '0;
-            buf_vld_q          <= '0;
-            line_buf_q[0]      <= '0;
-            line_buf_q[1]      <= '0;
-            abs_pend_vld_q     <= '0;
-            abs_pend_addr_q[0] <= '0;
-            abs_pend_addr_q[1] <= '0;
-            abs_req_q          <= '0;
-            beat_q             <= '0;
-            replay_rid_q       <= '0;
-            crresp_q           <= '0;
-            r_owner_q          <= 1'b0;
-            beat_count_q       <= '0;
+    wire [SLOT_W-1:0] w_mr_slot = mem_rid[SLOT_W-1:0];
+    wire w_mr_fwd  = mem_rvalid & r_cr_done[w_mr_slot] & ~r_dt[w_mr_slot];
+    wire w_mr_drop = mem_rvalid & r_cr_done[w_mr_slot] &  r_dt[w_mr_slot];
+    wire w_mr_dir  = r_dir[w_mr_slot];
+
+    // ------------------------------------------------------------------
+    // Replay per direction: the DT line from the slot buffer, or the single
+    // no-data beat of an upgrade.  A memory beat for the direction has
+    // priority (the memory R channel is the shared resource); the replay
+    // fills the gaps, and once presented it holds until accepted (AXI
+    // payload stability).
+    // ------------------------------------------------------------------
+    logic [1:0]        r_rpl_vld;
+    logic [SLOT_W-1:0] r_rpl_slot [2];
+    logic [BEAT_INDEX_WIDTH-1:0] r_rpl_beat [2];
+    logic [1:0]        r_rpl_hold;
+
+    // replay candidate per direction (lowest index): verdict in, line
+    // buffered (CD before CR) or no data to replay, not yet replayed
+    logic [1:0]        w_rplc_vld;
+    logic [SLOT_W-1:0] w_rplc_slot [2];
+    always_comb begin
+        for (int d = 0; d < 2; d++) begin
+            w_rplc_vld[d]  = 1'b0;
+            w_rplc_slot[d] = '0;
+            for (int s = FAB_SLOTS - 1; s >= 0; s--) begin
+                if (r_vld[s] && (r_dir[s] == 1'(d)) && r_cr_done[s] && r_ar_taken[s]
+                    && (r_dt[s] || r_nodata[s]) && !r_rpl_done[s]
+                    && !(r_rpl_vld[d] && (r_rpl_slot[d] == SLOT_W'(s)))) begin
+                    w_rplc_vld[d]  = 1'b1;
+                    w_rplc_slot[d] = SLOT_W'(s);
+                end
+            end
+        end
+    end
+
+    // slot line buffers: one per PEER (the CD source), indexed {slot, beat}.
+    // One write port each (that peer's CD beat) and two asynchronous reads
+    // (the replay of the other direction, the absorption) -- distributed
+    // RAM.  A single array written from both peers would have two write
+    // ports and come out as flops behind 272:1 muxes (35 k LUT, measured
+    // out of context on the first build of this fabric).
+    localparam int BUF_DEPTH = FAB_SLOTS * FILL_BEATS;
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [BUS_WIDTH-1:0] r_buf0 [BUF_DEPTH];
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [BUS_WIDTH-1:0] r_buf1 [BUF_DEPTH];
+    // direction d's line was supplied by peer 1-d, so it sits in that
+    // peer's buffer
+    logic [BUF_AW-1:0] w_rpl_raddr [2];
+    logic [BUS_WIDTH-1:0] w_rpl_rdata [2];
+    always_comb begin
+        for (int d = 0; d < 2; d++)
+            w_rpl_raddr[d] = {r_rpl_slot[d], r_rpl_beat[d]};
+        w_rpl_rdata[0] = r_buf1[w_rpl_raddr[0]];
+        w_rpl_rdata[1] = r_buf0[w_rpl_raddr[1]];
+    end
+
+    // per-direction R output: memory beat (priority) or replay beat
+    logic [1:0] w_mem_want;      // a memory beat for this direction
+    logic [1:0] w_rpl_pres;      // the replay is presented this direction
+    logic [1:0] w_mem_pres;      // the memory beat is presented
+    logic [1:0] w_rvalid;
+    logic [1:0] w_rpl_hs, w_mem_hs;
+    always_comb begin
+        for (int d = 0; d < 2; d++) begin
+            w_mem_want[d] = w_mr_fwd & (w_mr_dir == 1'(d));
+            w_rpl_pres[d] = r_rpl_vld[d] & (r_rpl_hold[d] | ~w_mem_want[d]);
+            w_mem_pres[d] = w_mem_want[d] & ~w_rpl_pres[d];
+            w_rvalid[d]   = w_rpl_pres[d] | w_mem_pres[d];
+            w_rpl_hs[d]   = w_rpl_pres[d] & c_rready[d];
+            w_mem_hs[d]   = w_mem_pres[d] & c_rready[d];
+        end
+    end
+    wire w_mr_hs = w_mem_hs[0] | w_mem_hs[1] | w_mr_drop;
+    assign mem_rready = w_mr_drop | (w_mr_fwd & w_mem_pres[w_mr_dir] & c_rready[w_mr_dir]);
+
+    logic [IW-1:0]        r_out_rid [2];
+    logic [BUS_WIDTH-1:0] r_out_rdata [2];
+    logic [1:0]           r_out_rresp [2];
+    logic                 r_out_rlast [2];
+    always_comb begin
+        for (int d = 0; d < 2; d++) begin
+            if (w_rpl_pres[d]) begin
+                r_out_rid[d]   = r_arid[r_rpl_slot[d]];
+                r_out_rdata[d] = r_nodata[r_rpl_slot[d]] ? '0 : w_rpl_rdata[d];
+                r_out_rresp[d] = 2'b00;
+                r_out_rlast[d] = r_nodata[r_rpl_slot[d]]
+                                 | (r_rpl_beat[d] == BEAT_INDEX_WIDTH'(FILL_BEATS - 1));
+            end else begin
+                r_out_rid[d]   = r_arid[w_mr_slot];
+                r_out_rdata[d] = mem_rdata;
+                r_out_rresp[d] = mem_rresp;
+                r_out_rlast[d] = mem_rlast;
+            end
+        end
+    end
+
+    assign c0_rid    = r_out_rid[0];
+    assign c1_rid    = r_out_rid[1];
+    assign c0_rdata  = r_out_rdata[0];
+    assign c1_rdata  = r_out_rdata[1];
+    assign c0_rresp  = r_out_rresp[0];
+    assign c1_rresp  = r_out_rresp[1];
+    assign c0_rlast  = r_out_rlast[0];
+    assign c1_rlast  = r_out_rlast[1];
+    assign c0_ruser  = w_rpl_pres[0] ? '0 : mem_ruser;
+    assign c1_ruser  = w_rpl_pres[1] ? '0 : mem_ruser;
+    assign c0_rvalid = w_rvalid[0];
+    assign c1_rvalid = w_rvalid[1];
+
+    // ------------------------------------------------------------------
+    // Write port: write-back pass-through + PassDirty absorption, one
+    // burst in flight system-wide, fair round-robin {wb0, wb1, absorb}.
+    // A write-back to a line with a slot that has no verdict yet, or an
+    // absorption not yet landed, holds.
+    // ------------------------------------------------------------------
+    localparam logic [1:0] W_IDLE = 2'd0;
+    localparam logic [1:0] W_AW   = 2'd1;
+    localparam logic [1:0] W_W    = 2'd2;
+    localparam logic [1:0] W_B    = 2'd3;
+
+    logic [1:0]        r_wstate;
+    logic [1:0]        r_w_sel;        // 0/1 = wb of cache, 2 = absorb
+    logic [SLOT_W-1:0] r_w_slot;
+    logic [1:0]        r_w_rr;
+    logic [BEAT_INDEX_WIDTH-1:0] r_w_beat;
+
+    logic [1:0] w_wb_blocked;
+    always_comb begin
+        for (int d = 0; d < 2; d++) begin
+            w_wb_blocked[d] = 1'b0;
+            for (int s = 0; s < FAB_SLOTS; s++) begin
+                if (r_vld[s] && (r_line[s] == line_of(c_awaddr[d]))
+                    && (!r_cr_done[s] || (r_pd[s] && !r_abs_done[s])))
+                    w_wb_blocked[d] = 1'b1;
+            end
+        end
+    end
+
+    // absorption candidate: lowest slot with PassDirty not yet written
+    logic              w_absc_vld;
+    logic [SLOT_W-1:0] w_absc_slot;
+    always_comb begin
+        w_absc_vld  = 1'b0;
+        w_absc_slot = '0;
+        for (int s = FAB_SLOTS - 1; s >= 0; s--) begin
+            if (r_vld[s] && r_cr_done[s] && r_pd[s] && !r_abs_issued[s]) begin
+                w_absc_vld  = 1'b1;
+                w_absc_slot = SLOT_W'(s);
+            end
+        end
+    end
+
+    logic [2:0] w_wcand;
+    assign w_wcand = {w_absc_vld,
+                      (c_awvalid[1] && !w_wb_blocked[1]),
+                      (c_awvalid[0] && !w_wb_blocked[0])};
+    logic [1:0] w_wsel;
+    always_comb begin
+        w_wsel = r_w_rr;
+        for (int k = 2; k >= 0; k--) begin
+            if (w_wcand[(32'(r_w_rr) + k) % 3])
+                w_wsel = 2'((32'(r_w_rr) + k) % 3);
+        end
+    end
+    wire w_wvalid = |w_wcand;
+
+    wire        w_cur_abs = (r_w_sel == 2'd2);
+    wire        w_cur_dir = r_w_sel[0];
+    logic [BUF_AW-1:0]    w_abs_raddr;
+    logic [BUS_WIDTH-1:0] w_abs_rdata;
+    assign w_abs_raddr = {r_w_slot, r_w_beat};
+    // the absorbed line came from the requester's peer
+    assign w_abs_rdata = r_dir[r_w_slot] ? r_buf0[w_abs_raddr] : r_buf1[w_abs_raddr];
+
+    assign mem_awid     = w_cur_abs ? IW'(8'hA0 | 8'(r_dir[r_w_slot]))
+                                    : c_awid[w_cur_dir];
+    assign mem_awaddr   = w_cur_abs ? {r_line[r_w_slot], OFFSET_W'(0)}
+                                    : c_awaddr[w_cur_dir];
+    assign mem_awlen    = w_cur_abs ? 8'(FILL_BEATS - 1) : c_awlen[w_cur_dir];
+    assign mem_awsize   = w_cur_abs ? 3'($clog2(STRB_W)) : c_awsize[w_cur_dir];
+    assign mem_awburst  = w_cur_abs ? 2'b01 : c_awburst[w_cur_dir];
+    assign mem_awlock   = w_cur_abs ? 1'b0 : c_awlock[w_cur_dir];
+    assign mem_awcache  = w_cur_abs ? 4'b0000 : c_awcache[w_cur_dir];
+    assign mem_awprot   = w_cur_abs ? 3'b000 : c_awprot[w_cur_dir];
+    assign mem_awqos    = w_cur_abs ? 4'b0000 : c_awqos[w_cur_dir];
+    assign mem_awregion = w_cur_abs ? 4'b0000 : c_awregion[w_cur_dir];
+    assign mem_awuser   = w_cur_abs ? '0 : c_awuser[w_cur_dir];
+    assign mem_awvalid  = (r_wstate == W_AW) && (w_cur_abs || c_awvalid[w_cur_dir]);
+
+    wire w_wlast = w_cur_abs ? (r_w_beat == BEAT_INDEX_WIDTH'(FILL_BEATS - 1))
+                             : c_wlast[w_cur_dir];
+    assign mem_wdata  = w_cur_abs ? w_abs_rdata : c_wdata[w_cur_dir];
+    assign mem_wstrb  = w_cur_abs ? {STRB_W{1'b1}} : c_wstrb[w_cur_dir];
+    assign mem_wlast  = w_wlast;
+    assign mem_wuser  = '0;
+    assign mem_wvalid = (r_wstate == W_W) && (w_cur_abs || c_wvalid[w_cur_dir]);
+
+    assign c0_awready = (r_wstate == W_AW) && !w_cur_abs && (w_cur_dir == 1'b0) && mem_awready;
+    assign c1_awready = (r_wstate == W_AW) && !w_cur_abs && (w_cur_dir == 1'b1) && mem_awready;
+    assign c0_wready  = (r_wstate == W_W) && !w_cur_abs && (w_cur_dir == 1'b0) && mem_wready;
+    assign c1_wready  = (r_wstate == W_W) && !w_cur_abs && (w_cur_dir == 1'b1) && mem_wready;
+    assign c0_bvalid  = (r_wstate == W_B) && !w_cur_abs && (w_cur_dir == 1'b0) && mem_bvalid;
+    assign c1_bvalid  = (r_wstate == W_B) && !w_cur_abs && (w_cur_dir == 1'b1) && mem_bvalid;
+    assign c0_bid     = mem_bid;
+    assign c1_bid     = mem_bid;
+    assign c0_bresp   = mem_bresp;
+    assign c1_bresp   = mem_bresp;
+    assign c0_buser   = mem_buser;
+    assign c1_buser   = mem_buser;
+    assign mem_bready = (r_wstate == W_B) && (w_cur_abs || c_bready[w_cur_dir]);
+
+    // ------------------------------------------------------------------
+    // Retire sideband: the requester's entry (by read ID) is gone -- the
+    // line is committed in its array and the lock may drop once the
+    // fabric's own bookkeeping for the slot is complete
+    // ------------------------------------------------------------------
+    logic [FAB_SLOTS-1:0] w_rack_hit;
+    always_comb begin
+        for (int s = 0; s < FAB_SLOTS; s++) begin
+            w_rack_hit[s] = r_vld[s] & r_ar_taken[s] & ~r_rack[s]
+                            & coh_done_vld[r_dir[s]]
+                            & (coh_done_id[r_dir[s]] == r_arid[s]);
+        end
+    end
+
+    // ------------------------------------------------------------------
+    // Sequential: table, queues, replay, write FSM
+    // ------------------------------------------------------------------
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_vld        <= '0;
+            r_dir        <= '0;
+            r_nodata     <= '0;
+            r_ar_taken   <= '0;
+            r_ac_done    <= '0;
+            r_cr_done    <= '0;
+            r_dt         <= '0;
+            r_pd         <= '0;
+            r_mem_issued <= '0;
+            r_mem_done   <= '0;
+            r_rpl_done   <= '0;
+            r_abs_issued <= '0;
+            r_abs_done   <= '0;
+            r_rack       <= '0;
+            r_rr         <= 1'b0;
+            r_pend_ovf   <= '0;
+            r_arw_vld    <= '0;
+            r_rpl_vld    <= '0;
+            r_rpl_hold   <= '0;
+            r_wstate     <= W_IDLE;
+            r_w_sel      <= '0;
+            r_w_slot     <= '0;
+            r_w_rr       <= '0;
+            r_w_beat     <= '0;
+            for (int d = 0; d < 2; d++) begin
+                r_pend_cnt[d] <= '0;
+                r_arw_slot[d] <= '0;
+                r_snq_cnt[d]  <= '0;
+                r_sni_cnt[d]  <= '0;
+                r_cd_beat[d]  <= '0;
+                r_rpl_slot[d] <= '0;
+                r_rpl_beat[d] <= '0;
+            end
         end else begin
-            // request pulse push / grant pop (per-direction FIFO)
-            for (int i = 0; i < 2; i++) begin
-                automatic logic push = coh_pulse_vld[i];
-                automatic logic pop  = g_valid && ((g_dir == 1'b0) ? (i == 0) : (i == 1))
-                                       && (state_q == F_IDLE);
-                if (push && pop) begin
-                    // grant the head (shift down); the new request takes
-                    // the last valid slot (full: the freed tail)
+            // ---------------- pending queues: push the pulse, pop the grant
+            for (int d = 0; d < 2; d++) begin
+                automatic logic push = coh_req_vld[d] & ~(w_grant & (w_grant_dir == 1'(d)) & w_cand_live[d]);
+                automatic logic pop  = w_grant & (w_grant_dir == 1'(d)) & ~w_cand_live[d];
+                if (pop) begin
                     for (int k = 0; k < PEND_DEPTH - 1; k++) begin
-                        pend_line_q[i][k] <= pend_line_q[i][k+1];
-                        pend_type_q[i][k] <= pend_type_q[i][k+1];
+                        r_pend_addr[d][k] <= r_pend_addr[d][k+1];
+                        r_pend_type[d][k] <= r_pend_type[d][k+1];
                     end
-                    if (pend_cnt_q[i] == 3'(PEND_DEPTH)) begin
-                        pend_line_q[i][PEND_DEPTH-1]
-                            <= (i == 0) ? c0_coh_req_addr : c1_coh_req_addr;
-                        pend_type_q[i][PEND_DEPTH-1]
-                            <= (i == 0) ? c0_coh_req_type : c1_coh_req_type;
+                    if (push) begin
+                        // the new request takes the freed tail slot
+                        r_pend_addr[d][2'(r_pend_cnt[d]) - 2'd1] <= coh_req_addr[d];
+                        r_pend_type[d][2'(r_pend_cnt[d]) - 2'd1] <= coh_req_type[d];
                     end else begin
-                        pend_line_q[i][PEND_DEPTH-1] <= '0;
-                        pend_type_q[i][PEND_DEPTH-1] <= '0;
-                        pend_line_q[i][2'(pend_cnt_q[i]) - 2'd1]
-                            <= (i == 0) ? c0_coh_req_addr : c1_coh_req_addr;
-                        pend_type_q[i][2'(pend_cnt_q[i]) - 2'd1]
-                            <= (i == 0) ? c0_coh_req_type : c1_coh_req_type;
+                        r_pend_cnt[d] <= r_pend_cnt[d] - 3'd1;
                     end
                 end else if (push) begin
-                    if (pend_cnt_q[i] < 3'(PEND_DEPTH)) begin
-                        pend_line_q[i][2'(pend_cnt_q[i])]
-                            <= (i == 0) ? c0_coh_req_addr : c1_coh_req_addr;
-                        pend_type_q[i][2'(pend_cnt_q[i])]
-                            <= (i == 0) ? c0_coh_req_type : c1_coh_req_type;
-                        pend_cnt_q[i] <= pend_cnt_q[i] + 3'd1;
+                    if (r_pend_cnt[d] < 3'(PEND_DEPTH)) begin
+                        r_pend_addr[d][2'(r_pend_cnt[d])] <= coh_req_addr[d];
+                        r_pend_type[d][2'(r_pend_cnt[d])] <= coh_req_type[d];
+                        r_pend_cnt[d] <= r_pend_cnt[d] + 3'd1;
                     end else begin
-                        pend_ovf_q[i] <= 1'b1;   // debug; TB asserts never
+                        r_pend_ovf[d] <= 1'b1;
                     end
-                end else if (pop) begin
-                    for (int k = 0; k < PEND_DEPTH - 1; k++) begin
-                        pend_line_q[i][k] <= pend_line_q[i][k+1];
-                        pend_type_q[i][k] <= pend_type_q[i][k+1];
-                    end
-                    pend_line_q[i][PEND_DEPTH-1] <= '0;
-                    pend_type_q[i][PEND_DEPTH-1] <= '0;
-                    pend_cnt_q[i] <= pend_cnt_q[i] - 3'd1;
+                end
+            end
+
+            // ---------------- grant: allocate the slot, arm the AR take
+            if (w_grant) begin
+                r_vld[w_slot_idx]        <= 1'b1;
+                r_dir[w_slot_idx]        <= w_grant_dir;
+                r_line[w_slot_idx]       <= line_of(w_cand_addr[w_grant_dir]);
+                r_type[w_slot_idx]       <= w_cand_type[w_grant_dir];
+                r_nodata[w_slot_idx]     <= is_nodata(w_cand_type[w_grant_dir]);
+                r_ar_taken[w_slot_idx]   <= 1'b0;
+                r_ac_done[w_slot_idx]    <= 1'b0;
+                r_cr_done[w_slot_idx]    <= 1'b0;
+                r_dt[w_slot_idx]         <= 1'b0;
+                r_pd[w_slot_idx]         <= 1'b0;
+                r_mem_issued[w_slot_idx] <= 1'b0;
+                r_mem_done[w_slot_idx]   <= 1'b0;
+                r_rpl_done[w_slot_idx]   <= 1'b0;
+                r_abs_issued[w_slot_idx] <= 1'b0;
+                r_abs_done[w_slot_idx]   <= 1'b0;
+                r_rack[w_slot_idx]       <= 1'b0;
+                r_arw_vld[w_grant_dir]   <= 1'b1;
+                r_arw_slot[w_grant_dir]  <= w_slot_idx;
+                r_rr                     <= ~w_grant_dir;
+            end
+
+            // ---------------- AR take
+            for (int d = 0; d < 2; d++) begin
+                if (w_ar_take[d]) begin
+                    r_ar_taken[r_arw_slot[d]] <= 1'b1;
+                    r_arid[r_arw_slot[d]]     <= c_arid[d];
+                    r_arcache[r_arw_slot[d]]  <= c_arcache[d];
+                    r_arprot[r_arw_slot[d]]   <= c_arprot[d];
+                    r_aruser[r_arw_slot[d]]   <= c_aruser[d];
+                    r_arw_vld[d]              <= 1'b0;
                 end
             end
 
-            // absorption completion (observed from the write FSM)
-            if ((wstate_q == W_B) && w_is_abs_q && mem_bvalid) begin
-                abs_pend_vld_q[1'(w_owner_q)] <= 1'b0;
-            end
-
-            // drain guard: arm at transaction completion, drop once the
-            // peer's FSM settles in a STABLE snoop-safe state. SNOOP is
-            // deliberately not a clearing state -- it can be a detour from
-            // an uncommitted fill (the pf bypass still armed), and clearing
-            // there let a data-expecting AC in against the armed bypass.
-            if (state_q == F_DONE) begin
-                drain_vld_q[grant_q]  <= 1'b1;
-                drain_line_q[grant_q] <= grant_addr_q;
-            end else begin
-                if (drain_vld_q[0]
-                    && ((peer0_state_q == ST_IDLE) || (peer0_state_q == ST_LOOKUP)
-                        || (peer0_state_q == ST_HIT_RD)
-                        || (peer0_state_q == ST_HIT_WR)))
-                    drain_vld_q[0] <= 1'b0;
-                if (drain_vld_q[1]
-                    && ((peer1_state_q == ST_IDLE) || (peer1_state_q == ST_LOOKUP)
-                        || (peer1_state_q == ST_HIT_RD)
-                        || (peer1_state_q == ST_HIT_WR)))
-                    drain_vld_q[1] <= 1'b0;
-            end
-
-            // buffer free: at transaction end when no absorption trails,
-            // or when a trailing absorption completes.  The replay guard
-            // protects only the buffer the current grant is replaying
-            // FROM: an absorption completing for the OTHER direction's
-            // buffer must clear it now, because nothing else ever will --
-            // its abs_pend flag drops below on this same BVALID, and the
-            // F_DONE clear looks only at grant_q's buffer.  Unqualified,
-            // `state_q != F_REPLAY_R` dropped that clear whenever the
-            // peer's replay overlapped the BVALID: the stale buf_vld then
-            // vetoed every later grant to that direction (g_take) and the
-            // rig hung with the request pending and AR held (jet BUG-003,
-            // pair rig s128w4 m16v1 fifo, SEED=54355, 2026-11-09).
-            if ((state_q == F_DONE) && buf_vld_q[grant_q]
-                && !abs_pend_vld_q[1'(grant_q)]) begin
-                buf_vld_q[grant_q] <= 1'b0;
-            end else if ((wstate_q == W_B) && w_is_abs_q && mem_bvalid
-                         && buf_vld_q[1'(w_owner_q)]
-                         && !(state_q == F_REPLAY_R
-                              && 2'(grant_q) == w_owner_q)
-                         && !(state_q == F_REPLAY_AR
-                              && 2'(grant_q) == w_owner_q)) begin
-                buf_vld_q[1'(w_owner_q)] <= 1'b0;
-            end
-
-            unique case (state_q)
-                F_IDLE: begin
-                    if (g_valid) begin
-                        grant_q       <= g_dir;
-                        grant_addr_q  <= pend_line_q[1'(g_dir)][0];
-                        grant_type_q  <= pend_type_q[1'(g_dir)][0];
-                        no_data_txn_q <= (pend_type_q[1'(g_dir)][0]
-                                            == 3'(AMBER_ACE_CLEAN_UNIQUE))
-                                       || (pend_type_q[1'(g_dir)][0]
-                                            == 3'(AMBER_ACE_MAKE_UNIQUE));
-                        kill_q        <= g_kill;
-                        acsnoop_q     <= g_kill ? ACSNOOP_MAKE_INVALID
-                                      : map_snoop(pend_type_q[1'(g_dir)][0]);
-                        rr_q          <= 1 - rr_q;
-                        beat_count_q  <= '0;
-                        state_q       <= F_AC;
-                    end
+            // ---------------- snoop queues per peer (a pop shifts first,
+            // a same-cycle push then lands on the freed tail: the later
+            // nonblocking assignment wins)
+            for (int p = 0; p < 2; p++) begin
+                automatic logic push_q = w_grant & (w_grant_dir == 1'(1 - p));
+                if (w_ac_hs[p]) begin
+                    for (int k = 0; k < FAB_SLOTS - 1; k++)
+                        r_snq[p][k] <= r_snq[p][k+1];
+                    r_ac_done[w_ac_slot[p]] <= 1'b1;
                 end
-
-                F_AC: begin
-                    if (snoop_ac_accept) begin
-                        state_q      <= F_RESP;
-                        beat_count_q <= '0;
-                    end
+                if (push_q)
+                    r_snq[p][SLOT_W'(r_snq_cnt[p] - SNQ_W'(w_ac_hs[p]))] <= w_slot_idx;
+                r_snq_cnt[p] <= r_snq_cnt[p] + SNQ_W'(push_q) - SNQ_W'(w_ac_hs[p]);
+                if (w_cr_hs[p]) begin
+                    for (int k = 0; k < SNOOP_INFLIGHT - 1; k++)
+                        r_sni[p][k] <= r_sni[p][k+1];
+                    r_cr_done[w_sni_head[p]] <= 1'b1;
+                    r_dt[w_sni_head[p]]      <= crresp_w[p][AMBER_CRRESP_DT];
+                    r_pd[w_sni_head[p]]      <= crresp_w[p][AMBER_CRRESP_DT]
+                                                & crresp_w[p][AMBER_CRRESP_PD];
+                    // the verdict beat the memory AR: nothing to drain
+                    if (crresp_w[p][AMBER_CRRESP_DT] && !r_mem_issued[w_sni_head[p]]
+                        && !(w_mar_hs && (w_mar_slot == w_sni_head[p])))
+                        r_mem_done[w_sni_head[p]] <= 1'b1;
+                    r_cd_beat[p] <= '0;
                 end
+                if (w_ac_hs[p])
+                    r_sni[p][SNI_IW'(r_sni_cnt[p] - SNI_W'(w_cr_hs[p]))] <= w_ac_slot[p];
+                r_sni_cnt[p] <= r_sni_cnt[p] + SNI_W'(w_ac_hs[p]) - SNI_W'(w_cr_hs[p]);
+                if (w_cd_hs[p]) begin
+                    r_cd_beat[p] <= cdlast[p] ? '0 : r_cd_beat[p] + BEAT_INDEX_WIDTH'(1);
+                end
+            end
 
-                F_RESP: begin
-                    if (snoop_cd_beat) begin
-                        line_buf_q[1'(grant_q)][32'(beat_count_q) * BUS_WIDTH
-                                             +: BUS_WIDTH]
-                            <= cddata_w[1'(1 - grant_q)];
-                        beat_count_q <= beat_count_q + 8'd1;
-                        if (snoop_cd_last) begin
-                            buf_vld_q[grant_q] <= 1'b1;
-                        end
-                    end
-                    if (snoop_cr_accept) begin
-                        crresp_q <= crresp_w[1'(1 - grant_q)];
-                        if (no_data_txn_q) begin
-                            // CleanUnique / MakeUnique are no-data AR
-                            // transactions: accept the AR and return a
-                            // single RLAST beat, then finish.
-                            state_q <= F_NODATA_AR;
-                        end else if (crresp_w[1'(1 - grant_q)][AMBER_CRRESP_DT]) begin
-                            if (crresp_w[1'(1 - grant_q)][AMBER_CRRESP_PD]) begin
-                                abs_req_q[1'(grant_q)]       <= 1'b1;
-                                abs_pend_vld_q[1'(grant_q)]  <= 1'b1;
-                                abs_pend_addr_q[1'(grant_q)] <= grant_addr_q;
-                            end
-                            state_q <= F_REPLAY_AR;
+            // ---------------- memory AR / R
+            if (w_mar_hs) begin
+                r_mem_issued[w_mar_slot] <= 1'b1;
+            end
+            if (w_mr_hs && mem_rlast) begin
+                r_mem_done[w_mr_slot] <= 1'b1;
+            end
+
+            // ---------------- replay engines
+            for (int d = 0; d < 2; d++) begin
+                if (r_rpl_vld[d]) begin
+                    if (w_rpl_hs[d]) begin
+                        r_rpl_hold[d] <= 1'b0;
+                        if (r_out_rlast[d]) begin
+                            r_rpl_vld[d]               <= 1'b0;
+                            r_rpl_done[r_rpl_slot[d]]  <= 1'b1;
                         end else begin
-                            state_q <= F_PASS_AR;
+                            r_rpl_beat[d] <= r_rpl_beat[d] + BEAT_INDEX_WIDTH'(1);
                         end
+                    end else if (w_rpl_pres[d]) begin
+                        r_rpl_hold[d] <= 1'b1;
                     end
+                end else if (w_rplc_vld[d]) begin
+                    r_rpl_vld[d]  <= 1'b1;
+                    r_rpl_slot[d] <= w_rplc_slot[d];
+                    r_rpl_beat[d] <= '0;
+                    r_rpl_hold[d] <= 1'b0;
                 end
-
-                F_REPLAY_AR: begin
-                    // swallow the requester's AR (arready driven high);
-                    // the R beats replay from the buffer
-                    if (c_arvalid[1'(grant_q)]) begin
-                        replay_rid_q <= c_arid[1'(grant_q)];
-                        beat_q       <= '0;
-                        state_q      <= F_REPLAY_R;
-                    end
-                end
-
-                F_REPLAY_R: begin
-                    if (c_rready[1'(grant_q)]) begin
-                        if (beat_q == BEAT_INDEX_WIDTH'(FILL_BEATS - 1)) begin
-                            state_q <= F_DONE;
-                        end else begin
-                            beat_q <= beat_q + BEAT_INDEX_WIDTH'(1);
-                        end
-                    end
-                end
-
-                F_PASS_AR: begin
-                    // forward the AR once no absorption to this line is
-                    // pending (the memory image must be authoritative)
-                    if (mem_arvalid && mem_arready) begin
-                        r_owner_q <= grant_q;
-                        state_q   <= F_PASS_R;
-                    end
-                end
-
-                F_PASS_R: begin
-                    if (mem_rvalid && c_rready[1'(r_owner_q)] && mem_rlast) begin
-                        state_q <= F_DONE;
-                    end
-                end
-
-                F_NODATA_AR: begin
-                    if (c_arvalid[1'(grant_q)]) begin
-                        replay_rid_q <= c_arid[1'(grant_q)];
-                        state_q      <= F_NODATA_R;
-                    end
-                end
-
-                F_NODATA_R: begin
-                    if (c_rready[1'(grant_q)]) begin
-                        state_q <= F_DONE;
-                    end
-                end
-
-                F_DONE: begin
-                    // the granted request was consumed at the grant; a
-                    // follow-on pulse during this transaction stays pending
-                    // (the pending latch is re-armed by its own pulse)
-                    state_q <= F_IDLE;
-                end
-
-                default: state_q <= F_IDLE;
-            endcase
-
-            // absorption request consumed by the write port
-            if ((wstate_q == W_AW) && w_is_abs_q && mem_awready) begin
-                abs_req_q[1'(w_owner_q)] <= 1'b0;
             end
-        end
-    end
 
-    // ------------------------------------------------------------------
-    // Write FSM (owns only its own sequencing registers)
-    // ------------------------------------------------------------------
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            wstate_q   <= W_IDLE;
-            w_owner_q  <= '0;
-            w_is_abs_q <= 1'b0;
-            w_rr_q     <= '0;
-            w_beat_q   <= '0;
-        end else begin
-            unique case (wstate_q)
+            // ---------------- write port FSM
+            unique case (r_wstate)
                 W_IDLE: begin
-                    if (w_valid) begin
-                        w_owner_q  <= w_dir;
-                        w_is_abs_q <= w_is_abs;
-                        w_rr_q     <= 2'((32'(w_sel) + 1) % 4);
-                        w_beat_q   <= '0;
-                        wstate_q   <= W_AW;
+                    if (w_wvalid) begin
+                        r_w_sel  <= w_wsel;
+                        r_w_slot <= w_absc_slot;
+                        r_w_rr   <= 2'((32'(w_wsel) + 1) % 3);
+                        r_w_beat <= '0;
+                        r_wstate <= W_AW;
+                        if (w_wsel == 2'd2)
+                            r_abs_issued[w_absc_slot] <= 1'b1;
                     end
                 end
                 W_AW: begin
-                    if (mem_awready) begin
-                        wstate_q <= W_W;
-                    end
+                    if (mem_awvalid && mem_awready) r_wstate <= W_W;
                 end
                 W_W: begin
-                    if (mem_wready) begin
-                        if (w_last) begin
-                            wstate_q <= W_B;
-                        end else begin
-                            w_beat_q <= w_beat_q + BEAT_INDEX_WIDTH'(1);
-                        end
+                    if (mem_wvalid && mem_wready) begin
+                        if (w_wlast) r_wstate <= W_B;
+                        else         r_w_beat <= r_w_beat + BEAT_INDEX_WIDTH'(1);
                     end
                 end
                 W_B: begin
-                    if (mem_bvalid) begin
-                        wstate_q <= W_IDLE;
+                    if (mem_bvalid && mem_bready) begin
+                        r_wstate <= W_IDLE;
+                        if (w_cur_abs) r_abs_done[r_w_slot] <= 1'b1;
                     end
                 end
-                default: wstate_q <= W_IDLE;
+                default: r_wstate <= W_IDLE;
             endcase
+
+            // ---------------- retire sideband, slot release
+            for (int s = 0; s < FAB_SLOTS; s++) begin
+                if (w_rack_hit[s]) r_rack[s] <= 1'b1;
+                if (w_free_now[s]) r_vld[s]  <= 1'b0;
+            end
         end
+    )
+
+    // slot line buffers: payload only, no reset (the CD beat of the
+    // peer's current snoop lands at {its slot, beat}); one write port per
+    // array, one array per peer
+    always_ff @(posedge clk) begin
+        if (w_cd_hs[0])
+            r_buf0[{w_sni_head[0], r_cd_beat[0]}] <= cddata_w[0];
+    end
+    always_ff @(posedge clk) begin
+        if (w_cd_hs[1])
+            r_buf1[{w_sni_head[1], r_cd_beat[1]}] <= cddata_w[1];
     end
 
     // ------------------------------------------------------------------
     // Debug taps
     // ------------------------------------------------------------------
-    assign dbg_state      = state_q;
-    assign dbg_grant_dir  = grant_q;
-    assign dbg_pend_vld   = {(pend_cnt_q[1] != 3'd0),
-                             (pend_cnt_q[0] != 3'd0)};
-    assign dbg_buf_vld    = buf_vld_q;
-    assign dbg_abs_pend   = abs_pend_vld_q;
-    assign dbg_kill       = issue_kill;
-    assign dbg_acsnoop    = issue_acsnoop;
-    assign dbg_grant_addr = grant_addr_q;
+    assign dbg_busy       = |r_vld;
+    assign dbg_slot_vld   = r_vld;
+    assign dbg_pend_vld   = {(r_pend_cnt[1] != 3'd0), (r_pend_cnt[0] != 3'd0)};
+    assign dbg_abs_pend   = |(r_vld & r_pd & ~r_abs_done);
+    assign dbg_grant      = w_grant;
+    assign dbg_grant_dir  = w_grant_dir;
+    assign dbg_grant_addr = w_cand_addr[w_grant_dir];
+    assign dbg_grant_slot = w_slot_idx;
+
+    // ------------------------------------------------------------------
+    // Unused-input roll-up (the AR sideband fields the fabric regenerates,
+    // the write-side user fields it zeroes)
+    // ------------------------------------------------------------------
+    /* verilator lint_off UNUSEDSIGNAL */
+    logic unused_ar;
+    assign unused_ar = &{1'b0, c_arlen[0], c0_arsize, c0_arburst, c0_arlock, c0_arqos, c0_arregion,
+                         c_arlen[1], c1_arsize, c1_arburst, c1_arlock, c1_arqos, c1_arregion,
+                         c0_wuser, c1_wuser, mem_rid[IW-1:SLOT_W]};
+    /* verilator lint_on UNUSEDSIGNAL */
+
+    // ------------------------------------------------------------------
+    // Simulation-only contract checks
+    // ------------------------------------------------------------------
+    // pragma translate_off
+    /* verilator lint_off SYNCASYNCNET */
+    // the AR taken for a slot is the slot's line (pulse / AR pairing)
+    always @(posedge clk) if (rst_n) begin
+        for (int d = 0; d < 2; d++) begin
+            if (w_ar_take[d] && (line_of(c_araddr[d]) != r_line[r_arw_slot[d]]))
+                $error("jet_prime_pair_fabric: cache %0d AR line %h is not its granted slot's line %h",
+                       d, line_of(c_araddr[d]), r_line[r_arw_slot[d]]);
+            if (w_ar_take[d] && (is_nodata(r_type[r_arw_slot[d]]) != (c_arlen[d] == 8'd0)))
+                $error("jet_prime_pair_fabric: cache %0d AR length disagrees with the request class", d);
+        end
+        // a memory beat names a slot with a read outstanding
+        if (mem_rvalid && !(r_vld[w_mr_slot] && r_mem_issued[w_mr_slot] && !r_mem_done[w_mr_slot]))
+            $error("jet_prime_pair_fabric: memory R beat for slot %0d with no read outstanding", w_mr_slot);
+        // a granted line is held by exactly one slot
+        for (int s = 0; s < FAB_SLOTS; s++)
+            for (int t = s + 1; t < FAB_SLOTS; t++)
+                if (r_vld[s] && r_vld[t] && (r_line[s] == r_line[t]))
+                    $error("jet_prime_pair_fabric: slots %0d and %0d hold the same line %h", s, t, r_line[s]);
+        // CD beats only while a snoop is outstanding
+        for (int p = 0; p < 2; p++)
+            if (cdvalid[p] && (r_sni_cnt[p] == '0))
+                $error("jet_prime_pair_fabric: CD beat from cache %0d with no snoop outstanding", p);
+        // the pending queue never overflows (a cache cannot launch past its held AR)
+        if (|r_pend_ovf)
+            $error("jet_prime_pair_fabric: pending queue overflow");
+    end
+    /* verilator lint_on SYNCASYNCNET */
+    // pragma translate_on
 
 endmodule : jet_prime_pair_fabric

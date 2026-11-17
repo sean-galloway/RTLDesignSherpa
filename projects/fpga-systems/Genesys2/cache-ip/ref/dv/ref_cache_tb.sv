@@ -78,7 +78,9 @@ module ref_cache_tb #(
         end else if (REF_CACHE_SEL == 2) begin : gen_jetp
             // jet-prime direct (no fabric): snoop port idle, sideband and MonBus open.
             /* verilator lint_off UNUSEDSIGNAL */
-            logic        jp_acready, jp_crvalid, jp_cdvalid, jp_cdlast, jp_coh_v, jp_mon_v, jp_init, jp_live, jp_busy;
+            logic        jp_acready, jp_crvalid, jp_cdvalid, jp_cdlast, jp_coh_v, jp_mon_v, jp_init, jp_busy;
+            logic        jp_done_v;
+            logic [AXI_ID_WIDTH-1:0] jp_done_id;
             logic [l1_pkg::AMBER_CRRESP_WIDTH-1:0] jp_crresp;
             logic [BUS_WIDTH-1:0] jp_cddata;
             logic [ADDR_WIDTH-1:0] jp_coh_addr;
@@ -104,9 +106,10 @@ module ref_cache_tb #(
                 .m_axi_crready(1'b1), .m_axi_cddata(jp_cddata), .m_axi_cdlast(jp_cdlast),
                 .m_axi_cdvalid(jp_cdvalid), .m_axi_cdready(1'b1),
                 .coh_req_valid(jp_coh_v), .coh_req_addr(jp_coh_addr), .coh_req_type(jp_coh_type),
+                .coh_done_valid(jp_done_v), .coh_done_id(jp_done_id),
                 .i_mon_time(r_time), .mon_valid(jp_mon_v), .mon_ready(1'b1),
                 .mon_packet(jp_mon_pkt), .mon_timestamp(jp_mon_ts),
-                .init_busy(jp_init), .ctrl_state(jp_ctrl), .lkup_live(jp_live), .busy(jp_busy)
+                .init_busy(jp_init), .ctrl_state(jp_ctrl), .busy(jp_busy)
             );
             assign evt_a = 1'b0;
             assign evt_b = 1'b0;

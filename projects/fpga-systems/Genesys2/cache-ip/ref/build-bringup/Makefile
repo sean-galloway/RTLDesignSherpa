@@ -29,13 +29,15 @@ export FPGA_CONSTRAINTS_DIR := $(FRAMEWORK_ROOT)/fpga/constraints
 # REF_CACHE_SEL picks the cache in the slot: 0 = HPDcache (flow
 # ref_hpd_bringup), 1 = CVA6 write-back dcache (flow ref_cva6_bringup),
 # 2 = jet-prime straight onto memory, no pair fabric (flow ref_jetp_bringup;
-# jet-prime TASK-001 step 1). The flow name keeps the bitstreams and report
-# sets apart.
+# jet-prime TASK-001 step 1), 3 = the jet-prime pair through the pipelined
+# jet_prime_pair_fabric (flow ref_jetpp_bringup; step 3). The flow name keeps
+# the bitstreams and report sets apart.
 REF_CACHE_SEL ?= 0
 export REF_CACHE_SEL
 flow_sel_0 := hpd
 flow_sel_1 := cva6
 flow_sel_2 := jetp
+flow_sel_3 := jetpp
 FLOW      := ref_$(flow_sel_$(REF_CACHE_SEL))_bringup
 BOARD     ?= genesys2
 export BOARD

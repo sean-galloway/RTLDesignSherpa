@@ -428,6 +428,7 @@ module jet_prime_control_th
         .mshr_beat_num_o         (ctrl_mshr_beat_num),
         .mshr_retire_o           (ctrl_mshr_retire),
         .mshr_retire_idx_o       (ctrl_mshr_retire_idx),
+        .cu_done_o               (),
         .wb_cap_o                (ctrl_wb_cap),
         .wb_cap_line_o           (ctrl_wb_cap_line),
         .wb_cap_beat_o           (ctrl_wb_cap_beat),

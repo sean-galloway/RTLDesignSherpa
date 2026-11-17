@@ -491,6 +491,10 @@ module jet_prime_ace_top
         .coh_req_valid     (coh_req_valid),
         .coh_req_addr      (coh_req_addr),
         .coh_req_type      (coh_req_type),
+        // the retire sideband is the plain-AXI4 pair fabric's; the ACE
+        // transport carries RACK itself
+        .coh_done_valid    (),
+        .coh_done_id       (),
         .mon_time          (i_mon_time),
         .mon_valid         (core_mon_valid),
         .mon_ready         (core_mon_ready),

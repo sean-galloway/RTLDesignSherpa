@@ -11,10 +11,12 @@
 //   write-back std_nbdcache), 2: jet_prime_top (the house jet fork, jet-prime
 //   TASK-001 step 1: jet's RTL with NO pair fabric, its ACE snoop port tied
 //   off, the same geometry and MSHR count as the jet rig) -- straight onto
-//   the sdpram_slave_axi4_axi4 memory. There is ONE cache: injector 1 keeps
-//   its CSR slot (the jet host stack runs unchanged) and talks to
-//   ref_null_cache; the three MonBus tally apertures land on ref_axil_stub
-//   (no tally, reads return 0). The same bridge, injector, memory, UART and
+//   the sdpram_slave_axi4_axi4 memory; 3: the jet-prime PAIR (two
+//   jet_prime_top through the pipelined jet_prime_pair_fabric, TASK-001
+//   step 3), the only selection with a cache behind injector 1. Otherwise
+//   there is ONE cache: injector 1 keeps its CSR slot (the jet host stack
+//   runs unchanged) and talks to ref_null_cache; the three MonBus tally
+//   apertures land on ref_axil_stub (no tally, reads return 0). The same bridge, injector, memory, UART and
 //   clocking as the jet rig, so a number measured here is like-for-like
 //   with jet's and amber's ci0; the SEL 2 row against the jet rig's row
 //   isolates what the pair fabric costs a single core.
@@ -58,7 +60,7 @@ module ref_harness
     parameter int REF_REORDER_DEPTH = 16,
     // which reference sits in the cache slot: 0 = HPDcache (non-blocking,
     // jet's peer), 1 = CVA6 write-back std_nbdcache (blocking, amber's peer)
-    parameter int REF_CACHE_SEL     = 0,     // 0 HPDcache, 1 CVA6 WB, 2 jet-prime direct
+    parameter int REF_CACHE_SEL     = 0,     // 0 HPDcache, 1 CVA6 WB, 2 jet-prime direct, 3 jet-prime pair
     parameter int REF_JETP_MSHR_COUNT = 8,   // SEL 2: J1 MSHR count (the jet rig's bin 17 value)
 
     // When 1, expose the bridge's AXIL host interface directly on the
@@ -597,21 +599,26 @@ module ref_harness
 `endif
 
     // ------------------------------------------------------------------
-    // Reference cache (injector 0) and the null second cache (injector 1)
+    // Reference cache (injector 0) and the null second cache (injector 1;
+    // SEL 3 gives injector 1 a jet-prime of its own)
     // ------------------------------------------------------------------
-    ref_null_cache #(
-        .REQ_W (CPU_REQ_W),
-        .RSP_W (CPU_RSP_W)
-    ) u_null1 (
-        .aclk            (aclk),
-        .aresetn         (aresetn),
-        .cpu_req_wr_valid(ci1_req_valid),
-        .cpu_req_wr_ready(ci1_req_ready),
-        .cpu_req_wr_data (ci1_req_data),
-        .cpu_rsp_rd_valid(ci1_rsp_valid),
-        .cpu_rsp_rd_ready(ci1_rsp_ready),
-        .cpu_rsp_rd_data (ci1_rsp_data)
-    );
+    generate
+        if (REF_CACHE_SEL != 3) begin : gen_null1
+        ref_null_cache #(
+            .REQ_W (CPU_REQ_W),
+            .RSP_W (CPU_RSP_W)
+        ) u_null1 (
+            .aclk            (aclk),
+            .aresetn         (aresetn),
+            .cpu_req_wr_valid(ci1_req_valid),
+            .cpu_req_wr_ready(ci1_req_ready),
+            .cpu_req_wr_data (ci1_req_data),
+            .cpu_rsp_rd_valid(ci1_rsp_valid),
+            .cpu_rsp_rd_ready(ci1_rsp_ready),
+            .cpu_rsp_rd_data (ci1_rsp_data)
+        );
+        end
+    endgenerate
 
     /* verilator lint_off UNUSEDSIGNAL */
     logic ref_evt_read_miss, ref_evt_write_miss, ref_rsp_error;
@@ -718,7 +725,9 @@ module ref_harness
             logic                        jetp_coh_req_valid;
             logic [ADDR_WIDTH-1:0]       jetp_coh_req_addr;
             logic [2:0]                  jetp_coh_req_type;
-            logic                        jetp_mon_valid, jetp_init_busy, jetp_lkup_live, jetp_busy;
+            logic                        jetp_mon_valid, jetp_init_busy, jetp_busy;
+            logic                        jetp_coh_done_valid;
+            logic [IW-1:0]               jetp_coh_done_id;
             logic [127:0]                jetp_mon_packet;
             logic [63:0]                 jetp_mon_timestamp;
             logic [3:0]                  jetp_ctrl_state;
@@ -804,6 +813,8 @@ module ref_harness
             .coh_req_valid  (jetp_coh_req_valid),
             .coh_req_addr   (jetp_coh_req_addr),
             .coh_req_type   (jetp_coh_req_type),
+            .coh_done_valid (jetp_coh_done_valid),
+            .coh_done_id    (jetp_coh_done_id),
             // MonBus: produced, never consumed
             .i_mon_time     (r_cycle_ctr),
             .mon_valid      (jetp_mon_valid),
@@ -812,8 +823,450 @@ module ref_harness
             .mon_timestamp  (jetp_mon_timestamp),
             .init_busy      (jetp_init_busy),
             .ctrl_state     (jetp_ctrl_state),
-            .lkup_live      (jetp_lkup_live),
             .busy           (jetp_busy)
+        );
+        end else if (REF_CACHE_SEL == 3) begin : gen_ref_jetpp
+            // jet-prime PAIR (TASK-001 step 3): two jet_prime_top caches, one
+            // per injector, through the pipelined jet_prime_pair_fabric onto
+            // the memory -- the jet rig's structure with jet-prime's RTL, so
+            // the ci1-idle row against SEL 2 is exactly the fabric's cost to
+            // a single core, and against the jet rig's row the fabric
+            // rebuild.  Same parameters as SEL 2 (LRU, monitors on,
+            // MSHR_COUNT from the rig knob); MonBus produced, never consumed.
+            assign ref_evt_read_miss  = 1'b0;
+            assign ref_evt_write_miss = 1'b0;
+            assign ref_rsp_error      = 1'b0;
+            logic [IW-1:0]               c0_arid, c1_arid;
+            logic [ADDR_WIDTH-1:0]       c0_araddr, c1_araddr;
+            logic [8-1:0]                c0_arlen, c1_arlen;
+            logic [3-1:0]                c0_arsize, c1_arsize;
+            logic [2-1:0]                c0_arburst, c1_arburst;
+            logic                        c0_arlock, c1_arlock;
+            logic [4-1:0]                c0_arcache, c1_arcache;
+            logic [3-1:0]                c0_arprot, c1_arprot;
+            logic [4-1:0]                c0_arqos, c1_arqos;
+            logic [4-1:0]                c0_arregion, c1_arregion;
+            logic [UW-1:0]               c0_aruser, c1_aruser;
+            logic                        c0_arvalid, c1_arvalid;
+            logic                        c0_arready, c1_arready;
+            logic [IW-1:0]               c0_rid, c1_rid;
+            logic [BUS_WIDTH-1:0]        c0_rdata, c1_rdata;
+            logic [2-1:0]                c0_rresp, c1_rresp;
+            logic                        c0_rlast, c1_rlast;
+            logic [UW-1:0]               c0_ruser, c1_ruser;
+            logic                        c0_rvalid, c1_rvalid;
+            logic                        c0_rready, c1_rready;
+            logic [IW-1:0]               c0_awid, c1_awid;
+            logic [ADDR_WIDTH-1:0]       c0_awaddr, c1_awaddr;
+            logic [8-1:0]                c0_awlen, c1_awlen;
+            logic [3-1:0]                c0_awsize, c1_awsize;
+            logic [2-1:0]                c0_awburst, c1_awburst;
+            logic                        c0_awlock, c1_awlock;
+            logic [4-1:0]                c0_awcache, c1_awcache;
+            logic [3-1:0]                c0_awprot, c1_awprot;
+            logic [4-1:0]                c0_awqos, c1_awqos;
+            logic [4-1:0]                c0_awregion, c1_awregion;
+            logic [UW-1:0]               c0_awuser, c1_awuser;
+            logic                        c0_awvalid, c1_awvalid;
+            logic                        c0_awready, c1_awready;
+            logic [BUS_WIDTH-1:0]        c0_wdata, c1_wdata;
+            logic [STRB_W-1:0]           c0_wstrb, c1_wstrb;
+            logic                        c0_wlast, c1_wlast;
+            logic [UW-1:0]               c0_wuser, c1_wuser;
+            logic                        c0_wvalid, c1_wvalid;
+            logic                        c0_wready, c1_wready;
+            logic [IW-1:0]               c0_bid, c1_bid;
+            logic [2-1:0]                c0_bresp, c1_bresp;
+            logic [UW-1:0]               c0_buser, c1_buser;
+            logic                        c0_bvalid, c1_bvalid;
+            logic                        c0_bready, c1_bready;
+            logic [ADDR_WIDTH-1:0]       s0_acaddr, s1_acaddr;
+            logic [3:0]                  s0_acsnoop, s1_acsnoop;
+            logic [2:0]                  s0_acprot, s1_acprot;
+            logic                        s0_acvalid, s1_acvalid, s0_acready, s1_acready;
+            logic [AMBER_CRRESP_WIDTH-1:0] s0_crresp, s1_crresp;
+            logic                        s0_crvalid, s1_crvalid, s0_crready, s1_crready;
+            logic [BUS_WIDTH-1:0]        s0_cddata, s1_cddata;
+            logic                        s0_cdlast, s1_cdlast, s0_cdvalid, s1_cdvalid, s0_cdready, s1_cdready;
+            logic                        coh0_valid, coh1_valid;
+            logic [ADDR_WIDTH-1:0]       coh0_addr, coh1_addr;
+            logic [2:0]                  coh0_type, coh1_type;
+            logic                        done0_valid, done1_valid;
+            logic [IW-1:0]               done0_id, done1_id;
+            /* verilator lint_off UNUSEDSIGNAL */
+            logic [1:0]                  jpp_mon_valid, jpp_init_busy, jpp_busy;
+            logic [127:0]                jpp_mon_packet [2];
+            logic [63:0]                 jpp_mon_timestamp [2];
+            logic [3:0]                  jpp_ctrl_state [2];
+            logic                        jpp_fab_busy;
+            /* verilator lint_on UNUSEDSIGNAL */
+        jet_prime_top #(
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .SETS           (SETS),
+            .WAYS           (WAYS),
+            .LINE_BYTES     (LINE_BYTES),
+            .BUS_WIDTH      (BUS_WIDTH),
+            .REPL_POLICY    (int'(AMBER_REPL_LRU)),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .AXI_USER_WIDTH (AXI_USER_WIDTH),
+            .USE_MONITOR    (1'b1),
+            .MSHR_COUNT     (REF_JETP_MSHR_COUNT)
+        ) u_ref0 (
+            .aclk            (aclk),
+            .aresetn         (aresetn),
+            .cpu_req_wr_valid(ci0_req_valid),
+            .cpu_req_wr_ready(ci0_req_ready),
+            .cpu_req_wr_data (ci0_req_data),
+            .cpu_rsp_rd_valid(ci0_rsp_valid),
+            .cpu_rsp_rd_ready(ci0_rsp_ready),
+            .cpu_rsp_rd_data (ci0_rsp_data),
+            .m_axi_arid     (c0_arid),
+            .m_axi_araddr   (c0_araddr),
+            .m_axi_arlen    (c0_arlen),
+            .m_axi_arsize   (c0_arsize),
+            .m_axi_arburst  (c0_arburst),
+            .m_axi_arlock   (c0_arlock),
+            .m_axi_arcache  (c0_arcache),
+            .m_axi_arprot   (c0_arprot),
+            .m_axi_arqos    (c0_arqos),
+            .m_axi_arregion (c0_arregion),
+            .m_axi_aruser   (c0_aruser),
+            .m_axi_arvalid  (c0_arvalid),
+            .m_axi_arready  (c0_arready),
+            .m_axi_rid      (c0_rid),
+            .m_axi_rdata    (c0_rdata),
+            .m_axi_rresp    (c0_rresp),
+            .m_axi_rlast    (c0_rlast),
+            .m_axi_ruser    (c0_ruser),
+            .m_axi_rvalid   (c0_rvalid),
+            .m_axi_rready   (c0_rready),
+            .m_axi_awid     (c0_awid),
+            .m_axi_awaddr   (c0_awaddr),
+            .m_axi_awlen    (c0_awlen),
+            .m_axi_awsize   (c0_awsize),
+            .m_axi_awburst  (c0_awburst),
+            .m_axi_awlock   (c0_awlock),
+            .m_axi_awcache  (c0_awcache),
+            .m_axi_awprot   (c0_awprot),
+            .m_axi_awqos    (c0_awqos),
+            .m_axi_awregion (c0_awregion),
+            .m_axi_awuser   (c0_awuser),
+            .m_axi_awvalid  (c0_awvalid),
+            .m_axi_awready  (c0_awready),
+            .m_axi_wdata    (c0_wdata),
+            .m_axi_wstrb    (c0_wstrb),
+            .m_axi_wlast    (c0_wlast),
+            .m_axi_wuser    (c0_wuser),
+            .m_axi_wvalid   (c0_wvalid),
+            .m_axi_wready   (c0_wready),
+            .m_axi_bid      (c0_bid),
+            .m_axi_bresp    (c0_bresp),
+            .m_axi_buser    (c0_buser),
+            .m_axi_bvalid   (c0_bvalid),
+            .m_axi_bready   (c0_bready),
+            .m_axi_acaddr   (s0_acaddr),
+            .m_axi_acsnoop  (s0_acsnoop),
+            .m_axi_acprot   (s0_acprot),
+            .m_axi_acvalid  (s0_acvalid),
+            .m_axi_acready  (s0_acready),
+            .m_axi_crresp   (s0_crresp),
+            .m_axi_crvalid  (s0_crvalid),
+            .m_axi_crready  (s0_crready),
+            .m_axi_cddata   (s0_cddata),
+            .m_axi_cdlast   (s0_cdlast),
+            .m_axi_cdvalid  (s0_cdvalid),
+            .m_axi_cdready  (s0_cdready),
+            .coh_req_valid  (coh0_valid),
+            .coh_req_addr   (coh0_addr),
+            .coh_req_type   (coh0_type),
+            .coh_done_valid (done0_valid),
+            .coh_done_id    (done0_id),
+            .i_mon_time     (r_cycle_ctr),
+            .mon_valid      (jpp_mon_valid[0]),
+            .mon_ready      (1'b1),
+            .mon_packet     (jpp_mon_packet[0]),
+            .mon_timestamp  (jpp_mon_timestamp[0]),
+            .init_busy      (jpp_init_busy[0]),
+            .ctrl_state     (jpp_ctrl_state[0]),
+            .busy           (jpp_busy[0])
+        );
+        jet_prime_top #(
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .SETS           (SETS),
+            .WAYS           (WAYS),
+            .LINE_BYTES     (LINE_BYTES),
+            .BUS_WIDTH      (BUS_WIDTH),
+            .REPL_POLICY    (int'(AMBER_REPL_LRU)),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .AXI_USER_WIDTH (AXI_USER_WIDTH),
+            .USE_MONITOR    (1'b1),
+            .MSHR_COUNT     (REF_JETP_MSHR_COUNT)
+        ) u_ref1 (
+            .aclk            (aclk),
+            .aresetn         (aresetn),
+            .cpu_req_wr_valid(ci1_req_valid),
+            .cpu_req_wr_ready(ci1_req_ready),
+            .cpu_req_wr_data (ci1_req_data),
+            .cpu_rsp_rd_valid(ci1_rsp_valid),
+            .cpu_rsp_rd_ready(ci1_rsp_ready),
+            .cpu_rsp_rd_data (ci1_rsp_data),
+            .m_axi_arid     (c1_arid),
+            .m_axi_araddr   (c1_araddr),
+            .m_axi_arlen    (c1_arlen),
+            .m_axi_arsize   (c1_arsize),
+            .m_axi_arburst  (c1_arburst),
+            .m_axi_arlock   (c1_arlock),
+            .m_axi_arcache  (c1_arcache),
+            .m_axi_arprot   (c1_arprot),
+            .m_axi_arqos    (c1_arqos),
+            .m_axi_arregion (c1_arregion),
+            .m_axi_aruser   (c1_aruser),
+            .m_axi_arvalid  (c1_arvalid),
+            .m_axi_arready  (c1_arready),
+            .m_axi_rid      (c1_rid),
+            .m_axi_rdata    (c1_rdata),
+            .m_axi_rresp    (c1_rresp),
+            .m_axi_rlast    (c1_rlast),
+            .m_axi_ruser    (c1_ruser),
+            .m_axi_rvalid   (c1_rvalid),
+            .m_axi_rready   (c1_rready),
+            .m_axi_awid     (c1_awid),
+            .m_axi_awaddr   (c1_awaddr),
+            .m_axi_awlen    (c1_awlen),
+            .m_axi_awsize   (c1_awsize),
+            .m_axi_awburst  (c1_awburst),
+            .m_axi_awlock   (c1_awlock),
+            .m_axi_awcache  (c1_awcache),
+            .m_axi_awprot   (c1_awprot),
+            .m_axi_awqos    (c1_awqos),
+            .m_axi_awregion (c1_awregion),
+            .m_axi_awuser   (c1_awuser),
+            .m_axi_awvalid  (c1_awvalid),
+            .m_axi_awready  (c1_awready),
+            .m_axi_wdata    (c1_wdata),
+            .m_axi_wstrb    (c1_wstrb),
+            .m_axi_wlast    (c1_wlast),
+            .m_axi_wuser    (c1_wuser),
+            .m_axi_wvalid   (c1_wvalid),
+            .m_axi_wready   (c1_wready),
+            .m_axi_bid      (c1_bid),
+            .m_axi_bresp    (c1_bresp),
+            .m_axi_buser    (c1_buser),
+            .m_axi_bvalid   (c1_bvalid),
+            .m_axi_bready   (c1_bready),
+            .m_axi_acaddr   (s1_acaddr),
+            .m_axi_acsnoop  (s1_acsnoop),
+            .m_axi_acprot   (s1_acprot),
+            .m_axi_acvalid  (s1_acvalid),
+            .m_axi_acready  (s1_acready),
+            .m_axi_crresp   (s1_crresp),
+            .m_axi_crvalid  (s1_crvalid),
+            .m_axi_crready  (s1_crready),
+            .m_axi_cddata   (s1_cddata),
+            .m_axi_cdlast   (s1_cdlast),
+            .m_axi_cdvalid  (s1_cdvalid),
+            .m_axi_cdready  (s1_cdready),
+            .coh_req_valid  (coh1_valid),
+            .coh_req_addr   (coh1_addr),
+            .coh_req_type   (coh1_type),
+            .coh_done_valid (done1_valid),
+            .coh_done_id    (done1_id),
+            .i_mon_time     (r_cycle_ctr),
+            .mon_valid      (jpp_mon_valid[1]),
+            .mon_ready      (1'b1),
+            .mon_packet     (jpp_mon_packet[1]),
+            .mon_timestamp  (jpp_mon_timestamp[1]),
+            .init_busy      (jpp_init_busy[1]),
+            .ctrl_state     (jpp_ctrl_state[1]),
+            .busy           (jpp_busy[1])
+        );
+        jet_prime_pair_fabric #(
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .SETS           (SETS),
+            .WAYS           (WAYS),
+            .LINE_BYTES     (LINE_BYTES),
+            .BUS_WIDTH      (BUS_WIDTH),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .AXI_USER_WIDTH (AXI_USER_WIDTH),
+            .FAB_SLOTS      (2 * (REF_JETP_MSHR_COUNT + 1)),
+            .SNOOP_INFLIGHT (2)
+        ) u_fabric (
+            .clk               (aclk),
+            .rst_n             (aresetn),
+            .c0_arid            (c0_arid),
+            .c0_araddr          (c0_araddr),
+            .c0_arlen           (c0_arlen),
+            .c0_arsize          (c0_arsize),
+            .c0_arburst         (c0_arburst),
+            .c0_arlock          (c0_arlock),
+            .c0_arcache         (c0_arcache),
+            .c0_arprot          (c0_arprot),
+            .c0_arqos           (c0_arqos),
+            .c0_arregion        (c0_arregion),
+            .c0_aruser          (c0_aruser),
+            .c0_arvalid         (c0_arvalid),
+            .c0_arready         (c0_arready),
+            .c0_rid             (c0_rid),
+            .c0_rdata           (c0_rdata),
+            .c0_rresp           (c0_rresp),
+            .c0_rlast           (c0_rlast),
+            .c0_ruser           (c0_ruser),
+            .c0_rvalid          (c0_rvalid),
+            .c0_rready          (c0_rready),
+            .c0_awid            (c0_awid),
+            .c0_awaddr          (c0_awaddr),
+            .c0_awlen           (c0_awlen),
+            .c0_awsize          (c0_awsize),
+            .c0_awburst         (c0_awburst),
+            .c0_awlock          (c0_awlock),
+            .c0_awcache         (c0_awcache),
+            .c0_awprot          (c0_awprot),
+            .c0_awqos           (c0_awqos),
+            .c0_awregion        (c0_awregion),
+            .c0_awuser          (c0_awuser),
+            .c0_awvalid         (c0_awvalid),
+            .c0_awready         (c0_awready),
+            .c0_wdata           (c0_wdata),
+            .c0_wstrb           (c0_wstrb),
+            .c0_wlast           (c0_wlast),
+            .c0_wuser           (c0_wuser),
+            .c0_wvalid          (c0_wvalid),
+            .c0_wready          (c0_wready),
+            .c0_bid             (c0_bid),
+            .c0_bresp           (c0_bresp),
+            .c0_buser           (c0_buser),
+            .c0_bvalid          (c0_bvalid),
+            .c0_bready          (c0_bready),
+            .c1_arid            (c1_arid),
+            .c1_araddr          (c1_araddr),
+            .c1_arlen           (c1_arlen),
+            .c1_arsize          (c1_arsize),
+            .c1_arburst         (c1_arburst),
+            .c1_arlock          (c1_arlock),
+            .c1_arcache         (c1_arcache),
+            .c1_arprot          (c1_arprot),
+            .c1_arqos           (c1_arqos),
+            .c1_arregion        (c1_arregion),
+            .c1_aruser          (c1_aruser),
+            .c1_arvalid         (c1_arvalid),
+            .c1_arready         (c1_arready),
+            .c1_rid             (c1_rid),
+            .c1_rdata           (c1_rdata),
+            .c1_rresp           (c1_rresp),
+            .c1_rlast           (c1_rlast),
+            .c1_ruser           (c1_ruser),
+            .c1_rvalid          (c1_rvalid),
+            .c1_rready          (c1_rready),
+            .c1_awid            (c1_awid),
+            .c1_awaddr          (c1_awaddr),
+            .c1_awlen           (c1_awlen),
+            .c1_awsize          (c1_awsize),
+            .c1_awburst         (c1_awburst),
+            .c1_awlock          (c1_awlock),
+            .c1_awcache         (c1_awcache),
+            .c1_awprot          (c1_awprot),
+            .c1_awqos           (c1_awqos),
+            .c1_awregion        (c1_awregion),
+            .c1_awuser          (c1_awuser),
+            .c1_awvalid         (c1_awvalid),
+            .c1_awready         (c1_awready),
+            .c1_wdata           (c1_wdata),
+            .c1_wstrb           (c1_wstrb),
+            .c1_wlast           (c1_wlast),
+            .c1_wuser           (c1_wuser),
+            .c1_wvalid          (c1_wvalid),
+            .c1_wready          (c1_wready),
+            .c1_bid             (c1_bid),
+            .c1_bresp           (c1_bresp),
+            .c1_buser           (c1_buser),
+            .c1_bvalid          (c1_bvalid),
+            .c1_bready          (c1_bready),
+            .s0_acaddr          (s0_acaddr),
+            .s0_acsnoop         (s0_acsnoop),
+            .s0_acprot          (s0_acprot),
+            .s0_acvalid         (s0_acvalid),
+            .s0_acready         (s0_acready),
+            .s0_crresp          (s0_crresp),
+            .s0_crvalid         (s0_crvalid),
+            .s0_crready         (s0_crready),
+            .s0_cddata          (s0_cddata),
+            .s0_cdlast          (s0_cdlast),
+            .s0_cdvalid         (s0_cdvalid),
+            .s0_cdready         (s0_cdready),
+            .s1_acaddr          (s1_acaddr),
+            .s1_acsnoop         (s1_acsnoop),
+            .s1_acprot          (s1_acprot),
+            .s1_acvalid         (s1_acvalid),
+            .s1_acready         (s1_acready),
+            .s1_crresp          (s1_crresp),
+            .s1_crvalid         (s1_crvalid),
+            .s1_crready         (s1_crready),
+            .s1_cddata          (s1_cddata),
+            .s1_cdlast          (s1_cdlast),
+            .s1_cdvalid         (s1_cdvalid),
+            .s1_cdready         (s1_cdready),
+            .c0_coh_req_valid  (coh0_valid),
+            .c0_coh_req_addr   (coh0_addr),
+            .c0_coh_req_type   (coh0_type),
+            .c1_coh_req_valid  (coh1_valid),
+            .c1_coh_req_addr   (coh1_addr),
+            .c1_coh_req_type   (coh1_type),
+            .c0_coh_done_valid (done0_valid),
+            .c0_coh_done_id    (done0_id),
+            .c1_coh_done_valid (done1_valid),
+            .c1_coh_done_id    (done1_id),
+            .mem_arid          (mem_arid),
+            .mem_araddr        (mem_araddr),
+            .mem_arlen         (mem_arlen),
+            .mem_arsize        (mem_arsize),
+            .mem_arburst       (mem_arburst),
+            .mem_arlock        (mem_arlock),
+            .mem_arcache       (mem_arcache),
+            .mem_arprot        (mem_arprot),
+            .mem_arqos         (mem_arqos),
+            .mem_arregion      (mem_arregion),
+            .mem_aruser        (mem_aruser),
+            .mem_arvalid       (mem_arvalid),
+            .mem_arready       (mem_arready),
+            .mem_rid           (mem_rid),
+            .mem_rdata         (mem_rdata),
+            .mem_rresp         (mem_rresp),
+            .mem_rlast         (mem_rlast),
+            .mem_ruser         (mem_ruser),
+            .mem_rvalid        (mem_rvalid),
+            .mem_rready        (mem_rready),
+            .mem_awid          (mem_awid),
+            .mem_awaddr        (mem_awaddr),
+            .mem_awlen         (mem_awlen),
+            .mem_awsize        (mem_awsize),
+            .mem_awburst       (mem_awburst),
+            .mem_awlock        (mem_awlock),
+            .mem_awcache       (mem_awcache),
+            .mem_awprot        (mem_awprot),
+            .mem_awqos         (mem_awqos),
+            .mem_awregion      (mem_awregion),
+            .mem_awuser        (mem_awuser),
+            .mem_awvalid       (mem_awvalid),
+            .mem_awready       (mem_awready),
+            .mem_wdata         (mem_wdata),
+            .mem_wstrb         (mem_wstrb),
+            .mem_wlast         (mem_wlast),
+            .mem_wuser         (mem_wuser),
+            .mem_wvalid        (mem_wvalid),
+            .mem_wready        (mem_wready),
+            .mem_bid           (mem_bid),
+            .mem_bresp         (mem_bresp),
+            .mem_buser         (mem_buser),
+            .mem_bvalid        (mem_bvalid),
+            .mem_bready        (mem_bready),
+            .dbg_busy          (jpp_fab_busy),
+            .dbg_slot_vld      (),
+            .dbg_pend_vld      (),
+            .dbg_abs_pend      (),
+            .dbg_grant         (),
+            .dbg_grant_dir     (),
+            .dbg_grant_addr    (),
+            .dbg_grant_slot    ()
         );
         end else begin : gen_ref_hpd
         ref_hpdcache_top #(

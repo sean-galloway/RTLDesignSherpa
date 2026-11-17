@@ -29,13 +29,20 @@ RESULTS = {
     #   s1 = jet's RTL as forked (bin 1): splits jet's miss cost into
     #        fabric and cache;
     #   s2 = step 2, jet_prime_fill with one read ID per MSHR entry (bin 2):
-    #        several fills in flight, completing in any order.
+    #        several fills in flight, completing in any order;
+    #   s3 = step 3, the jet-prime PAIR through the pipelined
+    #        jet_prime_pair_fabric (REF_CACHE_SEL=3, injector 1 idle): the
+    #        jet rig's structure with jet-prime's RTL -- against s2 the
+    #        fabric's cost to a single core, against jet the rebuild.
     "jet-prime s1": f"{RIGS}/ref/results/perf_sweep_jetp_bin1_single_*.json",
     "jet-prime s2": f"{RIGS}/ref/results/perf_sweep_jetp_bin2_single_*.json",
+    "jet-prime s3": f"{RIGS}/ref/results/perf_sweep_jetpp_bin*_single_*.json",
 }
 OOC = {
     "amber": "amber", "jet": "jet", "HPDcache": "hpd", "CVA6 WB": "cva6",
     "jet-prime s1": "jetp_step1", "jet-prime s2": "jetp",
+    # s3 is the s2 cache behind a fabric: the cache-only row is s2's
+    "jet-prime s3": "jetp",
 }
 OOC_DIR = f"{CACHE_IP}/results/ooc"
 COLS = list(RESULTS)
