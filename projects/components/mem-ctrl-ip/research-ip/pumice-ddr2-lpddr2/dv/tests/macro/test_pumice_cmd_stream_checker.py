@@ -166,24 +166,35 @@ def test_pumice_cmd_stream_checker_trrd(test_level):
 
 
 def test_pumice_cmd_stream_checker_tfaw(test_level):
-    """tFAW needs a config where it can BIND.
+    """tFAW needs a timing set where it can BIND -- and no legal point of this
+    part has one.
 
-    On the board tFAW=4 and tRRD=2, so tRRD alone already spaces four ACTs
-    outside any tFAW window and tFAW is unreachable -- a tFAW check there is
-    vacuous no matter what the stimulus does. That is not a checker defect, it is
-    a property of the operating point, and it is the reason the config sweep
-    exists at all: a rule that cannot arm on the board can still arm, and still
-    catch something, at another legal point.
+    JESD79-2F gives tFAW = 4 x tRRD + 5..7.5 ns at every page size (1 KB: 7.5 /
+    37.5 ns; 2 KB: 10 / 45 ns). The MC-cycle derivation rounds each UP (ns +
+    the phase margin, then the 2 CK floor), so four rounded tRRDs always cover
+    the rounded tFAW: board_ddr2_300 tFAW 4 vs 4 x 2, ddr2_800_cl6_bl4 tFAW 10
+    vs 4 x 3. Until memory-controllers BUG-003 was fixed (2026-11-16) the part
+    table mixed the 1 KB-page tRRD (7.5 ns) with the 2 KB-page tFAW (45 ns),
+    which is the only reason the DDR2-800 point ever bound tFAW here -- this
+    case was passing on the bug. The rule is still exercised: on a synthetic
+    set derived from the fast point with tFAW one cycle past four tRRDs, so a
+    checker that stops counting ACTs in the window is still caught. Both named
+    points are asserted NOT to bind, so a future table change that makes one
+    bind is noticed rather than silently changing what this case tests.
     """
     t_board, t_fast = _t(BOARD), _t(FAST)
-    assert t_board['tFAW'] <= t_board['tRRD'] * 4, (
-        "the board's tFAW is now reachable; this test's premise needs revisiting")
-    assert t_fast['tFAW'] > t_fast['tRRD'] * 4, (
-        f"{FAST} tFAW={t_fast['tFAW']} no longer binds against "
-        f"tRRD={t_fast['tRRD']}; pick another config for this case")
-    cmds = [C(i * t_fast['tRRD'], OP_ACT, bank=i) for i in range(5)]
-    bad, stats = _rules(cmds, FAST)
+    for name, t in ((BOARD, t_board), (FAST, t_fast)):
+        assert t['tFAW'] <= t['tRRD'] * 4, (
+            f"{name} tFAW={t['tFAW']} now binds against tRRD={t['tRRD']}; "
+            "this case can run on the named point again -- revisit its premise")
+    t_syn = dict(t_fast, tFAW=t_fast['tRRD'] * 4 + 1)
+    cmds = [C(i * t_syn['tRRD'], OP_ACT, bank=i) for i in range(5)]
+    v, stats = CmdStreamChecker(t_syn, label="synthetic tFAW-bound").check(cmds)
+    bad = sorted({x['rule'] for x in v})
     assert 'tFAW' in bad and stats['tFAW'] == 5
+    # and the same five ACTs are legal on the real fast point
+    bad_real, _ = _rules([C(i * t_fast['tRRD'], OP_ACT, bank=i) for i in range(5)], FAST)
+    assert 'tFAW' not in bad_real
 
 
 def test_pumice_cmd_stream_checker_refresh_needs_precharged_banks(test_level):

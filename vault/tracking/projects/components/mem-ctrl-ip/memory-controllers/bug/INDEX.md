@@ -14,19 +14,15 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started (the BUG-000 template is not counted) |
+| [open/](open/) | 0 | accepted, not started (the BUG-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-003** — the board host's DDR2 ns table (`pumice_device.py::DDR2_MT47H64M16_NS`)
-  carries tRRD 7.5 ns, the JESD79-2F 1 KB-page value; the x16 part is a 2 KB page
-  and its tRRD is 10 ns. Same cycle count at both board clocks, one MC cycle
-  short at the DDR2-800 span config. Found by the MC-012 JEDEC check 2026-11-11.
-  [open/BUG-003.md](open/BUG-003.md).
+None.
 
 ## Active
 
@@ -34,6 +30,14 @@ None.
 
 ## Closed
 
+- **BUG-003** — the board host's DDR2 ns table carried tRRD 7.5 ns (the
+  JESD79-2F 1 KB-page value) for a 2 KB-page x16 part whose tRRD is 10 ns.
+  Fixed 2026-11-16 in `pumice_device.py` and the pumice char-perf proxy's part
+  table, pinned by a host test (2 / 2 / 3 MC cycles at 75 / 100 / 200 MHz).
+  The fix showed the checker's tFAW case had only ever bound on the
+  inconsistent table (four rounded tRRDs cover tFAW at every legal point of
+  this part); it now runs on a synthetic set. Closed 2026-11-16.
+  [closed/BUG-003.md](closed/BUG-003.md).
 - **BUG-001** — `mc_wr_intake` drops write responses: the store's `wr_done`
   strobe has no ready and the 4-deep B FIFO's `wr_ready` is unconnected, so a
   host holding `bready` low across more than four completions loses Bs

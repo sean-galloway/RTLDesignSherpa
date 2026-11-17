@@ -62,5 +62,22 @@ def test_pumice_device_field_ops():
     assert p.init_done() is True
 
 
+def test_ddr2_part_trrd_is_the_2kb_page_value():
+    """memory-controllers BUG-003: JESD79-2F Tables 42 / 43 give tRRD by page
+    size, 7.5 ns for 1 KB-page products and 10 ns for 2 KB-page products. The
+    board's x16 with 1K columns is a 2 KB page, so the table carries 10 ns; the
+    three rows below are the bug's effect table (same count at both board
+    clocks under the 2 CK floor, one MC cycle more at the DDR2-800 span config)."""
+    assert pd.DDR2_MT47H64M16_NS["tRRD"] == 10.0
+    assert pd.DDR2_MT47H64M16_NS["tFAW"] == 45.0          # the 2 KB-page tFAW, already right
+    rows = {  # (mc_clk_hz, cl): tRRD in MC cycles
+        (75e6, 3): 2,      # board_ddr2_300 (CK 150): 2 CK floor either way
+        (100e6, 3): 2,     # ddr2_400_cl3_bl4 (CK 200): 2 CK floor either way
+        (200e6, 6): 3,     # ddr2_800_cl6_bl4 span config (CK 400): was 2 with tRRD 7.5
+    }
+    for (hz, cl), want in rows.items():
+        assert pd.ddr2_timings_mc_cycles(hz, cl=cl)["tRRD"] == want, (hz, cl)
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

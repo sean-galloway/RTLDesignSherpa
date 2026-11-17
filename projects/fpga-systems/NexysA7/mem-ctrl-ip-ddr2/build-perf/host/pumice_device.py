@@ -44,8 +44,14 @@ DDR2_APB_BASE    = 0x0000_0000   # pumice controller CSR (APB slave)
 # against a JEDEC 2 CK); until 2026-09-08 no host path ever wrote them, so every
 # board measurement ran on those defaults. Derive them here from the part and
 # the MC clock instead.
+# tRRD and tFAW are by PAGE SIZE in JESD79-2F (Tables 42 / 43): 7.5 ns / 37.5 ns
+# for 1 KB-page products, 10 ns / 45 ns for 2 KB-page products, at every speed
+# bin. This x16 with 1K columns is a 2 KB page (1024 x 16 bits), so tRRD is 10 ns
+# (Micron MT47H64M16 datasheet agrees); tFAW 45 was already the 2 KB value.
+# tRRD was 7.5 until 2026-11-16 (memory-controllers BUG-003): the same cycle count
+# at both board clocks (2 CK floor), one MC cycle short at the DDR2-800 span config.
 DDR2_MT47H64M16_NS = dict(tRCD=15.0, tRP=15.0, tRAS=45.0, tRC=60.0, tWR=15.0,
-                          tWTR=7.5, tRTP=7.5, tRRD=7.5, tFAW=45.0, tRFC=127.5,
+                          tWTR=7.5, tRTP=7.5, tRRD=10.0, tFAW=45.0, tRFC=127.5,
                           tREFI=7800.0)
 DDR2_CK_MIN        = dict(tCCD=2, tRTP=2, tRRD=2, tWTR=2)   # JESD79-2 minimum CK
 DDR2_BL            = 4                                        # board burst length

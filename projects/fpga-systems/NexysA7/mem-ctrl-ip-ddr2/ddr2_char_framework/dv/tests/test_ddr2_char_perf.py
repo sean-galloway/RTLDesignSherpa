@@ -461,7 +461,7 @@ def _floors(timings, blen, bytes_per_col, clk_mhz):
 # violations. One MC cycle = 2 CK at DFI_RATE=2, so a CK-quoted minimum (tWTR,
 # tRTP, tCCD) is folded in with the same ceiling the host derivation uses.
 _PART_NS = dict(tRCD_ns=15.0, tRP_ns=15.0, tRAS_min_ns=45.0, tRC_ns=60.0,
-                tWR_ns=15.0, tWTR_ns=7.5, tRTP_ns=7.5, tRRD_ns=7.5,
+                tWR_ns=15.0, tWTR_ns=7.5, tRTP_ns=7.5, tRRD_ns=10.0,   # 2 KB-page tRRD (BUG-003)
                 tFAW_ns=45.0, tREFI_ns=7800.0, tRFC_ns=127.5)
 
 

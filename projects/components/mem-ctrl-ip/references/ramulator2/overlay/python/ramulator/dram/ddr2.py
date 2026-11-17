@@ -32,9 +32,10 @@ the organization's page size and the bin's rate. The PART presets
 DDR2-800, 2 KB page), run at the board clocks: a part keeps its own ns limits
 when run slow, so those presets carry the part's tRRD 10 ns / tFAW 45 ns /
 tWTR 7.5 ns explicitly instead of the bin table for that rate. The ns values
-are the repo's pumice_device.py::DDR2_MT47H64M16_NS with tRRD corrected to
-the 2 KB-page value (the table's 7.5 ns is the 1 KB figure; at CK 150 / 200
-MHz both round to 2 CK, so the correction moves nothing on the board).
+are the repo's pumice_device.py::DDR2_MT47H64M16_NS (its tRRD carried the
+1 KB-page 7.5 ns until memory-controllers BUG-003 was fixed on 2026-11-16; at
+CK 150 / 200 MHz both round to 2 CK, so the correction moves nothing on the
+board and one MC cycle at the DDR2-800 span configuration).
 
 Rounding: Ramulator is CK-granular, nX = ceil(tX / tCK) with the JEDEC CK
 floors. The RTL derivation adds a phase margin because its counters are
