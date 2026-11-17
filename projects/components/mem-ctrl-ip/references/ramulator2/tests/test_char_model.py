@@ -210,6 +210,9 @@ def test_sku_config_is_the_shipped_point():
     assert (c.controller, c.timing_preset) == ("GraniteSKU", "DDR2_GRANITE_SKU100")
     assert (c.read_buffer, c.write_buffer, c.bank_cap_mixed, c.dir_batch_max, c.dir_hold_idle) == (16, 16, 6, 255, 8)
     assert c.dir_owns_rows and c.lane == 3 and c.close_on_drain and c.slot_ticks == 2 and not c.page_close
+    # ISSUE-004: the decode's request is bank-timed and the rank-level terms hold the fire; the mixed cap is checked
+    # at every push; an accepted beat is a head four MC cycles later (push -> bank FIFO -> head record -> request)
+    assert c.req_bank_timing and c.cap_per_beat and c.admit_lag == 4
     # every variant changes ONE term against the SKU
     from dataclasses import fields
     for name in cm.SKU_VARIANTS:

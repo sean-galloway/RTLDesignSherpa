@@ -8,6 +8,15 @@
 > against 180-240), while the same model is within 1 percent of the board on
 > every open-page cell of the same families.
 
+> 2026-11-17 (ISSUE-004 closed): with the store's admission terms in the model
+> the bank-parallel `close_page` rows moved further from the board --
+> `col_major_interleaved` bl4 / bl8 312 -> 389 (board 235 / 213-219), bl16 289 /
+> 312 -> 271 / 290 (180 / 240), `row_thrash` 312 -> 377 / 389 (208 / 197),
+> `random` 281 / 293 -> 303 / 315 (188 / 207); the one-bank chains are
+> unchanged (`incremental` 104 / 119 against 82 / 92, `row_major` 98 / 112
+> against 78 / 87). The per-hop cost this issue asks about is now measured
+> against a model whose own hop cost is the tRRD bound.
+
 **Priority:** P3 -- `close_page` is the experiment's reference preset, not a
 shipped point; but the gap is the pipeline's per-hop cost made visible, and it
 is the same cost MC-013 saw as the one-slot ceiling before the lane.

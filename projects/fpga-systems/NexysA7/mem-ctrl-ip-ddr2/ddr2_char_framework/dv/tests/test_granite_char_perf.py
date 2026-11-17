@@ -256,6 +256,16 @@ async def _pick_probe(dut, path, n_cycles=160, from_cycle=0, from_flip=0):
         bp = dut.u_dut.u_dut.u_ctrl.u_core.u_sched_plane.g_bank_pick.u_bank_pick
     except AttributeError:
         return
+    try:                                    # the store's occupancy beside the pick (ISSUE-004)
+        st = dut.u_dut.u_dut.u_ctrl.u_core.g_fifo_store.u_fifo_store
+        store = {"st_rq_cnt0": lambda: int(st.r_rq_cnt[0].value), "st_rq_cnt1": lambda: int(st.r_rq_cnt[1].value),
+                 "st_wq_cnt0": lambda: int(st.r_wq_cnt[0].value), "st_wq_cnt1": lambda: int(st.r_wq_cnt[1].value),
+                 "st_rd_valid": lambda: sum(int(st.r_rd_valid[i].value) for i in range(len(st.r_rd_valid))),
+                 "st_wr_valid": lambda: sum(int(st.r_wr_valid[i].value) for i in range(len(st.r_wr_valid))),
+                 "st_ar_push": lambda: int(st.ar_push_valid_i.value) & int(st.ar_push_ready_o.value),
+                 "st_rt_alloc_rdy": lambda: int(st.rt_alloc_ready_i.value)}
+    except AttributeError:
+        store = {}
     names = ["r_dir", "r_dir_batch", "w_dir_batch_done", "w_rd_col_any", "w_wr_col_any",
              "w_rd_col_pend", "w_wr_col_pend", "w_oth_req_any", "w_xdir_ok", "r_last_was_row",
              "r_req", "w_req_ok", "w_req_col", "w_req_col_dir", "w_req_row_pref", "w_sel", "w_sel_src",
@@ -266,7 +276,11 @@ async def _pick_probe(dut, path, n_cycles=160, from_cycle=0, from_flip=0):
              # the row lane (DUAL_ISSUE; absent = None)
              "r2_vld", "r2_pair", "r2_cls", "w2_ride", "w2_load", "w2_pick_pair", "w2_fire", "w2_hold",
              "w2_ok", "w2_class_ok", "w2_timer_ok", "w2_clash", "w2_col_cur", "w2_col_oth", "w2_any_col_ok",
-             "w_dmd_fire", "w_class_ok", "w_timer_ok", "w_req_row", "r_self_stale", "w_dual"]
+             "w_dmd_fire", "w_class_ok", "w_timer_ok", "w_req_row", "r_self_stale", "w_dual",
+             # the decode's registered class per pair and the bank state it reads (memory-controllers ISSUE-004)
+             "r_cls", "r_is_col", "r_shadow", "bank_row_active_i", "bank_act_ready_i", "bank_pre_ready_i",
+             "rd_issue_ready_i", "wr_commit_ready_now_i",
+             "rd_head_i[0]", "rd_head_i[1]", "wr_head_i[0]", "wr_head_i[1]"]
     rows, started, cyc, flips, pre = [], False, 0, 0, []
     while len(rows) < n_cycles:
         await RisingEdge(dut.aclk)
@@ -289,7 +303,16 @@ async def _pick_probe(dut, path, n_cycles=160, from_cycle=0, from_flip=0):
         v = {"cycle": cyc}
         for nm in names:
             try:
-                v[nm] = int(getattr(bp, nm).value)
+                if nm.endswith("]"):            # an element of an unpacked array port
+                    base, idx = nm[:-1].split("[")
+                    v[nm] = int(getattr(bp, base)[int(idx)].value)
+                else:
+                    v[nm] = int(getattr(bp, nm).value)
+            except Exception:  # noqa: BLE001
+                v[nm] = None
+        for nm, fn in store.items():
+            try:
+                v[nm] = fn()
             except Exception:  # noqa: BLE001
                 v[nm] = None
         if not started:

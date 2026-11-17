@@ -15,9 +15,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 2 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -31,14 +31,15 @@ exactly one state by construction rather than by discipline.
   hop above the SKU model (82-92 against 104-119 MB/s one-bank, 180-240 against
   289-312 bank-parallel): the pipeline's per-hop cost made visible when every
   column is a hop. Filed from MC-018, 2026-11-17.
-- **ISSUE-004** -- on `mixed` the SKU model's read turns run four times the
-  batch cap (296 / 417 against the board's 272 / 272, union within 9 percent):
-  the lane's ACT race on a shared bank after an auto-precharge goes to the
-  holder in the model; which RTL term gives it to the waiting direction is the
-  question. Filed from MC-018, 2026-11-17.
 
 ## Closed
 
+- **ISSUE-004** -- the SKU model's `mixed` read turns ran four times the batch
+  cap. Closed 2026-11-17: the RTL's rotor rule was the model's; the store in
+  front of it was not (the mixed cap at every push keeps each direction at six
+  beats, a pushed beat is a head four cycles later), so the waiting direction's
+  ACT rides unopposed. Three admission terms added to the model; `mixed`
+  286 / 286 against the board's 272 / 272, every other SKU cell unchanged.
 - **ISSUE-001** -- the pumice/granite microarchitecture was ASIC-shaped for an
   FPGA target. Closed 2026-11-08: 12 of 17 resolution rows done (MC-004..MC-010,
   e1ebaacf7 .. a4e9c03f1), 4 deferred with the measurement that says why

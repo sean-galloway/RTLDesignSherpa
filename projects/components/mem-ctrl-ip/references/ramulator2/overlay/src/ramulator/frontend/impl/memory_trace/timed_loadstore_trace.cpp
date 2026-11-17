@@ -26,7 +26,9 @@ namespace fs = std::filesystem;
 // split_directions (memory-controllers MC-018): the loads and the stores are
 // two independent in-order streams, each offering up to max_per_tick per tick
 // and each stalling on its own -- the shape of an AXI port with a write channel
-// and a read channel (a refused store no longer holds the load behind it).
+// and a read channel (a refused store no longer holds the load behind it). In
+// this mode a direction's ticks are re-stamped with its own beat order (the
+// file's ticks describe the shared port; each channel moves one beat per tick).
 // Off, the file is one in-order stream.
 //
 // Stats: num_sent / num_completed (reads and writes separately), cycles (the
@@ -83,8 +85,14 @@ class TimedLoadStoreTrace : public IFrontEnd, public Implementation {
     init_trace(m_trace_path);
     m_logger.info(fmt::format("Loaded {} requests.", m_trace.size()));
     if (m_split) {
+      // Each direction is its own in-order stream paced by its own channel, so its ticks are
+      // its own beat order: a combined file's ticks (a captured port's accept order, both
+      // directions interleaved) would otherwise pace each channel at half rate whenever one
+      // direction runs alone (memory-controllers ISSUE-004).
       for (size_t i = 0; i < m_trace.size(); i++) {
-        m_by_dir[m_trace[i].is_write ? 1 : 0].push_back(i);
+        const int d = m_trace[i].is_write ? 1 : 0;
+        m_trace[i].tick = static_cast<Clk_t>(m_by_dir[d].size());
+        m_by_dir[d].push_back(i);
       }
     }
 

@@ -390,6 +390,10 @@ class ModelConfig:
     controller: str = "GenericDDR"     # GenericDDR | GraniteSKU
     slot_ticks: int = 2                # GraniteSKU: CK per main command slot (2 = one per MC cycle at DFI 1:2)
     bank_cap_mixed: int = 6            # GraniteSKU: BANK_CAP_MIXED (0 = off)
+    cap_per_beat: bool = True          # GraniteSKU: the cap checked on every beat at the store's push (w_rd_cap_ok / w_wr_cap_ok)
+    admit_lag: int = 4                 # GraniteSKU: MC cycles from a beat's acceptance to its being a schedulable head (push -> FIFO ->
+                                       #   head record -> request; ISSUE-004)
+    req_bank_timing: bool = True       # GraniteSKU: a request needs the bank's timers only; the rank-level terms hold the fire (ISSUE-004)
     dir_batch_max: int = 255           # GraniteSKU: DIR_BATCH_MAX (0 = no cap)
     dir_hold_idle: int = 8             # GraniteSKU: DIR_HOLD_IDLE (0 = off)
     dir_owns_rows: bool = True         # GraniteSKU: DIR_OWNS_ROWS
@@ -516,6 +520,12 @@ CONFIGS.update({c.name: c for c in [
     _sku("cap0", "BANK_CAP_MIXED off", bank_cap_mixed=0),
     _sku("cap4", "BANK_CAP_MIXED 4", bank_cap_mixed=4),
     _sku("cap8", "BANK_CAP_MIXED 8", bank_cap_mixed=8),
+    _sku("capburst", "BANK_CAP_MIXED once per AXI burst, the burst's other beats exempt (the MC-018 form)", cap_per_beat=False),
+    _sku("lag0", "a beat is a schedulable head the slot after its acceptance (the MC-018 form)", admit_lag=0),
+    _sku("lag2", "admission lag 2 MC cycles", admit_lag=2),
+    _sku("lag6", "admission lag 6 MC cycles", admit_lag=6),
+    _sku("reqfull", "a request needs every timer, rank-level too (the MC-018 form: no cap flip to a turnaround-blocked column)",
+         req_bank_timing=False),
     _sku("batch64", "DIR_BATCH_MAX 64", dir_batch_max=64),
     _sku("batch128", "DIR_BATCH_MAX 128", dir_batch_max=128),
     _sku("batch0", "no batch cap", dir_batch_max=0),
@@ -567,6 +577,16 @@ def _ref_burst_class(base, n: int):
     return cls
 
 
+def _sku_debug_params() -> dict:
+    """GRANITE_SKU_DEBUG=<from_ck>:<to_ck> prints the GraniteSKU controller's slot state, picks, lane
+    loads and holds between those CK, and every direction flip of the run, on stdout; unset = silent."""
+    spec = os.environ.get("GRANITE_SKU_DEBUG", "")
+    if not spec:
+        return {}
+    lo, hi = (int(x, 0) for x in spec.split(":"))
+    return {"debug": True, "debug_from": lo, "debug_to": hi}
+
+
 def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bool = False):
     import ramulator  # noqa: WPS433  (vendor module)
 
@@ -597,10 +617,13 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             dram=dram, scheduler=scheduler, refresh_manager=refresh, row_policy=row_policy,
             addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
             read_buffer_size=cfg.read_buffer, write_buffer_size=cfg.write_buffer,
-            slot_ticks=cfg.slot_ticks, bank_cap_mixed=cfg.bank_cap_mixed, dir_batch_max=cfg.dir_batch_max,
+            slot_ticks=cfg.slot_ticks, bank_cap_mixed=cfg.bank_cap_mixed, cap_per_beat=cfg.cap_per_beat,
+            admit_lag=cfg.admit_lag,
+            dir_batch_max=cfg.dir_batch_max,
             dir_hold_idle=cfg.dir_hold_idle, dir_owns_rows=cfg.dir_owns_rows, lane=cfg.lane,
             close_on_drain=cfg.close_on_drain, alternate=cfg.alternate, page_close=cfg.page_close,
-            peek_depth=cfg.peek_depth,
+            peek_depth=cfg.peek_depth, req_bank_timing=cfg.req_bank_timing,
+            **_sku_debug_params(),
         )
     else:
         ctrl = ramulator.controller.GenericDDR(

@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <deque>
 
 #include "ramulator/base/param.h"
 #include "ramulator/controller/controller_base.h"
@@ -28,15 +29,23 @@ namespace Ramulator {
 //   * The store: one FIFO per (direction, bank) inside a pool of
 //     read_buffer_size / write_buffer_size entries (BANK_FIFO_DEPTH 0 = pool
 //     admission only); a bank queue may not grow past bank_cap_mixed while the
-//     other direction holds entries (BANK_CAP_MIXED); one entry = one BL4
-//     column = one AXI beat. The head of each queue is the pick's candidate.
+//     other direction holds entries (BANK_CAP_MIXED, checked at every push as
+//     the store does: the beats behind a refused one wait in order); one
+//     entry = one BL4 column = one AXI beat. An accepted beat is a schedulable
+//     head admit_lag MC cycles later (the push -> bank FIFO -> head record ->
+//     request pipeline, 4 on the RTL; ISSUE-004). The head of each queue is
+//     the pick's candidate.
 //     peek_depth > 1 lets a bank whose head is a row conflict offer the oldest
 //     row hit among its first peek_depth entries instead (MC-016's model of a
 //     real lookahead; 1 = the shipped strict FIFO).
 //   * DECODE per head: row hit -> column; open row + miss -> PRE, withheld
 //     while the OTHER direction's head on the bank hits the open row unless
 //     this direction holds the bus and its batch is not done (DIR_OWNS_ROWS);
-//     closed -> ACT, blocked while a refresh is demanded.
+//     closed -> ACT, blocked while a refresh is demanded. A request needs the
+//     BANK's timers only (tRCD / tRP / tRAS / tRTP / tWR); the rank-level
+//     terms (RD <-> WR turnaround, tRRD / tFAW, tCCD) gate the FIRE: a picked
+//     winner they block holds its slot until they open, and the direction
+//     register counts it as a column (req_bank_timing; ISSUE-004).
 //   * SELECT: a rotor over pairs p = 2*bank + dir from the last winner; after
 //     a row command columns first, after a column row commands first (the
 //     alternation, `alternate`), the row lane turning "a row can ride" into
@@ -63,8 +72,9 @@ namespace Ramulator {
 //   * Refresh: the AllBank manager demands REFab every nREFI; while it is
 //     pending nothing else issues, the open rows close (PREab, where the RTL
 //     drains per-bank PREs) and REFab follows -- the drain-then-grant shape.
-//   * Not carried (the error bars): the two-stage decode -> fire pipeline and
-//     its lookahead / next-op hint, the pop shadow, the write-data fill and
+//   * Not carried (the error bars): the decode -> pick -> fire stages and
+//     their lookahead / next-op hint (the admission pipeline IS carried, as
+//     admit_lag), the pop shadow, the write-data fill and
 //     the sink / return-ring back-pressure, the age overlay (HAS_AGE with
 //     age_thresh 0 is inert on the SKU), the hybrid page predictor of the
 //     board's `defaults` (modelled as open_page: the two differ by < 1
@@ -76,6 +86,9 @@ class GraniteSKUController : public ControllerBase {
   // ---- knobs (the SKU's values are the defaults) ----
   int m_slot_ticks = 2;
   int m_bank_cap_mixed = 6;
+  bool m_cap_per_beat = true;   // the cap on every beat (the store's push check w_rd_cap_ok / w_wr_cap_ok), not once per AXI burst
+  int m_admit_lag = 4;          // MC cycles from a beat's acceptance to its being a schedulable head (push -> FIFO -> record -> request)
+  bool m_req_bank_timing = true;  // a request needs the BANK's timers only; rank-level terms gate the fire (the RTL decode)
   int m_dir_batch_max = 255;
   int m_dir_hold_idle = 8;
   bool m_dir_owns_rows = true;
@@ -136,6 +149,7 @@ class GraniteSKUController : public ControllerBase {
   size_t s_rd_turns = 0;
   size_t s_wr_turns = 0;
   size_t s_cap_refused = 0;
+  size_t s_win_holds = 0;     // main slots the picked winner held on a rank-level timer (turnaround, tRRD / tFAW, tCCD)
   size_t s_max_read_latency = 0;
   size_t s_max_write_wait = 0;
   size_t s_hold_slots[2] = {0, 0};   // main slots while reads / writes hold the register
@@ -148,6 +162,9 @@ class GraniteSKUController : public ControllerBase {
     init_base();
     RAMULATOR_PARSE_PARAM(m_slot_ticks, int, "slot_ticks").default_val(2);
     RAMULATOR_PARSE_PARAM(m_bank_cap_mixed, int, "bank_cap_mixed").default_val(6);
+    RAMULATOR_PARSE_PARAM(m_cap_per_beat, bool, "cap_per_beat").default_val(true);
+    RAMULATOR_PARSE_PARAM(m_admit_lag, int, "admit_lag").default_val(4);
+    RAMULATOR_PARSE_PARAM(m_req_bank_timing, bool, "req_bank_timing").default_val(true);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);
@@ -163,6 +180,7 @@ class GraniteSKUController : public ControllerBase {
     if (m_lane < 0 || m_lane > 3) throw std::runtime_error("GraniteSKU: lane must be 0..3");
     if (m_peek_depth < 1) throw std::runtime_error("GraniteSKU: peek_depth must be >= 1");
     if (m_dir_batch_max < 0 || m_dir_batch_max > 255) throw std::runtime_error("GraniteSKU: dir_batch_max is 0..255");
+    if (m_admit_lag < 0) throw std::runtime_error("GraniteSKU: admit_lag must be >= 0");
     const auto& spec = *m_device.m_spec;
     m_cmd_act = spec.get_command_id("ACT");
     m_cmd_prepb = spec.get_command_id("PREpb");
@@ -194,6 +212,7 @@ class GraniteSKUController : public ControllerBase {
     m_stats.add("sku_rd_turns", s_rd_turns);
     m_stats.add("sku_wr_turns", s_wr_turns);
     m_stats.add("sku_cap_refused", s_cap_refused);
+    m_stats.add("sku_win_holds", s_win_holds);
     m_stats.add("sku_max_read_latency", s_max_read_latency);
     m_stats.add("sku_max_write_wait", s_max_write_wait);
     m_stats.add("sku_rd_hold_slots", s_hold_slots[0]);
@@ -214,6 +233,13 @@ class GraniteSKUController : public ControllerBase {
   // board does neither (the controller this inherits from does both, and a wrapped walk trips them),
   // so this is the base's send without those two paths.
   Addr_t m_last_admitted[2] = {-1, -1};
+  // Accepted beats on their way to being schedulable heads (the store's push -> bank FIFO -> head record ->
+  // decode request pipeline, admit_lag MC cycles): they hold their pool slot and count for the bank cap from
+  // the acceptance, and the pick sees them admit_lag slots later (memory-controllers ISSUE-004: with no lag the
+  // holder's next burst on a shared bank is always present at its auto-precharge and wins the bank's ACT; the
+  // RTL's arrives four cycles after the pop and the waiting direction's ACT rides instead).
+  struct Staged { Clk_t ready; Request req; };
+  std::deque<Staged> m_staged[2];
 
   bool send(Request& req) override {
     if (req.type_id != Request::Type::Read && req.type_id != Request::Type::Write) {
@@ -227,20 +253,30 @@ class GraniteSKUController : public ControllerBase {
     ReqBuffer& other = is_wr ? m_read_buffer : m_write_buffer;
     const int d = is_wr ? 1 : 0;
     const bool continues_burst = m_last_admitted[d] >= 0 && req.addr == m_last_admitted[d] + m_device.m_spec->get_tx_bytes();
-    if (m_bank_cap_mixed > 0 && other.size() > 0 && !continues_burst) {
+    const int od = 1 - d;
+    const size_t other_held = other.size() + m_staged[od].size();
+    if (m_bank_cap_mixed > 0 && other_held > 0 && (m_cap_per_beat || !continues_burst)) {
       const int bank = m_device.get_flat_bank_id(req.addr_vec);
       int n = 0;
       for (auto& r : own.buffer) {
         if (m_device.get_flat_bank_id(r.addr_vec) == bank) n++;
+      }
+      for (auto& st : m_staged[d]) {
+        if (m_device.get_flat_bank_id(st.req.addr_vec) == bank) n++;
       }
       if (n >= m_bank_cap_mixed) {
         s_cap_refused++;
         return false;
       }
     }
+    if (own.size() + m_staged[d].size() >= own.max_size) {
+      return false;
+    }
     req.arrive = m_clk;
     req.id = m_next_req_id;
-    if (!own.enqueue(req)) {
+    if (m_admit_lag > 0) {
+      m_staged[d].push_back({m_clk + static_cast<Clk_t>(m_admit_lag) * m_slot_ticks, req});
+    } else if (!own.enqueue(req)) {
       req.arrive = -1;
       return false;
     }
@@ -260,6 +296,15 @@ class GraniteSKUController : public ControllerBase {
     }
     m_lane_pending = false;
     s_slots++;
+    for (int d = 0; d < 2; d++) {
+      ReqBuffer& buf = d ? m_write_buffer : m_read_buffer;
+      while (!m_staged[d].empty() && m_staged[d].front().ready <= m_clk) {
+        if (!buf.enqueue(m_staged[d].front().req)) {
+          throw std::runtime_error("GraniteSKU: a staged beat found no pool slot (the admission reserved one)");
+        }
+        m_staged[d].pop_front();
+      }
+    }
     if (m_debug && m_clk >= m_debug_from && m_clk < m_debug_to) {
       std::cout << "[sku] clk " << m_clk << " dir " << m_dir << " batch " << m_batch << " idle " << m_idle
                 << " rd " << m_read_buffer.size() << " wr " << m_write_buffer.size()
@@ -362,7 +407,12 @@ class GraniteSKUController : public ControllerBase {
       Head& h = m_heads[p];
       if (!h.vld) continue;
       const bool d = dir_of(p);
-      bool ok = check_timing(h.cmd, h.it->addr_vec);
+      // The RTL's registered request (mc_bank_pick stage 1): the class and the BANK's own timer
+      // (tRCD / tRP / tRAS / tRTP / tWR, bank_*_ready_la). The rank-level terms -- the RD <-> WR
+      // turnaround, tRRD / tFAW, tCCD -- are the FIRE stage's (w_timer_ok): a request they block
+      // still counts for the direction register (a cap flip to a direction whose column waits
+      // out tRTW) and holds its slot until they open (memory-controllers ISSUE-004).
+      bool ok = m_req_bank_timing ? bank_ready(h.cmd, h.it->addr_vec) : check_timing(h.cmd, h.it->addr_vec);
       if (h.cmd == m_cmd_act) {
         ok = ok && !ref_pending;
       } else if (h.cmd == m_cmd_prepb) {
@@ -374,6 +424,11 @@ class GraniteSKUController : public ControllerBase {
       }
       h.req = ok;
     }
+  }
+
+  // the bank node's own timers only (the RTL's per-bank bank_*_ready); rank / channel terms are the fire's
+  bool bank_ready(int cmd, const AddrVec_t& av) {
+    return m_device.m_bank_nodes[m_device.get_flat_bank_id(av)]->check_timing(cmd, av, m_clk);
   }
 
   // round robin from the pair after the last winner
@@ -471,6 +526,17 @@ class GraniteSKUController : public ControllerBase {
       }
       std::cout << " win " << win << " ride " << ride << " colfirst " << columns_first << std::endl;
     }
+    bool held_row_cur = false;   // the winner is a row command of the held direction waiting on a timer (the drain term)
+    if (win >= 0 && !check_timing(m_heads[win].cmd, m_heads[win].it->addr_vec)) {
+      // the RTL's hold: the winner waits on a rank-level timer (w_hold_next); nothing else takes
+      // the slot and the rotor does not move, so the same pair is picked again next slot
+      s_win_holds++;
+      if (m_debug && m_clk >= m_debug_from && m_clk < m_debug_to) {
+        std::cout << "[sku]   hold p" << win << " cmd " << m_heads[win].cmd << std::endl;
+      }
+      held_row_cur = !m_heads[win].is_col && dir_of(win) == m_dir;
+      win = -1;
+    }
     if (win >= 0) {
       Head& h = m_heads[win];
       fired = true;
@@ -514,6 +580,9 @@ class GraniteSKUController : public ControllerBase {
       if (any) {
         const int lp = rotor_pick(masked);
         const Head& lh = m_heads[lp];
+        if (m_debug && m_clk >= m_debug_from && m_clk < m_debug_to) {
+          std::cout << "[sku]   lane p" << lp << " cmd " << lh.cmd << std::endl;
+        }
         m_lane_pending = true;
         m_lane_cmd = lh.cmd;
         m_lane_addr = lh.it->addr_vec;
@@ -531,13 +600,17 @@ class GraniteSKUController : public ControllerBase {
     if (fired_col && fired_dir != m_dir) {
       flip = true; cause = 0;
     } else if (!col_pend[cur] && oth_col_any && !hold_idle &&
-               !(row_any[cur] || (fired && !fired_col && fired_dir == m_dir))) {
+               !(row_any[cur] || held_row_cur || (fired && !fired_col && fired_dir == m_dir))) {
       flip = true; cause = 1;
     } else if (m_batch_done && oth_col_any) {
       flip = true; cause = 2;
     }
     int batch_nxt = m_batch;
     if (flip) {
+      if (m_debug) {
+        std::cout << "[sku] clk " << m_clk << " FLIP cause " << cause << " from dir " << m_dir << " batch " << m_batch
+                  << " rd " << m_read_buffer.size() << " wr " << m_write_buffer.size() << std::endl;
+      }
       s_dir_flips++;
       if (cause == 0) s_dir_flips_fire++;
       else if (cause == 1) s_dir_flips_drain++;
@@ -554,7 +627,7 @@ class GraniteSKUController : public ControllerBase {
     bump_idle(flip || (fired && fired_dir == m_dir));
     if (fired) m_last_was_row = !fired_col;
     // deadlock detector: queued requests and no command for 4096 slots is a modelling error, not a stall
-    if (fired || (m_read_buffer.size() + m_write_buffer.size()) == 0) {
+    if (fired || (m_read_buffer.size() + m_write_buffer.size() + m_staged[0].size() + m_staged[1].size()) == 0) {
       m_stuck = 0;
     } else if (++m_stuck > 4096) {
       std::string msg = "GraniteSKU: no command for 4096 slots with requests queued at clk " + std::to_string(m_clk) +

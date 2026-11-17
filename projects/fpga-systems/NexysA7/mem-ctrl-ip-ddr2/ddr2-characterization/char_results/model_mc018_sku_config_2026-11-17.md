@@ -124,6 +124,11 @@ model does not reproduce, and each is a named RTL effect with its own item:
 Four model terms were wrong on the first run and are worth recording, each
 found by one family off and the others on:
 
+  *Resolved 2026-11-17 (ISSUE-004 closed): the rotor rule was right and the stream
+  to it was wrong -- the RTL's holder has no next burst on the bank at its
+  auto-precharge (the mixed cap at every push plus a four-cycle admission pipeline),
+  so the waiting direction's ACT rides unopposed. Modelled; `mixed` 286 / 286.
+  See `model_issue004_admission_lag_2026-11-17.md`.*
 - **The RTL rounds twice where the model adds once.** `col_major` writes were
   +7 percent with the reads exact: the model summed WRA -> ACT as 7 + 3 CK =
   5 MC cycles, the RTL counts tWR 4 then tRP 2 = 6. Forcing nWR to the 8-CK
@@ -213,7 +218,8 @@ What the table says, by column:
   turn structure the model gets wrong (ISSUE-004: its read turns run four
   times the cap), so they are the model repairing its own defect, not
   improvements to the RTL. They are recorded here and re-read when ISSUE-004
-  closes; none is filed.
+  closes; none is filed. (Re-read 2026-11-17 in `model_issue004_admission_lag_2026-11-17.md`,
+  section 4.)
 
 ## 4. The list
 

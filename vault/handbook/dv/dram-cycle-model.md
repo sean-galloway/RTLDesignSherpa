@@ -365,6 +365,60 @@ a tolerance per family; `sweep` prices one-term variants against it
   on the 23 other patterns it is within 0.4 percent. The SKU's rules are the
   ideal's everywhere the lane reaches.
 
+## The admission pipeline decides who gets the ACT (2026-11-17, ISSUE-004)
+
+MC-018 left one shape wrong: the SKU model's `mixed` read turns ran four
+times the batch cap (296 / 417 against the board's 272 / 272). The issue
+blamed the lane's rotor handing a shared bank's ACT to the holding direction
+after its auto-precharge, a rule copied from the RTL. The probe (the pick's
+state with the store's occupancy and head records beside it, at a cap flip)
+showed the rule was right and its candidate set was not: the RTL's pool holds
+six beats of each direction, the holder's next burst on the bank is not there
+when its auto-precharge fires, and the waiting direction's ACT rides
+unopposed. Three admission terms reproduce it; `mixed` reads 286 / 286 with
+255-column turns, every other SKU cell unchanged
+(`char_results/model_issue004_admission_lag_2026-11-17.md`).
+
+- **When a copied rule gives the wrong answer, check what it is looking at
+  before changing it.** The rotor's order was the RTL's; the queue in front
+  of it held two bursts where the RTL's held six beats. The term that fixed
+  the model was in the store, not in the pick -- the probe that found it read
+  both in the same cycle.
+- **A pool's depth under mixed traffic is the per-bank cap, not the pool.**
+  `BANK_CAP_MIXED` is checked at every push and the AR chops in order, so a
+  burst's seventh beat waits for its first pop and the other bank's burst
+  waits behind it. The 16-entry pool is six deep for both directions the whole
+  window. The MC-018 model exempted a burst's remaining beats (its own
+  guess at the AW / AR granularity) and held 13 per bank.
+- **Admission is a pipeline with a latency, and the latency has a cliff.** A
+  pushed beat is a head record three cycles later and a request one after;
+  a slot freed at t carries a schedulable head at t + 5. Modelled as a 4-slot
+  stage: at 0 or 2 slots the two banks' bursts interleave column by column
+  and the holder's next ACT is always present (the old shape); at 4 they
+  serialize as the RTL's and the waiting direction rides; at 6 the refill lags
+  the pops and the turns stretch. Two is on the wrong side of the cliff.
+- **The direction register reads the request, not the fire.** The decode's
+  request needs the row hit and the bank's own timer; the RD <-> WR
+  turnaround, tRRD / tFAW and tCCD gate the fire. A write column that tRTW
+  blocks for twenty cycles still counts at the cap, flips the register and
+  then holds the slot. A model whose request needs every timer cannot flip
+  until the holder pauses. (Inert on `mixed` once the other two terms are in;
+  it moves the ACT-bound presets, since a bank-ready ACT is now a lane
+  candidate that fires the CK the rank timers open.)
+- **Re-stamp a captured port stream per channel before splitting it.** A
+  combined capture's ticks are the port's beat order with both directions
+  interleaved; offered as two streams they paced each channel at half rate
+  whenever one direction ran alone, and the capture's write pool emptied in
+  every read turn. Re-stamped, the captured `mixed` stream and the rebuilt one
+  agree to the second decimal -- the stream equivalence MC-018 claimed, exact.
+- **Say which cells a model term moved and which it should not have.** The
+  three terms left every single-direction SKU cell within 0.4 percent, as the
+  mechanism predicts (the staged beat lands inside the burst ahead of it, the
+  cap is off with one direction streaming), and moved the two presets already
+  out (`bank_interleave`, `close_page`) +25 percent further from the board on
+  their ACT-bound rows, which the two issues now carry: the model's hop cost
+  is the tRRD bound, the board's is the pipeline.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the
