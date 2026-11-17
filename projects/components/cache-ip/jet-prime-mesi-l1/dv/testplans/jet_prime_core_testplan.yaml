@@ -103,8 +103,9 @@ scenarios:
   - name: WindowedFillStart
     level: all
     what: Every alloc's fill launch lands within FILL_LAUNCH_WINDOW
-      cycles, and never while a victim capture streams (the launch-level
-      cap_busy contract, checked every cycle).
+      cycles; no fill beat lands in the (set, way) a victim capture is
+      reading (the capture contract, checked every cycle at the beat --
+      step 5 moved it from the launch to the engine's beat hold).
     status: covered
   - name: VictimClaimStall
     level: all (LRU cells; the construction needs hit reordering)

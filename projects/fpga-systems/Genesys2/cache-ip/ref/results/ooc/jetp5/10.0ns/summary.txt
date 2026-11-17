@@ -1,0 +1,12 @@
+top jet_prime_top
+part xc7k325tffg900-2
+period_ns 10.0
+wns_ns 0.321
+worst_levels 19
+worst_start u_coh/u_fill/u_stage/gen_auto.mem_reg_0_3_66_69/RAMA/CLK
+worst_end u_coh/u_data/g_way[2].mem_reg_2_0/ADDRBWRADDR[10]
+lut 6010
+ff 5399
+ramb36 16
+ramb18 0
+lutram 1998

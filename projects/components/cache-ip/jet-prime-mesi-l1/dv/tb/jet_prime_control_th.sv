@@ -97,6 +97,8 @@ module jet_prime_control_th
     // classify observability (from jet_prime_control)
     output logic                        init_busy_o,
     output logic                        cap_busy_o,
+    output logic [SET_W-1:0]            cap_set_o,
+    output logic [WAY_W-1:0]            cap_way_o,
     output logic                        cmt_busy_o,
     output logic                        lkup_hit_o,
     output logic                        lkup_merge_o,
@@ -367,6 +369,8 @@ module jet_prime_control_th
         .lkup_stall_reason_o     (lkup_stall_reason_o),
         .lkup_wr_yield_o         (lkup_wr_yield_o),
         .cap_busy_o              (cap_busy_o),
+        .cap_set_o               (cap_set_o),
+        .cap_way_o               (cap_way_o),
         .cmt_busy_o              (cmt_busy_o),
         .ctrl_error_o            (ctrl_error_o),
         .tag_req_o               (ctrl_tag_req),

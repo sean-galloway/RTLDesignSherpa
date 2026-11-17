@@ -717,18 +717,16 @@ module jet_prime_ace_top
     // pattern)
     // ------------------------------------------------------------------
     // pragma translate_off
-    // The launch gate never lets a fill's beats race the victim
-    // capture (MAS ch02/01 fill-engine contract): no accept while a
-    // capture streams, and never on the cycle a dirty-victim capture
-    // opens (cap_busy_o rises one cycle later).
+    // A fill's beats never race the victim capture (MAS ch02/01
+    // fill-engine contract, at the hazard since TASK-001 step 5): no beat
+    // lands in the (set, way) a capture is reading.  The launch itself
+    // goes out in the alloc cycle, capture or not.
     assert property (@(posedge aclk) disable iff (!w_aresetn)
-        (u_coh.w_fill_accept |-> !u_coh.ctrl_cap_busy))
-        else $error("jet_prime_ace_top: fill launch accepted during a victim capture");
-
-    assert property (@(posedge aclk) disable iff (!w_aresetn)
-        (u_coh.w_fill_accept |-> !(u_coh.ctrl_mshr_alloc
-                                   & u_coh.ctrl_mshr_alloc_wb_valid)))
-        else $error("jet_prime_ace_top: fill launch accepted on a dirty-victim alloc cycle");
+        (u_coh.eng_fill_beat_valid
+         |-> !(u_coh.ctrl_cap_busy
+               & (u_coh.eng_fill_beat_set == u_coh.ctrl_cap_set)
+               & (u_coh.eng_fill_beat_way == u_coh.ctrl_cap_way))))
+        else $error("jet_prime_ace_top: fill beat into the way a victim capture is reading");
 
     // The engine accepts only a presented launch, and never past its
     // in-flight cap (jet_prime_fill, TASK-001 step 2).

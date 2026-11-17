@@ -51,14 +51,17 @@
 //   Integration glue that is NOT pure wiring (all of it the launch level,
 //   none of it touching common-ip), moved verbatim from the jet tops:
 //
-//   * Fill-launch gate.  jet_prime_control's fill contract is start-held-
-//     until-accept; jet_prime_fill accepts when its AR register is free and
-//     it has in-flight room (FILL_INFLIGHT).  The plane lets a launch
-//     reach the engine only when no victim capture is streaming
-//     (cap_busy_o) AND no dirty-victim capture opens this very cycle
-//     (alloc with wb_valid) -- the MAS ch02/01 fill-engine contract
-//     ("an entry's beats never land before its victim is captured")
-//     enforced at the launch.  The launch carries the entry index and its
+//   * Fill launch and the capture contract.  jet_prime_control's fill
+//     contract is start-held-until-accept; jet_prime_fill accepts when its
+//     AR register is free and it has in-flight room (FILL_INFLIGHT).  The
+//     launch reaches the engine the cycle it is presented, victim capture
+//     or not; the MAS ch02/01 fill-engine contract ("an entry's beats
+//     never land before its victim is captured") is enforced at the
+//     engine's beat side -- the capture engine's (set, way) rides to
+//     jet_prime_fill with cap_busy_o, and a beat for that way waits at the
+//     staging-queue head until the capture completes (TASK-001 step 5;
+//     steps 2-4 gated the launch instead, ten cycles behind every
+//     dirty-victim miss).  The launch carries the entry index and its
 //     claimed set/way, and every beat comes back from the engine with
 //     them, so the plane keeps no in-flight record (TASK-001 step 2
 //     retired the one-deep adapter).
@@ -77,8 +80,8 @@
 //     replay: the sideband carries ONE event per cycle; jet (unlike
 //     amber's blocking FSM, where MISS_DRAIN and MISS_FILL are separate
 //     states) fires the drain arbiter and the launch adapter concurrently
-//     -- the cycle a victim capture completes, drain_start_o and the held
-//     fill's accept coincide.  The fill launch wins the slot (the fabric
+//     -- a victim capture completing (drain_start_o) in the cycle another
+//     miss launches.  The fill launch wins the slot (the fabric
 //     queues it -- dropping it would hang the fill's AR); the drain's
 //     WRITE_BACK pulse replays the next cycle (the fabric never queues
 //     WRITE_BACK, so the one-cycle delay is invisible downstream).
@@ -447,6 +450,8 @@ module jet_prime_coh_core
     logic [MW-1:0]              ctrl_fill_idx;
     logic [SET_W-1:0]           ctrl_fill_set;
     logic [WAY_W-1:0]           ctrl_fill_way;
+    logic [SET_W-1:0]           ctrl_cap_set;
+    logic [WAY_W-1:0]           ctrl_cap_way;
     logic                       w_fill_start;
     logic                       w_fill_accept;
     logic                       eng_fill_busy;
@@ -464,25 +469,19 @@ module jet_prime_coh_core
     logic [MW-1:0]              w_ar_done_idx;
 
     // ------------------------------------------------------------------
-    // Fill-launch gate (the MAS ch02/01 engine contract, enforced at the
-    // launch): the engine sees a presented launch only when
-    //   - no victim capture is streaming (cap_busy_o), AND
-    //   - no dirty-victim capture opens this very cycle (the alloc's
-    //     wb_valid: cap_busy_o only rises next cycle, and an immediate
-    //     launch could put the first fill beat ahead of the capture's
-    //     last read of the doomed victim's way).
-    // Allocs hold while a launch pends, so the capture that refuses a
-    // launch is always the launching entry's own; beats of earlier
-    // entries already in flight land in other claimed (set, way)s.
-    // jet_prime_fill then accepts when its AR register is free and it has
+    // Fill launch: presented to the engine the cycle jet_prime_control
+    // raises it (the alloc cycle for a miss).  The MAS ch02/01 engine
+    // contract -- an entry's beats never land before its victim is
+    // captured -- is the engine's beat hold (cap_hold/set/way below), not
+    // a launch gate: the memory read's round trip overlaps the capture.
+    // jet_prime_fill accepts when its AR register is free and it has
     // in-flight room (FILL_INFLIGHT).  The launch carries the entry index
     // and claimed set/way from jet_prime_control; the engine returns them
     // with every beat, so the plane keeps no in-flight record.
     // ------------------------------------------------------------------
     logic [2:0]            eng_fill_class;   // sideband class (amber_ace_req_t)
 
-    assign w_fill_start = ctrl_fill_start & ~ctrl_cap_busy
-                          & ~(ctrl_mshr_alloc & ctrl_mshr_alloc_wb_valid);
+    assign w_fill_start = ctrl_fill_start;
 
     // the memory-side AR handshake decoded to the entry: ARID is the
     // engine's slot; the upgrade's slot (MSHR_COUNT) is not an entry and
@@ -557,6 +556,8 @@ module jet_prime_coh_core
         .lkup_stall_reason_o     (ctrl_lkup_stall_reason),
         .lkup_wr_yield_o         (ctrl_lkup_wr_yield),
         .cap_busy_o              (ctrl_cap_busy),
+        .cap_set_o               (ctrl_cap_set),
+        .cap_way_o               (ctrl_cap_way),
         .cmt_busy_o              (ctrl_cmt_busy),
         .ctrl_error_o            (ctrl_error),
         .tag_req_o               (ctrl_tag_req),
@@ -863,6 +864,9 @@ module jet_prime_coh_core
         .fill_set_i        (ctrl_fill_set),
         .fill_way_i        (ctrl_fill_way),
         .fill_accept_o     (w_fill_accept),
+        .cap_hold_i        (ctrl_cap_busy),
+        .cap_set_i         (ctrl_cap_set),
+        .cap_way_i         (ctrl_cap_way),
         .fill_beat_valid_o (eng_fill_beat_valid),
         .fill_beat_idx_o   (eng_fill_beat_idx),
         .fill_beat_num_o   (eng_fill_beat_num),

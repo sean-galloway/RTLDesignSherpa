@@ -599,10 +599,12 @@ class JetControlTB(TBBase):
                 await self._drive_pt()
             d.fill_done_i.value = 0
             d.fill_pass_dirty_i.value = 0
-            # enqueue the commit one cycle after the done: a merge accept
-            # is still legal ON the fill_done cycle (the RTL blocks joins
-            # from the next cycle), and the watcher reads the requester
-            # list only after this append
+            # enqueue the commit one cycle after the done: the watcher
+            # reads the requester list only after this append, and its
+            # first sample is this very cycle (the RTL starts the commit
+            # in the done cycle when the queue is empty, step 5, so this
+            # cycle may already be C_MERGE); a merge in the done cycle
+            # itself is held by the RTL (the snapshot owns the probe)
             if entry is not None:
                 self._commit_queue.append({'entry': entry})
             else:
@@ -783,12 +785,18 @@ class JetControlTB(TBBase):
         retired = False
         wcyc = 0             # local watch-cycle count (self.cyc is shared)
         start = self.cyc
+        first = True
         while not retired:
             if self.cyc - start > 4000:
                 raise RuntimeError(f"commit watch: entry {entry['idx']} "
                                    f"(line {entry['line']:#x}) never retired")
-            await self._drive_pt()
-            await self._settle()
+            # the cycle the watch starts is already settled and may be the
+            # commit's first (step 5: a completion on an empty queue is
+            # snapshot in the done cycle, so C_MERGE is the very next one)
+            if not first:
+                await self._drive_pt()
+                await self._settle()
+            first = False
             wcyc += 1
             # D-4 store merge on the W port: control-attributed write to
             # the entry's claimed (set, way) -- hits on claimed ways are
@@ -809,8 +817,14 @@ class JetControlTB(TBBase):
                         and int(d.tag_wr_set_o.value) == entry['set']):
                     ts = int(d.tag_wr_tag_state_o.value)
                     got_tag_writes.append((ts >> 3, ts & 0x7))
-            # response deposits: one per requester, in tag order
-            if int(d.cpl_valid_o.value):
+            # response deposits: one per requester, in tag order.  Only
+            # the commit's own deposits (w_cmt_cpl): a hit served in the
+            # same window may carry one of these tags -- the sequencer
+            # releases a deposited tag the next cycle and re-grants it
+            # (step 5 made that reachable: the retire follows the last
+            # deposit by one cycle, and a hit granted the reused tag
+            # deposits right there)
+            if int(d.cpl_valid_o.value) and int(d.u_control.w_cmt_cpl.value):
                 tag = int(d.cpl_tag_o.value)
                 data = int(d.cpl_data_o.value)
                 if tag in exp_tags:
@@ -871,11 +885,14 @@ class JetControlTB(TBBase):
         got_tag_writes = []
         deposited = False
         start = self.cyc
+        first = True
         while not deposited:
             if self.cyc - start > 4000:
                 raise RuntimeError("commit watch: CU commit never deposited")
-            await self._drive_pt()
-            await self._settle()
+            if not first:
+                await self._drive_pt()
+                await self._settle()
+            first = False
             if int(d.ctrl_dat_wr_en_o.value):
                 way_oh = int(d.dat_wr_way_onehot_o.value)
                 addr = int(d.dat_wr_addr_o.value)
@@ -891,7 +908,7 @@ class JetControlTB(TBBase):
                         and int(d.tag_wr_set_o.value) == rec['set']):
                     ts = int(d.tag_wr_tag_state_o.value)
                     got_tag_writes.append((ts >> 3, ts & 0x7))
-            if int(d.cpl_valid_o.value) \
+            if int(d.cpl_valid_o.value) and int(d.u_control.w_cmt_cpl.value) \
                     and int(d.cpl_tag_o.value) == rec['tag']:
                 self._score("cu commit: deposit data (write echo)",
                             int(d.cpl_data_o.value), rec['wdata'])

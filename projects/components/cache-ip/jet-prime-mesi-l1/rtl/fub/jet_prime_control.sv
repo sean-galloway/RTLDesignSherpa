@@ -100,7 +100,7 @@
 //        lkup_ready_o without raising lkup_stall_o.
 //
 //   Commit pipeline (one fill completion at a time, in completion order):
-//   a small FSM walks C_MERGE -> C_INSTALL -> [C_PEND] -> C_DEPOSIT ->
+//   a small FSM walks C_MERGE -> C_INSTALL -> [C_PEND] -> [C_DEPOSIT] ->
 //   C_RETIRE.  The completing entry is identified by the done queue:
 //   jet_prime_fill reports each completion with its entry index and class
 //   (one AXI4 read ID per entry, so fills -- including the no-data
@@ -110,18 +110,29 @@
 //   single read ID).  At the
 //   commit start the entry's line/pend_eff/merge-list are snapshot from
 //   the jet_prime_mshr commit read port (one cycle; merges hold that cycle --
-//   the port is otherwise the lookup stage's merge-room probe).  The
+//   the port is otherwise the lookup stage's merge-room probe).  A
+//   completion landing on an empty queue with the commit idle starts its
+//   commit in the done cycle itself (the queue is bypassed for the
+//   snapshot, still pushed for the bookkeeping; TASK-001 step 5) -- not
+//   in a snoop grant cycle, whose pend record must land before the
+//   snapshot.  The
 //   requester sideband table (we/beat/be/wdata per merge slot, recorded
 //   at the alloc/merge accepts) drives C_MERGE: write slots merge their
 //   store data onto the just-filled beats through the W port (amber D-4
 //   byte-enable semantics, in requester order); read slots capture their
 //   response beat from port A at their own position in the order, so a
-//   read observes exactly the writes that precede it.  C_INSTALL writes
-//   {tag, install_state}; C_PEND writes the deferred snoop effect
-//   (downgrade-S / invalidate-I) AFTER the install (amber pending
-//   semantics); C_DEPOSIT hands one response per merge-list tag to
-//   jet_prime_rsp_seq (write requesters echo their store data, read requesters
-//   the captured beat); C_RETIRE retires the entry and frees the claim.
+//   read observes exactly the writes that precede it.  The walk leaves
+//   C_MERGE as the last slot advances (no separate done cycle).
+//   C_INSTALL writes {tag, install_state} and hands the FIRST response
+//   (merge slot 0, the allocator) to jet_prime_rsp_seq in the same cycle --
+//   with the sync data array a last-slot read's word arrives in that very
+//   cycle and is deposited from the port, not the capture register;
+//   C_PEND writes the deferred snoop effect (downgrade-S / invalidate-I)
+//   AFTER the install (amber pending semantics); C_DEPOSIT hands the
+//   remaining responses, one per merge-list tag (write requesters echo
+//   their store data, read requesters the captured beat); C_RETIRE
+//   retires the entry and frees the claim.  A single-requester read miss
+//   answers three cycles after its last beat lands (step 4: six).
 //   A CU completion walks C_CU_MERGE -> C_CU_INSTALL -> C_CU_DEPOSIT from
 //   the upgrade tracker (merge the held write, install M, echo), clearing
 //   the tracker -- the tracker clear is qualified by the completing
@@ -141,13 +152,16 @@
 //   Fill-engine contract: the engine must not write an entry's fill beats
 //   before that entry's victim capture has completed.  jet_prime_control
 //   owns the launch but not the engine's W-port drives, so the contract is
-//   enforced at the launch: the plane (jet_prime_coh_core) gates the
-//   engine's start with cap_busy_o low AND the cycle not a dirty-victim
-//   alloc.  Allocs hold while a launch pends, so the capture running when
-//   a launch is refused is always the launching entry's own; an earlier
-//   entry's beats landing during a later entry's capture hit a different
-//   claimed (set, way) by the claim-aware victim check.  Several fills are
-//   in flight at once (jet_prime_fill, one read ID per entry); the launch
+//   enforced at the engine's beat side (TASK-001 step 5): the capture
+//   engine exports its (set, way) with cap_busy_o (cap_set_o/cap_way_o)
+//   and jet_prime_fill holds any beat for that way at its staging-queue
+//   head until the capture completes.  The launch itself is presented in
+//   the alloc cycle, dirty victim or not, so the memory read's round trip
+//   overlaps the capture (step 4 held the launch behind it: ten cycles
+//   per dirty-victim miss at depth 1).  One capture streams at a time
+//   (w_wb_block), and a clean-victim alloc during it claims a different
+//   (set, way) by the claim-aware victim check.  Several fills are in
+//   flight at once (jet_prime_fill, one read ID per entry); the launch
 //   register still holds one unaccepted launch at a time (the unit TB's
 //   stub models the same rules).
 //
@@ -294,6 +308,10 @@ module jet_prime_control
     output logic [2:0]                  lkup_stall_reason_o,
     output logic                        lkup_wr_yield_o,
     output logic                        cap_busy_o,
+    // the (set, way) the capture is reading (valid with cap_busy_o): the
+    // fill engine holds beats for it
+    output logic [SET_W-1:0]            cap_set_o,
+    output logic [WAY_W-1:0]            cap_way_o,
 
     // response sequencer front end (jet_prime_rsp_seq)
     output logic                        tag_req_o,
@@ -1153,6 +1171,16 @@ module jet_prime_control
     logic           w_cmt_tagwr;
     logic           w_cmt_retire;
     logic           w_slot_done;
+    logic           w_slot_last;
+    logic           w_cmt_byp;
+    logic           w_cmt_start;
+    logic [MW-1:0]  w_cmt_hd_idx;
+    logic [1:0]     w_cmt_hd_cls;
+    logic           w_cmt_hd_pd;
+    logic [MW-1:0]  w_cpl_k;
+    logic           w_cpl_we;
+    logic [BUS_WIDTH-1:0] w_cpl_wdata;
+    logic [BUS_WIDTH-1:0] w_cpl_rdata;
     logic           w_slot_we;
     logic [BEAT_W-1:0] w_slot_beat;
     logic [STRB_W-1:0] w_slot_be;
@@ -1170,12 +1198,33 @@ module jet_prime_control
     // it is non-empty
     assign w_fq_head_done = (r_fq_cnt != '0);
 
+    // head of the completion stream: the queue head, or -- queue empty,
+    // commit idle -- the completion landing this cycle (the bypass; the
+    // queue is still pushed, and popped at the retire).  Never in a snoop
+    // grant cycle: with the queue non-empty sn_safe_o already excludes the
+    // grant (w_any_done); the bypass cycle has to exclude it itself, since
+    // the snoop's pend record must land before the snapshot.
+    assign w_cmt_byp    = fill_done_i & (r_fq_cnt == '0);
+    assign w_cmt_hd_idx = w_fq_head_done ? r_fq_idx[r_fq_head] : fill_done_idx_i;
+    assign w_cmt_hd_cls = w_fq_head_done ? r_fq_cls[r_fq_head] : fill_done_cls_i;
+    assign w_cmt_hd_pd  = w_fq_head_done ? r_fq_pd[r_fq_head]  : fill_pass_dirty_i;
+    assign w_cmt_start  = (r_cmt_state == C_IDLE) & (r_sn_state == SN_IDLE)
+                          & (w_fq_head_done | (w_cmt_byp & ~w_sn_gnt));
     // the snapshot cycle drives the jet_prime_mshr commit read port with the
     // head entry's index (the lookup stage owns the port otherwise)
-    assign w_cmt_snap = (r_cmt_state == C_IDLE) & w_fq_head_done
-                        & (r_fq_cls[r_fq_head] != JET_CLS_CU);
+    assign w_cmt_snap = w_cmt_start & (w_cmt_hd_cls != JET_CLS_CU);
 
     assign w_slot_done = (r_cmt_k == r_cmt_count);
+    assign w_slot_last = (r_cmt_k == r_cmt_count - 1'b1);
+    // the deposit cursor: slot 0 in the install cycle, r_cmt_k after
+    assign w_cpl_k      = (r_cmt_state == C_INSTALL) ? '0 : r_cmt_k[MW-1:0];
+    assign w_cpl_we     = r_req_we[32'(r_cmt_idx) * MSHR_COUNT + 32'(w_cpl_k)];
+    assign w_cpl_wdata  = r_req_wdata[32'(r_cmt_idx) * MSHR_COUNT + 32'(w_cpl_k)];
+    // a read slot's word: from the capture register, or straight off port
+    // A when it is the word arriving this cycle (sync read, the last slot
+    // deposited in the install cycle)
+    assign w_cpl_rdata  = (DATA_SYNC_READ & r_cmt_rd_d1 & (r_cmt_rd_k_d1 == w_cpl_k))
+                          ? dat_a_rdata_i : r_cmt_rdata[w_cpl_k];
     assign w_slot_we    = r_req_we[32'(r_cmt_idx) * MSHR_COUNT
                                    + 32'(r_cmt_k[MW-1:0])];
     assign w_slot_beat  = r_req_beat[32'(r_cmt_idx) * MSHR_COUNT
@@ -1191,7 +1240,8 @@ module jet_prime_control
                          | ((r_cmt_state == C_CU_MERGE) & ~fill_beat_valid_i);
     assign w_cmt_datrd = (r_cmt_state == C_MERGE) & ~w_slot_done
                          & ~w_slot_we;
-    assign w_cmt_cpl   = (r_cmt_state == C_DEPOSIT)
+    assign w_cmt_cpl   = (r_cmt_state == C_INSTALL)
+                         | (r_cmt_state == C_DEPOSIT)
                          | (r_cmt_state == C_CU_DEPOSIT);
     assign w_cmt_tagwr = (r_cmt_state == C_INSTALL)
                          | (r_cmt_state == C_PEND)
@@ -1219,11 +1269,10 @@ module jet_prime_control
 
     assign w_cmt_cpl_tag  = (r_cmt_state == C_CU_DEPOSIT)
                             ? r_upgr_seq
-                            : r_cmt_seqs[r_cmt_k[MW-1:0]];
+                            : r_cmt_seqs[w_cpl_k];
     assign w_cmt_cpl_data = (r_cmt_state == C_CU_DEPOSIT)
                             ? r_upgr_wdata
-                            : (w_slot_we ? w_slot_wdata
-                                         : r_cmt_rdata[r_cmt_k[MW-1:0]]);
+                            : (w_cpl_we ? w_cpl_wdata : w_cpl_rdata);
 
     // ------------------------------------------------------------------
     // Hit-serve pend register (ISSUE-001 v2, 2026-11-03): the hit serve
@@ -1400,6 +1449,8 @@ module jet_prime_control
     assign lkup_miss_alloc_o = w_accept_alloc;
     assign lkup_upgrade_o    = w_accept_upgr;
     assign cap_busy_o        = w_cap_active;
+    assign cap_set_o         = r_cap_set;
+    assign cap_way_o         = r_cap_way;
     assign init_busy_o       = r_init_busy;
     assign ctrl_error_o      = r_ctrl_err;
 
@@ -1674,7 +1725,7 @@ module jet_prime_control
     assign mshr_alloc_wb_valid_o   = w_victim_dirty;
     assign mshr_alloc_seq_o        = r_lk_seq;
     assign mshr_lkup_line_o        = w_req_line;
-    assign mshr_cpl_idx_o          = w_cmt_snap ? r_fq_idx[r_fq_head]
+    assign mshr_cpl_idx_o          = w_cmt_snap ? w_cmt_hd_idx
                                                 : mshr_lkup_reg_match_idx_i;
     assign mshr_merge_o            = w_accept_merge;
     assign mshr_merge_idx_o        = mshr_lkup_reg_match_idx_i;
@@ -1944,24 +1995,26 @@ module jet_prime_control
             // commit FSM: the four MAS commit steps in order
             case (r_cmt_state)
                 C_IDLE: begin
-                    // the commit never starts during a snoop service: the
-                    // pend record of a snoop matching the about-to-commit
-                    // entry must land BEFORE the snapshot (and the effect
-                    // cycle's tag write needs the port)
-                    if (w_fq_head_done && (r_sn_state == SN_IDLE)) begin
-                        if (r_fq_cls[r_fq_head] == JET_CLS_CU) begin
+                    // the commit never starts during a snoop service (nor
+                    // in a grant cycle): the pend record of a snoop
+                    // matching the about-to-commit entry must land BEFORE
+                    // the snapshot (and the effect cycle's tag write needs
+                    // the port).  The head is the queue's, or this cycle's
+                    // completion when the queue is empty (the bypass).
+                    if (w_cmt_start) begin
+                        if (w_cmt_hd_cls == JET_CLS_CU) begin
                             r_cmt_state <= C_CU_MERGE;
                         end else begin
                             // snapshot the entry (the commit read port is
                             // driven with the head index this cycle)
                             r_cmt_state <= C_MERGE;
-                            r_cmt_idx   <= r_fq_idx[r_fq_head];
-                            r_cmt_cls   <= r_fq_cls[r_fq_head];
-                            r_cmt_pd    <= r_fq_pd[r_fq_head];
+                            r_cmt_idx   <= w_cmt_hd_idx;
+                            r_cmt_cls   <= w_cmt_hd_cls;
+                            r_cmt_pd    <= w_cmt_hd_pd;
                             r_cmt_line  <= mshr_cpl_line_i;
                             r_cmt_pend  <= mshr_cpl_pend_eff_i;
                             r_cmt_count <= mshr_cpl_merge_count_i;
-                            r_cmt_way   <= r_claim_way[r_fq_idx[r_fq_head]];
+                            r_cmt_way   <= r_claim_way[w_cmt_hd_idx];
                             for (int k = 0; k < MSHR_COUNT; k++) begin
                                 r_cmt_seqs[k] <=
                                     mshr_cpl_merge_seqs_i[k*SEQ_W +: SEQ_W];
@@ -1974,37 +2027,52 @@ module jet_prime_control
                     // step 1: D-4 store-data merge onto the just-filled
                     // beats, in requester order; read slots capture their
                     // response beat at their own position, so a read
-                    // observes exactly the writes that precede it
+                    // observes exactly the writes that precede it.  The
+                    // walk leaves as the last slot advances (count >= 1
+                    // by construction -- slot 0 is the allocator; the
+                    // w_slot_done arm is defensive).
                     if (w_slot_done) begin
                         r_cmt_state <= C_INSTALL;
                     end else if (w_slot_we) begin
                         if (!fill_beat_valid_i) begin
                             r_cmt_k <= r_cmt_k + 1'b1;
+                            if (w_slot_last) r_cmt_state <= C_INSTALL;
                         end
                         // fill beats own the W port: hold the cursor
                     end else begin
-                        // (the beat lands in r_cmt_rdata in the payload block)
+                        // (the beat lands in r_cmt_rdata in the payload
+                        // block -- or, for the last slot, is deposited
+                        // straight off the port in the install cycle)
                         r_cmt_k <= r_cmt_k + 1'b1;
+                        if (w_slot_last) r_cmt_state <= C_INSTALL;
                     end
                 end
                 C_INSTALL: begin
-                    // step 2: the tag install (combinational drive)
-                    r_cmt_k <= '0;
+                    // step 2: the tag install (combinational drive) and
+                    // the first deposit (slot 0); the cursor restarts at
+                    // slot 1 for the remaining deposits, if any
+                    r_cmt_k <= (MW+1)'(1);
                     if (r_cmt_pend != JET_PEND_NONE) begin
                         r_cmt_state <= C_PEND;
-                    end else begin
+                    end else if (r_cmt_count > (MW+1)'(1)) begin
                         r_cmt_state <= C_DEPOSIT;
+                    end else begin
+                        r_cmt_state <= C_RETIRE;
                     end
                 end
                 C_PEND: begin
                     // step 3: the deferred snoop effect, AFTER the install
-                    r_cmt_state <= C_DEPOSIT;
+                    if (r_cmt_count > (MW+1)'(1)) begin
+                        r_cmt_state <= C_DEPOSIT;
+                    end else begin
+                        r_cmt_state <= C_RETIRE;
+                    end
                 end
                 C_DEPOSIT: begin
-                    // step 4a: one deposit per merge-list tag, in order
-                    // (the deposit port is never backpressured; count >= 1
-                    // by construction -- slot 0 is the allocator)
-                    if (r_cmt_k == r_cmt_count - 1'b1) begin
+                    // step 4a: the remaining deposits, one per merge-list
+                    // tag, in order (the deposit port is never
+                    // backpressured)
+                    if (w_slot_last) begin
                         r_cmt_state <= C_RETIRE;
                     end else begin
                         r_cmt_k <= r_cmt_k + 1'b1;

@@ -64,7 +64,10 @@ pipelined fabric, with the DV and formal to carry them.
   table, the memory read alongside the snoop, a retire sideband from the
   cache instead of the pseudo-state inputs; step 4 added the fabric's
   formal safety argument, `formal/jet-prime/jet_prime_pair_fabric`, and
-  the two memory-AR fixes it found).
+  the two memory-AR fixes it found) and [03 the single-miss path](docs/delta/03_single_miss_path.md)
+  (step 5: the fill launch no longer waits behind the victim capture --
+  the engine holds the beats instead -- and the commit answers three
+  cycles after the last beat).
 - Board measurement: the reference rig,
   `projects/fpga-systems/Genesys2/cache-ip/ref`, with `REF_CACHE_SEL=2`
   (one jet-prime straight onto memory, snoop port tied off) or

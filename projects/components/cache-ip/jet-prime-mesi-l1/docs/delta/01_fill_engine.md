@@ -101,6 +101,10 @@ the beat number, so the queue head always presents the right position.
 
 ### The capture contract, with several fills in flight
 
+*Superseded in step 5 ([delta 03](03_single_miss_path.md)): the contract
+moved from the launch to the engine's beat side, and the launch goes out
+in the alloc cycle.* As built in step 2:
+
 The MAS rule "an entry's beats must not land before its victim is
 captured" is still enforced at the launch, in the plane: the engine sees a
 launch only when no capture streams and the cycle is not a dirty-victim

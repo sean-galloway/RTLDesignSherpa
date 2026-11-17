@@ -71,7 +71,7 @@ include $(RDS_ROOT)/make/fpga_flow.mk
 LINT_GENERICS += -GREF_CACHE_SEL=$(REF_CACHE_SEL)
 
 # ---- cache-only area / Fmax (TASK-003 comparison) ----------------------------
-# make ooc CACHE=hpd|cva6|jet|jetp|amber [PERIOD=10.0]: out-of-context synth+route
+# make ooc CACHE=hpd|cva6|jet|jetp|jetp5|amber [PERIOD=10.0]: out-of-context synth+route
 # of one cache module via fpga/tcl/ooc_cache.tcl; reports under
 # ../results/ooc/<cache>/<period>ns/ (summary.txt has lut/ff/ramb/wns; outside
 # fpga/, which `make clean` wipes -- the first run lost three rows that way).
@@ -83,11 +83,13 @@ ooc_top_cva6   := ref_cva6_dcache_top
 ooc_top_jet    := jet_top
 ooc_top_amber  := amber_top
 ooc_top_jetp   := jet_prime_top
+ooc_top_jetp5  := jet_prime_top   # the step-5 cache (its own results row; jetp is steps 2-4's)
 ooc_fl_hpd     := $(FRAMEWORK_ROOT)/rtl/filelists/ref_hpdcache_top.f
 ooc_fl_cva6    := $(FRAMEWORK_ROOT)/rtl/filelists/ref_cva6_dcache_top.f
 ooc_fl_jet     := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jet_top.f
 ooc_fl_amber   := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_amber_top.f
 ooc_fl_jetp    := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jet_prime_top.f
+ooc_fl_jetp5   := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jet_prime_top.f
 .PHONY: ooc
 ooc:
 	mkdir -p $(OOC_OUT)

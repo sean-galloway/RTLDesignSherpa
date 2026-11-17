@@ -113,6 +113,8 @@ module formal_jet_prime_control_live (
     logic [2:0]  dut_stall_reason;
     logic        dut_wr_yield;
     logic        dut_cap_busy;
+    logic [3:0]  dut_cap_set;      // the capture's (set, way): the engine's beat hold key
+    logic        dut_cap_way;
     logic        dut_tag_req;
     logic        dut_cpl_valid;
     logic [1:0]  dut_cpl_tag;
@@ -256,6 +258,8 @@ module formal_jet_prime_control_live (
         .lkup_stall_reason_o     (dut_stall_reason),
         .lkup_wr_yield_o         (dut_wr_yield),
         .cap_busy_o              (dut_cap_busy),
+        .cap_set_o               (dut_cap_set),
+        .cap_way_o               (dut_cap_way),
         .tag_req_o               (dut_tag_req),
         .tag_gnt_i               (seq_tag_gnt),
         .tag_i                   (seq_tag),
@@ -542,12 +546,22 @@ module formal_jet_prime_control_live (
                                                       : {1'b0, dut_fill_idx};
     wire [1:0] w_done_sl   = (fill_done_cls == CLS_CU) ? SL_CU
                                                        : {1'b0, fill_done_idx};
-    // the launch gate: accept combinationally iff no capture streams and
-    // the cycle is not a dirty-victim alloc (the exact jet_prime_coh_core
-    // rule; the engine's AR register and FILL_INFLIGHT room never hold a
-    // launch in this environment -- a fast transport)
-    wire w_eng_acceptable = dut_fill_start & ~dut_cap_busy
-                            & ~(dut_mshr_alloc & dut_alloc_wb_valid);
+    // the launch: accepted combinationally the cycle it is presented
+    // (TASK-001 step 5: no launch gate -- the engine's AR register and
+    // FILL_INFLIGHT room never hold a launch in this environment, a fast
+    // transport).  The capture contract moved to the engine's beat side:
+    // jet_prime_fill holds every beat for the (set, way) the capture is
+    // reading, i.e. the capturing entry's own claim; the environment
+    // models that hold by entry (r_cap_sl, the dirty-victim alloc's
+    // index, held while dut_cap_busy).
+    wire w_eng_acceptable = dut_fill_start;
+    reg  r_cap_sl;
+    always @(posedge clk) begin
+        if (!rst_n)
+            r_cap_sl <= 1'b0;
+        else if (dut_mshr_alloc && dut_alloc_wb_valid)
+            r_cap_sl <= mshr_alloc_idx;
+    end
 
     integer sl;
     always @(posedge clk) begin
@@ -588,6 +602,10 @@ module formal_jet_prime_control_live (
             as_beat_busy: assume (!fill_beat_valid
                 || (r_sl_busy[fill_beat_idx] && r_sl_ar[fill_beat_idx]
                     && (r_sl_beats[fill_beat_idx] < 4'd8)));
+            // the capture contract (the engine's beat hold): no beat for
+            // the entry whose victim is being captured
+            as_beat_not_captured: assume (!fill_beat_valid
+                || !dut_cap_busy || (fill_beat_idx != r_cap_sl));
             as_beat_num: assume (!fill_beat_valid
                 || (fill_beat_num == r_sl_beats[fill_beat_idx][2:0]));
             // done: a slot in flight, its own class, after its AR; a data

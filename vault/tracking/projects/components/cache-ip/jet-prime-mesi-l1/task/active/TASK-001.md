@@ -1,7 +1,7 @@
 # TASK-001: beat HPDcache -- jet-prime's miss path, measured and rebuilt
 
 **Priority:** P2
-**Status:** active 2026-11-12 -- fork done, step 1 (jet-prime without the pair fabric) measured 11-12, step 2 (multiple outstanding fills) built and measured 11-15, step 3 (pipelined pair fabric) built and measured 11-16, step 4 (the fabric's formal safety argument; two memory-AR defects found and fixed, BUG-001) done 11-17; the control liveness rerun still to record
+**Status:** active 2026-11-12 -- fork done, step 1 (jet-prime without the pair fabric) measured 11-12, step 2 (multiple outstanding fills) built and measured 11-15, step 3 (pipelined pair fabric) built and measured 11-16, step 4 (the fabric's formal safety argument; two memory-AR defects found and fixed, BUG-001) done 11-17, step 5 (the single-miss path: launch no longer behind the capture, commit tail three cycles) built and measured 11-17 -- under HPDcache at every depth as a pair; the control formal reruns still to record
 **Owner:** TBD
 
 Filed 2026-11-12 (Sean: "Make a jet-prime and do 1"). The reference
@@ -311,8 +311,78 @@ depth on `r64k_we64` and `r64k_we255`, with the resident-hit row still at
   8.11 (dual 8.11/8.10 -> 8.10/8.09, `r64k_we64` d16 dual 5.81/5.83 ->
   5.81/5.82); the comparison report regenerated from bin 3.
 
-Next: the done criterion is met at depths 4 and 16 on both configurations
-as a pair; depth 1 stays 1.7 cycles over HPDcache (the cache's single-miss
-path: AR register + lookup pipe + the fabric's two stages) and the
-fill-engine watch path is the timing long pole -- both are the next
-levers if the owner wants depth 1 won.
+### 2026-11-17 -- step 5: the single-miss path
+
+- **Why.** The plan's four steps were done, the done criterion ("every
+  depth") was not: depth 1 was over on both configurations (`r64k_we64`
+  15.39 vs HPDcache 13.73, `r64k_we255` 19.11 vs 13.65). The sweep's
+  latency histograms split it (a quarter of the read-lean misses and 96 %
+  of the write-heavy ones in [32, 64) cycles; every HPDcache miss in
+  [16, 32)), and a cycle-by-cycle trace of the pair-rig gate cell with a
+  waveform dump (`docs/delta/03_single_miss_path.md` has the table) put a
+  clean miss at 23 cycles and a dirty-victim miss at 33: the launch waited
+  behind the whole victim capture, and the tail from the last beat to the
+  response was six cycles, three of them the commit's own bookkeeping.
+- **Built.** (1) The MAS ch02/01 contract moved from the launch to the
+  hazard: `jet_prime_control` exports the capture's `(set, way)`
+  (`cap_set_o`/`cap_way_o`), `jet_prime_fill` holds a beat for that way at
+  its staging-queue head (`cap_hold_i`/`cap_set_i`/`cap_way_i`; head-of-
+  line by design, bounded by the capture); the plane's launch gate is
+  gone, the launch goes out in the alloc cycle. (2) The commit tail: a
+  completion on an empty done queue is snapshot in its own cycle (never
+  in a snoop grant cycle; a merge in that cycle is held), `C_MERGE` leaves
+  as the last slot advances, and the first deposit rides with the install
+  (a last read slot's word deposited straight off the sync port). No
+  common-ip change; the fabric is untouched.
+- **Checks that moved with the timing** (each read as a design bug
+  first; handbook `dv/checks-encode-events-not-cycles`,
+  `design/enforce-the-contract-at-the-hazard`): the tops' launch-gate
+  assertions (now "no beat into the captured way"); the core TB's
+  launch-time `cap_busy` check (now at the beat) and its armed-downgrade
+  slot-state read (now after the retire -- the response is two cycles
+  ahead of the claim's release); the control TB's commit watcher (first
+  sample is the cycle it starts in) and its deposit attribution (by the
+  commit's `w_cmt_cpl` tap, not by tag: a hit granted the just-released
+  tag deposited inside the window at FULL -- "one deposit per requester:
+  got [8, 9, 0, 1, 8]"); the control formal environment (unconditional
+  accept, beats held by entry while `cap_busy`). `jet_prime_fill` gained
+  `capture_hold`.
+- **DV.** Lint clean at two parameter sets. Gate 21/21; FULL 155/155 (9:17)
+  from clean on the final RTL; ref-g2 gate 7/7.
+- **Formal.** Control flat regenerated (two new ports; `formal_status
+  --check-flats` CURRENT 2/2). The safety prove (BMC depth 64, boolector) running at this commit -- step 48 at 11:28, 36 min in; the liveness prove and both covers queued behind the step-3 flat's liveness run, which owns their work directory. The step-3 flat's liveness
+  BMC (step 4's pending verdict): still running at this commit, at step 160 of 192 since 11:11 (the solver has sat on that step 20 min; 5:54 in), covers queued behind it. The fabric formal is
+  step 4's (fabric unchanged).
+- **Board.** `ref_jetpp_bringup` bin 4: 18,126 LUT / 11,890 FF, WNS
+  +0.019 ns at 100 MHz under the 0.2 ns uncertainty budget (worst path
+  still the fill engine's staging-queue read pointer into the data-array
+  write address; bin 3 placed it at +0.043). Smoke init+smoke PASS, ci0
+  CRC the jet rig's (1814064162). Sweeps
+  `perf_sweep_jetpp_bin4_single_20261117T191112Z.json` and
+  `perf_sweep_jetpp_bin4_dual_20261117T191252Z.json`, 55/55 each, err 0;
+  every single-core CRC equals bin 3's. Cache alone OOC
+  (`ref/results/ooc/jetp5`): 6,010 LUT / 5,399 FF, WNS +0.321 ns (s2's
+  cache 6,047 / 5,394 at +0.118).
+- **Result, cycles per transaction (s3 -> s5, HPDcache).** `r64k_we64`
+  d1 15.39 -> 12.76 (13.73), d2 9.55 -> 7.91 (9.79), d4 7.05 -> 6.10
+  (8.22), d8 5.99 -> 5.41 (7.67), d16 5.78 -> 5.29 (7.64); `r64k_we255`
+  d1 19.11 -> 13.17 (13.65), d2 11.79 -> 9.31 (11.04), d4 9.52 -> 8.65
+  (10.53), d8 8.72 -> 8.53 (10.51), d16 8.61 -> 8.51 (10.51); `r128k_we64`
+  d1 21.02 -> 16.94 (18.83), d16 8.11 -> 7.58 (10.90). Depth-1 misses all
+  in [16, 32), max 26, mean 20.2 (HPDcache 20.5). Dual-active = single
+  (`r64k_we64` d1 12.78 / 12.74, d16 5.32 / 5.34). Hit floor 3, hit rows
+  1.00, MLP 10.6.
+- **Reading.** The done criterion is met: under HPDcache at every depth
+  on `r64k_we64` and `r64k_we255` as a pair, the resident-hit row at 1.0,
+  jet's FULL grid green on the fork. The depth-1 margin on the write-heavy
+  row is 3.5 % (0.48 cycles per transaction) and is the resident hit's:
+  jet answers a hit in 3 cycles to HPDcache's 2, half the transactions at
+  depth 1 are hits, so the hit costs 0.5 cycles per transaction there and
+  shows as the remaining gap in every resident configuration at depths 1
+  and 2. That is the lookup pipeline (jet v3's 100 MHz closure), not the
+  miss path, and it is not in this task's criterion.
+
+Next: the task is done when the control formal reruns land (safety prove,
+liveness, covers on the step-5 flat; the step-3 flat's liveness verdict),
+then it closes. The 2-cycle hit (HPDcache's floor) would be a separate
+item: the v3 lookup pipeline's capture/classify split against 100 MHz.

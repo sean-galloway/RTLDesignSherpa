@@ -23,7 +23,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Active
 
-- **TASK-001** ([page](active/TASK-001.md)) — beat HPDcache: jet forked as jet-prime at 2be919254 (2026-11-12); step 1 measures jet-prime straight onto memory on the ref rig (REF_CACHE_SEL 2) to split jet's miss cost into pair fabric and cache; steps 2-4 are multiple outstanding fills, a pipelined fabric, and the DV/formal to carry them.
+- **TASK-001** ([page](active/TASK-001.md)) — beat HPDcache: jet forked as jet-prime at 2be919254 (2026-11-12); step 1 measures jet-prime straight onto memory on the ref rig (REF_CACHE_SEL 2) to split jet's miss cost into pair fabric and cache; steps 2-4 are multiple outstanding fills, a pipelined fabric, and the DV/formal to carry them; step 5 (11-17) the single-miss path, which met the done criterion at every depth.
 
 ## Closed
 

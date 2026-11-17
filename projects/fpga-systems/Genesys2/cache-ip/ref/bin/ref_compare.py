@@ -33,16 +33,24 @@ RESULTS = {
     #   s3 = step 3, the jet-prime PAIR through the pipelined
     #        jet_prime_pair_fabric (REF_CACHE_SEL=3, injector 1 idle): the
     #        jet rig's structure with jet-prime's RTL -- against s2 the
-    #        fabric's cost to a single core, against jet the rebuild.
+    #        fabric's cost to a single core, against jet the rebuild
+    #        (bin 3 = step 4's fabric with the memory-AR fixes);
+    #   s5 = step 5, the single-miss path: the fill launch no longer waits
+    #        behind the victim capture (the engine holds the beats
+    #        instead) and the commit answers three cycles after the last
+    #        beat (bin 4, the same pair rig).
     "jet-prime s1": f"{RIGS}/ref/results/perf_sweep_jetp_bin1_single_*.json",
     "jet-prime s2": f"{RIGS}/ref/results/perf_sweep_jetp_bin2_single_*.json",
-    "jet-prime s3": f"{RIGS}/ref/results/perf_sweep_jetpp_bin*_single_*.json",
+    "jet-prime s3": f"{RIGS}/ref/results/perf_sweep_jetpp_bin3_single_*.json",
+    "jet-prime s5": f"{RIGS}/ref/results/perf_sweep_jetpp_bin4_single_*.json",
 }
 OOC = {
     "amber": "amber", "jet": "jet", "HPDcache": "hpd", "CVA6 WB": "cva6",
     "jet-prime s1": "jetp_step1", "jet-prime s2": "jetp",
     # s3 is the s2 cache behind a fabric: the cache-only row is s2's
     "jet-prime s3": "jetp",
+    # s5 changes the cache (control + fill engine): its own OOC row
+    "jet-prime s5": "jetp5",
 }
 OOC_DIR = f"{CACHE_IP}/results/ooc"
 COLS = list(RESULTS)

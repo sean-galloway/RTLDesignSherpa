@@ -39,10 +39,11 @@
 //     number of accepted-not-done fills: at 1 the engine is the old
 //     single-outstanding l1_fill (the pair rig keeps it there until the
 //     fabric is rebuilt in step 3); at MSHR_COUNT+1 every entry and the
-//     upgrade can be in flight together.  The plane gates fill_start_i
-//     with the capture contract (no launch while a victim capture streams
-//     or opens -- the entry's own beats must not land before its victim
-//     is captured); the engine itself has no view of the data array.
+//     upgrade can be in flight together.  A launch is accepted the cycle
+//     its alloc presents it, victim capture or not (TASK-001 step 5): the
+//     capture contract -- an entry's beats never land before its victim
+//     is captured -- is kept on the R side (below), so the AR round trip
+//     overlaps the capture instead of waiting behind it.
 //
 //   AR side: one registered AR at a time (arvalid held until arready, the
 //     AXI rule).  ARID = slot (zero-extended), ARLEN = FILL_BEATS-1 for a
@@ -53,10 +54,17 @@
 //     ({slot, data, PassDirty, last}; fub_axi_rready is the queue's
 //     wr_ready, DECISION D-6: rready never drops on consumer-side stalls,
 //     only at a genuinely full queue).  The queue's read side is presented
-//     unconditionally: the beat consumer (data-array W port) is
-//     always-ready for fill beats (the MAS fill > commit > hit rule), so
-//     the queue drains one beat per cycle and a slow burst never blocks
-//     another slot's beats for more than the queue depth.  Beats of
+//     whenever its head is not a beat for the (set, way) a victim capture
+//     is reading (cap_hold_i with cap_set_i/cap_way_i, jet_prime_control's
+//     capture engine: the hold is the capture contract, enforced where the
+//     hazard is -- at the array write -- rather than at the launch); the
+//     beat consumer (data-array W port) is always-ready for a presented
+//     beat (the MAS fill > commit > hit rule), so the queue drains one
+//     beat per cycle and a slow burst never blocks another slot's beats
+//     for more than the queue depth.  A held head holds the beats queued
+//     behind it (any slot) for the remainder of the capture -- bounded
+//     (FILL_BEATS port-B reads plus a snoop's CD stream), and on the rig
+//     the memory's first beat lands about when the capture ends.  Beats of
 //     different IDs may interleave (AXI4 permits it); each slot keeps its
 //     own beat counter, so the beat number presented is always the slot's
 //     own position in its burst.
@@ -68,6 +76,10 @@
 //     CLEAN_UNIQUE completes on its single RLAST beat with no beat
 //     presented.  jet_prime_control queues completions in done order
 //     (its done queue replaced the launch-order completion queue).
+//
+//   Completion is reported only when the last beat is consumed, so a held
+//     burst completes after its capture; FILL_INFLIGHT counts it in flight
+//     throughout.
 //
 //   Storage: SLOTS x {valid, set, way, beat counter, pd, ru}, one AR
 //   register, the staging queue, an in-flight counter.  No FSM: the AR
@@ -143,7 +155,13 @@ module jet_prime_fill
     input  logic [WAY_W-1:0]            fill_way_i,
     output logic                        fill_accept_o,
 
-    // beat stream (consumer always-ready)
+    // victim-capture hold (jet_prime_control's capture engine): while
+    // high, no beat for {cap_set_i, cap_way_i} is presented or popped
+    input  logic                        cap_hold_i,
+    input  logic [SET_W-1:0]            cap_set_i,
+    input  logic [WAY_W-1:0]            cap_way_i,
+
+    // beat stream (consumer always-ready for a presented beat)
     output logic                        fill_beat_valid_o,
     output logic [MW-1:0]               fill_beat_idx_o,
     output logic [BEAT_W-1:0]           fill_beat_num_o,
@@ -253,6 +271,8 @@ module jet_prime_fill
     logic                    w_pop_pd;
     logic                    w_pop_last;
     logic                    w_pop_cu;
+    logic                    w_pop_hold;    // the head is a beat for the way being captured
+    logic                    w_pop;         // the head is consumed this cycle
 
     assign w_rid_slot = fub_axi_rid[SLOT_W-1:0];
 
@@ -265,7 +285,7 @@ module jet_prime_fill
         .wr_valid    (fub_axi_rvalid),
         .wr_ready    (stg_wr_ready),
         .wr_data     ({w_rid_slot, fub_axi_rdata, fub_axi_rresp[2], fub_axi_rlast}),
-        .rd_ready    (1'b1),           // the beat consumer is always-ready
+        .rd_ready    (~w_pop_hold),    // the consumer is always-ready; only the capture hold stalls the head
         .count       (),
         .rd_valid    (stg_rd_valid),
         .rd_data     (stg_rd_data)
@@ -275,18 +295,25 @@ module jet_prime_fill
 
     assign {w_pop_slot, w_pop_data, w_pop_pd, w_pop_last} = stg_rd_data;
     assign w_pop_cu = (w_pop_slot == CU_SLOT);
+    // the capture contract: a beat for the (set, way) a victim capture is
+    // reading waits at the head until the capture completes (the CU slot
+    // carries no beat and is never held)
+    assign w_pop_hold = stg_rd_valid & cap_hold_i & ~w_pop_cu
+                        & (r_slot_set[w_pop_slot] == cap_set_i)
+                        & (r_slot_way[w_pop_slot] == cap_way_i);
+    assign w_pop      = stg_rd_valid & ~w_pop_hold;
 
     // ------------------------------------------------------------------
     // Beat presentation + completion (combinational on the queue head)
     // ------------------------------------------------------------------
-    assign fill_beat_valid_o = stg_rd_valid & ~w_pop_cu;
+    assign fill_beat_valid_o = w_pop & ~w_pop_cu;
     assign fill_beat_idx_o   = MW'(w_pop_slot);
     assign fill_beat_num_o   = r_slot_cnt[w_pop_slot];
     assign fill_beat_set_o   = r_slot_set[w_pop_slot];
     assign fill_beat_way_o   = r_slot_way[w_pop_slot];
     assign fill_beat_data_o  = w_pop_data;
 
-    assign fill_done_o       = stg_rd_valid & w_pop_last;
+    assign fill_done_o       = w_pop & w_pop_last;
     assign fill_done_idx_o   = MW'(w_pop_slot);
     assign fill_done_cls_o   = w_pop_cu            ? JET_CLS_CU
                                : r_slot_ru[w_pop_slot] ? JET_CLS_RU
@@ -359,7 +386,7 @@ module jet_prime_fill
             // beat bookkeeping + slot close at the last beat (an accept and
             // a done never target the same slot: a slot is relaunched only
             // after its entry retires)
-            if (stg_rd_valid) begin
+            if (w_pop) begin
                 r_slot_cnt[w_pop_slot] <= r_slot_cnt[w_pop_slot] + 1'b1;
                 r_slot_pd[w_pop_slot]  <= r_slot_pd[w_pop_slot] | w_pop_pd;
                 if (w_pop_last) begin
@@ -405,6 +432,11 @@ module jet_prime_fill
     assert property (@(posedge clk) disable iff (!rst_n)
         (fill_start_i |-> ~r_slot_vld[w_launch_slot]))
         else $error("jet_prime_fill: launch for a slot already in flight");
+    // The capture contract: no beat lands in the way being captured.
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (fill_beat_valid_o |-> ~(cap_hold_i & (fill_beat_set_o == cap_set_i)
+                                            & (fill_beat_way_o == cap_way_i))))
+        else $error("jet_prime_fill: fill beat into the way a victim capture is reading");
     // pragma translate_on
 
 endmodule : jet_prime_fill

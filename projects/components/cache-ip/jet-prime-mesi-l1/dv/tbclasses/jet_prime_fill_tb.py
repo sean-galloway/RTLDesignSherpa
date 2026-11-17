@@ -151,6 +151,9 @@ class JetFillTB(TBBase):
         d.fill_idx_i.value = 0
         d.fill_set_i.value = 0
         d.fill_way_i.value = 0
+        d.cap_hold_i.value = 0
+        d.cap_set_i.value = 0
+        d.cap_way_i.value = 0
         d.rst_n.value = 0
         await self.wait_clocks('clk', 5)
         d.rst_n.value = 1
@@ -224,6 +227,10 @@ class JetFillTB(TBBase):
             beat = int(d.fill_beat_valid_o.value)
             if beat:
                 idx = int(d.fill_beat_idx_o.value)
+                if int(d.cap_hold_i.value) \
+                        and int(d.fill_beat_set_o.value) == int(d.cap_set_i.value) \
+                        and int(d.fill_beat_way_o.value) == int(d.cap_way_i.value):
+                    self._score("beat into the way under capture hold", 1, 0)
                 rec = self.slot.get(idx)
                 if rec is None or rec['cls'] == CLS_CU:
                     self._score("beat for a slot not in a data fill", idx, None)
@@ -411,6 +418,80 @@ class JetFillTB(TBBase):
         await self.wait_idle()
         self.scenarios['slot_reuse'] = True
 
+    async def _scen_capture_hold(self):
+        """capture_hold: the capture contract at the beat.  A fill to
+        (set 5, way 1) is launched with cap_hold_i raised for that very
+        (set, way) before its burst returns; its beats wait at the
+        staging-queue head -- none presented, the burst backpressured once
+        the queue fills -- while a second fill to another way launched
+        behind it waits too when its burst queued behind the held one (the
+        in-order responder: the hold is head-of-line, by design, bounded
+        by the capture) and completes under the hold when the responder
+        returned it first (out of order: the hold is per (set, way)).
+        Dropping the hold releases the held fill; a hold on a different
+        (set, way) holds nothing."""
+        d = self.dut
+        a = self._rand_line(); self._fill_line(a)
+        b = self._rand_line()
+        while b == a:
+            b = self._rand_line()
+        self._fill_line(b)
+        await self.launch(a, CLS_RNSD, idx=1, set_idx=5, way=1, label='hold-a')
+        await self._drive_pt()
+        d.cap_hold_i.value = 1
+        d.cap_set_i.value = 5
+        d.cap_way_i.value = 1
+        # the second fill behind the held head needs in-flight room: at
+        # FILL_INFLIGHT = 1 the engine (correctly) holds its launch until
+        # the held fill completes, so the cell holds one fill only
+        two = self.FILL_INFLIGHT > 1
+        if two:
+            await self.launch(b, CLS_RNSD, idx=2, set_idx=9, way=0, label='hold-b')
+        # let the burst(s) arrive and sit: no beat of either slot, the
+        # held slot stays in flight
+        for _ in range(60):
+            await self._cycle()
+        self._score("hold: no beat presented while the hold is up",
+                    sum(r['beats'] for k, r in self.slot.items() if k in (1, 2)), 0)
+        self._score("hold: slot 1 still in flight", 1 in self.slot, True)
+        # the second fill waits behind the held head only when its burst
+        # queued behind it -- the in-order responder (gate); out of order
+        # (func/full) it may have returned first and completed under the
+        # hold, which is the point: the hold is per (set, way), not global
+        if two and not self.ooo:
+            self._score("hold: slot 2 (behind the held head) still in flight",
+                        2 in self.slot, True)
+        self._score("hold: the engine reports busy", int(d.fill_busy_o.value), 1)
+        # release: the held slot completes (first, with the one behind it
+        # next, when the responder kept the order)
+        await self._drive_pt()
+        d.cap_hold_i.value = 0
+        rel = self.cyc
+        await self.wait_done(1, 'hold-a')
+        done1 = [c for c, sl, *_ in self.done_log if sl == 1]
+        self._score("hold: the held slot completes after the release",
+                    bool(done1) and done1[-1] >= rel, True)
+        if two:
+            await self.wait_done(2, 'hold-b')
+            if not self.ooo:
+                self._score("hold: the held slot completes first, the one behind it next",
+                            [x[1] for x in self.done_log[-2:]], [1, 2])
+        await self.wait_idle()
+        # a hold on an unrelated (set, way) holds nothing
+        c = self._rand_line(); self._fill_line(c)
+        await self._drive_pt()
+        d.cap_hold_i.value = 1
+        d.cap_set_i.value = 5
+        d.cap_way_i.value = 0
+        acc, _ = await self.launch(c, CLS_RNSD, idx=3, set_idx=5, way=1, label='hold-c')
+        await self.wait_done(3, 'hold-c', max_wait=400)
+        self._score("hold on another way: the fill completes under it",
+                    3 in self.slot, False)
+        await self._drive_pt()
+        d.cap_hold_i.value = 0
+        await self.wait_idle()
+        self.scenarios['capture_hold'] = True
+
     async def _scen_random(self):
         """random_fills: random launches to any free slot (10 % CU on the
         upgrade slot), random lines, the responder profile rotating; at
@@ -460,6 +541,7 @@ class JetFillTB(TBBase):
         await self._scen_cu_no_data()
         await self._scen_concurrent()
         await self._scen_slot_reuse()
+        await self._scen_capture_hold()
         await self._scen_random()
         missing = [k for k, v in self.scenarios.items() if not v]
         self._score("all scenarios ran", len(missing), 0)

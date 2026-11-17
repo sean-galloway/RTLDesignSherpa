@@ -39,6 +39,7 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[formal]] - sv2v/SBY flow, mutation rule, vacuity traps
 - [[cloud-sandbox]] - running sims off the workstation; the Verilator pin, the PyPI pin
 - [[silent-fallbacks]] - why almost every wrong DV conclusion is something that did not happen without saying so
+- [[checks-encode-events-not-cycles]] - a TB check keyed on a cycle offset between two events fails when the pipeline shortens and reads as a design bug; key on the event (FSM state, retire, the write at the hazard) and make a watcher's first sample the current cycle (jet-prime step 5: three such checks)
 - [[structure-trackers]] - passive per-FUB monitors emitting one greppable table each, so a decision can be followed across structures; they rot silently on RTL renames, so validate content not existence
 - [[wavedrom-generators]] - the deliverable is the JSON, so empty = FAIL; the clock-group-name and add_interface-prefix traps; the gaxi reference
 - GAXI WaveDrom tutorial - the six-scenario skid-buffer walk-through (segmented capture, auto-binding, groups, arrows) is reader-facing and lives in the TestTutorial book: [wavedrom_gaxi_example.md](../../../docs/markdown/TestTutorial/wavedrom_gaxi_example.md)

@@ -35,8 +35,11 @@ eviction guard):
   * every drain retires the WB head to the MemoryModel, audited against
     the capture-time content snapshot (end-to-end writeback payload);
   * windowed timing properties: every alloc's fill launch lands within
-    FILL_LAUNCH_WINDOW cycles (and never during a victim capture -- the
-    MAS ch02/01 cap_busy contract, checked every cycle).
+    FILL_LAUNCH_WINDOW cycles; the MAS ch02/01 capture contract is checked
+    every cycle at the beat -- no fill beat lands in the (set, way) a
+    victim capture is reading (TASK-001 step 5 moved the contract from the
+    launch, which now goes out in the alloc cycle, to the engine's beat
+    hold).
 
 Golden models carried here (independent copies; kmap-TB rule):
   memory-side line content   MemoryModel (the AXI responders share it)
@@ -686,22 +689,23 @@ class JetCoreTB(L1ControlTB):
                     self._score(f"fill beat data line={line:#x} b{num}",
                                 got, self._beat_of_line(
                                     self._mem_line(line), num))
+                    # the capture contract at the hazard: a beat never
+                    # lands in the way a victim capture is reading
+                    if int(uc.cap_busy_o.value) \
+                            and int(uc.cap_set_o.value) == bset \
+                            and int(uc.cap_way_o.value) == bway:
+                        self.cap_busy_violations += 1
+                        self._score("fill beat into the way being captured",
+                                    1, 0)
 
             # 5. fill_done: the named entry (or the CU) completes; PassDirty
             if int(uc.fill_done_i.value):
                 self._mon_fill_done(uc)
 
-            # 6. fill launch accept: windowed property + the cap_busy
-            #    contract (never during a capture, never on a dirty
-            #    victim's alloc cycle)
+            # 6. fill launch accept: windowed property (the launch may now
+            #    coincide with a dirty victim's alloc and run during its
+            #    capture -- the contract is the beat check above)
             if int(uc.fill_start_o.value) and int(uc.fill_accept_i.value):
-                if int(uc.cap_busy_o.value):
-                    self.cap_busy_violations += 1
-                    self._score("fill launch during a victim capture", 1, 0)
-                if int(uc.mshr_alloc_o.value) \
-                        and int(uc.mshr_alloc_wb_valid_o.value):
-                    self.cap_busy_violations += 1
-                    self._score("fill launch on a dirty-alloc cycle", 1, 0)
                 cls = int(uc.fill_cls_o.value)
                 if cls != JET_CLS_CU:
                     if not self.unlaunched:
@@ -1166,6 +1170,17 @@ class JetCoreTB(L1ControlTB):
         n = await self._send(addr, we, be, wdata, label)
         await self._await_rsp(n, label)
 
+    async def _await_retired(self, line, label=''):
+        """Wait for the line's MSHR entry to retire.  Step 5's commit
+        answers the requester in the install cycle, two cycles before the
+        retire frees the claim -- a post-response slot-state check through
+        the claim-aware helper must wait for the claim to go."""
+        for _ in range(self.RSP_TIMEOUT_CYCLES):
+            if line not in self.entries:
+                return
+            await self._negedge_settled()
+        raise RuntimeError(f"{label}: entry for line {line:#x} never retired")
+
     async def _await_all_responses(self, label='drain'):
         if self.txns:
             await self._await_rsp(self.txns - 1, label)
@@ -1364,6 +1379,7 @@ class JetCoreTB(L1ControlTB):
         await self._snoop(line_x, 'SNOOP_READ_SHARED', label='b4:rs')
         await self._snoop(line_x, 'SNOOP_READ_ONCE', label='b4:ro')
         await self._await_rsp(n, 'b4:rsp')
+        await self._await_retired(line_x, 'b4:retire')
         self.set_profile('fast')
         self._score("b4: fill committed the armed downgrade (S, not I)",
                     self._slot_state_of(line_x), 'S')
@@ -1670,7 +1686,7 @@ class JetCoreTB(L1ControlTB):
                     mx <= self.FILL_LAUNCH_WINDOW, True)
         self._score("windowed fill start: launches observed",
                     self.launch_count >= self.WAYS + 4, True)
-        self._score("cap_busy contract: no launch during a capture",
+        self._score("capture contract: no beat into the way being captured",
                     self.cap_busy_violations, 0)
         self.log.info(f"WindowedFillStart: {self.launch_count} launches, "
                       f"max wait {mx}")

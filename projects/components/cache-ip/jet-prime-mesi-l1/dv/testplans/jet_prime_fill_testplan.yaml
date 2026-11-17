@@ -61,6 +61,19 @@ scenarios:
     what: A slot relaunches right after its done (entry retired and
       reallocated); the second burst is scored on its own line, set and way.
     status: covered
+  - name: capture_hold
+    level: all
+    what: The capture contract at the beat (TASK-001 step 5).  A fill to
+      (set 5, way 1) launches with cap_hold_i raised for that (set, way)
+      before its burst returns, a second fill to another way behind it.
+      For 60 cycles no beat of the held slot is presented and it stays in
+      flight; with the in-order responder (gate) the second fill waits
+      behind the held head too (head-of-line by design, bounded by the
+      capture) and the release delivers both, the held slot first; out of
+      order (func/full) the second fill may complete under the hold -- the
+      hold is per (set, way).  At FILL_INFLIGHT = 1 one fill is held.  A
+      hold on an unrelated (set, way) holds nothing.
+    status: covered
   - name: random_fills
     level: gate 40 / func 300 / full 1500 launches
     what: Random launches to any free slot (10 % CU on the upgrade slot),
