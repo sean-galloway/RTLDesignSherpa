@@ -24,8 +24,13 @@ package granite_pkg;
     // "off" shrinks toward one, never reaches zero -- and at 8 the seam
     // hides the read round-trip latency (~5 outstanding needed to sustain
     // the port at BL8; 8 gives margin).
+    // 16 since 2026-11-16 (memory-controllers MC-015 / MC-017, owner: THE FPGA
+    // SKU IS THE CONFIGURATION): eight slots at the store's nine-cycle slot
+    // turnaround cap the writes at 8/9 of a command per cycle (686 of 781 MB/s);
+    // sixteen puts the writes level with the reads on the board (+913 LUT,
+    // closes 100 MHz under the 0.2 ns budget).
     // ------------------------------------------------------------------
-    parameter int GRANITE_SEAM_N          = 8;
+    parameter int GRANITE_SEAM_N          = 16;
     parameter int GRANITE_ENTRY_STORE_DEPTH = 8;
 
     // ------------------------------------------------------------------

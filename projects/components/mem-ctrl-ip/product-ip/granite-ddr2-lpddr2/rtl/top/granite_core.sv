@@ -60,7 +60,8 @@ module granite_core
     // Runtime enable SCHED_POLICY.dual_issue; the lane runs only on DDR2 with
     // row_phase off both column phases and one column command per DFI word
     // (the same gate as pumice_core). 0 = single issue, bit-identical.
-    parameter bit DUAL_ISSUE     = 1'b0,
+    // 1 since 2026-11-16 (the FPGA SKU: measured on the board, MC-014 / MC-017).
+    parameter bit DUAL_ISSUE     = 1'b1,
     parameter int BANK_FIFO_DEPTH = 0,   // FIFO store queue depth per (direction, bank); 0 = NUM_ENTRIES (pool-only admission, the measured default)
     parameter bit HEAD2_EN        = 1'b1,// FIFO store: 0 = one head record per bank (no pop-shadow record; measured trade, mc_bank_fifo_store)
     // LPDDR2 training plane (ZQ calibration, DQ calibration) built in. 1 =

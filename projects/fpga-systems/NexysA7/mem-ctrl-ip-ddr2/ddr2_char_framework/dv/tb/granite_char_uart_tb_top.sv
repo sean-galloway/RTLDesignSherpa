@@ -59,9 +59,9 @@ module granite_char_uart_tb_top
     // granite_core storage / timing knobs (report 5.10); the proxy drives
     // them from TEST_NUM_ENTRIES / TEST_STORE_BACKEND / TEST_BANK_FIFO_DEPTH /
     // TEST_HEAD2_EN / TEST_DFI_CDC_EN / TEST_FIXED_TIMINGS. Defaults are the board build.
-    parameter int NUM_ENTRIES     = 8,
+    parameter int NUM_ENTRIES     = 16,  // the FPGA SKU since 2026-11-16 (8 before; MC-015)
     parameter int STORE_BACKEND   = 1,
-    parameter bit DUAL_ISSUE      = 1'b0,// the pick core's row lane (TEST_DUAL; memory-controllers MC-014)
+    parameter bit DUAL_ISSUE      = 1'b1,// the pick core's row lane (TEST_DUAL; memory-controllers MC-014); the FPGA SKU since 2026-11-16
     parameter int DIR_BATCH_MAX      = 255,   // the pick core's direction batch cap (TEST_DIR_BATCH_MAX; memory-controllers MC-017)
     parameter int BANK_FIFO_DEPTH = 0,   // 0 = NUM_ENTRIES
     parameter bit HEAD2_EN        = 1'b1,// 0 = one head record per bank (FIFO store)

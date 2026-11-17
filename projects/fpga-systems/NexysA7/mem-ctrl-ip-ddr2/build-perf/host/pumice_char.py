@@ -433,15 +433,26 @@ class ControllerConfig:
     cmd_delay:     int = int(os.environ.get("TEST_CMD_DELAY", "1"))
     rd_phase:      int = 0
     wr_phase:      int = 0
-    # TASK-047 dual issue: TEST_DUAL_ISSUE=1 sets SCHED_POLICY.dual_issue, and
-    # every row command moves to DFI_PHASE.row_phase (default 1 with the lane,
-    # 0 without -- the RDL reset), off both column phases. Only a
-    # PUMICE_DUAL_ISSUE=1 bitstream has the lane; on any other the bit is inert.
-    # Lane off, neither field is written (only pumice's CSR map has them),
-    # unless TEST_ROW_PHASE is set explicitly: then row_phase is written alone.
-    dual_issue:    bool = os.environ.get("TEST_DUAL_ISSUE", "0") != "0"
+    # TASK-047 / MC-014 dual issue: SCHED_POLICY.dual_issue on, and every row
+    # command on DFI_PHASE.row_phase (default 1 with the lane, 0 without -- the
+    # RDL reset), off both column phases. None (no TEST_DUAL_ISSUE) = the
+    # controller's SKU, resolved in apply(): granite ON since 2026-11-16 (THE
+    # FPGA SKU IS THE CONFIGURATION -- the lane is built by default and the
+    # MC-014 / MC-017 cells are taken with it), pumice OFF (its lane default is
+    # pumice TASK-047's open decision). TEST_DUAL_ISSUE=1 / 0 wins either way;
+    # 0 writes the enable off and leaves row_phase at reset. On a bitstream
+    # without the lane both fields are inert (DUAL_ISSUE gates them in RTL).
+    dual_issue:    Optional[bool] = (os.environ["TEST_DUAL_ISSUE"] != "0"
+                                     if "TEST_DUAL_ISSUE" in os.environ else None)
     row_phase:     int = int(os.environ.get("TEST_ROW_PHASE", "1"))
     row_phase_set: bool = "TEST_ROW_PHASE" in os.environ
+
+    def lane_on(self, drv: DDR2CharDriver) -> bool:
+        """The runtime row-lane enable this run programs: the explicit
+        TEST_DUAL_ISSUE, else the controller's SKU (granite on, pumice off)."""
+        if self.dual_issue is not None:
+            return self.dual_issue
+        return drv.controller == "granite"
     # SCHED_POLICY.fast_rd_release. Reset ON since 2026-11-07 (pumice BUG-033
     # fixed, e91fb524e); TEST_FAST_RD=0 forces it OFF for an A/B, anything
     # else leaves it on. Written explicitly either way so the run's state does
@@ -507,7 +518,8 @@ class ControllerConfig:
                                rd_in_order=self.rd_in_order,
                                rddata_delay=self.rddata_delay)
         # Program the read-capture phase every scenario for the same reason.
-        row_phase = self.row_phase if (self.dual_issue or self.row_phase_set) else None
+        lane = self.lane_on(drv)
+        row_phase = self.row_phase if (lane or self.row_phase_set) else None
         drv.set_dfi_phase(rd_phase=self.rd_phase, wr_phase=self.wr_phase,
                           row_phase=row_phase)
         drv.set_dfi_cmd_delay(self.cmd_delay)
@@ -598,7 +610,7 @@ class ControllerConfig:
             col_sel=self.col_sel if self.col_sel is not None else 0,
             access_pref=self.access_pref if self.access_pref is not None else 0,
             qos_en=bool(self.qos_en) if self.qos_en is not None else False,
-            dual_issue=True if self.dual_issue else None,
+            dual_issue=lane if (lane or self.dual_issue is not None) else None,
             fast_rd_release=bool(self.fast_rd))
 
 

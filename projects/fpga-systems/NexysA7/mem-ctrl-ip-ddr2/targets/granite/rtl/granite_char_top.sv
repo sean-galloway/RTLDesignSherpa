@@ -357,7 +357,7 @@ module granite_char_top #(
         // builds it (create_project.tcl env GRANITE_DUAL_ISSUE=1); the runtime
         // enable is SCHED_POLICY.dual_issue with DFI_PHASE.row_phase = 1.
 `ifdef GRANITE_DUAL_ISSUE
-        .DUAL_ISSUE         (1'b1),
+        .DUAL_ISSUE         (`GRANITE_DUAL_ISSUE),   // unset = the harness default (1, the FPGA SKU since 2026-11-16); GRANITE_DUAL_ISSUE=0 builds the lane out
 `endif
         .ROW_WIDTH          (ROW_WIDTH),
 `ifdef GRANITE_SYS_66

@@ -78,10 +78,11 @@ module granite_char_harness
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
                                             // return in the same-clock form where the ring is always ready; 2 loses beats where dfi_clk runs at 2x aclk
     // granite_core storage and timing knobs (report 5.10): the board ships
-    // NUM_ENTRIES 8 on the FIFO store, bank queues pool-deep (BANK_FIFO_DEPTH 0)
-    parameter int NUM_ENTRIES        = 8,
+    // NUM_ENTRIES 16 on the FIFO store (8 until 2026-11-16, MC-015), bank
+    // queues pool-deep (BANK_FIFO_DEPTH 0), the row lane built (MC-014 / MC-017)
+    parameter int NUM_ENTRIES        = 16,
     parameter int STORE_BACKEND      = 1,
-    parameter bit DUAL_ISSUE         = 1'b0,  // the pick core's row lane (memory-controllers MC-014)
+    parameter bit DUAL_ISSUE         = 1'b1,  // the pick core's row lane (memory-controllers MC-014); the FPGA SKU since 2026-11-16
     parameter int DIR_BATCH_MAX      = 255,   // the pick core's direction batch cap (TEST_DIR_BATCH_MAX; memory-controllers MC-017)
     parameter int BANK_FIFO_DEPTH    = 0,  // 0 = NUM_ENTRIES
     parameter bit HEAD2_EN           = 1'b1,  // 0 = one head record per bank (FIFO store)

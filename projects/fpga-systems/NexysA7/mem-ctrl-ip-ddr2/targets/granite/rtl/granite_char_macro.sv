@@ -65,7 +65,7 @@ module granite_char_macro
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
                                             // return in the same-clock form where the ring is always ready; 2 loses beats where dfi_clk runs at 2x aclk
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
-    parameter bit DUAL_ISSUE      = 1'b0, // the pick core's row lane (memory-controllers MC-014); the proxy drives it from TEST_DUAL
+    parameter bit DUAL_ISSUE      = 1'b1, // the pick core's row lane (memory-controllers MC-014); the FPGA SKU since 2026-11-16; the proxy drives it from TEST_DUAL
     parameter int DIR_BATCH_MAX   = 255,  // the pick core's direction batch cap (memory-controllers MC-017); the proxy drives it from TEST_DIR_BATCH_MAX
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
     parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)

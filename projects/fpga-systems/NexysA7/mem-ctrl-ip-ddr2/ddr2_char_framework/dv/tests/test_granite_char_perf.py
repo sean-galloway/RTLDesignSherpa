@@ -35,11 +35,12 @@ it at the committed `1'b0` this measures the FRFCFS research core instead (a
 valid control). Knobs: TEST_TREFI (default 585 = board), TEST_TXN (256),
 TEST_GAP (0), TEST_BURST_LEN (8), TEST_FAMILIES, PERF_DUMP, PERF_AXI_TRACE (a
 directory: the accepted AXI request stream per pass as Ramulator traces,
-perf_axi_trace.py), TEST_DUAL (1 = build
-the pick core's row lane, memory-controllers MC-014, and run it:
-SCHED_POLICY.dual_issue on, DFI_PHASE.row_phase 1; its own sim_build tag),
-TEST_NUM_ENTRIES (the store pool per direction, board 8; memory-controllers
-MC-015 found the write ceiling there), PERF_W_HOPS (a path: every valid/ready
+perf_axi_trace.py), TEST_DUAL (the pick
+core's row lane, memory-controllers MC-014: built and run -- SCHED_POLICY.dual_issue
+on, DFI_PHASE.row_phase 1 -- by default since 2026-11-16, the FPGA SKU; TEST_DUAL=0
+builds it out and leaves both fields at reset; its own sim_build tag),
+TEST_NUM_ENTRIES (the store pool per direction, the SKU 16 since 2026-11-16, 8
+before; memory-controllers MC-015 found the write ceiling there), PERF_W_HOPS (a path: every valid/ready
 hop of the write path sampled per cycle, handshake gaps and stall counts per
 hop, PERF_W_HOPS_CYCLES deep -- the MC-015 probe), TEST_DIR_BATCH_MAX (the
 pick core's direction batch cap, board 255 = GRANITE_DIR_BATCH_MAX; its own
@@ -908,11 +909,11 @@ async def cocotb_test_granite_perf(dut):
             out["age_thresh"] = int(age_thr, 0)
         # TEST_DUAL: the pick core's row lane (a DUAL_ISSUE build; memory-
         # controllers MC-014): SCHED_POLICY.dual_issue on, every row command on
-        # DFI_PHASE.row_phase 1 beside the columns on rd/wr_phase 0.
-        dual = os.environ.get("TEST_DUAL", "0") == "1"
-        if dual:
-            drv.set_sched_policy(dual_issue=True)
-            out["dual_issue"] = 1
+        # DFI_PHASE.row_phase 1 beside the columns on rd/wr_phase 0. Default 1
+        # since 2026-11-16 (the FPGA SKU); TEST_DUAL=0 writes the enable off.
+        dual = os.environ.get("TEST_DUAL", "1") == "1"
+        drv.set_sched_policy(dual_issue=dual)
+        out["dual_issue"] = int(dual)
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL,
@@ -1081,10 +1082,10 @@ def _run_granite_perf(request, over=None):
         repo_root=repo_root, filelist_path=_FILELIST)
 
     tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
-    if _g("TEST_DUAL", "0") == "1":
-        tag += "_dual"        # a different netlist: its own build tree
-    if _g("TEST_NUM_ENTRIES", "8") != "8":
-        tag += "_n" + _g("TEST_NUM_ENTRIES", "8")        # the pool is a netlist parameter (MC-015 rebuilt by hand)
+    if _g("TEST_DUAL", "1") != "1":
+        tag += "_laneoff"     # a different netlist (the lane built out): its own build tree
+    if _g("TEST_NUM_ENTRIES", "16") != "16":
+        tag += "_n" + _g("TEST_NUM_ENTRIES", "16")       # the pool is a netlist parameter (MC-015 rebuilt by hand)
     if _g("TEST_DIR_BATCH_MAX", "255") != "255":
         tag += "_b" + _g("TEST_DIR_BATCH_MAX", "255")    # the batch cap too (MC-017)
     sim_build = sim_build_path(tests_dir, tag)
@@ -1093,7 +1094,7 @@ def _run_granite_perf(request, over=None):
 
     extra_env = {
         "DUT": dut_name,
-        "TEST_DUAL": _g("TEST_DUAL", "0"),
+        "TEST_DUAL": _g("TEST_DUAL", "1"),
         # the sim process derives its clock constants from this
         "TEST_FPGA_CLK_HZ": str(clk_hz),
         "COCOTB_LOG_LEVEL": "INFO",
@@ -1156,11 +1157,12 @@ def _run_granite_perf(request, over=None):
               # at least the macro default; TEST_NUM_GEN=8 builds eight injectors
               "NUM_GEN": str(max(4, int(_g("TEST_NUM_GEN", "1"), 0))),
               # granite_core storage / timing knobs (report 5.10 items 1, 3, 5);
-              # defaults are the board build (FIFO store, 8 slots, pool-deep bank queues)
-              "NUM_ENTRIES": _g("TEST_NUM_ENTRIES", "8"),
+              # defaults are the board build = the FPGA SKU (FIFO store, 16 slots since
+              # 2026-11-16, pool-deep bank queues, the row lane built)
+              "NUM_ENTRIES": _g("TEST_NUM_ENTRIES", "16"),
               "STORE_BACKEND": _g("TEST_STORE_BACKEND", "1"),
-              # TEST_DUAL=1 builds the pick core's row lane (MC-014)
-              **({"DUAL_ISSUE": "1"} if _g("TEST_DUAL", "0") == "1" else {}),
+              # the pick core's row lane (MC-014): built by default, TEST_DUAL=0 builds it out
+              "DUAL_ISSUE": "1" if _g("TEST_DUAL", "1") == "1" else "0",
               # the direction register's column batch cap (MC-017; board 255)
               "DIR_BATCH_MAX": _g("TEST_DIR_BATCH_MAX", "255"),
               "BANK_FIFO_DEPTH": _g("TEST_BANK_FIFO_DEPTH", "0"),

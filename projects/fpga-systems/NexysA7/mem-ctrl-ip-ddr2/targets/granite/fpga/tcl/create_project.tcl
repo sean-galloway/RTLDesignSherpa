@@ -216,16 +216,20 @@ if {[info exists ::env(GRANITE_SYS_100)] && $::env(GRANITE_SYS_100) ne "" && $::
     set _freq_note "100.00 MHz (GRANITE_SYS_100 -- granite timing-push profile)"
     puts "verilog_define: GRANITE_SYS_100 (100 MHz sys profile)"
 }
-# GRANITE_DUAL_ISSUE=1: build the pick core's row lane (memory-controllers
-# MC-014): a second, row-only command slot beside the column on the DFI word.
-# The runtime enable is SCHED_POLICY.dual_issue with DFI_PHASE.row_phase off
-# both column phases (the host's TEST_DUAL_ISSUE=1 sets both). Default off:
-# the lane is bit-identical when unbuilt, and the 2026-11-09 sku100 cells are
-# the control it is measured against.
-if {[info exists ::env(GRANITE_DUAL_ISSUE)] && $::env(GRANITE_DUAL_ISSUE) eq "1"} {
-    lappend current_defines "GRANITE_DUAL_ISSUE"
-    set _freq_note "$_freq_note, DUAL_ISSUE row lane"
-    puts "verilog_define: GRANITE_DUAL_ISSUE (bank-pick row lane built; runtime SCHED_POLICY.dual_issue)"
+# GRANITE_DUAL_ISSUE: the pick core's row lane (memory-controllers MC-014): a
+# second, row-only command slot beside the column on the DFI word. The runtime
+# enable is SCHED_POLICY.dual_issue with DFI_PHASE.row_phase off both column
+# phases; the host sets both for granite by default (TEST_DUAL_ISSUE=0 opts
+# out). BUILT BY DEFAULT since 2026-11-16 (THE FPGA SKU IS THE CONFIGURATION:
+# the sys100 point with the lane and the 16-entry pool is the measured one,
+# MC-014 / MC-015 / MC-017). GRANITE_DUAL_ISSUE=0 builds the lane out
+# (bit-identical to the pre-MC-014 pick core) for a control build.
+if {[info exists ::env(GRANITE_DUAL_ISSUE)] && $::env(GRANITE_DUAL_ISSUE) ne ""} {
+    lappend current_defines "GRANITE_DUAL_ISSUE=$::env(GRANITE_DUAL_ISSUE)"
+    if {$::env(GRANITE_DUAL_ISSUE) eq "0"} {
+        set _freq_note "$_freq_note, DUAL_ISSUE row lane BUILT OUT (control build)"
+    }
+    puts "verilog_define: GRANITE_DUAL_ISSUE=$::env(GRANITE_DUAL_ISSUE) (0 = row lane built out; unset = built, the FPGA SKU)"
 }
 if {$_dfi4 ne ""} {
     lappend current_defines $_dfi4

@@ -268,6 +268,33 @@ What it left:
   worst read wait 520 us -> 5 us). Carry the union AND the worst wait to the
   owner, not one cell.
 
+## The SKU moved to the measured point (2026-11-16)
+
+The owner closed the question MC-015 and MC-017 left open: THE FPGA SKU IS
+THE CONFIGURATION, so the granite defaults became the point the board had
+measured -- `GRANITE_SEAM_N` 16, `DUAL_ISSUE` 1 in `granite_core` /
+`granite_top_geared`, the board harness and the TB top, `TEST_DUAL` /
+`TEST_NUM_ENTRIES` defaulting to 1 / 16 in the proxy (sim_build tags
+`_laneoff` and `_n<N>` for the controls), the board knob `GRANITE_DUAL_ISSUE`
+now carrying a value (0 builds the lane out), and the host's runtime lane
+enable following the controller (granite on, pumice off, `TEST_DUAL_ISSUE`
+wins). What to carry forward:
+
+- **The runtime enable belongs to the host, not the RDL reset.** The lane
+  needs `SCHED_POLICY.dual_issue` and `DFI_PHASE.row_phase` set together, and
+  the host derives its tRTP / tRCD margins from `row_phase`; a reset default
+  the host did not know about would mis-derive them. The host already owns
+  every timing CSR for the same reason (2026-09-08), so the lane's enable
+  went the same way: `ControllerConfig.lane_on(drv)`.
+- **A default flip needs the no-knob build, not the knob build.** The MC-017
+  bitstream was built with `GRANITE_DUAL_ISSUE=1 GRANITE_NUM_ENTRIES=16` in the
+  environment; the SKU commit is proved by a plain `GRANITE_SYS_100=1 make
+  bitstream` reproducing its timing and cells, and by the sys75 build closing
+  under the budget too, since the package default moves both profiles.
+- **Model the SKU, not a policy.** MC-018 is filed for it: a `granite_sku100`
+  Ramulator configuration tied to the 2026-11-16 cells, then one-term variants
+  priced on it before any RTL task is filed.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the
@@ -275,10 +302,23 @@ repo's DDR2 ns table (`pumice_device.py::DDR2_MT47H64M16_NS`) carrying tRRD =
 7.5 ns, the 1 KB-page column of Table 42; a x16 part with 1K columns is a
 2 KB page and its tRRD is 10 ns. At the board clocks both round to 2 CK, so
 nothing moved on silicon; at the DDR2-800 span config it is one MC cycle.
-Filed as memory-controllers BUG-003. The lesson is the method: **derive each
-timing from the spec's table with its page-size / speed-bin column named**,
-not from a part's quick-reference line; the model class now carries the
-clause beside every constraint so the next reader can check it in one look.
+Filed as memory-controllers BUG-003, fixed 2026-11-16. The lesson is the
+method: **derive each timing from the spec's table with its page-size /
+speed-bin column named**, not from a part's quick-reference line; the model
+class now carries the clause beside every constraint so the next reader can
+check it in one look.
+
+The fix exposed a second lesson: **a checker case that only arms on a wrong
+table is a case passing on the bug.** JESD79-2F sets tFAW = 4 x tRRD + 5..7.5
+ns at every page size, and the MC-cycle derivation rounds each UP (phase
+margin, then the 2 CK floor), so four rounded tRRDs cover the rounded tFAW at
+every legal point of this part -- the controller's tFAW check is unreachable
+on a consistent table, and the pumice command-stream checker's tFAW case had
+bound only because the table mixed a 1 KB-page tRRD with a 2 KB-page tFAW.
+It now runs the rule on a synthetic set and asserts that neither named point
+binds, so a table change that makes one bind is noticed. When a fix makes a
+test fail its own precondition, read what the precondition was standing on
+before picking "another config".
 
 Related: [[measure-over-the-window]] (the window rule is the same one),
 [[arbiter-compliance-model]].

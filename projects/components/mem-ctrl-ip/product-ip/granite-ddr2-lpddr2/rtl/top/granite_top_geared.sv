@@ -71,7 +71,7 @@ module granite_top_geared
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO, same-clock builds only (DFI_CDC_EN = 0); with the crossing on
                                             // granite_core uses the whole window, RD_RET_DEPTH x BURST_WORDS (pumice ISSUE-026)
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
-    parameter bit DUAL_ISSUE      = 1'b0, // the pick core's row lane (granite_core; memory-controllers MC-014)
+    parameter bit DUAL_ISSUE      = 1'b1, // the pick core's row lane (granite_core; memory-controllers MC-014); 1 = the FPGA SKU since 2026-11-16 (MC-017 board cells)
     parameter int DIR_BATCH_MAX   = GRANITE_DIR_BATCH_MAX, // the direction register's column batch cap (0 = none); the package value, overridable for a sweep (memory-controllers MC-017)
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
     parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)
