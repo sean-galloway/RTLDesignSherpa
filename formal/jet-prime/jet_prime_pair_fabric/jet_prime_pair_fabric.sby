@@ -1,0 +1,48 @@
+[tasks]
+prove
+prove_book
+cover
+
+[options]
+# Two safety tasks (see the harness header).  prove: the 24 "local"
+# properties, BMC depth 24 -- the longest single-transaction path at four
+# beats per line is a PassDirty fill (reset 2, pulse, grant, AR take, AC
+# accepted, four CD beats, CR, replay, the absorption's AW / 4 W / B,
+# retire, release: ~20 steps), and a same-line request waiting out that
+# lifetime is granted and takes its AR by ~24; every cover is witnessed by
+# step 14.  prove_book: the three end-to-end bookkeeping properties (which
+# IDs are in flight, how many beats each got, which slot a CD beat lands
+# in) whose BMC cost grows ~2.5x per step against ~1.3x for the rest -- a
+# proof over the whole trace, not a local one -- at depth 16: one slot
+# lifetime (free at step 9) plus the ID's reuse and its beats.  Cover
+# depth 40.
+prove: mode bmc
+prove: depth 24
+prove_book: mode bmc
+prove_book: depth 16
+cover: mode cover
+cover: depth 40
+
+[engines]
+prove: smtbmc boolector
+prove_book: smtbmc boolector
+cover: smtbmc boolector
+
+[script]
+# -mem2reg: the transaction table's unpacked arrays (r_line, r_arid, ...)
+# become per-element wires `\r_line[0]` that expose can reach; the slot
+# line buffers go the same way (16 words each at this geometry).
+read_verilog -formal -sv -mem2reg jet_prime_pair_fabric_flat.v
+prove: read -formal -sv -DPROVE_CORE formal_jet_prime_pair_fabric.sv
+prove_book: read -formal -sv -DPROVE_BOOK formal_jet_prime_pair_fabric.sv
+cover: read -formal -sv -DPROVE_CORE -DPROVE_BOOK formal_jet_prime_pair_fabric.sv
+proc
+expose jet_prime_pair_fabric/w:r_vld jet_prime_pair_fabric/w:r_dir jet_prime_pair_fabric/w:r_nodata jet_prime_pair_fabric/w:r_ar_taken jet_prime_pair_fabric/w:r_ac_done jet_prime_pair_fabric/w:r_cr_done jet_prime_pair_fabric/w:r_dt jet_prime_pair_fabric/w:r_pd jet_prime_pair_fabric/w:r_mem_issued jet_prime_pair_fabric/w:r_mem_done jet_prime_pair_fabric/w:r_rpl_done jet_prime_pair_fabric/w:r_abs_issued jet_prime_pair_fabric/w:r_abs_done jet_prime_pair_fabric/w:r_rack jet_prime_pair_fabric/w:r_arw_vld jet_prime_pair_fabric/w:r_mar_vld jet_prime_pair_fabric/w:r_mar_slot jet_prime_pair_fabric/w:r_pend_ovf jet_prime_pair_fabric/w:r_rpl_vld jet_prime_pair_fabric/w:r_wstate jet_prime_pair_fabric/w:r_w_sel jet_prime_pair_fabric/w:r_w_slot jet_prime_pair_fabric/w:w_cand_locked jet_prime_pair_fabric/w:w_mem_pres jet_prime_pair_fabric/w:w_rpl_pres jet_prime_pair_fabric/w:w_mr_drop jet_prime_pair_fabric/w:w_wb_blocked jet_prime_pair_fabric/w:r_line* jet_prime_pair_fabric/w:r_type* jet_prime_pair_fabric/w:r_arid* jet_prime_pair_fabric/w:r_arw_slot* jet_prime_pair_fabric/w:r_rpl_slot* jet_prime_pair_fabric/w:w_ac_slot* jet_prime_pair_fabric/w:w_sni_head* jet_prime_pair_fabric/w:r_pend_cnt* jet_prime_pair_fabric/w:r_sni_cnt* jet_prime_pair_fabric/w:w_cand_addr*
+prep -top formal_jet_prime_pair_fabric
+memory_map
+# sv2v keeps the RTL's elaboration-time $error guards as $print cells
+delete t:$print
+
+[files]
+formal_jet_prime_pair_fabric.sv
+jet_prime_pair_fabric_flat.v

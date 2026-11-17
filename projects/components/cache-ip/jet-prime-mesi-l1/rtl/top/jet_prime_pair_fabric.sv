@@ -50,7 +50,7 @@
 //                      DataTransfer -> the CD line is buffered in the slot
 //                      and replayed to the requester, the memory beats
 //                      are consumed and dropped (or the AR suppressed if
-//                      the verdict is in before it issued); PassDirty ->
+//                      the verdict is in before it was presented); PassDirty ->
 //                      the buffered line is also written to the shared
 //                      memory (the point of coherence).  The slot is
 //                      freed when the requester has every beat, the
@@ -530,11 +530,19 @@ module jet_prime_pair_fabric
     // the requester has every beat it will get from this transaction
     logic [FAB_SLOTS-1:0]  w_delivered;
     logic [FAB_SLOTS-1:0]  w_free_now;
+    logic                  w_mar_vld;       // a memory AR is presented this cycle
+    logic [SLOT_W-1:0]     w_mar_slot;      // (defined with the AR issue below)
     always_comb begin
         for (int s = 0; s < FAB_SLOTS; s++) begin
             w_delivered[s] = (r_dt[s] | r_nodata[s]) ? r_rpl_done[s] : r_mem_done[s];
+            // a slot whose memory AR is presented this cycle is not free: the
+            // AR is held and WILL issue (a DataTransfer verdict on a held AR
+            // leaves the slot deliverable while its read is still to come,
+            // and the free would otherwise fire in the handshake's own cycle
+            // -- the fabric formal's ap_free_complete, step 4)
             w_free_now[s]  = r_vld[s] & r_cr_done[s] & w_delivered[s]
                              & (~r_mem_issued[s] | r_mem_done[s])
+                             & ~(w_mar_vld & (w_mar_slot == SLOT_W'(s)))
                              & (~r_pd[s] | r_abs_done[s])
                              & r_rack[s];
         end
@@ -679,21 +687,31 @@ module jet_prime_pair_fabric
     // Memory AR issue: a slot whose AR is taken, whose AC the peer has
     // accepted, with data to fetch and no DataTransfer verdict yet.
     // Lowest index first (every candidate issues within FAB_SLOTS cycles).
+    // Once presented the AR is HELD until its handshake (AXI A3.2.1: a
+    // presented AR is neither withdrawn nor changed) -- without the hold a
+    // lower slot's AC acceptance during an arready stall re-pointed the
+    // presented AR at the other slot (the fabric formal's ap_mar_stable,
+    // step 4).  A DataTransfer verdict landing on a held AR therefore
+    // drains the read's beats instead of suppressing it.
     // ------------------------------------------------------------------
-    logic              w_mar_vld;
-    logic [SLOT_W-1:0] w_mar_slot;
+    logic              w_marc_vld;      // the lowest-index candidate
+    logic [SLOT_W-1:0] w_marc_slot;
+    logic              r_mar_vld;       // a presented AR not yet taken
+    logic [SLOT_W-1:0] r_mar_slot;
     always_comb begin
-        w_mar_vld  = 1'b0;
-        w_mar_slot = '0;
+        w_marc_vld  = 1'b0;
+        w_marc_slot = '0;
         for (int s = FAB_SLOTS - 1; s >= 0; s--) begin
             if (r_vld[s] && r_ar_taken[s] && !r_nodata[s] && !r_mem_issued[s]
                 && r_ac_done[s] && !(r_cr_done[s] && r_dt[s])) begin
-                w_mar_vld  = 1'b1;
-                w_mar_slot = SLOT_W'(s);
+                w_marc_vld  = 1'b1;
+                w_marc_slot = SLOT_W'(s);
             end
         end
     end
-    wire w_mar_hs = w_mar_vld & mem_arready;
+    assign w_mar_vld  = r_mar_vld | w_marc_vld;
+    assign w_mar_slot = r_mar_vld ? r_mar_slot : w_marc_slot;
+    wire   w_mar_hs   = w_mar_vld & mem_arready;
 
     assign mem_arid     = IW'(w_mar_slot);
     assign mem_araddr   = {r_line[w_mar_slot], OFFSET_W'(0)};
@@ -963,6 +981,8 @@ module jet_prime_pair_fabric
             r_rr         <= 1'b0;
             r_pend_ovf   <= '0;
             r_arw_vld    <= '0;
+            r_mar_vld    <= 1'b0;
+            r_mar_slot   <= '0;
             r_rpl_vld    <= '0;
             r_rpl_hold   <= '0;
             r_wstate     <= W_IDLE;
@@ -1062,9 +1082,11 @@ module jet_prime_pair_fabric
                     r_dt[w_sni_head[p]]      <= crresp_w[p][AMBER_CRRESP_DT];
                     r_pd[w_sni_head[p]]      <= crresp_w[p][AMBER_CRRESP_DT]
                                                 & crresp_w[p][AMBER_CRRESP_PD];
-                    // the verdict beat the memory AR: nothing to drain
+                    // the verdict beat the memory AR: nothing to drain (an
+                    // AR presented this cycle is held and WILL issue -- its
+                    // beats are drained)
                     if (crresp_w[p][AMBER_CRRESP_DT] && !r_mem_issued[w_sni_head[p]]
-                        && !(w_mar_hs && (w_mar_slot == w_sni_head[p])))
+                        && !(w_mar_vld && (w_mar_slot == w_sni_head[p])))
                         r_mem_done[w_sni_head[p]] <= 1'b1;
                     r_cd_beat[p] <= '0;
                 end
@@ -1076,9 +1098,13 @@ module jet_prime_pair_fabric
                 end
             end
 
-            // ---------------- memory AR / R
+            // ---------------- memory AR / R (a presented AR holds until taken)
             if (w_mar_hs) begin
                 r_mem_issued[w_mar_slot] <= 1'b1;
+                r_mar_vld                <= 1'b0;
+            end else if (w_mar_vld) begin
+                r_mar_vld  <= 1'b1;
+                r_mar_slot <= w_mar_slot;
             end
             if (w_mr_hs && mem_rlast) begin
                 r_mem_done[w_mr_slot] <= 1'b1;

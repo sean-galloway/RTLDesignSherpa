@@ -20,7 +20,7 @@ is the baseline the comparison report measured, and nothing in it moves.
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | 0 | 1 | 0 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
 Counts exclude the reserved `-000` template in each lane. **Each lane

@@ -1,12 +1,12 @@
 top jet_prime_pair_fabric
 part xc7k325tffg900-2
 period_ns 10.0
-wns_ns 2.303
+wns_ns 2.757
 worst_levels 10
-worst_start r_pend_cnt_reg[0][1]/C
-worst_end r_nodata_reg[5]/D
-lut 4302
-ff 1655
+worst_start r_pend_cnt_reg[1][0]/C
+worst_end r_nodata_reg[4]/D
+lut 4300
+ff 1660
 ramb36 0
 ramb18 0
 lutram 1296

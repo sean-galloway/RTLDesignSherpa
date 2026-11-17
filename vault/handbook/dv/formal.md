@@ -621,3 +621,71 @@ Four equivalence harnesses from that day: `formal/mc_common/mc_bank_timer`
 `gaxi_age_fifo_sync` already was one). See
 [[resolve-the-select-at-the-load]] and [[registered-status-outputs]] in
 design/ for the restructures they gate.
+
+## A combinational "lowest-index" pick behind a stallable ready is a stability bug waiting for the stall (2026-11-17)
+
+`jet_prime_pair_fabric`'s memory AR was the lowest-index slot ready to
+issue, computed combinationally and presented straight on
+ARVALID/ARID/ARADDR. The pair rig (gate 21/21, FULL 155/155), the
+reference-rig gate and two bitstreams' 55-point sweeps all passed it. The
+fabric formal's `ap_mar_stable` -- valid and not ready this cycle implies
+the same id and address next cycle -- failed at step 6 in its first second:
+during an `arready` stall a lower slot's AC was accepted, it became the
+lowest candidate, and the presented AR re-pointed at it with ARVALID high
+(AXI A3.2.1). Why nothing else saw it: the memory's two-deep burst queue
+rarely stalls the AR, the slave samples at the handshake so the functional
+result was right whichever slot won, and no monitor on the memory side
+checked AR stability (the rig's does now).
+
+Fixing it with a hold register (presented => held until taken) exposed a
+second rule the old order had made unnecessary: a DataTransfer verdict can
+now land on a HELD AR, so a slot can be deliverable (line replayed, retire
+seen) while its read is still to issue -- and the release fired in the
+handshake's own cycle, freeing a slot with a read outstanding
+(`ap_free_complete` and `ap_mo`, step 15, seven minutes into the re-prove).
+The pre-fix fabric could not reach it: an AR never issued after a DT
+verdict.
+
+Two rules:
+
+- Every combinational first/lowest/oldest pick that drives a VALID needs a
+  hold (or a registered pick), and a stability property on that channel.
+  The property is what fails on the SHAPE; a test fails only when the stall
+  and the re-pick coincide, which on this rig they never did
+  ([[valid-ready-contracts]] states the payload half of the contract).
+- When a fix adds held state, re-derive every rule that assumed the old
+  ordering. Here "the AR issues only without a DT verdict" had been
+  carrying "a deliverable slot with no read issued may free". Re-run the
+  whole proof after a fix, not the property that failed.
+
+Cost notes from the same harness (24 + 3 properties, four slots, boolector):
+
+- With every assumption and NO assertion the BMC reaches depth 16 in two
+  minutes; so does every assumption group alone, and every pair. The cost
+  is in the assertions, and it is not uniform: eleven "local" properties
+  (one slot per line, no grant to a held line, stability, the release
+  gate) each prove depth 22 in ten seconds; ten more (routing, the AR's
+  legality, the write-port rules) in 4-12 minutes; three end-to-end
+  bookkeeping properties (which IDs are in flight, how many beats each
+  got, which slot a CD beat lands in) grow ~2.5x per step and were at step
+  16 after 15 minutes. Those three need the solver to carry the WHOLE
+  trace (every AR take and retire, every queue push and pop) to refute a
+  step; the others need a few cycles of state. Time the properties one at
+  a time before setting a depth, and give the dear ones their own task at
+  their own depth (`prove` depth 24 and `prove_book` depth 16 here) rather
+  than dragging the whole set down to the slowest.
+- Shrinking the free index spaces did NOT help: 16-bit to 8-bit addresses,
+  32-bit to 8-bit data and 3-bit to 2-bit IDs each left the per-step cost
+  where it was. The symmetric address space is a plausible culprit that
+  the measurement ruled out; measure before shrinking.
+- k-induction (`mode prove`, depth 12) was tried for an unbounded result:
+  not inductive as written -- the induction start state puts the harness's
+  shadow counters and the fabric's queues out of step. Two helper
+  invariants (`ap_pend_count`: the cache's untaken launches equal the
+  fabric's pending pulses plus the one awaiting its AR; `ap_table_flags` /
+  `ap_engines_live`: every slot flag implies the ones before it, every
+  engine's held slot is live in the matching phase) were worth keeping as
+  properties in their own right, but the queue-content invariants the next
+  failures asked for cannot be stated without exposing the queues
+  themselves. Thirty minutes bought three good properties and a clear
+  stopping point; BMC at measured depths is the recorded result.

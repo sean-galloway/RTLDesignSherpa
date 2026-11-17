@@ -101,7 +101,19 @@ arrives before its verdict holds the memory R channel for the bounded
 remainder of the responder's service; issuing at AC-accept rather than at
 grant keeps that stall bounded by the responder, never by a peer's commit
 backlog. A verdict of DataTransfer that lands before the AR issued
-suppresses it; one that lands after drains the beats and drops them.
+suppresses it; one that lands after -- on a presented or an issued AR --
+drains the beats and drops them.
+
+A presented memory AR is **held until the memory takes it** (AXI A3.2.1).
+The candidate is the lowest-index slot ready to issue, and the step-3 build
+re-pointed a stalled AR at a lower slot whose AC had just been accepted:
+`ARVALID` high, `ARID`/`ARADDR` changed. The fabric formal's
+`ap_mar_stable` found it in its first second (step 4); the pair rig and the
+board had not, because the memory's two-deep burst queue rarely stalls the
+AR and nothing on the memory side checked the AR's stability -- the rig's
+monitor does now. With the hold, a DataTransfer verdict landing on a held
+AR no longer marks the read done early: the AR goes out and its beats are
+drained like any other dropped read.
 
 ### Delivery
 
@@ -117,10 +129,16 @@ One burst at a time, round-robin over {cache 0 write-back, cache 1
 write-back, absorption}. The absorption writes a PassDirty line from the
 slot buffer with AWID `8'hA0 | dir`. A write-back AW to a line **holds
 while a slot on that line has no CR yet** or an absorption to it is
-pending: with the memory read now ahead of the snoop, a write-back that
-landed between the read and the snoop would leave the requester with the
-pre-write-back memory image and a "not present" snoop answer. The hold is
-bounded by the snoop service.
+pending. The hold is defensive, not load-bearing: the memory AR issues
+only after the peer has accepted the AC (`ap_mar_legal`, proven in step
+4), and `l1_snoop_resp` latches the verdict at that accept -- so the
+verdict is decided before any read of the line reaches memory. A
+write-back still in the peer's buffer at the accept answers DataTransfer
+from its snapshot (the ships-in-the-night scenario); one already retired
+has its BRESP, so its data is in memory before a read issued after that
+accept. The hold stays because it is bounded by the snoop service and
+costs nothing on the measured rows; it is checked as written
+(`ap_wb_select_hold`), at the cycle the write port picks the write-back.
 
 ## Why the lock is pulse-to-retire
 
@@ -183,8 +201,45 @@ removed them.
 - Core, parity and control suites: unchanged in substance (the control
   harness and the formal wrappers wire the new `cu_done_o`).
 - `formal/jet-prime/jet_prime_control`: the flat regenerated for the new
-  output; the proofs are rerun on it (step 4 adds a formal safety argument
-  for the fabric's per-line rule).
+  output; safety prove PASS on it (boolector, 11:57 wall); the liveness BMC
+  (depth 192) and the covers were still running at the step-4 commit and
+  are recorded in TASK-001 when they land.
+- `formal/jet-prime/jet_prime_pair_fabric` (step 4): the fabric alone at
+  the tiny geometry (16-bit addresses, 16-byte lines on a 32-bit bus,
+  `FAB_SLOTS` 4, `SNOOP_INFLIGHT` 2), both caches, both responders and the
+  memory free inputs under their documented contracts (the harness header
+  is the assumption inventory: launch order and one read ID per entry on
+  the AR, the retire after the last beat, CR/CD only for an accepted AC
+  with the CD beats before a DataTransfer CR, memory beats only for an
+  issued read). Twenty-seven safety properties: one valid slot per line and
+  no grant to a held line (the per-line rule), the lock dropping only
+  after the requester's own retire pulse and only once the requester has
+  its last beat and the read is drained, one AR take per grant with the
+  slot's line and class, the memory AR only after the AC accept and never
+  for an upgrade or twice, every R beat routed to its direction with the
+  requester's own ID (a memory beat never for a DataTransfer slot), exactly
+  the beats each AR asked for, AC/CR/CD bookkeeping, the write-back hold
+  at selection, the absorption's address and ID, no pending-queue overflow,
+  and AXI/ACE valid-payload stability on every channel the fabric drives
+  (memory AR, both R channels, both ACs). Nineteen covers, all reached by
+  step 14 (two directions live, three slots live, a same-line conflict
+  waiting and re-granted on the freed line, a DataTransfer read dropped
+  and one suppressed, a replay behind a memory beat, the absorption landed,
+  a write-back held and then landed, two snoops outstanding, two reads
+  outstanding, a memory AR stall). Ten mutations, each failing the property
+  written for the mechanism it breaks (the lock, the retire gate, the
+  replay hold, the memory-AR hold, the early-done rule, the write-back
+  hold, AR-before-AC, a second grant per direction, the R routing). The
+  proof is BMC, claimed as such: 24 properties to depth 24 (a same-line
+  request waiting out a whole PassDirty lifetime and then taking its own
+  AR is ~24 steps), the three end-to-end bookkeeping properties (IDs in
+  flight, beats per ID, the CD beat's slot) to depth 16 -- their cost grows
+  2.5x per step where the rest grow 1.3x, because refuting them means
+  carrying the whole trace. Three more properties came out of a
+  k-induction attempt that did not close: the cache's untaken launches
+  equal the fabric's pending pulses plus the one awaiting its AR; every
+  slot flag implies the flags before it in the slot's life; every engine's
+  held slot is live in the matching phase.
 - The Genesys2 reference rig at `REF_CACHE_SEL=3` (flow
   `ref_jetpp_bringup`): two jet-prime caches through this fabric, one per
   injector -- the jet rig's structure with jet-prime's RTL. Its ci1-idle

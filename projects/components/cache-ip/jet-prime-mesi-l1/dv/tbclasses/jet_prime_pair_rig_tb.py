@@ -254,6 +254,7 @@ class JetPairRigTB(TBBase):
         self.ft_snq = [[], []]
         self.slot_ft = {}
         self._prev_slot_vld = 0
+        self._prev_mar = None
         self.stats = {
             'grants': [0, 0], 'dt_forwards': 0, 'pass_throughs': 0,
             'absorbs': 0, 'mem_ar': 0, 'r_dropped': 0, 'ar_suppressed': 0,
@@ -632,9 +633,28 @@ class JetPairRigTB(TBBase):
                                    int(d.u_fabric.dbg_grant_addr.value),
                                    int(d.u_fabric.dbg_grant_slot.value))
 
-            # memory-side AR / R observation: the read ID is the slot
-            if int(d.u_fabric.mem_arvalid.value) \
-                    and int(d.u_fabric.mem_arready.value):
+            # memory-side AR / R observation: the read ID is the slot.
+            # A presented AR is an AXI obligation: it holds, unchanged,
+            # until the memory takes it (the fabric formal's ap_mar_stable;
+            # the first fabric re-pointed a stalled AR at a lower slot whose
+            # AC had just been accepted) -- and the cycle it was first
+            # presented decides whether a DataTransfer verdict may still
+            # suppress it
+            mar_vld = int(d.u_fabric.mem_arvalid.value)
+            mar_rdy = int(d.u_fabric.mem_arready.value)
+            mar_id = int(d.u_fabric.mem_arid.value)
+            mar_addr = int(d.u_fabric.mem_araddr.value)
+            if self._prev_mar is not None and self._prev_mar[0] \
+                    and not self._prev_mar[1]:
+                self._score("fabric: a stalled memory AR holds (valid, id, "
+                            "addr)", (mar_vld, mar_id, mar_addr),
+                            (1, self._prev_mar[2], self._prev_mar[3]))
+            self._prev_mar = (mar_vld, mar_rdy, mar_id, mar_addr)
+            if mar_vld:
+                ft = self.slot_ft.get(mar_id)
+                if ft is not None and 'mar_pres' not in ft:
+                    ft['mar_pres'] = self.cyc
+            if mar_vld and mar_rdy:
                 self.stats['mem_ar'] += 1
                 self.events.append((self.cyc, 'mem_ar',
                                     int(d.u_fabric.mem_araddr.value)))
@@ -1260,13 +1280,14 @@ class JetPairRigTB(TBBase):
                     ft['type'] == ACE_CLEAN_UNIQUE, False)
         self._score(f"ft{ft['cyc']}: memory AR only after the AC was "
                     f"accepted", ft['ac_done'], True)
-        # the AR may issue in the very cycle the DT verdict lands; after
-        # that cycle a DT verdict suppresses it
+        # an AR presented at or before the DT verdict's cycle is held and
+        # issues (its beats are dropped); one first presented after it
+        # would be a suppressed read issued anyway
         if ft['cr_done'] and ft['resolution'] is not None \
                 and (ft['resolution'] >> CRRESP_DT) & 1 \
-                and ft.get('cr_cyc') != self.cyc:
-            self._score(f"ft{ft['cyc']}: memory AR after a DataTransfer "
-                        f"verdict", 1, 0)
+                and ft.get('mar_pres', self.cyc) > ft.get('cr_cyc', -1):
+            self._score(f"ft{ft['cyc']}: memory AR first presented after "
+                        f"a DataTransfer verdict", 1, 0)
         ft['mem_ar'] = True
 
     def _on_mem_r(self, rid, last):

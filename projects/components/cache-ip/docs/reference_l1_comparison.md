@@ -99,7 +99,7 @@ Sources (newest single-core sweep per rig; injector 1 idle):
 - CVA6 WB: `perf_sweep_cva6_bin2_single_20261111T233015Z.json`
 - jet-prime s1: `perf_sweep_jetp_bin1_single_20261112T173844Z.json`
 - jet-prime s2: `perf_sweep_jetp_bin2_single_20261115T200018Z.json`
-- jet-prime s3: `perf_sweep_jetpp_bin2_single_20261117T023054Z.json`
+- jet-prime s3: `perf_sweep_jetpp_bin3_single_20261117T144843Z.json`
 
 Error flags / unfinished runs across all sources: 0
 
@@ -127,7 +127,7 @@ Error flags / unfinished runs across all sources: 0
 | r64k_we255 | 16 | 28.50 | 10.79 | 10.51 | 14.25 | 8.29 | 8.14 | 8.61 |
 | r128k_we64 | 1 | 29.01 | 24.02 | 18.83 | 15.23 | 20.27 | 20.27 | 21.02 |
 | r128k_we64 | 4 | 27.01 | 16.08 | 11.37 | 14.61 | 12.35 | 8.91 | 9.10 |
-| r128k_we64 | 16 | 27.01 | 15.74 | 10.90 | 14.60 | 12.00 | 8.00 | 8.12 |
+| r128k_we64 | 16 | 27.01 | 15.74 | 10.90 | 14.60 | 12.00 | 8.00 | 8.11 |
 
 ### Mean latency, accept to response (cycles)
 
@@ -147,13 +147,13 @@ Error flags / unfinished runs across all sources: 0
 | r16k_we64 | 16 | 4.18 | 6.17 | 2.44 | 1.82 | 5.89 | 5.81 | 5.83 |
 | r64k_we64 | 1 | 19.89 | 16.42 | 11.41 | 6.99 | 13.88 | 13.88 | 14.39 |
 | r64k_we64 | 4 | 19.86 | 44.61 | 18.11 | 7.51 | 34.60 | 26.54 | 27.18 |
-| r64k_we64 | 16 | 19.86 | 75.16 | 22.49 | 7.55 | 57.89 | 61.65 | 62.43 |
+| r64k_we64 | 16 | 19.86 | 75.16 | 22.49 | 7.55 | 57.89 | 61.65 | 62.42 |
 | r64k_we255 | 1 | 29.50 | 20.13 | 11.34 | 1.10 | 17.59 | 17.59 | 18.11 |
 | r64k_we255 | 4 | 29.50 | 47.04 | 16.69 | 1.09 | 37.16 | 35.40 | 37.06 |
 | r64k_we255 | 16 | 29.50 | 75.39 | 17.52 | 1.10 | 58.11 | 52.30 | 54.71 |
 | r128k_we64 | 1 | 28.01 | 23.02 | 15.89 | 10.02 | 19.27 | 19.27 | 20.02 |
 | r128k_we64 | 4 | 28.01 | 63.33 | 23.29 | 10.89 | 48.41 | 34.65 | 35.40 |
-| r128k_we64 | 16 | 28.01 | 91.97 | 26.74 | 10.91 | 70.76 | 86.06 | 87.08 |
+| r128k_we64 | 16 | 28.01 | 91.97 | 26.74 | 10.91 | 70.76 | 86.06 | 87.01 |
 
 ### Resident-hit floor and achieved parallelism
 
@@ -165,7 +165,7 @@ Error flags / unfinished runs across all sources: 0
 | CVA6 WB | 2 | 0.76 | 2 |
 | jet-prime s1 | 3 | 7.12 | 12 |
 | jet-prime s2 | 3 | 10.79 | 12 |
-| jet-prime s3 | 3 | 10.80 | 12 |
+| jet-prime s3 | 3 | 10.81 | 12 |
 
 ### Cache alone, out of context (xc7k325t-2, 10 ns clock, synth + place + route)
 
@@ -287,23 +287,31 @@ measures the same way.
   (24 % on the read-lean thrash, 18 % on the write-heavy one, 25 % at four
   times the cache) and at depth 1 it is 1.7 cycles over, as the s2 cache
   is. With BOTH injectors active on the same 4 KB region (the pair's own
-  numbers, not in the table: `perf_sweep_jetpp_bin2_dual_*.json` against
+  numbers, not in the table: `perf_sweep_jetpp_bin3_dual_*.json` against
   jet's `perf_sweep_bin17_2026*.json`), `r64k_we64` at depth 16 is
-  5.81 / 5.83 cycles per transaction on the two injectors against jet's
+  5.81 / 5.82 cycles per transaction on the two injectors against jet's
   10.74 / 10.70, depth 4 7.08 / 7.11 against 11.48 / 11.46, `r64k_we255`
-  8.66 / 8.65 against 10.90 / 11.01, `r128k_we64` 8.11 / 8.10 against
+  8.66 / 8.65 against 10.90 / 11.01, `r128k_we64` 8.10 / 8.09 against
   16.02 / 15.82 -- the same figures as with the peer idle, so the fabric
   is no longer what a second core costs. Hit floor (3), the 1.00 hit rows
   and MLP 10.8 unchanged; smoke CRC on injector 0 is the jet rig's
   (1814064162). The cache-only OOC row is s2's (same cache). Full
-  bitstream (bin 2) 17,853 LUT / 11,884 FF at WNS +0.326 ns under the 0.2 ns
-  uncertainty budget; the worst path is the s2 watch item (the fill
-  engine's staging-queue read pointer into the data-array address), the
-  long pole of the pair build. Bin 1, the first build with the two-write-
-  port buffer array (48,946 LUT, WNS +0.006), swept bit-identically --
-  every cycle count and CRC of both sweeps equal. Fabric alone, out of context at 10 ns with `FAB_SLOTS=18` (`ref/results/ooc/jetp_fabric`): 4,886 LUT (3,854 logic, 1,032 as the
-  two line-buffer memories) / 1,655 FF, WNS +2.30 ns, ten levels on the worst path (the grant
-  cone: queue count, candidate, line CAM, slot load). The first build's single buffer array
+  bitstream (bin 3, the step-4 fabric with the memory-AR hold) 17,932 LUT
+  / 11,889 FF at WNS +0.043 ns under the 0.2 ns uncertainty budget; the
+  worst path is the s2 watch item (the fill engine's staging-queue read
+  pointer into the data-array address, 24 levels), the long pole of the
+  pair build -- bin 2 (the step-3 fabric) placed the same path at +0.326,
+  so the spread is placement, and the budget is what holds it. Bin 3
+  against bin 2: every CRC of both sweeps equal, every cycle count equal
+  at depths 1, 2 and 4, and at depths 8 and 16 within 0.14 % (fewer cycles
+  on bin 3: the held AR issues where the step-3 fabric re-picked) -- the
+  footprint of the defect the fabric formal found, which needs the
+  memory's two-deep burst queue to stall the AR. Bin 1, the first build
+  with the two-write-port buffer array (48,946 LUT, WNS +0.006), swept
+  bit-identically to bin 2. Fabric alone, out of context at 10 ns with `FAB_SLOTS=18` (`ref/results/ooc/jetp_fabric`): 4,923 LUT (3,891 logic, 1,032 as the
+  two line-buffer memories) / 1,660 FF, WNS +2.76 ns, ten levels on the worst path (the grant
+  cone: queue count, candidate, line CAM, slot load); the step-3 fabric was 4,886 / 1,655 at +2.30,
+  so the AR hold and the release term cost 37 LUT and 5 flops. The first build's single buffer array
   had two write ports and synthesized as 9 k flops behind 272:1 muxes -- 35,879 LUT -- caught
   by the bitstream's LUT count; one array per peer is the fix.
 - **Area, cache alone at 10 ns.** HPDcache is the smallest in LUTs (3,510)

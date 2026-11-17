@@ -26,7 +26,9 @@ test_files:
 # rule answers it at the Invalid row with no effect and no data loss (jet
 # has no replay path) -- there is no kill rule.  The memory read is issued
 # alongside the snoop once the peer accepted the AC; a DataTransfer verdict
-# drops (or suppresses) it.
+# drops (or suppresses) it.  A presented memory AR holds, unchanged, until
+# the memory takes it (AXI A3.2.1; the rig monitor checks it -- the fabric
+# formal found the step-3 build re-pointing a stalled AR, TASK-001 step 4).
 
 parameters:
   - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH

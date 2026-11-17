@@ -1,7 +1,7 @@
 # TASK-001: beat HPDcache -- jet-prime's miss path, measured and rebuilt
 
 **Priority:** P2
-**Status:** active 2026-11-12 -- fork done, step 1 (jet-prime without the pair fabric) measured 11-12, step 2 (multiple outstanding fills) built and measured 11-15, step 3 (pipelined pair fabric) built and measured 11-16; step 4 (formal on the fabric, the deep scenarios) open
+**Status:** active 2026-11-12 -- fork done, step 1 (jet-prime without the pair fabric) measured 11-12, step 2 (multiple outstanding fills) built and measured 11-15, step 3 (pipelined pair fabric) built and measured 11-16, step 4 (the fabric's formal safety argument; two memory-AR defects found and fixed, BUG-001) done 11-17; the control liveness rerun still to record
 **Owner:** TBD
 
 Filed 2026-11-12 (Sean: "Make a jet-prime and do 1"). The reference
@@ -237,5 +237,82 @@ depth on `r64k_we64` and `r64k_we255`, with the resident-hit row still at
   stays 1.7 cycles over -- the s2 cache's single-miss path (AR register + lookup pipe + the
   fabric's two stages), the next lever if depth 1 is to be won.
 
-Next: step 3 (the per-line pipelined pair fabric) -- lift `FILL_INFLIGHT`
-on the pair rig with it.
+### 2026-11-17 -- step 4: formal on the fabric
+
+- **Built.** `formal/jet-prime/jet_prime_pair_fabric`: the fabric alone at
+  the tiny geometry (8-bit addresses = 16 lines, 16-byte lines on a 32-bit
+  bus = four beats, `AXI_ID_WIDTH` 3, `FAB_SLOTS` 4, `SNOOP_INFLIGHT` 2),
+  both caches, both snoop responders and the shared memory free inputs
+  under their documented contracts (the harness header is the assumption
+  inventory). The flat is the fabric's own filelist through
+  `make/formal_flat.mk`, specialized parameterless; `read_verilog -mem2reg`
+  turns the transaction table's unpacked arrays into per-element wires
+  that `expose` reaches (the queue HEADS are exposed, not the queues, so
+  no property depends on how yosys linearizes a 2-D array). Twenty-seven
+  safety properties (the per-line rule as one valid slot per line and no
+  grant to a held line; the lock dropping only after the requester's own
+  retire and only with its last beat received and its read drained; one
+  AR take per grant with the slot's line and class; the memory AR after
+  the AC accept, never for an upgrade or twice, held once presented; every
+  R beat to its direction with the requester's own ID, a memory beat never
+  for a DataTransfer slot, exactly the beats each AR asked for; AC/CR/CD
+  bookkeeping; the write-back hold at selection; the absorption's address
+  and ID; no pending-queue overflow; AXI/ACE valid-payload stability on
+  the memory AR, both R channels and both ACs), nineteen covers (all
+  reached by step 14), ten mutations each failing the property written for
+  the mechanism it breaks (`scratchpad` runs; the list in delta 02).
+- **Found and fixed (jet-prime BUG-001).** (1) The memory AR was a
+  combinational lowest-index pick presented straight on the channel: during
+  an `arready` stall a lower slot's AC acceptance re-pointed it at another
+  slot with ARVALID high (AXI A3.2.1) -- `ap_mar_stable`, step 6, the
+  proof's first second. The pair rig, the ref-rig gate and two bitstreams'
+  sweeps had passed it: the memory's two-deep burst queue rarely stalls the
+  AR, the slave samples at the handshake, and nothing memory-side checked
+  stability. Fix: the presented AR is held until taken (`r_mar_vld/slot`);
+  a DataTransfer verdict landing on a presented AR drains its beats instead
+  of suppressing it. (2) With the hold, a slot can be deliverable before
+  its held read issues, and the release fired in the handshake's own cycle
+  with the read outstanding -- `ap_free_complete` / `ap_mo`, step 15, seven
+  minutes into the re-prove. Fix: a slot whose AR is presented this cycle
+  is not free. Board footprint of (1): bin 3 against bin 2 differs only at
+  depths 8 and 16, by at most 0.14 % of the cycles and in bin 3's favour,
+  with every CRC equal.
+- **DV.** The pair-rig TB checks every cycle that a stalled memory AR
+  holds (valid, id, addr) and scores a memory AR after a DataTransfer
+  verdict only when it was first presented after it. Gate 21/21; FULL
+  155/155 (11:20) from clean on the final RTL; ref-g2 gate 7/7.
+- **Formal cost.** BMC, claimed as such. Timing every property alone to
+  depth 22 split them three ways: eleven local ones in ~10 s, ten in
+  4-12 min, and three end-to-end bookkeeping properties (IDs in flight,
+  beats per ID, the CD beat's slot) at ~2.5x per step. So two tasks:
+  `prove` (24 properties incl. three helper invariants from a k-induction
+  attempt that did not close) at depth 24, `prove_book` (the three) at
+  depth 16; covers at 40. Final run on the final RTL (11-17): covers PASS
+  (8 s, 19/19 reached), `prove` PASS (38:30 wall), `prove_book` PASS
+  (1:00:04 wall). Shrinking addresses (16 -> 8 bit), data (32 ->
+  8) and IDs (3 -> 2 bit) did not move the per-step cost; engines
+  (boolector, bitwuzla, yices, abc bmc3, abc pdr) did not either. Written
+  up in `vault/handbook/dv/formal.md`.
+- **Control formal (step-3 flat, relaunched 11-16 17:20).** Safety prove
+  PASS (boolector, 11:57 wall). Liveness BMC depth 192 still running at this
+  commit (step 151 of 192 at 09:01, 3:44 solver time). Covers queued behind
+  it; the verdict goes in the next step's commit.
+- **Board.** `ref_jetpp_bringup` bin 3 (the fixed fabric): 17,932 LUT /
+  11,889 FF, WNS +0.043 ns at 100 MHz under the 0.2 ns uncertainty budget
+  -- the same worst path as bin 2 (the step-2 watch item: the fill
+  engine's staging-queue read pointer into the data-array address, 24
+  levels), placed at +0.326 there; the budget is what carries the spread.
+  Smoke init+smoke PASS on both injectors (ci0 `rsp_crc` 1814064162);
+  sweeps `perf_sweep_jetpp_bin3_single_20261117T144843Z.json` and
+  `perf_sweep_jetpp_bin3_dual_20261117T145022Z.json`, 55/55 each, err 0.
+  Fabric alone OOC at 10 ns, `FAB_SLOTS=18`: 4,923 LUT (3,891 logic +
+  1,032 memory) / 1,660 FF, WNS +2.76 ns, ten levels (step 3: 4,886 / 1,655 at +2.30).
+- **Result.** Unchanged at two decimals except `r128k_we64` d16 8.12 ->
+  8.11 (dual 8.11/8.10 -> 8.10/8.09, `r64k_we64` d16 dual 5.81/5.83 ->
+  5.81/5.82); the comparison report regenerated from bin 3.
+
+Next: the done criterion is met at depths 4 and 16 on both configurations
+as a pair; depth 1 stays 1.7 cycles over HPDcache (the cache's single-miss
+path: AR register + lookup pipe + the fabric's two stages) and the
+fill-engine watch path is the timing long pole -- both are the next
+levers if the owner wants depth 1 won.

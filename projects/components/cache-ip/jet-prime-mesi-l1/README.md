@@ -62,7 +62,9 @@ pipelined fabric, with the DV and formal to carry them.
   any order) and [02 the pipelined pair fabric](docs/delta/02_pair_fabric.md)
   (step 3: `jet_prime_pair_fabric` serializes per line from a transaction
   table, the memory read alongside the snoop, a retire sideband from the
-  cache instead of the pseudo-state inputs).
+  cache instead of the pseudo-state inputs; step 4 added the fabric's
+  formal safety argument, `formal/jet-prime/jet_prime_pair_fabric`, and
+  the two memory-AR fixes it found).
 - Board measurement: the reference rig,
   `projects/fpga-systems/Genesys2/cache-ip/ref`, with `REF_CACHE_SEL=2`
   (one jet-prime straight onto memory, snoop port tied off) or
