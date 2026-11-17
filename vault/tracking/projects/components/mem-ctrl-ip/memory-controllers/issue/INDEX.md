@@ -2,7 +2,7 @@
 
 # memory-controllers — issues
 
-**Next ID: ISSUE-002** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-005** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed, spanning more than one
 controller (the shared `common-ip` RTL, or pumice and granite together). It
@@ -15,7 +15,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 3 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -23,7 +23,19 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **ISSUE-002** -- the board's `bank_interleave` map runs at 233-258 MB/s where
+  the SKU model sustains 778 on the same streams: ~3.4 MC cycles per beat of an
+  RTL-side serialization the scheduling rules do not have. Filed from MC-018,
+  2026-11-17.
+- **ISSUE-003** -- `close_page` on the board pays ~2.5 MC cycles per dependent
+  hop above the SKU model (82-92 against 104-119 MB/s one-bank, 180-240 against
+  289-312 bank-parallel): the pipeline's per-hop cost made visible when every
+  column is a hop. Filed from MC-018, 2026-11-17.
+- **ISSUE-004** -- on `mixed` the SKU model's read turns run four times the
+  batch cap (296 / 417 against the board's 272 / 272, union within 9 percent):
+  the lane's ACT race on a shared bank after an auto-precharge goes to the
+  holder in the model; which RTL term gives it to the waiting direction is the
+  question. Filed from MC-018, 2026-11-17.
 
 ## Closed
 

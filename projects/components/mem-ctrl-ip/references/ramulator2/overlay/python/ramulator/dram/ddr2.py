@@ -37,10 +37,23 @@ are the repo's pumice_device.py::DDR2_MT47H64M16_NS (its tRRD carried the
 CK 150 / 200 MHz both round to 2 CK, so the correction moves nothing on the
 board and one MC cycle at the DDR2-800 span configuration).
 
+  * RD -> WR is its own parameter, nRTW (memory-controllers MC-018). JEDEC's
+    term is RL + BL/2 + 2 - WL = nCL + nBL + 2 - nCWL, which a preset takes by
+    leaving nRTW at -1. The board's controllers derive tRTW from the PHY's
+    read-DQ occupancy instead (pumice_device.ddr2_timings_mc_cycles: 20 MC
+    cycles at 100 MHz against JEDEC's 5 CK), and the SKU preset carries that.
+
 Rounding: Ramulator is CK-granular, nX = ceil(tX / tCK) with the JEDEC CK
 floors. The RTL derivation adds a phase margin because its counters are
 MC-cycle (2 CK) granular, so the model is the ideal CK-granular controller and
 a 1 CK gap per constraint against granite is expected, not a modelling error.
+The exception is DDR2_GRANITE_SKU100 (MC-018): the host's MC-cycle derivation
+at 100 MHz written in CK, for the GraniteSKU controller whose main command slot
+is every 2nd CK. Where the RTL's count exceeds the JEDEC CK count rounded to
+that slot (tRC 7 MC, tWTR 4, tRRD 2, tRFC 14, tRTW 20) the preset carries
+2 x the MC count; elsewhere the JEDEC CK value already rounds to the RTL's
+count on the even slot and is kept, so the lane's odd-slot row commands see
+the JEDEC distance the RTL's phase margin also allows.
 """
 import math
 
@@ -71,7 +84,7 @@ class DDR2(DRAMStandard):
         "rate", "nBL",
         "nCL", "nRCD", "nRP", "nRAS", "nRC",
         "nWR", "nRTP", "nCWL",
-        "nCCD", "nRRD", "nWTR",
+        "nCCD", "nRRD", "nWTR", "nRTW",
         "nFAW", "nRFC", "nREFI",
         "nCS", "tCK_ps",
     ]
@@ -86,7 +99,7 @@ class DDR2(DRAMStandard):
         TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["RD", "RDA"], latency="nCCD"),
         TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["WR", "WRA"], latency="nCCD"),
         # Rank: turnarounds. RD->WR = RL + BL/2 + 2 - WL ; WR->RD = WL + BL/2 + tWTR
-        TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["WR", "WRA"], latency="nCL + nBL + 2 - nCWL"),
+        TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["WR", "WRA"], latency="nRTW"),
         TimingConstraint(level="Rank", preceding=["WR", "WRA"], following=["RD", "RDA"], latency="nCWL + nBL + nWTR"),
         # Rank switching (inert at one rank, kept for the multi-rank shape)
         TimingConstraint(level="Rank", preceding=["RD", "RDA"], following=["RD", "RDA", "WR", "WRA"], latency="nBL + nCS", window=1, sibling=True),
@@ -129,10 +142,13 @@ class DDR2(DRAMStandard):
             timing_dict["nRRD"] = cls._resolve_nRRD(page_size_bytes, tCK_ps)
         if timing_dict.get("nFAW", -1) == -1:
             timing_dict["nFAW"] = cls._resolve_nFAW(page_size_bytes, rate, tCK_ps)
-        timing_dict["nRFC"] = cls._resolve_nRFC(org_dict["density"], tCK_ps)
+        if timing_dict.get("nRFC", -1) == -1:
+            timing_dict["nRFC"] = cls._resolve_nRFC(org_dict["density"], tCK_ps)
         timing_dict["nREFI"] = 7_800_000 // tCK_ps
         if timing_dict.get("nCWL", -1) == -1:
             timing_dict["nCWL"] = timing_dict["nCL"] - 1          # WL = CL - 1 (AL = 0)
+        if timing_dict.get("nRTW", -1) == -1:                     # RD -> WR = RL + BL/2 + 2 - WL (clause 3.9)
+            timing_dict["nRTW"] = timing_dict["nCL"] + timing_dict["nBL"] + 2 - timing_dict["nCWL"]
 
     @staticmethod
     def _page_size_bytes(org_dict):
@@ -177,29 +193,30 @@ DDR2.org_presets = {
     "DDR2_2Gb_x16": {"density": 2048, "dq": 16, "channel_width": 16, "rank": 1, "bank": 8, "row": 1 << 14, "column": 1 << 10},
 }
 
-# nCWL -1 -> nCL - 1. nRRD / nFAW -1 -> JEDEC page-size table for the bin's rate.
+# nCWL -1 -> nCL - 1. nRRD / nFAW -1 -> JEDEC page-size table for the bin's rate. nRFC -1 -> the
+# density table; nRTW -1 -> the JEDEC RL + BL/2 + 2 - WL.
 # CK counts are ceil(ns / tCK) with the JESD79-2F floors (tCCD 2, tRTP 2, tRRD 2).
 _JEDEC_BINS = {
     # Table 41 DDR2-400B 3-3-3 @ 5.0 ns: tRCD 15, tRP 15, tRAS 40, tRC 55; Table 42 tWTR 10, tRTP 7.5, tWR 15
     "DDR2_400B": {"rate": 400, "nBL": 2, "tCK_ps": 5000,
                   "nCL": 3, "nRCD": 3, "nRP": 3, "nRAS": 8, "nRC": 11,
                   "nWR": 3, "nRTP": 2, "nCWL": -1, "nCCD": 2, "nWTR": 2,
-                  "nRRD": -1, "nFAW": -1, "nCS": 2},
+                  "nRRD": -1, "nFAW": -1, "nRFC": -1, "nRTW": -1, "nCS": 2},
     # DDR2-533B 3-3-3 @ 3.75 ns: tRCD 11.25, tRP 11.25, tRAS 45, tRC 56.25; tWTR 7.5
     "DDR2_533B": {"rate": 533, "nBL": 2, "tCK_ps": 3750,
                   "nCL": 3, "nRCD": 3, "nRP": 3, "nRAS": 12, "nRC": 15,
                   "nWR": 4, "nRTP": 2, "nCWL": -1, "nCCD": 2, "nWTR": 2,
-                  "nRRD": -1, "nFAW": -1, "nCS": 2},
+                  "nRRD": -1, "nFAW": -1, "nRFC": -1, "nRTW": -1, "nCS": 2},
     # DDR2-667D 5-5-5 @ 3.0 ns: tRCD 15, tRP 15, tRAS 45, tRC 60; tWTR 7.5
     "DDR2_667D": {"rate": 667, "nBL": 2, "tCK_ps": 3000,
                   "nCL": 5, "nRCD": 5, "nRP": 5, "nRAS": 15, "nRC": 20,
                   "nWR": 5, "nRTP": 3, "nCWL": -1, "nCCD": 2, "nWTR": 3,
-                  "nRRD": -1, "nFAW": -1, "nCS": 2},
+                  "nRRD": -1, "nFAW": -1, "nRFC": -1, "nRTW": -1, "nCS": 2},
     # DDR2-800E 6-6-6 @ 2.5 ns: tRCD 15, tRP 15, tRAS 45, tRC 60; tWTR 7.5 (Table 43)
     "DDR2_800E": {"rate": 800, "nBL": 2, "tCK_ps": 2500,
                   "nCL": 6, "nRCD": 6, "nRP": 6, "nRAS": 18, "nRC": 24,
                   "nWR": 6, "nRTP": 3, "nCWL": -1, "nCCD": 2, "nWTR": 3,
-                  "nRRD": -1, "nFAW": -1, "nCS": 2},
+                  "nRRD": -1, "nFAW": -1, "nRFC": -1, "nRTW": -1, "nCS": 2},
 }
 
 # Micron MT47H64M16 -25E (Nexys A7), 1 Gb x16, 2 KB page, rated DDR2-800. Part ns
@@ -218,11 +235,32 @@ def _part_preset(rate, tCK_ps, nCL):
             "nRAS": _ck(p["tRAS"], tCK_ps), "nRC": _ck(p["tRC"], tCK_ps),
             "nWR": _ck(p["tWR"], tCK_ps), "nRTP": _ck(p["tRTP"], tCK_ps, floor=2), "nCWL": -1,
             "nCCD": 2, "nWTR": _ck(p["tWTR"], tCK_ps, floor=2), "nRRD": _ck(p["tRRD"], tCK_ps, floor=2),
-            "nFAW": _ck(p["tFAW"], tCK_ps), "nCS": 2}
+            "nFAW": _ck(p["tFAW"], tCK_ps), "nRFC": -1, "nRTW": -1, "nCS": 2}
 
+
+# The granite FPGA SKU at 100 MHz (memory-controllers MC-018): the host's MC-cycle
+# derivation (pumice_device.ddr2_timings_mc_cycles(100e6, cl=3, row_phase=1):
+# tRCD 2, tRP 2, tRAS 5, tRC 7, tWR 4, tRTP 1, tCCD 1, tWTR 4, tRRD 2, tFAW 5,
+# tRFC 14, tRTW 20, tREFI 780 MC cycles) for a controller whose main slot is every
+# 2nd CK. A value is 2 x the MC count where that exceeds the JEDEC CK count rounded
+# up to the slot (tRC 14, tWTR: WL + BL/2 + nWTR = 8 -> nWTR 4, tWR: WL + BL/2 +
+# nWR = 8 -> nWR 4, tRRD 4, tRFC 28, tRTW 40) and the JEDEC CK count otherwise (it
+# rounds to the RTL's count on the even slot and lets the odd-slot lane command
+# keep the JEDEC distance). tWR is forced although 7 CK rounds to 4 MC on the slot
+# because the RTL counts WRA -> ACT as two counters in sequence (tWR 4 then tRP 2
+# = 6 MC) where the model adds the CK values (7 + 3 = 10 CK = 5 MC): the forced 8
+# makes the sum 11 -> 6 MC, the RTL's. RDA -> ACT (2 + 3 = 5 CK -> 3 MC) already
+# equals the RTL's tRTP 1 + tRP 2. The test in references/ramulator2/tests pins
+# each one to the host function.
+_SKU100 = {"rate": 400, "nBL": 2, "tCK_ps": 5000,
+           "nCL": 3, "nRCD": 3, "nRP": 3, "nRAS": 9, "nRC": 14,
+           "nWR": 4, "nRTP": 2, "nCWL": -1, "nCCD": 2, "nWTR": 4,
+           "nRRD": 4, "nFAW": 9, "nRFC": 28, "nRTW": 40, "nCS": 2}
 
 DDR2.timing_presets = {
     **_JEDEC_BINS,
+    # the granite SKU's own counters (MC-018), see _SKU100
+    "DDR2_GRANITE_SKU100": _SKU100,
     # the board point: CK 150 MHz (sys 75 MHz, DFI 1:2), CL3 -- pumice_dram_configs "board_ddr2_300"
     "DDR2_MT47H64M16_300_CL3": _part_preset(300, 6667, 3),
     # CK 200 MHz (sys 100 MHz), CL3 -- "ddr2_400_cl3_bl4"

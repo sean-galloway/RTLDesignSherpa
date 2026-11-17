@@ -47,6 +47,17 @@ tests writes it off the controller's AXI port) instead of one rebuilt here:
 
   python3 .../char_model.py run-trace --config open32 --name col_ilv_bl8 \\
       --wr <dir>/col_ilv_wr.trace --rd <dir>/col_ilv_rd.trace --out <csv>
+
+MC-018 added the SKU itself: `granite_sku100` runs the overlay's GraniteSKU
+controller (granite_sku_controller.cpp: the bank-FIFO store, the pick core's
+select, the direction register, the row lane, close-on-drain, one slot per MC
+cycle) on the DDR2_GRANITE_SKU100 preset (the host's MC-cycle timings in CK);
+`_bi` / `_close` are the board's bank_interleave / close_page presets on it, and
+the `sku_*` configs each change ONE term. `board-compare` puts the SKU model
+beside a board CSV set cell by cell with a per-family tolerance; `sweep` runs a
+list of configs over a suite and writes the pattern x variant table. The MC-018
+patterns (`patterns` suite): read / write mixes, mixed at 2 / 8 threads and
+AxLEN 4 / 16, row-locality sweeps, two- and four-bank interleaves.
 """
 from __future__ import annotations
 
@@ -56,7 +67,7 @@ import os
 import sys
 import tempfile
 import time
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 def _repo_root() -> str:
@@ -119,6 +130,12 @@ class Scenario:
     burst_len: int = 8       # AXI beats of 8 bytes
     txn_count: int = 65535   # AXI bursts per injector (the board's "every" count)
     threads: int = 1
+    # family knobs (MC-018 patterns): write fraction of a one-stream mix (rw_mix), the row-hit
+    # probability of a locality walk (locality), the bank step of an interleave (bank_step)
+    param: float = 0.0
+    # two independent in-order streams (writers and readers from one GO, as the AXI port's two
+    # channels carry them) rather than one stream: the mixed family
+    split: bool = False
 
     @property
     def burst_bytes(self) -> int:
@@ -131,11 +148,32 @@ EVERY = [
     for bl in (4, 8, 16)
 ]
 WINDOWS = [
-    Scenario("mixed_bl8", "mixed", burst_len=8, txn_count=32000, threads=WINDOW_GENS),
+    Scenario("mixed_bl8", "mixed", burst_len=8, txn_count=32000, threads=WINDOW_GENS, split=True),
     Scenario("row_thrash_bl8", "row_thrash", burst_len=8, txn_count=32000, threads=WINDOW_GENS),
     Scenario("random_bl8", "random", burst_len=8, txn_count=32000, threads=WINDOW_GENS),
 ]
-SUITES = {"every": EVERY, "windows": WINDOWS, "all": EVERY + WINDOWS}
+# MC-018 item 3: the patterns the char profiles do not cover. txn_count is per injector; the
+# mixes and the locality walks run four injectors so the bank parallelism is the window's.
+PATTERNS = [
+    # the mixed window at 2 and 8 threads (1 + 1 / 4 + 4 injectors) and at AxLEN 4 / 16
+    Scenario("mixed_bl8_t2", "mixed", burst_len=8, txn_count=32000, threads=2, split=True),
+    Scenario("mixed_bl8_t8", "mixed", burst_len=8, txn_count=32000, threads=8, split=True),
+    Scenario("mixed_bl4", "mixed", burst_len=4, txn_count=32000, threads=WINDOW_GENS, split=True),
+    Scenario("mixed_bl16", "mixed", burst_len=16, txn_count=32000, threads=WINDOW_GENS, split=True),
+    # one in-order stream per injector, each burst a write with probability `param` (70 / 30, 30 / 70),
+    # row-hit walks in the injector's own bank: the direction register's turnarounds alone
+    Scenario("rw70_bl8", "rw_mix", burst_len=8, txn_count=32000, threads=WINDOW_GENS, param=0.7),
+    Scenario("rw30_bl8", "rw_mix", burst_len=8, txn_count=32000, threads=WINDOW_GENS, param=0.3),
+    # row locality: each burst stays in the open row with probability `param`, else moves to another
+    # of the injector's 8 rows (4 injectors, one bank each)
+    *[Scenario(f"locality_h{int(h * 100):02d}_bl8", "locality", burst_len=8, txn_count=32000,
+               threads=WINDOW_GENS, param=h) for h in (0.1, 0.3, 0.5, 0.7, 0.9)],
+    # interleaves that defeat the rotor: every burst a miss, stepping 2 / 4 banks (4 / 2 banks in play)
+    Scenario("col_ilv_s2_bl8", "bank_step", burst_len=8, txn_count=65535, param=2),
+    Scenario("col_ilv_s4_bl8", "bank_step", burst_len=8, txn_count=65535, param=4),
+]
+SUITES = {"every": EVERY, "windows": WINDOWS, "all": EVERY + WINDOWS, "patterns": PATTERNS,
+          "everything": EVERY + WINDOWS + PATTERNS}
 
 
 # ---------------------------------------------------------------------------
@@ -196,6 +234,36 @@ def injector_walks(sc: Scenario) -> Tuple[List[List[int]], List[List[int]]]:
                 out.append(list(_walk(start, bb, GEOM.page_bytes - 1, n)))
             return out
         return region(0), region(1)
+    elif sc.family == "rw_mix":
+        # one stream per injector in its own bank, a row-hit walk; which bursts are writes is
+        # decided below (interleave_mixed_bursts) from the same LFSR, so the walk is shared
+        w = []
+        for g in range(sc.threads):
+            bank = g % (1 << GEOM.bank_width)
+            start = bank * GEOM.bank_stride + ROW_THRASH_ROW * GEOM.row_stride_same_bank
+            w.append(list(_walk(start, bb, GEOM.page_bytes - 1, n)))
+    elif sc.family == "locality":
+        # per injector one bank, REGION_ROWS rows; a burst stays in the current row with probability
+        # param (sequential inside the page, wrapping) or jumps to another of the rows
+        w = []
+        per_row = GEOM.page_bytes // bb
+        for g in range(sc.threads):
+            bank = g % (1 << GEOM.bank_width)
+            lf = _lfsr16(0x5EED ^ (g * 0x9E37))
+            row, col = 0, 0
+            walk = []
+            for _ in range(n):
+                r = next(lf)
+                if (r & 0xFFFF) >= int(sc.param * 65536):
+                    row = (row + 1 + ((r >> 4) % (REGION_ROWS - 1))) % REGION_ROWS
+                    col = (r >> 8) % per_row
+                walk.append(bank * GEOM.bank_stride + (ROW_THRASH_ROW + row) * GEOM.row_stride_same_bank + col * bb)
+                col = (col + 1) % per_row
+            w.append(walk)
+    elif sc.family == "bank_step":
+        # col_major_interleaved stepping `param` banks: with 8 banks only 8 / param of them are in play
+        step = int(sc.param)
+        w = [list(_walk(0, step * GEOM.bank_stride, GEOM.device_bytes - 1, n))]
     else:
         raise ValueError(f"unknown family {sc.family!r}")
     return w, w
@@ -217,10 +285,61 @@ def interleave_bursts(walks: Sequence[Sequence[int]], burst_len: int, op: str) -
                     yield op, base + beat * GEOM.beat_bytes
 
 
-def write_trace(path: str, streams: Iterable[Iterator[Tuple[str, int]]]) -> int:
+def interleave_mixed_bursts(walks: Sequence[Sequence[int]], burst_len: int, write_frac: float,
+                            seed: int = 0x3A5C) -> Iterator[Tuple[str, int]]:
+    """interleave_bursts with each burst a write with probability write_frac (one LFSR for the
+    whole stream): the rw_mix family, one in-order stream carrying both directions."""
+    lf = _lfsr16(seed)
+    thresh = int(write_frac * 65536)
+    idx = [0] * len(walks)
+    live = True
+    while live:
+        live = False
+        for g, walk in enumerate(walks):
+            if idx[g] < len(walk):
+                live = True
+                base = walk[idx[g]]
+                idx[g] += 1
+                op = "ST" if next(lf) < thresh else "LD"
+                for beat in range(burst_len):
+                    yield op, base + beat * GEOM.beat_bytes
+
+
+# ---------------------------------------------------------------------------
+# Address maps (the board's ADDR_MAP.bank_lsb presets)
+# ---------------------------------------------------------------------------
+# The model's mapper is RoBaRaCoCh = the RTL's ROW_MAJOR (bank_lsb = COL_WIDTH).
+# The board's `bank_interleave` preset is bank_lsb = log2(burst_cols) = 2 on the
+# x16 BL4 build: in device-word units [col_lo(2) | bank(3) | col_hi(8) | row(13)],
+# one BL4 burst per bank before the bank field steps. A trace address under that
+# map is re-encoded here to the ROW_MAJOR address of the same DRAM location, so
+# the model's mapper stays one and the board's preset is a property of the stream.
+BI_BANK_LSB = 2
+
+
+def remap_bank_interleave(addr: int, bank_lsb: int = BI_BANK_LSB) -> int:
+    word = addr >> GEOM.byte_offset
+    col_lo = word & ((1 << bank_lsb) - 1)
+    bank = (word >> bank_lsb) & ((1 << GEOM.bank_width) - 1)
+    col_hi = (word >> (bank_lsb + GEOM.bank_width)) & ((1 << (GEOM.col_width - bank_lsb)) - 1)
+    row = word >> (GEOM.col_width + GEOM.bank_width)
+    col = (col_hi << bank_lsb) | col_lo
+    out = (((row << GEOM.bank_width) | bank) << GEOM.col_width) | col
+    return (out << GEOM.byte_offset) | (addr & ((1 << GEOM.byte_offset) - 1))
+
+
+ADDR_MAPS = {"row_major": lambda a: a, "bank_interleave": remap_bank_interleave}
+
+
+def write_trace(path: str, streams: Iterable[Iterator[Tuple[str, int]]], *, addr_map: str = "row_major",
+                split: bool = False) -> int:
     """One request per tick; several streams (write + read for `mixed`) are
-    interleaved beat by beat. Returns the request count."""
+    interleaved beat by beat. Returns the request count. `split` stamps the
+    streams with the SAME ticks (one beat per tick per stream: the frontend's
+    split_directions mode offers each direction independently); `addr_map`
+    re-encodes every address from that board preset's map (ADDR_MAPS)."""
     n = 0
+    remap = ADDR_MAPS[addr_map]
     with open(path, "w") as f:
         its = [iter(s) for s in streams]
         tick = 0
@@ -231,10 +350,13 @@ def write_trace(path: str, streams: Iterable[Iterator[Tuple[str, int]]]) -> int:
                     op, addr = next(it)
                 except StopIteration:
                     continue
-                f.write(f"{tick} {op} {addr}\n")
-                tick += 1
+                f.write(f"{tick} {op} {remap(addr)}\n")
+                if not split:
+                    tick += 1
                 n += 1
                 nxt.append(it)
+            if split:
+                tick += 1
             its = nxt
     return n
 
@@ -264,6 +386,18 @@ class ModelConfig:
     scatter_interval: int = 0          # AllBank refresh: stagger the scope nodes by this many cycles (0 = all at once)
     ref_burst: int = 1                 # n > 1: n REFs issued back to back every n tREFI (nRFC and nREFI both x n), the
                                        #   JEDEC postpone / pull-in credit (DDR2: up to 8) spent as one burst
+    # ---- MC-018: the SKU controller (overlay granite_sku_controller.cpp) ----
+    controller: str = "GenericDDR"     # GenericDDR | GraniteSKU
+    slot_ticks: int = 2                # GraniteSKU: CK per main command slot (2 = one per MC cycle at DFI 1:2)
+    bank_cap_mixed: int = 6            # GraniteSKU: BANK_CAP_MIXED (0 = off)
+    dir_batch_max: int = 255           # GraniteSKU: DIR_BATCH_MAX (0 = no cap)
+    dir_hold_idle: int = 8             # GraniteSKU: DIR_HOLD_IDLE (0 = off)
+    dir_owns_rows: bool = True         # GraniteSKU: DIR_OWNS_ROWS
+    lane: int = 3                      # GraniteSKU: row lane 0 off / 1 PRE only / 2 ACT only / 3 either (DUAL_ISSUE)
+    close_on_drain: bool = True        # GraniteSKU: CLOSE_ON_DRAIN auto-precharge
+    alternate: bool = True             # GraniteSKU: the row / column alternation of the select
+    page_close: bool = False           # GraniteSKU: every column auto-precharges (the board's close_page preset)
+    addr_map: str = "row_major"        # the board's ADDR_MAP preset the stream is encoded under (ADDR_MAPS)
     note: str = ""
 
 
@@ -353,6 +487,57 @@ CONFIGS.update({c.name: c for c in [
 ]})
 
 
+# ---- MC-018: the SKU and its one-term variants -------------------------------
+SKU = ModelConfig("granite_sku100", timing_preset="DDR2_GRANITE_SKU100", controller="GraniteSKU",
+                  read_buffer=16, write_buffer=16, scheduler="FRFCFS",
+                  note="THE SKU: GraniteSKU controller (bank-FIFO store, pick-core select, direction register, "
+                       "row lane, close-on-drain, one slot per MC cycle) at pool 16, BANK_CAP_MIXED 6, cap 255, "
+                       "hold-idle 8, on the host's MC-cycle timings (DDR2_GRANITE_SKU100)")
+
+
+def _sku(tag: str, note: str, **kw) -> ModelConfig:
+    return replace(SKU, name=f"sku_{tag}", note=f"as granite_sku100 with {note}", **kw)
+
+
+CONFIGS.update({c.name: c for c in [
+    SKU,
+    # the board's other two presets on the SKU
+    replace(SKU, name="granite_sku100_bi", addr_map="bank_interleave",
+            note="the SKU with the stream encoded under the board's bank_interleave map (bank_lsb 2)"),
+    replace(SKU, name="granite_sku100_close", page_close=True,
+            note="the SKU with every column auto-precharging (the board's close_page preset)"),
+    # the ideal at the SKU's timings: what the timing set alone costs (GenericDDR row-hit-first, pool 16)
+    replace(SKU, name="sku_ideal16", controller="GenericDDR", scheduler="FRFCFS-RowHit",
+            note="GenericDDR FRFCFS-RowHit at pool 16 on the SKU timing preset: the ideal with the SKU's counters"),
+    # one-term variants
+    _sku("pool8", "pool 8", read_buffer=8, write_buffer=8),
+    _sku("pool24", "pool 24", read_buffer=24, write_buffer=24),
+    _sku("pool32", "pool 32", read_buffer=32, write_buffer=32),
+    _sku("cap0", "BANK_CAP_MIXED off", bank_cap_mixed=0),
+    _sku("cap4", "BANK_CAP_MIXED 4", bank_cap_mixed=4),
+    _sku("cap8", "BANK_CAP_MIXED 8", bank_cap_mixed=8),
+    _sku("batch64", "DIR_BATCH_MAX 64", dir_batch_max=64),
+    _sku("batch128", "DIR_BATCH_MAX 128", dir_batch_max=128),
+    _sku("batch0", "no batch cap", dir_batch_max=0),
+    _sku("hold0", "DIR_HOLD_IDLE off", dir_hold_idle=0),
+    _sku("hold16", "DIR_HOLD_IDLE 16", dir_hold_idle=16),
+    _sku("noown", "DIR_OWNS_ROWS off", dir_owns_rows=False),
+    _sku("laneoff", "the row lane off (DUAL_ISSUE 0)", lane=0),
+    _sku("lanepre", "the row lane carrying PRE only", lane=1),
+    _sku("laneact", "the row lane carrying ACT only", lane=2),
+    _sku("noalt", "no row / column alternation (columns first always)", alternate=False),
+    _sku("peek16_pool32", "pool 32 and a 16-deep row-hit peek past a conflicting head", read_buffer=32,
+         write_buffer=32, peek_depth=16),
+    _sku("peek2", "a two-entry peek (the two-head record as a real lookahead)", peek_depth=2),
+    _sku("refburst8", "eight refreshes per burst every 8 tREFI", ref_burst=8),
+    _sku("slot1", "a command slot every CK (the one-slot-per-MC-cycle cost; the lane is then moot)", slot_ticks=1),
+    _sku("jedec", "the JEDEC CK timings (DDR2_MT47H64M16_400_CL3) instead of the host's MC-cycle counters",
+         timing_preset="DDR2_MT47H64M16_400_CL3"),
+]})
+
+SKU_VARIANTS = [c for c in CONFIGS if c.startswith("sku_")]
+
+
 def _mc_granular_class(base):
     """A DDR2 variant whose constraint latencies round up to 2 CK (Ramulator's
     command_slot_cycles). It keeps the base class's name because the C++ side
@@ -382,7 +567,7 @@ def _ref_burst_class(base, n: int):
     return cls
 
 
-def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False):
+def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bool = False):
     import ramulator  # noqa: WPS433  (vendor module)
 
     dram_cls = ramulator.dram.DDR2_BL8 if bl8 else ramulator.dram.DDR2
@@ -405,14 +590,27 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False):
     else:
         scheduler = {"FRFCFS": ramulator.scheduler.FRFCFS,
                      "FRFCFS-RowHit": ramulator.scheduler.FRFCFSRowHit}[cfg.scheduler]()
-    ctrl = ramulator.controller.GenericDDR(
-        dram=dram, scheduler=scheduler, refresh_manager=refresh, row_policy=row_policy,
-        addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
-        read_buffer_size=cfg.read_buffer, write_buffer_size=cfg.write_buffer,
-        wr_low_watermark=cfg.wr_low_wm, wr_high_watermark=cfg.wr_high_wm,
-    )
+    if cfg.controller == "GraniteSKU":
+        # the overlay's SKU controller (granite_sku_controller.cpp); it picks for itself, so the scheduler and
+        # row policy children are the required placeholders and inert
+        ctrl = ramulator.controller.GraniteSKU(
+            dram=dram, scheduler=scheduler, refresh_manager=refresh, row_policy=row_policy,
+            addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
+            read_buffer_size=cfg.read_buffer, write_buffer_size=cfg.write_buffer,
+            slot_ticks=cfg.slot_ticks, bank_cap_mixed=cfg.bank_cap_mixed, dir_batch_max=cfg.dir_batch_max,
+            dir_hold_idle=cfg.dir_hold_idle, dir_owns_rows=cfg.dir_owns_rows, lane=cfg.lane,
+            close_on_drain=cfg.close_on_drain, alternate=cfg.alternate, page_close=cfg.page_close,
+            peek_depth=cfg.peek_depth,
+        )
+    else:
+        ctrl = ramulator.controller.GenericDDR(
+            dram=dram, scheduler=scheduler, refresh_manager=refresh, row_policy=row_policy,
+            addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
+            read_buffer_size=cfg.read_buffer, write_buffer_size=cfg.write_buffer,
+            wr_low_watermark=cfg.wr_low_wm, wr_high_watermark=cfg.wr_high_wm,
+        )
     # frontend = the MC clock (one AXI beat per tick), memory system = CK at 2x
-    frontend = ramulator.frontend.TimedLoadStoreTrace(clock_ratio=1, path=trace_path)
+    frontend = ramulator.frontend.TimedLoadStoreTrace(clock_ratio=1, path=trace_path, split_directions=split)
     mem = ramulator.memory_system.GenericDRAM(
         clock_ratio=2, controllers=[ctrl],
         channel_mapper=ramulator.channel_mapper.CacheLineInterleave())
@@ -428,8 +626,24 @@ CSV_FIELDS = [
     "wr_cycles", "wr_bw_mb_s", "rd_cycles", "rd_bw_mb_s", "rd_avg_latency_cyc",
     "wr_row_hits", "wr_row_misses", "wr_row_conflicts",
     "rd_row_hits", "rd_row_misses", "rd_row_conflicts",
-    "wr_coalesced", "rd_forwarded", "wr_stall_ticks", "rd_stall_ticks", "elapsed_s", "notes",
+    "wr_coalesced", "rd_forwarded", "wr_stall_ticks", "rd_stall_ticks",
+    # MC-018: the SKU controller's own counters (0 / empty on GenericDDR). Latencies are MC cycles.
+    "rd_lat_max", "wr_wait_max", "dir_flips", "zero_col_turns", "lane_act", "lane_pre", "cap_refused",
+    "slot_col_pct", "slot_row_pct", "elapsed_s", "notes",
 ]
+
+
+def _sku_cols(c: dict, tag: str = "") -> dict:
+    """The GraniteSKU counters of one pass (empty strings on a controller without them)."""
+    if "sku_slots" not in c:
+        return dict(rd_lat_max="", wr_wait_max="", dir_flips="", zero_col_turns="", lane_act="", lane_pre="",
+                    cap_refused="", slot_col_pct="", slot_row_pct="")
+    slots = max(int(c["sku_slots"]), 1)
+    return dict(rd_lat_max=round(c["sku_max_read_latency"] / 2, 1), wr_wait_max=round(c["sku_max_write_wait"] / 2, 1),
+                dir_flips=c["sku_dir_flips"], zero_col_turns=c["sku_zero_col_turns"],
+                lane_act=c["sku_lane_act"], lane_pre=c["sku_lane_pre"], cap_refused=c["sku_cap_refused"],
+                slot_col_pct=round(100.0 * c["sku_main_col"] / slots, 1),
+                slot_row_pct=round(100.0 * c["sku_main_row"] / slots, 1))
 
 
 def _window(fe: dict, kind: str) -> int:
@@ -441,8 +655,8 @@ def _bw(bytes_moved: int, cycles: int) -> float:
     return round(bytes_moved / cycles * MC_CLK_MHZ, 2) if cycles else 0.0
 
 
-def run_pass(cfg: ModelConfig, trace_path: str) -> Tuple[dict, dict]:
-    sim = build_sim(cfg, trace_path)
+def run_pass(cfg: ModelConfig, trace_path: str, *, split: bool = False) -> Tuple[dict, dict]:
+    sim = build_sim(cfg, trace_path, split=split)
     sim.run()
     st = sim.stats
     return st["frontend"], st["memory_system"]["controller"]
@@ -457,7 +671,7 @@ def _both_dirs_row(fe: dict, c: dict) -> dict:
                 rd_row_hits=c["read_row_hits"], rd_row_misses=c["read_row_misses"],
                 rd_row_conflicts=c["read_row_conflicts"],
                 wr_coalesced=c["num_write_reqs_coalesced"], rd_forwarded=c["num_read_reqs_forwarded"],
-                wr_stall_ticks=fe["stall_ticks"], rd_stall_ticks=fe["stall_ticks"])
+                wr_stall_ticks=fe["stall_ticks"], rd_stall_ticks=fe["stall_ticks"], **_sku_cols(c))
 
 
 def _two_pass_row(wr: Tuple[dict, dict], rd: Tuple[dict, dict]) -> dict:
@@ -470,7 +684,20 @@ def _two_pass_row(wr: Tuple[dict, dict], rd: Tuple[dict, dict]) -> dict:
                 rd_row_hits=rc["read_row_hits"], rd_row_misses=rc["read_row_misses"],
                 rd_row_conflicts=rc["read_row_conflicts"],
                 wr_coalesced=wc["num_write_reqs_coalesced"], rd_forwarded=rc["num_read_reqs_forwarded"],
-                wr_stall_ticks=wfe["stall_ticks"], rd_stall_ticks=rfe["stall_ticks"])
+                wr_stall_ticks=wfe["stall_ticks"], rd_stall_ticks=rfe["stall_ticks"], **_two_pass_sku(wc, rc))
+
+
+def _two_pass_sku(wc: dict, rc: dict) -> dict:
+    """SKU counters of two single-direction passes: the read pass's latency and slot shares (the pass the
+    rd_* columns describe), the write pass's wait, the two passes' lane and flip counts summed."""
+    w, r = _sku_cols(wc), _sku_cols(rc)
+    if r["rd_lat_max"] == "":
+        return r
+    return dict(rd_lat_max=r["rd_lat_max"], wr_wait_max=w["wr_wait_max"],
+                dir_flips=w["dir_flips"] + r["dir_flips"], zero_col_turns=w["zero_col_turns"] + r["zero_col_turns"],
+                lane_act=w["lane_act"] + r["lane_act"], lane_pre=w["lane_pre"] + r["lane_pre"],
+                cap_refused=w["cap_refused"] + r["cap_refused"],
+                slot_col_pct=r["slot_col_pct"], slot_row_pct=r["slot_row_pct"])
 
 
 def trace_bytes(path: str) -> Tuple[int, int]:
@@ -489,7 +716,7 @@ def trace_bytes(path: str) -> Tuple[int, int]:
 
 
 def run_trace_files(cfg: ModelConfig, name: str, *, wr: Optional[str] = None, rd: Optional[str] = None,
-                    both: Optional[str] = None) -> dict:
+                    both: Optional[str] = None, split: bool = False) -> dict:
     """One CSV row from CAPTURED traces (MC-013 item 5): either a write trace and a read trace run as two
     passes, or one trace carrying both directions. The bandwidth definition is unchanged: bytes the trace
     moves per direction over that direction's first-send to last-complete window."""
@@ -497,7 +724,7 @@ def run_trace_files(cfg: ModelConfig, name: str, *, wr: Optional[str] = None, rd
     row = dict(config=cfg.name, scenario=name, family="trace", burst_len=0, threads=0, clk_mhz=MC_CLK_MHZ)
     if both:
         wb, rb = trace_bytes(both)
-        fe, c = run_pass(cfg, both)
+        fe, c = run_pass(cfg, both, split=split)
         row.update(_both_dirs_row(fe, c), txn_count=(wb + rb) // TX_BYTES, bytes_moved=max(wb, rb))
         notes = [f"captured trace {os.path.basename(both)}: {wb // TX_BYTES} ST + {rb // TX_BYTES} LD beats, union "
                  f"{_bw(wb + rb, fe['cycles'])} MB/s over {fe['cycles']} cycles"]
@@ -527,22 +754,41 @@ def run_scenario(cfg: ModelConfig, sc: Scenario, tmpdir: str) -> dict:
     notes: List[str] = []
     row = dict(config=cfg.name, scenario=sc.name, family=sc.family, burst_len=sc.burst_len,
                txn_count=sc.txn_count, threads=sc.threads, bytes_moved=per_dir_bytes, clk_mhz=MC_CLK_MHZ)
+    am = cfg.addr_map
     if sc.family == "mixed":
         path = os.path.join(tmpdir, f"{sc.name}.trace")
         write_trace(path, [interleave_bursts(w_walks, sc.burst_len, "ST"),
-                           interleave_bursts(r_walks, sc.burst_len, "LD")])
-        fe, c = run_pass(cfg, path)
+                           interleave_bursts(r_walks, sc.burst_len, "LD")], addr_map=am, split=sc.split)
+        fe, c = run_pass(cfg, path, split=sc.split)
         row.update(_both_dirs_row(fe, c))
         notes.append(f"{sc.threads} writers + {sc.threads} readers from one GO, union "
-                     f"{_bw(2 * per_dir_bytes, fe['cycles'])} MB/s over {fe['cycles']} cycles")
+                     f"{_bw(2 * per_dir_bytes, fe['cycles'])} MB/s over {fe['cycles']} cycles"
+                     + ("; two independent streams (split_directions)" if sc.split else ""))
+        row["wr_bw_mb_s"] = _bw(per_dir_bytes, row["wr_cycles"])
+        row["rd_bw_mb_s"] = _bw(per_dir_bytes, row["rd_cycles"])
+    elif sc.family == "rw_mix":
+        path = os.path.join(tmpdir, f"{sc.name}.trace")
+        write_trace(path, [interleave_mixed_bursts(w_walks, sc.burst_len, sc.param)], addr_map=am)
+        wb, rb = trace_bytes(path)
+        fe, c = run_pass(cfg, path)
+        row.update(_both_dirs_row(fe, c), bytes_moved=wb + rb)
+        row["wr_bw_mb_s"] = _bw(wb, row["wr_cycles"])
+        row["rd_bw_mb_s"] = _bw(rb, row["rd_cycles"])
+        notes.append(f"{sc.threads} injectors, {int(sc.param * 100)} percent writes per burst, union "
+                     f"{_bw(wb + rb, fe['cycles'])} MB/s over {fe['cycles']} cycles")
     else:
         wpath = os.path.join(tmpdir, f"{sc.name}_wr.trace")
         rpath = os.path.join(tmpdir, f"{sc.name}_rd.trace")
-        write_trace(wpath, [interleave_bursts(w_walks, sc.burst_len, "ST")])
-        write_trace(rpath, [interleave_bursts(r_walks, sc.burst_len, "LD")])
+        write_trace(wpath, [interleave_bursts(w_walks, sc.burst_len, "ST")], addr_map=am)
+        write_trace(rpath, [interleave_bursts(r_walks, sc.burst_len, "LD")], addr_map=am)
         row.update(_two_pass_row(run_pass(cfg, wpath), run_pass(cfg, rpath)))
-    row["wr_bw_mb_s"] = _bw(per_dir_bytes, row["wr_cycles"])
-    row["rd_bw_mb_s"] = _bw(per_dir_bytes, row["rd_cycles"])
+        row["wr_bw_mb_s"] = _bw(per_dir_bytes, row["wr_cycles"])
+        row["rd_bw_mb_s"] = _bw(per_dir_bytes, row["rd_cycles"])
+        if sc.family == "locality":
+            notes.append(f"{sc.threads} injectors, one bank each, row-hit probability {sc.param:.1f} over "
+                         f"{REGION_ROWS} rows")
+        elif sc.family == "bank_step":
+            notes.append(f"every burst a miss, stepping {int(sc.param)} banks ({8 // int(sc.param)} banks in play)")
     if row["wr_coalesced"] or row["rd_forwarded"]:
         notes.append(f"controller coalesced {row['wr_coalesced']} writes / forwarded "
                      f"{row['rd_forwarded']} reads (the board does neither)")
@@ -569,9 +815,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             row = run_scenario(cfg, sc, tmp)
             w.writerow(row)
             f.flush()
+            extra = (f", rd_lat_max {row['rd_lat_max']} flips {row['dir_flips']} lane {row['lane_act']}+{row['lane_pre']}"
+                     if row["dir_flips"] != "" else "")
             print(f"    wr {row['wr_bw_mb_s']} / rd {row['rd_bw_mb_s']} MB/s  "
-                  f"(rd hits/miss/conf {row['rd_row_hits']}/{row['rd_row_misses']}/{row['rd_row_conflicts']}, "
-                  f"{row['elapsed_s']} s)", flush=True)
+                  f"(rd hits/miss/conf {row['rd_row_hits']}/{row['rd_row_misses']}/{row['rd_row_conflicts']}"
+                  f"{extra}, {row['elapsed_s']} s)", flush=True)
     print(f"wrote {args.out}")
     return 0
 
@@ -580,7 +828,7 @@ def cmd_run_trace(args: argparse.Namespace) -> int:
     cfg = CONFIGS[args.config]
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     print(f"{cfg.name} {args.name} ...", flush=True)
-    row = run_trace_files(cfg, args.name, wr=args.wr, rd=args.rd, both=args.both)
+    row = run_trace_files(cfg, args.name, wr=args.wr, rd=args.rd, both=args.both, split=args.split)
     new = not os.path.exists(args.out) or args.overwrite
     with open(args.out, "w" if new else "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
@@ -676,6 +924,173 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# board-compare: the SKU model beside a board CSV set, cell by cell, with a tolerance per family (MC-018 item 2)
+# ---------------------------------------------------------------------------
+
+# model config -> the board preset it stands for
+BOARD_PRESET_OF = {"granite_sku100": ("defaults", "open_page"), "granite_sku100_bi": ("bank_interleave",),
+                   "granite_sku100_close": ("close_page",)}
+# percent of the board cell the model must land within, per family. The single-direction row-hit families
+# are where the DRAM alone sets the number; random / col_major / mixed are where the SKU terms matter and
+# where the match is the test (the task's wording); close_page is timer-bound and host-path heavy.
+TOLERANCE_PCT = {"incremental": 2.0, "row_major": 2.0, "col_major_interleaved": 3.0, "row_thrash": 3.0,
+                 "col_major": 5.0, "random": 5.0, "mixed": 10.0}
+TOLERANCE_PRESET_PCT = {"close_page": 15.0, "bank_interleave": 10.0}
+
+
+def _pct(model: float, board: float) -> float:
+    return (model - board) / board * 100.0 if board else 0.0
+
+
+def cmd_board_compare(args: argparse.Namespace) -> int:
+    model: Dict[Tuple[str, str], dict] = {}
+    for path in args.model:
+        with open(path, newline="") as f:
+            for r in csv.DictReader(f):
+                model[(r["config"], r["scenario"])] = r
+    board = _load_measured(args.measured, "granite", args.granite)
+    lines = [f"# The SKU model beside the board: granite {args.granite}", "",
+             "Cells are write / read MB/s at 100 MHz (bandwidth = bytes over first-beat-in to last-response-out);",
+             "delta = (model - board) / board per direction, and the cell is IN when both directions land within",
+             "the family's tolerance. `mixed` compares the union (both directions' bytes over the longer window).",
+             "", "| board preset | scenario | board wr / rd | model wr / rd | delta wr / rd | tol | verdict |",
+             "|---|---|---|---|---|---|---|"]
+    n_in = n_out = 0
+    worst: List[Tuple[float, str]] = []
+    for mcfg, presets in BOARD_PRESET_OF.items():
+        for preset in presets:
+            for sc in EVERY + WINDOWS:
+                b = board.get((preset, sc.name))
+                m = model.get((mcfg, sc.name))
+                if not b or not m:
+                    continue
+                tol = TOLERANCE_PRESET_PCT.get(preset, TOLERANCE_PCT.get(sc.family, 5.0))
+                bw, br = float(b["wr_bw_mb_s"]), float(b["rd_bw_mb_s"])
+                mw, mr = float(m["wr_bw_mb_s"]), float(m["rd_bw_mb_s"])
+                if sc.family == "mixed":
+                    # the board CSV's union is in its notes; the model's union = 2 * cell when the two windows
+                    # coincide, so compare both directions' bytes over the longer window
+                    bu = _union_from_notes(b["notes"])
+                    mu = 2 * float(m["bytes_moved"]) / max(int(m["wr_cycles"]), int(m["rd_cycles"])) * MC_CLK_MHZ
+                    d = _pct(mu, bu) if bu else 0.0
+                    verdict = "IN" if abs(d) <= tol else "OUT"
+                    cell = f"| {preset} | {sc.name} | {bw:.0f} / {br:.0f} (union {bu:.0f}) | {mw:.0f} / {mr:.0f} (union {mu:.0f}) | {d:+.1f} % (union) | {tol:.0f} % | {verdict} |"
+                    worst.append((abs(d), f"{preset} {sc.name}"))
+                else:
+                    dw, dr = _pct(mw, bw), _pct(mr, br)
+                    verdict = "IN" if max(abs(dw), abs(dr)) <= tol else "OUT"
+                    cell = f"| {preset} | {sc.name} | {bw:.0f} / {br:.0f} | {mw:.0f} / {mr:.0f} | {dw:+.1f} / {dr:+.1f} % | {tol:.0f} % | {verdict} |"
+                    worst.append((max(abs(dw), abs(dr)), f"{preset} {sc.name}"))
+                lines.append(cell)
+                if verdict == "IN":
+                    n_in += 1
+                else:
+                    n_out += 1
+    worst.sort(reverse=True)
+    lines += ["", f"{n_in} cells in tolerance, {n_out} out. Largest deltas: "
+              + ", ".join(f"{name} ({d:.1f} %)" for d, name in worst[:6]) + "."]
+    text = "\n".join(lines) + "\n"
+    if args.out:
+        with open(args.out, "w") as f:
+            f.write(text)
+        print(f"wrote {args.out}  ({n_in} in / {n_out} out)")
+    else:
+        sys.stdout.write(text)
+    return 0 if n_out == 0 or not args.strict else 1
+
+
+def _union_from_notes(notes: str) -> float:
+    """The board CSV's `union NNN.N MB/s` for the mixed family."""
+    import re
+    m = re.search(r"union ([0-9.]+) MB/s", notes or "")
+    return float(m.group(1)) if m else 0.0
+
+
+# ---------------------------------------------------------------------------
+# sweep: the pattern x variant table (MC-018 item 3)
+# ---------------------------------------------------------------------------
+
+
+def cmd_sweep(args: argparse.Namespace) -> int:
+    configs = [CONFIGS[c] for c in args.configs]
+    scenarios = SUITES[args.suite]
+    if args.only:
+        scenarios = [s for s in scenarios if s.name in set(args.only)]
+    if args.txn:
+        scenarios = [replace(s, txn_count=args.txn) for s in scenarios]
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    rows: Dict[Tuple[str, str], dict] = {}
+    if args.resume and os.path.exists(args.out):
+        with open(args.out, newline="") as f:
+            for r in csv.DictReader(f):
+                rows[(r["config"], r["scenario"])] = r
+    with tempfile.TemporaryDirectory(prefix="char_model_") as tmp:
+        total = len(configs) * len(scenarios)
+        i = 0
+        for cfg in configs:
+            for sc in scenarios:
+                i += 1
+                if (cfg.name, sc.name) in rows:
+                    continue
+                print(f"[{i}/{total}] {cfg.name} {sc.name} ...", flush=True)
+                row = run_scenario(cfg, sc, tmp)
+                rows[(cfg.name, sc.name)] = row
+                print(f"    wr {row['wr_bw_mb_s']} / rd {row['rd_bw_mb_s']} MB/s  rd_lat_max {row['rd_lat_max']} "
+                      f"flips {row['dir_flips']} ({row['elapsed_s']} s)", flush=True)
+                with open(args.out, "w", newline="") as f:
+                    w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+                    w.writeheader()
+                    for r in rows.values():
+                        w.writerow(r)
+    print(f"wrote {args.out}")
+    if args.table:
+        write_sweep_table(rows, [c.name for c in configs], scenarios, args.table, base=args.base)
+        print(f"wrote {args.table}")
+    return 0
+
+
+def _row_cells(r: dict) -> Tuple[float, float, float]:
+    """(write MB/s, read MB/s, the window's union MB/s for two-direction rows else the max)."""
+    w, rd = float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"])
+    if r["family"] in ("mixed", "rw_mix", "trace") and int(r["wr_cycles"]) and int(r["rd_cycles"]):
+        bytes_total = float(r["bytes_moved"]) * (2 if r["family"] == "mixed" else 1)
+        return w, rd, bytes_total / max(int(r["wr_cycles"]), int(r["rd_cycles"])) * MC_CLK_MHZ
+    return w, rd, max(w, rd)
+
+
+def write_sweep_table(rows: Dict[Tuple[str, str], dict], configs: List[str], scenarios: List[Scenario],
+                      path: str, *, base: str = "granite_sku100") -> None:
+    """pattern x variant: MB/s (write / read, union for two-direction rows) and the worst read wait, each
+    variant's delta against the base column."""
+    lines = [f"# Pattern x variant on the SKU model (base `{base}`)", "",
+             "Each cell: write / read MB/s (two-direction rows add the union over the longer window) and, on the",
+             "second line, the delta of the headline number against the base column with the worst read wait in",
+             "MC cycles. Headline = the union for two-direction rows, else the larger direction.", ""]
+    for c in configs:
+        lines.append(f"- `{c}`: {CONFIGS[c].note}")
+    lines += ["", "| pattern | " + " | ".join(configs) + " |", "|---|" + "---|" * len(configs)]
+    for sc in scenarios:
+        cells = []
+        b = rows.get((base, sc.name))
+        bh = _row_cells(b)[2] if b else 0.0
+        for c in configs:
+            r = rows.get((c, sc.name))
+            if not r:
+                cells.append("-")
+                continue
+            w, rd, head = _row_cells(r)
+            txt = f"{w:.0f} / {rd:.0f}" + (f" (u {head:.0f})" if r["family"] in ("mixed", "rw_mix") else "")
+            if b and c != base and bh:
+                txt += f"<br>{_pct(head, bh):+.1f} %"
+            if r.get("rd_lat_max", "") != "":
+                txt += f"<br>wait {float(r['rd_lat_max']):.0f}"
+            cells.append(txt)
+        lines.append(f"| {sc.name} | " + " | ".join(cells) + " |")
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -693,6 +1108,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     t.add_argument("--wr", help="write-pass trace (with --rd)")
     t.add_argument("--rd", help="read-pass trace (with --wr)")
     t.add_argument("--both", help="one trace carrying both directions (the mixed family)")
+    t.add_argument("--split", action="store_true",
+                   help="with --both: offer the two directions as independent streams (split_directions)")
     t.add_argument("--out", required=True, help="CSV to append to (created with a header if absent)")
     t.add_argument("--overwrite", action="store_true", help="start the CSV afresh")
     t.set_defaults(func=cmd_run_trace)
@@ -703,6 +1120,23 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     c.add_argument("--litedram", default="", help="<point>_<date>, e.g. hx100_2026-10-31")
     c.add_argument("--out", default="")
     c.set_defaults(func=cmd_compare)
+    bc = sub.add_parser("board-compare", help="the SKU model CSV(s) beside a board CSV set, cell by cell, with tolerances")
+    bc.add_argument("--model", nargs="+", required=True)
+    bc.add_argument("--measured", required=True, help="the char_results directory")
+    bc.add_argument("--granite", required=True, help="<point>_<date>, e.g. sku100def_2026-11-16")
+    bc.add_argument("--out", default="")
+    bc.add_argument("--strict", action="store_true", help="exit 1 when any cell is out of tolerance")
+    bc.set_defaults(func=cmd_board_compare)
+    sw = sub.add_parser("sweep", help="run several configs over a suite; one CSV, optionally the pattern x variant table")
+    sw.add_argument("--configs", nargs="+", required=True, help="config names (see run --config)")
+    sw.add_argument("--suite", choices=sorted(SUITES), default="everything")
+    sw.add_argument("--only", nargs="*")
+    sw.add_argument("--txn", type=int, default=0)
+    sw.add_argument("--out", required=True, help="the CSV (rewritten after every cell; --resume skips cells it has)")
+    sw.add_argument("--resume", action="store_true")
+    sw.add_argument("--table", default="", help="write the pattern x variant markdown table here")
+    sw.add_argument("--base", default="granite_sku100", help="the column the deltas are against")
+    sw.set_defaults(func=cmd_sweep)
     args = ap.parse_args(argv)
     return args.func(args)
 

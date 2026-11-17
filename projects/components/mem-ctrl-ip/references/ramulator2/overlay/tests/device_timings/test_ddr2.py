@@ -70,10 +70,28 @@ def test_bl4_and_bl8_classes_differ_only_in_prefetch_and_nbl():
     _, t4 = bl4.resolve()
     _, t8 = bl8.resolve()
     assert t4["nBL"] == 2 and t8["nBL"] == 4
-    assert {k: v for k, v in t4.items() if k != "nBL"} == {k: v for k, v in t8.items() if k != "nBL"}
+    # RD -> WR = RL + BL/2 + 2 - WL carries the BL/2 (clause 3.9), so it moves with nBL: 2 CK more at BL8
+    assert t8["nRTW"] == t4["nRTW"] + 2
+    assert {k: v for k, v in t4.items() if k not in ("nBL", "nRTW")} == {k: v for k, v in t8.items() if k not in ("nBL", "nRTW")}
     # 1K columns of x16: 256 BL4 bursts per page, 128 BL8 bursts
     assert extract_dram_layout(bl4)["num_cls"] == 256
     assert extract_dram_layout(bl8)["num_cls"] == 128
+
+
+def test_rd_to_wr_is_its_own_parameter_defaulting_to_the_jedec_term():
+    t = make_dut("DDR2_800E").timings
+    # DDR2-800E CL6: RL + BL/2 + 2 - WL = 6 + 2 + 2 - 5 = 5 CK
+    assert t["nRTW"] == 5
+    assert make_dut("DDR2_800E", nRTW=40).timings["nRTW"] == 40
+
+
+def test_granite_sku100_preset_carries_the_host_counters_in_ck():
+    # memory-controllers MC-018: pumice_device.ddr2_timings_mc_cycles(100e6, cl=3, row_phase=1) in CK, where the
+    # RTL's MC count exceeds the JEDEC CK count on a 2 CK slot; JEDEC elsewhere (see the preset's comment)
+    t = make_dut("DDR2_GRANITE_SKU100").timings
+    assert (t["nRCD"], t["nRP"], t["nRAS"], t["nRC"]) == (3, 3, 9, 14)
+    assert (t["nWR"], t["nWTR"], t["nRTP"], t["nCCD"]) == (4, 4, 2, 2)
+    assert (t["nRRD"], t["nFAW"], t["nRFC"], t["nREFI"], t["nRTW"]) == (4, 9, 28, 1560, 40)
 
 
 # ---- command gates ------------------------------------------------------------

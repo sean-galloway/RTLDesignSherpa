@@ -295,6 +295,76 @@ wins). What to carry forward:
   Ramulator configuration tied to the 2026-11-16 cells, then one-term variants
   priced on it before any RTL task is filed.
 
+## The SKU as a configuration (2026-11-17, MC-018)
+
+The owner's 2026-11-16 ask closed the loop the policy configs had left open:
+a Ramulator configuration that IS the granite FPGA SKU, not a policy beside
+it. It is the overlay's `GraniteSKU` controller
+(`references/ramulator2/overlay/src/ramulator/controller/impl/granite_sku_controller.cpp`)
+on the `DDR2_GRANITE_SKU100` preset: one command slot per MC cycle with the
+row lane on the odd CK, per-(direction, bank) FIFO heads in the 16-entry
+pools with `BANK_CAP_MIXED`, the pick core's decode / select / rotor /
+alternation, the MC-017 direction register, close-on-drain, drain-then-grant
+refresh, the host's MC-cycle timings written in CK and the PHY-window tRTW
+as a DDR2 parameter of its own (`nRTW`). `char_model.py --config
+granite_sku100` runs it; `board-compare` puts it beside a board CSV set with
+a tolerance per family; `sweep` prices one-term variants against it
+(`char_results/model_mc018_sku_config_2026-11-17.md`). What it taught:
+
+- **State the tolerance before the comparison, per family, and keep it.**
+  Row-hit families 2 percent, the bank-parallel miss families 3, `col_major`
+  and `random` 5, `mixed` 10 on the union. Every open-page cell of the SKU
+  preset landed inside (row-hit +0.4 .. +1.2, `col_major` within 0.6,
+  `random` +3 .. +4, `mixed` +9 on the union); the three presets that did not
+  are each a named RTL effect with its own item (ISSUE-002 `bank_interleave`
+  at a third of the model, ISSUE-003 `close_page` paying ~2.5 cycles per
+  dependent hop, ISSUE-004 the `mixed` turn structure), not a number averaged
+  into a wider band.
+- **Derive each timing the way the RTL's counters sequence it, not the way
+  JEDEC adds it.** `col_major` writes were +7 percent with the reads exact:
+  the RTL counts WRA -> ACT as tWR 4 MC then tRP 2 (6), the model summed the
+  CK terms (7 + 3 = 10 CK = 5 MC). One family off while its neighbours are on
+  points at one term; the preset's comment names each forced value and a test
+  pins every constraint to the host function.
+- **Inherited conveniences are model terms.** The upstream controller
+  coalesces a write to a buffered address and forwards a read from one;
+  `mixed`'s wrapped page walks tripped both and gave the reads a third of
+  their bandwidth for free. A model of a specific machine owns its admission.
+- **Admission has a granularity.** `BANK_CAP_MIXED` applied per beat stranded
+  six beats of a burst in the queue and the other bank's burst behind it, so
+  one direction ran one bank at a time; the RTL takes the AW whole. The trace
+  carries beats, so a beat contiguous with the last admitted one is the same
+  burst and exempt. Read where the RTL applies a rule (the AW / AR) before
+  applying it where the model happens to see requests.
+- **A rule copied from the RTL can still give a different answer than the
+  RTL.** The lane's rotor (past the held winner's pair, wrapping to the
+  lowest) is the pick core's as written, and in the model it hands the
+  shared bank's ACT after an auto-precharge to the holder every time, so the
+  waiting direction never opens a row and the read turns run four times the
+  cap; the RTL's flip log (MC-017) shows 255-column turns. The disagreement
+  is the finding -- it names the probe (`PERF_PICK_PROBE_FLIP` at a cap flip,
+  lane on) and the term the model is missing, and it is filed (ISSUE-004)
+  rather than tuned away. Until it closes, `mixed` rows of the sweep carry it
+  as their error bar.
+- **Stream equivalence first.** The MC-013 captured `mixed` trace replays to
+  the same cells as the rebuilt stream (union 595 against 592), so a `mixed`
+  disagreement is the controller's, not the stimulus's.
+
+- **Read a variant's gain against the model's own defect first.** The sweep's
+  biggest movers were all on the `mixed` rows (+9 .. +35 percent for no batch
+  cap, no idle hold, no row ownership, a refresh burst) -- every one of them a
+  knob that changes the turn structure the model gets wrong (ISSUE-004). A
+  variant that improves a cell the model does not reproduce is the model
+  repairing itself; it is recorded, not filed. The two that were filed
+  (MC-019: a PRE never needs to ride the lane, 0.0 on 29 patterns; MC-020:
+  the single-bank RDA -> ACT -> RD chain, +5 .. +15 on `col_major`) move cells
+  the model reproduces within 1 percent.
+- **An ideal column is a decomposition, not a target.** At the SKU's timings
+  the ideal beats the SKU only on `col_major` (+5 .. +15, the one-slot tax, which
+  `slot1` isolates to the slot) and on `mixed` (+32, under the ISSUE-004 bar);
+  on the 23 other patterns it is within 0.4 percent. The SKU's rules are the
+  ideal's everywhere the lane reaches.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

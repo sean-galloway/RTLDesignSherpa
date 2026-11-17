@@ -179,3 +179,122 @@ def test_axi_trace_exporter_writes_the_frontend_contract(tmp_path):
     assert info["first_cycle"] == 100 and info["last_cycle"] == 109
     assert cm.trace_bytes(path) == (8 * cm.TX_BYTES, 2 * cm.TX_BYTES)
     assert os.path.exists(path + ".meta.json")
+
+
+# ---- MC-018: the SKU configuration, its timing preset, the address maps and the new patterns ----
+
+def test_sku_preset_is_the_host_mc_cycle_derivation(pumice_char):
+    """Every constraint of DDR2_GRANITE_SKU100, measured between two main-slot commands (even CK), must
+    round to the host's MC-cycle count at 100 MHz (pumice_device.ddr2_timings_mc_cycles, row_phase 1)."""
+    import math
+    import ramulator
+    pd = pytest.importorskip("pumice_device")
+    host = pd.ddr2_timings_mc_cycles(100e6, cl=3, row_phase=1)
+    _, t = ramulator.dram.DDR2(org_preset="DDR2_1Gb_x16", timing_preset="DDR2_GRANITE_SKU100").resolve()
+    mc = lambda ck: math.ceil(ck / 2)                                           # noqa: E731
+    assert mc(t["nRCD"]) == host["tRCD"] and mc(t["nRP"]) == host["tRP"]
+    assert mc(t["nRAS"]) == host["tRAS"] and mc(t["nRC"]) == host["tRC"]
+    assert mc(t["nRRD"]) == host["tRRD"] and mc(t["nFAW"]) == host["tFAW"] and mc(t["nRFC"]) == host["tRFC"]
+    assert mc(t["nCCD"]) == host["tCCD"] and t["nREFI"] // 2 == host["tREFI"]
+    assert mc(t["nBL"] + t["nRTP"] - 2) == host["tRTP"]                          # RD -> PRE
+    assert mc(t["nCWL"] + t["nBL"] + t["nWR"]) == host["tWR"]                    # WR -> PRE
+    assert mc(t["nCWL"] + t["nBL"] + t["nWTR"]) == host["tWTR"]                  # WR -> RD
+    assert mc(t["nRTW"]) == host["tRTW"]                                         # RD -> WR (the PHY window)
+    # the RTL sequences WRA -> ACT as tWR then tRP; the model's sum must round to the same count
+    assert mc(t["nCWL"] + t["nBL"] + t["nWR"] + t["nRP"]) == host["tWR"] + host["tRP"]
+    assert mc(t["nBL"] + t["nRTP"] - 2 + t["nRP"]) == host["tRTP"] + host["tRP"]
+
+
+def test_sku_config_is_the_shipped_point():
+    c = cm.CONFIGS["granite_sku100"]
+    assert (c.controller, c.timing_preset) == ("GraniteSKU", "DDR2_GRANITE_SKU100")
+    assert (c.read_buffer, c.write_buffer, c.bank_cap_mixed, c.dir_batch_max, c.dir_hold_idle) == (16, 16, 6, 255, 8)
+    assert c.dir_owns_rows and c.lane == 3 and c.close_on_drain and c.slot_ticks == 2 and not c.page_close
+    # every variant changes ONE term against the SKU
+    from dataclasses import fields
+    for name in cm.SKU_VARIANTS:
+        v = cm.CONFIGS[name]
+        diff = [f.name for f in fields(v) if f.name not in ("name", "note") and getattr(v, f.name) != getattr(c, f.name)]
+        if name in ("sku_peek16_pool32",):
+            assert sorted(diff) == ["peek_depth", "read_buffer", "write_buffer"], (name, diff)
+        elif name.startswith("sku_pool"):
+            assert sorted(diff) == ["read_buffer", "write_buffer"], (name, diff)
+        elif name == "sku_ideal16":
+            assert sorted(diff) == ["controller", "scheduler"], (name, diff)
+        else:
+            assert len(diff) == 1, (name, diff)
+
+
+def test_bank_interleave_remap_is_the_rtl_map(pumice_char):
+    """bank_lsb 2 in device words: [col_lo(2) | bank(3) | col_hi(8) | row(13)]; consecutive 8-byte beats
+    land in consecutive banks of the same row, and the map is a bijection on the device."""
+    g = cm.GEOM
+    beats = [cm.remap_bank_interleave(i * 8) for i in range(16)]
+    banks = [(a // g.bank_stride) % 8 for a in beats]
+    rows = [a // g.row_stride_same_bank for a in beats]
+    assert banks == [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7]
+    assert rows == [0] * 16
+    # the ninth beat is the second burst of bank 0: column 4 (one BL4 burst on)
+    assert (beats[8] % g.bank_stride) // 8 == 1
+    # bijection on a sample, and byte-in-word preserved
+    sample = [i * 8 for i in range(0, 1 << 16, 7)]
+    out = {cm.remap_bank_interleave(a) for a in sample}
+    assert len(out) == len(sample)
+    assert cm.remap_bank_interleave(5) % 2 == 1
+
+
+def test_rw_mix_stream_has_the_requested_write_fraction():
+    sc = cm.Scenario("rw70_bl8", "rw_mix", burst_len=8, txn_count=2000, threads=4, param=0.7)
+    w, _ = cm.injector_walks(sc)
+    ops = [op for op, _ in cm.interleave_mixed_bursts(w, 8, 0.7)]
+    assert len(ops) == 4 * 2000 * 8
+    frac = ops.count("ST") / len(ops)
+    assert 0.67 < frac < 0.73
+    # a burst is all one direction
+    assert all(len(set(ops[i:i + 8])) == 1 for i in range(0, len(ops), 8))
+
+
+@pytest.mark.parametrize("h", [0.1, 0.5, 0.9])
+def test_locality_walk_hits_at_about_the_requested_rate(h):
+    sc = cm.Scenario(f"locality_h{int(h*100):02d}_bl8", "locality", burst_len=8, txn_count=4000, threads=4, param=h)
+    w, _ = cm.injector_walks(sc)
+    g = cm.GEOM
+    for gi, walk in enumerate(w):
+        assert len({(a // g.bank_stride) % 8 for a in walk}) == 1          # one bank per injector
+        rows = [a // g.row_stride_same_bank for a in walk]
+        assert len(set(rows)) <= cm.REGION_ROWS
+        same = sum(1 for i in range(1, len(rows)) if rows[i] == rows[i - 1]) / (len(rows) - 1)
+        assert abs(same - h) < 0.05, (gi, same)
+
+
+def test_bank_step_touches_only_every_nth_bank():
+    g = cm.GEOM
+    for step in (2, 4):
+        sc = cm.Scenario(f"col_ilv_s{step}_bl8", "bank_step", burst_len=8, txn_count=64, param=step)
+        w, _ = cm.injector_walks(sc)
+        banks = {(a // g.bank_stride) % 8 for a in w[0]}
+        assert banks == set(range(0, 8, step))
+        # every burst is a row miss: consecutive bursts to one bank are a row apart
+        per_bank = {}
+        for a in w[0]:
+            per_bank.setdefault((a // g.bank_stride) % 8, []).append(a // g.row_stride_same_bank)
+        assert all(r[i] != r[i + 1] for r in per_bank.values() for i in range(len(r) - 1))
+
+
+def test_split_trace_stamps_the_two_streams_with_shared_ticks(tmp_path):
+    sc = cm.Scenario("mixed_bl8", "mixed", burst_len=8, txn_count=2, threads=2, split=True)
+    w, r = cm.injector_walks(sc)
+    path = tmp_path / "m.trace"
+    cm.write_trace(str(path), [cm.interleave_bursts(w, 8, "ST"), cm.interleave_bursts(r, 8, "LD")], split=True)
+    lines = [ln.split() for ln in path.read_text().splitlines()]
+    ticks = [int(ln[0]) for ln in lines]
+    assert ticks[:4] == [0, 0, 1, 1] and ticks[-1] == 2 * 2 * 8 - 1
+    assert [ln[1] for ln in lines[:4]] == ["ST", "LD", "ST", "LD"]
+
+
+def test_write_trace_applies_the_address_map(tmp_path):
+    path = tmp_path / "bi.trace"
+    cm.write_trace(str(path), [iter([("LD", 8), ("LD", 16)])], addr_map="bank_interleave")
+    addrs = [int(ln.split()[2]) for ln in path.read_text().splitlines()]
+    assert addrs == [cm.remap_bank_interleave(8), cm.remap_bank_interleave(16)]
+    assert (addrs[0] // cm.GEOM.bank_stride) % 8 == 1

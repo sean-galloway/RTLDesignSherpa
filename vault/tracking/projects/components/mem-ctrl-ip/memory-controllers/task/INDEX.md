@@ -1,25 +1,28 @@
 # memory-controllers — task lane
 
-**Next ID: MC-019** — never recycle a number.
+**Next ID: MC-021** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 16 | done (kept for history) |
+| [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-- **MC-018** -- a Ramulator 2 configuration that IS the granite FPGA SKU
-  (sys100: row lane, 16-entry pool, `BANK_CAP_MIXED` 6, the MC-017 direction
-  register, 2 CK granularity, the host's derived timings), tied to the
-  2026-11-16 board cells within a stated per-family tolerance, then a pattern
-  x one-term-variant table (pool, caps, batch, lane scope, peek, drain,
-  refresh, AxLEN, strides, mixes, row locality) whose winners are filed as
-  tasks with their model delta and whose losers are recorded. No RTL. Filed
-  2026-11-16 (owner).
+- **MC-019** -- the row lane carries ACT only: the SKU model prices a PRE on
+  the lane at 0.0 on all 29 MC-018 patterns (PRE-only = lane off, ACT-only =
+  the SKU); drop the PRE class from the lane for logic out of the 100 MHz
+  cone, gated by `TEST_DUAL` both ways, formal and the no-knob sys100 build.
+  Filed 2026-11-17 from MC-018.
+- **MC-020** -- a row command into the idle main slot or the column's own
+  bank: the one-slot rule still costs `col_major` +14.6 / +9.5 / +5.3 percent
+  (bl4 / 8 / 16) and the two-bank interleave +4 .. +6 in the model, nothing
+  elsewhere; MC-014 cut the alone-firing lane for the 100 MHz cone, so the
+  task is a form that does not re-enter it, priced in the model first.
+  Filed 2026-11-17 from MC-018.
 
 ## Active
 
@@ -33,6 +36,18 @@
   close 75 MHz on the board. Deferred 2026-11-08.
 
 ## Closed
+
+- **MC-018** -- the granite FPGA SKU as a Ramulator configuration:
+  `granite_sku100` (the overlay's `GraniteSKU` controller -- bank-FIFO store
+  with the per-burst `BANK_CAP_MIXED`, the pick core's select and MC-017
+  direction register, the row lane on the odd CK, close-on-drain, one slot
+  per MC cycle -- on the host's MC-cycle timings with the PHY-window tRTW as
+  `nRTW`). Every open-page cell of the SKU preset inside the stated tolerance
+  (row-hit +0.4 .. +1.2 %, `col_major` within 0.6, `random` +3 .. +4, `mixed`
+  +9 on the union); `bank_interleave`, `close_page` and the `mixed` turn
+  structure filed as ISSUE-002 / 003 / 004. The 644-cell pattern x variant
+  sweep filed MC-019 and MC-020 and recorded the rest (pool 24 / 32, pool 8,
+  refresh burst, peek, caps, hold, batch, the JEDEC tRTW). Closed 2026-11-17.
 
 - **MC-011** -- timing is predictable or it is not closed: the 0.2 ns
   clock-uncertainty budget in both board XDCs, config CSRs as false paths, and
