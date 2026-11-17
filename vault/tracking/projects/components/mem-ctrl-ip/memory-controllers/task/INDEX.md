@@ -1,26 +1,29 @@
 # memory-controllers — task lane
 
-**Next ID: MC-018** — never recycle a number.
+**Next ID: MC-019** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 2 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
+- **MC-018** -- a Ramulator 2 configuration that IS the granite FPGA SKU
+  (sys100: row lane, 16-entry pool, `BANK_CAP_MIXED` 6, the MC-017 direction
+  register, 2 CK granularity, the host's derived timings), tied to the
+  2026-11-16 board cells within a stated per-family tolerance, then a pattern
+  x one-term-variant table (pool, caps, batch, lane scope, peek, drain,
+  refresh, AxLEN, strides, mixes, row locality) whose winners are filed as
+  tasks with their model delta and whose losers are recorded. No RTL. Filed
+  2026-11-16 (owner).
 
 ## Active
 
-- **MC-011** -- the 0.2 ns clock-uncertainty budget is in both board XDCs;
-  sweep 1: pumice sys75 closes by 0.100 under budget on the worst of three
-  placements, granite sys75 by 0.817, granite sys100 does not close (-0.335
-  worst, the bank-pick select loop). Open work: the two cones. Active 2026-11-08.
-- **MC-004** -- two-register `gaxi_skid_buffer`, no data reset, no shift
-  (ISSUE-001 row 1; ~3k LUT chip-wide). Started 2026-11-06.
+
 
 ## Deferred
 
@@ -31,6 +34,18 @@
 
 ## Closed
 
+- **MC-011** -- timing is predictable or it is not closed: the 0.2 ns
+  clock-uncertainty budget in both board XDCs, config CSRs as false paths, and
+  a three-directive placement sweep as the gate. Worst-of-three under the
+  budget: pumice sys75 +0.028, granite sys75 +1.338, granite sys100 +0.002
+  (2026-11-09); every sys100 rebuild since (MC-014 / 015 / 017) closed under
+  it. Plan step 2 (pumice fire-stage lookahead) was margin beyond the gate and
+  is not re-filed. Closed 2026-11-16.
+- **MC-004** -- two-register `gaxi_skid_buffer`, no data reset, no shift
+  (ISSUE-001 row 1): `DATA_RST` parameter (default 0 = the new form), skid
+  suite FULL 61/61, formal prove + cover, routed same-tree A/B pumice -2,198 /
+  granite -2,042 LUT with MC-005. Landed 2026-11-07 (429ccc5cf); closed
+  2026-11-16.
 - **MC-017** -- the `mixed` window's direction register: every cap flip
   handed the register to the waiting direction for five cycles and no
   columns (136 of 143 read turns; a write column, hinted ungated after the
