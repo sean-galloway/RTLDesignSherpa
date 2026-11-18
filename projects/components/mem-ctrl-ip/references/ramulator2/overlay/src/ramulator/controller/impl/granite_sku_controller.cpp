@@ -127,7 +127,7 @@ class GraniteSKUController : public ControllerBase {
   int m_admit_lag = 3;          // MC cycles from a beat's acceptance to its head record (push -> FIFO -> record; the request register is the pipe's)
   bool m_req_bank_timing = true;  // a request needs the BANK's timers only; rank-level terms gate the fire (the RTL decode)
   int m_pick_la = 2;            // LA: the decode's lookahead and the hint's reach, in slots (0 = every hop pays the pipe)
-  int m_rank_ok_lag = 1;        // the ACT's rank-level ok is registered: the fire sees tRRD / tFAW this many slots late
+  int m_rank_ok_lag = 0;        // the ACT's rank-level ok seen this many slots late (1 = the N+1 global timers before memory-controllers BUG-004, 2026-11-18)
   bool m_ap_act_la = false;     // the lookahead reaches the ACT of a same-row head after an auto-precharge (measured: no; the RTL question)
   bool m_ap_stale = false;      // an auto-precharging column's pair is self-stale after its pick (the RTL question)
   int m_dir_batch_max = 255;
@@ -232,7 +232,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_admit_lag, int, "admit_lag").default_val(3);
     RAMULATOR_PARSE_PARAM(m_req_bank_timing, bool, "req_bank_timing").default_val(true);
     RAMULATOR_PARSE_PARAM(m_pick_la, int, "pick_la").default_val(2);
-    RAMULATOR_PARSE_PARAM(m_rank_ok_lag, int, "rank_ok_lag").default_val(1);
+    RAMULATOR_PARSE_PARAM(m_rank_ok_lag, int, "rank_ok_lag").default_val(0);
     RAMULATOR_PARSE_PARAM(m_ap_act_la, bool, "ap_act_la").default_val(false);
     RAMULATOR_PARSE_PARAM(m_ap_stale, bool, "ap_stale").default_val(false);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);

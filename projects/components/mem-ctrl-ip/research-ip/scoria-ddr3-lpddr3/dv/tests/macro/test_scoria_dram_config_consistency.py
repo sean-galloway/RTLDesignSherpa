@@ -92,21 +92,17 @@ def test_scoria_dram_config_views_agree(key, attr):
         f"not programmed for.\n\n{describe()}")
 
 
-def test_prog_is_spacing_minus_one():
-    """The N+1 convention, asserted where it is derived.
+def test_prog_is_spacing():
+    """The exact-N convention, asserted where it is derived.
 
-    scoria_csr.rdl: "MC cycles to block; spacing enforced is N+1". Measured in
-    test_scoria_bank_timer.py and test_scoria_global_timers.py. Programming the
-    datasheet cycle count directly over-spaces every window by one; subtracting
-    one twice violates the part.
+    A window programmed to N is enforced as exactly N MC cycles of command
+    spacing (bank timers since MC-003, global timers since memory-controllers
+    BUG-004). Measured in test_scoria_bank_timer.py and
+    test_scoria_global_timers.py. Subtracting one (the old N+1 compensation)
+    violates the part; adding one over-spaces every window.
     """
     spacing, prog, _ = dram_config()
     for k in spacing:
-        if k == 'tREFI':
-            assert prog[k] == spacing[k], (
-                "tREFI is a deadline, not a minimum: it must NOT be N+1 "
-                "adjusted")
-            continue
-        assert prog[k] == spacing[k] - 1, (
+        assert prog[k] == spacing[k], (
             f"{k}: programmed {prog[k]} against spacing {spacing[k]}")
-        assert prog[k] >= 0, f"{k}: negative programmed value {prog[k]}"
+        assert prog[k] >= 1 or k == 'tREFI', f"{k}: programmed value {prog[k]} would disable the window"

@@ -64,7 +64,7 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
                            t_phy_wrlat: int = 1,
                            cmd_delay: int = 1,
                            phy_rd_dq_busy: int = 14,
-                           rtw_guard: int = 6,
+                           rtw_guard: int = 7,
                            rd_phase: Optional[int] = None,
                            row_phase: int = 0) -> Dict[str, int]:
     """JEDEC DDR2 timings in MC cycles for a controller at ``mc_clk_hz`` driving
@@ -163,7 +163,14 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     # same as 1 / 1 and derives the same tRTW (granite TASK-003, 2026-10-31;
     # without the term it derived 21 against 20).
     # rtw_guard is EMPIRICAL, covering the arbiter's registered turnaround ok.
-    # It is 6, NOT 4. 4 (tRTW=18) clears gaps 13 and 15 but leaves an
+    # It is 7 since 2026-11-18, which is the SAME enforced spacing as the 6 it
+    # was measured at: mc_global_timers then enforced a programmed N as N+1
+    # cycles (pumice TASK-034), so the clean tRTW=20 below was 21 cycles on
+    # the DQ bus. memory-controllers BUG-004 made the timers enforce N as N
+    # (tRRD, tCCD, tWTR and tRTW each lost the extra cycle); the guard went up
+    # by one so the PHY turnaround the board was measured clean at does not
+    # move. Lowering it is a board experiment (repeat each point, see below).
+    # Measured at guard 6 under N+1: it is 6, NOT 4. 4 (tRTW=18) clears gaps 13 and 15 but leaves an
     # INTERMITTENT 2-6 beat residue at gap 14 -- 5 of 6 reps, and 8 of 10 in a
     # separate run. That residue is why an earlier 0-of-192 matrix result was
     # not closure: bank_gap_sweep runs ONE rep per point, and a point that is

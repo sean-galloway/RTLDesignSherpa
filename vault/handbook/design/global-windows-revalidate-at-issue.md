@@ -159,3 +159,49 @@ See also [[registered-status-outputs]] (the producer-side twin: a registered
 readiness flag that samples the state it is leaving) and
 [[priority-logic-depth]] (why these gates are kept shallow, which is the
 pressure that put the check upstream in the first place).
+
+## The fifth: a documented conservatism is a cost nobody has measured where it binds (memory-controllers BUG-004, 2026-11-18)
+
+`mc_global_timers` enforced a programmed window N as N+1 MC cycles. pumice
+TASK-034 found it by formal, measured it tight, wrote it into the CSR
+descriptions as the contract ("MC cycles to block; spacing enforced is N+1"),
+pinned it with `a_*_bound_n1` asserts so it could not drift, and kept it: safe,
+never a violation, "a much smaller effect than the tRTW cliff". Every statement
+was true. The prize was never measured, and the place it was measured (a pumice
+1+1 disjoint-bank point at 75 MHz) is a place where the ACT rate does not bind.
+
+Where it did bind it was 3x. The board host programs the JEDEC distance with its
+DFI phase margin (tRRD 10 ns -> 2 cycles at 100 MHz, correct: a lane ACT on
+phase 1 and a main ACT on the next cycle's phase 0 are 5 ns apart), and the
+block added one more: 30 ns between activates on a part rated 10. Every
+close-page stream whose column needs its own ACT ran at one ACT per 3 cycles,
+and the DUAL_ISSUE row lane -- which fires only beside a column, and the column
+lands at ACT + tRCD = 2 -- was never timer-ok on a column slot: zero lane fires
+in 65,810 ACTs, the feature structurally dead on every close-page preset. The
+granite bank_interleave preset sat at 238 MB/s against a 400 floor for two
+months, and the cycle model (MC-021) absorbed it as a knob (`rank_ok_lag 1`)
+that matched the RTL instead of asking what the RTL's number should have been.
+
+Three rules from it:
+
+- **A conservatism you document is a cost you owe a measurement for, taken
+  where the window binds.** "Always safe" is half a verdict. Find the stream
+  on which the window is the throughput (here: close page, one ACT per column)
+  and price the cycle there before deciding to keep it. The model priced this
+  one in a minute (199 -> 388) once the question was asked.
+- **The programmer's count and the counter's count must agree, and the formal
+  pins the agreed one.** The host said "distance", the RTL enforced
+  "distance + 1", and the bank timers (JEDEC-exact since MC-003) already used
+  the host's meaning -- so one register file carried two conventions. Pin the
+  convention the programmer writes (`c_*_exact` covers reach N; Family 1
+  forbids before N), not the one the circuit happens to have.
+- **When a model needs a knob to match the RTL, ask whether the RTL is right
+  before carrying the knob.** `rank_ok_lag 1` reproduced the board exactly and
+  was the defect.
+
+The fix is ten compare constants (`ok_nxt = event ? reload <= 1 : count <= 2`),
+the gold copy and the formal re-pinned, the one empirical window (tRTW's
+`rtw_guard`) raised by one so the PHY turnaround the board was measured clean
+at does not move. Proxy: bank_interleave 235 -> 387 MB/s, lane firing on two
+thirds of the ACTs. The board record is in BUG-004.
+

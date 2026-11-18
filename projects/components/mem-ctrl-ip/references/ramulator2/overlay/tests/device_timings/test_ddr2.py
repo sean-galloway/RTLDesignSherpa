@@ -91,7 +91,7 @@ def test_granite_sku100_preset_carries_the_host_counters_in_ck():
     t = make_dut("DDR2_GRANITE_SKU100").timings
     assert (t["nRCD"], t["nRP"], t["nRAS"], t["nRC"]) == (3, 3, 9, 14)
     assert (t["nWR"], t["nWTR"], t["nRTP"], t["nCCD"]) == (4, 4, 2, 2)
-    assert (t["nRRD"], t["nFAW"], t["nRFC"], t["nREFI"], t["nRTW"]) == (4, 9, 28, 1560, 40)
+    assert (t["nRRD"], t["nFAW"], t["nRFC"], t["nREFI"], t["nRTW"]) == (4, 9, 28, 1560, 42)
 
 
 # ---- command gates ------------------------------------------------------------

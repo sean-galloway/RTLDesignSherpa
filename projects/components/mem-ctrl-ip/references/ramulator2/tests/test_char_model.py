@@ -216,7 +216,7 @@ def test_sku_config_is_the_shipped_point():
     assert c.req_bank_timing and c.cap_per_beat and c.admit_lag == 3
     # MC-021: the pick pipeline as measured -- lookahead / hint reach 2 slots, the ACT's rank ok registered one slot,
     # the two RTL questions (arming the same-row ACT after an auto-precharge, masking the closed column's pair) off
-    assert (c.pick_la, c.rank_ok_lag, c.ap_act_la, c.ap_stale) == (2, 1, False, False)
+    assert (c.pick_la, c.rank_ok_lag, c.ap_act_la, c.ap_stale) == (2, 0, False, False)
     # every variant changes ONE term against the SKU
     from dataclasses import fields
     for name in cm.SKU_VARIANTS:

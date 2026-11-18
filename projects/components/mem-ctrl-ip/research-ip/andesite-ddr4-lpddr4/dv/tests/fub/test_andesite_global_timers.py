@@ -18,7 +18,7 @@ Two things make that proof delicate, and both are baked into the helpers:
     happened to be on. `tick()` steps an edge and then settles 1 ns into the
     cycle, so `cycles_until()` index i is read mid-cycle (i+1) where cycle 0 is
     the cycle the event was asserted in. A window whose enforced spacing is
-    N+1 cycles therefore first reads ready at index N -- see the table in
+    N cycles therefore first reads ready at index N-1 -- see the table in
     `cycles_until`.
 
 2.  DIRECTION. `>=` is the wrong comparison. A gate that opens one cycle EARLY
@@ -28,8 +28,10 @@ Two things make that proof delicate, and both are baked into the helpers:
     that second case is what an ISSUE-018 regression trips, because the
     off-by-one lands inside the window rather than at its edge.
 
-Convention under test, from andesite_csr.rdl: "MC cycles to block; spacing
-enforced is N+1". Program the JEDEC number; do not pre-subtract.
+Convention under test, from andesite_csr.rdl: a window programmed to N is
+enforced as EXACTLY N MC cycles of command spacing (memory-controllers BUG-004,
+2026-11-18; until then the global timers enforced N+1 and this test pinned
+that). Program the JEDEC number; do not add or subtract a cycle.
 """
 
 import os
@@ -107,8 +109,8 @@ class GtTB(TBBase):
         being the event's own cycle), so for a window programmed to N:
 
             spacing enforced   first legal command   returns
-            N+1 cycles         cycle N+1             N
-            0 (disabled)       cycle 1               0
+            N cycles           cycle N               N-1
+            1 or 0 (disabled)  cycle 1               0
         """
         for i in range(limit):
             if self.bit(sig, idx):
@@ -145,11 +147,11 @@ async def cocotb_test_andesite_global_timers(dut):
                                      f"event -- reset must publish ready")
                 await tb.event(evt)
                 g = await tb.cycles_until(ok)
-                chk(g == n, f"{name}={n}: ready at index {g}, expected {n} "
-                            f"(= {n + 1} cycles of command spacing; the RDL "
-                            f"says a window programmed to N enforces N+1). "
-                            f"An index of {n + 1} here is the ISSUE-018 "
-                            f"one-cycle blind spot back again.")
+                chk(g == n - 1, f"{name}={n}: ready at index {g}, expected {n - 1} "
+                                f"(= {n} cycles of command spacing; a window "
+                                f"programmed to N enforces exactly N, BUG-004). "
+                                f"An index of {n} here is the N+1 convention "
+                                f"back again; {n + 1} is the ISSUE-018 blind spot.")
 
     elif tt == "never_early":
         # The ISSUE-018 signature. The off-by-one is INSIDE the window, so only
@@ -159,15 +161,15 @@ async def cocotb_test_andesite_global_timers(dut):
             for n in (3, 7):
                 await tb.setup(**{kw: n})
                 await tb.event(evt)
-                for i in range(n):
+                for i in range(n - 1):
                     chk(tb.bit(ok) == 0,
                         f"{name}={n}: {ok} high at index {i} -- the window is "
-                        f"still closed for {n} more samples. A command issues "
+                        f"still closed for {n - 1} more samples. A command issues "
                         f"here and the part sees {i + 1} cycles of spacing "
-                        f"instead of {n + 1}.")
+                        f"instead of {n}.")
                     await tb.tick()
                 chk(tb.bit(ok) == 1,
-                    f"{name}={n}: {ok} still low at index {n}; the window "
+                    f"{name}={n}: {ok} still low at index {n - 1}; the window "
                     f"closed for longer than programmed")
 
     elif tt == "tfaw_four_acts_then_block":
@@ -184,12 +186,12 @@ async def cocotb_test_andesite_global_timers(dut):
             "tFAW still open after 4 ACTs -- a fifth activate inside the "
             "window exceeds the device's four-activate power limit")
         # Reopens when the OLDEST slot expires: ACT #1 was in cycle 0, so the
-        # fifth ACT is legal in cycle n+1, and we are sitting mid-cycle 4.
+        # fifth ACT is legal in cycle n, and we are sitting mid-cycle 4.
         g = await tb.cycles_until('tfaw_window_ok_o')
-        chk(g == n - 3,
-            f"tFAW reopened at index {g}, expected {n - 3} -- the window is "
+        chk(g == n - 4,
+            f"tFAW reopened at index {g}, expected {n - 4} -- the window is "
             f"measured from the FIRST of the four activates (cycle 0), so the "
-            f"fifth is legal in cycle {n + 1} and we start mid-cycle 4")
+            f"fifth is legal in cycle {n} and we start mid-cycle 4")
 
     elif tt == "tfaw_slots_are_a_sliding_window":
         # Not a burst-of-four counter: the slots roll. Space four ACTs out, and
@@ -205,10 +207,10 @@ async def cocotb_test_andesite_global_timers(dut):
             await tb.event('evt_act_i')
         chk(tb.bit('tfaw_window_ok_o') == 0, "tFAW open after the 4th ACT")
         g = await tb.cycles_until('tfaw_window_ok_o')
-        # ACT#1 in cycle 0 -> slot free for cycle n+1; we sit mid-cycle 7.
-        chk(g == n - 6,
-            f"tFAW reopened at index {g}, expected {n - 6}. A fixed window "
-            f"restarted from the fourth ACT would give {n - 3}; the slots are "
+        # ACT#1 in cycle 0 -> slot free for cycle n; we sit mid-cycle 7.
+        chk(g == n - 7,
+            f"tFAW reopened at index {g}, expected {n - 7}. A fixed window "
+            f"restarted from the fourth ACT would give {n - 4}; the slots are "
             f"a sliding window and the oldest one governs.")
 
     elif tt == "turnaround_is_direction_specific":
@@ -232,9 +234,9 @@ async def cocotb_test_andesite_global_timers(dut):
             await tb.setup(ccd=5)
             await tb.event(evt)
             g = await tb.cycles_until('tccd_window_ok_o')
-            chk(g == 5, f"{evt}: tCCD ready at index {g}, expected 5 -- tCCD "
-                        f"is CAS-to-CAS and both column commands occupy the "
-                        f"same DQ bus")
+            chk(g == 4, f"{evt}: tCCD ready at index {g}, expected 4 (five "
+                        f"cycles of spacing) -- tCCD is CAS-to-CAS and both "
+                        f"column commands occupy the same DQ bus")
 
     elif tt == "ls_windows_are_per_group":
         # tCCD_L=5, tCCD_S=3: a column to group 2 opens that group's long
@@ -376,27 +378,27 @@ async def cocotb_test_andesite_global_timers(dut):
                 and tb.bit('trtw_window_ok_o') and rng.random() < 0.35
             if do_act:
                 if acts:
-                    chk(cyc - acts[-1] >= RRD + 1,
+                    chk(cyc - acts[-1] >= RRD,
                         f"ACT at {cyc} is {cyc - acts[-1]} cycles after the "
-                        f"previous one; tRRD={RRD} requires {RRD + 1}")
-                recent = [a for a in acts if cyc - a <= FAW]
+                        f"previous one; tRRD={RRD} requires {RRD}")
+                recent = [a for a in acts if cyc - a < FAW]
                 chk(len(recent) < 4,
                     f"ACT at {cyc} is the {len(recent) + 1}th inside a "
                     f"tFAW={FAW} window (prior: {recent}) -- JESD79-3F allows "
                     f"four")
                 acts.append(cyc)
             if do_rd and last_wr is not None:
-                chk(cyc - last_wr >= WTR + 1,
+                chk(cyc - last_wr >= WTR,
                     f"RD at {cyc} is {cyc - last_wr} cycles after a WR; "
-                    f"tWTR={WTR} requires {WTR + 1}")
+                    f"tWTR={WTR} requires {WTR}")
             if do_wr and last_rd is not None:
-                chk(cyc - last_rd >= RTW + 1,
+                chk(cyc - last_rd >= RTW,
                     f"WR at {cyc} is {cyc - last_rd} cycles after a RD; "
-                    f"tRTW={RTW} requires {RTW + 1}")
+                    f"tRTW={RTW} requires {RTW}")
             if (do_rd or do_wr) and last_col is not None:
-                chk(cyc - last_col >= CCD + 1,
+                chk(cyc - last_col >= CCD,
                     f"column at {cyc} is {cyc - last_col} cycles after the "
-                    f"previous one; tCCD={CCD} requires {CCD + 1}")
+                    f"previous one; tCCD={CCD} requires {CCD}")
             dut.evt_act_i.value = 1 if do_act else 0
             dut.evt_rd_i.value = 1 if do_rd else 0
             dut.evt_wr_i.value = 1 if do_wr else 0

@@ -188,17 +188,15 @@ Don't override. Generated from: $root
 - Size: 0x4
 
 <p>Packed core per-bank JEDEC windows, in MC (controller) cycles.
-EVERY JEDEC timing field in this map is a count of cycles to
-BLOCK, so a window programmed to N is enforced as N+1 cycles of
-command spacing -- the counter is loaded with N on the event and
-the gate opens the cycle after it would reach zero. Measured and
-bounded tight in formal/pumice/{bank_timer,global_timers}
-(a_*_bound_n1). Program the JEDEC value from the part datasheet;
-do NOT subtract one to compensate, or the register stops reading
-as the part's timing. pumice TASK-034 tracks whether to recover
-that cycle -- it is a board measurement, because the empirical
-rtw_guard in the host's tRTW derivation was tuned with it
-present.</p>
+EVERY JEDEC timing field in this map is a count of MC cycles of
+COMMAND SPACING: a window programmed to N is enforced as exactly
+N cycles between the two commands (JEDEC-exact). The bank
+windows have been exact since MC-003 (2026-10-17); the global
+windows (tRRD, tCCD, tWTR, tRTW) were enforced as N+1 until
+memory-controllers BUG-004 (2026-11-18). Pinned by proof in
+formal/mc_common/{mc_bank_timer,mc_global_timers}. Program the
+JEDEC value from the part datasheet (the host's phase margin
+included); do not add or subtract a cycle for the block.</p>
 
 | Bits|Identifier|Access|Reset|Name|
 |-----|----------|------|-----|----|
@@ -209,19 +207,19 @@ present.</p>
 
 #### tRC field
 
-<p>tRC -- MC cycles to block; spacing enforced is N+1</p>
+<p>tRC -- MC cycles of command spacing, enforced as exactly N</p>
 
 #### tRCD field
 
-<p>tRCD -- MC cycles to block; spacing enforced is N+1</p>
+<p>tRCD -- MC cycles of command spacing, enforced as exactly N</p>
 
 #### tRP field
 
-<p>tRP -- MC cycles to block; spacing enforced is N+1</p>
+<p>tRP -- MC cycles of command spacing, enforced as exactly N</p>
 
 #### tRAS field
 
-<p>tRAS -- MC cycles to block; spacing enforced is N+1</p>
+<p>tRAS -- MC cycles of command spacing, enforced as exactly N</p>
 
 ### TIMINGS_RFC_REFI register
 
@@ -261,7 +259,7 @@ present.</p>
 
 #### tRRD field
 
-<p>tRRD -- MC cycles to block; spacing enforced is N+1</p>
+<p>tRRD -- MC cycles of command spacing, enforced as exactly N</p>
 
 #### tFAW field
 
@@ -269,11 +267,11 @@ present.</p>
 
 #### tWTR field
 
-<p>tWTR -- MC cycles to block; spacing enforced is N+1</p>
+<p>tWTR -- MC cycles of command spacing, enforced as exactly N</p>
 
 #### tCCD field
 
-<p>tCCD -- MC cycles to block; spacing enforced is N+1</p>
+<p>tCCD -- MC cycles of command spacing, enforced as exactly N</p>
 
 ### TIMINGS_CL_CWL_WR register
 
@@ -300,7 +298,7 @@ present.</p>
 
 #### tWR field
 
-<p>Write recovery (tWR, from end of burst) -- MC cycles to block; spacing enforced is N+1</p>
+<p>Write recovery (tWR, from end of burst) -- MC cycles of command spacing, enforced as exactly N</p>
 
 #### tRFCpb field
 
@@ -489,11 +487,11 @@ and tRTW was tied to tRTP; now both are independent configs.</p>
 
 #### tRTP field
 
-<p>Read to precharge (tRTP) -- MC cycles to block; spacing enforced is N+1</p>
+<p>Read to precharge (tRTP) -- MC cycles of command spacing, enforced as exactly N</p>
 
 #### tRTW field
 
-<p>Read to write (tRTW) -- MC cycles to block; spacing enforced is N+1</p>
+<p>Read to write (tRTW) -- MC cycles of command spacing, enforced as exactly N</p>
 
 #### RSVD field
 

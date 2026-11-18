@@ -65,7 +65,7 @@ register, the winner register with hold / speculation / fresh pick, the
 self-stale mask, the next-op hint, the lane as a second winner register, the
 registered rank ok): `pick_la`, `rank_ok_lag`, and the two RTL questions as
 knobs (`ap_act_la`, `ap_stale`); `admit_lag` is 3 (the request register is the
-pipeline's). `sku_la0/la1/la3`, `sku_rankok0`, `sku_apactla`, `sku_apstale`,
+pipeline's). `sku_la0/la1/la3`, `sku_rankok1`, `sku_apactla`, `sku_apstale`,
 `sku_lag4` are the one-term variants (model_mc021_pick_pipeline_2026-11-17.md).
 """
 from __future__ import annotations
@@ -404,7 +404,7 @@ class ModelConfig:
                                        #   request register is the pick pipeline's; ISSUE-004, MC-021)
     req_bank_timing: bool = True       # GraniteSKU: a request needs the bank's timers only; the rank-level terms hold the fire (ISSUE-004)
     pick_la: int = 2                   # GraniteSKU: the pick pipeline's lookahead / hint reach in slots (LA; 0 = every hop pays the pipe) (MC-021)
-    rank_ok_lag: int = 1               # GraniteSKU: the ACT's registered rank ok -- the fire sees tRRD / tFAW this many slots late
+    rank_ok_lag: int = 0               # GraniteSKU: the ACT's rank ok seen this many slots late (1 = the N+1 global timers before BUG-004)
     ap_act_la: bool = False            # GraniteSKU: the lookahead reaches the ACT after an auto-precharge (the RTL question; measured: no)
     ap_stale: bool = False             # GraniteSKU: an auto-precharging column's pair is self-stale after its pick (the RTL question)
     dir_batch_max: int = 255           # GraniteSKU: DIR_BATCH_MAX (0 = no cap)
@@ -548,7 +548,7 @@ CONFIGS.update({c.name: c for c in [
     _sku("la0", "no lookahead and no hint: every hop pays the decode and winner registers", pick_la=0),
     _sku("la1", "lookahead / hint reach of one slot", pick_la=1),
     _sku("la3", "lookahead / hint reach of three slots", pick_la=3),
-    _sku("rankok0", "the ACT's rank-level ok unregistered (ACT -> ACT at t_rrd)", rank_ok_lag=0),
+    _sku("rankok1", "the N+1 global timers before memory-controllers BUG-004 (ACT -> ACT at t_rrd + 1)", rank_ok_lag=1),
     _sku("apactla", "the lookahead arms the ACT after an auto-precharge (RTL question 1)", ap_act_la=True),
     _sku("apstale", "an auto-precharging column's pair is stale after its pick (RTL question 2)", ap_stale=True),
     _sku("lag4", "admission lag 4 MC cycles (the collapsed model's value: the request register counted in the admission)",

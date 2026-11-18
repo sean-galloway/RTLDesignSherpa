@@ -19,16 +19,18 @@ THREE QUANTITIES, and keeping them apart is the point
 `ns`        the JEDEC/datasheet figure.
 `spacing`   that figure in MC cycles, `ceil(ns / mc_ns)` -- the number of
             cycles that must separate the two commands.
-`prog`      what goes in the CSR, which is `spacing - 1`.
+`prog`      what goes in the CSR, which is `spacing` itself.
 
-That last step is not cosmetic. andesite_csr.rdl states the convention -- "MC
-cycles to block; spacing enforced is N+1" -- and it is MEASURED in
-dv/tests/fub/test_andesite_bank_timer.py (ACT->RD gap is t_rcd+1) and
-test_andesite_global_timers.py (a window programmed to N is ready at index N).
-Programming the datasheet cycle count directly would over-space every window by
-one cycle; subtracting one twice would violate the part. A test that wants to
-assert a spacing asks for `spacing`; a test that wants to drive a port asks for
-`prog`.
+A window programmed to N is enforced as EXACTLY N MC cycles of command spacing:
+the bank timers since MC-003 (2026-10-17), the global timers since
+memory-controllers BUG-004 (2026-11-18). Until BUG-004 the global timers
+enforced N+1, andesite_csr.rdl stated that as the contract and this file wrote
+`spacing - 1` for EVERY window -- which under-spaced the bank windows by one
+cycle from MC-003 on (the stale bank-timer unit tests hid it). Programming the
+datasheet cycle count is now exact for both blocks; subtracting one violates the
+part. A test that wants to assert a spacing asks for `spacing`; a test that
+wants to drive a port asks for `prog`; the two are equal and kept apart so a
+future convention change has one place to land.
 
 tREFI is the exception and is marked as such: it is a DEADLINE, not a minimum,
 so it floors instead of ceiling and is not off-by-one adjusted.
@@ -70,7 +72,7 @@ GENESYS2_DDR3_800 = {
         'tRTP': max(4 * 2.5, 7.5),    # DDR3 tRTP, same shape -> 10.0
         'tCCD': 4 * 2.5,              # 4 nCK = one BL8 burst on the DQ bus
     },
-    # A deadline, not a minimum: floor, and no N+1 adjustment.
+    # A deadline, not a minimum: floor it.
     'tREFI_ns': 7812.5,               # 64 ms / 8192
 }
 
@@ -119,7 +121,7 @@ def dram_config(point=None):
     """Return (spacing, prog, meta) for a named operating point.
 
     `spacing[k]` is the required separation in MC cycles; `prog[k]` is what to
-    write to the CSR (spacing - 1, the N+1 convention); `meta` carries the
+    write to the CSR (= spacing: a window programmed to N enforces N); `meta` carries the
     clock, geometry and the point's name so a result can say what it measured.
     """
     cfg = {
@@ -134,9 +136,9 @@ def dram_config(point=None):
 
     mc = cfg['mc_ns']
     spacing = {k: _spacing(v, mc) for k, v in cfg['ns'].items()}
-    prog = {k: v - 1 for k, v in spacing.items()}
+    prog = {k: v for k, v in spacing.items()}      # exactly N (BUG-004)
 
-    # tREFI: a deadline. Floor it, and do not apply the N+1 adjustment -- the
+    # tREFI: a deadline. Floor it -- the
     # refresh engine counts down to a due time rather than blocking a command.
     spacing['tREFI'] = max(1, int(floor(cfg['tREFI_ns'] / mc)))
     prog['tREFI'] = spacing['tREFI']
@@ -167,7 +169,7 @@ def describe(point=None):
         out.append(f"{k:8s} {meta['ns'][k]:8.1f} {spacing[k]:8d} "
                    f"{prog[k]:11d}")
     out.append(f"{'tREFI':8s} {meta['tREFI_ns']:8.1f} {spacing['tREFI']:8d} "
-               f"{prog['tREFI']:11d}   (deadline: floored, no N+1)")
+               f"{prog['tREFI']:11d}   (deadline: floored)")
     return "\n".join(out)
 
 

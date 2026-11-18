@@ -361,3 +361,21 @@ tRTW makes no difference -- 285.0 per direction at tRTW=3 against 285.2 at
 tRTW=20. So no recorded bandwidth number in this repo is sensitive to tRTW, and
 none was disturbed: these campaigns wrote only to /tmp, and the board was
 restored to tRTW=20 after each.
+
+---
+
+## Addendum 2026-11-18: option 2 landed, as memory-controllers BUG-004
+
+The cycle this task measured and kept was not small where it bound. On the
+granite SKU at 100 MHz the host's tRRD of 2 (JEDEC 10 ns plus the DFI phase
+margin) was enforced as 3 cycles, 30 ns; every close-page stream whose column
+needs its own ACT ran at one ACT per 3 cycles and the DUAL_ISSUE row lane never
+fired (its column lands at ACT + tRCD = 2, inside the exclusion). The
+bank_interleave preset sat at 238 MB/s against a 400 floor. Option 2 -- recover
+the cycle in the RTL -- is BUG-004 in the memory-controllers lane: the global
+timers enforce N as N like the bank timers have since MC-003; the `rtw_guard`
+question this task raised is answered by moving the guard 6 -> 7 so the
+PHY-measured tRTW spacing does not change. The CSR text written under option 1
+(RDL, MAS, HAS) is rewritten to the exact-N contract. Proxy: bank_interleave
+235 -> 387 MB/s.
+

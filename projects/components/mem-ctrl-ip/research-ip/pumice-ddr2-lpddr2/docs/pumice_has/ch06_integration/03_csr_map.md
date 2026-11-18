@@ -111,17 +111,18 @@ Packed timing parameters in MC (`aclk`) cycles. All fields are `sw = rw`,
 
 | Bits  | Field   | Reset | Description           |
 |-------|---------|-------|-----------------------|
-| 7:0   | `tRRD`  | 6     | tRRD, in MC cycles to block (spacing enforced is N+1) |
+| 7:0   | `tRRD`  | 6     | tRRD, in MC cycles of command spacing (enforced as exactly N) |
 | 15:8  | `tFAW`  | 35    | tFAW, in MC cycles    |
-| 23:16 | `tWTR`  | 4     | tWTR, in MC cycles to block (spacing enforced is N+1) |
-| 31:24 | `tCCD`  | 4     | tCCD, in MC cycles to block (spacing enforced is N+1) |
+| 23:16 | `tWTR`  | 4     | tWTR, in MC cycles of command spacing (enforced as exactly N) |
+| 31:24 | `tCCD`  | 4     | tCCD, in MC cycles of command spacing (enforced as exactly N) |
 
-Every JEDEC timing field in this map is a count of MC cycles to BLOCK, so the
-command spacing the DRAM sees is **N+1**. Proved and bounded tight in
-`formal/mc_common/{mc_bank_timer,mc_global_timers}`; see
+Every JEDEC timing field in this map is a count of MC cycles of command
+spacing: a window programmed to N is enforced as **exactly N** (the bank windows
+since MC-003, 2026-10-17; the global windows since memory-controllers BUG-004,
+2026-11-18, before which they were N+1 and pumice TASK-034 kept them so). Pinned
+by proof in `formal/mc_common/{mc_bank_timer,mc_global_timers}`; see
 `pumice_mas/ch04_apb_config/03_runtime_overrides.md` for what that means when
-programming a part from its datasheet, and pumice TASK-034 for the open question
-of recovering the cycle.
+programming a part from its datasheet.
 
 ### `TIMINGS_CL_CWL_WR` (0x01C, R/W)
 

@@ -2,7 +2,7 @@
 
 # memory-controllers — bugs
 
-**Next ID: BUG-004** — never recycle a number, even when its item closed.
+**Next ID: BUG-005** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction in the shared `common-ip` RTL, affecting more than
 one controller. If you cannot state the expected behaviour, it is an ISSUE, not
@@ -16,7 +16,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started (the BUG-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -29,6 +29,20 @@ None.
 None.
 
 ## Closed
+
+- **BUG-004** — `mc_global_timers` enforced a programmed window N as N+1 MC
+  cycles (pumice TASK-034 had measured it and kept it as the contract). The
+  host's tRRD of 2 became 3 cycles, 30 ns against the part's 10 ns: every
+  close-page stream whose column needs its own ACT ran at one ACT per 3 cycles
+  and the DUAL_ISSUE row lane never fired (its column lands inside the
+  exclusion), 238 MB/s on the granite board's bank_interleave preset against a
+  400 floor. Fixed 2026-11-18: the readiness compares open one cycle earlier
+  (N is N, as the bank timers since MC-003), formal re-pinned with exact-N
+  covers, host `rtw_guard` 6 -> 7 so the PHY-measured tRTW spacing holds, model
+  `rank_ok_lag` 1 -> 0. Board (100 MHz SKU): bank_interleave 238 -> 387 MB/s on
+  every row-hit cell, close_page interleaved / row_thrash / random +8 .. +67, the
+  SKU's cells flat, 0 mismatched; one corner cell lost (close_page mixed 145 ->
+  111 union, predicted by the model, carried in MC-021). Closed 2026-11-18. [closed/BUG-004.md](closed/BUG-004.md).
 
 - **BUG-003** — the board host's DDR2 ns table carried tRRD 7.5 ns (the
   JESD79-2F 1 KB-page value) for a 2 KB-page x16 part whose tRRD is 10 ns.

@@ -44,41 +44,39 @@ Most of the controller's behavior is programmed at runtime by CSR fields, not fi
 | DFI phase         | `DFI_PHASE.rd_phase` / `.wr_phase`                                  | `rd_phase_i`/`wr_phase_i` (sliced to `clog2(DFI_RATE)`) |
 | PHY data timing   | `PHY_TIMING.t_phy_wrlat` / `.t_rddata_en`                          | `t_phy_wrlat_i`/`t_rddata_en_i`         |
 
-### What a JEDEC timing value MEANS: exact per bank, N+1 global
+### What a JEDEC timing value MEANS: exactly N, in both blocks
 
-Every JEDEC timing field is a count of **MC (controller) cycles**. The two
-timing blocks do not yet treat that count the same way:
+Every JEDEC timing field is a count of **MC (controller) cycles of command
+spacing**: a window programmed to `N` lets the second command issue exactly `N`
+cycles after the first. Both timing blocks now treat the count the same way:
 
 | Block | Windows | A window programmed to `N` spaces commands by |
 |---|---|---|
-| `mc_bank_timer` (per bank) | tRC, tRP, tRCD, tRAS, tRTP, tWR | exactly `N` (JEDEC-exact) |
-| `mc_global_timers` (per rank / global) | tRRD, tCCD, tWTR, tRTW | `N+1` |
+| `mc_bank_timer` (per bank) | tRC, tRP, tRCD, tRAS, tRTP, tWR | exactly `N` (since b409f364e, MC-003, 2026-10-17) |
+| `mc_global_timers` (per rank / global) | tRRD, tFAW, tCCD, tWTR, tRTW | exactly `N` (since memory-controllers BUG-004, 2026-11-18) |
 
 The bank timers load `N-1` (saturating) on the event, so the gate opens exactly
-`N` cycles after the commanding command. Until 2026-10-17 they loaded `N`, and
-every bank window was one cycle long as well; b409f364e (MC-003) changed that
-to recover the bubble col_major single-bank traffic paid three times per
-transaction (tRTP, tRP, tRCD). The global timers still load `N` and open the
-cycle after it would reach zero.
+`N` cycles after the commanding command. The global timers load `N` and open
+the cycle the count reaches zero (`ok_nxt = event ? reload <= 1 : count <= 2`,
+registered). Until BUG-004 they opened one cycle later, `N+1`; pumice TASK-034
+had measured that, documented it as the contract and kept it, judging the cost
+small. It was not small where it bound: the board host programs the JEDEC
+distance with its DFI phase margin (tRRD = 2 at 100 MHz against the part's
+10 ns), and under `N+1` that became 3 MC cycles, 30 ns, so every close-page
+stream whose column needs its own ACT ran at one ACT per 3 cycles and the
+DUAL_ISSUE row lane never fired (its column lands at ACT + tRCD = 2, inside the
+exclusion). The granite SKU's bank-interleave preset sat at 238 MB/s on the
+board with 400 the two-cycle floor.
 
 Both conventions are pinned by proof, not stated: `formal/mc_common/mc_bank_timer`
-has `c_t*_exact` covers that are unreachable under `N+1`, and
-`formal/mc_common/mc_global_timers` carries `a_*_bound_n1` asserts that fail if
-those windows are shortened to `N`.
+and `formal/mc_common/mc_global_timers` forbid a command before `N` and carry
+`c_*_exact` covers that are unreachable if a window is lengthened back to `N+1`.
 
-**Nothing compensates for the global windows' extra cycle.** The board host
-programs raw JEDEC-derived cycle counts with no `-1`
-(`build-perf/host/pumice_device.py`: `tCCD=ck(DDR2_CK_MIN["tCCD"])`,
-`tRCD=ns(part["tRCD"])`), so tRRD, tCCD, tWTR and tRTW on silicon are each one
-MC cycle longer than JEDEC requires -- 13.3 ns at 75 MHz. That is always SAFE,
-never a violation, and it costs bandwidth. Whether to recover it is pumice
-TASK-034, and it is a board measurement rather than a code change: the
-empirical `rtw_guard` in the tRTW derivation was tuned WITH this cycle present.
-
-If you are programming a part from its datasheet, write the JEDEC value. Do not
-subtract one to "correct" for the global windows -- the CSR would then stop
-reading as the part's timing, and the same field would mean different things
-depending on which block consumes it.
+If you are programming a part from its datasheet, write the JEDEC value (the
+host's `ddr2_timings_mc_cycles` adds the DFI phase margin). Do not add or
+subtract a cycle for either block. The one empirical field, the host's
+`rtw_guard` inside tRTW, went from 6 to 7 with BUG-004 so the PHY turnaround the
+board was measured clean at (21 cycles on DQ) did not move.
 
 CL/CWL/BL are **not** driven from the timing CSRs at the core boundary — they are decoded from the mode-register shadow inside the scheduler plane (`mc_xddr2_mode_register.sv`) as the init sequencer programs MR0..MR3 (see §5.1). The `TIMINGS_CL_CWL_WR.CL`/`.CWL` fields are informational in this build.
 

@@ -74,18 +74,19 @@ module formal_global_timers #(
         // other three never fill and the window never closes).
         //
         // The reason is that tRRD already spaces the ACTs. The minimum
-        // achievable ACT-to-ACT spacing here is t_rrd + 1 = 2, so four ACTs span
-        // at least 6 cycles and the fifth arrives 8 after the first -- ANY t_faw
-        // at or below 8 is therefore satisfied by tRRD alone, whatever the tFAW
-        // logic does. At the original ceiling of 6 the proof was checking tRRD
-        // twice and tFAW not at all, and c_faw_blocks was unreachable, which
-        // was the hint.
+        // achievable ACT-to-ACT spacing here is t_rrd = 1, so four ACTs span
+        // at least 3 cycles and the fifth arrives 4 after the first -- ANY t_faw
+        // at or below 4 is therefore satisfied by tRRD alone, whatever the tFAW
+        // logic does. At the original ceiling of 6 (when the spacing was 2) the
+        // proof was checking tRRD twice and tFAW not at all, and c_faw_blocks
+        // was unreachable, which was the hint.
         //
         // 14 is comfortably past that span, so tFAW is the binding constraint
         // and the "install every ACT into slot 0" mutation fails as it should.
-        // (Before the ISSUE-018 fix the minimum spacing was 3, not 2, because
-        // the readiness flop lagged the state by an extra cycle -- so the floor
-        // this bound has to clear moved when the RTL was fixed.)
+        // (The floor has moved twice: before the ISSUE-018 fix the minimum
+        // spacing was 3, because the readiness flop lagged the state by an
+        // extra cycle; until BUG-004 (2026-11-18) it was t_rrd + 1 = 2, the N+1
+        // convention; it is t_rrd now.)
         assume (t_faw_i >= 2 && t_faw_i <= 14);
         assume (t_rrd_i >= 1 && t_rrd_i <= 3);
         assume (t_wtr_global_i >= 1 && t_wtr_global_i <= 3);
@@ -265,27 +266,24 @@ module formal_global_timers #(
             a_trtw: assert (age_rd >= {2'b0, t_rtw_i});
 
         // ---- THE ENFORCED BOUND IS N+1, NOT N -------------------------------
-        // A window programmed to N is enforced as N+1 MC cycles of spacing: the
-        // counter is loaded with N and the gate opens the cycle after it would
-        // reach zero. Measured, not assumed -- the same assertions with `+ 2`
-        // fail on all four windows, so the bound is exactly N+1 and tight.
-        //
-        // This is a CONTRACT nobody wrote down. The RDL field descriptions are
-        // bare (`desc = "tCCD"`, no units, no statement of blocking-vs-spacing)
-        // and the board host programs raw JEDEC-derived cycle counts with no -1
-        // compensation (pumice_device.py: `tCCD=ck(DDR2_CK_MIN["tCCD"])`), so
-        // every window on silicon is over-enforced by one MC cycle. Safe --
-        // never a violation -- and it costs bandwidth. pumice TASK-034 carries
-        // the decision and the board experiment; these assertions exist so that
-        // changing the convention cannot happen silently.
-        if (evt_act_i && seen_act)
-            a_trrd_bound_n1: assert (age_act >= {2'b0, t_rrd_i} + 10'd1);
-        if ((evt_rd_i || evt_wr_i) && seen_col)
-            a_tccd_bound_n1: assert (age_col >= {2'b0, t_ccd_i} + 10'd1);
-        if (evt_rd_i && seen_wr)
-            a_twtr_bound_n1: assert (age_wr  >= {2'b0, t_wtr_global_i} + 10'd1);
-        if (evt_wr_i && seen_rd)
-            a_trtw_bound_n1: assert (age_rd  >= {2'b0, t_rtw_i} + 10'd1);
+        // ---- THE ENFORCED BOUND IS N (JEDEC-exact), NOT N+1 ------------------
+        // Until 2026-11-18 a window programmed to N was enforced as N+1 MC
+        // cycles of spacing (the counter loaded N and the gate opened the cycle
+        // after it reached zero), and a_*_bound_n1 asserts pinned that here,
+        // tight (`+ 2` failed on all four windows). pumice TASK-034 documented
+        // it as the CSR contract and kept it, calling the cost small. On the
+        // granite SKU's close-page interleaved streams it was the cost: the
+        // host's tRRD of 2 was enforced as 3 cycles -- 30 ns against the
+        // part's 10 ns -- so every stream whose column needs its own ACT ran at
+        // one ACT per 3 cycles and the DUAL_ISSUE row lane never fired (its
+        // column lands at ACT + tRCD = 2, inside the exclusion): 238 MB/s on
+        // the board where 400 is the two-cycle floor. memory-controllers
+        // BUG-004 made the readiness `<= 1 / <= 2` so N is enforced as N, the
+        // convention mc_bank_timer has had since MC-003; those asserts failed
+        // as they were written to and are gone. The convention is now pinned
+        // the other way by the c_*_exact covers below: the gate CAN open at
+        // count N. Reverting to N+1 makes them unreachable and the cover task
+        // fails; Family 1 above still forbids opening before N.
     end
 
     // =========================================================================
@@ -317,13 +315,15 @@ module formal_global_timers #(
         c_wr_then_rd:  cover (evt_rd_i && seen_wr);         // DQ turnaround
         c_rd_then_wr:  cover (evt_wr_i && seen_rd);
         c_ccd_blocks:  cover (!tccd_window_ok_o);
-        // the N+1 bound is TIGHT -- the gate opens at exactly one cycle past the
-        // programmed count. Without these, the bound assertions would also pass
-        // on a block that was far more conservative than it claims.
-        c_trrd_tight:  cover (evt_act_i && seen_act
-                           && (age_act == {2'b0, t_rrd_i} + 10'd1));
-        c_tccd_tight:  cover ((evt_rd_i || evt_wr_i) && seen_col
-                           && (age_col == {2'b0, t_ccd_i} + 10'd1));
+        // Exactly at N (see "THE ENFORCED BOUND IS N" above): a command issued
+        // at precisely the programmed spacing, so the Family 1 bounds are tight
+        // and the block is no more conservative than it claims. Unreachable
+        // under the old N+1 convention; the cover task fails on a revert.
+        c_trrd_exact:  cover (evt_act_i && seen_act && (age_act == {2'b0, t_rrd_i}));
+        c_tfaw_exact:  cover (evt_act_i && n_act >= 3'd4 && (faw_age[3] == {2'b0, t_faw_i}));
+        c_tccd_exact:  cover ((evt_rd_i || evt_wr_i) && seen_col && (age_col == {2'b0, t_ccd_i}));
+        c_twtr_exact:  cover (evt_rd_i && seen_wr && (age_wr == {2'b0, t_wtr_global_i}));
+        c_trtw_exact:  cover (evt_wr_i && seen_rd && (age_rd == {2'b0, t_rtw_i}));
     end
 
 endmodule

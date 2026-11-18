@@ -29,10 +29,12 @@ $(GOLD_FLAT): mc_global_timers_gold.sv filelists/gold.f
 
 all: prove cover equiv
 
-prove: global_timers_flat.v
+# The .sby [files] section names the gold flat for every task, so prove and
+# cover need it too (a `make clean` then `make prove` failed on the copy).
+prove: global_timers_flat.v $(GOLD_FLAT)
 	sby -f global_timers.sby prove
 
-cover: global_timers_flat.v
+cover: global_timers_flat.v $(GOLD_FLAT)
 	sby -f global_timers.sby cover
 
 equiv: global_timers_flat.v $(GOLD_FLAT)

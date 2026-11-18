@@ -216,7 +216,7 @@ module mc_global_timers_gold
     // straight back into the arbiter's own critical cone, on a design whose
     // board WNS is deliberately thin.
     //
-    //     next(c) == 0   <=>   event ? (reload == 0) : (c <= 1)
+    //     next(c) <= 1   <=>   event ? (reload <= 1) : (c <= 2)      (BUG-004: N enforced as N, as the live block)
     logic [NUM_RANKS-1:0] w_tfaw_ok_nxt, w_trrd_ok_nxt;
     logic w_twtr_ok_nxt, w_trtw_ok_nxt, w_tccd_ok_nxt;
 
@@ -227,7 +227,7 @@ module mc_global_timers_gold
             any_free_all   = 1'b0;
             any_free_other = 1'b0;
             for (int unsigned i = 0; i < 4; i++) begin
-                if (r_faw_slots[k][i] <= 8'd1) begin
+                if (r_faw_slots[k][i] <= 8'd2) begin
                     any_free_all = 1'b1;
                     if (2'(i) != r_slot_pick[k]) any_free_other = 1'b1;
                 end
@@ -235,14 +235,14 @@ module mc_global_timers_gold
             // On an ACT the claimed slot is about to hold t_faw_i, so it only
             // counts as free if tFAW is programmed to zero (disabled).
             w_tfaw_ok_nxt[k] = w_act_rank[k]
-                             ? (any_free_other || (t_faw_i == 8'd0))
+                             ? (any_free_other || (t_faw_i <= 8'd1))
                              : any_free_all;
-            w_trrd_ok_nxt[k] = w_act_rank[k] ? (t_rrd_i == 8'd0)
-                                             : (r_trrd_cnt[k] <= 8'd1);
+            w_trrd_ok_nxt[k] = w_act_rank[k] ? (t_rrd_i <= 8'd1)
+                                             : (r_trrd_cnt[k] <= 8'd2);
         end
-        w_twtr_ok_nxt = evt_wr_i  ? (t_wtr_global_i == 8'd0) : (r_twtr_cnt <= 8'd1);
-        w_trtw_ok_nxt = evt_rd_i  ? (t_rtw_i        == 8'd0) : (r_trtw_cnt <= 8'd1);
-        w_tccd_ok_nxt = w_evt_col ? (t_ccd_i        == 8'd0) : (r_tccd_cnt <= 8'd1);
+        w_twtr_ok_nxt = evt_wr_i  ? (t_wtr_global_i <= 8'd1) : (r_twtr_cnt <= 8'd2);
+        w_trtw_ok_nxt = evt_rd_i  ? (t_rtw_i        <= 8'd1) : (r_trtw_cnt <= 8'd2);
+        w_tccd_ok_nxt = w_evt_col ? (t_ccd_i        <= 8'd1) : (r_tccd_cnt <= 8'd2);
     end
 
     // CURRENT-state tFAW, for the obs_* debug view only. The gating outputs use
@@ -253,7 +253,7 @@ module mc_global_timers_gold
         for (int unsigned k = 0; k < NUM_RANKS; k++) begin
             w_tfaw_ok[k] = 1'b0;
             for (int unsigned i = 0; i < 4; i++) begin
-                if (r_faw_slots[k][i] == 8'd0) w_tfaw_ok[k] = 1'b1;
+                if (r_faw_slots[k][i] <= 8'd1) w_tfaw_ok[k] = 1'b1;
             end
         end
     end
@@ -282,11 +282,11 @@ module mc_global_timers_gold
     always_comb begin
         for (int unsigned k = 0; k < NUM_RANKS; k++) begin
             obs_faw_nz_o [k] = !w_tfaw_ok[k];
-            obs_trrd_nz_o[k] = (r_trrd_cnt[k] != 8'd0);
+            obs_trrd_nz_o[k] = (r_trrd_cnt[k] > 8'd1);
         end
-        obs_twtr_nz_o = (r_twtr_cnt != 8'd0);
-        obs_trtw_nz_o = (r_trtw_cnt != 8'd0);
-        obs_tccd_nz_o = (r_tccd_cnt != 8'd0);
+        obs_twtr_nz_o = (r_twtr_cnt > 8'd1);
+        obs_trtw_nz_o = (r_trtw_cnt > 8'd1);
+        obs_tccd_nz_o = (r_tccd_cnt > 8'd1);
     end
 
 
@@ -343,10 +343,10 @@ module mc_global_timers_gold
 
         // Per-candidate readiness from the registered windows (candidate group
         // selects the long window; the short window is group-agnostic).
-        assign tccd_l_window_ok_o = (r_tccd_g_cnt[cand_bg_i]  == 8'd0);
-        assign tccd_s_window_ok_o = (r_tccd_any_cnt           == 8'd0);
-        assign trrd_l_window_ok_o = (r_trrd_g_cnt[cand_rank_i][cand_bg_i] == 8'd0);
-        assign trrd_s_window_ok_o = (r_trrd_any_cnt[cand_rank_i]          == 8'd0);
+        assign tccd_l_window_ok_o = (r_tccd_g_cnt[cand_bg_i]  <= 8'd1);
+        assign tccd_s_window_ok_o = (r_tccd_any_cnt           <= 8'd1);
+        assign trrd_l_window_ok_o = (r_trrd_g_cnt[cand_rank_i][cand_bg_i] <= 8'd1);
+        assign trrd_s_window_ok_o = (r_trrd_any_cnt[cand_rank_i]          <= 8'd1);
     end else begin : g_no_ls_pairs
         assign tccd_l_window_ok_o = 1'b1;
         assign tccd_s_window_ok_o = 1'b1;

@@ -8,7 +8,22 @@
 //            Per-rank: each rank has its own 4-deep sliding window so
 //            multi-rank silicon enforces the device-local thermal/power
 //            limit independently. `tfaw_window_ok_o[r]` is high when
-//            rank r has at least one tFAW slot at 0.
+//            rank r has a tFAW slot that expires by the next cycle.
+//
+//          WHAT A PROGRAMMED COUNT MEANS (memory-controllers BUG-004,
+//          2026-11-18): a window programmed to N is enforced as EXACTLY N
+//          MC cycles of command spacing -- the same convention mc_bank_timer
+//          has had since MC-003 (2026-10-17). Until BUG-004 this block
+//          enforced N+1 (the counter loaded N and the gate opened the cycle
+//          after it reached zero; pumice TASK-034 documented that as the
+//          contract and kept it). The board host programs the JEDEC
+//          distance (with its DFI phase margin) and expects it enforced as
+//          written: under N+1 a tRRD of 2 became 3 MC cycles, 30 ns against
+//          the part's 10 ns, which capped every close-page interleaved
+//          stream at one ACT per 3 cycles and left the DUAL_ISSUE row lane
+//          unable to fire (its column lands at ACT + tRCD = 2, inside the
+//          exclusion). Pinned by formal/mc_common/mc_global_timers: Family 1
+//          forbids opening before N, the c_*_exact covers reach N.
 //
 //          * tRRD — minimum cycles between any two ACTs (per rank).
 //            Single countdown timer per rank reloaded on each ACT.
@@ -21,7 +36,10 @@
 // v2 H — adds per-rank tFAW + tCCD tracking; tWTR / tRTW remain global
 // because the DQ bus is shared across all ranks.
 //
-// Debug outputs (obs_*): expose all counter "non-zero" flags.
+// Debug outputs (obs_*): "this window still blocks a command issued next
+// cycle" -- the count above 1 (BUG-004; it was `!= 0` while the gate
+// opened a cycle later), so the debug view and the readiness output a
+// consumer acts on are the same cycle (formal Family 2).
 
 `timescale 1ns / 1ps
 
@@ -237,7 +255,12 @@ module mc_global_timers
     // straight back into the arbiter's own critical cone, on a design whose
     // board WNS is deliberately thin.
     //
-    //     next(c) == 0   <=>   event ? (reload == 0) : (c <= 1)
+    //     next(c) <= 1   <=>   event ? (reload <= 1) : (c <= 2)
+    //
+    // "<= 1", not "== 0": the gate for cycle C+1 opens when the count will be
+    // at most 1 at C+1, i.e. reaches 0 at C+2 -- so a window loaded with N on
+    // the event at cycle E opens at E + N, exactly N cycles of spacing
+    // (BUG-004; the `== 0` form enforced N+1, see the header).
     logic [NUM_RANKS-1:0] w_tfaw_ok_nxt, w_trrd_ok_nxt;
     logic w_twtr_ok_nxt, w_trtw_ok_nxt, w_tccd_ok_nxt;
 
@@ -248,7 +271,7 @@ module mc_global_timers
             any_free_all   = 1'b0;
             any_free_other = 1'b0;
             for (int unsigned i = 0; i < 4; i++) begin
-                if (r_faw_slots[k][i] <= 8'd1) begin
+                if (r_faw_slots[k][i] <= 8'd2) begin
                     any_free_all = 1'b1;
                     if (2'(i) != r_slot_pick[k]) any_free_other = 1'b1;
                 end
@@ -256,17 +279,18 @@ module mc_global_timers
             // On an ACT the claimed slot is about to hold t_faw_i, so it only
             // counts as free if tFAW is programmed to zero (disabled).
             w_tfaw_ok_nxt[k] = w_act_rank[k]
-                             ? (any_free_other || (t_faw_i == 8'd0))
+                             ? (any_free_other || (t_faw_i <= 8'd1))
                              : any_free_all;
-            w_trrd_ok_nxt[k] = w_act_rank[k] ? (t_rrd_i == 8'd0)
-                                             : (r_trrd_cnt[k] <= 8'd1);
+            w_trrd_ok_nxt[k] = w_act_rank[k] ? (t_rrd_i <= 8'd1)
+                                             : (r_trrd_cnt[k] <= 8'd2);
         end
-        w_twtr_ok_nxt = evt_wr_i  ? (t_wtr_global_i == 8'd0) : (r_twtr_cnt <= 8'd1);
-        w_trtw_ok_nxt = evt_rd_i  ? (t_rtw_i        == 8'd0) : (r_trtw_cnt <= 8'd1);
-        w_tccd_ok_nxt = w_evt_col ? (t_ccd_i        == 8'd0) : (r_tccd_cnt <= 8'd1);
+        w_twtr_ok_nxt = evt_wr_i  ? (t_wtr_global_i <= 8'd1) : (r_twtr_cnt <= 8'd2);
+        w_trtw_ok_nxt = evt_rd_i  ? (t_rtw_i        <= 8'd1) : (r_trtw_cnt <= 8'd2);
+        w_tccd_ok_nxt = w_evt_col ? (t_ccd_i        <= 8'd1) : (r_tccd_cnt <= 8'd2);
     end
 
-    // CURRENT-state tFAW, for the obs_* debug view only. The gating outputs use
+    // CURRENT-state tFAW, for the obs_* debug view only (a slot at <= 1 frees
+    // the next command, as the gate reads it). The gating outputs use
     // w_tfaw_ok_nxt above; these two are now aligned in the same cycle rather
     // than one apart, because the readiness flop no longer lags the state.
     logic [NUM_RANKS-1:0] w_tfaw_ok;
@@ -274,7 +298,7 @@ module mc_global_timers
         for (int unsigned k = 0; k < NUM_RANKS; k++) begin
             w_tfaw_ok[k] = 1'b0;
             for (int unsigned i = 0; i < 4; i++) begin
-                if (r_faw_slots[k][i] == 8'd0) w_tfaw_ok[k] = 1'b1;
+                if (r_faw_slots[k][i] <= 8'd1) w_tfaw_ok[k] = 1'b1;
             end
         end
     end
@@ -303,11 +327,11 @@ module mc_global_timers
     always_comb begin
         for (int unsigned k = 0; k < NUM_RANKS; k++) begin
             obs_faw_nz_o [k] = !w_tfaw_ok[k];
-            obs_trrd_nz_o[k] = (r_trrd_cnt[k] != 8'd0);
+            obs_trrd_nz_o[k] = (r_trrd_cnt[k] > 8'd1);
         end
-        obs_twtr_nz_o = (r_twtr_cnt != 8'd0);
-        obs_trtw_nz_o = (r_trtw_cnt != 8'd0);
-        obs_tccd_nz_o = (r_tccd_cnt != 8'd0);
+        obs_twtr_nz_o = (r_twtr_cnt > 8'd1);
+        obs_trtw_nz_o = (r_trtw_cnt > 8'd1);
+        obs_tccd_nz_o = (r_tccd_cnt > 8'd1);
     end
 
 
@@ -364,10 +388,10 @@ module mc_global_timers
 
         // Per-candidate readiness from the registered windows (candidate group
         // selects the long window; the short window is group-agnostic).
-        assign tccd_l_window_ok_o = (r_tccd_g_cnt[cand_bg_i]  == 8'd0);
-        assign tccd_s_window_ok_o = (r_tccd_any_cnt           == 8'd0);
-        assign trrd_l_window_ok_o = (r_trrd_g_cnt[cand_rank_i][cand_bg_i] == 8'd0);
-        assign trrd_s_window_ok_o = (r_trrd_any_cnt[cand_rank_i]          == 8'd0);
+        assign tccd_l_window_ok_o = (r_tccd_g_cnt[cand_bg_i]  <= 8'd1);
+        assign tccd_s_window_ok_o = (r_tccd_any_cnt           <= 8'd1);
+        assign trrd_l_window_ok_o = (r_trrd_g_cnt[cand_rank_i][cand_bg_i] <= 8'd1);
+        assign trrd_s_window_ok_o = (r_trrd_any_cnt[cand_rank_i]          <= 8'd1);
     end else begin : g_no_ls_pairs
         assign tccd_l_window_ok_o = 1'b1;
         assign tccd_s_window_ok_o = 1'b1;

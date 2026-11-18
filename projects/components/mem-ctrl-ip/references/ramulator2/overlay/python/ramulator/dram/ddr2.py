@@ -255,7 +255,7 @@ def _part_preset(rate, tCK_ps, nCL):
 _SKU100 = {"rate": 400, "nBL": 2, "tCK_ps": 5000,
            "nCL": 3, "nRCD": 3, "nRP": 3, "nRAS": 9, "nRC": 14,
            "nWR": 4, "nRTP": 2, "nCWL": -1, "nCCD": 2, "nWTR": 4,
-           "nRRD": 4, "nFAW": 9, "nRFC": 28, "nRTW": 40, "nCS": 2}
+           "nRRD": 4, "nFAW": 9, "nRFC": 28, "nRTW": 42, "nCS": 2}
 
 DDR2.timing_presets = {
     **_JEDEC_BINS,
