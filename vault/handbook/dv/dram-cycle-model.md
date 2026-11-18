@@ -464,6 +464,48 @@ taught:
   only because the dump carries `page_policy`. Set `PERF_DUMP=<own path>` per
   run.
 
+## A lag term stood for a pipeline; carry the pipeline (2026-11-17, MC-021)
+
+The knob grid measured a two-cycle hop on the close-page presets and MC-021
+asked for a `hop_lag` term. The term reproduced the one probe window it was
+read from (an eight-slot period per two beats) and missed the board by 17
+percent on the eight-bank chain, because the RTL's period is six, seven or
+eight slots, decided slot by slot by registers the model did not have. The
+model now carries `mc_bank_pick`'s stages (`model_mc021_pick_pipeline_2026-11-17.md`).
+What it cost to learn:
+
+- **A measured latency is not a term when it comes from a pipeline.** The
+  same "+2" was a request register plus a winner register, and the two
+  patterns the probe recorded (ACT -> COL 2 in 60 percent, 4 in 40) were the
+  pipeline's race over which pair sat in the winner register at the fire. A
+  lag reproduces an average; registers reproduce the distribution. When the
+  RTL is a pipeline, model the pipeline and let the latency fall out.
+- **Line the model's slot trace against the RTL's per-cycle decisions.** The
+  pick probe (`PERF_PICK_PROBE`) carries the request register, the stale
+  mask, the select's source, the winner's fate, the hint and the lane per
+  cycle; `GRANITE_SKU_DEBUG` prints the same from the model. Find the same
+  cadence in both, walk forward, and the first slot where the select's
+  branch differs names the rule -- here the stale mask engaging on a pair
+  with nothing filled behind it, which turned "two empty slots after a
+  column pair" into zero, one or two.
+- **A rule that must differ per preset is keyed on state you are not
+  carrying.** Arming the ACT after an auto-precharge fixed the SKU's
+  `col_major` cells and broke `close_page` by 28 percent; not arming it did
+  the reverse. The RTL's decode arms it for a head that misses the closed row
+  and not for one that hits it: the key is the next head's row against the
+  closed row, and once the model carried that, both presets held.
+- **Do not count a stage twice.** ISSUE-004 measured four cycles from a push
+  to the request; when the request register became explicit, `admit_lag`
+  had to drop to three or the SKU's mixed cell paid the cycle again (-8.2
+  against +1.7 percent).
+- **Name the residual's mechanism before tuning it.** `bank_interleave` sits
+  at -15 percent; two knobs land it (`pick_la` 0, `ap_stale`) and each breaks
+  or changes another preset. The mechanism -- per-bank depth deciding where
+  the stale mask engages, fed by the held lane pair's starvation and the
+  write fill -- is written down with the probe evidence and the pool sweep
+  that brackets it (pool 8: 260, 10: 215, 12: 208, 16: 199-202, board 234), and the task
+  stays open on exactly that.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

@@ -4,8 +4,8 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 2 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
@@ -24,17 +24,18 @@
   task is a form that does not re-enter it, priced in the model first.
   Filed 2026-11-17 from MC-018.
 
-- **MC-021** -- the un-hinted hop: on close-page chains the granite RTL fires
-  a command the next-op hint did not pre-arm two MC cycles after its timer
-  opens (one bank: ACT -> ACT 10 / 9 against the model's 7.7 / 6.7; eight
-  banks: 3.4 cycles per beat against 2.0), which is the whole error on the
-  `close_page` and `bank_interleave` presets (board 82-92 / 232-238 MB/s
-  against the model's 104-119 / 389). A `hop_lag` model term first, then the
-  RTL question of reaching those timers with the lookahead. Filed 2026-11-17
-  from the knob grid; closes ISSUE-002 and ISSUE-003.
-
 ## Active
 
+- **MC-021** -- the un-hinted hop, which turned out to be the pick PIPELINE:
+  the SKU model now carries mc_bank_pick's request register, winner register
+  (hold / speculation / pick), self-stale mask, next-op hint, lane register
+  and the registered rank ok (step 1, 2026-11-17: SKU 30 / 30, `close_page`
+  14 / 15, `bank_interleave` 1 / 12 at -15 percent with the mechanism named
+  -- the stale mask's dependence on per-bank depth, the held lane pair's
+  starvation and the write fill). Open on that residual and on the RTL
+  question, priced: `ap_stale` +20 on `bank_interleave`, `ap_act_la`
+  +28 on `close_page` single-bank streams. Filed 2026-11-17 from the knob
+  grid; closed ISSUE-002 and ISSUE-003.
 
 
 ## Deferred

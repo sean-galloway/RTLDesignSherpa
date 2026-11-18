@@ -211,8 +211,12 @@ def test_sku_config_is_the_shipped_point():
     assert (c.read_buffer, c.write_buffer, c.bank_cap_mixed, c.dir_batch_max, c.dir_hold_idle) == (16, 16, 6, 255, 8)
     assert c.dir_owns_rows and c.lane == 3 and c.close_on_drain and c.slot_ticks == 2 and not c.page_close
     # ISSUE-004: the decode's request is bank-timed and the rank-level terms hold the fire; the mixed cap is checked
-    # at every push; an accepted beat is a head four MC cycles later (push -> bank FIFO -> head record -> request)
-    assert c.req_bank_timing and c.cap_per_beat and c.admit_lag == 4
+    # at every push; an accepted beat is a head record three MC cycles later (push -> bank FIFO -> head record; the
+    # fourth cycle ISSUE-004 measured to the request is the pick pipeline's request register, MC-021)
+    assert c.req_bank_timing and c.cap_per_beat and c.admit_lag == 3
+    # MC-021: the pick pipeline as measured -- lookahead / hint reach 2 slots, the ACT's rank ok registered one slot,
+    # the two RTL questions (arming the same-row ACT after an auto-precharge, masking the closed column's pair) off
+    assert (c.pick_la, c.rank_ok_lag, c.ap_act_la, c.ap_stale) == (2, 1, False, False)
     # every variant changes ONE term against the SKU
     from dataclasses import fields
     for name in cm.SKU_VARIANTS:
