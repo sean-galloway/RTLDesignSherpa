@@ -94,7 +94,7 @@ what the board should move to, not a residual.
 | gate | result |
 |---|---|
 | `formal/mc_common/mc_global_timers` prove / cover | prove PASS (depth 32; the first draft failed Family 2 `a_obs_trrd`: the obs_* flags had to move with the gate), cover PASS, all 11 covers reached incl. the five `c_*_exact` and `c_tfaw_exact` at step 6 |
-| `formal/mc_common/mc_global_timers` equiv (tournament vs serial gold, both at N) | running at commit time: depth-32 BMC of the tournament against the serial gold with anyconst timings, 40 minutes in and stalled on step 22 of 32 (the MC-011 note recorded the same solver stall near step 23 for half an hour); both copies carry the identical fifteen edits, prove and cover pass. The result is appended to this record when it lands (BUG-004 record) |
+| `formal/mc_common/mc_global_timers` equiv (tournament vs serial gold, both at N) | PASS, depth 32 (bitwuzla, 5 h 44 min: the tournament against the serial gold with anyconst timings, every output equal every cycle; both copies carry the identical fifteen edits). Finished after the fix commit b7b410e66, appended here (BUG-004 record) |
 | granite top `run-all-full` | 29 passed, 5 skipped, 1 xfailed |
 | pumice `run-all-func-both` | 220 passed / 4 skipped, both geometries |
 | scoria `run-all-func` | 187 passed; 16 failed = 10 stale bank-timer cases (`t_rcd_i`, a port renamed in MC-007) + `column_pick_smoke` (undriven `*_ready_la_i`) + the scheduler-plane cases (`u_arbiter`, renamed) -- pre-existing stale TBs -- and the 6 `scoria_global_timers` cases that asserted N+1, rewritten to exact N: **10 passed** on rerun; `scoria_dram_configs.prog` was `spacing - 1` (N+1 compensation, already under-spacing the bank windows since MC-003) -> `spacing`; consistency test 12 passed |
