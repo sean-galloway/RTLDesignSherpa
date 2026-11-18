@@ -20,7 +20,7 @@
 **Priority:** P3 -- `close_page` is the experiment's reference preset, not a
 shipped point; but the gap is the pipeline's per-hop cost made visible, and it
 is the same cost MC-013 saw as the one-slot ceiling before the lane.
-**Status:** open 2026-11-17
+**Status:** CLOSED 2026-11-17 -- measured: the un-hinted hop fires two MC cycles after its timer opens; resolved into MC-021 (a `hop_lag` model term, then the RTL question)
 **Owner:** TBD
 
 ## The arithmetic
@@ -42,3 +42,30 @@ opened. If each hop lands one cycle late, the model gains a `hop_latency`
 term (a request's next command no earlier than its last fire + N slots) and
 the RTL question is whether the hint can pre-arm the second hop. A recorded
 no-action is acceptable: the shipped SKU is open-page.
+
+## Resolution (2026-11-17)
+
+The probe this issue asked for was run (`PERF_PICK_PROBE` + `PERF_DRAM_TRACE`
+on the granite proxy under `close_page`, 64 cycles of steady-state
+`incremental`; `char_results/model_knob_grid_2026-11-17.md` section 3):
+
+- ACT -> column lands at tRCD exactly on 99 percent of beats: the next-op
+  hint pre-arms the column.
+- The ACT after the auto-precharge fires two cycles after
+  `bank_act_ready_i` rises: the timer opens at cycle 13, the decode's `r_req`
+  shows the pair at 14, the winner register and the fire at 15. Every period.
+  ACT -> ACT is 10 cycles on writes (88 percent of the pass) and 9 on reads,
+  against the model's 7.7 / 6.7: RTL minus model +2.1 / +1.95 cycles per
+  beat, the ~2.5 this issue estimated.
+- On eight banks (the `bank_interleave` preset, which is also close page --
+  ISSUE-002) the same two cycles show against the rank timer: ACT -> ACT 3
+  against `t_rrd` 2 (the registered `trrd_ok`), plus two empty select slots
+  after each column pair; 3.4 cycles per beat against the model's 2.0.
+- The proxy reproduces the board on this preset (81.9 / 92.5 and 80.3 / 89.4
+  against 82 / 92 and 80 / 90), so the cost is the RTL's, not the board's.
+
+The model gains the `hop_latency` term this issue named, as **MC-021**
+(`hop_lag`, 2 slots, for the hops the hint does not cover), followed by the
+RTL question of whether the lookahead can reach the post-precharge and
+rank-level timers. The knob grid of the ISSUE-004 terms moves no close_page
+cell into tolerance (best 1 / 15), as expected for a missing term.

@@ -15,24 +15,31 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 0 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-002** -- the board's `bank_interleave` map runs at 233-258 MB/s where
-  the SKU model sustains 778 on the same streams: ~3.4 MC cycles per beat of an
-  RTL-side serialization the scheduling rules do not have. Filed from MC-018,
-  2026-11-17.
-- **ISSUE-003** -- `close_page` on the board pays ~2.5 MC cycles per dependent
-  hop above the SKU model (82-92 against 104-119 MB/s one-bank, 180-240 against
-  289-312 bank-parallel): the pipeline's per-hop cost made visible when every
-  column is a hop. Filed from MC-018, 2026-11-17.
+(none)
 
 ## Closed
+
+- **ISSUE-002** -- the board's `bank_interleave` map at 233-258 MB/s against the
+  SKU model's 778. Closed 2026-11-17: a model configuration error -- the host's
+  preset is the interleaved map AND close page (PAGE_POLICY_CLOSE), the model
+  ran it open; corrected, the model is 389 against 232-238 and the proxy
+  reproduces the board exactly. The remaining gap is ISSUE-003's hop cost on
+  eight banks (ACT -> ACT 3 cycles against t_rrd 2, two empty slots per column
+  pair), resolved into MC-021.
+- **ISSUE-003** -- `close_page` pays ~2.5 MC cycles per dependent hop above the
+  SKU model. Closed 2026-11-17, measured: the ACT after an auto-precharge fires
+  two cycles after `bank_act_ready_i` rises (the decode's registered request
+  plus the winner register), the hinted ACT -> column lands at tRCD exactly;
+  ACT -> ACT 10 / 9 against the model's 7.7 / 6.7. Resolved into MC-021 (a
+  `hop_lag` model term, then the RTL question).
 
 - **ISSUE-004** -- the SKU model's `mixed` read turns ran four times the batch
   cap. Closed 2026-11-17: the RTL's rotor rule was the model's; the store in

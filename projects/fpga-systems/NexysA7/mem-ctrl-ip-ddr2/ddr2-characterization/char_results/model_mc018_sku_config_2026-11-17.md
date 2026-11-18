@@ -264,3 +264,9 @@ structure).
         --measured $R --granite sku100def_2026-11-16 --out $R/compare_model_sku_vs_board_sku100def_2026-11-17.md
     python3 $M sweep --configs granite_sku100 sku_ideal16 sku_pool8 ... sku_jedec --suite everything \
         --out $R/model_ramulator2_ddr2_sku_sweep_2026-11-17.csv --table $R/model_sku_sweep_table_2026-11-17.md
+
+*Re-read 2026-11-17 (later): ISSUE-002's premise was a model configuration
+error -- the board's `bank_interleave` preset programs PAGE_POLICY_CLOSE and
+`granite_sku100_bi` ran open page. Corrected (389 against 232-238), ISSUE-002
+and ISSUE-003 are the same close-page hop cost, measured in the proxy and
+filed as MC-021 (`model_knob_grid_2026-11-17.md`).*

@@ -419,6 +419,51 @@ unopposed. Three admission terms reproduce it; `mixed` reads 286 / 286 with
   their ACT-bound rows, which the two issues now carry: the model's hop cost
   is the tRRD bound, the board's is the pipeline.
 
+## A knob is not a term, and a preset is what the host programs (2026-11-17, the knob grid)
+
+After ISSUE-004 the two board presets already out of tolerance moved further
+out, and the owner asked whether everything was getting worse. The right
+answer needed a grid, not a defence: every setting of the three new admission
+terms (28 combinations) on every preset configuration (4) over the
+board-measured cells (15), scored against the board per preset and combined
+(`char_results/model_knob_grid_2026-11-17.md`). What it said, and what it
+taught:
+
+- **Score the whole grid before choosing.** On the SKU all 28 settings give
+  the identical 14 single-direction cells; only `mixed` moves, and the setting
+  that reads best (`lag3`, +1.4 percent) sits on the admission cliff -- the
+  same lag with the other request form is -19.6. A setting that wins one cell
+  and loses its neighbour on the same axis is a cliff, not a fit. The default
+  one step past the cliff, on the RTL's side, stays.
+- **A knob that must flip per preset is a missing term, not a model.** On
+  the close-page presets `req_bank_timing` off read closer (312 against 389
+  on the board's 235) by adding half a cycle of waiting per hop. The RTL has
+  one decode; a model that needs a different decode per preset is standing in
+  for something it does not carry. The proxy, run at the board's exact
+  preset with the DRAM trace and the pick probe, named it: a dependent
+  command the next-op hint does not pre-arm fires two MC cycles after its
+  timer opens (the registered request plus the winner register), the
+  hinted hop lands at the timer. One number, measured twice (one bank: 10 / 9
+  against 7.7 / 6.7; eight banks: 3.4 per beat against 2.0). That became
+  MC-021, and ISSUE-002 / ISSUE-003 closed into it.
+- **A preset is what the host programs, not what its name says.** The
+  board's `bank_interleave` is `scheme=SCHEME_BANK_INTERLEAVE,
+  page_policy=PAGE_POLICY_CLOSE` in `pumice_char.py`; the model's `_bi`
+  encoded the map and left the page open, and ISSUE-002's factor of three
+  was that line. Read the ControllerConfig fields before encoding a preset,
+  and guard the encoding with a test that imports the host's table
+  (`test_board_presets_are_what_the_host_programs`).
+- **When the model and the board disagree, run the proxy at the board's
+  preset first.** It reproduced all three presets to within a percent
+  (235 / 230 against 234 / 233; 82 / 92 against 82 / 92) before any model
+  change, which turned "the model moved away from the board" into "the model
+  lacks a term the RTL has", with the term's size.
+- **One perf dump per run.** The proxy writes `logs/perf_dump_<test>.json`
+  and the next run overwrites it; a serial script that copies it after each
+  run copied the second run's numbers under the first run's name, caught
+  only because the dump carries `page_policy`. Set `PERF_DUMP=<own path>` per
+  run.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

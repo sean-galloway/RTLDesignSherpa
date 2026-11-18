@@ -52,8 +52,9 @@ MC-018 added the SKU itself: `granite_sku100` runs the overlay's GraniteSKU
 controller (granite_sku_controller.cpp: the bank-FIFO store, the pick core's
 select, the direction register, the row lane, close-on-drain, one slot per MC
 cycle) on the DDR2_GRANITE_SKU100 preset (the host's MC-cycle timings in CK);
-`_bi` / `_close` are the board's bank_interleave / close_page presets on it, and
-the `sku_*` configs each change ONE term. `board-compare` puts the SKU model
+`_bi` / `_close` are the board's bank_interleave (bank_lsb 2 AND close page, as
+the host preset programs it) / close_page presets on it, and the `sku_*` configs
+each change ONE term. `board-compare` puts the SKU model
 beside a board CSV set cell by cell with a per-family tolerance; `sweep` runs a
 list of configs over a suite and writes the pattern x variant table. The MC-018
 patterns (`patterns` suite): read / write mixes, mixed at 2 / 8 threads and
@@ -506,8 +507,13 @@ def _sku(tag: str, note: str, **kw) -> ModelConfig:
 CONFIGS.update({c.name: c for c in [
     SKU,
     # the board's other two presets on the SKU
-    replace(SKU, name="granite_sku100_bi", addr_map="bank_interleave",
-            note="the SKU with the stream encoded under the board's bank_interleave map (bank_lsb 2)"),
+    # The board's `bank_interleave` preset is the map AND close page: pumice_char.py's ControllerConfig programs
+    # SCHEME_BANK_INTERLEAVE with PAGE_POLICY_CLOSE (the open-page interleave is its `open_interleave`, which the
+    # SKU campaign did not run). Until 2026-11-17 this config was open page and ISSUE-002's factor of three was
+    # that configuration error, not the RTL.
+    replace(SKU, name="granite_sku100_bi", addr_map="bank_interleave", page_close=True,
+            note="the SKU with the stream encoded under the board's bank_interleave map (bank_lsb 2) and every "
+                 "column auto-precharging (the preset programs PAGE_POLICY_CLOSE)"),
     replace(SKU, name="granite_sku100_close", page_close=True,
             note="the SKU with every column auto-precharging (the board's close_page preset)"),
     # the ideal at the SKU's timings: what the timing set alone costs (GenericDDR row-hit-first, pool 16)

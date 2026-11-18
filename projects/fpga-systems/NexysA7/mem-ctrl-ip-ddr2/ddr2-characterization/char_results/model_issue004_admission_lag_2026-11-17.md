@@ -263,3 +263,19 @@ ISSUE-002 and ISSUE-003 with their moved rows; nothing new filed.
     python3 .../char_model.py run-trace --config sku_lag0 --name mixed_capture --both <capture>/mixed.trace --split --out y.csv --overwrite
     python3 .../char_model.py board-compare --model model_ramulator2_ddr2_granite_sku100{,_bi,_close}_issue004_2026-11-17.csv \
         --measured <char_results> --granite sku100def_2026-11-16 --out compare_model_sku_vs_board_sku100def_issue004_2026-11-17.md
+
+## Re-read 2026-11-17 (later): the two presets
+
+Section 3's note that the `bank_interleave` / `close_page` rows "moved further
+from the board, the RTL's form too" was an interpretation, and the owner's
+question ("is everything getting worse?") sent it back to measurement. The
+knob grid (`model_knob_grid_2026-11-17.md`) found two things: the model's
+`bank_interleave` preset was mis-encoded (the board's preset is the map AND
+close page; corrected, the model is 389 against 232-238, not 778), and the
+remaining gap on both presets is a term the model does not carry -- a
+command the next-op hint did not pre-arm fires two MC cycles after its timer
+opens in the RTL -- measured in the proxy and filed as MC-021. The SKU cells
+and the mixed result of this write-up stand; the bank-timed request
+(`req_bank_timing`) stays the default as the RTL's decode, and the preset
+rows' change under it is the missing term's size changing, not a form the
+RTL has.

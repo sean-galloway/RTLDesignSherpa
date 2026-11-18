@@ -1,10 +1,10 @@
 # memory-controllers — task lane
 
-**Next ID: MC-021** — never recycle a number.
+**Next ID: MC-022** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -23,6 +23,15 @@
   elsewhere; MC-014 cut the alone-firing lane for the 100 MHz cone, so the
   task is a form that does not re-enter it, priced in the model first.
   Filed 2026-11-17 from MC-018.
+
+- **MC-021** -- the un-hinted hop: on close-page chains the granite RTL fires
+  a command the next-op hint did not pre-arm two MC cycles after its timer
+  opens (one bank: ACT -> ACT 10 / 9 against the model's 7.7 / 6.7; eight
+  banks: 3.4 cycles per beat against 2.0), which is the whole error on the
+  `close_page` and `bank_interleave` presets (board 82-92 / 232-238 MB/s
+  against the model's 104-119 / 389). A `hop_lag` model term first, then the
+  RTL question of reaching those timers with the lookahead. Filed 2026-11-17
+  from the knob grid; closes ISSUE-002 and ISSUE-003.
 
 ## Active
 

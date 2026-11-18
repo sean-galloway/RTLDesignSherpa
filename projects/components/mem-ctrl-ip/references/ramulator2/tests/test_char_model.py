@@ -228,6 +228,20 @@ def test_sku_config_is_the_shipped_point():
             assert len(diff) == 1, (name, diff)
 
 
+def test_board_presets_are_what_the_host_programs(pumice_char):
+    """The model's `_bi` / `_close` configs stand for the host's ControllerConfig presets, page policy included.
+    The board's `bank_interleave` is SCHEME_BANK_INTERLEAVE with PAGE_POLICY_CLOSE; until 2026-11-17 the model ran
+    it open page and ISSUE-002's factor of three was that error (memory-controllers ISSUE-002)."""
+    dc = pumice_char.dc
+    bi, close = pumice_char.CONFIGS["bank_interleave"], pumice_char.CONFIGS["close_page"]
+    assert (bi.scheme, bi.page_policy) == (dc.SCHEME_BANK_INTERLEAVE, dc.PAGE_POLICY_CLOSE)
+    assert (close.scheme, close.page_policy) == (dc.SCHEME_ROW_MAJOR, dc.PAGE_POLICY_CLOSE)
+    m_bi, m_close = cm.CONFIGS["granite_sku100_bi"], cm.CONFIGS["granite_sku100_close"]
+    assert (m_bi.addr_map, m_bi.page_close) == ("bank_interleave", True)
+    assert (m_close.addr_map, m_close.page_close) == ("row_major", True)
+    assert cm.BOARD_PRESET_OF["granite_sku100_bi"] == ("bank_interleave",)
+
+
 def test_bank_interleave_remap_is_the_rtl_map(pumice_char):
     """bank_lsb 2 in device words: [col_lo(2) | bank(3) | col_hi(8) | row(13)]; consecutive 8-byte beats
     land in consecutive banks of the same row, and the map is a bijection on the device."""
