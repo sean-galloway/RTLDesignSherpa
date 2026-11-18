@@ -12,8 +12,8 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -23,11 +23,11 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Active
 
-- **TASK-001** ([page](active/TASK-001.md)) — beat HPDcache: jet forked as jet-prime at 2be919254 (2026-11-12); step 1 measures jet-prime straight onto memory on the ref rig (REF_CACHE_SEL 2) to split jet's miss cost into pair fabric and cache; steps 2-4 are multiple outstanding fills, a pipelined fabric, and the DV/formal to carry them; step 5 (11-17) the single-miss path, which met the done criterion at every depth.
+(none)
 
 ## Closed
 
-(none)
+- **TASK-001** ([page](closed/TASK-001.md)) — beat HPDcache: jet forked as jet-prime at 2be919254 (2026-11-12); step 1 measures jet-prime straight onto memory on the ref rig (REF_CACHE_SEL 2) to split jet's miss cost into pair fabric and cache; steps 2-4 are multiple outstanding fills, a pipelined fabric, and the DV/formal to carry them; step 5 (11-17) the single-miss path, which met the done criterion at every depth. Closed 2026-11-18 on the control formal verdicts (safety prove PASS, covers PASS, step-3 liveness PASS; the step-5 liveness BMC still running, appended when it lands).
 
 ## Dropped
 

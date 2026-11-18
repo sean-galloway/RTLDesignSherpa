@@ -170,8 +170,14 @@ change -- the fabric contract is untouched.
 - Gate 21/21; FULL 155/155 (9:17) from clean on the final RTL; ref-g2 gate 7/7.
 - Control formal on the regenerated flat (two new ports; the environment
   accepts the launch unconditionally and holds beats by entry while
-  `cap_busy_o` is high): the safety prove (BMC depth 64, boolector) running at this commit -- step 48 at 11:28, 36 min in; the liveness prove and both covers queued behind the step-3 flat's liveness run, which owns their work directory. The fabric formal is step 4's;
-  the fabric did not change.
+  `cap_busy_o` is high): covers PASS on the step-5 flat (23 of 23 control
+  covers, 7 of 7 liveness-wrapper covers reached, 2026-11-18); the
+  step-3 flat's liveness BMC (depth 192) PASS 2026-11-18 after 19 h; the
+  step-5 safety prove (BMC depth 64, boolector) PASS 2026-11-18 after
+  26:52 (the step-3 flat's took 11:57: the step-5 environment carries
+  more state per step); the step-5 liveness prove (depth 192) still
+  running at TASK-001's close, its verdict on the task's closed page. The
+  fabric formal is step 4's; the fabric did not change.
 
 ## Board
 

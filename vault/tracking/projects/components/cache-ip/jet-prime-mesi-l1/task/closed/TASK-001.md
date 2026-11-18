@@ -1,7 +1,7 @@
 # TASK-001: beat HPDcache -- jet-prime's miss path, measured and rebuilt
 
 **Priority:** P2
-**Status:** active 2026-11-12 -- fork done, step 1 (jet-prime without the pair fabric) measured 11-12, step 2 (multiple outstanding fills) built and measured 11-15, step 3 (pipelined pair fabric) built and measured 11-16, step 4 (the fabric's formal safety argument; two memory-AR defects found and fixed, BUG-001) done 11-17, step 5 (the single-miss path: launch no longer behind the capture, commit tail three cycles) built and measured 11-17 -- under HPDcache at every depth as a pair; the control formal reruns still to record
+**Status:** closed 2026-11-18 (active 2026-11-12) -- fork done, step 1 (jet-prime without the pair fabric) measured 11-12, step 2 (multiple outstanding fills) built and measured 11-15, step 3 (pipelined pair fabric) built and measured 11-16, step 4 (the fabric's formal safety argument; two memory-AR defects found and fixed, BUG-001) done 11-17, step 5 (the single-miss path: launch no longer behind the capture, commit tail three cycles) built and measured 11-17 -- under HPDcache at every depth as a pair; control formal on the step-5 RTL: safety prove PASS 11-18 (26:52), covers PASS, the step-3 flat's liveness PASS 11-18 (19:08); the step-5 liveness BMC still running at close (step 115 of 192), its verdict to be appended here
 **Owner:** TBD
 
 Filed 2026-11-12 (Sean: "Make a jet-prime and do 1"). The reference
@@ -350,9 +350,20 @@ depth on `r64k_we64` and `r64k_we255`, with the resident-hit row still at
 - **DV.** Lint clean at two parameter sets. Gate 21/21; FULL 155/155 (9:17)
   from clean on the final RTL; ref-g2 gate 7/7.
 - **Formal.** Control flat regenerated (two new ports; `formal_status
-  --check-flats` CURRENT 2/2). The safety prove (BMC depth 64, boolector) running at this commit -- step 48 at 11:28, 36 min in; the liveness prove and both covers queued behind the step-3 flat's liveness run, which owns their work directory. The step-3 flat's liveness
-  BMC (step 4's pending verdict): still running at this commit, at step 160 of 192 since 11:11 (the solver has sat on that step 20 min; 5:54 in), covers queued behind it. The fabric formal is
-  step 4's (fabric unchanged).
+  --check-flats` CURRENT 2/2). Verdicts as they landed: the step-3 flat's
+  liveness BMC (depth 192, boolector; step 4's pending verdict) PASS
+  2026-11-18 00:28 after 19:08 of solver time; the covers on the step-5
+  flat PASS 00:30 / 00:31 (23 of 23 control covers and 7 of 7
+  liveness-wrapper covers reached; 2:08 and 0:45); the step-5 safety
+  prove (BMC depth 64, boolector) PASS 2026-11-18 13:47 after 26:52 --
+  against 11:57 for the same depth on the step-3 flat; the last three
+  steps took 3:20, 5:13 and 5:00, so the step-5 environment (the launch
+  accepted unconditionally, beats into a captured way excluded by
+  assumption) carries more state per unrolled step. The step-5 liveness
+  prove (depth 192) launched 00:31 once the step-3 run freed its work
+  directory; at 13:47 it was at step 115 of 192 after 13:09, having
+  slowed from the step-3 run's pace to about 80 min per step from step
+  110 on. The fabric formal is step 4's (fabric unchanged).
 - **Board.** `ref_jetpp_bringup` bin 4: 18,126 LUT / 11,890 FF, WNS
   +0.019 ns at 100 MHz under the 0.2 ns uncertainty budget (worst path
   still the fill engine's staging-queue read pointer into the data-array
@@ -382,8 +393,15 @@ depth on `r64k_we64` and `r64k_we255`, with the resident-hit row still at
   and 2. That is the lookup pipeline (jet v3's 100 MHz closure), not the
   miss path, and it is not in this task's criterion.
 
-Next: the task is done when the control formal reruns land (safety prove,
-liveness, covers on the step-5 flat; the step-3 flat's liveness verdict),
-then it closes. The 2-cycle hit (HPDcache's floor) is filed as TASK-002
-(open, 2026-11-17): the v3 lookup pipeline's capture/classify split
-against 100 MHz.
+### 2026-11-18 -- closed
+
+The control formal reruns landed: safety prove PASS, covers PASS on the
+step-5 flat, the step-3 flat's liveness PASS. The done criterion (step 5,
+4db2f29e5) was met at every depth as a pair, so the task closes. One run
+is still out: the step-5 liveness BMC (depth 192), at step 115 of 192 at
+the close and slowing (see the step-5 Formal bullet). Its verdict is
+appended below when it lands; if it keeps crawling, a tighter liveness
+environment for the step-5 control is a separate item, not a reason to
+hold this one open. The 2-cycle hit (HPDcache's floor) is TASK-002 (open,
+2026-11-17): the v3 lookup pipeline's capture/classify split against
+100 MHz.

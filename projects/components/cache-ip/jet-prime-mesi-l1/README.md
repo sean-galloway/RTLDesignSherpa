@@ -38,7 +38,7 @@ transaction to OpenHW HPDcache's 7.6, with more misses in flight (7 vs 3)
 and a slower retire (20 vs 14 cycles per miss): after the MSHR the miss path
 is serial -- one fill engine, one coherence transaction and one memory read
 at a time in the pair fabric. The work item is
-[jet-prime TASK-001](../../../../vault/tracking/projects/components/cache-ip/jet-prime-mesi-l1/task/active/TASK-001.md):
+[jet-prime TASK-001](../../../../vault/tracking/projects/components/cache-ip/jet-prime-mesi-l1/task/closed/TASK-001.md):
 measure jet-prime without the fabric, then multiple outstanding fills, then a
 pipelined fabric, with the DV and formal to carry them.
 
