@@ -384,5 +384,6 @@ depth on `r64k_we64` and `r64k_we255`, with the resident-hit row still at
 
 Next: the task is done when the control formal reruns land (safety prove,
 liveness, covers on the step-5 flat; the step-3 flat's liveness verdict),
-then it closes. The 2-cycle hit (HPDcache's floor) would be a separate
-item: the v3 lookup pipeline's capture/classify split against 100 MHz.
+then it closes. The 2-cycle hit (HPDcache's floor) is filed as TASK-002
+(open, 2026-11-17): the v3 lookup pipeline's capture/classify split
+against 100 MHz.

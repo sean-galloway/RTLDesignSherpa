@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/jet-prime-mesi-l1 — tasks
 
-**Next ID: TASK-002** — never recycle a number, even when its item closed.
+**Next ID: TASK-003** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -11,7 +11,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -19,7 +19,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Open
 
-(none)
+- **TASK-002** ([page](open/TASK-002.md)) — the 2-cycle resident hit: jet-prime answers a hit in 3 cycles to HPDcache's 2, the one cycle per transaction left over HPDcache in the resident rows at depths 1-2 (and the 3.5 % depth-1 thrash margin); the v3 capture/classify split is a 100 MHz timing decision, so the cycle has to come from reading the set at capture or a hit-only early decision, measured first. Filed 2026-11-17 from TASK-001 step 5.
 
 ## Active
 
