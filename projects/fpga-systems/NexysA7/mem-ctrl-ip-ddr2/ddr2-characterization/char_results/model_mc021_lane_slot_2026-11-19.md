@@ -142,18 +142,35 @@ column, the lane riding beside a column only, rideable rows left to the lane
   for one slot, unmasked), and the hint lands in the freed register on
   time: every column at tRCD.
 
-The second-order term that separates the two fixed points is the ACT
-request after a read auto-precharge: the RTL's `bank_act_ready` rises 5
-cycles after the RDA (t_rtp 1 + t_rp 2 and the registered close and ready)
-and the ACT fires at +6 (lane) typically, +4 at best; the model's bank opens
-at +3 (nRTP + nRP = 5 CK) and fires at +5 after one hold. The write side has
-no such gap (6 / 7 in both). Carrying it (a registered auto-precharge close on
-the read path, about 2 MC cycles) is the next model term; it is the read
-half of what MC-021 step 1 called "the bank timer, then two cycles" and the
-remaining content of the `ap_act_la` RTL question. Not tuned here: the two
-cells sit at +10.9 / +11.3 against a 10 percent tolerance, and the term should
-be measured on the proxy (the AP -> act_ready distance per direction) before
-it is written.
+The term I first named here -- a registered read auto-precharge close the
+model lacked -- was measured and is NOT it. Both probes (read phase
+`pick_bl4_rd.json`, write phase `pick_bl4_wr.json`, 27 and 20 auto-precharges)
+give the RTL's bank hops exactly as the model has them: column fire ->
+`bank_act_ready` rise 5 for a read whose column fired at ACT + 2 (tRAS 5 from
+the ACT, then tRP 2: the model's nRC = 7 MC from the ACT) and 3 for a late read
+column (t_rtp 1 + t_rp 2: the model's RDA -> ACT 5 CK), 6 for every write (t_wr
+4 + t_rp 2: the model's WRA -> ACT 11 CK); and the ACT request is visible one
+cycle before the ready rises in both directions (39 of 39), which is the
+model's request register with `pick_la` 2 (the decode sees the bank open within
+two slots, the register is read the slot after). The fired column's stale
+request stays visible one slot in both. A trial `ap_la` knob (the request one
+slot later) put the write cells on the board (bl4 write 258.9 against 258,
+interleaved bl4 272 / 242 against 253 / 242) and left the bl4 read at 389; it
+was a knob matching a cell, not a term, and was removed before the commit.
+
+What is left is the attractor itself. The RTL's read phase runs a steady
+11-13-cycle pattern with one 3-gap from its first cycles (3-gaps at 114333,
+114344, 114355, 114368 ... through the phase, no refresh involvement), the
+model a steady 8-cycle one; the write phase likewise (RTL 12 cycles per four
+beats with the 6-gap, model 11). The latency the RTL pays is measured: from
+`bank_act_ready` rising to the ACT firing, reads 0 / 1 / 2 / 3 cycles in 5 /
+13 / 7 / 2 of 27, writes 0 / 1 / 3 / 4 in 5 / 4 / 5 / 4 of 18, where the model
+in its pattern pays 0 or 1. The next step that would settle it is a
+cycle-aligned replay of the first 40 cycles of a phase in both (the proxy's
+probe from the first ACT of the read phase beside the model's debug from its
+first slot), to see which rule's timing sends the RTL into the pattern with
+the double hold; until then the two cells stand at +11 with the mechanism
+named and no term written for it.
 
 ## 5. What this says about the RTL
 
