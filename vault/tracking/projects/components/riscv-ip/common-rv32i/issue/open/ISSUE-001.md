@@ -26,7 +26,7 @@ reproducing script.
 
 | # | Area | Finding | Effect | State |
 |---|---|---|---|---|
-| 1 | common-rv32i | ALU builds three barrel shifters and a second 33-bit compare | variant measured: -306 / -205 / -231 LUT (kestrel / merlin / gatling), kestrel WNS +0.85 ns; 2,001,280-vector equivalence, 0 mismatches | open |
+| 1 | common-rv32i | ALU builds three barrel shifters and a second 33-bit compare | variant measured: -306 / -205 / -231 LUT (kestrel / merlin / gatling), kestrel WNS +0.85 ns; 2,001,280-vector equivalence, 0 mismatches | done: common-rv32i [TASK-001](../../task/closed/TASK-001.md), suites + riscv-formal green |
 | 2 | merlin | pipeline registers reset and flush the whole payload | variant measured: FDCE 811 -> 130, -212 LUT, WNS -0.141 -> +0.133; not yet regression-checked | open |
 | 3 | merlin | forwarding compare -> branch -> redirect / flush fan-out is the critical path (11-15 levels) | not measured; (a) register the forward selects, (b) register the redirect | open |
 | 4 | gatling | per-context PC / cause / halt in async-reset flops with loop write and mux read | estimated 128 FF + mux -> ~11 LUTRAM; not measured | open |
