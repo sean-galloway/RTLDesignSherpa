@@ -2,7 +2,7 @@
 
 # vault/tracking/projects/components/riscv-ip/common-rv32i — issues
 
-**Next ID: ISSUE-001** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-002** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed: it resolves INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **ISSUE-001** — riscv-ip FPGA microarchitecture review (2026-11-18): shared ALU -205..-306 LUT per core, merlin pipeline-register resets and its forwarding-to-branch critical path, gatling per-context PC file; report in assets/issue001_fpga_uarch/
 
 ## Active
 
