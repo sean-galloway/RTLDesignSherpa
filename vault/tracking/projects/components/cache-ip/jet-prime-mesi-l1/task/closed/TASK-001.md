@@ -363,7 +363,8 @@ depth on `r64k_we64` and `r64k_we255`, with the resident-hit row still at
   prove (depth 192) launched 00:31 once the step-3 run freed its work
   directory; at 13:47 it was at step 115 of 192 after 13:09, having
   slowed from the step-3 run's pace to about 80 min per step from step
-  110 on. The fabric formal is step 4's (fabric unchanged).
+  110 on. Stopped by the owner at step 123 on 2026-11-18 16:12 (see the
+  stop note below). The fabric formal is step 4's (fabric unchanged).
 - **Board.** `ref_jetpp_bringup` bin 4: 18,126 LUT / 11,890 FF, WNS
   +0.019 ns at 100 MHz under the 0.2 ns uncertainty budget (worst path
   still the fill engine's staging-queue read pointer into the data-array
@@ -405,3 +406,32 @@ environment for the step-5 control is a separate item, not a reason to
 hold this one open. The 2-cycle hit (HPDcache's floor) is TASK-002 (open,
 2026-11-17): the v3 lookup pipeline's capture/classify split against
 100 MHz.
+
+### 2026-11-18 -- the step-5 liveness BMC stopped at step 123 of 192
+
+The owner stopped the step-5 liveness prove (`jet_prime_control_live.sby`
+`prove`, BMC depth 192, boolector) at 16:12 after 15:41 of solver time
+(launched 00:31; pids 2165759 / 2165828, sent SIGTERM by process group,
+no status file written). Not a verdict: assertions were checked through
+step 123 with no counterexample, and the solver was inside step 124. What
+the checked depth says, by bound (the reset-to-first-possible-violation
+distance is the init sequence, about 17 steps, plus the bound):
+
+- Covered at depth 123: `ap_corner` (< 16), `ap_drain_progress` (< 24)
+  and `ap_holdoff` (< 80) -- each bound, its init and its setup fit
+  inside the checked window with room to spare.
+- Not covered: `ap_age0` / `ap_age1` (< 128) and `ap_snoop_progress`
+  (< 128). A violation of a 128-count bound cannot appear before step 128
+  on any design, and with the init in front not before about step 146, so
+  the checked 123 steps say nothing about these three. They hold on the
+  step-3 flat (depth 192 PASS, 19:08) and are unproven on the step-5
+  flat.
+
+Pace: steps 116-123 took 2:20 in all (under 18 min per step; steps 120
+to 123 took 7 minutes), so the "80 min per step" slope recorded at the
+close was a stretch, not the trend. At that pace the remaining 69 steps
+were about a day away. The open piece is as the close note says: a
+tighter liveness environment for the step-5 control (the launch accepted
+unconditionally and the captured-way beat exclusion are what the step-5
+flat added), run to a depth past 146, is a separate jet-prime item; the
+step-5 safety prove (depth 64 PASS, 26:52) and both covers stand.
