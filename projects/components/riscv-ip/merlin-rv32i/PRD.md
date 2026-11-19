@@ -73,6 +73,12 @@ contract between stages" lesson made literal.
 
 - **EX/MEM → EX and MEM/WB → EX forwarding**, explicit priority
   (EX/MEM wins — it is the newer value), on both ALU operands.
+  The select is computed in ID, one cycle ahead, against the
+  instructions then in ID/EX and EX/MEM, and registered beside ID/EX,
+  so EX sees a ready mux select rather than the 5-bit compares
+  (riscv-ip common-rv32i ISSUE-001 row 3a). The WB value it forwards is
+  only a load-or-not select: a jump's link and LUI's immediate are
+  already in `alu_y` from EX.
 - **Load-use interlock**: a load in EX whose rd matches either ID source
   stalls IF/ID one cycle and injects a bubble into EX — the one bubble
   the student must be able to point at on a waveform.

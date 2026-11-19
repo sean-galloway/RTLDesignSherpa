@@ -101,8 +101,9 @@ STAGE_FIELDS = {
 }
 
 # Bubble field checks per stage.  Every field named here must be zero after
-# a flush.  Datapath fields not listed are also expected zero because the
-# RTL flushes the whole struct to '0.
+# a flush or reset.  These are the ONLY fields the RTL clears: the payload is
+# a plain enable flop (riscv-ip common-rv32i ISSUE-001 row 2), so under a
+# flush every other field keeps what the register held.
 BUBBLE_CHECKS = {
     "if_id": ["valid"],
     "id_ex": [
@@ -191,10 +192,11 @@ async def _test_one_stage(dut, stage):
     q = await drive_and_wait(pattern_b, stall=1, flush=1)
     for f in BUBBLE_CHECKS[stage]:
         assert q[f] == 0, f"{stage}: flush did not clear {f}: {q[f]}"
-    # Every datapath field also flushes to zero.
-    for f, width in STAGE_FIELDS[stage].items():
-        if width > 1:
-            assert q[f] == 0, f"{stage}: flush did not clear datapath {f}: {q[f]:#x}"
+    # The payload is not cleared: stalled, it still holds pattern_a.
+    for f in STAGE_FIELDS[stage]:
+        if f not in BUBBLE_CHECKS[stage]:
+            assert q[f] == pattern_a[f], (
+                f"{stage}: flush changed payload {f}: {q[f]:#x} != {pattern_a[f]:#x}")
 
     # 4) Resume capture after flush is released.
     q = await drive_and_wait(pattern_c)

@@ -20,8 +20,14 @@
 //
 // Notes:
 //   - Flush wins over stall.
-//   - The bubble record is the all-zero value of id_ex_t; all strobes are
-//     deasserted and halt_cause is HALT_NONE (zero).
+//   - Only the control fields reset and flush (valid, rd_wen, dmem_req,
+//     dmem_we, branch, jump, jalr, halt_cause, csr_stub).
+//     The payload is a plain enable flop with no reset and no flush clear,
+//     so a bubble carries a stale payload; every consumer in merlin_core
+//     gates on valid (or on a control field that is cleared).  An async
+//     clear on the payload put a reset on ~680 flops and folded the
+//     synchronous flush into a LUT in front of each one (riscv-ip
+//     common-rv32i ISSUE-001 row 2).
 //
 // Related Modules:
 //   - merlin_if_id, merlin_ex_mem, merlin_mem_wb (siblings)
@@ -45,13 +51,68 @@ module merlin_id_ex (
 
   import merlin_pkg::*;
 
+  // Payload: captured unless stalled; no reset, no flush clear.
+  id_ex_t r_payload;
+
+  always_ff @(posedge clk) begin
+      if (!stall) r_payload <= d_i;
+  end
+
+  // Control: reset and flush to the bubble value (all zero).
+  logic [$bits(d_i.valid)-1:0] r_valid;
+  logic [$bits(d_i.rd_wen)-1:0] r_rd_wen;
+  logic [$bits(d_i.dmem_req)-1:0] r_dmem_req;
+  logic [$bits(d_i.dmem_we)-1:0] r_dmem_we;
+  logic [$bits(d_i.branch)-1:0] r_branch;
+  logic [$bits(d_i.jump)-1:0] r_jump;
+  logic [$bits(d_i.jalr)-1:0] r_jalr;
+  logic [$bits(d_i.halt_cause)-1:0] r_halt_cause;
+  logic [$bits(d_i.csr_stub)-1:0] r_csr_stub;
+
   `ALWAYS_FF_RST(clk, rst_n,
-                 if (`RST_ASSERTED(rst_n)) begin
-            q_o <= '0;
+        if (`RST_ASSERTED(rst_n)) begin
+            r_valid      <= '0;
+            r_rd_wen     <= '0;
+            r_dmem_req   <= '0;
+            r_dmem_we    <= '0;
+            r_branch     <= '0;
+            r_jump       <= '0;
+            r_jalr       <= '0;
+            r_halt_cause <= '0;
+            r_csr_stub   <= '0;
         end else if (flush) begin
-            q_o <= '0;
+            r_valid      <= '0;
+            r_rd_wen     <= '0;
+            r_dmem_req   <= '0;
+            r_dmem_we    <= '0;
+            r_branch     <= '0;
+            r_jump       <= '0;
+            r_jalr       <= '0;
+            r_halt_cause <= '0;
+            r_csr_stub   <= '0;
         end else if (!stall) begin
-            q_o <= d_i;
+            r_valid      <= d_i.valid;
+            r_rd_wen     <= d_i.rd_wen;
+            r_dmem_req   <= d_i.dmem_req;
+            r_dmem_we    <= d_i.dmem_we;
+            r_branch     <= d_i.branch;
+            r_jump       <= d_i.jump;
+            r_jalr       <= d_i.jalr;
+            r_halt_cause <= d_i.halt_cause;
+            r_csr_stub   <= d_i.csr_stub;
         end)
+
+  always_comb begin
+        q_o = r_payload;
+        q_o.valid      = r_valid;
+        q_o.rd_wen     = r_rd_wen;
+        q_o.dmem_req   = r_dmem_req;
+        q_o.dmem_we    = r_dmem_we;
+        q_o.branch     = r_branch;
+        q_o.jump       = r_jump;
+        q_o.jalr       = r_jalr;
+        q_o.halt_cause = r_halt_cause;
+        q_o.csr_stub   = r_csr_stub;
+  end
 
 endmodule : merlin_id_ex

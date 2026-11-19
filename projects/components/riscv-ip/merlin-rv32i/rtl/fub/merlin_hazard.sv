@@ -42,10 +42,14 @@ module merlin_hazard (
     // ID-stage source addresses used for the load-use interlock.
     input  logic [4:0] id_rs1_addr,
     input  logic [4:0] id_rs2_addr,
-    // EX-stage source addresses used for forwarding-select generation.
-    // In the core these are the sources of the instruction currently in EX,
-    // while id_rs1_addr/id_rs2_addr are the sources of the instruction
-    // currently in ID, so a single unit can serve both roles.
+    // Source addresses used for forwarding-select generation, compared
+    // against the exmem_* and memwb_* producers.  merlin_core computes the
+    // select one cycle early: it drives the ID sources here and, as
+    // producers, the instructions now in ID/EX and EX/MEM (the ones that
+    // will be in EX/MEM and MEM/WB when the consumer reaches EX), then
+    // registers fwd_a/fwd_b beside ID/EX (riscv-ip common-rv32i ISSUE-001
+    // row 3a).  The unit itself is unchanged; driven from EX-stage sources
+    // and current producers it gives the same select combinationally.
     input  logic [4:0] fwd_rs1_addr,
     input  logic [4:0] fwd_rs2_addr,
     input  logic [4:0] idex_rd_addr,

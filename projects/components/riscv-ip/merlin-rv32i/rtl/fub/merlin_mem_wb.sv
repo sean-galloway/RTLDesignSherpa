@@ -20,8 +20,14 @@
 //
 // Notes:
 //   - Flush wins over stall.
-//   - The bubble record is the all-zero value of mem_wb_t; all strobes are
-//     deasserted and halt_cause is HALT_NONE (zero).
+//   - Only the control fields reset and flush (valid, rd_wen, halt_cause,
+//     csr_stub).
+//     The payload is a plain enable flop with no reset and no flush clear,
+//     so a bubble carries a stale payload; every consumer in merlin_core
+//     gates on valid (or on a control field that is cleared).  An async
+//     clear on the payload put a reset on ~680 flops and folded the
+//     synchronous flush into a LUT in front of each one (riscv-ip
+//     common-rv32i ISSUE-001 row 2).
 //
 // Related Modules:
 //   - merlin_if_id, merlin_id_ex, merlin_ex_mem (siblings)
@@ -45,13 +51,43 @@ module merlin_mem_wb (
 
   import merlin_pkg::*;
 
+  // Payload: captured unless stalled; no reset, no flush clear.
+  mem_wb_t r_payload;
+
+  always_ff @(posedge clk) begin
+      if (!stall) r_payload <= d_i;
+  end
+
+  // Control: reset and flush to the bubble value (all zero).
+  logic [$bits(d_i.valid)-1:0] r_valid;
+  logic [$bits(d_i.rd_wen)-1:0] r_rd_wen;
+  logic [$bits(d_i.halt_cause)-1:0] r_halt_cause;
+  logic [$bits(d_i.csr_stub)-1:0] r_csr_stub;
+
   `ALWAYS_FF_RST(clk, rst_n,
-                 if (`RST_ASSERTED(rst_n)) begin
-            q_o <= '0;
+        if (`RST_ASSERTED(rst_n)) begin
+            r_valid      <= '0;
+            r_rd_wen     <= '0;
+            r_halt_cause <= '0;
+            r_csr_stub   <= '0;
         end else if (flush) begin
-            q_o <= '0;
+            r_valid      <= '0;
+            r_rd_wen     <= '0;
+            r_halt_cause <= '0;
+            r_csr_stub   <= '0;
         end else if (!stall) begin
-            q_o <= d_i;
+            r_valid      <= d_i.valid;
+            r_rd_wen     <= d_i.rd_wen;
+            r_halt_cause <= d_i.halt_cause;
+            r_csr_stub   <= d_i.csr_stub;
         end)
+
+  always_comb begin
+        q_o = r_payload;
+        q_o.valid      = r_valid;
+        q_o.rd_wen     = r_rd_wen;
+        q_o.halt_cause = r_halt_cause;
+        q_o.csr_stub   = r_csr_stub;
+  end
 
 endmodule : merlin_mem_wb

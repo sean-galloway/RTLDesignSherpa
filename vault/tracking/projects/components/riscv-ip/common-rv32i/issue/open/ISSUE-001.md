@@ -27,8 +27,8 @@ reproducing script.
 | # | Area | Finding | Effect | State |
 |---|---|---|---|---|
 | 1 | common-rv32i | ALU builds three barrel shifters and a second 33-bit compare | variant measured: -306 / -205 / -231 LUT (kestrel / merlin / gatling), kestrel WNS +0.85 ns; 2,001,280-vector equivalence, 0 mismatches | done: common-rv32i [TASK-001](../../task/closed/TASK-001.md), suites + riscv-formal green |
-| 2 | merlin | pipeline registers reset and flush the whole payload | checked on row 1: FDCE 811 -> 130, -110 LUT; suite 54/54, riscv-formal 42/42 after an x0-init fix; WNS +0.227 -> -0.408 (row 3 cone) | held as a patch until row 3 lands ([report](../../assets/issue001_fpga_uarch/00_FPGA_UARCH_REVIEW.md)) |
-| 3 | merlin | forwarding compare -> branch -> redirect / flush fan-out is the critical path (11-15 levels) | not measured; (a) register the forward selects, (b) register the redirect | open |
+| 2 | merlin | pipeline registers reset and flush the whole payload | FDCE 811 -> 134; x0-init and load-use reads fixed; suite 54/54, riscv-formal 42/42 | done: merlin-rv32i [TASK-003](../../../merlin-rv32i/task/closed/TASK-003.md) |
+| 3 | merlin | forwarding compare -> branch -> redirect / flush fan-out is the critical path (11-15 levels) | (a) done with row 2 in merlin-rv32i TASK-003: 1,378 -> 1,262 LUT, WNS over 3 placer directives -0.216..+0.227 -> +0.065..+0.241; path now load data -> forward -> branch | (a) done; (b) register the redirect = owner decision |
 | 4 | gatling | per-context PC / cause / halt in async-reset flops with loop write and mux read | estimated 128 FF + mux -> ~11 LUTRAM; not measured | open |
 | 5 | all | RVFI-only state (gatling order_q 256 FF, merlin ~256 carried FF, kestrel retire_count) | trimmed on the board; costs only where RVFI is consumed | no-action |
 | 6 | kestrel/gatling mem | gaxi_skid_buffer W channel 2-4 LUT per flop | shared rtl/amba IP; memory systems have 3-3.7 ns slack | no-action here |

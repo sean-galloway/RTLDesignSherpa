@@ -161,10 +161,9 @@ Combining rows 1 and 2 gave 1,240 LUT with WNS -0.229 on this seed. The path
 moved into row 3's cone and is now 15 levels. Rows 1 and 2 remove logic; row 3
 is what limits merlin's clock after they land.
 
-**Checked 2026-11-19, on top of row 1 (committed 98eedce98).** The change is
-[row2_merlin_control_only_reset.patch](row2_merlin_control_only_reset.patch)
-(`git apply` from the repo root). It is functionally correct and is not
-committed, because it costs merlin its 100 MHz margin (below).
+**Checked 2026-11-19, on top of row 1 (committed 98eedce98).** Landed the
+same day together with row 3a in merlin-rv32i TASK-003, which has the final
+numbers. On its own it cost merlin its 100 MHz margin (below).
 
 - The first run failed 45 of 54 tests and 35 of 42 riscv-formal checks. One
   payload read was unqualified: the core zeroes x0 during reset by writing the
@@ -193,8 +192,10 @@ Routed from the tree, rows 1 + 2:
 The worst path is `u_id_ex/r_payload_reg[rs1_addr]` -> the forward select ->
 branch resolution -> the ID/EX control flops, 12 levels with 73% route. That
 is row 3's cone. Both builds of rows 1 + 2 (-0.229 on 11-18, -0.408 here)
-miss timing, and both builds of row 1 alone meet it. So row 2 waits for
-row 3: land row 3, then apply row 2 and build again.
+miss timing, and both builds of row 1 alone meet it. So row 2 waited for
+row 3a. With both (TASK-003), merlin is 1,262 LUT, FDCE 134, and meets
+10 ns under three placer directives (+0.065 to +0.241). Row 1 alone fails
+two of the same three (-0.216 to +0.227).
 
 ### 3. merlin's critical path: forwarding into branch resolution
 

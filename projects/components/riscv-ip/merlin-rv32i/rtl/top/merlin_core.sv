@@ -299,31 +299,60 @@ module merlin_core #(
     logic idex_is_load;
     logic [1:0] ex_fwd_a, ex_fwd_b;
 
-    assign idex_is_load = id_ex_q.dmem_req & ~id_ex_q.dmem_we;
+    // Gated by valid: the pipeline registers keep a stale payload in a
+    // bubble, and a flushed IF/ID decodes its old instruction into ID/EX
+    // controls under valid = 0 (riscv-ip common-rv32i ISSUE-001 row 2).
+    assign idex_is_load = id_ex_q.dmem_req & ~id_ex_q.dmem_we & id_ex_q.valid;
 
-    // The hazard unit generates the forwarding selects for the instruction
-    // currently in EX, the load-use stall for the instruction entering EX,
-    // and the branch-flush broadcast.  Its fwd_a/fwd_b are the single source
-    // of truth for the EX-stage operand muxes below.
+    // The hazard unit generates the forwarding selects, the load-use stall
+    // for the instruction entering EX, and the branch-flush broadcast.
+    //
+    // The forwarding selects are computed one stage early and registered
+    // (riscv-ip common-rv32i ISSUE-001 row 3a).  The unit compares the
+    // sources of the instruction in ID (id_ex_d) against the producers that
+    // will sit in EX/MEM and MEM/WB when that instruction reaches EX: the
+    // instruction now in ID/EX and the one now in EX/MEM.  Every pipeline
+    // register advances together (mem_wait is the only global hold, and the
+    // select register holds with it), so the registered select is the one
+    // the EX-stage compare would have produced.  A load-use stall flushes
+    // ID/EX and recomputes the consumer's select the next cycle against the
+    // advanced pipeline.  The 5-bit compares leave the EX cone, which runs
+    // forward mux -> branch compare -> redirect.
+    logic [1:0] id_fwd_a, id_fwd_b;
+
     merlin_hazard u_hazard (
         .id_rs1_addr  (id_ex_d.rs1_addr),
         .id_rs2_addr  (id_ex_d.rs2_addr),
-        .fwd_rs1_addr (id_ex_q.rs1_addr),
-        .fwd_rs2_addr (id_ex_q.rs2_addr),
+        .fwd_rs1_addr (id_ex_d.rs1_addr),
+        .fwd_rs2_addr (id_ex_d.rs2_addr),
         .idex_rd_addr (id_ex_q.rd_addr),
         .idex_rd_wen  (id_ex_q.rd_wen & id_ex_q.valid),
         .idex_is_load (idex_is_load),
-        .exmem_rd_addr(ex_mem_q.rd_addr),
-        .exmem_rd_wen (ex_mem_q.rd_wen & ex_mem_q.valid),
-        .memwb_rd_addr(mem_wb_q.rd_addr),
-        .memwb_rd_wen (mem_wb_q.rd_wen & mem_wb_q.valid),
+        .exmem_rd_addr(id_ex_q.rd_addr),
+        .exmem_rd_wen (id_ex_q.rd_wen & id_ex_q.valid),
+        .memwb_rd_addr(ex_mem_q.rd_addr),
+        .memwb_rd_wen (ex_mem_q.rd_wen & ex_mem_q.valid),
         .ex_flush     (ex_flush),
-        .fwd_a        (ex_fwd_a),
-        .fwd_b        (ex_fwd_b),
+        .fwd_a        (id_fwd_a),
+        .fwd_b        (id_fwd_b),
         .stall_ifid   (stall_ifid),
         .flush_ifid   (flush_ifid),
         .flush_idex   (flush_idex)
     );
+
+    // The select register: same stall and flush as ID/EX.
+    `ALWAYS_FF_RST(clk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
+            ex_fwd_a <= FWD_IDEX;
+            ex_fwd_b <= FWD_IDEX;
+        end else if (id_ex_flush_eff) begin
+            ex_fwd_a <= FWD_IDEX;
+            ex_fwd_b <= FWD_IDEX;
+        end else if (!mem_wait) begin
+            ex_fwd_a <= id_fwd_a;
+            ex_fwd_b <= id_fwd_b;
+        end
+    )
 
     // Effective flushes: kill young instructions on a taken control-flow
     // change or when a halting instruction reaches WB.  Flushes are
@@ -414,7 +443,9 @@ module merlin_core #(
     assign ex_target = id_ex_q.jalr ? ((ex_rs1_fwd + id_ex_q.imm) & JALR_ALIGN_MASK) : alu_y;
     assign ex_taken  = id_ex_q.valid & (id_ex_q.jump | id_ex_q.jalr | branch_taken);
     assign ex_flush  = ex_taken;
-    assign ex_next_pc = ex_taken ? ex_target : (id_ex_q.pc + PC_INCR);
+    logic [31:0] ex_pc_incr;
+    assign ex_pc_incr = id_ex_q.pc + PC_INCR;
+    assign ex_next_pc = ex_taken ? ex_target : ex_pc_incr;
 
     // Instruction-address misalignment (IALIGN=32) on taken control flow.
     logic [1:0] tgt_lo_pc;
@@ -448,7 +479,15 @@ module merlin_core #(
 
     assign ex_mem_d.pc          = id_ex_q.pc;
     assign ex_mem_d.next_pc     = ex_next_pc;
-    assign ex_mem_d.alu_y       = alu_y;
+    // alu_y from EX on is the non-load writeback value: a jump's link
+    // (pc + 4, the adder ex_next_pc already uses) replaces its ALU result,
+    // which only fed ex_target.  LUI's ALU result is already its immediate
+    // (ADD with operand a forced to 0).  WB is then only the load-or-not
+    // select in front of the MEM/WB forward; the pc + 4 adder and the LUI
+    // and link arms in WB were the head of merlin's critical path (riscv-ip
+    // common-rv32i ISSUE-001 row 3a).  alu_y is read as an address only for
+    // loads and stores.
+    assign ex_mem_d.alu_y       = (id_ex_q.jump | id_ex_q.jalr) ? ex_pc_incr : alu_y;
     assign ex_mem_d.store_data  = ex_rs2_fwd;
     assign ex_mem_d.rd_addr     = id_ex_q.rd_addr;
     assign ex_mem_d.rd_wen      = id_ex_q.rd_wen;
@@ -561,10 +600,11 @@ module merlin_core #(
         endcase
     end
 
-    assign wb_rd_wdata = (mem_wb_q.csr_stub || (mem_wb_q.rd_addr == 5'd0)) ? 32'd0 :
-                         (mem_wb_q.wb_sel == WB_LUI)  ? mem_wb_q.imm       :
+    // The x0 test reads wb_rd_addr, which reset forces to 0: the reset-time
+    // x0 initialization writes this value, and mem_wb_q.rd_addr is payload
+    // with no reset (riscv-ip common-rv32i ISSUE-001 row 2).
+    assign wb_rd_wdata = (mem_wb_q.csr_stub || (wb_rd_addr == 5'd0)) ? 32'd0 :
                          (mem_wb_q.wb_sel == WB_LOAD) ? wb_load_data       :
-                         (mem_wb_q.wb_sel == WB_LINK) ? (mem_wb_q.pc + PC_INCR) :
                                                         mem_wb_q.alu_y;
 
     // Halt becomes architecturally visible in WB.  It is masked by mem_wait

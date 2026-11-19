@@ -19,8 +19,13 @@
 //
 // Notes:
 //   - Flush wins over stall.
-//   - The bubble record is the all-zero value of if_id_t; valid is 0 and
-//     halt_cause is HALT_NONE (also zero).
+//   - Only the control fields reset and flush (valid).
+//     The payload is a plain enable flop with no reset and no flush clear,
+//     so a bubble carries a stale payload; every consumer in merlin_core
+//     gates on valid (or on a control field that is cleared).  An async
+//     clear on the payload put a reset on ~680 flops and folded the
+//     synchronous flush into a LUT in front of each one (riscv-ip
+//     common-rv32i ISSUE-001 row 2).
 //
 // Related Modules:
 //   - merlin_id_ex, merlin_ex_mem, merlin_mem_wb (siblings)
@@ -44,13 +49,28 @@ module merlin_if_id (
 
   import merlin_pkg::*;
 
+  // Payload: captured unless stalled; no reset, no flush clear.
+  if_id_t r_payload;
+
+  always_ff @(posedge clk) begin
+      if (!stall) r_payload <= d_i;
+  end
+
+  // Control: reset and flush to the bubble value (all zero).
+  logic [$bits(d_i.valid)-1:0] r_valid;
+
   `ALWAYS_FF_RST(clk, rst_n,
-                 if (`RST_ASSERTED(rst_n)) begin
-            q_o <= '0;
+        if (`RST_ASSERTED(rst_n)) begin
+            r_valid <= '0;
         end else if (flush) begin
-            q_o <= '0;
+            r_valid <= '0;
         end else if (!stall) begin
-            q_o <= d_i;
+            r_valid <= d_i.valid;
         end)
+
+  always_comb begin
+        q_o = r_payload;
+        q_o.valid = r_valid;
+  end
 
 endmodule : merlin_if_id
