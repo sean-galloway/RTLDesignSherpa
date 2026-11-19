@@ -506,6 +506,39 @@ What it cost to learn:
   that brackets it (pool 8: 260, 10: 215, 12: 208, 16: 199-202, board 234), and the task
   stays open on exactly that.
 
+## A split-phase command is timed at the counter's clock, not the wire's (2026-11-19, MC-021 step 3)
+
+After BUG-004 the model sat 14 percent UNDER the board on `bank_interleave
+col_major_bl8` (333 against 387) while every other close-page cell was over,
+and symmetric on bl4 where the board reads a third faster than it writes. The
+item filed on it said "probe the read path after a read AP and the write
+fill". The proxy said neither: it reproduces the board on every cell, and the
+asymmetry is the write-recovery hop (t_wr + t_rp = 6 cycles) over the four
+banks a bl4 burst touches under `bank_lsb` 2. The model's error was its own
+clock. The DUAL_ISSUE lane fires its row command on the odd DFI tick, and the
+model checked and stamped that command at the odd tick, in CK; the RTL's bank
+and rank timers are MC-cycle counters that start at the fire's CYCLE whatever
+its phase. A lane ACT in cycle n and a main ACT in cycle n + 2 are t_rrd = 2
+apart to the RTL (3 CK on the wire, inside the host's phase margin); to the
+model they were 5 CK, and under a close-page interleave two ACTs in three ride
+the lane, so every third ACT paid a cycle: 2.4 slots per beat against 2.0.
+Timing the lane at its slot (check at the slot tick, stamp the DRAM with it)
+put the eight-bank cells on the board and the compare at 55 / 2 from 53 / 4,
+with the SKU's cells moved 0.6 percent at most.
+
+Three lessons. **When a model's command can fire between the RTL's clock
+edges, time it at the edge the RTL's counters see**, not where it lands on
+the wire -- the counters are the contract, the wire is the host's margin to
+argue. **A fix that uncovers a feature uncovers that feature's model**: the
+lane never fired on a close-page chain before BUG-004 (0 of 65,810 ACTs), so
+its clock had never been tested where it binds; re-read every term a fix
+makes live. And **the item's own hypothesis is the first thing to refute**:
+"read path after a read AP" and "write fill" were both named in the task
+file, both plausible, and the proxy disposed of both in one run before any
+term was written. The residual that remains (two bl4 read sides at +11) is
+a fixed point of the same pick rules, recorded with its probe in
+`char_results/model_mc021_lane_slot_2026-11-19.md`.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

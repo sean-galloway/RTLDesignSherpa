@@ -101,7 +101,16 @@ namespace Ramulator {
 //     its bank opens within the pipe, and its pair is masked from the main
 //     select while it holds with a column pending somewhere, the slot after
 //     its load and the slot after its fire. It fires on the odd tick
-//     (row_phase 1). lane: 0 off, 1 PRE only, 2 ACT only, 3 either (the SKU).
+//     (row_phase 1) but is TIMED AT ITS SLOT: the RTL's bank and rank
+//     timers are MC-cycle counters that start at the fire's cycle whatever
+//     its DFI phase, so a lane ACT in cycle n and a main ACT in cycle n + 2
+//     are t_rrd apart to the RTL (3 CK on the wire, which the host's phase
+//     margin allows for). The model therefore checks the lane's timing at
+//     the slot tick and stamps the DRAM with the slot tick; timing it at the
+//     odd tick cost the lane -> main ACT hop one CK, every third ACT under a
+//     close-page interleave (bank_interleave col_major bl8: 333 against the
+//     board's 387 MB/s; MC-021 step 3, 2026-11-19). lane: 0 off, 1 PRE
+//     only, 2 ACT only, 3 either (the SKU).
 //   * Auto-precharge (CLOSE_ON_DRAIN): a column closes its row when the entry
 //     behind it in its bank queue is not the same row (the store's header
 //     bit); page_close makes every column close (the board's close_page).
@@ -756,7 +765,8 @@ class GraniteSKUController : public ControllerBase {
         l_class_ok = (L.cls == CL_ACT && h.cmd == m_cmd_act && !ref_pending) || (L.cls == CL_PRE && h.cmd == m_cmd_prepb);
       }
       if (l_class_ok) {
-        l_timer_ok = m_device.check_timing(h.cmd, h.it->addr_vec, m_clk + 1) && (h.cmd != m_cmd_act || rank_ok_registered());
+        // at the slot tick, not the odd tick it fires on: the RTL's counters see the cycle, not the phase
+        l_timer_ok = m_device.check_timing(h.cmd, h.it->addr_vec, m_clk) && (h.cmd != m_cmd_act || rank_ok_registered());
         l_la_ok = bank_la_ok(h.cmd, h.it->addr_vec);
       }
     }
@@ -912,16 +922,21 @@ class GraniteSKUController : public ControllerBase {
     else if (m_idle < 255) m_idle++;
   }
 
-  // the lane's command on the odd tick (its timing was checked for this tick at the pick; the main
-  // column that fired beside it cannot close an ACT's or a PRE's timers, so the re-check is a guard)
+  // the lane's command on the odd tick, timed at its slot (the pick checked the slot tick; the main
+  // column that fired beside it cannot close an ACT's or a PRE's timers, so the re-check is a guard).
+  // The DRAM is stamped with the slot tick: the RTL's per-cycle counters start there, and every hop
+  // from this command (tRRD / tFAW to the next ACT, tRCD to its column, tRP after a PRE) is then the
+  // RTL's count of MC cycles, as the main slot's commands already are.
   void fire_lane() {
     if (!m_lane_pending) return;
     m_lane_pending = false;
+    const Clk_t slot_clk = m_clk - (m_clk % m_slot_ticks);
     if (!check_timing(m_lane_cmd, m_lane_addr)) {
       s_lane_dropped++;
       return;
     }
-    m_device.issue_command(m_lane_cmd, m_lane_addr, m_clk);
+    m_device.issue_command(m_lane_cmd, m_lane_addr, slot_clk);
+    if (dbg()) std::cout << "[sku] clk " << m_clk << " lane cmd " << m_lane_cmd << " bank " << m_device.get_flat_bank_id(m_lane_addr) << std::endl;
     if (m_lane_cmd == m_cmd_act) s_lane_act++; else s_lane_pre++;
   }
 
