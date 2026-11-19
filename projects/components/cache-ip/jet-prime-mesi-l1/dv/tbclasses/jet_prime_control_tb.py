@@ -237,6 +237,10 @@ class JetControlTB(TBBase):
         self._pending_upgrade = None   # rec of the in-flight upgrade (CU)
 
         self.checks = 0
+        # TASK-002: hits answered in the accept cycle (direct read serve,
+        # early write ack) vs from the record
+        self.direct_serves = 0
+        self.record_serves = 0
         self.mismatches = 0
         self.scenarios = {}
 
@@ -1174,6 +1178,11 @@ class JetControlTB(TBBase):
                                 rec['tag'] in self.deposits, False)
                     self._record_deposit(rec['tag'], rec['deposit'])
                 rec['srv_wait'] = await self._await_serve(rec, label)
+                if rec.get('pend_srv') is not None:
+                    if rec.get('early_rsp'):
+                        self.direct_serves += 1
+                    else:
+                        self.record_serves += 1
                 return rec
             if int(d.lkup_stall_o.value):
                 stalls += 1
@@ -1294,51 +1303,72 @@ class JetControlTB(TBBase):
         return rec
 
     async def _await_serve(self, rec, label, max_cycles=20):
-        """ISSUE-001 v2 serve pend: a hit's array serve + deposit fire one
-        cycle after the accept at the earliest (the pend can wait on the
-        commit/fill ports).  Poll for the fire and score the displaced
-        accept-era observables there.  Returns the fire-cycle wait count
-        (0 = fired on the first cycle after the accept)."""
+        """Hit serve (TASK-002, 2026-11-19).  The RESPONSE of a hit leaves
+        in the accept cycle itself whenever the completion port is free: a
+        read hit straight from port A when its own capture-cycle lead
+        landed (the direct serve), a write hit as the early ack (its data
+        is its own store).  Otherwise the serve record deposits it a cycle
+        later at the earliest (ISSUE-001 v2 pend).  A write hit's ARRAY
+        write and E->M promotion always come from the record, in the
+        accept cycle at the earliest plus one, and can wait on the W/tag
+        ports.  The accept cycle is sampled first (the caller has settled
+        it), then the following cycles.  Returns the wait count of the
+        serve proper: for a read the deposit (-1 = the accept cycle, 0 =
+        the first cycle after), for a write the array write (0 = the first
+        cycle after the accept)."""
         d = self.dut
         exp = rec.get('pend_srv')
         if exp is None:
             return 0
-        for wait in range(max_cycles):
-            await self._drive_pt()
-            await self._settle()
-            if not (int(d.cpl_valid_o.value)
+        got_dep = None
+        got_wr = None
+        for wait in range(-1, max_cycles):
+            if wait >= 0:
+                await self._drive_pt()
+                await self._settle()
+            if (got_dep is None and int(d.cpl_valid_o.value)
                     and int(d.cpl_tag_o.value) == rec['tag']):
-                continue
-            self._score(f"{label} hit deposit data",
-                        int(d.cpl_data_o.value), exp['exp_data'])
-            if rec['we']:
+                got_dep = wait
+                self._score(f"{label} hit deposit data",
+                            int(d.cpl_data_o.value), exp['exp_data'])
+                if wait < 0:
+                    rec['early_rsp'] = True
+            if rec['we'] and got_wr is None and wait >= 0:
                 way = exp['way']
-                self._score(f"{label} write merge en",
-                            int(d.ctrl_dat_wr_en_o.value), 1)
-                self._score(f"{label} write merge way",
-                            int(d.dat_wr_way_onehot_o.value), 1 << way)
-                self._score(f"{label} write merge addr",
-                            int(d.dat_wr_addr_o.value),
-                            (rec['set'] << self.BEAT_BITS) | rec['beat'])
-                self._score(f"{label} write merge data",
-                            int(d.dat_wr_wdata_o.value), rec['wdata'])
-                self._score(f"{label} write merge be",
-                            int(d.dat_wr_be_o.value), rec['be'])
-                # arch model (the W-port monitor maintains array_data)
-                self._apply_store(self.arch_data[rec['line']], rec['beat'],
-                                  rec['be'], rec['wdata'], self.STRB_W)
-                # E -> M promotion on the tag port (suppressed when M)
-                self._score(f"{label} promotion write",
-                            int(d.ctrl_tag_wr_en_o.value),
-                            1 if exp['e2m'] else 0)
-                if exp['e2m']:
-                    exp_ts = ((rec['line'] >> self.SET_BITS) << 3) \
-                             | STATE_CODE['M']
-                    self._score(f"{label} promotion tag_state",
-                                int(d.tag_wr_tag_state_o.value), exp_ts)
-                    self.slot_state[(rec['set'], way)] = 'M'
-            return wait
-        self._score(f"{label} hit deposit valid (serve fired)", 0, 1)
+                if (int(d.ctrl_dat_wr_en_o.value)
+                        and int(d.dat_wr_way_onehot_o.value) == (1 << way)
+                        and int(d.dat_wr_addr_o.value)
+                            == ((rec['set'] << self.BEAT_BITS) | rec['beat'])):
+                    got_wr = wait
+                    self._score(f"{label} write merge data",
+                                int(d.dat_wr_wdata_o.value), rec['wdata'])
+                    self._score(f"{label} write merge be",
+                                int(d.dat_wr_be_o.value), rec['be'])
+                    # arch model (the W-port monitor maintains array_data)
+                    self._apply_store(self.arch_data[rec['line']],
+                                      rec['beat'], rec['be'], rec['wdata'],
+                                      self.STRB_W)
+                    # E -> M promotion on the tag port (suppressed when M)
+                    self._score(f"{label} promotion write",
+                                int(d.ctrl_tag_wr_en_o.value),
+                                1 if exp['e2m'] else 0)
+                    if exp['e2m']:
+                        exp_ts = ((rec['line'] >> self.SET_BITS) << 3) \
+                                 | STATE_CODE['M']
+                        self._score(f"{label} promotion tag_state",
+                                    int(d.tag_wr_tag_state_o.value), exp_ts)
+                        self.slot_state[(rec['set'], way)] = 'M'
+            if got_dep is not None and (not rec['we'] or got_wr is not None):
+                # a write's response never follows its array write
+                if rec['we']:
+                    self._score(f"{label} write ack not after the array write",
+                                got_dep <= got_wr, True)
+                return got_wr if rec['we'] else got_dep
+        self._score(f"{label} hit served (deposit "
+                    f"{'seen' if got_dep is not None else 'missing'}, "
+                    f"array write "
+                    f"{'seen' if got_wr is not None or not rec['we'] else 'missing'})",
+                    0, 1)
         return max_cycles
 
     # ------------------------------------------------------------------
@@ -2812,4 +2842,6 @@ class JetControlTB(TBBase):
 
     def get_test_report(self):
         return {'checks': self.checks, 'mismatches': self.mismatches,
+                'direct_serves': self.direct_serves,
+                'record_serves': self.record_serves,
                 'scenarios': sorted(self.scenarios)}

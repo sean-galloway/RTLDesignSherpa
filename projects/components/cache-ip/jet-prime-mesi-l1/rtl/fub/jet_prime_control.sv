@@ -54,7 +54,12 @@
 //        victim's tag is still installed until the fill's commit, but its
 //        data is being captured/overwritten, so the hit is suppressed and
 //        the request falls through to the miss path).  Read hits serve
-//        from port A and deposit immediately.  Write hits (E/M) merge
+//        from port A and deposit in the classify cycle when the port
+//        holds their set's words (the capture-cycle lead, TASK-002) and
+//        the completion port is free; otherwise the serve record fires a
+//        cycle later.  Write hits (E/M) ack in the classify cycle when the
+//        completion port is free (TASK-002; the response is the store
+//        itself) and their array write follows from the record; they merge
 //        through the data-array W port and promote E->M on the tag port;
 //        they YIELD the W port to an in-flight fill beat stream or a
 //        commit store-merge (fill beats > commit merge > write hits, both
@@ -266,8 +271,11 @@ module jet_prime_control
     // address presented LAST cycle was its own (ports are shared), so a
     // response is never built from another consumer's word.  The way
     // select is applied in the data cycle (l1_data_array SYNC_READ).  The
-    // read-hit serve's address leads in the classify cycle (TASK-003), so a
-    // resident read hit costs the sync read no extra cycle.
+    // arriving request's address leads in its CAPTURE cycle (TASK-002; the
+    // array reads every way per address, so the way is selected after the
+    // tag compare), and a read hit answers in its classify cycle; a hit
+    // that lost the port leads in the classify cycle instead (TASK-003)
+    // and answers from the serve record a cycle later.
     parameter bit DATA_SYNC_READ = 1'b0,
     localparam int SET_W      = $clog2(SETS),
     localparam int OFF_W      = $clog2(LINE_BYTES),
@@ -565,7 +573,14 @@ module jet_prime_control
     logic                    w_sn_portb_pre;// the snoop takes port B's address in its grant cycle (beat 0 lead)
     logic                    r_pa_srv_d1;   // port A's address last cycle was the serve record's (re-presented, or led at its accept)
     logic                    w_srv_adr;     // an unfired read serve owns port A's address this cycle
+    logic                    w_live_lead;   // the ARRIVING request's {set, beat} leads on port A in its capture cycle (TASK-002)
+    logic                    w_occ_need;    // the classify-stage occupant may need its own lead this cycle (it cannot serve directly)
     logic                    w_lead_adr;    // the classify-stage occupant's address leads on port A this cycle
+    logic                    r_pa_live_d1;  // the occupant's own capture-cycle lead landed: its set's words are on port A now
+    logic                    r_dwr_d1;      // the data array was written last cycle (a word read then may predate the write)
+    logic                    w_direct_fire; // a read hit answers from port A in its classify cycle (TASK-002)
+    logic                    w_direct_ack;  // a write hit's response leaves in its classify cycle; the array write follows from the record (TASK-002)
+    logic                    w_srv_cpl;     // the serve record deposits this cycle (fires AND its response has not left)
     logic                    r_cmt_rd_d1;   // a commit read slot was presented last cycle
     logic [MW-1:0]           r_cmt_rd_k_d1; // ... for this cursor position
     // fill launch hold (one launch awaits fill_accept_i at a time)
@@ -709,10 +724,13 @@ module jet_prime_control
     logic [BEAT_W-1:0]  w_req_beat;
     logic [LINE_W-1:0]  w_req_line;
 
-    // live decode of the INTERFACE request (capture-cycle tag read address)
+    // live decode of the INTERFACE request (capture-cycle tag read address
+    // and, TASK-002, the capture-cycle data read address)
     logic [SET_W-1:0]   w_live_set;
+    logic [BEAT_W-1:0]  w_live_beat;
 
-    assign w_live_set = lkup_addr_i[OFF_W +: SET_W];
+    assign w_live_set  = lkup_addr_i[OFF_W +: SET_W];
+    assign w_live_beat = lkup_addr_i[OFF_W-1 -: BEAT_W];
 
     assign w_req_tag  = r_lk_addr[ADDR_WIDTH-1 -: TAG_W];
     assign w_req_set  = r_lk_addr[OFF_W +: SET_W];
@@ -851,7 +869,11 @@ module jet_prime_control
     // Hit-serve pend register, declarations (ISSUE-001 v2, 2026-11-03):
     // the hit serve (array read for read hits, array write + E->M tag
     // write for write hits, and the response deposit) moves ONE CYCLE
-    // after the accept.  The classify still decides accept/stall/merge/
+    // after the accept -- except the RESPONSE of a hit with the completion
+    // port free: a read hit whose set is already on port A answers in the
+    // accept cycle and never loads the record (TASK-002, w_direct_fire); a
+    // write hit acks in the accept cycle and the record carries only its
+    // array write and promotion (w_direct_ack, r_srv_dep).  The classify still decides accept/stall/merge/
     // alloc at the accept; only the array serve defers.  jet_prime_rsp_seq
     // deposits are tag-indexed and latency-agnostic, so the deposit
     // landing a cycle later is contract-clean.
@@ -879,6 +901,7 @@ module jet_prime_control
     logic [BUS_WIDTH-1:0]  r_srv_wdata;
     logic [STRB_W-1:0]     r_srv_be;
     logic                  r_srv_e2m;
+    logic                  r_srv_dep;     // the record's response already left (early write ack, TASK-002)
 
     logic w_srv_fire_rd;
     logic w_srv_fire_wr;
@@ -1277,7 +1300,11 @@ module jet_prime_control
     // ------------------------------------------------------------------
     // Hit-serve pend register (ISSUE-001 v2, 2026-11-03): the hit serve
     // (array read for read hits, array write + E->M tag write for write
-    // hits, and the response deposit) moves ONE CYCLE after the accept.
+    // hits, and the response deposit) moves ONE CYCLE after the accept
+    // (the response of a hit leaves in the accept cycle instead when the
+    // completion port is free: a read hit with its words on the port is
+    // served there, w_direct_fire; a write hit is acked there and the
+    // record keeps only its array write, w_direct_ack -- TASK-002).
     // The accept cycle used to close cpu_req-skid -> tag read -> classify
     // -> way select -> array WE / deposit in a single cycle (~13 ns on
     // Kintex-7, 55k failing endpoints at 100 MHz); the classify still
@@ -1292,10 +1319,15 @@ module jet_prime_control
                            // sync read: the word on port A is the serve's
                            // only if port A carried its address last cycle
                            & (~DATA_SYNC_READ | r_pa_srv_d1);
+    // a write record whose response already left (r_srv_dep) needs only
+    // the W port and the tag port, not the completion port
     assign w_srv_fire_wr = r_srv_vld & r_srv_we
-                           & ~w_cmt_cpl & ~fill_beat_valid_i & ~w_cmt_datwr
+                           & (r_srv_dep | ~w_cmt_cpl)
+                           & ~fill_beat_valid_i & ~w_cmt_datwr
                            & ~(r_srv_e2m & (w_cmt_tagwr | w_sn_tagwr));
     assign w_srv_fire    = w_srv_fire_rd | w_srv_fire_wr;
+    assign w_srv_cpl     = w_srv_fire & ~r_srv_dep;
+
 
     // ------------------------------------------------------------------
     // Classify (one request, one window)
@@ -1448,6 +1480,39 @@ module jet_prime_control
     assign lkup_merge_o      = w_accept_merge;
     assign lkup_miss_alloc_o = w_accept_alloc;
     assign lkup_upgrade_o    = w_accept_upgr;
+
+    // (placed after the w_accept_* assigns they read -- declaration order)
+    // Direct read-hit serve (TASK-002, 2026-11-19): the classify answers a
+    // read hit from port A in the ACCEPT cycle when the port's word is the
+    // occupant's -- under DATA_SYNC_READ its own capture-cycle lead landed
+    // (r_pa_live_d1) and nothing wrote the array at that edge (a word read
+    // at the write's edge predates it: r_dwr_d1); with the combinational
+    // read the occupant's address is on the port now (w_lead_adr) -- and
+    // the completion port is free: no commit deposit this cycle and the
+    // serve record not firing (a record that holds a READ owns the port's
+    // address, so our lead did not land anyway; a pending WRITE that is
+    // not firing leaves both ports to us -- a same-line write would have
+    // held us in the classify).  Otherwise the hit loads the serve
+    // record and fires from there as before.  The serve record still
+    // carries every write hit.  The way select for the direct word is
+    // keyed off the port ownership, not the classify, so dat_a_way_o
+    // stays off the classify cone; only the deposit valid carries it.
+    assign w_direct_fire = w_accept_rd & ~w_cmt_cpl & ~w_srv_cpl
+                           & ~(r_srv_vld & ~r_srv_we)
+                           & (DATA_SYNC_READ ? (r_pa_live_d1 & ~r_dwr_d1)
+                                             : w_lead_adr);
+
+    // Early write ack (TASK-002): a write hit's response is its own write
+    // data (jet echoes the store), so it needs no array word -- it leaves
+    // in the accept cycle whenever the completion port is free, and the
+    // record still does the array write and the E->M promotion when the
+    // W port and the tag port are free (r_srv_dep marks the record as
+    // already answered).  The window between the ack and the array write
+    // is the one the record always had: a later access to the line is
+    // held in the classify until the record fires, and sn_safe_o holds
+    // snoops while a write record is pending, so no observer sees the
+    // pre-write data after the ack.
+    assign w_direct_ack  = w_accept_wr & ~w_cmt_cpl & ~w_srv_cpl;
     assign cap_busy_o        = w_cap_active;
     assign cap_set_o         = r_cap_set;
     assign cap_way_o         = r_cap_way;
@@ -1512,9 +1577,14 @@ module jet_prime_control
             r_srv_wdata      <= '0;
             r_srv_be         <= '0;
             r_srv_e2m        <= 1'b0;
+            r_srv_dep        <= 1'b0;
         end else begin
-            r_srv_vld <= (w_accept_rd | w_accept_wr) | (r_srv_vld & ~w_srv_fire);
+            // a directly served read hit never occupies the record
+            // (its fields may load; vld is what qualifies them)
+            r_srv_vld <= ((w_accept_rd & ~w_direct_fire) | w_accept_wr)
+                         | (r_srv_vld & ~w_srv_fire);
             if (w_accept_rd | w_accept_wr) begin
+                r_srv_dep        <= w_direct_ack;
                 r_srv_we         <= w_accept_wr;
                 r_srv_seq        <= r_lk_seq;
                 r_srv_line       <= w_req_line;
@@ -1560,10 +1630,28 @@ module jet_prime_control
     // Response deposit: the commit pipeline wins the port; the serve pend
     // fires only when the port is free, so no deposit is ever lost.
     // ------------------------------------------------------------------
-    assign cpl_valid_o = w_cmt_cpl | w_srv_fire;
-    assign cpl_tag_o   = w_cmt_cpl ? w_cmt_cpl_tag : r_srv_seq;
+    // Four depositors, one at a time: the commit wins the port, a pending
+    // serve record whose response has not left deposits when the port is
+    // free, and the classify-stage occupant (a direct read serve or an
+    // early write ack, TASK-002) only when neither does.  The tag and data
+    // select on the record's deposit and the occupant's own we bit, off
+    // the classify cone: when neither the commit nor the record deposits,
+    // the only depositor left is the occupant.
+    assign cpl_valid_o = w_cmt_cpl | w_srv_cpl | w_direct_fire | w_direct_ack;
+    assign cpl_tag_o   = w_cmt_cpl ? w_cmt_cpl_tag
+                         : w_srv_cpl ? r_srv_seq : r_lk_seq;
     assign cpl_data_o  = w_cmt_cpl ? w_cmt_cpl_data
-                         : r_srv_we ? r_srv_wdata : dat_a_rdata_i;
+                         : w_srv_cpl ? (r_srv_we ? r_srv_wdata : dat_a_rdata_i)
+                                     : (r_lk_we  ? r_lk_wdata  : dat_a_rdata_i);
+
+    // pragma translate_off
+    assert property (@(posedge clk) disable iff (`RST_ASSERTED(rst_n))
+        ($countones({w_cmt_cpl, w_srv_cpl, w_direct_fire, w_direct_ack}) <= 1))
+        else $error("jet_prime_control: two depositors in one cycle");
+    assert property (@(posedge clk) disable iff (`RST_ASSERTED(rst_n))
+        (w_direct_fire |-> (DATA_SYNC_READ ? ~r_cmt_rd_d1 : ~w_cmt_datrd)))
+        else $error("jet_prime_control: direct serve with the commit's word on port A");
+    // pragma translate_on
 
     // ------------------------------------------------------------------
     // Array port A
@@ -1630,17 +1718,59 @@ module jet_prime_control
     //   lead : w_cmt_datrd=0, w_srv_adr=0        -> {w_req_set, w_req_beat}
     //   serve: a read record that has not fired  -> {r_srv_set, r_srv_beat}
     //   cmt  : the commit read cursor wins outright
+    //
+    // TASK-002 (2026-11-19): under DATA_SYNC_READ the ARRIVING request's
+    // {set, beat} leads one cycle earlier still -- in its capture cycle,
+    // ahead of the occupant's lead -- so every way's word for its set is
+    // on the port in its classify cycle and a read hit answers there
+    // (w_direct_fire).  The array reads all ways per address and selects
+    // the way on the output side, so the way is chosen after the tag
+    // compare at no cost.  The live lead is keyed off lkup_valid_i alone
+    // (never off the capture, whose room term is the classify cone):
+    // presenting it when no capture lands is harmless.  It yields to the
+    // occupant whenever the occupant may need its own lead (w_occ_need:
+    // its live lead did not land, the array was written at that edge, a
+    // record is pending or the commit deposits this cycle -- registers
+    // and commit state, not the classify): an occupant that cannot serve
+    // directly must lead now to answer from its record a cycle later, as
+    // TASK-003 had it; taking that lead from it sends it down the record's
+    // own re-presented address (one cycle later still) and the one-deep
+    // record then holds the classify -- measured on the board as the
+    // mixed read/write resident rows losing 40 % of their throughput at
+    // depth 4+ (bin 5a, 2026-11-19) before this term existed.  After a
+    // write the stream therefore runs the record path at one per cycle
+    // (3 cycles) until a bubble lets a lead land again; a pure read
+    // stream serves every hit directly.
+    //   live : lkup_valid_i, cmt=0, serve=0, occupant does not need the lead
+    //                                            -> {w_live_set, w_live_beat}
     assign w_srv_adr            = r_srv_vld & ~r_srv_we
                                   & ~(DATA_SYNC_READ & w_srv_fire_rd);
-    assign w_lead_adr           = ~w_cmt_datrd & ~w_srv_adr;
-    assign dat_a_addr_o         = w_cmt_datrd ? {w_cmt_set, w_slot_beat}
-                                : w_srv_adr   ? {r_srv_set, r_srv_beat}
-                                              : {w_req_set, w_req_beat};
+    assign w_occ_need           = r_lk_valid
+                                  & ~(r_pa_live_d1 & ~r_dwr_d1 & ~r_srv_vld
+                                      & ~w_cmt_cpl);
+    assign w_live_lead          = DATA_SYNC_READ & lkup_valid_i
+                                  & ~w_cmt_datrd & ~w_srv_adr & ~w_occ_need;
+    assign w_lead_adr           = ~w_cmt_datrd & ~w_srv_adr & ~w_live_lead;
+    assign dat_a_addr_o         = w_cmt_datrd  ? {w_cmt_set, w_slot_beat}
+                                : w_srv_adr    ? {r_srv_set, r_srv_beat}
+                                : w_live_lead  ? {w_live_set, w_live_beat}
+                                               : {w_req_set, w_req_beat};
     // sync read: a commit read slot's word lands the cycle after its
     // address, and the way select applies in that data cycle -- hold the
     // commit's way while its word is in flight (the serve read cannot
     // fire in that cycle: it needs port A's address last cycle)
+    // The direct serve's way (TASK-002): when the occupant's words are on
+    // the port (its live lead landed; with the combinational array, its
+    // address is on the port and no read record owns it), the hit way
+    // selects -- a port-ownership term plus the tag compare, not the
+    // classify; if the direct fire does not happen in that cycle nobody
+    // consumes the word (a firing read record's address was on the port
+    // instead, and the two are exclusive).
     assign dat_a_way_o          = (DATA_SYNC_READ & r_cmt_rd_d1) ? r_cmt_way
+                                : (r_lk_valid
+                                   & (DATA_SYNC_READ ? r_pa_live_d1
+                                      : (w_lead_adr & ~(r_srv_vld & ~r_srv_we))))
+                                              ? w_hit_way
                                 : w_cmt_datrd ? r_cmt_way : r_srv_way;
     assign dat_a_wr_en_o        = w_srv_fire_wr | w_cmt_datwr;
     assign dat_a_wr_way_onehot_o = w_cmt_datwr
@@ -2113,10 +2243,18 @@ module jet_prime_control
     // step 1) -- w_accept_rd implies the record is free or firing, so the
     // led address is the one the new record holds.
     // ------------------------------------------------------------------
+    // r_pa_live_d1 (TASK-002) is "the occupant now in the classify stage
+    // led its own {set, beat} in its capture cycle": the live lead was on
+    // the port AND the capture landed.  r_dwr_d1 is any data-array write
+    // last cycle (the control's own, or a fill beat through the core's
+    // write mux): a word read at that edge predates the write, so the
+    // direct serve declines and the record path reads after it.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_cap_d1      <= 1'b0;
             r_pa_srv_d1   <= 1'b0;
+            r_pa_live_d1  <= 1'b0;
+            r_dwr_d1      <= 1'b0;
             r_cmt_rd_d1   <= 1'b0;
             r_cmt_rd_k_d1 <= '0;
         end else begin
@@ -2124,6 +2262,9 @@ module jet_prime_control
             r_pa_srv_d1   <= DATA_SYNC_READ
                              & ((w_srv_adr & ~w_cmt_datrd)
                                 | (w_accept_rd & w_lead_adr));
+            r_pa_live_d1  <= w_live_lead & w_lk_capture;
+            r_dwr_d1      <= DATA_SYNC_READ
+                             & (dat_a_wr_en_o | fill_beat_valid_i);
             r_cmt_rd_d1   <= DATA_SYNC_READ & w_cmt_datrd;
             r_cmt_rd_k_d1 <= r_cmt_k[MW-1:0];
         end

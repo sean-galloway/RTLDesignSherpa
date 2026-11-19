@@ -38,11 +38,18 @@ RESULTS = {
     #   s5 = step 5, the single-miss path: the fill launch no longer waits
     #        behind the victim capture (the engine holds the beats
     #        instead) and the commit answers three cycles after the last
-    #        beat (bin 4, the same pair rig).
+    #        beat (bin 4, the same pair rig);
+    #   s6 = TASK-002, the 2-cycle resident hit: the arriving request's
+    #        data address leads in its capture cycle and a read hit answers
+    #        in its classify cycle, and a write hit acks there (bin 7, the
+    #        same pair rig; bins 5a and 6 are the first cuts -- 5a with the
+    #        live lead starving the record path, 6 with the read side only
+    #        -- kept as the measurements that found that, not columns).
     "jet-prime s1": f"{RIGS}/ref/results/perf_sweep_jetp_bin1_single_*.json",
     "jet-prime s2": f"{RIGS}/ref/results/perf_sweep_jetp_bin2_single_*.json",
     "jet-prime s3": f"{RIGS}/ref/results/perf_sweep_jetpp_bin3_single_*.json",
     "jet-prime s5": f"{RIGS}/ref/results/perf_sweep_jetpp_bin4_single_*.json",
+    "jet-prime s6": f"{RIGS}/ref/results/perf_sweep_jetpp_bin7_single_*.json",
 }
 OOC = {
     "amber": "amber", "jet": "jet", "HPDcache": "hpd", "CVA6 WB": "cva6",
@@ -51,6 +58,8 @@ OOC = {
     "jet-prime s3": "jetp",
     # s5 changes the cache (control + fill engine): its own OOC row
     "jet-prime s5": "jetp5",
+    # s6 changes the control's hit path: its own OOC row
+    "jet-prime s6": "jetp6",
 }
 OOC_DIR = f"{CACHE_IP}/results/ooc"
 COLS = list(RESULTS)

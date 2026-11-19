@@ -11,15 +11,15 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-002** ([page](open/TASK-002.md)) — the 2-cycle resident hit: jet-prime answers a hit in 3 cycles to HPDcache's 2, the one cycle per transaction left over HPDcache in the resident rows at depths 1-2 (and the 3.5 % depth-1 thrash margin); the v3 capture/classify split is a 100 MHz timing decision, so the cycle has to come from reading the set at capture or a hit-only early decision, measured first. Filed 2026-11-17 from TASK-001 step 5.
+(none)
 
 ## Active
 
@@ -28,6 +28,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 ## Closed
 
 - **TASK-001** ([page](closed/TASK-001.md)) — beat HPDcache: jet forked as jet-prime at 2be919254 (2026-11-12); step 1 measures jet-prime straight onto memory on the ref rig (REF_CACHE_SEL 2) to split jet's miss cost into pair fabric and cache; steps 2-4 are multiple outstanding fills, a pipelined fabric, and the DV/formal to carry them; step 5 (11-17) the single-miss path, which met the done criterion at every depth. Closed 2026-11-18 on the control formal verdicts (safety prove PASS, covers PASS, step-3 liveness PASS; the step-5 liveness BMC still running, appended when it lands).
+- **TASK-002** ([page](closed/TASK-002.md)) — the 2-cycle resident hit: jet-prime answers a hit in 3 cycles to HPDcache's 2, the one cycle per transaction left over HPDcache in the resident rows at depths 1-2 (and the 3.5 % depth-1 thrash margin); the v3 capture/classify split is a 100 MHz timing decision, so the cycle has to come from reading the set at capture or a hit-only early decision, measured first. Filed 2026-11-17 from TASK-001 step 5; closed 2026-11-19: hit floor 2 on the board (bin 7), the resident rows at HPDcache's numbers at depth 1 and within 0.05 cycles at depth 2, the depth-1 thrash margins widened to 7-11 %; a read hit answers from the port and a write hit acks in the classify cycle (delta 04).
 
 ## Dropped
 

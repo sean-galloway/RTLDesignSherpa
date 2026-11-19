@@ -51,5 +51,6 @@ summary: RTL rules with the failures that taught them.
   emits ONE regmap, so a DV-facing copy needs a second run; establish the
   invocation empirically, then add it to the check_rdl_regen manifest
 - [[minimal-fsm]] - when an FSM is right, keep it minimal
+- [[fast-path-must-not-starve-the-fallback]] - a fast path's resource grab yields whenever the slow path would need it; read the whole sweep table, the floor is not the measurement (jet-prime TASK-002 bin 5a)
 - [[signal-contracts-and-kmaps]] - contracts workbooks; computed K-maps
 - [[no-assertions-in-rtl]] - SVA belongs in formal/ bindings, never in a module; the guarded blocks the RLB arc reintroduced

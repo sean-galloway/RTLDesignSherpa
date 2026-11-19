@@ -67,7 +67,9 @@ pipelined fabric, with the DV and formal to carry them.
   the two memory-AR fixes it found) and [03 the single-miss path](docs/delta/03_single_miss_path.md)
   (step 5: the fill launch no longer waits behind the victim capture --
   the engine holds the beats instead -- and the commit answers three
-  cycles after the last beat).
+  cycles after the last beat) and [04 the 2-cycle resident hit](docs/delta/04_two_cycle_hit.md)
+  (TASK-002: the arriving request's data address leads in its capture
+  cycle and a read hit answers from the port in its classify cycle).
 - Board measurement: the reference rig,
   `projects/fpga-systems/Genesys2/cache-ip/ref`, with `REF_CACHE_SEL=2`
   (one jet-prime straight onto memory, snoop port tied off) or

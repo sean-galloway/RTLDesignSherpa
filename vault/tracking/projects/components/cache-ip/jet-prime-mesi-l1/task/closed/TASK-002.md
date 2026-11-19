@@ -1,7 +1,7 @@
 # TASK-002: the 2-cycle resident hit -- jet-prime's lookup pipeline against HPDcache's floor
 
 **Priority:** P3
-**Status:** open
+**Status:** closed 2026-11-19 (filed 2026-11-17; built, measured and closed in one day) -- hit floor 2 on the board, the resident rows at HPDcache's numbers at depth 1 and within 0.05 cycles at depth 2
 **Owner:** TBD
 
 Filed 2026-11-17 from TASK-001's step-5 reading. With the miss path rebuilt
@@ -79,4 +79,53 @@ closure.
 
 ## Progress
 
-(not started)
+### 2026-11-19 -- built, measured, closed
+
+- **Counted first.** The RTL read confirmed jet TASK-003's table on the
+  fork: c0 handshake + tag read + capture, c1 classify with the data
+  address leading, c2 the word lands and the deposit bypasses into the
+  frontend's staging FIFO, c3 `cpu_rsp`. The cycle to find was c2, and
+  `l1_data_array` already reads every way per address with the way
+  selected on the output side -- direction 1 of the candidates, at no
+  cost in common-ip.
+- **Built** (`jet_prime_control` only; delta 04): the arriving request's
+  `{set, beat}` leads on port A in its capture cycle (`w_live_lead`,
+  keyed off `lkup_valid_i`, yielding to the occupant whenever it may need
+  the record path, `w_occ_need`); a read hit answers from the port in
+  its classify cycle (`w_direct_fire`: its lead landed, no array write at
+  that edge, the completion port free); a write hit acks in its classify
+  cycle (`w_direct_ack`, the store echoed) and the record keeps only its
+  array write and E-to-M promotion (`r_srv_dep`). The same-line hold and
+  `sn_safe_o` cover the ack-to-write window as they covered the record's.
+- **Three bins to get there.** Bin 5a (the read side, lead priority to
+  the arriving request): floor 2, `r4k_we0` 3.00, but the mixed resident
+  rows lost 40 % of their throughput at depth 4 and 16 -- the lead took
+  the port from occupants that needed the record path and the one-deep
+  record held the classify. Bin 6 (the yield): throughput restored, the
+  write-containing rows a cycle over at depth 1 (the write hit). Bin 7
+  (the early write ack): done. Both intermediate sweeps kept in
+  `ref/results`; the lesson is [[fast-path-must-not-starve-the-fallback]].
+- **Result (bin 7, injector 1 idle, s5 -> s6, HPDcache):** hit floor 3 ->
+  2 (2). Depth 1: `r4k_we0` 4.00 -> 3.00 (3.00), `r4k_we255` 4.03 -> 3.03
+  (3.00), `smoke4k_we64` 4.02 -> 3.02 (3.07), `r16k_we64` 4.16 -> 3.17
+  (3.20); depth 2: 2.00 -> 1.50 (1.50), 2.03 -> 1.54 (1.50), 2.00 -> 1.58
+  (1.53), 2.08 -> 1.66 (1.64). Thrashes at depth 1: `r64k_we64` 12.76 ->
+  12.27 (13.73), `r64k_we255` 13.17 -> 12.68 (13.65), `r128k_we64` 16.94
+  -> 16.69 (18.83); from depth 4 every row is s5's within 0.02. Board
+  18,241 LUT / 11,896 FF, WNS +0.040 under the budget, the same worst path
+  as bins 3-4; smoke PASS; both sweeps err 0; all 55 single-core CRCs
+  equal to bin 4's. OOC jetp6 6,033 LUT / 5,402 FF, WNS +0.082.
+- **Against the done criterion.** `lat_min` 2: met. Resident rows at
+  depth 1: at or under HPDcache except `r4k_we255` at 3.03 against 3.00
+  (one write in a hundred acks from the record because its accept cycle
+  found the completion port taken); at depth 2 within 0.02-0.05 of
+  HPDcache on the write-containing rows for the same reason, equal on the
+  pure-read row. Thrash rows: better than bin 4 at depths 1-2, equal from
+  4. Verification: lint clean, gate 21/21, FULL 155/155 (9:22), ref-g2
+  gate 7/7, control covers 23/23 and 7/7 on the regenerated flat, the
+  safety prove relaunched on the final flat (verdict to be appended; the
+  step-5 flat's took 26:52); the liveness BMC left as TASK-001 recorded.
+  Pair-rig func cell at the CPU boundary: every directly served read hit
+  2 cycles. Control TB FULL cell: 107 hits answered in the accept cycle,
+  2 from the record. Written up in delta 04 and the reference comparison
+  (s6 column). Closed.

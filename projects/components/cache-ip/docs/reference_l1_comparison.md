@@ -10,8 +10,11 @@ the jet-prime PAIR through the pipelined `jet_prime_pair_fabric`
 (`REF_CACHE_SEL=3`, injector 1 idle): the first coherent, fabric-attached
 column; 2026-11-17, eighth column -- jet-prime step 5, the single-miss
 path (the fill launch no longer waits behind the victim capture, the
-commit answers three cycles after the last beat), the same pair rig: the
-column to read against jet's and HPDcache's. Re-run
+commit answers three cycles after the last beat), the same pair rig;
+2026-11-19, ninth column -- jet-prime TASK-002, the 2-cycle resident hit
+(the arriving request's data address leads in its capture cycle, a read
+hit answers from the port and a write hit acks in its classify cycle),
+the same pair rig: the column to read against jet's and HPDcache's. Re-run
 `ref/bin/ref_compare.py` after any new sweep.
 **Rig:** Genesys 2 (Kintex-7 325T-2), 100 MHz, the cache-ip pair harness
 with the pipelined cycle injector (common-ip TASK-002), the house 512 KB
@@ -33,6 +36,7 @@ same injector on the same part at the same clock:
 | jet-prime s2 | the same slot, jet-prime after TASK-001 step 2 (`jet_prime_fill`, [delta 01](../jet-prime-mesi-l1/docs/delta/01_fill_engine.md)) | as s1 with one AXI4 read ID per MSHR entry: up to 9 fills in flight on the memory port, completing in any order | yes, but nothing to be coherent with |
 | jet-prime s3 | the same rig as a PAIR: two jet-primes after step 3 through the pipelined `jet_prime_pair_fabric` ([delta 02](../jet-prime-mesi-l1/docs/delta/02_pair_fabric.md)), one per injector, `REF_CACHE_SEL=3` (bin 3: the step-4 fabric with the memory-AR fixes) | the jet rig's structure with jet-prime's RTL: s2's cache behind a fabric that serializes per line, issues the memory read alongside the snoop and keeps several reads outstanding | yes -- a real peer, snooped on every miss (idle in the single-core column, active in the both-injectors numbers below) |
 | jet-prime s5 | the same pair rig, jet-prime after step 5 ([delta 03](../jet-prime-mesi-l1/docs/delta/03_single_miss_path.md)), `REF_CACHE_SEL=3` (bin 4) | s3's pair with the single-miss path shortened: the fill launch goes out in the alloc cycle and the engine holds beats for the way a victim capture is reading; the commit snapshots in the done cycle, leaves the merge as its last slot advances and deposits with the install | yes -- as s3 |
+| jet-prime s6 | the same pair rig, jet-prime after TASK-002 ([delta 04](../jet-prime-mesi-l1/docs/delta/04_two_cycle_hit.md)), `REF_CACHE_SEL=3` (bin 7) | s5's pair with the resident hit at HPDcache's floor: the arriving request's data address leads on the array in its capture cycle (the array reads every way; the way is selected after the tag compare) and a read hit answers from the port in its classify cycle; a write hit acks there too, its array write following from the serve record | yes |
 
 Why these two: HPDcache is the closest open design to jet's point (a
 lockup-free L1 with an MSHR file, published on this very board in the
@@ -105,60 +109,61 @@ Sources (newest single-core sweep per rig; injector 1 idle):
 - jet-prime s2: `perf_sweep_jetp_bin2_single_20261115T200018Z.json`
 - jet-prime s3: `perf_sweep_jetpp_bin3_single_20261117T144843Z.json`
 - jet-prime s5: `perf_sweep_jetpp_bin4_single_20261117T191112Z.json`
+- jet-prime s6: `perf_sweep_jetpp_bin7_single_20261119T132547Z.json`
 
 Error flags / unfinished runs across all sources: 0
 
 ### Cycles per transaction (injector 0, 20,000 transactions)
 
-| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime s1 | jet-prime s2 | jet-prime s3 | jet-prime s5 |
-|---|---|---|---|---|---|---|---|---|---|
-| r4k_we0 | 1 | 5.00 | 4.00 | 3.00 | 3.00 | 4.00 | 4.00 | 4.00 | 4.00 |
-| r4k_we0 | 4 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
-| r4k_we0 | 16 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
-| r4k_we255 | 1 | 5.03 | 4.03 | 3.00 | 3.99 | 4.03 | 4.03 | 4.03 | 4.03 |
-| r4k_we255 | 4 | 3.03 | 1.05 | 1.01 | 2.99 | 1.04 | 1.04 | 1.05 | 1.04 |
-| r4k_we255 | 16 | 3.03 | 1.04 | 1.01 | 2.99 | 1.04 | 1.04 | 1.04 | 1.04 |
-| smoke4k_we64 | 1 | 5.08 | 4.08 | 3.07 | 3.29 | 4.06 | 4.06 | 4.06 | 4.02 |
-| smoke4k_we64 | 4 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 | 1.01 | 1.01 | 1.01 |
-| smoke4k_we64 | 16 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 | 1.01 | 1.01 | 1.01 |
-| r16k_we64 | 1 | 5.24 | 4.23 | 3.20 | 3.36 | 4.18 | 4.18 | 4.19 | 4.16 |
-| r16k_we64 | 4 | 3.18 | 1.13 | 1.22 | 1.71 | 1.11 | 1.09 | 1.10 | 1.08 |
-| r16k_we64 | 16 | 3.18 | 1.11 | 1.20 | 1.72 | 1.08 | 1.06 | 1.06 | 1.05 |
-| r64k_we64 | 1 | 20.89 | 17.42 | 13.73 | 10.79 | 14.88 | 14.88 | 15.39 | 12.76 |
-| r64k_we64 | 4 | 18.86 | 11.40 | 8.22 | 9.85 | 8.90 | 6.89 | 7.05 | 6.10 |
-| r64k_we64 | 16 | 18.86 | 10.65 | 7.64 | 9.88 | 8.13 | 5.71 | 5.78 | 5.29 |
-| r64k_we255 | 1 | 30.50 | 21.13 | 13.65 | 14.68 | 18.59 | 18.59 | 19.11 | 13.17 |
-| r64k_we255 | 4 | 28.50 | 12.01 | 10.53 | 14.22 | 9.54 | 9.10 | 9.52 | 8.65 |
-| r64k_we255 | 16 | 28.50 | 10.79 | 10.51 | 14.25 | 8.29 | 8.14 | 8.61 | 8.51 |
-| r128k_we64 | 1 | 29.01 | 24.02 | 18.83 | 15.23 | 20.27 | 20.27 | 21.02 | 16.94 |
-| r128k_we64 | 4 | 27.01 | 16.08 | 11.37 | 14.61 | 12.35 | 8.91 | 9.10 | 8.09 |
-| r128k_we64 | 16 | 27.01 | 15.74 | 10.90 | 14.60 | 12.00 | 8.00 | 8.11 | 7.58 |
+| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime s1 | jet-prime s2 | jet-prime s3 | jet-prime s5 | jet-prime s6 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | 5.00 | 4.00 | 3.00 | 3.00 | 4.00 | 4.00 | 4.00 | 4.00 | 3.00 |
+| r4k_we0 | 4 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| r4k_we0 | 16 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| r4k_we255 | 1 | 5.03 | 4.03 | 3.00 | 3.99 | 4.03 | 4.03 | 4.03 | 4.03 | 3.03 |
+| r4k_we255 | 4 | 3.03 | 1.05 | 1.01 | 2.99 | 1.04 | 1.04 | 1.05 | 1.04 | 1.04 |
+| r4k_we255 | 16 | 3.03 | 1.04 | 1.01 | 2.99 | 1.04 | 1.04 | 1.04 | 1.04 | 1.04 |
+| smoke4k_we64 | 1 | 5.08 | 4.08 | 3.07 | 3.29 | 4.06 | 4.06 | 4.06 | 4.02 | 3.02 |
+| smoke4k_we64 | 4 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 |
+| smoke4k_we64 | 16 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 |
+| r16k_we64 | 1 | 5.24 | 4.23 | 3.20 | 3.36 | 4.18 | 4.18 | 4.19 | 4.16 | 3.17 |
+| r16k_we64 | 4 | 3.18 | 1.13 | 1.22 | 1.71 | 1.11 | 1.09 | 1.10 | 1.08 | 1.08 |
+| r16k_we64 | 16 | 3.18 | 1.11 | 1.20 | 1.72 | 1.08 | 1.06 | 1.06 | 1.05 | 1.05 |
+| r64k_we64 | 1 | 20.89 | 17.42 | 13.73 | 10.79 | 14.88 | 14.88 | 15.39 | 12.76 | 12.27 |
+| r64k_we64 | 4 | 18.86 | 11.40 | 8.22 | 9.85 | 8.90 | 6.89 | 7.05 | 6.10 | 6.08 |
+| r64k_we64 | 16 | 18.86 | 10.65 | 7.64 | 9.88 | 8.13 | 5.71 | 5.78 | 5.29 | 5.27 |
+| r64k_we255 | 1 | 30.50 | 21.13 | 13.65 | 14.68 | 18.59 | 18.59 | 19.11 | 13.17 | 12.68 |
+| r64k_we255 | 4 | 28.50 | 12.01 | 10.53 | 14.22 | 9.54 | 9.10 | 9.52 | 8.65 | 8.65 |
+| r64k_we255 | 16 | 28.50 | 10.79 | 10.51 | 14.25 | 8.29 | 8.14 | 8.61 | 8.51 | 8.51 |
+| r128k_we64 | 1 | 29.01 | 24.02 | 18.83 | 15.23 | 20.27 | 20.27 | 21.02 | 16.94 | 16.69 |
+| r128k_we64 | 4 | 27.01 | 16.08 | 11.37 | 14.61 | 12.35 | 8.91 | 9.10 | 8.09 | 8.08 |
+| r128k_we64 | 16 | 27.01 | 15.74 | 10.90 | 14.60 | 12.00 | 8.00 | 8.11 | 7.58 | 7.57 |
 
 ### Mean latency, accept to response (cycles)
 
-| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime s1 | jet-prime s2 | jet-prime s3 | jet-prime s5 |
-|---|---|---|---|---|---|---|---|---|---|
-| r4k_we0 | 1 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 |
-| r4k_we0 | 4 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 |
-| r4k_we0 | 16 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 |
-| r4k_we255 | 1 | 4.03 | 3.03 | 2.00 | 1.01 | 3.03 | 3.03 | 3.03 | 3.03 |
-| r4k_we255 | 4 | 4.03 | 3.19 | 2.00 | 1.01 | 3.17 | 3.17 | 3.18 | 3.17 |
-| r4k_we255 | 16 | 4.03 | 4.38 | 2.00 | 1.01 | 4.35 | 4.35 | 4.37 | 4.35 |
-| smoke4k_we64 | 1 | 4.08 | 3.08 | 2.06 | 1.78 | 3.06 | 3.06 | 3.06 | 3.02 |
-| smoke4k_we64 | 4 | 4.00 | 3.03 | 2.00 | 1.75 | 3.03 | 3.03 | 3.03 | 3.03 |
-| smoke4k_we64 | 16 | 4.00 | 4.01 | 2.00 | 1.75 | 4.01 | 4.01 | 4.01 | 4.01 |
-| r16k_we64 | 1 | 4.24 | 3.23 | 2.18 | 1.85 | 3.18 | 3.18 | 3.19 | 3.16 |
-| r16k_we64 | 4 | 4.18 | 3.54 | 2.25 | 1.82 | 3.42 | 3.37 | 3.38 | 3.30 |
-| r16k_we64 | 16 | 4.18 | 6.17 | 2.44 | 1.82 | 5.89 | 5.81 | 5.83 | 5.65 |
-| r64k_we64 | 1 | 19.89 | 16.42 | 11.41 | 6.99 | 13.88 | 13.88 | 14.39 | 11.76 |
-| r64k_we64 | 4 | 19.86 | 44.61 | 18.11 | 7.51 | 34.60 | 26.54 | 27.18 | 23.38 |
-| r64k_we64 | 16 | 19.86 | 75.16 | 22.49 | 7.55 | 57.89 | 61.65 | 62.42 | 56.04 |
-| r64k_we255 | 1 | 29.50 | 20.13 | 11.34 | 1.10 | 17.59 | 17.59 | 18.11 | 12.17 |
-| r64k_we255 | 4 | 29.50 | 47.04 | 16.69 | 1.09 | 37.16 | 35.40 | 37.06 | 33.57 |
-| r64k_we255 | 16 | 29.50 | 75.39 | 17.52 | 1.10 | 58.11 | 52.30 | 54.71 | 44.95 |
-| r128k_we64 | 1 | 28.01 | 23.02 | 15.89 | 10.02 | 19.27 | 19.27 | 20.02 | 15.94 |
-| r128k_we64 | 4 | 28.01 | 63.33 | 23.29 | 10.89 | 48.41 | 34.65 | 35.40 | 31.35 |
-| r128k_we64 | 16 | 28.01 | 91.97 | 26.74 | 10.91 | 70.76 | 86.06 | 87.01 | 80.04 |
+| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime s1 | jet-prime s2 | jet-prime s3 | jet-prime s5 | jet-prime s6 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 |
+| r4k_we0 | 4 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 |
+| r4k_we0 | 16 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 |
+| r4k_we255 | 1 | 4.03 | 3.03 | 2.00 | 1.01 | 3.03 | 3.03 | 3.03 | 3.03 | 2.03 |
+| r4k_we255 | 4 | 4.03 | 3.19 | 2.00 | 1.01 | 3.17 | 3.17 | 3.18 | 3.17 | 3.16 |
+| r4k_we255 | 16 | 4.03 | 4.38 | 2.00 | 1.01 | 4.35 | 4.35 | 4.37 | 4.35 | 3.77 |
+| smoke4k_we64 | 1 | 4.08 | 3.08 | 2.06 | 1.78 | 3.06 | 3.06 | 3.06 | 3.02 | 2.02 |
+| smoke4k_we64 | 4 | 4.00 | 3.03 | 2.00 | 1.75 | 3.03 | 3.03 | 3.03 | 3.03 | 3.02 |
+| smoke4k_we64 | 16 | 4.00 | 4.01 | 2.00 | 1.75 | 4.01 | 4.01 | 4.01 | 4.01 | 4.00 |
+| r16k_we64 | 1 | 4.24 | 3.23 | 2.18 | 1.85 | 3.18 | 3.18 | 3.19 | 3.16 | 2.17 |
+| r16k_we64 | 4 | 4.18 | 3.54 | 2.25 | 1.82 | 3.42 | 3.37 | 3.38 | 3.30 | 3.30 |
+| r16k_we64 | 16 | 4.18 | 6.17 | 2.44 | 1.82 | 5.89 | 5.81 | 5.83 | 5.65 | 5.65 |
+| r64k_we64 | 1 | 19.89 | 16.42 | 11.41 | 6.99 | 13.88 | 13.88 | 14.39 | 11.76 | 11.27 |
+| r64k_we64 | 4 | 19.86 | 44.61 | 18.11 | 7.51 | 34.60 | 26.54 | 27.18 | 23.38 | 23.33 |
+| r64k_we64 | 16 | 19.86 | 75.16 | 22.49 | 7.55 | 57.89 | 61.65 | 62.42 | 56.04 | 55.91 |
+| r64k_we255 | 1 | 29.50 | 20.13 | 11.34 | 1.10 | 17.59 | 17.59 | 18.11 | 12.17 | 11.68 |
+| r64k_we255 | 4 | 29.50 | 47.04 | 16.69 | 1.09 | 37.16 | 35.40 | 37.06 | 33.57 | 33.57 |
+| r64k_we255 | 16 | 29.50 | 75.39 | 17.52 | 1.10 | 58.11 | 52.30 | 54.71 | 44.95 | 45.25 |
+| r128k_we64 | 1 | 28.01 | 23.02 | 15.89 | 10.02 | 19.27 | 19.27 | 20.02 | 15.94 | 15.69 |
+| r128k_we64 | 4 | 28.01 | 63.33 | 23.29 | 10.89 | 48.41 | 34.65 | 35.40 | 31.35 | 31.30 |
+| r128k_we64 | 16 | 28.01 | 91.97 | 26.74 | 10.91 | 70.76 | 86.06 | 87.01 | 80.04 | 79.97 |
 
 ### Resident-hit floor and achieved parallelism
 
@@ -172,6 +177,7 @@ Error flags / unfinished runs across all sources: 0
 | jet-prime s2 | 3 | 10.79 | 12 |
 | jet-prime s3 | 3 | 10.81 | 12 |
 | jet-prime s5 | 3 | 10.59 | 12 |
+| jet-prime s6 | 2 | 10.60 | 12 |
 
 ### Cache alone, out of context (xc7k325t-2, 10 ns clock, synth + place + route)
 
@@ -185,6 +191,7 @@ Error flags / unfinished runs across all sources: 0
 | jet-prime s2 | 6047 | 5394 | 16 | 0 | 1888 | +0.118 | 16 |
 | jet-prime s3 | 6047 | 5394 | 16 | 0 | 1888 | +0.118 | 16 |
 | jet-prime s5 | 6010 | 5399 | 16 | 0 | 1998 | +0.321 | 19 |
+| jet-prime s6 | 6033 | 5402 | 16 | 0 | 1998 | +0.082 | 23 |
 
 <!-- end generated -->
 
@@ -358,6 +365,41 @@ measures the same way.
   LUT / 5,399 FF, 16 RAMB36, 1,998 LUTRAM, WNS +0.321 ns, 19 levels on the
   same staging-queue-to-array path (s2's cache: 6,047 / 5,394 at +0.118) --
   the beat hold and the shorter commit cost no area.
+- **jet-prime's resident hit (s6, 2026-11-19).** The s5 pair with the hit
+  path shortened by a cycle: the data array reads every way per address
+  and selects the way on its output side, so the arriving request's
+  `{set, beat}` is presented in its capture cycle and a read hit answers
+  from the port in its classify cycle; a write hit's response (the store
+  echoed) leaves in the classify cycle as well, with the array write and
+  the E-to-M promotion still done from the serve record under the same
+  same-line and snoop-safe holds. The capture/classify split of jet v3
+  (the 100 MHz closure) is untouched. Hit floor 3 -> 2, HPDcache's.
+  Cycles per transaction at depth 1 (s5 -> s6, HPDcache): `r4k_we0` 4.00
+  -> 3.00 (3.00), `r4k_we255` 4.03 -> 3.03 (3.00), `smoke4k_we64` 4.02 ->
+  3.02 (3.07), `r16k_we64` 4.16 -> 3.17 (3.20); at depth 2 `r4k_we0` 2.00
+  -> 1.50 (1.50), `r4k_we255` 2.03 -> 1.54 (1.50), `smoke4k_we64` 2.00 ->
+  1.58 (1.53), `r16k_we64` 2.08 -> 1.66 (1.64): the resident rows are at
+  HPDcache's numbers at depth 1 and within 0.05 cycles at depth 2 (the
+  residual is a write whose accept cycle finds the completion port
+  taken). The thrashes at depth 1: `r64k_we64` 12.76 -> 12.27 (13.73,
+  10.7 % under), `r64k_we255` 13.17 -> 12.68 (13.65, 7.1 %), `r128k_we64`
+  16.94 -> 16.69 (18.83, 11.3 %); from depth 4 every row is s5's within
+  0.02. Two intermediate bins taught the shape of the change: bin 5a
+  (the read side, with the arriving request's lead pre-empting an
+  occupant that could not serve directly) kept the floor at 2 and the
+  pure-read row at 3.00 but lost 40 % of the throughput of the mixed
+  resident rows at depth 4 and 16 (`smoke4k_we64` 1.01 -> 1.76), fixed by
+  letting the lead yield whenever the occupant may need the record path;
+  bin 6 (read side only) left the write-containing rows a cycle over at
+  depth 1. Both sweeps are kept in `ref/results` as the measurements that
+  found those, not as columns. Board: `ref_jetpp_bringup` bin 7 18,241
+  LUT / 11,896 FF, WNS +0.040 ns under the 0.2 ns uncertainty budget,
+  the same worst path as bins 3-4 (the fill engine's staging read pointer
+  into the data BRAM address); smoke PASS, both 55-run sweeps err 0, all
+  55 single-core CRCs equal to bin 4's; dual-active `r64k_we64` depth 1
+  12.28 / 12.25, depth 16 5.30 / 5.32. Cache alone out of context at
+  10 ns (`ref/results/ooc/jetp6`): 6,033 LUT / 5,402 FF, WNS +0.082 (s5
+  6,010 / 5,399 at +0.321, the same path).
 - **Area, cache alone at 10 ns.** HPDcache is the smallest in LUTs (3,510)
   and the fastest (WNS +1.37 ns, ten logic levels on its worst path) and
   keeps its arrays in 8 RAMB36 + 4 RAMB18. jet is 5,892 LUT / 5,258 FF /
@@ -382,9 +424,11 @@ pipelined fabric back and keeps 18-25 % of it, with both cores active or
 one; the s5 column takes the single miss itself from 23-33 cycles to
 20 and puts jet-prime on the pair rig under HPDcache at every depth on
 every miss configuration (depth 1: 7 % on the read-lean thrash, 3.5 % on
-the write-heavy one, 10 % at four times the cache). What is left over
-HPDcache is the resident hit at depths 1 and 2: jet's 3-cycle hit to
-HPDcache's 2. Against the
+the write-heavy one, 10 % at four times the cache); the s6 column takes
+the resident hit to HPDcache's 2-cycle floor, which puts the resident
+rows at HPDcache's numbers at depths 1 and 2 and widens the depth-1
+thrash margins to 10.7 %, 7.1 % and 11.3 %. Nothing in the table is now
+over HPDcache by more than 0.05 cycles per transaction. Against the
 blocking reference, amber is 1.7x slower on hits (its skid-then-block port)
 and 2x on misses (CVA6's miss handler overlaps the write-back with the
 refill; amber drains then fills). Both gaps have a named mechanism to go
@@ -398,9 +442,9 @@ cd projects/fpga-systems/Genesys2/cache-ip/ref/build-bringup
 make bitstream smoke REF_CACHE_SEL=0            # HPDcache rig
 make bitstream smoke REF_CACHE_SEL=1            # CVA6 write-back rig
 make bitstream smoke REF_CACHE_SEL=2            # jet-prime, no fabric (s2 at HEAD; s1 at 3f0a7bb4d)
-make bitstream REF_CACHE_SEL=3 ; make run SEQUENCES="init smoke" REF_CACHE_SEL=3   # the jet-prime pair through the pipelined fabric (s5 at HEAD; s3 at 7fb330377)
+make bitstream REF_CACHE_SEL=3 ; make program REF_CACHE_SEL=3 ; make run SEQUENCES="init smoke" REF_CACHE_SEL=3   # the jet-prime pair through the pipelined fabric (s6 at HEAD; s5 at 4db2f29e5; s3 at 7fb330377)
 python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --ci1-idle --outstanding 1 2 4 8 16 --out ../results/<name>.json
-make ooc CACHE=hpd ; make ooc CACHE=cva6 ; make ooc CACHE=jet ; make ooc CACHE=jetp ; make ooc CACHE=jetp5 ; make ooc CACHE=amber
+make ooc CACHE=hpd ; make ooc CACHE=cva6 ; make ooc CACHE=jet ; make ooc CACHE=jetp ; make ooc CACHE=jetp5 ; make ooc CACHE=jetp6 ; make ooc CACHE=amber
 python3 ../bin/ref_compare.py                   # the tables above
 ```
 

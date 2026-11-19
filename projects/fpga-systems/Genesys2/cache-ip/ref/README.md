@@ -20,8 +20,9 @@ every place the comparison is not like-for-like:
   need on Vivado, `ref_null_cache.sv`, `ref_axil_stub.sv`.
 - `dv/tests/` -- `make clean-all && make run-all-gate-parallel`.
 - `build-bringup/` -- `make bitstream smoke REF_CACHE_SEL=0|1|2|3`; `make ooc
-  CACHE=hpd|cva6|jet|jetp|jetp5|amber` for the cache-only area row (`jetp`
-  is the step 2-4 jet-prime cache, `jetp5` the step-5 one).
+  CACHE=hpd|cva6|jet|jetp|jetp5|jetp6|amber` for the cache-only area row (`jetp`
+  is the step 2-4 jet-prime cache, `jetp5` the step-5 one, `jetp6` the
+  TASK-002 one with the 2-cycle hit).
 - `bin/ref_compare.py` -- the comparison tables from the sweep JSONs.
 - Host stack: the jet rig's (`../jet/host`, `../jet/bin`); same bridge map.
 - Vendored sources: `vendor/cv-hpdcache`, `vendor/cva6-dcache` (PROVENANCE.md

@@ -39,6 +39,15 @@ of every suite. Four TB checks failed:
 - **The core TB's and the tops' launch-time contract checks** ("no fill
   accept during a capture") encoded the old enforcement point; see
   [[enforce-the-contract-at-the-hazard]].
+- **The control TB's hit-serve watcher** (jet-prime TASK-002, 2026-11-19)
+  started polling for the deposit on the cycle AFTER the accept, because
+  the serve had fired there since ISSUE-001 v2. When the read hit began
+  answering in the accept cycle itself, the watcher missed every direct
+  deposit and would have reported "hit deposit valid (serve fired): got
+  0". Same rule as the commit watcher above: the first sample is the
+  current cycle. The fix also added a count of how many hits took the
+  fast path, so the mechanism is measured rather than inferred from a
+  green run.
 
 **The rule.** A lockstep TB may key on events (an FSM state tap, a
 handshake, an entry leaving the model) and on order (install before

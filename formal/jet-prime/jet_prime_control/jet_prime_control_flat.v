@@ -963,19 +963,19 @@ module jet_prime_control (
 	output wire ctrl_error_o;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:490:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:498:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:492:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:500:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:494:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:502:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:496:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:504:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:498:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:506:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
 		if ((2 < 2) || (2 > 16))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:500:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:508:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
 		if ((2 < 1) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:502:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:510:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
 	end
 	localparam [2:0] STALL_NONE = 3'd0;
 	localparam [2:0] STALL_MSHR_FULL = 3'd1;
@@ -1016,7 +1016,14 @@ module jet_prime_control (
 	wire w_sn_portb_pre;
 	reg r_pa_srv_d1;
 	wire w_srv_adr;
+	wire w_live_lead;
+	wire w_occ_need;
 	wire w_lead_adr;
+	reg r_pa_live_d1;
+	reg r_dwr_d1;
+	wire w_direct_fire;
+	wire w_direct_ack;
+	wire w_srv_cpl;
 	reg r_cmt_rd_d1;
 	reg [MW - 1:0] r_cmt_rd_k_d1;
 	reg r_fill_pend;
@@ -1090,7 +1097,9 @@ module jet_prime_control (
 	wire [BEAT_W - 1:0] w_req_beat;
 	wire [LINE_W - 1:0] w_req_line;
 	wire [SET_W - 1:0] w_live_set;
+	wire [BEAT_W - 1:0] w_live_beat;
 	assign w_live_set = lkup_addr_i[OFF_W+:SET_W];
+	assign w_live_beat = lkup_addr_i[OFF_W - 1-:BEAT_W];
 	assign w_req_tag = r_lk_addr[32 - 1-:TAG_W];
 	assign w_req_set = r_lk_addr[OFF_W+:SET_W];
 	assign w_req_beat = r_lk_addr[OFF_W - 1-:BEAT_W];
@@ -1194,6 +1203,7 @@ module jet_prime_control (
 	reg [64 - 1:0] r_srv_wdata;
 	reg [STRB_W - 1:0] r_srv_be;
 	reg r_srv_e2m;
+	reg r_srv_dep;
 	wire w_srv_fire_rd;
 	wire w_srv_fire_wr;
 	wire w_srv_fire;
@@ -1469,8 +1479,9 @@ module jet_prime_control (
 	assign w_cmt_cpl_tag = (r_cmt_state == C_CU_DEPOSIT ? r_upgr_seq : r_cmt_seqs[w_cpl_k]);
 	assign w_cmt_cpl_data = (r_cmt_state == C_CU_DEPOSIT ? r_upgr_wdata : (w_cpl_we ? w_cpl_wdata : w_cpl_rdata));
 	assign w_srv_fire_rd = (((r_srv_vld & ~r_srv_we) & ~w_cmt_cpl) & ~w_cmt_datrd) & (~0 | r_pa_srv_d1);
-	assign w_srv_fire_wr = ((((r_srv_vld & r_srv_we) & ~w_cmt_cpl) & ~fill_beat_valid_i) & ~w_cmt_datwr) & ~(r_srv_e2m & (w_cmt_tagwr | w_sn_tagwr));
+	assign w_srv_fire_wr = ((((r_srv_vld & r_srv_we) & (r_srv_dep | ~w_cmt_cpl)) & ~fill_beat_valid_i) & ~w_cmt_datwr) & ~(r_srv_e2m & (w_cmt_tagwr | w_sn_tagwr));
 	assign w_srv_fire = w_srv_fire_rd | w_srv_fire_wr;
+	assign w_srv_cpl = w_srv_fire & ~r_srv_dep;
 	reg w_acceptable;
 	reg w_stall;
 	reg [2:0] w_reason;
@@ -1568,6 +1579,8 @@ module jet_prime_control (
 	assign lkup_merge_o = w_accept_merge;
 	assign lkup_miss_alloc_o = w_accept_alloc;
 	assign lkup_upgrade_o = w_accept_upgr;
+	assign w_direct_fire = (((w_accept_rd & ~w_cmt_cpl) & ~w_srv_cpl) & ~(r_srv_vld & ~r_srv_we)) & (0 ? r_pa_live_d1 & ~r_dwr_d1 : w_lead_adr);
+	assign w_direct_ack = (w_accept_wr & ~w_cmt_cpl) & ~w_srv_cpl;
 	assign cap_busy_o = w_cap_active;
 	assign cap_set_o = r_cap_set;
 	assign cap_way_o = r_cap_way;
@@ -1616,10 +1629,12 @@ module jet_prime_control (
 			r_srv_wdata <= 1'sb0;
 			r_srv_be <= 1'sb0;
 			r_srv_e2m <= 1'b0;
+			r_srv_dep <= 1'b0;
 		end
 		else begin
-			r_srv_vld <= (w_accept_rd | w_accept_wr) | (r_srv_vld & ~w_srv_fire);
+			r_srv_vld <= ((w_accept_rd & ~w_direct_fire) | w_accept_wr) | (r_srv_vld & ~w_srv_fire);
 			if (w_accept_rd | w_accept_wr) begin
+				r_srv_dep <= w_direct_ack;
 				r_srv_we <= w_accept_wr;
 				r_srv_seq <= r_lk_seq;
 				r_srv_line <= w_req_line;
@@ -1647,18 +1662,20 @@ module jet_prime_control (
 	assign fill_way_o = (r_fill_pend ? r_claim_way[r_fill_idx] : repl_victim_way_i);
 	assign w_fq_push = fill_done_i;
 	assign w_fq_pop = w_cmt_retire | (r_cmt_state == C_CU_DEPOSIT);
-	assign cpl_valid_o = w_cmt_cpl | w_srv_fire;
-	assign cpl_tag_o = (w_cmt_cpl ? w_cmt_cpl_tag : r_srv_seq);
-	assign cpl_data_o = (w_cmt_cpl ? w_cmt_cpl_data : (r_srv_we ? r_srv_wdata : dat_a_rdata_i));
+	assign cpl_valid_o = ((w_cmt_cpl | w_srv_cpl) | w_direct_fire) | w_direct_ack;
+	assign cpl_tag_o = (w_cmt_cpl ? w_cmt_cpl_tag : (w_srv_cpl ? r_srv_seq : r_lk_seq));
+	assign cpl_data_o = (w_cmt_cpl ? w_cmt_cpl_data : (w_srv_cpl ? (r_srv_we ? r_srv_wdata : dat_a_rdata_i) : (r_lk_we ? r_lk_wdata : dat_a_rdata_i)));
 	assign tag_a_set_o = (r_init_busy ? r_init_cnt : (r_lk_valid & ~w_cls_advance ? w_req_set : w_live_set));
 	assign tag_a_wr_en_o = (((r_init_busy & ~(!rst_n)) | w_cmt_tagwr) | w_sn_tagwr) | (w_srv_fire_wr & r_srv_e2m);
 	assign tag_a_wr_way_onehot_o = (r_init_busy ? {2 {1'b1}} : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? w_upgr_way_onehot : w_cmt_way_onehot) : (w_sn_tagwr ? w_sn_way_onehot : r_srv_way_onehot)));
 	assign tag_a_wr_set_o = (r_init_busy ? r_init_cnt : (w_cmt_tagwr ? (r_cmt_state == C_CU_INSTALL ? r_upgr_set : w_cmt_set) : (w_sn_tagwr ? r_sn_set : r_srv_set)));
 	assign tag_a_wr_tag_state_o = (r_init_busy ? {{TAG_W {1'b0}}, 3'b000} : (r_cmt_state == C_INSTALL ? {w_cmt_tag, w_install_state} : (r_cmt_state == C_PEND ? {w_cmt_tag, (r_cmt_pend == 2'b10 ? 3'b000 : 3'b001)} : (r_cmt_state == C_CU_INSTALL ? {w_upgr_tag, (r_upgr_killed ? 3'b000 : 3'b011)} : (w_sn_tagwr ? {r_sn_tag, r_sn_nxt} : {r_srv_atag, 3'b011})))));
 	assign w_srv_adr = (r_srv_vld & ~r_srv_we) & ~(0 & w_srv_fire_rd);
-	assign w_lead_adr = ~w_cmt_datrd & ~w_srv_adr;
-	assign dat_a_addr_o = (w_cmt_datrd ? {w_cmt_set, w_slot_beat} : (w_srv_adr ? {r_srv_set, r_srv_beat} : {w_req_set, w_req_beat}));
-	assign dat_a_way_o = (0 & r_cmt_rd_d1 ? r_cmt_way : (w_cmt_datrd ? r_cmt_way : r_srv_way));
+	assign w_occ_need = r_lk_valid & ~(((r_pa_live_d1 & ~r_dwr_d1) & ~r_srv_vld) & ~w_cmt_cpl);
+	assign w_live_lead = (((0 & lkup_valid_i) & ~w_cmt_datrd) & ~w_srv_adr) & ~w_occ_need;
+	assign w_lead_adr = (~w_cmt_datrd & ~w_srv_adr) & ~w_live_lead;
+	assign dat_a_addr_o = (w_cmt_datrd ? {w_cmt_set, w_slot_beat} : (w_srv_adr ? {r_srv_set, r_srv_beat} : (w_live_lead ? {w_live_set, w_live_beat} : {w_req_set, w_req_beat})));
+	assign dat_a_way_o = (0 & r_cmt_rd_d1 ? r_cmt_way : (r_lk_valid & (0 ? r_pa_live_d1 : w_lead_adr & ~(r_srv_vld & ~r_srv_we)) ? w_hit_way : (w_cmt_datrd ? r_cmt_way : r_srv_way)));
 	assign dat_a_wr_en_o = w_srv_fire_wr | w_cmt_datwr;
 	assign dat_a_wr_way_onehot_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? w_upgr_way_onehot : w_cmt_way_onehot) : r_srv_way_onehot);
 	assign dat_a_wr_addr_o = (w_cmt_datwr ? (r_cmt_state == C_CU_MERGE ? {r_upgr_set, r_upgr_beat} : {w_cmt_set, w_slot_beat}) : {r_srv_set, r_srv_beat});
@@ -1988,12 +2005,16 @@ module jet_prime_control (
 		if (!rst_n) begin
 			r_cap_d1 <= 1'b0;
 			r_pa_srv_d1 <= 1'b0;
+			r_pa_live_d1 <= 1'b0;
+			r_dwr_d1 <= 1'b0;
 			r_cmt_rd_d1 <= 1'b0;
 			r_cmt_rd_k_d1 <= 1'sb0;
 		end
 		else begin
 			r_cap_d1 <= 0 & w_cap_adr;
 			r_pa_srv_d1 <= 0 & ((w_srv_adr & ~w_cmt_datrd) | (w_accept_rd & w_lead_adr));
+			r_pa_live_d1 <= w_live_lead & w_lk_capture;
+			r_dwr_d1 <= 0 & (dat_a_wr_en_o | fill_beat_valid_i);
 			r_cmt_rd_d1 <= 0 & w_cmt_datrd;
 			r_cmt_rd_k_d1 <= r_cmt_k[MW - 1:0];
 		end
