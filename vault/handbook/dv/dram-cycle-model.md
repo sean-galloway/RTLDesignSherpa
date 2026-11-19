@@ -539,6 +539,48 @@ term was written. The residual that remains (two bl4 read sides at +11) is
 a fixed point of the same pick rules, recorded with its probe in
 `char_results/model_mc021_lane_slot_2026-11-19.md`.
 
+## One decode, two latencies: the hit is three registers from its ACT (2026-11-19, MC-021 step 4)
+
+After step 3 the SKU model and the RTL ran the same pick rules on the four-bank
+close-page interleave and settled into different fixed points: the RTL a
+steady 11-13-cycle read pattern with one 3-cycle ACT gap (2.17 cycles per
+beat, the board's 351 MB/s), the model an aligned 8-cycle one (2.0, 389). The
+item said "find which rule's timing". The cycle-aligned replay -- the proxy's
+pick probe anchored on a direction-flip COUNT (the absolute cycle moved 900
+cycles between two runs of the same sim; the count did not) beside the
+model's slot debug from its first slot -- found no rule. It found a register.
+The head record's row-hit flag is classified against the bank timers'
+registered row image ("one cycle stale by contract") and registered into the
+record, and the pick registers the decode once more: a bank's column request
+is visible three cycles after its ACT, 72 of 72 in the probe. The model read
+the hit live, at ACT + 2. The same decode's ACT class travels the other path
+(the bank state with the lookahead, visible at ready - 1), and that one HAD
+been measured, in step 3, at 39 of 39 -- and taken as the decode's latency.
+
+The term is invisible on the common path: the next-op hint fires the column
+at ACT + 2 in both. It binds where a hold discards the hint, and there the
+model's column fired at ACT + 3 and the RTL's at ACT + 5, which under a
+rotation at the tRRD floor with one cycle of slack (8 per round against tRC 7)
+costs the bank its slot -- and the slip re-arms the discard. With `hit_lag` 2
+the model matches the RTL's hop distributions row for row and lands the two
+cells (258 / 355 against 258 / 351; 247 / 246 against 242 / 253), compare
+55 / 2 -> 56 / 1, the SKU's cells moved 0.7 percent at most.
+
+Four lessons. **Measure a decode's latency per CLASS, not per decode**: a
+request can reach the same register by two paths (the bank state, the record),
+and one path measured says nothing about the other. **Measure where the hint
+is not**: a hint that hides a latency on the common path leaves the latency
+alive on the path the hint does not cover, and an attractor lives on the rare
+path -- probe the discarded-hint case, not the hinted one. **An attractor is
+reproduced when the hop DISTRIBUTIONS match, not when the number does**: the
+number (389 -> 355) could have been a knob; the model earned the term when its
+ACT -> column (2 / 5 / 7), same-bank ACT -> ACT (7 / 8 / 9 / 11) and lane /
+main shares came out the RTL's. **Anchor a replay on a count, not a cycle**:
+a flip count, a transaction count, an event ordinal -- anything the sim's
+host-side jitter cannot move. The record is
+`char_results/model_mc021_hit_lag_2026-11-19.md`; the term's price in the RTL
+(the leftover pick that starts the chain) is in its section 5.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

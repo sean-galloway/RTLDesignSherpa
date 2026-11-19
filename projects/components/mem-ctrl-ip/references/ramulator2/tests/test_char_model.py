@@ -217,6 +217,9 @@ def test_sku_config_is_the_shipped_point():
     # MC-021: the pick pipeline as measured -- lookahead / hint reach 2 slots, the ACT's rank ok registered one slot,
     # the two RTL questions (arming the same-row ACT after an auto-precharge, masking the closed column's pair) off
     assert (c.pick_la, c.rank_ok_lag, c.ap_act_la, c.ap_stale) == (2, 0, False, False)
+    # MC-021 step 4: the record's hit flag -- a bank's heads read as row hits two slots after its ACT (the registered
+    # row image, the record, the request register), so the column request shows at ACT + 3, the hinted column at + 2
+    assert c.hit_lag == 2 and not c.ap_fire_stale
     # every variant changes ONE term against the SKU
     from dataclasses import fields
     for name in cm.SKU_VARIANTS:
@@ -230,6 +233,27 @@ def test_sku_config_is_the_shipped_point():
             assert sorted(diff) == ["controller", "scheduler"], (name, diff)
         else:
             assert len(diff) == 1, (name, diff)
+
+
+def test_hit_lag_is_the_record_path_not_the_live_row_image():
+    """MC-021 step 4: a bank's heads read as row hits two slots after its ACT (the registered row image, the record's
+    hit flag, the request register), so a column whose hint a hold discarded lands at ACT + 5 as the proxy measured,
+    not at ACT + 3; under the four-bank close-page interleave that costs the bank its tRC slot (the proxy's 2.17
+    cycles per beat against the 2.0 floor the live-read model settled into). The term is on by default."""
+    import tempfile
+    from dataclasses import replace
+    sc = replace([s for s in cm.SUITES["all"] if s.name == "col_major_bl4"][0], txn_count=4096)
+    bw = {}
+    for hl in (1, 2):
+        cfg = replace(cm.CONFIGS["granite_sku100_bi"], name=f"hl{hl}", hit_lag=hl)
+        with tempfile.TemporaryDirectory() as t:
+            r = cm.run_scenario(cfg, sc, t)
+        bw[hl] = (float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"]))
+    assert cm.CONFIGS["granite_sku100_bi"].hit_lag == 2
+    # the read side pays most (0.91 at the board's counts: 389 -> 355 against the board's 351); the write side's
+    # recovery hop already hid the lag (283 -> 258, the board's 258)
+    assert 0.85 < bw[2][1] / bw[1][1] < 0.97, bw
+    assert 0.85 < bw[2][0] / bw[1][0] < 0.97, bw
 
 
 def test_board_presets_are_what_the_host_programs(pumice_char):

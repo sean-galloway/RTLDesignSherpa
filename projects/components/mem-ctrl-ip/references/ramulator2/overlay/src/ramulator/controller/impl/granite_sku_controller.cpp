@@ -61,7 +61,17 @@ namespace Ramulator {
 //         requested only once its timer is open -- the measured two-slot
 //         hop (ap_act_la = true prices the RTL change that would arm it).
 //         Rank-level terms (RD <-> WR turnaround, tRRD / tFAW, tCCD) are the
-//         fire's (req_bank_timing; ISSUE-004).
+//         fire's (req_bank_timing; ISSUE-004). The row HIT is the head
+//         record's flag, classified in the storage plane against the bank
+//         timers' REGISTERED row image (one cycle stale by contract) and
+//         registered into the record: a bank's heads are classified as hits
+//         from hit_lag slots after its ACT (2), so the column request shows
+//         at ACT + 3 where the hinted column fires at ACT + 2. Measured on
+//         the proxy 72 / 72 (MC-021 step 4, 2026-11-19); the model had read
+//         the hit live (ACT + 2), which let a column whose hint a hold had
+//         discarded fire at ACT + 3 instead of the RTL's ACT + 5, and the
+//         RTL's bank then missed its tRC slot in the four-bank rotation
+//         (bank_interleave col_major_bl4: 389 against the board's 351 MB/s).
 //       - SELECT -> WINNER REGISTER: from the request registers less the
 //         self-stale mask (a pair whose picked / held / fired command cannot
 //         be its next request -- a row command, or a column with no same-row
@@ -116,7 +126,14 @@ namespace Ramulator {
 //     bit); page_close makes every column close (the board's close_page).
 //     ap_stale = true masks an auto-precharging column's pair as a row
 //     command's (the RTL question: the select skipping the stale column
-//     class after a close-page column pair).
+//     class after a close-page column pair). ap_fire_stale = true masks the
+//     pair of a column that FIRED with auto-precharge for the slot after its
+//     fire, as a row command's pair is (RTL question 3, MC-021 step 4): the
+//     RTL masks only a fired pair whose queue emptied, so the fired pair's
+//     leftover column request is live again the cycle after and the rotor,
+//     starting past the fired pair, hands it the select before the real
+//     column -- a wasted slot, and the pair's fresh ACT request masked from
+//     the lane for a cycle.
 //   * Refresh: the AllBank manager demands REFab every nREFI; while it is
 //     pending nothing else fires (the demand block), the open rows close
 //     (PREab, where the RTL drains per-bank PREs) and REFab follows.
@@ -139,6 +156,8 @@ class GraniteSKUController : public ControllerBase {
   int m_rank_ok_lag = 0;        // the ACT's rank-level ok seen this many slots late (1 = the N+1 global timers before memory-controllers BUG-004, 2026-11-18)
   bool m_ap_act_la = false;     // the lookahead reaches the ACT of a same-row head after an auto-precharge (measured: no; the RTL question)
   bool m_ap_stale = false;      // an auto-precharging column's pair is self-stale after its pick (the RTL question)
+  int m_hit_lag = 2;            // slots after a bank's ACT before the decode sees its heads as row hits (registered row image -> record -> request; 1 = the hit read live)
+  bool m_ap_fire_stale = false; // the pair of a column that fired with auto-precharge is masked the slot after its fire (the RTL question 3: its leftover column request otherwise wins the select)
   int m_dir_batch_max = 255;
   int m_dir_hold_idle = 8;
   bool m_dir_owns_rows = true;
@@ -183,6 +202,7 @@ class GraniteSKUController : public ControllerBase {
   std::vector<bool> m_bank_ap;           // [bank] closed by an auto-precharge (the un-armed ACT hop)
   std::vector<int> m_bank_ap_row;        // [bank] the row that auto-precharge closed
   std::deque<Clk_t> m_act_clks;          // the last ACT issue slots (tRRD / tFAW as the registered ok sees them)
+  std::vector<Clk_t> m_bank_act_clk;     // [bank] the slot of the bank's last ACT (the record's hit flag, hit_lag)
   // the lane's fire, waiting for the odd tick
   bool m_lane_pending = false;
   int m_lane_cmd = -1;
@@ -244,6 +264,8 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_rank_ok_lag, int, "rank_ok_lag").default_val(0);
     RAMULATOR_PARSE_PARAM(m_ap_act_la, bool, "ap_act_la").default_val(false);
     RAMULATOR_PARSE_PARAM(m_ap_stale, bool, "ap_stale").default_val(false);
+    RAMULATOR_PARSE_PARAM(m_hit_lag, int, "hit_lag").default_val(2);
+    RAMULATOR_PARSE_PARAM(m_ap_fire_stale, bool, "ap_fire_stale").default_val(false);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);
@@ -262,6 +284,7 @@ class GraniteSKUController : public ControllerBase {
     if (m_admit_lag < 0) throw std::runtime_error("GraniteSKU: admit_lag must be >= 0");
     if (m_pick_la < 0) throw std::runtime_error("GraniteSKU: pick_la must be >= 0");
     if (m_rank_ok_lag < 0) throw std::runtime_error("GraniteSKU: rank_ok_lag must be >= 0");
+    if (m_hit_lag < 0) throw std::runtime_error("GraniteSKU: hit_lag must be >= 0");
     const auto& spec = *m_device.m_spec;
     m_cmd_act = spec.get_command_id("ACT");
     m_cmd_prepb = spec.get_command_id("PREpb");
@@ -290,6 +313,7 @@ class GraniteSKUController : public ControllerBase {
     m_stale.assign(np, false);
     m_bank_ap.assign(m_num_banks, false);
     m_bank_ap_row.assign(m_num_banks, -1);
+    m_bank_act_clk.assign(m_num_banks, static_cast<Clk_t>(-(1 << 30)));
   }
 
   void setup(IFrontEnd* frontend, IMemorySystem* memory_system) override {
@@ -539,6 +563,11 @@ class GraniteSKUController : public ControllerBase {
     m_act_clks.push_back(slot);
     while (m_act_clks.size() > 4) m_act_clks.pop_front();
   }
+  // the record's hit flag: a bank's heads read as row hits from hit_lag slots after its ACT (the bank timers'
+  // registered row image, one cycle stale, registered into the head record; the request register is the decode's)
+  bool hit_visible(int bank) const {
+    return m_clk - m_bank_act_clk[bank] >= static_cast<Clk_t>(m_hit_lag) * m_slot_ticks;
+  }
 
   // round robin from the pair after `from`: the lowest set bit at or above it, else the lowest
   int rr_pick(const std::vector<bool>& set, int from) const {
@@ -562,7 +591,8 @@ class GraniteSKUController : public ControllerBase {
       if (!h.vld) continue;
       const bool d = dir_of(p);
       if (h.is_col) {
-        if (decode_timer(h.cmd, h.it->addr_vec, m_pick_la)) { req_nxt[p] = true; cls_nxt[p] = CL_COL; }
+        // a hit the record does not show yet is no request at all (the ACT's hinted column fires without one)
+        if (hit_visible(bank_of(p)) && decode_timer(h.cmd, h.it->addr_vec, m_pick_la)) { req_nxt[p] = true; cls_nxt[p] = CL_COL; }
       } else if (h.cmd == m_cmd_prepb) {
         // the PRE courtesy: the other direction's head hitting the open row holds the close,
         // unless this direction owns the bus and its batch is not done
@@ -783,6 +813,7 @@ class GraniteSKUController : public ControllerBase {
       if (L.cls == CL_ACT) {
         note_act(m_clk);
         m_bank_ap[bank_of(L.pair)] = false;
+        m_bank_act_clk[bank_of(L.pair)] = m_clk;
         if (m_t_rcd <= m_pick_la && !(m_pick_la > 0 && m_t_rcd <= m_la_short)) lane_hint = Win{true, L.pair, CL_COL};
       } else if (m_t_rp <= m_pick_la && !(m_pick_la > 0 && m_t_rp <= m_la_short)) {
         lane_hint = Win{true, L.pair, CL_ACT};
@@ -825,7 +856,7 @@ class GraniteSKUController : public ControllerBase {
     if (hold_next) { if (stale_if(W.pair, W.cls)) stale_nxt[W.pair] = true; }
     else if (spec.vld) { if (stale_if(W.pair, spec.cls)) stale_nxt[W.pair] = true; }
     else if (pick_vld && stale_if(pick_pair, pick_cls)) stale_nxt[pick_pair] = true;
-    if (fired_col && w_bempty) stale_nxt[fired_pair] = true;
+    if (fired_col && (w_bempty || (m_ap_fire_stale && fired_ap))) stale_nxt[fired_pair] = true;
     Win lane_nxt{};
     if (l_hold) {
       lane_nxt = L;
@@ -881,7 +912,7 @@ class GraniteSKUController : public ControllerBase {
       } else {
         s_main_row++;
         s_rows[fired_dir]++;
-        if (W.cls == CL_ACT) { note_act(m_clk); m_bank_ap[fired_bank] = false; }
+        if (W.cls == CL_ACT) { note_act(m_clk); m_bank_ap[fired_bank] = false; m_bank_act_clk[fired_bank] = m_clk; }
       }
       if (dbg()) std::cout << "[sku]   fire p" << W.pair << " cmd " << fired_cmd << (fired_ap ? " AP" : "") << std::endl;
       issue(h.it, *h.buf);

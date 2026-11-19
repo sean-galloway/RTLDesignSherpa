@@ -67,6 +67,9 @@ registered rank ok): `pick_la`, `rank_ok_lag`, and the two RTL questions as
 knobs (`ap_act_la`, `ap_stale`); `admit_lag` is 3 (the request register is the
 pipeline's). `sku_la0/la1/la3`, `sku_rankok1`, `sku_apactla`, `sku_apstale`,
 `sku_lag4` are the one-term variants (model_mc021_pick_pipeline_2026-11-17.md).
+`hit_lag` (2) is the record's hit flag: a bank's heads read as row hits two
+slots after its ACT, so the column request shows at ACT + 3 where the hinted
+column fires at ACT + 2 (MC-021 step 4; `sku_hitlag1` reads the hit live).
 """
 from __future__ import annotations
 
@@ -407,6 +410,10 @@ class ModelConfig:
     rank_ok_lag: int = 0               # GraniteSKU: the ACT's rank ok seen this many slots late (1 = the N+1 global timers before BUG-004)
     ap_act_la: bool = False            # GraniteSKU: the lookahead reaches the ACT after an auto-precharge (the RTL question; measured: no)
     ap_stale: bool = False             # GraniteSKU: an auto-precharging column's pair is self-stale after its pick (the RTL question)
+    hit_lag: int = 2                   # GraniteSKU: slots after a bank's ACT before the decode sees its heads as row hits (the bank
+                                       #   timers' registered row image -> the record's hit flag -> the request register; MC-021 step 4)
+    ap_fire_stale: bool = False        # GraniteSKU: the pair of a column that fired with auto-precharge is masked the slot after its fire
+                                       #   (RTL question 3: its leftover column request otherwise wins the select; MC-021 step 4)
     dir_batch_max: int = 255           # GraniteSKU: DIR_BATCH_MAX (0 = no cap)
     dir_hold_idle: int = 8             # GraniteSKU: DIR_HOLD_IDLE (0 = off)
     dir_owns_rows: bool = True         # GraniteSKU: DIR_OWNS_ROWS
@@ -551,6 +558,8 @@ CONFIGS.update({c.name: c for c in [
     _sku("rankok1", "the N+1 global timers before memory-controllers BUG-004 (ACT -> ACT at t_rrd + 1)", rank_ok_lag=1),
     _sku("apactla", "the lookahead arms the ACT after an auto-precharge (RTL question 1)", ap_act_la=True),
     _sku("apstale", "an auto-precharging column's pair is stale after its pick (RTL question 2)", ap_stale=True),
+    _sku("hitlag1", "the decode reads the row hit live, the slot after the ACT (the step-3 model)", hit_lag=1),
+    _sku("apfirestale", "the fired auto-precharging column's pair is masked the slot after its fire (RTL question 3)", ap_fire_stale=True),
     _sku("lag4", "admission lag 4 MC cycles (the collapsed model's value: the request register counted in the admission)",
          admit_lag=4),
     _sku("batch64", "DIR_BATCH_MAX 64", dir_batch_max=64),
@@ -651,6 +660,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             close_on_drain=cfg.close_on_drain, alternate=cfg.alternate, page_close=cfg.page_close,
             peek_depth=cfg.peek_depth, req_bank_timing=cfg.req_bank_timing,
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
+            hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale,
             **_sku_debug_params(),
         )
     else:
