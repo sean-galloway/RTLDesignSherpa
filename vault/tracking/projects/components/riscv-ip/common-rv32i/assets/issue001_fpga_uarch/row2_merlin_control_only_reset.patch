@@ -1,0 +1,360 @@
+diff --git a/projects/components/riscv-ip/merlin-rv32i/dv/tests/test_merlin_pipe_regs.py b/projects/components/riscv-ip/merlin-rv32i/dv/tests/test_merlin_pipe_regs.py
+index 725977225..07f5b4d32 100644
+--- a/projects/components/riscv-ip/merlin-rv32i/dv/tests/test_merlin_pipe_regs.py
++++ b/projects/components/riscv-ip/merlin-rv32i/dv/tests/test_merlin_pipe_regs.py
+@@ -101,8 +101,9 @@ STAGE_FIELDS = {
+ }
+ 
+ # Bubble field checks per stage.  Every field named here must be zero after
+-# a flush.  Datapath fields not listed are also expected zero because the
+-# RTL flushes the whole struct to '0.
++# a flush or reset.  These are the ONLY fields the RTL clears: the payload is
++# a plain enable flop (riscv-ip common-rv32i ISSUE-001 row 2), so under a
++# flush every other field keeps what the register held.
+ BUBBLE_CHECKS = {
+     "if_id": ["valid"],
+     "id_ex": [
+@@ -191,10 +192,11 @@ async def _test_one_stage(dut, stage):
+     q = await drive_and_wait(pattern_b, stall=1, flush=1)
+     for f in BUBBLE_CHECKS[stage]:
+         assert q[f] == 0, f"{stage}: flush did not clear {f}: {q[f]}"
+-    # Every datapath field also flushes to zero.
+-    for f, width in STAGE_FIELDS[stage].items():
+-        if width > 1:
+-            assert q[f] == 0, f"{stage}: flush did not clear datapath {f}: {q[f]:#x}"
++    # The payload is not cleared: stalled, it still holds pattern_a.
++    for f in STAGE_FIELDS[stage]:
++        if f not in BUBBLE_CHECKS[stage]:
++            assert q[f] == pattern_a[f], (
++                f"{stage}: flush changed payload {f}: {q[f]:#x} != {pattern_a[f]:#x}")
+ 
+     # 4) Resume capture after flush is released.
+     q = await drive_and_wait(pattern_c)
+diff --git a/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_ex_mem.sv b/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_ex_mem.sv
+index 2c7f75e3a..b2b56de4b 100644
+--- a/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_ex_mem.sv
++++ b/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_ex_mem.sv
+@@ -20,8 +20,14 @@
+ //
+ // Notes:
+ //   - Flush wins over stall.
+-//   - The bubble record is the all-zero value of ex_mem_t; all strobes are
+-//     deasserted and halt_cause is HALT_NONE (zero).
++//   - Only the control fields reset and flush (valid, rd_wen, dmem_req,
++//     dmem_we, ls_misalign, halt_cause, csr_stub).
++//     The payload is a plain enable flop with no reset and no flush clear,
++//     so a bubble carries a stale payload; every consumer in merlin_core
++//     gates on valid (or on a control field that is cleared).  An async
++//     clear on the payload put a reset on ~680 flops and folded the
++//     synchronous flush into a LUT in front of each one (riscv-ip
++//     common-rv32i ISSUE-001 row 2).
+ //
+ // Related Modules:
+ //   - merlin_if_id, merlin_id_ex, merlin_mem_wb (siblings)
+@@ -45,13 +51,58 @@ module merlin_ex_mem (
+ 
+   import merlin_pkg::*;
+ 
++  // Payload: captured unless stalled; no reset, no flush clear.
++  ex_mem_t r_payload;
++
++  always_ff @(posedge clk) begin
++      if (!stall) r_payload <= d_i;
++  end
++
++  // Control: reset and flush to the bubble value (all zero).
++  logic [$bits(d_i.valid)-1:0] r_valid;
++  logic [$bits(d_i.rd_wen)-1:0] r_rd_wen;
++  logic [$bits(d_i.dmem_req)-1:0] r_dmem_req;
++  logic [$bits(d_i.dmem_we)-1:0] r_dmem_we;
++  logic [$bits(d_i.ls_misalign)-1:0] r_ls_misalign;
++  logic [$bits(d_i.halt_cause)-1:0] r_halt_cause;
++  logic [$bits(d_i.csr_stub)-1:0] r_csr_stub;
++
+   `ALWAYS_FF_RST(clk, rst_n,
+-                 if (`RST_ASSERTED(rst_n)) begin
+-            q_o <= '0;
++        if (`RST_ASSERTED(rst_n)) begin
++            r_valid       <= '0;
++            r_rd_wen      <= '0;
++            r_dmem_req    <= '0;
++            r_dmem_we     <= '0;
++            r_ls_misalign <= '0;
++            r_halt_cause  <= '0;
++            r_csr_stub    <= '0;
+         end else if (flush) begin
+-            q_o <= '0;
++            r_valid       <= '0;
++            r_rd_wen      <= '0;
++            r_dmem_req    <= '0;
++            r_dmem_we     <= '0;
++            r_ls_misalign <= '0;
++            r_halt_cause  <= '0;
++            r_csr_stub    <= '0;
+         end else if (!stall) begin
+-            q_o <= d_i;
++            r_valid       <= d_i.valid;
++            r_rd_wen      <= d_i.rd_wen;
++            r_dmem_req    <= d_i.dmem_req;
++            r_dmem_we     <= d_i.dmem_we;
++            r_ls_misalign <= d_i.ls_misalign;
++            r_halt_cause  <= d_i.halt_cause;
++            r_csr_stub    <= d_i.csr_stub;
+         end)
+ 
++  always_comb begin
++        q_o = r_payload;
++        q_o.valid       = r_valid;
++        q_o.rd_wen      = r_rd_wen;
++        q_o.dmem_req    = r_dmem_req;
++        q_o.dmem_we     = r_dmem_we;
++        q_o.ls_misalign = r_ls_misalign;
++        q_o.halt_cause  = r_halt_cause;
++        q_o.csr_stub    = r_csr_stub;
++  end
++
+ endmodule : merlin_ex_mem
+diff --git a/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_id_ex.sv b/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_id_ex.sv
+index 6c487e8f8..84a2ea3a6 100644
+--- a/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_id_ex.sv
++++ b/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_id_ex.sv
+@@ -20,8 +20,14 @@
+ //
+ // Notes:
+ //   - Flush wins over stall.
+-//   - The bubble record is the all-zero value of id_ex_t; all strobes are
+-//     deasserted and halt_cause is HALT_NONE (zero).
++//   - Only the control fields reset and flush (valid, rd_wen, dmem_req,
++//     dmem_we, branch, jump, jalr, halt_cause, csr_stub).
++//     The payload is a plain enable flop with no reset and no flush clear,
++//     so a bubble carries a stale payload; every consumer in merlin_core
++//     gates on valid (or on a control field that is cleared).  An async
++//     clear on the payload put a reset on ~680 flops and folded the
++//     synchronous flush into a LUT in front of each one (riscv-ip
++//     common-rv32i ISSUE-001 row 2).
+ //
+ // Related Modules:
+ //   - merlin_if_id, merlin_ex_mem, merlin_mem_wb (siblings)
+@@ -45,13 +51,68 @@ module merlin_id_ex (
+ 
+   import merlin_pkg::*;
+ 
++  // Payload: captured unless stalled; no reset, no flush clear.
++  id_ex_t r_payload;
++
++  always_ff @(posedge clk) begin
++      if (!stall) r_payload <= d_i;
++  end
++
++  // Control: reset and flush to the bubble value (all zero).
++  logic [$bits(d_i.valid)-1:0] r_valid;
++  logic [$bits(d_i.rd_wen)-1:0] r_rd_wen;
++  logic [$bits(d_i.dmem_req)-1:0] r_dmem_req;
++  logic [$bits(d_i.dmem_we)-1:0] r_dmem_we;
++  logic [$bits(d_i.branch)-1:0] r_branch;
++  logic [$bits(d_i.jump)-1:0] r_jump;
++  logic [$bits(d_i.jalr)-1:0] r_jalr;
++  logic [$bits(d_i.halt_cause)-1:0] r_halt_cause;
++  logic [$bits(d_i.csr_stub)-1:0] r_csr_stub;
++
+   `ALWAYS_FF_RST(clk, rst_n,
+-                 if (`RST_ASSERTED(rst_n)) begin
+-            q_o <= '0;
++        if (`RST_ASSERTED(rst_n)) begin
++            r_valid      <= '0;
++            r_rd_wen     <= '0;
++            r_dmem_req   <= '0;
++            r_dmem_we    <= '0;
++            r_branch     <= '0;
++            r_jump       <= '0;
++            r_jalr       <= '0;
++            r_halt_cause <= '0;
++            r_csr_stub   <= '0;
+         end else if (flush) begin
+-            q_o <= '0;
++            r_valid      <= '0;
++            r_rd_wen     <= '0;
++            r_dmem_req   <= '0;
++            r_dmem_we    <= '0;
++            r_branch     <= '0;
++            r_jump       <= '0;
++            r_jalr       <= '0;
++            r_halt_cause <= '0;
++            r_csr_stub   <= '0;
+         end else if (!stall) begin
+-            q_o <= d_i;
++            r_valid      <= d_i.valid;
++            r_rd_wen     <= d_i.rd_wen;
++            r_dmem_req   <= d_i.dmem_req;
++            r_dmem_we    <= d_i.dmem_we;
++            r_branch     <= d_i.branch;
++            r_jump       <= d_i.jump;
++            r_jalr       <= d_i.jalr;
++            r_halt_cause <= d_i.halt_cause;
++            r_csr_stub   <= d_i.csr_stub;
+         end)
+ 
++  always_comb begin
++        q_o = r_payload;
++        q_o.valid      = r_valid;
++        q_o.rd_wen     = r_rd_wen;
++        q_o.dmem_req   = r_dmem_req;
++        q_o.dmem_we    = r_dmem_we;
++        q_o.branch     = r_branch;
++        q_o.jump       = r_jump;
++        q_o.jalr       = r_jalr;
++        q_o.halt_cause = r_halt_cause;
++        q_o.csr_stub   = r_csr_stub;
++  end
++
+ endmodule : merlin_id_ex
+diff --git a/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_if_id.sv b/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_if_id.sv
+index a1b5e7108..7e70e42e4 100644
+--- a/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_if_id.sv
++++ b/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_if_id.sv
+@@ -19,8 +19,13 @@
+ //
+ // Notes:
+ //   - Flush wins over stall.
+-//   - The bubble record is the all-zero value of if_id_t; valid is 0 and
+-//     halt_cause is HALT_NONE (also zero).
++//   - Only the control fields reset and flush (valid).
++//     The payload is a plain enable flop with no reset and no flush clear,
++//     so a bubble carries a stale payload; every consumer in merlin_core
++//     gates on valid (or on a control field that is cleared).  An async
++//     clear on the payload put a reset on ~680 flops and folded the
++//     synchronous flush into a LUT in front of each one (riscv-ip
++//     common-rv32i ISSUE-001 row 2).
+ //
+ // Related Modules:
+ //   - merlin_id_ex, merlin_ex_mem, merlin_mem_wb (siblings)
+@@ -44,13 +49,28 @@ module merlin_if_id (
+ 
+   import merlin_pkg::*;
+ 
++  // Payload: captured unless stalled; no reset, no flush clear.
++  if_id_t r_payload;
++
++  always_ff @(posedge clk) begin
++      if (!stall) r_payload <= d_i;
++  end
++
++  // Control: reset and flush to the bubble value (all zero).
++  logic [$bits(d_i.valid)-1:0] r_valid;
++
+   `ALWAYS_FF_RST(clk, rst_n,
+-                 if (`RST_ASSERTED(rst_n)) begin
+-            q_o <= '0;
++        if (`RST_ASSERTED(rst_n)) begin
++            r_valid <= '0;
+         end else if (flush) begin
+-            q_o <= '0;
++            r_valid <= '0;
+         end else if (!stall) begin
+-            q_o <= d_i;
++            r_valid <= d_i.valid;
+         end)
+ 
++  always_comb begin
++        q_o = r_payload;
++        q_o.valid = r_valid;
++  end
++
+ endmodule : merlin_if_id
+diff --git a/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_mem_wb.sv b/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_mem_wb.sv
+index 7cc8dd919..02bc4ffaf 100644
+--- a/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_mem_wb.sv
++++ b/projects/components/riscv-ip/merlin-rv32i/rtl/fub/merlin_mem_wb.sv
+@@ -20,8 +20,14 @@
+ //
+ // Notes:
+ //   - Flush wins over stall.
+-//   - The bubble record is the all-zero value of mem_wb_t; all strobes are
+-//     deasserted and halt_cause is HALT_NONE (zero).
++//   - Only the control fields reset and flush (valid, rd_wen, halt_cause,
++//     csr_stub).
++//     The payload is a plain enable flop with no reset and no flush clear,
++//     so a bubble carries a stale payload; every consumer in merlin_core
++//     gates on valid (or on a control field that is cleared).  An async
++//     clear on the payload put a reset on ~680 flops and folded the
++//     synchronous flush into a LUT in front of each one (riscv-ip
++//     common-rv32i ISSUE-001 row 2).
+ //
+ // Related Modules:
+ //   - merlin_if_id, merlin_id_ex, merlin_ex_mem (siblings)
+@@ -45,13 +51,43 @@ module merlin_mem_wb (
+ 
+   import merlin_pkg::*;
+ 
++  // Payload: captured unless stalled; no reset, no flush clear.
++  mem_wb_t r_payload;
++
++  always_ff @(posedge clk) begin
++      if (!stall) r_payload <= d_i;
++  end
++
++  // Control: reset and flush to the bubble value (all zero).
++  logic [$bits(d_i.valid)-1:0] r_valid;
++  logic [$bits(d_i.rd_wen)-1:0] r_rd_wen;
++  logic [$bits(d_i.halt_cause)-1:0] r_halt_cause;
++  logic [$bits(d_i.csr_stub)-1:0] r_csr_stub;
++
+   `ALWAYS_FF_RST(clk, rst_n,
+-                 if (`RST_ASSERTED(rst_n)) begin
+-            q_o <= '0;
++        if (`RST_ASSERTED(rst_n)) begin
++            r_valid      <= '0;
++            r_rd_wen     <= '0;
++            r_halt_cause <= '0;
++            r_csr_stub   <= '0;
+         end else if (flush) begin
+-            q_o <= '0;
++            r_valid      <= '0;
++            r_rd_wen     <= '0;
++            r_halt_cause <= '0;
++            r_csr_stub   <= '0;
+         end else if (!stall) begin
+-            q_o <= d_i;
++            r_valid      <= d_i.valid;
++            r_rd_wen     <= d_i.rd_wen;
++            r_halt_cause <= d_i.halt_cause;
++            r_csr_stub   <= d_i.csr_stub;
+         end)
+ 
++  always_comb begin
++        q_o = r_payload;
++        q_o.valid      = r_valid;
++        q_o.rd_wen     = r_rd_wen;
++        q_o.halt_cause = r_halt_cause;
++        q_o.csr_stub   = r_csr_stub;
++  end
++
+ endmodule : merlin_mem_wb
+diff --git a/projects/components/riscv-ip/merlin-rv32i/rtl/top/merlin_core.sv b/projects/components/riscv-ip/merlin-rv32i/rtl/top/merlin_core.sv
+index 7987b0677..ea335c4ed 100644
+--- a/projects/components/riscv-ip/merlin-rv32i/rtl/top/merlin_core.sv
++++ b/projects/components/riscv-ip/merlin-rv32i/rtl/top/merlin_core.sv
+@@ -299,7 +299,10 @@ module merlin_core #(
+     logic idex_is_load;
+     logic [1:0] ex_fwd_a, ex_fwd_b;
+ 
+-    assign idex_is_load = id_ex_q.dmem_req & ~id_ex_q.dmem_we;
++    // Gated by valid: the pipeline registers keep a stale payload in a
++    // bubble, and a flushed IF/ID decodes its old instruction into ID/EX
++    // controls under valid = 0 (riscv-ip common-rv32i ISSUE-001 row 2).
++    assign idex_is_load = id_ex_q.dmem_req & ~id_ex_q.dmem_we & id_ex_q.valid;
+ 
+     // The hazard unit generates the forwarding selects for the instruction
+     // currently in EX, the load-use stall for the instruction entering EX,
+@@ -561,7 +564,10 @@ module merlin_core #(
+         endcase
+     end
+ 
+-    assign wb_rd_wdata = (mem_wb_q.csr_stub || (mem_wb_q.rd_addr == 5'd0)) ? 32'd0 :
++    // The x0 test reads wb_rd_addr, which reset forces to 0: the reset-time
++    // x0 initialization writes this value, and mem_wb_q.rd_addr is payload
++    // with no reset (riscv-ip common-rv32i ISSUE-001 row 2).
++    assign wb_rd_wdata = (mem_wb_q.csr_stub || (wb_rd_addr == 5'd0)) ? 32'd0 :
+                          (mem_wb_q.wb_sel == WB_LUI)  ? mem_wb_q.imm       :
+                          (mem_wb_q.wb_sel == WB_LOAD) ? wb_load_data       :
+                          (mem_wb_q.wb_sel == WB_LINK) ? (mem_wb_q.pc + PC_INCR) :

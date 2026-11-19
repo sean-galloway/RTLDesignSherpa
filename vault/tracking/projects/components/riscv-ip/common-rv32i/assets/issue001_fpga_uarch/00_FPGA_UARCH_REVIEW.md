@@ -161,6 +161,41 @@ Combining rows 1 and 2 gave 1,240 LUT with WNS -0.229 on this seed. The path
 moved into row 3's cone and is now 15 levels. Rows 1 and 2 remove logic; row 3
 is what limits merlin's clock after they land.
 
+**Checked 2026-11-19, on top of row 1 (committed 98eedce98).** The change is
+[row2_merlin_control_only_reset.patch](row2_merlin_control_only_reset.patch)
+(`git apply` from the repo root). It is functionally correct and is not
+committed, because it costs merlin its 100 MHz margin (below).
+
+- The first run failed 45 of 54 tests and 35 of 42 riscv-formal checks. One
+  payload read was unqualified: the core zeroes x0 during reset by writing the
+  WB data with the address forced to 0, and the zero-data select read
+  `mem_wb_q.rd_addr` (now payload, so stale) instead of the forced
+  `wb_rd_addr`. Fixed in the patch.
+- The load-use interlock `idex_is_load` was the one control consumer not
+  gated by `valid`. A flushed IF/ID keeps its old instruction, and ID decodes
+  it into ID/EX controls under `valid = 0`, so the interlock would stall one
+  spurious cycle. The patch gates it with `id_ex_q.valid`, so cycle behaviour
+  is unchanged.
+- `test_merlin_pipe_regs.py` asserted that a flush zeroes every datapath field.
+  It now asserts the new contract: the control fields clear and, under
+  stall + flush, the payload holds.
+- Gates with the fix: merlin suite 54/54 (`clean-all`, `run-all-full`),
+  riscv-formal 42/42. The formal run is the stronger check, because the
+  unreset payload starts unconstrained there, and it caught the x0 bug.
+
+Routed from the tree, rows 1 + 2:
+
+| merlin | LUT | FDCE | WNS |
+|---|---|---|---|
+| row 1 only (committed) | 1,378 | 811 | +0.227 |
+| rows 1 + 2 | 1,268 | 130 | -0.408 |
+
+The worst path is `u_id_ex/r_payload_reg[rs1_addr]` -> the forward select ->
+branch resolution -> the ID/EX control flops, 12 levels with 73% route. That
+is row 3's cone. Both builds of rows 1 + 2 (-0.229 on 11-18, -0.408 here)
+miss timing, and both builds of row 1 alone meet it. So row 2 waits for
+row 3: land row 3, then apply row 2 and build again.
+
 ### 3. merlin's critical path: forwarding into branch resolution
 
 In every merlin build the worst path has the same shape:
