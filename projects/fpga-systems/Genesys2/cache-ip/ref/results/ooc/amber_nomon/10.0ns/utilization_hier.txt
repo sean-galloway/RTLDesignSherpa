@@ -1,0 +1,55 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Thu Nov 19 20:34:17 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/cache-ip/ref/results/ooc/amber_nomon/10.0ns/utilization_hier.txt
+| Design       : amber_top
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++--------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|      Instance      |               Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++--------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| amber_top          |                              (top) |       2682 |       2042 |     640 |    0 | 1706 |     16 |      0 |          0 |
+|   (amber_top)      |                              (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   u_coh            |                        l1_coh_core |       1767 |       1171 |     596 |    0 |  603 |     16 |      0 |          0 |
+|     u_control      |                         l1_control |        744 |        656 |      88 |    0 |  400 |      0 |      0 |          0 |
+|       (u_control)  |                         l1_control |        637 |        549 |      88 |    0 |  336 |      0 |      0 |          0 |
+|       u_pf         |             l1_pending_fill_bypass |         85 |         85 |       0 |    0 |   37 |      0 |      0 |          0 |
+|     u_data         |                      l1_data_array |        225 |        225 |       0 |    0 |    0 |     16 |      0 |          0 |
+|     u_fill         |                            l1_fill |         60 |         16 |      44 |    0 |   41 |      0 |      0 |          0 |
+|       u_stage      |     gaxi_fifo_sync__parameterized0 |         57 |         13 |      44 |    0 |    8 |      0 |      0 |          0 |
+|     u_repl         |                            l1_repl |         60 |         44 |      16 |    0 |  128 |      0 |      0 |          0 |
+|     u_tag          |                       l1_tag_array |        670 |        222 |     448 |    0 |    0 |      0 |      0 |          0 |
+|   u_cpu            |                       l1_cpu_plane |         51 |          7 |      44 |    0 |    6 |      0 |      0 |          0 |
+|     u_frontend     |                    l1_cpu_frontend |         51 |          7 |      44 |    0 |    6 |      0 |      0 |          0 |
+|       u_rsp_stage  |                     gaxi_fifo_sync |         51 |          7 |      44 |    0 |    6 |      0 |      0 |          0 |
+|   u_fab            |                      l1_axi4_plane |        837 |        837 |       0 |    0 | 1069 |      0 |      0 |          0 |
+|     u_rd_monlite   |             axi4_master_rd_monlite |        242 |        242 |       0 |    0 |  326 |      0 |      0 |          0 |
+|       u_core       |                     axi4_master_rd |        242 |        242 |       0 |    0 |  326 |      0 |      0 |          0 |
+|         ar_channel | gaxi_skid_buffer__parameterized2_3 |         36 |         36 |       0 |    0 |   60 |      0 |      0 |          0 |
+|         r_channel  |   gaxi_skid_buffer__parameterized3 |        206 |        206 |       0 |    0 |  266 |      0 |      0 |          0 |
+|     u_snoop        |                      l1_snoop_resp |        325 |        325 |       0 |    0 |  390 |      0 |      0 |          0 |
+|       u_transport  |                axi4ace_snoop_slave |        325 |        325 |       0 |    0 |  354 |      0 |      0 |          0 |
+|         ac_channel |                   gaxi_skid_buffer |         93 |         93 |       0 |    0 |   66 |      0 |      0 |          0 |
+|         cd_channel |   gaxi_skid_buffer__parameterized1 |        208 |        208 |       0 |    0 |  266 |      0 |      0 |          0 |
+|     u_wr_monlite   |             axi4_master_wr_monlite |        249 |        249 |       0 |    0 |  330 |      0 |      0 |          0 |
+|       u_core       |                     axi4_master_wr |        249 |        249 |       0 |    0 |  330 |      0 |      0 |          0 |
+|         aw_channel |   gaxi_skid_buffer__parameterized2 |         35 |         35 |       0 |    0 |   58 |      0 |      0 |          0 |
+|         w_channel  |   gaxi_skid_buffer__parameterized4 |        207 |        207 |       0 |    0 |  266 |      0 |      0 |          0 |
++--------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

@@ -62,6 +62,10 @@ OOC = {
     "jet-prime s6": "jetp6",
 }
 OOC_DIR = f"{CACHE_IP}/results/ooc"
+# The same cache with USE_MONITOR=0 (MonBus observers and their arbiter tied
+# off): HPDcache and CVA6 carry no equivalent, so the area row is shown both
+# ways for the three that do. Missing dir shows as pending.
+OOC_NOMON = {"amber": "amber_nomon", "jet": "jet_nomon", "jet-prime s6": "jetp6_nomon"}
 COLS = list(RESULTS)
 SHOW_DEPTHS = (1, 4, 16)
 SHOW_CONFIGS = ("r4k_we0", "r4k_we255", "smoke4k_we64", "r16k_we64",
@@ -148,6 +152,16 @@ def main():
             out.append(f"| {n} | pending | | | | | | |")
         else:
             out.append(f"| {n} | {s['lut']} | {s['ff']} | {s['ramb36']} | {s['ramb18']} | {s['lutram']} | {float(s['wns_ns']):+.3f} | {s['worst_levels']} |")
+    out.append("")
+    out.append("### The same, monitors off (USE_MONITOR=0; HPDcache and CVA6 have none to turn off)\n")
+    out.append("| cache | LUT | FF | RAMB36 | RAMB18 | LUTRAM | WNS at 10 ns | worst path levels | LUT with monitors |")
+    out.append("|---|---|---|---|---|---|---|---|---|")
+    for n, d in OOC_NOMON.items():
+        s, m = ooc_summary(d), ooc_summary(OOC[n])
+        if not s:
+            out.append(f"| {n} | pending | | | | | | | {m['lut'] if m else 'pending'} |")
+        else:
+            out.append(f"| {n} | {s['lut']} | {s['ff']} | {s['ramb36']} | {s['ramb18']} | {s['lutram']} | {float(s['wns_ns']):+.3f} | {s['worst_levels']} | {m['lut'] if m else 'pending'} |")
     text = "\n".join(out) + "\n"
     if args.out:
         open(args.out, "w").write(text)

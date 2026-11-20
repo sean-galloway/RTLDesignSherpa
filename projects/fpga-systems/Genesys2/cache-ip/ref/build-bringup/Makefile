@@ -71,7 +71,7 @@ include $(RDS_ROOT)/make/fpga_flow.mk
 LINT_GENERICS += -GREF_CACHE_SEL=$(REF_CACHE_SEL)
 
 # ---- cache-only area / Fmax (TASK-003 comparison) ----------------------------
-# make ooc CACHE=hpd|cva6|jet|jetp|jetp5|jetp6|amber [PERIOD=10.0]: out-of-context synth+route
+# make ooc CACHE=hpd|cva6|jet|jetp|jetp5|jetp6|amber|{jet,jetp6,amber}_nomon [PERIOD=10.0]: out-of-context synth+route
 # of one cache module via fpga/tcl/ooc_cache.tcl; reports under
 # ../results/ooc/<cache>/<period>ns/ (summary.txt has lut/ff/ramb/wns; outside
 # fpga/, which `make clean` wipes -- the first run lost three rows that way).
@@ -92,9 +92,21 @@ ooc_fl_amber   := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_amber_top.f
 ooc_fl_jetp    := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jet_prime_top.f
 ooc_fl_jetp5   := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jet_prime_top.f
 ooc_fl_jetp6   := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jet_prime_top.f
+# <cache>_nomon: the same module with USE_MONITOR=0 (the MonBus observers and
+# their arbiter tied off), so the area row can be read with and without the
+# instrumentation HPDcache and CVA6 do not carry. Own results dir per row.
+ooc_top_jet_nomon   := jet_top
+ooc_top_jetp6_nomon := jet_prime_top
+ooc_top_amber_nomon := amber_top
+ooc_fl_jet_nomon    := $(ooc_fl_jet)
+ooc_fl_jetp6_nomon  := $(ooc_fl_jetp6)
+ooc_fl_amber_nomon  := $(ooc_fl_amber)
+ooc_gen_jet_nomon   := USE_MONITOR=1'b0
+ooc_gen_jetp6_nomon := USE_MONITOR=1'b0
+ooc_gen_amber_nomon := USE_MONITOR=1'b0
 .PHONY: ooc
 ooc:
 	mkdir -p $(OOC_OUT)
 	cd $(OOC_OUT) && REPO_ROOT=$(RDS_ROOT) OOC_TOP=$(ooc_top_$(CACHE)) OOC_FILELIST=$(ooc_fl_$(CACHE)) \
-	    OOC_OUT=$(OOC_OUT) OOC_PERIOD_NS=$(PERIOD) OOC_GENERICS="$(OOC_GENERICS)" \
+	    OOC_OUT=$(OOC_OUT) OOC_PERIOD_NS=$(PERIOD) OOC_GENERICS="$(or $(OOC_GENERICS),$(ooc_gen_$(CACHE)))" \
 	    $(VIVADO) -mode batch -log ooc.log -nojournal -source $(TCL_DIR)/ooc_cache.tcl

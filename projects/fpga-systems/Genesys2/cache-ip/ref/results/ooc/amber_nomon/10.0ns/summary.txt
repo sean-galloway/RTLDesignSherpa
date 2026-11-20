@@ -1,0 +1,12 @@
+top amber_top
+part xc7k325tffg900-2
+period_ns 10.0
+wns_ns 0.859
+worst_levels 22
+worst_start u_coh/u_control/state_q_reg[3]/C
+worst_end u_fab/u_snoop/FSM_onehot_r_state_reg[0]/D
+lut 2370
+ff 1706
+ramb36 16
+ramb18 0
+lutram 980

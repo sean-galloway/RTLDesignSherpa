@@ -1,0 +1,60 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Thu Nov 19 20:32:51 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/cache-ip/ref/results/ooc/jet_nomon/10.0ns/utilization_hier.txt
+| Design       : jet_top
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-------------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|         Instance        |               Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++-------------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| jet_top                 |                              (top) |       4176 |       3274 |     902 |    0 | 2886 |     16 |      0 |          0 |
+|   (jet_top)             |                              (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   u_coh                 |                       jet_coh_core |       3010 |       2268 |     742 |    0 | 1745 |     16 |      0 |          0 |
+|     (u_coh)             |                       jet_coh_core |          1 |          1 |       0 |    0 |   82 |      0 |      0 |          0 |
+|     u_control           |                        jet_control |       1396 |       1250 |     146 |    0 |  802 |      0 |      0 |          0 |
+|     u_data              |                      l1_data_array |        128 |        128 |       0 |    0 |    0 |     16 |      0 |          0 |
+|     u_fill              |                            l1_fill |         72 |         28 |      44 |    0 |   41 |      0 |      0 |          0 |
+|       u_stage           |     gaxi_fifo_sync__parameterized1 |         62 |         18 |      44 |    0 |    8 |      0 |      0 |          0 |
+|     u_mshr              |                           jet_mshr |        541 |        541 |       0 |    0 |  592 |      0 |      0 |          0 |
+|     u_repl              |                            l1_repl |        101 |         85 |      16 |    0 |  128 |      0 |      0 |          0 |
+|     u_tag               |                       l1_tag_array |        608 |        160 |     448 |    0 |    0 |      0 |      0 |          0 |
+|     u_wb                |                      jet_wb_buffer |        157 |         69 |      88 |    0 |   66 |      0 |      0 |          0 |
+|   u_cpu                 |                      jet_cpu_plane |        292 |        132 |     160 |    0 |   34 |      0 |      0 |          0 |
+|     u_frontend          |                    l1_cpu_frontend |         50 |          6 |      44 |    0 |    6 |      0 |      0 |          0 |
+|       u_rsp_stage       |     gaxi_fifo_sync__parameterized0 |         50 |          6 |      44 |    0 |    6 |      0 |      0 |          0 |
+|     u_req_skid          |                     gaxi_fifo_sync |        135 |         63 |      72 |    0 |    6 |      0 |      0 |          0 |
+|       (u_req_skid)      |                     gaxi_fifo_sync |         72 |          0 |      72 |    0 |    0 |      0 |      0 |          0 |
+|       fifo_control_inst |                       fifo_control |         58 |         58 |       0 |    0 |    2 |      0 |      0 |          0 |
+|     u_rsp               |                        jet_rsp_seq |        107 |         63 |      44 |    0 |   22 |      0 |      0 |          0 |
+|   u_fab                 |                      l1_axi4_plane |        836 |        836 |       0 |    0 | 1071 |      0 |      0 |          0 |
+|     u_wr_monlite        |             axi4_master_wr_monlite |        249 |        249 |       0 |    0 |  330 |      0 |      0 |          0 |
+|       u_core            |                     axi4_master_wr |        249 |        249 |       0 |    0 |  330 |      0 |      0 |          0 |
+|         aw_channel      |   gaxi_skid_buffer__parameterized2 |         35 |         35 |       0 |    0 |   58 |      0 |      0 |          0 |
+|         w_channel       |   gaxi_skid_buffer__parameterized4 |        207 |        207 |       0 |    0 |  266 |      0 |      0 |          0 |
+|     u_rd_monlite        |             axi4_master_rd_monlite |        242 |        242 |       0 |    0 |  326 |      0 |      0 |          0 |
+|       u_core            |                     axi4_master_rd |        242 |        242 |       0 |    0 |  326 |      0 |      0 |          0 |
+|         ar_channel      | gaxi_skid_buffer__parameterized2_3 |         35 |         35 |       0 |    0 |   60 |      0 |      0 |          0 |
+|         r_channel       |   gaxi_skid_buffer__parameterized3 |        207 |        207 |       0 |    0 |  266 |      0 |      0 |          0 |
+|     u_snoop             |                      l1_snoop_resp |        323 |        323 |       0 |    0 |  390 |      0 |      0 |          0 |
+|       u_transport       |                axi4ace_snoop_slave |        322 |        322 |       0 |    0 |  354 |      0 |      0 |          0 |
+|         ac_channel      |                   gaxi_skid_buffer |         88 |         88 |       0 |    0 |   66 |      0 |      0 |          0 |
+|         cd_channel      |   gaxi_skid_buffer__parameterized1 |        208 |        208 |       0 |    0 |  266 |      0 |      0 |          0 |
++-------------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+
