@@ -94,7 +94,10 @@ way and are the next items (below).
   pre-change number and the model's (554 against 545, in), the fast mode is a
   read side nearly doubled on one preset and not on `defaults`. A
   direction-register effect the model does not carry for open page; MC-021
-  item 3, with the close_page mixed regression beside it.
+  item 3, with the close_page mixed regression beside it. (The close_page
+  mixed cell landed the same evening as step 7, `model_mc021_admission_gates_2026-11-19.md`:
+  two self-consistent attractors of the direction register, picked by one slot
+  in the first turns; the open_page cell's two modes are the same shape.)
 
 ## Record
 

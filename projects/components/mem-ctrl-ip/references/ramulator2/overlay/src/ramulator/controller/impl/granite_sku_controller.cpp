@@ -32,10 +32,14 @@ namespace Ramulator {
 //     admission only); a bank queue may not grow past bank_cap_mixed while the
 //     other direction holds entries (BANK_CAP_MIXED, checked at every push as
 //     the store does: the beats behind a refused one wait in order); one
-//     entry = one BL4 column = one AXI beat. An accepted beat is a head record
-//     admit_lag MC cycles later (the push -> bank FIFO -> head record path, 3;
-//     ISSUE-004 measured 4 to the REQUEST, whose register is the pipeline's
-//     below). The head of each queue is the pick's candidate.
+//     entry = one BL4 column = one AXI beat. The admission is three registers
+//     (MC-021 step 7): a pop frees its POOL slot to the host pool_gate_lag (2)
+//     slots later and its bank-cap room cap_gate_lag (1) slot later, and an
+//     accepted beat lands in its bank queue admit_lag (1) slot after (the pool
+//     path is the 3 ISSUE-004 measured, the cap path 2); a write beat is a head
+//     record wr_fill_lag (2) slots after it lands (its data fill and the
+//     fill-done register; a read beat at once), and the request register is
+//     the pipeline's below. The head of each queue is the pick's candidate.
 //     peek_depth > 1 lets a bank whose head is a row conflict offer the oldest
 //     row hit among its first peek_depth entries instead (MC-016's model of a
 //     real lookahead; 1 = the shipped strict FIFO).
@@ -151,7 +155,13 @@ class GraniteSKUController : public ControllerBase {
   int m_slot_ticks = 2;
   int m_bank_cap_mixed = 6;
   bool m_cap_per_beat = true;   // the cap on every beat (the store's push check w_rd_cap_ok / w_wr_cap_ok), not once per AXI burst
-  int m_admit_lag = 3;          // MC cycles from a beat's acceptance to its head record (push -> FIFO -> record; the request register is the pipe's)
+  int m_admit_lag = 1;          // MC cycles from a beat's ACCEPTANCE to its landing in its bank queue (the hold -> FIFO push). The gates the host
+                                //   waits on are separate (MC-021 step 7, 2026-11-19): a pool slot a pop freed is offered pool_gate_lag slots after
+                                //   the pop, bank-cap room cap_gate_lag slots after; measured on the proxy, pool path fire -> landing 3 (2 + 1), cap
+                                //   path 2 (1 + 1), and the one slot between them is what let the model's reads take the bus back from a write
+                                //   turn whose first ACT came one slot late (close_page mixed_bl8: the model held to the 255 cap, the RTL turns at 16)
+  int m_pool_gate_lag = 2;      // slots after a pop before the freed pool slot is offered to the host (the pool valid clears two registers later)
+  int m_cap_gate_lag = 1;       // slots after a pop before the bank queue count the cap reads shows it
   bool m_req_bank_timing = true;  // a request needs the BANK's timers only; rank-level terms gate the fire (the RTL decode)
   int m_pick_la = 2;            // LA: the decode's lookahead and the hint's reach, in slots (0 = every hop pays the pipe)
   int m_rank_ok_lag = 0;        // the ACT's rank-level ok seen this many slots late (1 = the N+1 global timers before memory-controllers BUG-004, 2026-11-18)
@@ -264,7 +274,9 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_slot_ticks, int, "slot_ticks").default_val(2);
     RAMULATOR_PARSE_PARAM(m_bank_cap_mixed, int, "bank_cap_mixed").default_val(6);
     RAMULATOR_PARSE_PARAM(m_cap_per_beat, bool, "cap_per_beat").default_val(true);
-    RAMULATOR_PARSE_PARAM(m_admit_lag, int, "admit_lag").default_val(3);
+    RAMULATOR_PARSE_PARAM(m_admit_lag, int, "admit_lag").default_val(1);
+    RAMULATOR_PARSE_PARAM(m_pool_gate_lag, int, "pool_gate_lag").default_val(2);
+    RAMULATOR_PARSE_PARAM(m_cap_gate_lag, int, "cap_gate_lag").default_val(1);
     RAMULATOR_PARSE_PARAM(m_req_bank_timing, bool, "req_bank_timing").default_val(true);
     RAMULATOR_PARSE_PARAM(m_pick_la, int, "pick_la").default_val(2);
     RAMULATOR_PARSE_PARAM(m_rank_ok_lag, int, "rank_ok_lag").default_val(0);
@@ -289,6 +301,7 @@ class GraniteSKUController : public ControllerBase {
     if (m_peek_depth < 1) throw std::runtime_error("GraniteSKU: peek_depth must be >= 1");
     if (m_dir_batch_max < 0 || m_dir_batch_max > 255) throw std::runtime_error("GraniteSKU: dir_batch_max is 0..255");
     if (m_admit_lag < 0) throw std::runtime_error("GraniteSKU: admit_lag must be >= 0");
+    if (m_pool_gate_lag < 0 || m_cap_gate_lag < 0) throw std::runtime_error("GraniteSKU: pool_gate_lag / cap_gate_lag must be >= 0");
     if (m_pick_la < 0) throw std::runtime_error("GraniteSKU: pick_la must be >= 0");
     if (m_rank_ok_lag < 0) throw std::runtime_error("GraniteSKU: rank_ok_lag must be >= 0");
     if (m_hit_lag < 0) throw std::runtime_error("GraniteSKU: hit_lag must be >= 0");
@@ -369,13 +382,29 @@ class GraniteSKUController : public ControllerBase {
   // board does neither (the controller this inherits from does both, and a wrapped walk trips them),
   // so this is the base's send without those two paths.
   Addr_t m_last_admitted[2] = {-1, -1};
-  // Accepted beats on their way to being head records (the store's push -> bank FIFO -> head record
-  // path, admit_lag MC cycles): they hold their pool slot and count for the bank cap from the
+  // Accepted beats on their way into their bank queue (the hold -> FIFO push, admit_lag MC cycles;
+  // the gates the host waited on are the pop log's, see pops_hidden): they hold their pool slot and count for the bank cap from the
   // acceptance, and the decode sees them admit_lag slots later (memory-controllers ISSUE-004: with no
   // lag the holder's next burst on a shared bank is always present at its auto-precharge and wins the
   // bank's ACT; the RTL's arrives cycles after the pop and the waiting direction's ACT rides instead).
   struct Staged { Clk_t ready; Request req; };
   std::deque<Staged> m_staged[2];
+  // pops the host has not seen yet: (clk of the pop, bank). A pop at clk t is invisible to the pool gate until
+  // t + pool_gate_lag slots and to the bank cap until t + cap_gate_lag slots (the RTL's registered counts).
+  std::deque<std::pair<Clk_t, int>> m_pops[2];
+  int pops_hidden(int d, int lag_slots, int bank = -1) const {
+    int n = 0;
+    for (const auto& pc : m_pops[d]) {
+      if (m_clk < pc.first + static_cast<Clk_t>(lag_slots) * m_slot_ticks && (bank < 0 || pc.second == bank)) n++;
+    }
+    return n;
+  }
+  void prune_pops() {
+    const Clk_t keep = static_cast<Clk_t>(std::max(m_pool_gate_lag, m_cap_gate_lag)) * m_slot_ticks;
+    for (int d = 0; d < 2; d++) {
+      while (!m_pops[d].empty() && m_clk >= m_pops[d].front().first + keep) m_pops[d].pop_front();
+    }
+  }
 
   bool send(Request& req) override {
     if (req.type_id != Request::Type::Read && req.type_id != Request::Type::Write) {
@@ -400,12 +429,13 @@ class GraniteSKUController : public ControllerBase {
       for (auto& st : m_staged[d]) {
         if (m_device.get_flat_bank_id(st.req.addr_vec) == bank) n++;
       }
+      n += pops_hidden(d, m_cap_gate_lag, bank);
       if (n >= m_bank_cap_mixed) {
         s_cap_refused++;
         return false;
       }
     }
-    if (own.size() + m_staged[d].size() >= own.max_size) {
+    if (own.size() + m_staged[d].size() + static_cast<size_t>(pops_hidden(d, m_pool_gate_lag)) >= own.max_size) {
       return false;
     }
     req.arrive = m_clk;
@@ -434,6 +464,7 @@ class GraniteSKUController : public ControllerBase {
     }
     m_lane_pending = false;
     s_slots++;
+    prune_pops();
     for (int d = 0; d < 2; d++) {
       ReqBuffer& buf = d ? m_write_buffer : m_read_buffer;
       while (!m_staged[d].empty() && m_staged[d].front().ready <= m_clk) {
@@ -1000,6 +1031,7 @@ class GraniteSKUController : public ControllerBase {
         const size_t wait = static_cast<size_t>(m_clk - it->arrive);
         if (wait > s_max_write_wait) s_max_write_wait = wait;
       }
+      m_pops[it->type_id == Request::Type::Write ? 1 : 0].push_back({m_clk, m_device.get_flat_bank_id(it->addr_vec)});
       retire_request(it, buffer);
     }
   }

@@ -213,7 +213,9 @@ def test_sku_config_is_the_shipped_point():
     # ISSUE-004: the decode's request is bank-timed and the rank-level terms hold the fire; the mixed cap is checked
     # at every push; an accepted beat is a head record three MC cycles later (push -> bank FIFO -> head record; the
     # fourth cycle ISSUE-004 measured to the request is the pick pipeline's request register, MC-021)
-    assert c.req_bank_timing and c.cap_per_beat and c.admit_lag == 3
+    assert c.req_bank_timing and c.cap_per_beat
+    # MC-021 step 7: the admission's three terms -- pool gate 2 + landing 1 (= the 3 ISSUE-004 measured), cap gate 1 + landing 1
+    assert (c.admit_lag, c.pool_gate_lag, c.cap_gate_lag) == (1, 2, 1)
     # MC-021: the pick pipeline as measured -- lookahead / hint reach 2 slots, the ACT's rank ok registered one slot,
     # the two RTL questions (arming the same-row ACT after an auto-precharge, masking the closed column's pair) off
     assert (c.pick_la, c.rank_ok_lag, c.ap_act_la, c.ap_stale) == (2, 0, False, False)
@@ -229,6 +231,9 @@ def test_sku_config_is_the_shipped_point():
         diff = [f.name for f in fields(v) if f.name not in ("name", "note") and getattr(v, f.name) != getattr(c, f.name)]
         if name in ("sku_peek16_pool32",):
             assert sorted(diff) == ["peek_depth", "read_buffer", "write_buffer"], (name, diff)
+        elif name == "sku_admit3":
+            # one term, the admission, in its three fields: the single three-slot stage of the model before step 7
+            assert sorted(diff) == ["admit_lag", "cap_gate_lag", "pool_gate_lag"], (name, diff)
         elif name.startswith("sku_pool"):
             assert sorted(diff) == ["read_buffer", "write_buffer"], (name, diff)
         elif name == "sku_ideal16":
@@ -283,6 +288,31 @@ def test_wr_fill_lag_is_the_write_records_fill_gate():
     assert cm.CONFIGS["granite_sku100_close"].wr_fill_lag == 2
     assert 0.78 < bw[2][0] / bw[0][0] < 0.95, bw     # the write side pays (0.87 at the board's counts)
     assert 0.98 < bw[2][1] / bw[0][1] < 1.02, bw     # the read record has no fill gate
+
+
+def test_admission_gates_decide_the_mixed_close_page_turns():
+    """MC-021 step 7: under close page with four writers and four readers on two banks, the direction register turns
+    every 16 columns on the RTL (the holder's other bank drains behind the in-order hold's capped request, the
+    waiting direction's lane-opened row then costs the holder its idle hold) and the two directions share the
+    window almost equally (the proxy 56.3 / 57.0, the board 56 / 59). The model held to the 255-column cap
+    instead -- its write turn's first ACT came one slot late, the reads took the bus back -- because its one
+    three-slot admission stage was the pool path's; the bank-cap path is one slot shorter (a pop shows in the
+    count the cap reads one slot later, the beat lands one slot after acceptance). With the gates the model's
+    windows are the proxy's within a percent; with the old single stage the read window is 0.55 of the write one."""
+    import tempfile
+    from dataclasses import replace
+    sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=512)
+    res = {}
+    for name, kw in (("gates", {}), ("admit3", dict(admit_lag=3, pool_gate_lag=0, cap_gate_lag=0))):
+        cfg = replace(cm.CONFIGS["granite_sku100_close"], name=name, **kw)
+        with tempfile.TemporaryDirectory() as t:
+            r = cm.run_scenario(cfg, sc, t)
+        res[name] = (int(r["wr_cycles"]), int(r["rd_cycles"]))
+    wr, rd = res["gates"]
+    assert 0.95 < rd / wr < 1.05, res                  # both directions span the whole window (the proxy 232852 / 229896)
+    assert abs(wr - 232852) / 232852 < 0.05, res        # the proxy's write window at these counts
+    wr3, rd3 = res["admit3"]
+    assert rd3 / wr3 < 0.7, res                         # the single-stage model: the reads finish first
 
 
 def test_board_presets_are_what_the_host_programs(pumice_char):

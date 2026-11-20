@@ -613,6 +613,23 @@ trusting one lag for both (`char_results/model_mc021_wr_fill_lag_2026-11-19.md`)
 A per-pair script indexed over half the pairs counted half the collisions and
 read as two mechanisms; check a per-pair histogram against the fire count.
 
+**A one-slot difference can pick an attractor (MC-021 step 7, 2026-11-19).**
+The direction register on the close-page mixed cell has two self-consistent
+steady states under one rule set: the waiting direction holding one bank at
+the cap and the other empty (turns of 16 columns, both directions sharing the
+window) or holding both banks (turns at the 255 cap, one direction starved).
+The RTL and the model, same rules, same cap, same in-order stream, sat in
+different ones; the dumps showed the decision made once, in the first turns
+after GO, by whether a write turn's first ACT fired with the idle counter at 7
+or at 8. The slot was the admission path: the model's single three-slot stage
+was the pool path's, and the bank-cap path shares two of its three registers.
+Two modes in a cell are therefore not noise to average and not two
+mechanisms to name -- they are one race; find the counter that decides it and
+measure it cycle for cycle on both sides. And **measure a lag per path, not
+per name**: one number for "the admission" was right on the path it was
+measured on and one slot wrong on the other
+(`char_results/model_mc021_admission_gates_2026-11-19.md`).
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

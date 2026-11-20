@@ -64,9 +64,14 @@ MC-021 gave the GraniteSKU controller mc_bank_pick's pipeline (the request
 register, the winner register with hold / speculation / fresh pick, the
 self-stale mask, the next-op hint, the lane as a second winner register, the
 registered rank ok): `pick_la`, `rank_ok_lag`, and the two RTL questions as
-knobs (`ap_act_la`, `ap_stale`); `admit_lag` is 3 (the request register is the
-pipeline's). `sku_la0/la1/la3`, `sku_rankok1`, `sku_apactla`, `sku_apstale`,
-`sku_lag4` are the one-term variants (model_mc021_pick_pipeline_2026-11-17.md).
+knobs (`ap_act_la`, `ap_stale`). `sku_la0/la1/la3`, `sku_rankok1`, `sku_apactla`,
+`sku_apstale` are the one-term variants (model_mc021_pick_pipeline_2026-11-17.md).
+The admission is three terms since MC-021 step 7: a pop frees its pool slot to
+the host `pool_gate_lag` (2) slots later and its bank-cap room `cap_gate_lag`
+(1) slot later, and an accepted beat lands `admit_lag` (1) slot after; the pool
+path is the 3 ISSUE-004 measured, the cap path 2, and that one slot is where the
+close-page mixed turns fall (`sku_admit3` = one three-slot stage on both paths,
+the model before).
 `hit_lag` (2) is the record's hit flag: a bank's heads read as row hits two
 slots after its ACT, so the column request shows at ACT + 3 where the hinted
 column fires at ACT + 2 (MC-021 step 4; `sku_hitlag1` reads the hit live);
@@ -411,8 +416,11 @@ class ModelConfig:
     slot_ticks: int = 2                # GraniteSKU: CK per main command slot (2 = one per MC cycle at DFI 1:2)
     bank_cap_mixed: int = 6            # GraniteSKU: BANK_CAP_MIXED (0 = off)
     cap_per_beat: bool = True          # GraniteSKU: the cap checked on every beat at the store's push (w_rd_cap_ok / w_wr_cap_ok)
-    admit_lag: int = 3                 # GraniteSKU: MC cycles from a beat's acceptance to its head record (push -> FIFO -> record; the
-                                       #   request register is the pick pipeline's; ISSUE-004, MC-021)
+    admit_lag: int = 1                 # GraniteSKU: MC cycles from a beat's ACCEPTANCE to its landing in its bank queue (the hold -> FIFO push)
+    pool_gate_lag: int = 2             # GraniteSKU: slots after a pop before the freed pool slot is offered to the host (pool path: 2 + 1 = the 3
+                                       #   ISSUE-004 measured)
+    cap_gate_lag: int = 1              # GraniteSKU: slots after a pop before the bank queue count the BANK_CAP_MIXED check reads shows it (cap
+                                       #   path: 1 + 1; MC-021 step 7 -- the one slot that decides which way the mixed close-page turns fall)
     req_bank_timing: bool = True       # GraniteSKU: a request needs the bank's timers only; the rank-level terms hold the fire (ISSUE-004)
     pick_la: int = 2                   # GraniteSKU: the pick pipeline's lookahead / hint reach in slots (LA; 0 = every hop pays the pipe) (MC-021)
     rank_ok_lag: int = 0               # GraniteSKU: the ACT's rank ok seen this many slots late (1 = the N+1 global timers before BUG-004)
@@ -573,8 +581,8 @@ CONFIGS.update({c.name: c for c in [
     _sku("hitlag1", "the decode reads the row hit live, the slot after the ACT (the step-3 model)", hit_lag=1),
     _sku("noapfirestale", "the stale mask's fire term before MC-021 step 4: a fired pair masked only when its queue emptied", ap_fire_stale=False),
     _sku("wrfill0", "a write beat is a head record the slot it lands, like a read (the model before MC-021 step 6)", wr_fill_lag=0),
-    _sku("lag4", "admission lag 4 MC cycles (the collapsed model's value: the request register counted in the admission)",
-         admit_lag=4),
+    _sku("admit3", "one three-slot admission stage on every path (the model before MC-021 step 7: the cap path a slot slow)",
+         admit_lag=3, pool_gate_lag=0, cap_gate_lag=0),
     _sku("batch64", "DIR_BATCH_MAX 64", dir_batch_max=64),
     _sku("batch128", "DIR_BATCH_MAX 128", dir_batch_max=128),
     _sku("batch0", "no batch cap", dir_batch_max=0),
@@ -667,7 +675,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
             read_buffer_size=cfg.read_buffer, write_buffer_size=cfg.write_buffer,
             slot_ticks=cfg.slot_ticks, bank_cap_mixed=cfg.bank_cap_mixed, cap_per_beat=cfg.cap_per_beat,
-            admit_lag=cfg.admit_lag,
+            admit_lag=cfg.admit_lag, pool_gate_lag=cfg.pool_gate_lag, cap_gate_lag=cfg.cap_gate_lag,
             dir_batch_max=cfg.dir_batch_max,
             dir_hold_idle=cfg.dir_hold_idle, dir_owns_rows=cfg.dir_owns_rows, lane=cfg.lane,
             close_on_drain=cfg.close_on_drain, alternate=cfg.alternate, page_close=cfg.page_close,
