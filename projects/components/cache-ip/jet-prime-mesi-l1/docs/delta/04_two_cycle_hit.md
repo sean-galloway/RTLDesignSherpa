@@ -182,7 +182,10 @@ a pending record already excludes the direct fire.
   step-5 environment carries over and the hit-path change did not add to
   it. The liveness BMC is as TASK-001 left it: the step-5 run was stopped
   by the owner at step 123 of 192; the tighter environment and the run on
-  this flat are TASK-003 (open 2026-11-19).
+  this flat were TASK-003 (closed 2026-11-20): the two 128 bounds
+  derived at 68 and 62 from the environment's constants and asserted at
+  80, the liveness BMC at depth 112 PASS in 1:07 on this flat, covers
+  7 of 7, both mutants FAIL at the new bounds.
 
 ## Board
 

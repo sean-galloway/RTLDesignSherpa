@@ -3,15 +3,18 @@ prove
 cover
 
 [options]
-# Liveness BMC depth 192: the widest bound is the per-entry age (128; fills
-# in flight together, each done within 24 of its accept) --
-# a violating trace must run init (17) + an alloc, then count 112 cycles
-# without the entry retiring, so any violation fires by ~130; 176 leaves
-# ~35% margin and covers the hold-off (80) and corner (16) bounds with
-# their deeper setups.  Cover depth 112: the composed corner is witnessed
-# around step 29 with free tag data.
+# Liveness BMC depth 112 (TASK-003, 2026-11-20; was 192): the widest bound
+# is now 80 (the per-entry age and the snoop wait, each derived in the
+# wrapper from the environment's constants: 68 and 62 worst case) -- a
+# violating trace must run init (17) + an alloc, then count 80 cycles
+# without the entry retiring, so any violation fires by ~98; 112 leaves 14
+# steps of margin and covers the hold-off (80) and corner (16) bounds with
+# their deeper setups.  The step-5 run at 192 was stopped at step 123
+# after 15:41 (TASK-001's stop note); the 128 bounds it was carrying were
+# round numbers, not derived ones.  Cover depth 112: the composed corner
+# is witnessed around step 29 with free tag data.
 prove: mode bmc
-prove: depth 192
+prove: depth 112
 cover: mode cover
 cover: depth 112
 

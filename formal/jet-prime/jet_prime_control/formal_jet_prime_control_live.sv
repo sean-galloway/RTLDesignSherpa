@@ -32,6 +32,24 @@
 // jet_prime_wb_buffer / jet_prime_rsp_seq leaves stay in the composition: the corner
 // is defined by their full flags, and progress is their events.
 //
+// Bounds (TASK-003, 2026-11-20): every bound is a sum of the environment's
+// own constants and the control's fixed commit/service lengths, written
+// out where it is asserted (L1, L3); the margins are stated.  Before this
+// the two end-to-end bounds were 128, a round number that forced a BMC
+// depth of 192 the step-5 control could not finish in a day.  At 80 the
+// prove at depth 112 PASSES in 1:07 on the TASK-002 flat (the 128 bounds
+// took the step-5 flat past 15 h to step 123 without finishing: refuting
+// "a counter reaches 128 in 120 steps" is a counting argument, which
+// resolution does exponentially badly; refuting "an entry waits 80" is
+// answered by the design's retire chain).  Mutations, one per re-derived
+// bound, each on a scratch copy of the flat:
+//   M1 the CU commit holds C_CU_MERGE 24 extra cycles (the age chain
+//      68 -> 92): FAIL ap_age0 at step 99 in 0:23 -- past 80, under the
+//      old 128, which would have passed it;
+//   M2 the J6 throttle without its sn_want_i term (the historical L3
+//      counterexample): FAIL ap_snoop_progress at step 100 in 0:10.
+// Covers 7 of 7 on the same flat (0:49; the deep ages at steps 60/61).
+//
 // Assumption inventory: identical to the safety wrapper's environment
 // table (see formal_jet_prime_control.sv): house reset; the exact jet_prime_top
 // launch-gate accept rule; several fills in flight (one read ID per
@@ -735,6 +753,29 @@ module formal_jet_prime_control_live (
     // fairness (done within 24 of the accept) and the one-at-a-time
     // commit bound the age of EACH entry.  Written out per entry:
     // MSHR_COUNT=2 at this geometry.
+    //
+    // The bound, derived (entry E, alloc = launch accept at age 0):
+    //   done        <= 24   as_done_fair: the done lands by age 24
+    //   service     <= 18   a snoop service in progress at E's done: the
+    //                       grant cycle + 8 CD beats at <= 2 cycles each
+    //                       (as_cd_fair: one stall per beat) + SN_EFFECT;
+    //                       nothing is granted later (sn_safe_o needs the
+    //                       done queue empty) and the commit never starts
+    //                       during a service
+    //   ahead       <= 2    FQ_DEPTH-1 entries done before E: the other
+    //                       data entry F and the CU, FIFO; both done, so no
+    //                       beat of theirs is in flight
+    //   F's commit  =  7    start -> C_MERGE (<= 2 slots) -> INSTALL ->
+    //                       PEND -> DEPOSIT -> RETIRE: retire at start+6,
+    //                       next start at +7
+    //   CU's commit =  4+b1 start -> CU_MERGE (1 + beat stalls) ->
+    //                       CU_INSTALL -> CU_DEPOSIT: next start at +4+b1
+    //   E's commit  =  6+b2 as F's, plus beat stalls in C_MERGE
+    //   beat stalls b1+b2 <= 8: only a fill accepted after F's retire
+    //                       (F', in F's slot) has beats left; FILL_BEATS
+    //   total: 24 + 18 + 7 + 4 + 6 + 8 = 67, +1 for the done cycle = 68.
+    // Asserted at 80 (18 % margin); was 128.  A commit in progress at E's
+    // done instead of a service is shorter (<= 14 remaining, one ahead).
     reg [7:0] f_age0, f_age1;
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -758,8 +799,8 @@ module formal_jet_prime_control_live (
 
     always @(posedge clk) begin
         if (rst_n) begin
-            ap_age0: assert (!sh_vld[0] || (f_age0 < 8'd128));
-            ap_age1: assert (!sh_vld[1] || (f_age1 < 8'd128));
+            ap_age0: assert (!sh_vld[0] || (f_age0 < 8'd80));
+            ap_age1: assert (!sh_vld[1] || (f_age1 < 8'd80));
         end
     end
 
@@ -779,6 +820,27 @@ module formal_jet_prime_control_live (
     // L3 snoop progress: a waiting snoop is granted within the bound (the
     // grant is structural once sn_safe_o rises, so this is exactly the
     // claim that every sn_safe hold-off window is bounded).
+    //
+    // The bound, derived (the want rises at cycle 0): the waiting snoop
+    // throttles every new CPU accept (w_sn_block_cpu has sn_want_i), so
+    // what is outstanding at the want is all there will be --
+    //   service     <= 18   the service in progress at the want (as L1)
+    //   in flight   <= 3    two data fills and the CU, all accepted just
+    //                       before the want; each done by its age 24
+    //   commits     <= 18   three commits back to back once the last done
+    //                       lands: 7 + 4 + 6 with no beats left (every
+    //                       entry is done and nothing new is accepted),
+    //                       after which the done queue is empty
+    //   capture     --      a dirty-victim capture opened at the last
+    //                       alloc: 8 port-B reads, paused only by the one
+    //                       service; it ends inside the chain above
+    //   pended write <= 2   a pended write hit fires as soon as no beat
+    //                       and no commit data write owns the port
+    //   total: 18 + 24 + 18 + 2 = 62.  A want during the init sequence
+    //   waits <= 16 with nothing outstanding (no accept under init), so
+    //   the two cases do not add.
+    // Asserted at 80 (29 % margin); was 128.  L4 (hold-off, below) is the
+    // same chain seen from the CU's line and keeps its 80.
     reg [7:0] f_sn_wait;
     always @(posedge clk) begin
         if (!rst_n) f_sn_wait <= 8'd0;
@@ -788,7 +850,7 @@ module formal_jet_prime_control_live (
 
     always @(posedge clk) begin
         if (rst_n)
-            ap_snoop_progress: assert (f_sn_wait < 8'd128);
+            ap_snoop_progress: assert (f_sn_wait < 8'd80);
     end
 
     // L4 bounded hold-off: a snoop wanting the in-flight upgrade's own

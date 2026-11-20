@@ -434,5 +434,7 @@ were about a day away. The open piece is as the close note says: a
 tighter liveness environment for the step-5 control (the launch accepted
 unconditionally and the captured-way beat exclusion are what the step-5
 flat added), run to a depth past 146, is a separate jet-prime item -- filed
-2026-11-19 as TASK-003 (open); the
+2026-11-19 as TASK-003, closed 2026-11-20: the two 128 bounds derived
+at 68 and 62 from the environment's constants and asserted at 80, the
+liveness BMC at depth 112 PASS in 1:07 on the TASK-002 flat; the
 step-5 safety prove (depth 64 PASS, 26:52) and both covers stand.

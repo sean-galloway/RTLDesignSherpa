@@ -689,3 +689,50 @@ Cost notes from the same harness (24 + 3 properties, four slots, boolector):
   failures asked for cannot be stated without exposing the queues
   themselves. Thirty minutes bought three good properties and a clear
   stopping point; BMC at measured depths is the recorded result.
+
+## A round bound costs the solver more than a derived one (2026-11-20)
+
+jet-prime's control liveness harness asserted two end-to-end bounds at
+128 ("an allocated MSHR entry retires within 128", "a waiting snoop is
+granted within 128") because 128 was comfortably above anything the
+design did. The BMC that carried them (depth 192, boolector) took 19 h on
+one flat and on the next did not finish: stopped after 15:41 at step 123,
+over an hour per step past step 110. The harness had everything else
+right -- covers witnessing the waits, a mutation history, the fairness
+assumptions written out -- and the round number was still the cost.
+
+Deriving the bounds from the environment's own constants (the fill's
+done-within-24, the snoop service's grant + 8 beats at <= 2 + effect, the
+commit FSM's fixed lengths, the done-queue depth, the beat stalls one
+fill can inject) gave 68 and 62; asserted at 80 with the derivation in
+the header, the same harness on the same flat with the same solver and
+flags PASSED at depth 112 in 1:07, at step 100 after 17 minutes.
+Mutations confirmed the teeth: a 24-cycle hold in the CU commit fails
+the age bound at step 99 (it would have passed at 128); the historical
+snoop-starvation mutation fails the snoop bound at step 100.
+
+Why: at step N < 145 the 128 bound cannot fail arithmetically, and the
+solver's only refutation IS that arithmetic -- "this 8-bit counter cannot
+reach 128 in N conditional increments" is a counting (pigeonhole)
+argument that resolution-based SAT does exponentially badly, repeated at
+every step. At 80 the counting shortcut is gone from step 97 on and the
+solver must use the design: the commit retires, the queue drains -- the
+reasoning the property is about, and far cheaper.
+
+Rules:
+
+- A liveness bound is a derived number with its derivation beside it,
+  never a round one with slack. The slack is not free: the solver pays
+  for it at every step.
+- Set the BMC depth from the derived bound (init + bound + margin), not
+  the other way round.
+- When a bounded-liveness BMC crawls on steps far below the depth where
+  the bound could fail, suspect the bound before the environment or the
+  depth: the step-5 stop note blamed the environment's extra state and
+  named a "tighter environment" as the fix; the environment did not
+  change at all.
+- Keep one mutation that fails at the new bound and would have passed at
+  the old: that is the evidence the tightening measured something.
+
+Case: jet-prime TASK-003 (2026-11-20), `formal/jet-prime/jet_prime_control/
+formal_jet_prime_control_live.sv`, L1 and L3.
