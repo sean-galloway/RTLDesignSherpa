@@ -433,5 +433,6 @@ close was a stretch, not the trend. At that pace the remaining 69 steps
 were about a day away. The open piece is as the close note says: a
 tighter liveness environment for the step-5 control (the launch accepted
 unconditionally and the captured-way beat exclusion are what the step-5
-flat added), run to a depth past 146, is a separate jet-prime item; the
+flat added), run to a depth past 146, is a separate jet-prime item -- filed
+2026-11-19 as TASK-003 (open); the
 step-5 safety prove (depth 64 PASS, 26:52) and both covers stand.
