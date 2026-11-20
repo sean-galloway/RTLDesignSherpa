@@ -220,6 +220,11 @@ RTL question in its measured shape, to be run under `TEST_DUAL` both ways,
 through the formal tasks under `formal/mc_common/mc_bank_pick`, and against
 the 100 MHz cone before it is believed.
 
+Made and believed the same day (MC-021 step 5): formal 5 / 5 on the patched
+gold, WNS +0.080 at 100 MHz, and the board within 1.5 percent of every number
+in the table above where the model had moved a cell
+(`board_mc021s4_granite_sku100_2026-11-19.md`).
+
 ## Files
 
 - `granite_sku_controller.cpp` (overlay and the vendor copy): `hit_lag`,

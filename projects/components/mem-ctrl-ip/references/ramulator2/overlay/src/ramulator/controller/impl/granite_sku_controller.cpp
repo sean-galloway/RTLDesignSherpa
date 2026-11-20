@@ -126,14 +126,15 @@ namespace Ramulator {
 //     bit); page_close makes every column close (the board's close_page).
 //     ap_stale = true masks an auto-precharging column's pair as a row
 //     command's (the RTL question: the select skipping the stale column
-//     class after a close-page column pair). ap_fire_stale = true masks the
-//     pair of a column that FIRED with auto-precharge for the slot after its
-//     fire, as a row command's pair is (RTL question 3, MC-021 step 4): the
-//     RTL masks only a fired pair whose queue emptied, so the fired pair's
-//     leftover column request is live again the cycle after and the rotor,
-//     starting past the fired pair, hands it the select before the real
-//     column -- a wasted slot, and the pair's fresh ACT request masked from
-//     the lane for a cycle.
+//     class after a close-page column pair). ap_fire_stale (true, the RTL
+//     since MC-021 step 4) masks the pair of a column that FIRED with
+//     auto-precharge for the slot after its fire, as a row command's pair is;
+//     false is the RTL before step 4, which masked only a fired pair whose
+//     queue emptied, so the fired pair's leftover column request was live
+//     again the cycle after and the rotor, starting past the fired pair,
+//     handed it the select before the real column -- a wasted slot, and the
+//     pair's fresh ACT request masked from the lane for a cycle (the four-bank
+//     close-page rotation at 2.17 cycles per beat for 2.0).
 //   * Refresh: the AllBank manager demands REFab every nREFI; while it is
 //     pending nothing else fires (the demand block), the open rows close
 //     (PREab, where the RTL drains per-bank PREs) and REFab follows.
@@ -157,7 +158,7 @@ class GraniteSKUController : public ControllerBase {
   bool m_ap_act_la = false;     // the lookahead reaches the ACT of a same-row head after an auto-precharge (measured: no; the RTL question)
   bool m_ap_stale = false;      // an auto-precharging column's pair is self-stale after its pick (the RTL question)
   int m_hit_lag = 2;            // slots after a bank's ACT before the decode sees its heads as row hits (registered row image -> record -> request; 1 = the hit read live)
-  bool m_ap_fire_stale = false; // the pair of a column that fired with auto-precharge is masked the slot after its fire (the RTL question 3: its leftover column request otherwise wins the select)
+  bool m_ap_fire_stale = true;  // the pair of a column that fired with auto-precharge is masked the slot after its fire (the RTL since MC-021 step 4; false = the RTL before, whose leftover column request won the select)
   int m_dir_batch_max = 255;
   int m_dir_hold_idle = 8;
   bool m_dir_owns_rows = true;
@@ -265,7 +266,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_ap_act_la, bool, "ap_act_la").default_val(false);
     RAMULATOR_PARSE_PARAM(m_ap_stale, bool, "ap_stale").default_val(false);
     RAMULATOR_PARSE_PARAM(m_hit_lag, int, "hit_lag").default_val(2);
-    RAMULATOR_PARSE_PARAM(m_ap_fire_stale, bool, "ap_fire_stale").default_val(false);
+    RAMULATOR_PARSE_PARAM(m_ap_fire_stale, bool, "ap_fire_stale").default_val(true);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);

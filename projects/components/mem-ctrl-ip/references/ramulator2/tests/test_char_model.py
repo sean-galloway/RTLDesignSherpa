@@ -219,7 +219,7 @@ def test_sku_config_is_the_shipped_point():
     assert (c.pick_la, c.rank_ok_lag, c.ap_act_la, c.ap_stale) == (2, 0, False, False)
     # MC-021 step 4: the record's hit flag -- a bank's heads read as row hits two slots after its ACT (the registered
     # row image, the record, the request register), so the column request shows at ACT + 3, the hinted column at + 2
-    assert c.hit_lag == 2 and not c.ap_fire_stale
+    assert c.hit_lag == 2 and c.ap_fire_stale   # the step-4 RTL: the fired auto-precharging column's pair masked the slot after
     # every variant changes ONE term against the SKU
     from dataclasses import fields
     for name in cm.SKU_VARIANTS:
@@ -239,13 +239,15 @@ def test_hit_lag_is_the_record_path_not_the_live_row_image():
     """MC-021 step 4: a bank's heads read as row hits two slots after its ACT (the registered row image, the record's
     hit flag, the request register), so a column whose hint a hold discarded lands at ACT + 5 as the proxy measured,
     not at ACT + 3; under the four-bank close-page interleave that costs the bank its tRC slot (the proxy's 2.17
-    cycles per beat against the 2.0 floor the live-read model settled into). The term is on by default."""
+    cycles per beat against the 2.0 floor the live-read model settled into). The term is on by default. It binds
+    only where a hold discards the hint, which the step-4 RTL change (ap_fire_stale) removes on this cell, so the
+    test runs the RTL the lag was measured on (ap_fire_stale off)."""
     import tempfile
     from dataclasses import replace
     sc = replace([s for s in cm.SUITES["all"] if s.name == "col_major_bl4"][0], txn_count=4096)
     bw = {}
     for hl in (1, 2):
-        cfg = replace(cm.CONFIGS["granite_sku100_bi"], name=f"hl{hl}", hit_lag=hl)
+        cfg = replace(cm.CONFIGS["granite_sku100_bi"], name=f"hl{hl}", hit_lag=hl, ap_fire_stale=False)
         with tempfile.TemporaryDirectory() as t:
             r = cm.run_scenario(cfg, sc, t)
         bw[hl] = (float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"]))

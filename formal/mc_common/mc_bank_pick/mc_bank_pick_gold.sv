@@ -16,6 +16,10 @@
 // The third MC-017 change (the lane's "a column is pending" test) lives inside
 // DUAL_ISSUE, which this copy predates and the equiv tasks compile out; the
 // dual / dual_cover tasks cover the lane on the DUT alone.
+// 2026-11-19 (memory-controllers MC-021 step 4): the second behaviour change
+// since -- the stale mask's fire term also masks a pair whose column fired
+// with auto-precharge (w_sel_ap) for the cycle after, not only one whose queue
+// emptied -- is applied here identically, for the same reason.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -1310,7 +1314,8 @@ module mc_bank_pick_gold
             r_stale_spec  <= ((w_spec_cls != CL_COL) || !w_sel_cand.behind_same_row) ? (NPAIR'(1) << w_win_pair) : '0;
             r_stale_pick  <= w_pick_onehot & w_stale_if;
             // the cycle after a column fire that emptied its pair (see above)
-            r_stale_fire  <= (w_col_fire_now && w_sel_cand.behind_empty) ? (NPAIR'(1) << w_win_pair) : '0;
+            // ... or that closed its row with auto-precharge (memory-controllers MC-021 step 4, 2026-11-19)
+            r_stale_fire  <= (w_col_fire_now && (w_sel_cand.behind_empty || w_sel_ap)) ? (NPAIR'(1) << w_win_pair) : '0;
             if (w_dmd_fire) r_last_was_row <= !w_fis_col;
             // rotor: past the fired pair; unchanged while the winner waits
             if (w_dmd_fire) r_rotor <= w_win_pair + PAIRW'(1);

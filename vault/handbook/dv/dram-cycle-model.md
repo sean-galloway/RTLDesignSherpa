@@ -581,6 +581,21 @@ host-side jitter cannot move. The record is
 `char_results/model_mc021_hit_lag_2026-11-19.md`; the term's price in the RTL
 (the leftover pick that starts the chain) is in its section 5.
 
+The price was then paid and scored (MC-021 step 5, the same day): the one-term
+RTL change built at 100 MHz, and the board moved exactly the cells the model
+had moved and by the amounts it said -- bl4 258 / 351 -> 283 / 388 against a
+predicted 283 / 389, the interleaved bl4 read +25 against +27, three
+close_page cells within 1.5 percent -- while 62 cells did not move, as it also
+said. **A priced RTL question is a prediction; score it cell by cell, not by
+the headline.** The two cells the model had wrong before the change were
+wrong by the same amount after it, which is what separates a model's missing
+terms from its right ones: a term that is right moves with the RTL, a term
+that is missing does not move at all. And **a cell that does not repeat is a
+mechanism, not noise**: `open_page mixed_bl8` gave 311 / 522 three times in
+five runs and 272 / 272 twice, with every other cell repeating to the MB/s
+across all five; it is counted, not averaged
+(`char_results/board_mc021s4_granite_sku100_2026-11-19.md`).
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

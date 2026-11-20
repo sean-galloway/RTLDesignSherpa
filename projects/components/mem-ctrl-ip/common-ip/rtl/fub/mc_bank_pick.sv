@@ -1627,14 +1627,21 @@ module mc_bank_pick
                 r_win_cls   <= w_pick_cls;
             end
             // its stale mask, from the same three sources (see above), plus
-            // the cycle after a column fire that emptied its pair
+            // the cycle after a column fire that emptied its pair ...
             r_self_stale <= (w_hold_next
                              ? ((w_win_vld && ((w_win_cls != CL_COL) || !w_sel_cand.behind_same_row))
                                 ? (NPAIR'(1) << w_win_pair) : '0)
                              : w_spec_vld
                              ? (((w_spec_cls != CL_COL) || !w_sel_cand.behind_same_row) ? (NPAIR'(1) << w_win_pair) : '0)
                              : (w_pick_onehot & w_stale_if))
-                          | ((w_col_fire_now && w_sel_cand.behind_empty) ? (NPAIR'(1) << w_win_pair) : '0)
+                          // ... or that closed its row (auto-precharge): the pair cannot want
+                          // a column for t_rtp / t_wr + t_rp, and its leftover column request
+                          // (the record lags the pop by one cycle) otherwise wins the select
+                          // from the rotor's start past the fired pair -- a wasted slot, and
+                          // the pair's fresh ACT masked from the row lane for the one cycle it
+                          // could ride (memory-controllers MC-021 step 4, 2026-11-19: the
+                          // four-bank close-page rotation ran 2.17 cycles per beat for 2.0)
+                          | ((w_col_fire_now && (w_sel_cand.behind_empty || w_sel_ap)) ? (NPAIR'(1) << w_win_pair) : '0)
                           | w2_stale_nxt;
             if (w_dmd_fire) r_last_was_row <= !w_fis_col;
             // rotor: past the fired pair; unchanged while the winner waits
