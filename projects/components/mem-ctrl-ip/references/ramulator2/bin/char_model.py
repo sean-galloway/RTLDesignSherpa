@@ -72,7 +72,12 @@ slots after its ACT, so the column request shows at ACT + 3 where the hinted
 column fires at ACT + 2 (MC-021 step 4; `sku_hitlag1` reads the hit live);
 `ap_fire_stale` (True) is the step-4 RTL change, the fired auto-precharging
 column's pair masked the slot after its fire (`sku_noapfirestale` = the RTL
-before it).
+before it). `wr_fill_lag` (2) is the store's write record: it needs the entry's
+data fill and the fill-done register where the read record needs only the
+queue, so a write beat entering an empty bank queue is the pick's request two
+slots later than a read beat; it sets a new bank's phase against the banks
+already cycling under close page, where the ACT collisions under tRRD that
+discard the next-op hint come from (MC-021 step 6; `sku_wrfill0` = before).
 """
 from __future__ import annotations
 
@@ -417,6 +422,10 @@ class ModelConfig:
                                        #   timers' registered row image -> the record's hit flag -> the request register; MC-021 step 4)
     ap_fire_stale: bool = True         # GraniteSKU: the pair of a column that fired with auto-precharge is masked the slot after its fire
                                        #   (the RTL since MC-021 step 4; False = the RTL before, whose leftover column request won the select)
+    wr_fill_lag: int = 2               # GraniteSKU: slots after a WRITE beat lands in its bank queue before it is a head record -- the store's
+                                       #   write record needs the entry's data fill and the fill-done register, the read record only the
+                                       #   queue (a beat entering an empty write queue is the pick's request 3 cycles after it lands, a read
+                                       #   beat 1; MC-021 step 6)
     dir_batch_max: int = 255           # GraniteSKU: DIR_BATCH_MAX (0 = no cap)
     dir_hold_idle: int = 8             # GraniteSKU: DIR_HOLD_IDLE (0 = off)
     dir_owns_rows: bool = True         # GraniteSKU: DIR_OWNS_ROWS
@@ -563,6 +572,7 @@ CONFIGS.update({c.name: c for c in [
     _sku("apstale", "an auto-precharging column's pair is stale after its pick (RTL question 2)", ap_stale=True),
     _sku("hitlag1", "the decode reads the row hit live, the slot after the ACT (the step-3 model)", hit_lag=1),
     _sku("noapfirestale", "the stale mask's fire term before MC-021 step 4: a fired pair masked only when its queue emptied", ap_fire_stale=False),
+    _sku("wrfill0", "a write beat is a head record the slot it lands, like a read (the model before MC-021 step 6)", wr_fill_lag=0),
     _sku("lag4", "admission lag 4 MC cycles (the collapsed model's value: the request register counted in the admission)",
          admit_lag=4),
     _sku("batch64", "DIR_BATCH_MAX 64", dir_batch_max=64),
@@ -663,7 +673,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             close_on_drain=cfg.close_on_drain, alternate=cfg.alternate, page_close=cfg.page_close,
             peek_depth=cfg.peek_depth, req_bank_timing=cfg.req_bank_timing,
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
-            hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale,
+            hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag,
             **_sku_debug_params(),
         )
     else:

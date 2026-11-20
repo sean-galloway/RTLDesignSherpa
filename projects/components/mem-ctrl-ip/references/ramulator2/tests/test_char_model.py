@@ -220,6 +220,8 @@ def test_sku_config_is_the_shipped_point():
     # MC-021 step 4: the record's hit flag -- a bank's heads read as row hits two slots after its ACT (the registered
     # row image, the record, the request register), so the column request shows at ACT + 3, the hinted column at + 2
     assert c.hit_lag == 2 and c.ap_fire_stale   # the step-4 RTL: the fired auto-precharging column's pair masked the slot after
+    # MC-021 step 6: the store's write record waits for the entry's fill and the fill-done register (two slots a read's does not)
+    assert c.wr_fill_lag == 2
     # every variant changes ONE term against the SKU
     from dataclasses import fields
     for name in cm.SKU_VARIANTS:
@@ -253,9 +255,34 @@ def test_hit_lag_is_the_record_path_not_the_live_row_image():
         bw[hl] = (float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"]))
     assert cm.CONFIGS["granite_sku100_bi"].hit_lag == 2
     # the read side pays most (0.91 at the board's counts: 389 -> 355 against the board's 351); the write side's
-    # recovery hop already hid the lag (283 -> 258, the board's 258)
+    # recovery hop already hid the lag (283 -> 258, the board's 258). The shipped write side is the board's 258 with
+    # or without the step-6 fill lag; the hit_lag-1 counterfactual's write side is 283 without it and 321 with it
+    # (the fill lag spaces the write ACTs the live-read model then exploits), so the write band is the wider one.
     assert 0.85 < bw[2][1] / bw[1][1] < 0.97, bw
-    assert 0.85 < bw[2][0] / bw[1][0] < 0.97, bw
+    assert 0.78 < bw[2][0] / bw[1][0] < 0.97, bw
+
+
+def test_wr_fill_lag_is_the_write_records_fill_gate():
+    """MC-021 step 6: the store's write head record is `has0 && r_wr_fdone` -- the entry's data fill and the fill-done
+    register ahead of the record -- where the read record is `has0` alone, so a write beat entering an EMPTY bank
+    queue is the pick's request three cycles after it lands and a read beat one (the proxy's probe, both passes of
+    the close-page interleaved cell). Under close page every burst's first beat enters an empty queue, and the two
+    slots set the new bank's phase against the banks already cycling: in phase, its ACT and theirs collide under
+    tRRD, the hold discards the next-op hint and the column lands at ACT + 5. The write side of close_page
+    col_major_interleaved_bl8 / bl16 fell from 287 / 208 to 251 / 172 against the board's 250 / 171; the read side
+    does not move (the term is the write record's)."""
+    import tempfile
+    from dataclasses import replace
+    sc = replace([s for s in cm.SUITES["all"] if s.name == "col_major_interleaved_bl8"][0], txn_count=4096)
+    bw = {}
+    for lag in (0, 2):
+        cfg = replace(cm.CONFIGS["granite_sku100_close"], name=f"wf{lag}", wr_fill_lag=lag)
+        with tempfile.TemporaryDirectory() as t:
+            r = cm.run_scenario(cfg, sc, t)
+        bw[lag] = (float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"]))
+    assert cm.CONFIGS["granite_sku100_close"].wr_fill_lag == 2
+    assert 0.78 < bw[2][0] / bw[0][0] < 0.95, bw     # the write side pays (0.87 at the board's counts)
+    assert 0.98 < bw[2][1] / bw[0][1] < 1.02, bw     # the read record has no fill gate
 
 
 def test_board_presets_are_what_the_host_programs(pumice_char):

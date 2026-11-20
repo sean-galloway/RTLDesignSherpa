@@ -596,6 +596,23 @@ five runs and 272 / 272 twice, with every other cell repeating to the MB/s
 across all five; it is counted, not averaged
 (`char_results/board_mc021s4_granite_sku100_2026-11-19.md`).
 
+**Measure the arrival path per direction (MC-021 step 6, 2026-11-19).** The
+pick sees a beat as the store's head record, and the store builds its write
+and read records from different gates: the write record waits for the entry's
+data fill and the fill-done register (`has0 && r_wr_fdone`), the read record
+is the queue alone. A write beat entering an EMPTY bank queue is therefore the
+pick's request two cycles later than a read beat, and the single admission lag
+measured on the read path hid it everywhere a queue never empties (every
+single-bank stream). It showed only under close page with bursts rotating
+banks, where every burst's first beat lands in an empty queue and the two
+cycles put the new bank's first ACT in the cycling banks' tRRD collision slot
+-- a two-bank lock the model also has but escapes, because its new bank lands
+one slot later and the lane rides its ACT. The method: from the probe's queue
+counters, time landing -> request separately for reads and writes before
+trusting one lag for both (`char_results/model_mc021_wr_fill_lag_2026-11-19.md`).
+A per-pair script indexed over half the pairs counted half the collisions and
+read as two mechanisms; check a per-pair histogram against the fire count.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

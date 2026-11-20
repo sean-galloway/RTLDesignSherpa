@@ -78,7 +78,11 @@ way and are the next items (below).
   196 of 208 at ACT + 2 with same-bank ACT -> ACT at 10 -- the hold that
   discards a hint, on the write side with three same-bank bursts in flight,
   still present after the step-5 term. The long probe into the three-burst
-  steady state is MC-021 item 1.
+  steady state is MC-021 item 1 -- resolved the same evening as step 6: the
+  store's write record waits for the entry's fill (two cycles a read's does
+  not), which puts a new bank's first ACT in the cycling banks' collision
+  slot; the model's write side 287 / 208 -> 251 / 172 against the board's
+  250 / 171 (`model_mc021_wr_fill_lag_2026-11-19.md`).
 - `open_page mixed_bl8`, union -10.9 (model 554, board 622). The board moved
   from 272 / 273 to 311 / 522 with the change while `defaults mixed_bl8` (the
   hybrid page predictor, modelled as open page) moved 269 / 269 -> 272 / 273

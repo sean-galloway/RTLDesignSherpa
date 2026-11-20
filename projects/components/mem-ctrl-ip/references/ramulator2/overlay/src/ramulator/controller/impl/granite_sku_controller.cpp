@@ -158,6 +158,11 @@ class GraniteSKUController : public ControllerBase {
   bool m_ap_act_la = false;     // the lookahead reaches the ACT of a same-row head after an auto-precharge (measured: no; the RTL question)
   bool m_ap_stale = false;      // an auto-precharging column's pair is self-stale after its pick (the RTL question)
   int m_hit_lag = 2;            // slots after a bank's ACT before the decode sees its heads as row hits (registered row image -> record -> request; 1 = the hit read live)
+  int m_wr_fill_lag = 2;        // slots after a WRITE beat lands in its bank queue before it is a head record: the store's write record needs the
+                                //   entry's data fill and the fill-done register (h.vld = has0 && r_wr_fdone), the read record only the queue
+                                //   (measured: a beat entering an empty write queue is the pick's request 3 cycles after the queue count shows
+                                //   it, a read beat 1; memory-controllers MC-021 step 6, 2026-11-19). It binds where a bank's queue runs empty
+                                //   between bursts -- the close-page interleaved cells -- and sets the new bank's phase against the others'
   bool m_ap_fire_stale = true;  // the pair of a column that fired with auto-precharge is masked the slot after its fire (the RTL since MC-021 step 4; false = the RTL before, whose leftover column request won the select)
   int m_dir_batch_max = 255;
   int m_dir_hold_idle = 8;
@@ -266,6 +271,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_ap_act_la, bool, "ap_act_la").default_val(false);
     RAMULATOR_PARSE_PARAM(m_ap_stale, bool, "ap_stale").default_val(false);
     RAMULATOR_PARSE_PARAM(m_hit_lag, int, "hit_lag").default_val(2);
+    RAMULATOR_PARSE_PARAM(m_wr_fill_lag, int, "wr_fill_lag").default_val(2);
     RAMULATOR_PARSE_PARAM(m_ap_fire_stale, bool, "ap_fire_stale").default_val(true);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
@@ -286,6 +292,7 @@ class GraniteSKUController : public ControllerBase {
     if (m_pick_la < 0) throw std::runtime_error("GraniteSKU: pick_la must be >= 0");
     if (m_rank_ok_lag < 0) throw std::runtime_error("GraniteSKU: rank_ok_lag must be >= 0");
     if (m_hit_lag < 0) throw std::runtime_error("GraniteSKU: hit_lag must be >= 0");
+    if (m_wr_fill_lag < 0) throw std::runtime_error("GraniteSKU: wr_fill_lag must be >= 0");
     const auto& spec = *m_device.m_spec;
     m_cmd_act = spec.get_command_id("ACT");
     m_cmd_prepb = spec.get_command_id("PREpb");
@@ -479,11 +486,20 @@ class GraniteSKUController : public ControllerBase {
       ReqBuffer& buf = d ? m_write_buffer : m_read_buffer;
       // pass 1: the strict FIFO head and the entry behind it, in arrival order
       std::vector<int> depth(m_num_banks, 0);
+      std::vector<bool> unfilled(m_num_banks, false);
       for (auto it = buf.begin(); it != buf.end(); ++it) {
         const int bank = m_device.get_flat_bank_id(it->addr_vec);
         const int p = pair_of(bank, d);
         Head& h = m_oldest[p];
+        if (unfilled[bank]) continue;
         if (!h.vld) {
+          // a write beat is a head record only once its data fill and the fill-done register are behind it
+          // (wr_fill_lag slots after it lands); until then its pair has no head -- the queue is in order
+          if (d == 1 && m_wr_fill_lag > 0 &&
+              m_clk < it->arrive + static_cast<Clk_t>(m_admit_lag + m_wr_fill_lag) * m_slot_ticks) {
+            unfilled[bank] = true;
+            continue;
+          }
           h.vld = true;
           h.it = it;
           h.buf = &buf;
