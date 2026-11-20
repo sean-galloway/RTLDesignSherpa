@@ -2,7 +2,7 @@
 
 # vault/tracking/projects/components/cache-ip/onyx-ace-ccu — tasks
 
-**Next ID: TASK-001** — never recycle a number, even when its item closed.
+**Next ID: TASK-002** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **TASK-001** ([page](open/TASK-001.md)) — onyx v1, the ACE coherency unit per the D rulings (PRD v0.7, 2026-11-20): N-port culsans-shape CCU decoding RNSD/RU/CU/WB/Evict, broadcast snoop, tagged gather from a transaction table, per-address scoreboard, adjudicated data source with the memory read alongside the snoop and a deferred-read mode, monlite taps behind USE_MONITOR; the ACE BFM (RDS-DV #86) first, then the core generalizing `jet_prime_pair_fabric` to N ports on real ACE signaling, the D7 adapter for jet-prime, a fabric-style formal argument, Pattern-B DV, the reference rig with two jet-primes and the Genesys2 sweeps. Done when PRD criteria 1-6 hold, the sixth being cycles per transaction equal to the pair fabric it replaces. Filed 2026-11-20.
 
 ## Active
 
