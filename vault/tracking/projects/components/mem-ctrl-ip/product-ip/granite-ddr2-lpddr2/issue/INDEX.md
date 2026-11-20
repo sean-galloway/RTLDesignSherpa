@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — issues
 
-**Next ID: ISSUE-003** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-004** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,12 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-None.
+- **ISSUE-003** -- the perf proxy is not run-to-run deterministic: the same
+  build directory, seed and environment give cycle counts up to 0.4 percent
+  apart (`col_ilv`), load-dependent; `incremental` identical, the rest moved by
+  tens of cycles, which fits a start shifted against the refresh counter by a
+  wall-clock-paced harness. Sets the floor under a one-run proxy delta. Filed
+  2026-11-20 from memory-controllers MC-019. [open/ISSUE-003.md](open/ISSUE-003.md).
 
 ## Active
 

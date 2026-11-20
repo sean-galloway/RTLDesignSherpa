@@ -43,3 +43,20 @@ history would change which head asks for ACT first at exactly that point.
    phase of `defaults mixed_bl8` and move no landed cell.
 3. Until then the model carries the stand-in, named in `char_model.py`'s
    docstring, and the compare's one out stands as the record.
+
+## The stand-in has no demand PREs either (MC-019, 2026-11-20)
+
+MC-019 removed the PRE class from the pick core's row lane on the model's
+word that a lane carrying ACT or PRE and one carrying ACT only give the same
+MB/s on all 29 patterns. The proxy disagreed: on `col_ilv` at the SKU the RTL
+issues ~700 demand PREs per run under `defaults` (the hybrid predictor) and
+under static `open_page` -- rows the policy left open, closed when the bank's
+next row arrives -- and 414-424 of them rode the lane; with the lane ACT-only
+each takes a main slot and the read side loses 1.3 percent. The model's
+`lane_pre` is 0 on every SKU cell: its open-page stand-in auto-precharges on
+drain and never issues a demand PRE, so it priced the PRE path at a command
+it does not have. The same missing term as above, with a measured cost now:
+the page policy as the RTL has it (the predictor's rule and the static open
+policy's no-AP) is what settles both. Until then any lane / PRE question the
+model prices is off by the demand PREs it does not issue
+(`char_results/rtl_mc019_lane_act_only_2026-11-20.md`, section 4).

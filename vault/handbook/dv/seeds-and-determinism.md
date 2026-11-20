@@ -105,6 +105,21 @@ randomized unseeded, 5 have no randomness at all (nothing to seed - do not
 `seed = 0x01` that is an RTL LFSR seed value, not a PRNG seed. Half of what a
 naive grep flags is not a finding.
 
+## The granite perf proxy has a run-to-run band (2026-11-20, memory-controllers MC-019)
+
+The same build directory, seed and environment, run twice, gave cycle counts
+up to 0.4 percent apart on four of five families (granite ISSUE-003; the
+harness runs the host program over a simulated UART and is suspected of
+pacing something on the wall clock, since the band widened under machine
+load). Two consequences for any A/B on it. **An A/B is two RTL forms in ONE
+directory**: a `git archive` of HEAD beside the working tree differed on the
+TEST_DUAL=0 pair the change could not reach, and a first reading took that
+for the change. **A one-run delta under about half a percent is the band, not
+the change**; repeat, or read only the moves above it (the real move in
+MC-019 was 1.3 percent on one cell, reproduced four times to within 0.2).
+MC-021's "reruns identical to the cycle" held for a single-family run and does
+not generalise.
+
 ## Outstanding cleanup
 
 `val/amba/test_axi_monitor_trans_mgr.py` still implements the corpus model this

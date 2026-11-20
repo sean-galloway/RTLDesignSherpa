@@ -359,6 +359,16 @@ a tolerance per family; `sweep` prices one-term variants against it
   (MC-019: a PRE never needs to ride the lane, 0.0 on 29 patterns; MC-020:
   the single-bank RDA -> ACT -> RD chain, +5 .. +15 on `col_major`) move cells
   the model reproduces within 1 percent.
+- **A 0.0 on a path the model never exercises is not a price** (MC-019,
+  2026-11-20). The lane-PRE variant measured 0.0 because the model's SKU
+  issues no demand PRE at all -- `lane_pre` 0 on every cell -- while the RTL's
+  `defaults` and `open_page` presets issue ~700 per `col_ilv` run (rows the
+  page policy leaves open), 424 of them on the lane; removing the class cost
+  that read side 1.3 percent on the proxy. Before a variant that REMOVES
+  something is filed as a task, count the command it removes on the proxy
+  (`PERF_CMD_TRACE`): a model that reproduces a cell's MB/s can still be
+  issuing a different command stream to get there
+  (`char_results/rtl_mc019_lane_act_only_2026-11-20.md`, ISSUE-006).
 - **An ideal column is a decomposition, not a target.** At the SKU's timings
   the ideal beats the SKU only on `col_major` (+5 .. +15, the one-slot tax, which
   `slot1` isolates to the slot) and on `mixed` (+32, under the ISSUE-004 bar);
