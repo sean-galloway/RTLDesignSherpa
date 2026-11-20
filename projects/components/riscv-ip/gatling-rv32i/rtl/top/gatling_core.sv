@@ -161,7 +161,20 @@ module gatling_core #(
     // =========================================================================
     // Architectural state: per-context PC, halt, retirement order
     // =========================================================================
-    logic [NUM_HARTS-1:0][31:0] pc_q;
+    // The PC file is a NUM_HARTS x 32 distributed RAM: one write port (X,
+    // x_ctx) and one asynchronous read port (F, sel_q).  The rotation keeps
+    // the two on different contexts.  A RAM takes no reset, so a per-context
+    // pc_fresh flag stands in for both reset and hold: set by reset and while
+    // hart_run[c] is low, cleared by the context's first PC write, and while
+    // set the read returns RESET_ADDR.  A context that halts writes no PC, so
+    // a halt on its first instruction after release leaves pc_fresh set and
+    // the read still names the halting instruction -- the same value the old
+    // flop array held.  (common-rv32i ISSUE-001 row 4, gatling-rv32i TASK-004)
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [31:0]                pc_mem [NUM_HARTS];
+    logic [NUM_HARTS-1:0]       pc_fresh;
+    logic [31:0]                f_pc;
     logic [NUM_HARTS-1:0]       halted_q;
     logic [NUM_HARTS-1:0][3:0]  cause_q;
     logic [NUM_HARTS-1:0][63:0] order_q;
@@ -182,8 +195,9 @@ module gatling_core #(
     logic f_valid;
 
     assign f_valid   = w_aresetn & hart_run[sel_q] & ~halted_q[sel_q];
+    assign f_pc      = pc_fresh[sel_q] ? RESET_ADDR : pc_mem[sel_q];
     assign imem_ctx  = sel_q;
-    assign imem_addr = pc_q[sel_q];
+    assign imem_addr = f_pc;
 
     // F -> D
     logic              d_valid;
@@ -197,7 +211,7 @@ module gatling_core #(
 
     always_ff @(posedge clk) begin
         d_ctx <= sel_q;
-        d_pc  <= pc_q[sel_q];
+        d_pc  <= f_pc;
     end
 
     // =========================================================================
@@ -410,18 +424,28 @@ module gatling_core #(
                      (x_jump || x_jalr)  ? x_pc4 : alu_y;
 
     // Per-context state updates.  hart_run low wins: the context is held at
-    // RESET_ADDR with its halt and retirement order cleared.
+    // RESET_ADDR (pc_fresh set) with its halt and retirement order cleared.
+    // The PC write needs no hart_run term: x_live already carries
+    // hart_run[x_ctx].
+    logic pc_we;
+
+    assign pc_we = x_live & ~halt_now;
+
+    always_ff @(posedge clk) begin
+        if (pc_we) pc_mem[x_ctx] <= next_pc;
+    end
+
     `ALWAYS_FF_RST(clk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) begin
             for (int c = 0; c < NUM_HARTS; c++) begin
-                pc_q[c]     <= RESET_ADDR;
+                pc_fresh[c] <= 1'b1;
                 halted_q[c] <= 1'b0;
                 cause_q[c]  <= HALT_NONE;
             end
         end else begin
             for (int c = 0; c < NUM_HARTS; c++) begin
                 if (!hart_run[c]) begin
-                    pc_q[c]     <= RESET_ADDR;
+                    pc_fresh[c] <= 1'b1;
                     halted_q[c] <= 1'b0;
                     cause_q[c]  <= HALT_NONE;
                 end else if (x_live && (x_ctx == HART_W'(c))) begin
@@ -429,7 +453,7 @@ module gatling_core #(
                         halted_q[c] <= 1'b1;
                         cause_q[c]  <= halt_cause_eff;
                     end else begin
-                        pc_q[c] <= next_pc;
+                        pc_fresh[c] <= 1'b0;
                     end
                 end
             end

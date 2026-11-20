@@ -60,7 +60,9 @@ PC+imm and PC+4 are formed in D because both operands are known there, which kee
 
 ## Per-context state
 
-`pc_q[c]`, `halted_q[c]`, `cause_q[c]` and `order_q[c]` are the only per-context state besides the register file. `hart_run[c]` low wins every update: the PC returns to RESET_ADDR and the halt and order clear. Otherwise the X stage updates the context it holds -- its PC to the next PC, or, if the instruction halts, its halt bit and cause (the PC is not advanced, as kestrel).
+The PC file `pc_mem[c]`, with its flag `pc_fresh[c]`, and `halted_q[c]`, `cause_q[c]` and `order_q[c]` are the only per-context state besides the register file. `hart_run[c]` low wins every update: the PC returns to RESET_ADDR and the halt and order clear. Otherwise the X stage updates the context it holds -- its PC to the next PC, or, if the instruction halts, its halt bit and cause (the PC is not advanced, as kestrel).
+
+The PC file is a NUM_HARTS x 32 distributed RAM: X writes it at `x_ctx` and F reads it asynchronously at `sel_q`. The rotation keeps those on different contexts. A RAM has no reset, so `pc_fresh[c]` does that job. Reset sets it, and so does `hart_run[c]` low. The context's first PC write clears it, and while it is set F reads RESET_ADDR. A halt writes no PC and leaves the flag alone, so a context that halts on its first instruction still shows that instruction's address. `halted_q` and `cause_q` stay flops because the `halted` and `halt_cause` ports present every context at once.
 
 Validity is carried per stage (`d_valid`, `x_valid`, `w_valid`) and re-qualified by `hart_run` of the stage's context at every stage, so stopping a context kills its in-flight instruction in whichever stage holds it: no store, no PC update, no register write, no retirement.
 

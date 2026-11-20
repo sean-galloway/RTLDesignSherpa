@@ -238,6 +238,25 @@ the mux.
 Not built or measured. The current worst path, regfile BRAM -> ALU / next PC ->
 halt decision -> `pc_q` clock enable, would end at the LUTRAM write instead.
 
+**Addendum (2026-11-19, gatling-rv32i TASK-004): built and measured as
+described.**
+- The held bit is `pc_fresh`. A halt leaves it alone, so a context that
+  halts on its first instruction still reads that instruction's address,
+  as the flops did.
+- `cause_q` and `halted_q` stay flops. The `halted` and `halt_cause` ports
+  present every context at once.
+- Routed, three placer directives, base 8e14d4198:
+
+| gatling_core | LUT (LUTRAM) | FF (FDCE) | WNS Default / ExtraNetDelay_high / SpreadLogic_high |
+|---|---|---|---|
+| before | 1,308 (0) | 894 (409) | +0.190 / +0.470 / +0.196 |
+| after | 1,200 (22) | 772 (281) | +0.424 / +0.506 / +0.660 |
+
+- The LUTRAM count is 22, not 11: Vivado builds the 4 x 32 RAM as 34 RAMD32
+  and 10 RAMS32.
+- The worst path ends where predicted, at the RAM write enable or a
+  `cause_q` enable.
+
 ### 5. RVFI-only state
 
 | Core | State that exists only for RVFI |

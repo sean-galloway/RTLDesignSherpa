@@ -16,7 +16,7 @@ digraph gatling_rotation_grid {
   <TR><TD BGCOLOR="#E2EFDA"><B>stage \\ cycle</B></TD>
       <TD BGCOLOR="#E2EFDA"><B>t</B></TD><TD BGCOLOR="#E2EFDA"><B>t+1</B></TD><TD BGCOLOR="#E2EFDA"><B>t+2</B></TD><TD BGCOLOR="#E2EFDA"><B>t+3</B></TD>
       <TD BGCOLOR="#E2EFDA"><B>t+4</B></TD><TD BGCOLOR="#E2EFDA"><B>t+5</B></TD><TD BGCOLOR="#E2EFDA"><B>t+6</B></TD><TD BGCOLOR="#E2EFDA"><B>t+7</B></TD></TR>
-  <TR><TD ALIGN="LEFT"><B>F</B>  fetch at pc_q[sel_q]</TD>
+  <TR><TD ALIGN="LEFT"><B>F</B>  fetch at pc[sel_q]</TD>
       <TD BGCOLOR="#D6E4F0">c0 (i)</TD><TD>c1</TD><TD>c2</TD><TD>c3</TD><TD BGCOLOR="#D6E4F0">c0 (i+1)</TD><TD>c1</TD><TD>c2</TD><TD>c3</TD></TR>
   <TR><TD ALIGN="LEFT"><B>D</B>  decode, register read issued</TD>
       <TD BGCOLOR="#F2F2F2">-</TD><TD BGCOLOR="#D6E4F0">c0 (i)</TD><TD>c1</TD><TD>c2</TD><TD>c3</TD><TD BGCOLOR="#D6E4F0">c0 (i+1)</TD><TD>c1</TD><TD>c2</TD></TR>

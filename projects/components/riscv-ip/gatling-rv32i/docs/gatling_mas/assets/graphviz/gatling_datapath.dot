@@ -26,7 +26,7 @@ digraph gatling_datapath {
     // ---- F ----------------------------------------------------------------
     hrun  [label="Run Control Port\nhart_run[3:0] (comb)\n1 = run, 0 = hold at RESET_ADDR;\nlow re-qualifies every stage valid", group=F, style="rounded,filled", fillcolor="#E2EFDA"];
     rot   [label="Rotation Counter\nsel_q (2-bit flop, +1 every clock)\nnames the context in F", group=A, peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    pcb   [label="Context State Bank (flops, one entry per context)\npc_q[4] (RESET_ADDR)  |  halted_q[4], cause_q[4] (the halted / halt_cause outputs)\nF reads pc_q[sel_q]; X writes the entry of the context it holds", group=A, width=5.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pcb   [label="Context State Bank (one entry per context)\npc_mem[4] (distributed RAM) + pc_fresh[4] (reads RESET_ADDR)  |  halted_q[4], cause_q[4] flops (the halted / halt_cause outputs)\nF reads pc_mem[sel_q]; X writes the entry of the context it holds", group=A, width=5.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     insn  [label="Instruction Word (one stage after the fetch)\nd_insn = imem_rdata", group=Q, style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- D ----------------------------------------------------------------
@@ -46,7 +46,7 @@ digraph gatling_datapath {
     lsu   [label="Load / Store Issue (combinational; dmem_req, we, size from the bundle)\noffset = rs1[1:0] + imm[1:0] (off the carry chain)\nword address, wstrb = size << offset, wdata = rs2 << 8*offset\nmisaligned half / word: no strobes", group=R, style="filled", fillcolor="white"];
     wbs   [label="Writeback Select (combinational)\nCSR stub: 0 | LUI: imm | JAL / JALR: pc + 4 | else alu_y\nx_rd_wb = rd_wen & rd != x0 & ~halt_now", group=C, style="filled", fillcolor="white"];
     hlt   [label="Halt Resolve (combinational)\ncause = decode cause (from the bundle)\n| IALIGN (misaligned target)\n| LALIGN / SALIGN (misaligned access)\nhalt_now = x_live & |cause; w_trap to W", group=L, style="filled", fillcolor="white"];
-    ctxu  [label="Context Update (combinational, entry x_ctx)\nhart_run low: pc <= RESET_ADDR, clear halt\nhalt_now: set halted_q, cause_q (pc holds)\nelse: pc <= next_pc", group=L, style="filled", fillcolor="white"];
+    ctxu  [label="Context Update (combinational, entry x_ctx)\nhart_run low: set pc_fresh (pc reads RESET_ADDR), clear halt\nhalt_now: set halted_q, cause_q (pc holds)\nelse: pc_mem <= next_pc, clear pc_fresh", group=L, style="filled", fillcolor="white"];
     xw    [label="X->W Register\nw_valid = x_live  |  w_ctx, w_pc, w_pc_wdata, w_insn, w_trap, w_wb, w_rd_wb, w_rd, w_load, w_funct3, w_offset\nrs1 / rs2 addr + data, mem addr / masks / wdata (for RVFI)",
            group=C, width=9.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
@@ -60,9 +60,9 @@ digraph gatling_datapath {
     // ---- F: fetch request down the left, instruction back up the right ----
     rot   -> pcb   [style=dashed, color="#777777", xlabel="sel_q"];
     hrun  -> fd    [style=dashed, color="#777777", xlabel="hart_run[sel_q]"];
-    pcb   -> fd    [xlabel="pc_q[sel_q], sel_q"];
+    pcb   -> fd    [xlabel="pc[sel_q], sel_q"];
     p_f   [shape=point, width=0.01, group=A];
-    pcb   -> p_f   [arrowhead=none, headclip=false, xlabel="imem_ctx, imem_addr = pc_q[sel_q]\n(fetch, in F)", penwidth=1.8];
+    pcb   -> p_f   [arrowhead=none, headclip=false, xlabel="imem_ctx, imem_addr = pc[sel_q]\n(fetch, in F)", penwidth=1.8];
     p_f   -> bar   [tailclip=false, penwidth=1.8];
     p_r   [shape=point, width=0.01, group=Q];
     insn  -> p_r   [color="#1A7A1A", dir=back, headclip=false, xlabel="imem_rdata\n(instruction, in D)"];
@@ -93,7 +93,7 @@ digraph gatling_datapath {
     lsu   -> hlt   [style=dashed, color="#777777", xlabel="misaligned access"];
     npc   -> ctxu  [xlabel="next_pc"];
     hlt   -> ctxu  [style=dashed, color="#777777", xlabel="halt_now, cause"];
-    pcb   -> ctxu  [dir=back, xlabel="pc_q[x_ctx] <= next_pc,\nor halted_q / cause_q set\n(end of X)"];
+    pcb   -> ctxu  [dir=back, xlabel="pc_mem[x_ctx] <= next_pc,\nor halted_q / cause_q set\n(end of X)"];
     lsu   -> bar   [xlabel="L/S beat: dmem_req, dmem_ctx,\naddress, wstrb, wdata (in X)", penwidth=1.8];
     lsu   -> xw    [xlabel="w_load, w_offset,\nRVFI mem fields"];
     wbs   -> xw    [xlabel="w_wb, w_rd_wb"];

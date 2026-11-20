@@ -56,11 +56,20 @@ async def _pulse_and_trace(tb, dut):
     dut.seq_restart.value = 1
     await tb.wait_clocks(tb.clk_name, 1)
     dut.seq_restart.value = 0
+    # The PC file is a distributed RAM (common-rv32i ISSUE-001 row 4), so the
+    # per-hart PC vector is rebuilt from the fetch port: each cycle the
+    # context in F (sel_q) presents its PC on imem_addr.
     trace = []
+    pcs = {h: {} for h in ('src', 'snk')}
     for _ in range(TRACE):
         await tb.wait_clocks(tb.clk_name, 1)
-        trace.append(tuple((int(_gatling(dut, h).sel_q.value), int(_gatling(dut, h).pc_q.value))
-                           for h in ('src', 'snk')))
+        row = []
+        for h in ('src', 'snk'):
+            g = _gatling(dut, h)
+            sel = int(g.sel_q.value)
+            pcs[h][sel] = int(g.imem_addr.value)
+            row.append((sel, tuple(sorted(pcs[h].items()))))
+        trace.append(tuple(row))
     return trace
 
 
