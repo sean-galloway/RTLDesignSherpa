@@ -433,3 +433,56 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
     assert cm.CONFIGS["granite_sku100"].close_lag == 2
     assert rd[(2, 0)] < 300 < 380 < rd[(2, 480)], rd       # both modes under the shipped terms
     assert rd[(0, 0)] < 300 and rd[(0, 480)] < 300, rd       # one mode without the close lag
+
+
+def test_board_compare_reads_a_bimodal_cell_by_mode(tmp_path):
+    """MC-021 close-out: the board's open_page mixed_bl8 cell has two modes (311 / 522 and 272 / 272, the refresh
+    phase at GO), so one board number per cell cannot judge the model. `board-compare` groups a cell's board runs
+    (`--board-also` = the reruns) into modes within the tolerance of each other; every board mode needs a model run
+    (one `--model` CSV per GO phase, labelled by the `GO offset` note) within tolerance, and a model run in a mode the
+    board never showed is OUT. A cell with one run each keeps the one-run row exactly, so the earlier compares read
+    the same."""
+    import csv
+
+    def write(path, fields, rows):
+        with open(path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fields)
+            w.writeheader()
+            w.writerows(rows)
+        return str(path)
+
+    bf = ["config", "scenario", "wr_bw_mb_s", "rd_bw_mb_s", "notes"]
+    mf = ["config", "scenario", "wr_bw_mb_s", "rd_bw_mb_s", "bytes_moved", "wr_cycles", "rd_cycles", "notes"]
+    b_fast = dict(config="open_page", scenario="mixed_bl8", wr_bw_mb_s=311, rd_bw_mb_s=522, notes="union 622.0 MB/s over 1 cycles")
+    b_slow = dict(config="open_page", scenario="mixed_bl8", wr_bw_mb_s=272, rd_bw_mb_s=272, notes="union 545.0 MB/s over 1 cycles")
+    b_plain = dict(config="open_page", scenario="random_bl8", wr_bw_mb_s=728, rd_bw_mb_s=757, notes="")
+    write(tmp_path / "char_granite_t_every_2026-01-01.csv", bf, [b_fast, b_plain])
+    rerun_slow = write(tmp_path / "rerun1.csv", bf, [b_slow])
+    rerun_fast = write(tmp_path / "rerun2.csv", bf, [b_fast])
+    m_slow = dict(config="granite_sku100", scenario="mixed_bl8", wr_bw_mb_s=274, rd_bw_mb_s=274,
+                  bytes_moved=8192000, wr_cycles=2994444, rd_cycles=2992711, notes="")           # union 547
+    m_fast = dict(config="granite_sku100", scenario="mixed_bl8", wr_bw_mb_s=309, rd_bw_mb_s=568,
+                  bytes_moved=8192000, wr_cycles=2652660, rd_cycles=1441000,
+                  notes="GO offset 480 ticks against the refresh phase")                           # union 618
+    m_plain = dict(config="granite_sku100", scenario="random_bl8", wr_bw_mb_s=730, rd_bw_mb_s=752,
+                   bytes_moved=1, wr_cycles=1, rd_cycles=1, notes="")
+    model_slow = write(tmp_path / "model_slow.csv", mf, [m_slow, m_plain])
+    model_fast = write(tmp_path / "model_fast.csv", mf, [m_fast])
+
+    def compare(models, also):
+        out = tmp_path / "out.md"
+        rc = cm.main(["board-compare", "--model", *models, "--measured", str(tmp_path), "--granite", "t_2026-01-01",
+                      "--board-also", *also, "--out", str(out), "--strict"])
+        return rc, out.read_text()
+
+    rc, text = compare([model_slow, model_fast], [rerun_slow, rerun_fast])
+    assert rc == 0 and "2 cells in tolerance, 0 out" in text, text
+    mixed = [ln for ln in text.splitlines() if "| mixed_bl8 |" in ln][0]
+    assert "311 / 522 (union 622) x2; 272 / 272 (union 545) x1" in mixed, mixed
+    assert "309 / 568 (union 618) [GO 480]" in mixed and "(union, by mode)" in mixed and mixed.endswith("| IN |"), mixed
+    plain = [ln for ln in text.splitlines() if "| random_bl8 |" in ln][0]
+    assert plain == "| open_page | random_bl8 | 728 / 757 | 730 / 752 | +0.3 / -0.7 % | 5 % | IN |", plain
+    rc, text = compare([model_slow], [rerun_slow, rerun_fast])                 # the board's fast mode has no model run
+    assert rc == 1 and "1 cells in tolerance, 1 out" in text, text
+    rc, text = compare([model_slow, model_fast], [])                           # the model's slow run is a mode the board never showed
+    assert rc == 1 and "1 cells in tolerance, 1 out" in text, text

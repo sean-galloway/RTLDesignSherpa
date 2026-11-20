@@ -131,3 +131,34 @@ and their numbers.
   40 / 40 and the vendor's 217 pass.
 - Previous steps: `model_mc021_admission_gates_2026-11-19.md` (step 7),
   `model_mc021_wr_fill_lag_2026-11-19.md` (step 6).
+
+## 7. The compare read by mode (close-out, 2026-11-19)
+
+The owner's decision on section 5's one row: read a bimodal cell by mode, the
+model's default phase stays 0. `board-compare --board-also <reruns>` groups a
+cell's board runs into modes within the tolerance of each other, takes one
+`--model` CSV per model GO phase (`run` writes `GO offset N` into the row's
+notes when `GRANITE_GO_OFFSET` is set), and needs every board mode matched by
+a model run with no model run in a mode the board never showed. The SKU's
+mixed cell at GO offset 480 at the board's count: 309 / 568, union 618
+(`model_ramulator2_ddr2_granite_sku100_s8_go480_2026-11-19.csv`).
+
+`compare_model_sku_vs_board_sku100s4_s8_modes_2026-11-19.md`, the s8 model set
+plus that run against the board's five windows runs: **56 in / 1 out**.
+
+| preset | board, by mode | model, by phase | delta by mode | verdict |
+|---|---|---|---|---|
+| open_page mixed_bl8 | 311 / 522 (union 622) x3; 272 / 272 (545) x2 | 274 / 274 (547) GO 0; 309 / 568 (618) GO 480 | -0.7; +0.4 % | IN |
+| defaults mixed_bl8 | 272 / 273 (545) x5 | the same two | +0.5 % and a model mode the board never showed | OUT |
+| the other seven windows cells | five runs within a point, one mode | one run | as the s8 compare | IN |
+
+The out moved, and it is a finding: `defaults` is the hybrid page predictor,
+which the model runs as plain open page (the same `granite_sku100`
+configuration as `open_page`). On this cell the board's predictor stayed in
+the slow mode on all five runs where `open_page` was fast on three; at that
+proportion five slow of five is about a one-percent draw. Filed as
+memory-controllers ISSUE-006 (more board runs settle draw against predictor;
+if the predictor, its rule becomes a model term). The slow attractor itself
+-- the fast mode is better on both directions and the union, and the pick
+core takes one or the other on the refresh phase -- is filed as ISSUE-005, a
+design question outside MC-021.

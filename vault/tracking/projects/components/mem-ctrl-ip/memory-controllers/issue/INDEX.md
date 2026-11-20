@@ -2,7 +2,7 @@
 
 # memory-controllers — issues
 
-**Next ID: ISSUE-005** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-007** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed, spanning more than one
 controller (the shared `common-ip` RTL, or pumice and granite together). It
@@ -15,7 +15,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 2 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -23,7 +23,15 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **ISSUE-005** -- the open-page mixed cell's slow attractor: the direction
+  register's 255 / 255 cap alternation (272 / 272) where the fast mode, taken
+  on the refresh phase at GO, runs 311 / 522; whether the pick core should
+  take the fast mode deterministically. Filed 2026-11-19 from MC-021 step 8.
+- **ISSUE-006** -- the SKU model runs `defaults` (the hybrid page predictor) as
+  plain open page; on `defaults mixed_bl8` the board stayed in the slow mode on
+  five of five runs where `open_page` was fast on three, and the model has the
+  fast phase -- the one cell out of 57 in the MC-021 close-out compare read by
+  mode. Filed 2026-11-19.
 
 ## Closed
 

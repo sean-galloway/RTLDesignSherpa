@@ -5,8 +5,8 @@
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 17 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -26,17 +26,7 @@
 
 ## Active
 
-- **MC-021** -- the un-hinted hop, which turned out to be the pick PIPELINE:
-  the SKU model now carries mc_bank_pick's request register, winner register
-  (hold / speculation / pick), self-stale mask, next-op hint, lane register
-  and the registered rank ok (step 1, 2026-11-17: SKU 30 / 30, `close_page`
-  14 / 15, `bank_interleave` 1 / 12 at -15 percent with the mechanism named
-  -- the stale mask's dependence on per-bank depth, the held lane pair's
-  starvation and the write fill). Open on that residual and on the RTL
-  question, priced: `ap_stale` +20 on `bank_interleave`, `ap_act_la`
-  +28 on `close_page` single-bank streams. Filed 2026-11-17 from the knob
-  grid; closed ISSUE-002 and ISSUE-003.
-
+(none)
 
 ## Deferred
 
@@ -47,6 +37,20 @@
 
 ## Closed
 
+- **MC-021** -- the un-hinted hop, which turned out to be the pick PIPELINE
+  and then seven more terms of the granite SKU model, each measured on the
+  proxy cycle for cycle before it was written: the pick core's registers
+  (step 1), the ACT spacing count (BUG-004, step 2), the lane at its slot
+  (3), the record's hit lag (4), the fired auto-precharge pair masked in the
+  RTL -- the one RTL change, priced first, board-confirmed, +10 .. +25 percent
+  on the close-page read sides (5), the write record's fill gate (6), the
+  admission's three registers (7) and the hit flag on the way down with a
+  GO-phase knob (8), which gave the model the board's two modes on the
+  open-page mixed cell. Compare 56 / 1 against the step-5 board set, read by
+  mode at close-out; the one out is `defaults mixed_bl8`, the hybrid page
+  predictor never entering the fast mode, filed as ISSUE-006; the slow
+  attractor filed as ISSUE-005; `ap_stale` re-priced no-action; ISSUE-002 /
+  003 re-read, every cell in. Closed 2026-11-19.
 - **MC-018** -- the granite FPGA SKU as a Ramulator configuration:
   `granite_sku100` (the overlay's `GraniteSKU` controller -- bank-FIFO store
   with the per-burst `BANK_CAP_MIXED`, the pick core's select and MC-017

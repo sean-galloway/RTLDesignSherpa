@@ -75,7 +75,9 @@ the model before). `close_lag` (2, step 8) is the record's hit flag on the way
 down: a head whose row a PRE closed requests its ACT two slots after the PRE
 (`sku_closelag0` = before); with it, and the GO swept against the model's
 refresh phase (`GRANITE_GO_OFFSET=<ticks>`, the trace frontend's `start_tick`),
-the open-page mixed cell shows the board's two modes.
+the open-page mixed cell shows the board's two modes; `board-compare` reads
+such a cell by mode (`--board-also` for the board's reruns, one `--model` CSV
+per model phase, each with its `GO offset` in the notes).
 `hit_lag` (2) is the record's hit flag: a bank's heads read as row hits two
 slots after its ACT, so the column request shows at ACT + 3 where the hinted
 column fires at ACT + 2 (MC-021 step 4; `sku_hitlag1` reads the hit live);
@@ -883,6 +885,9 @@ def run_scenario(cfg: ModelConfig, sc: Scenario, tmpdir: str) -> dict:
     if row["wr_coalesced"] or row["rd_forwarded"]:
         notes.append(f"controller coalesced {row['wr_coalesced']} writes / forwarded "
                      f"{row['rd_forwarded']} reads (the board does neither)")
+    go = int(os.environ.get("GRANITE_GO_OFFSET", "0"), 0)
+    if go:
+        notes.append(f"GO offset {go} ticks against the refresh phase")
     row["elapsed_s"] = round(time.time() - t0, 1)
     row["notes"] = "; ".join(notes)
     return row
@@ -1035,16 +1040,16 @@ def _pct(model: float, board: float) -> float:
 
 
 def cmd_board_compare(args: argparse.Namespace) -> int:
-    model: Dict[Tuple[str, str], dict] = {}
-    for path in args.model:
-        with open(path, newline="") as f:
-            for r in csv.DictReader(f):
-                model[(r["config"], r["scenario"])] = r
-    board = _load_measured(args.measured, "granite", args.granite)
+    model = _load_runs(args.model)
+    board = _load_runs(_board_paths(args.measured, "granite", args.granite) + list(args.board_also or []))
     lines = [f"# The SKU model beside the board: granite {args.granite}", "",
              "Cells are write / read MB/s at 100 MHz (bandwidth = bytes over first-beat-in to last-response-out);",
              "delta = (model - board) / board per direction, and the cell is IN when both directions land within",
              "the family's tolerance. `mixed` compares the union (both directions' bytes over the longer window).",
+             "A cell with several board runs (`--board-also`) is read BY MODE: runs within the tolerance of each",
+             "other are one mode (`xN` = runs in it), every board mode needs a model run within tolerance (several",
+             "`--model` CSVs are the model's GO phases, labelled by their `GO offset`), and a model run in a mode",
+             "the board never showed is OUT; the delta column then carries one delta per board mode.",
              "", "| board preset | scenario | board wr / rd | model wr / rd | delta wr / rd | tol | verdict |",
              "|---|---|---|---|---|---|---|"]
     n_in = n_out = 0
@@ -1052,27 +1057,25 @@ def cmd_board_compare(args: argparse.Namespace) -> int:
     for mcfg, presets in BOARD_PRESET_OF.items():
         for preset in presets:
             for sc in EVERY + WINDOWS:
-                b = board.get((preset, sc.name))
-                m = model.get((mcfg, sc.name))
-                if not b or not m:
+                b_rows = board.get((preset, sc.name))
+                m_rows = model.get((mcfg, sc.name))
+                if not b_rows or not m_rows:
                     continue
                 tol = TOLERANCE_PRESET_PCT.get(preset, TOLERANCE_PCT.get(sc.family, 5.0))
-                bw, br = float(b["wr_bw_mb_s"]), float(b["rd_bw_mb_s"])
-                mw, mr = float(m["wr_bw_mb_s"]), float(m["rd_bw_mb_s"])
-                if sc.family == "mixed":
-                    # the board CSV's union is in its notes; the model's union = 2 * cell when the two windows
-                    # coincide, so compare both directions' bytes over the longer window
-                    bu = _union_from_notes(b["notes"])
-                    mu = 2 * float(m["bytes_moved"]) / max(int(m["wr_cycles"]), int(m["rd_cycles"])) * MC_CLK_MHZ
-                    d = _pct(mu, bu) if bu else 0.0
-                    verdict = "IN" if abs(d) <= tol else "OUT"
-                    cell = f"| {preset} | {sc.name} | {bw:.0f} / {br:.0f} (union {bu:.0f}) | {mw:.0f} / {mr:.0f} (union {mu:.0f}) | {d:+.1f} % (union) | {tol:.0f} % | {verdict} |"
-                    worst.append((abs(d), f"{preset} {sc.name}"))
+                mixed = sc.family == "mixed"
+                b_obs = [_board_obs(r) for r in b_rows]
+                m_obs = [_model_obs(r) for r in m_rows]
+                modes = _modes(b_obs, tol, mixed)
+                nearest = [min(m_obs, key=lambda o: _dist(o, mode[0], mixed)) for mode in modes]
+                deltas = [_dist(o, mode[0], mixed) for o, mode in zip(nearest, modes)]
+                every_mode_met = all(d <= tol for d in deltas)
+                no_model_mode_unseen = all(any(_dist(o, mode[0], mixed) <= tol for mode in modes) for o in m_obs)
+                verdict = "IN" if every_mode_met and no_model_mode_unseen else "OUT"
+                worst.append((max(deltas), f"{preset} {sc.name}"))
+                if len(b_obs) == 1 and len(m_obs) == 1:
+                    cell = _one_run_cell(preset, sc.name, b_obs[0], m_obs[0], mixed, tol, verdict)
                 else:
-                    dw, dr = _pct(mw, bw), _pct(mr, br)
-                    verdict = "IN" if max(abs(dw), abs(dr)) <= tol else "OUT"
-                    cell = f"| {preset} | {sc.name} | {bw:.0f} / {br:.0f} | {mw:.0f} / {mr:.0f} | {dw:+.1f} / {dr:+.1f} % | {tol:.0f} % | {verdict} |"
-                    worst.append((max(abs(dw), abs(dr)), f"{preset} {sc.name}"))
+                    cell = _by_mode_cell(preset, sc.name, modes, m_obs, nearest, mixed, tol, verdict)
                 lines.append(cell)
                 if verdict == "IN":
                     n_in += 1
@@ -1089,6 +1092,85 @@ def cmd_board_compare(args: argparse.Namespace) -> int:
     else:
         sys.stdout.write(text)
     return 0 if n_out == 0 or not args.strict else 1
+
+
+# One run of a cell: (write MB/s, read MB/s, union MB/s, label). The union is the board CSV's note for the board
+# and both directions' bytes over the longer window for the model; the label is the model's GO phase when set.
+Obs = Tuple[float, float, float, str]
+
+
+def _board_paths(dirpath: str, controller: str, tag: str) -> List[str]:
+    point, date = tag.rsplit("_", 1)
+    paths = [os.path.join(dirpath, f"char_{controller}_{point}_{suite}_{date}.csv") for suite in ("every", "windows")]
+    return [p for p in paths if os.path.exists(p)]
+
+
+def _load_runs(paths: Sequence[str]) -> Dict[Tuple[str, str], List[dict]]:
+    """{(config, scenario): [row, ...]} over every CSV, one row per run of the cell."""
+    out: Dict[Tuple[str, str], List[dict]] = {}
+    for path in paths:
+        with open(path, newline="") as f:
+            for r in csv.DictReader(f):
+                out.setdefault((r["config"], r["scenario"]), []).append(r)
+    return out
+
+
+def _board_obs(r: dict) -> Obs:
+    return float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"]), _union_from_notes(r["notes"]), ""
+
+
+def _model_obs(r: dict) -> Obs:
+    import re
+    cyc = max(int(r["wr_cycles"]), int(r["rd_cycles"]))
+    union = 2 * float(r["bytes_moved"]) / cyc * MC_CLK_MHZ if cyc else 0.0
+    m = re.search(r"GO offset (\d+)", r.get("notes", "") or "")
+    return float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"]), union, (f"GO {m.group(1)}" if m else "")
+
+
+def _dist(a: Obs, b: Obs, mixed: bool) -> float:
+    """The cell's delta of run a against run b in percent: the union for mixed, else the worse direction."""
+    if mixed:
+        return abs(_pct(a[2], b[2])) if b[2] else 0.0
+    return max(abs(_pct(a[0], b[0])), abs(_pct(a[1], b[1])))
+
+
+def _modes(obs: List[Obs], tol: float, mixed: bool) -> List[List[Obs]]:
+    """Board runs grouped by mode: a run joins the first mode whose first run it is within the tolerance of."""
+    modes: List[List[Obs]] = []
+    for o in obs:
+        for mode in modes:
+            if _dist(o, mode[0], mixed) <= tol:
+                mode.append(o)
+                break
+        else:
+            modes.append([o])
+    return modes
+
+
+def _fmt_obs(o: Obs, mixed: bool) -> str:
+    txt = f"{o[0]:.0f} / {o[1]:.0f}" + (f" (union {o[2]:.0f})" if mixed else "")
+    return txt + (f" [{o[3]}]" if o[3] else "")
+
+
+def _one_run_cell(preset: str, name: str, b: Obs, m: Obs, mixed: bool, tol: float, verdict: str) -> str:
+    if mixed:
+        delta = f"{_pct(m[2], b[2]) if b[2] else 0.0:+.1f} % (union)"
+    else:
+        delta = f"{_pct(m[0], b[0]):+.1f} / {_pct(m[1], b[1]):+.1f} %"
+    return f"| {preset} | {name} | {_fmt_obs(b, mixed)} | {_fmt_obs(m, mixed)} | {delta} | {tol:.0f} % | {verdict} |"
+
+
+def _by_mode_cell(preset: str, name: str, modes: List[List[Obs]], m_obs: List[Obs], nearest: List[Obs],
+                  mixed: bool, tol: float, verdict: str) -> str:
+    board = "; ".join(_fmt_obs(mode[0], mixed) + f" x{len(mode)}" for mode in modes)
+    model = "; ".join(_fmt_obs(o, mixed) for o in m_obs)
+    if mixed:
+        delta = "; ".join(f"{_pct(m[2], mode[0][2]) if mode[0][2] else 0.0:+.1f}" for m, mode in zip(nearest, modes))
+        delta += " % (union, by mode)"
+    else:
+        delta = "; ".join(f"{_pct(m[0], mode[0][0]):+.1f} / {_pct(m[1], mode[0][1]):+.1f}"
+                          for m, mode in zip(nearest, modes)) + " % (by mode)"
+    return f"| {preset} | {name} | {board} | {model} | {delta} | {tol:.0f} % | {verdict} |"
 
 
 def _union_from_notes(notes: str) -> float:
@@ -1215,6 +1297,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     bc.add_argument("--model", nargs="+", required=True)
     bc.add_argument("--measured", required=True, help="the char_results directory")
     bc.add_argument("--granite", required=True, help="<point>_<date>, e.g. sku100def_2026-11-16")
+    bc.add_argument("--board-also", nargs="*", default=[],
+                    help="more board CSVs of the same point (reruns); a cell with several runs is read by mode")
     bc.add_argument("--out", default="")
     bc.add_argument("--strict", action="store_true", help="exit 1 when any cell is out of tolerance")
     bc.set_defaults(func=cmd_board_compare)

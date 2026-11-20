@@ -642,6 +642,20 @@ image after an ACT (`hit_lag`) but not after a PRE; **a lag measured on one
 transition applies to the other until measured otherwise**
 (`char_results/model_mc021_mixed_modes_2026-11-19.md`).
 
+Once a cell has two modes, one number per cell cannot judge the model, so the
+compare reads such a cell by mode: the board's reruns grouped within the
+tolerance, every board mode needing a model phase within tolerance, and a
+model phase in a mode the board never showed counting as OUT -- that second
+direction is the one a "within tolerance of either" rule would miss, and it
+found the first real error in the SKU model's stand-in for the hybrid page
+predictor (`defaults` run as open page: the board's predictor never entered
+the fast mode on five runs where plain open page did on three; memory-
+controllers ISSUE-006). **A mode the model shows and the board does not is
+as much a finding as the reverse.** The model's default phase stays the slow
+mode: the board's mode is a draw at GO, and a model that picked the lucky
+phase would be fitting the draw, not the controller
+(`char_results/compare_model_sku_vs_board_sku100s4_s8_modes_2026-11-19.md`).
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the
