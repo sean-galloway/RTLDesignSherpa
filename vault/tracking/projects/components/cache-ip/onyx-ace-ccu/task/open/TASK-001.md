@@ -41,14 +41,59 @@ first measurement is onyx in the fabric's place on the reference rig at
 the fabric's own cycles per transaction (PRD criterion 6, bin 7 the
 baseline).
 
+## What already exists (inventory 2026-11-20, at the owner's pointer)
+
+The owner noted the ACE BFM and transport might already be there and
+could not vouch for the quality; onyx is their first real application.
+Found and measured:
+
+- **BFM**: `CocoTBFramework.components.ace` in RDS-DV (2026-10-05):
+  `AXI4ACEMasterRead/Write` (ARSNOOP/AWSNOOP, AxDOMAIN, AxBAR, 4-bit RRESP,
+  RACK/WACK auto-pulse with `auto_ack=False`), `AXI4ACESlaveRead`,
+  `AXI4ACESnoopMaster` (`issue_snoop`) and `AXI4ACESnoopSlave`
+  (per-address cache-state map, MESI responder matrix, replaceable
+  handler), `ACEComplianceChecker` (CR/CD order, CRRESP validity per snoop
+  type, no snoop to the requester), `ARSnoop`/`AWSnoop`/`SnoopType`/
+  `CRRESP` types, factories, `ACE_QUICKSTART.md`. The framework's 135 ACE
+  unit tests pass (0.3 s). RDS-DV issue #86 is still open in the tracker
+  although the work it describes is in the tree; the D10 row's "build the
+  BFM first" is therefore "verify the BFM on onyx", and gaps found are
+  RDS-DV items.
+- **Transport RTL**: `rtl/amba/ace/` -- `axi4ace_master_rd/wr`,
+  `axi4ace_slave_rd/wr`, `axi4ace_snoop_master/slave`, each with a
+  `_monlite` wrapper, plus `rtl/amba/ocelus/axi4ace_snoop_monitor_lite`;
+  skid-buffer channel movers, not protocol controllers; doc pages under
+  `docs/markdown/rtl-amba/ace/`. Tests: six `val/amba/test_axi4ace_*.py`
+  with `bin/TBClasses/ace/*` TBs (compliance checker, CRRESP/data
+  scoreboard, monitor packet checks): `make clean-all && make
+  run-all-func-parallel TESTS="test_axi4ace_*.py"` 24 of 24 cells PASS in
+  17 s on 2026-11-20 (the 2026-11-06 logs were green too). The master
+  movers' auto-pulsed RACK/WACK is deprecated by N1 (amber follow-up A5).
+- **The caches' side**: jet-prime's snoop port is already ACE-shaped
+  (`m_axi_ac*` in, `m_axi_cr*`/`m_axi_cd*` out, `AMBER_CRRESP_WIDTH`), so
+  the D7 adapter exists for the snoop side; the pair fabric drives it. The
+  front side is plain AXI4 plus the `coh_req_{valid,addr,type}` /
+  `coh_done_{valid,id}` sideband with `AMBER_ACE_*` types (l1_pkg: RNSD,
+  RU, CU, MU, WB, Evict), not ARSNOOP on the AR. onyx's cache-side port
+  in v1 therefore takes the fabric's contract (AXI4 + sideband + AC/CR/CD)
+  natively, which keeps jet-prime's RTL unchanged and the comparison
+  like-for-like; an ARSNOOP front-side flavor is the D7 adapter's second
+  half when a true ACE master appears.
+- **Quality caveat**: everything above is exercised at transport level
+  (movers against BFMs, BFM against BFM). Nothing has driven the snoop
+  BFMs against a manager that gathers several caches' responses, so
+  expect the gaps there: multiple outstanding snoops per cache, CD
+  multi-beat alignment at BUS_WIDTH, the responder matrix against the
+  caches' actual CRRESP, RACK deprecation. Each is filed where it lives.
+
 ## The work, in order
 
-1. **The ACE BFM** (D10): the extension of the RDS-DV `axi4` family the
-   PRD specifies (field configs with ARSNOOP/AWSNOOP, `axi4ace_*` signal
-   patterns, the five D2 transactions as an enum, CRRESP as a bitfield,
-   master read/write subclasses, a snoop-slave BFM, a snoop-master BFM
-   for the cache side), RDS-DV issue #86. Built and unit-tested before any
-   onyx RTL; the rds-dv-axes/bfms rules apply.
+1. **Verify the ACE BFM on onyx's shapes** (D10): a BFM-against-BFM
+   scenario set for the gather (N snoop slaves answering one snoop master,
+   out-of-order completion across caches, multi-beat CD, every D2
+   transaction's CRRESP matrix against jet-prime's responder), run before
+   any onyx RTL; gaps become RDS-DV issues, and #86 closes against the
+   result. The rds-dv-axes/bfms rules apply.
 2. **The core**: `onyx_ccu` -- front-end decode, the transaction table
    and per-address scoreboard (the fabric's, widened to N ports and ACE
    fields), the snoop fanout and gather, the adjudicator with both D6
@@ -98,3 +143,7 @@ baseline).
 ## Progress
 
 - 2026-11-20: filed with the D rulings (PRD v0.7).
+- 2026-11-20 (later): inventory at the owner's pointer -- the ACE BFM,
+  transport RTL and tests exist (see "What already exists"); 24 of 24
+  ACE func cells PASS from clean, 135 framework unit tests PASS; step 1
+  rewritten from "build the BFM" to "verify it on onyx's shapes".
