@@ -88,3 +88,17 @@ a recorded no-action if the preset is retired.
   no cell into tolerance; `req_bank_timing` off reads closer (312 against
   389) by adding half a cycle of waiting per hop, which is not the RTL's
   mechanism and is not adopted.
+
+## Re-read against the MC-021 step-7 model (2026-11-19)
+
+Every cell this issue named is inside the board compare's tolerance under one
+setting (`char_results/compare_model_sku_vs_board_sku100s4_s7_2026-11-19.md`):
+the eight-bank `bank_interleave` cells 388-389 against the board's 387-388
+(incremental, row_major, col_major bl8 / bl16, interleaved bl8 / bl16), and
+the two bl4 cells 283 / 389 and 246 / 322 against 283 / 388 and 243 / 317.
+The close-page chain this issue left open was not one `hop_lag`: it was the
+pick pipeline's registers (MC-021 step 1), the ACT spacing count (step 2,
+BUG-004), the lane's slot (step 3), the record's hit lag (step 4), and the
+leftover pick of a fired auto-precharge pair, which was an RTL change (step
+5) that moved the two bl4 cells on the board from 258 / 351 and 242 / 253 to
+283 / 388 and 243 / 317. Nothing of this issue remains.

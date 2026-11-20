@@ -97,7 +97,9 @@ way and are the next items (below).
   item 3, with the close_page mixed regression beside it. (The close_page
   mixed cell landed the same evening as step 7, `model_mc021_admission_gates_2026-11-19.md`:
   two self-consistent attractors of the direction register, picked by one slot
-  in the first turns; the open_page cell's two modes are the same shape.)
+  in the first turns; the open_page cell's two modes are the same shape --
+  settled as step 8, `model_mc021_mixed_modes_2026-11-19.md`: the refresh
+  phase at GO picks the mode, the proxy and the model both show both.)
 
 ## Record
 

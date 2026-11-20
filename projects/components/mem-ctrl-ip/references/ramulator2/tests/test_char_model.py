@@ -224,6 +224,8 @@ def test_sku_config_is_the_shipped_point():
     assert c.hit_lag == 2 and c.ap_fire_stale   # the step-4 RTL: the fired auto-precharging column's pair masked the slot after
     # MC-021 step 6: the store's write record waits for the entry's fill and the fill-done register (two slots a read's does not)
     assert c.wr_fill_lag == 2
+    # MC-021 step 8: the record's hit flag on the way down -- a head whose row a PRE closed requests its ACT two slots later
+    assert c.close_lag == 2
     # every variant changes ONE term against the SKU
     from dataclasses import fields
     for name in cm.SKU_VARIANTS:
@@ -402,3 +404,32 @@ def test_write_trace_applies_the_address_map(tmp_path):
     addrs = [int(ln.split()[2]) for ln in path.read_text().splitlines()]
     assert addrs == [cm.remap_bank_interleave(8), cm.remap_bank_interleave(16)]
     assert (addrs[0] // cm.GEOM.bank_stride) % 8 == 1
+
+
+def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
+    """MC-021 step 8: the board's open_page mixed_bl8 cell runs in two modes (311 / 522 three runs of five, 272 / 272
+    two), the proxy reproduces both when the refresh phase at GO is swept (tREFI 770 and 773 fast, 771 / 772 / 774 /
+    776 / 780 slow), and the model reproduces both when ITS GO is swept against its refresh phase (GRANITE_GO_OFFSET,
+    the frontend's start_tick) -- but only with the close lag: the record's hit flag is classified against the
+    registered row image on the way down too, so a head whose row a PRE just closed requests its ACT two slots
+    later, and at a cap flip the holder's hinted re-ACT reaches the contested bank before the waiter's. Without it
+    every phase gives the slow mode. The fast mode is the register ping-ponging on zero-column write turns until the
+    reads finish; the slow mode the 255 / 255 cap alternation."""
+    import os
+    import tempfile
+    from dataclasses import replace
+    sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=512)
+    base = cm.CONFIGS["granite_sku100"]
+    rd = {}
+    try:
+        for lag in (2, 0):
+            for off in (0, 480):
+                os.environ["GRANITE_GO_OFFSET"] = str(off)
+                with tempfile.TemporaryDirectory() as t:
+                    r = cm.run_scenario(replace(base, name=f"cl{lag}o{off}", close_lag=lag), sc, t)
+                rd[(lag, off)] = float(r["rd_bw_mb_s"])
+    finally:
+        os.environ.pop("GRANITE_GO_OFFSET", None)
+    assert cm.CONFIGS["granite_sku100"].close_lag == 2
+    assert rd[(2, 0)] < 300 < 380 < rd[(2, 480)], rd       # both modes under the shipped terms
+    assert rd[(0, 0)] < 300 and rd[(0, 480)] < 300, rd       # one mode without the close lag

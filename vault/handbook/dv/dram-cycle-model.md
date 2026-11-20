@@ -630,6 +630,18 @@ per name**: one number for "the admission" was right on the path it was
 measured on and one slot wrong on the other
 (`char_results/model_mc021_admission_gates_2026-11-19.md`).
 
+The board's bimodal open-page mixed cell was the same shape one level up
+(MC-021 step 8, same day): the proxy is seeded once, so rerunning it gives
+one mode; what varies between board runs with a hardware GO is the refresh
+counter's phase, and sweeping `TEST_TREFI` by a few cycles in sim gave both
+modes. **A bimodal board cell is a phase to sweep, not a seed to re-roll**, and
+the model needs a GO-phase knob (`GRANITE_GO_OFFSET`) before it can be asked to
+show both. The term the model was missing was again a register read live on
+one edge and registered on the other: the record's hit flag lagged the row
+image after an ACT (`hit_lag`) but not after a PRE; **a lag measured on one
+transition applies to the other until measured otherwise**
+(`char_results/model_mc021_mixed_modes_2026-11-19.md`).
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

@@ -57,6 +57,10 @@ class TimedLoadStoreTrace : public IFrontEnd, public Implementation {
   std::string m_trace_path;
   int m_max_per_tick = 1;
   bool m_split = false;
+  // start_tick: no request is offered before this frontend tick (the GO against the memory system's
+  // refresh phase; memory-controllers MC-021 item 3: the board's mixed open-page cell has two modes and
+  // the refresh counter's phase at GO picks one)
+  int m_start_tick = 0;
 
   size_t s_reads_sent = 0;
   size_t s_writes_sent = 0;
@@ -77,6 +81,7 @@ class TimedLoadStoreTrace : public IFrontEnd, public Implementation {
     RAMULATOR_PARSE_PARAM(m_trace_path, std::string, "path").required();
     RAMULATOR_PARSE_PARAM(m_max_per_tick, int, "max_per_tick").default_val(1);
     RAMULATOR_PARSE_PARAM(m_split, bool, "split_directions").default_val(false);
+    RAMULATOR_PARSE_PARAM(m_start_tick, int, "start_tick").default_val(0);
     if (m_max_per_tick < 1) {
       throw std::runtime_error("TimedLoadStoreTrace: max_per_tick must be >= 1");
     }
@@ -112,6 +117,7 @@ class TimedLoadStoreTrace : public IFrontEnd, public Implementation {
 
   void tick() override {
     m_clk++;
+    if (m_clk < static_cast<size_t>(m_start_tick)) return;
     if (!m_split) {
       int sent_this_tick = 0;
       while (m_next < m_trace.size() && sent_this_tick < m_max_per_tick) {

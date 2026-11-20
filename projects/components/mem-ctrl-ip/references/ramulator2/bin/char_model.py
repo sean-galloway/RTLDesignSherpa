@@ -71,7 +71,11 @@ the host `pool_gate_lag` (2) slots later and its bank-cap room `cap_gate_lag`
 (1) slot later, and an accepted beat lands `admit_lag` (1) slot after; the pool
 path is the 3 ISSUE-004 measured, the cap path 2, and that one slot is where the
 close-page mixed turns fall (`sku_admit3` = one three-slot stage on both paths,
-the model before).
+the model before). `close_lag` (2, step 8) is the record's hit flag on the way
+down: a head whose row a PRE closed requests its ACT two slots after the PRE
+(`sku_closelag0` = before); with it, and the GO swept against the model's
+refresh phase (`GRANITE_GO_OFFSET=<ticks>`, the trace frontend's `start_tick`),
+the open-page mixed cell shows the board's two modes.
 `hit_lag` (2) is the record's hit flag: a bank's heads read as row hits two
 slots after its ACT, so the column request shows at ACT + 3 where the hinted
 column fires at ACT + 2 (MC-021 step 4; `sku_hitlag1` reads the hit live);
@@ -430,6 +434,8 @@ class ModelConfig:
                                        #   timers' registered row image -> the record's hit flag -> the request register; MC-021 step 4)
     ap_fire_stale: bool = True         # GraniteSKU: the pair of a column that fired with auto-precharge is masked the slot after its fire
                                        #   (the RTL since MC-021 step 4; False = the RTL before, whose leftover column request won the select)
+    close_lag: int = 2                 # GraniteSKU: slots after a PRE before a head that was hitting the closed row requests its ACT (the record's
+                                       #   hit flag against the registered row image, the chain hit_lag counts on the way up; MC-021 item 3)
     wr_fill_lag: int = 2               # GraniteSKU: slots after a WRITE beat lands in its bank queue before it is a head record -- the store's
                                        #   write record needs the entry's data fill and the fill-done register, the read record only the
                                        #   queue (a beat entering an empty write queue is the pick's request 3 cycles after it lands, a read
@@ -581,6 +587,7 @@ CONFIGS.update({c.name: c for c in [
     _sku("hitlag1", "the decode reads the row hit live, the slot after the ACT (the step-3 model)", hit_lag=1),
     _sku("noapfirestale", "the stale mask's fire term before MC-021 step 4: a fired pair masked only when its queue emptied", ap_fire_stale=False),
     _sku("wrfill0", "a write beat is a head record the slot it lands, like a read (the model before MC-021 step 6)", wr_fill_lag=0),
+    _sku("closelag0", "a head whose row a PRE closed requests its ACT off the live row image (the model before MC-021 step 8)", close_lag=0),
     _sku("admit3", "one three-slot admission stage on every path (the model before MC-021 step 7: the cap path a slot slow)",
          admit_lag=3, pool_gate_lag=0, cap_gate_lag=0),
     _sku("batch64", "DIR_BATCH_MAX 64", dir_batch_max=64),
@@ -681,7 +688,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             close_on_drain=cfg.close_on_drain, alternate=cfg.alternate, page_close=cfg.page_close,
             peek_depth=cfg.peek_depth, req_bank_timing=cfg.req_bank_timing,
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
-            hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag,
+            hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag, close_lag=cfg.close_lag,
             **_sku_debug_params(),
         )
     else:
@@ -692,7 +699,9 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             wr_low_watermark=cfg.wr_low_wm, wr_high_watermark=cfg.wr_high_wm,
         )
     # frontend = the MC clock (one AXI beat per tick), memory system = CK at 2x
-    frontend = ramulator.frontend.TimedLoadStoreTrace(clock_ratio=1, path=trace_path, split_directions=split)
+    # GRANITE_GO_OFFSET=<ticks>: the GO against the model's refresh phase (MC-021 item 3; 0 = the run starts at GO)
+    frontend = ramulator.frontend.TimedLoadStoreTrace(clock_ratio=1, path=trace_path, split_directions=split,
+                                                      start_tick=int(os.environ.get("GRANITE_GO_OFFSET", "0"), 0))
     mem = ramulator.memory_system.GenericDRAM(
         clock_ratio=2, controllers=[ctrl],
         channel_mapper=ramulator.channel_mapper.CacheLineInterleave())

@@ -69,3 +69,21 @@ The model gains the `hop_latency` term this issue named, as **MC-021**
 RTL question of whether the lookahead can reach the post-precharge and
 rank-level timers. The knob grid of the ISSUE-004 terms moves no close_page
 cell into tolerance (best 1 / 15), as expected for a missing term.
+
+## Re-read against the MC-021 step-7 model (2026-11-19)
+
+The `hop_latency` term this issue named was not the mechanism; the two cycles
+per hop decomposed into the pick pipeline's registers (MC-021 step 1: the
+request register, the winner register with its hold, the one-cycle hint,
+`pick_la` 2), the ACT spacing count (step 2, BUG-004), the record's hit lag
+(step 4) and the store's write record fill gate (step 6). Every close_page cell
+this issue named is inside tolerance in
+`char_results/compare_model_sku_vs_board_sku100s4_s7_2026-11-19.md`: the one-bank
+chains `incremental` 82 / 93 against 82 / 92, `row_major` 78 / 87 against 78 /
+87, `col_major` 79-82 / 88-92 against the same; `col_major_interleaved` bl4 /
+bl8 / bl16 388 / 389, 254 / 334, 172 / 239 against 386 / 387, 250 / 361, 171 /
+238; `row_thrash` 242 / 316 against 238 / 314; `random` 205 / 258 against 203 /
+258. The RTL question the issue raised (can the lookahead reach the
+post-precharge timers) was answered in its measured shape: no (`ap_act_la`
+false), and the one RTL change that bound was step 5's. Nothing of this issue
+remains.
