@@ -5,9 +5,9 @@
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
+| [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 18 | done (kept for history) |
-| [dropped/](dropped/) | 0 | ended without completing |
+| [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
@@ -21,15 +21,7 @@
 
 ## Active
 
-- **MC-019** -- the row lane carries ACT only: the SKU model prices a PRE on
-  the lane at 0.0 on all 29 MC-018 patterns (PRE-only = lane off, ACT-only =
-  the SKU); drop the PRE class from the lane for logic out of the 100 MHz
-  cone, gated by `TEST_DUAL` both ways, formal and the no-knob sys100 build.
-  Filed 2026-11-17 from MC-018.
-  ACTIVE 2026-11-20: measured, not landed -- the lane carries ~420 demand PREs
-  per `col_ilv` run the model never issues (its stand-in auto-precharges);
-  removing them costs that read side 1.3 percent for 277 LUT and no timing.
-  Owner's call: take or drop (`char_results/rtl_mc019_lane_act_only_2026-11-20.md`).
+(none)
 
 ## Deferred
 
@@ -37,6 +29,19 @@
   selection out of the classify cone; build-time pick modes). Step (b), hit /
   sibling flags in the CAM, parked until the research configuration has to
   close 75 MHz on the board. Deferred 2026-11-08.
+
+## Dropped
+
+- **MC-019** -- the row lane carries ACT only: the SKU model prices a PRE on
+  the lane at 0.0 on all 29 MC-018 patterns (PRE-only = lane off, ACT-only =
+  the SKU); drop the PRE class from the lane for logic out of the 100 MHz
+  cone, gated by `TEST_DUAL` both ways, formal and the no-knob sys100 build.
+  Filed 2026-11-17 from MC-018.
+  DROPPED 2026-11-20 on the measurement -- the lane carries ~420 demand PREs
+  per `col_ilv` run the model never issues (its stand-in auto-precharges);
+  removing them costs that read side 1.3 percent for 277 LUT and no timing.
+  Owner's call: take or drop (`char_results/rtl_mc019_lane_act_only_2026-11-20.md`).
+  Dropped: no timing gain, 277 LUT against a measured loss.
 
 ## Closed
 
