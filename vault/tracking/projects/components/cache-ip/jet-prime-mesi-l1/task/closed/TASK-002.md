@@ -123,9 +123,18 @@ closure.
   pure-read row. Thrash rows: better than bin 4 at depths 1-2, equal from
   4. Verification: lint clean, gate 21/21, FULL 155/155 (9:22), ref-g2
   gate 7/7, control covers 23/23 and 7/7 on the regenerated flat, the
-  safety prove relaunched on the final flat (verdict to be appended; the
-  step-5 flat's took 26:52); the liveness BMC left as TASK-001 recorded.
+  safety prove relaunched on the final flat (PASS, appended below); the
+  liveness BMC left as TASK-001 recorded (TASK-003, open 2026-11-19).
   Pair-rig func cell at the CPU boundary: every directly served read hit
   2 cycles. Control TB FULL cell: 107 hits answered in the accept cycle,
   2 from the record. Written up in delta 04 and the reference comparison
   (s6 column). Closed.
+- 2026-11-20: the control safety prove on the committed flat
+  (`jet_prime_control_flat.v` 645e7cf19e, b249656e9; BMC depth 64,
+  boolector) PASS at 06:22 after 24:46 wall, 23:51 solver time, no trace
+  (launched 2026-11-19 05:36). The step-5 flat took 26:52 for the same
+  depth and the step-3 flat 11:57; steps 61-63 took 3:18, 3:30 and 5:19
+  each, the step-5 environment's per-step cost and not more, so the
+  hit-path change added nothing the solver had to carry. With the covers
+  (23 of 23, 7 of 7) this closes the formal on TASK-002; the liveness
+  bound is TASK-003.

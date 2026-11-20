@@ -175,10 +175,14 @@ a pending record already excludes the direct fire.
   accept cycle and answered in 3 (held a cycle behind an older response),
   misses min 20. The board's resident rows are the measurement.
 - Control formal on the regenerated flat: covers PASS (23 of 23 and 7 of
-  7 reached); the safety prove (BMC depth 64, boolector) was relaunched on the committed flat at 05:36 and was at step 43 of 64 at this commit (05:47); the step-5 flat's took 26:52, so the verdict is appended to TASK-002's closed page when it lands. The
-  liveness BMC is as TASK-001 left it: the step-5 run was stopped by the
-  owner at step 123 of 192 and the tighter environment is its own item;
-  not relaunched here.
+  7 reached); the safety prove (BMC depth 64, boolector) on the committed
+  flat (645e7cf19e) PASS 2026-11-20 06:22 after 24:46 wall (23:51 solver;
+  no trace) -- against 26:52 on the step-5 flat and 11:57 on the step-3
+  flat; steps 61-63 took 3:18, 3:30 and 5:19, so the per-step cost of the
+  step-5 environment carries over and the hit-path change did not add to
+  it. The liveness BMC is as TASK-001 left it: the step-5 run was stopped
+  by the owner at step 123 of 192; the tighter environment and the run on
+  this flat are TASK-003 (open 2026-11-19).
 
 ## Board
 
