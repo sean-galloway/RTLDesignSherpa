@@ -222,6 +222,30 @@ RAM's address. On the board that path ends at a block RAM address pin, which has
 a larger setup time than a flop, so the board margin will be below the OOC
 margin.
 
+**Addendum (2026-11-21, merlin-rv32i TASK-004): (b) not taken; a
+load-to-branch interlock instead.** After (a) the worst path started at
+load data in WB. (b) would cost every taken branch a third bubble and
+change PRD M2. The interlock costs only a branch or JALR that uses a
+load one or two instructions ahead:
+- The branch compare and the JALR target get their own operand select,
+  the ALU's with load data removed from the MEM/WB arm.
+- A branch or JALR in ID whose source is that load waits one cycle.
+- Routed, three placer directives, base 8e14d4198 (merlin unchanged since):
+
+| merlin_core | LUT | WNS Default / ExtraNetDelay_high / SpreadLogic_high |
+|---|---|---|
+| before | 1,262 | +0.131 / +0.241 / +0.065 |
+| after | 1,320-1,334 | +0.356 / +0.231 / +0.284 |
+
+- The worst case moves from +0.065 to +0.231, inside the 0.2 ns budget on
+  all three. The worst path is now WB or EX/MEM `alu_y` -> the ALU
+  operand -> `alu_y` -> the branch target -> the PC; a pc + imm target
+  adder would take the ALU out of it, if more margin is wanted.
+- Cost on the rv32ui battery's spike streams: 255 stalls in 225,324
+  instructions (0.11 percent), 90 at distance 1 and 165 at distance 2,
+  most in the load and store tests. That battery is not a workload; on C
+  code the `lw; beqz` pattern will be more common.
+
 ### 4. gatling's per-context state
 
 `pc_q`, `cause_q` and `halted_q` are `[NUM_HARTS-1:0]` vectors of async-reset

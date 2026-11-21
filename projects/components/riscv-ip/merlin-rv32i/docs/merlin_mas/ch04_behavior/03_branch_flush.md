@@ -25,7 +25,7 @@
 
 ## Branch Comparator
 
-This chapter will describe the dedicated branch comparator on forwarded operands and how `funct3` selects the condition.
+This chapter will describe the dedicated branch comparator on its own forwarded operands (`br_rs1` / `br_rs2`, which never take load data from WB; see the load-to-branch interlock in the load-use chapter) and how `funct3` selects the condition.
 
 ## Target Computation
 
@@ -41,4 +41,4 @@ This section will explain the two-cycle bubble after a taken branch or jump: the
 
 ---
 
-**Last Updated:** 2026-11-01
+**Last Updated:** 2026-11-21

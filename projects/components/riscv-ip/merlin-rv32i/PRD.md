@@ -82,6 +82,14 @@ contract between stages" lesson made literal.
 - **Load-use interlock**: a load in EX whose rd matches either ID source
   stalls IF/ID one cycle and injects a bubble into EX — the one bubble
   the student must be able to point at on a waveform.
+- **Load-to-branch interlock**: the branch compare and the JALR target
+  have their own operand select, the ALU's with the load data removed
+  from its WB arm, so the load-align logic stays out of the redirect
+  path (riscv-ip common-rv32i ISSUE-001 row 3). A branch or JALR in ID
+  whose source is a load one or two instructions ahead waits one cycle
+  and then reads the value through the regfile's WB bypass. A load
+  directly ahead pays the load-use bubble and this one (2 bubbles);
+  every other taken branch keeps M2's 2-bubble flush.
 - **Control hazard**: branches and JALR resolve in EX;
   predict-not-taken; a taken branch flushes IF/ID and ID/EX (2 bubbles).
   JAL/JALR link (PC+4) forwards through the same path as ALU results.
@@ -128,7 +136,7 @@ riscv-formal checks binds at this interface (see §5).
 | M1 | Pipeline shape | **DECIDED (falcon-suite spec, rung 2):** IF/ID/EX/MEM/WB, single issue, in order | everything |
 | M2 | Branch resolution | **DECIDED (spec):** EX, predict-not-taken, flush on taken (2 bubbles) | control hazard logic, IPC lesson |
 | M3 | Forwarding | **DECIDED (spec):** EX/MEM→EX and MEM/WB→EX, EX/MEM priority, both operands | forwarding unit |
-| M4 | Load-use | **DECIDED (spec):** 1-cycle interlock stall | hazard unit |
+| M4 | Load-use | **DECIDED (spec):** 1-cycle interlock stall. **Added 2026-11-21 (Sean):** a load feeding a branch or JALR within two instructions waits one more cycle (§4.2), in place of registering the redirect, which would have cost every taken branch a bubble | hazard unit |
 | M5 | Memory contract | **DECIDED 2026-10-31 (Sean):** Harvard core ports, unified TB wrapper, registered-read BRAM, `mem_wait` seam carried for peregrine | tb_top, peregrine transition |
 | M6 | Halt/CSR contract | **DECIDED 2026-10-31 (Sean):** carry kestrel unchanged — halt+causes, CSR stub, no Zicntr | decode, rv32ui compat |
 | M7 | Regfile write/read split | **DECIDED 2026-10-31 (Sean):** WB leading-edge write, ID combinational read — the classic split, documented with its timing diagram in the HAS | regfile, timing |
@@ -149,6 +157,8 @@ riscv-formal checks binds at this interface (see §5).
 
 ## 8. History
 
+- 2026-11-21: the load-to-branch interlock (§4.2, M4) for 100 MHz on
+  the FPGA, riscv-ip common-rv32i ISSUE-001 row 3; merlin-rv32i TASK-004.
 - 2026-10-31: PRD 0.2. M5–M7 ruled (Sean): Harvard ports + unified TB
   memory + `mem_wait` seam; kestrel halt/CSR contract carried; WB
   leading-edge / ID combinational regfile split. All rows DECIDED;

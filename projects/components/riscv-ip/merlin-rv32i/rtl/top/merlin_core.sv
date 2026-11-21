@@ -127,6 +127,7 @@ module merlin_core #(
     logic        ex_taken;
     logic        ex_flush;
     logic        stall_ifid;
+    logic        stall_lu;
     logic        flush_ifid;
     logic        flush_idex;
     logic        if_id_flush_eff;
@@ -335,10 +336,26 @@ module merlin_core #(
         .ex_flush     (ex_flush),
         .fwd_a        (id_fwd_a),
         .fwd_b        (id_fwd_b),
-        .stall_ifid   (stall_ifid),
+        .stall_ifid   (stall_lu),
         .flush_ifid   (flush_ifid),
         .flush_idex   (flush_idex)
     );
+
+    // Load-to-branch interlock (riscv-ip common-rv32i ISSUE-001 row 3).
+    // The branch compare and the JALR target never take WB load data, so
+    // the load-align logic stays out of the redirect cone.  A branch or
+    // JALR in ID whose source would be forwarded from MEM/WB, where the
+    // producer is a load now in EX/MEM, waits one cycle; it then reads the
+    // load's value through the WB-to-ID bypass into ID/EX.  A load directly
+    // ahead of the branch takes the load-use bubble first, then this one.
+    logic exmem_is_load;
+    logic stall_ldbr;
+
+    assign exmem_is_load = ex_mem_q.dmem_req & ~ex_mem_q.dmem_we & ex_mem_q.valid;
+    assign stall_ldbr    = if_id_q.valid & exmem_is_load &
+                           (((id_branch | id_jalr) & (id_fwd_a == FWD_MEMWB)) |
+                            (id_branch & (id_fwd_b == FWD_MEMWB)));
+    assign stall_ifid    = stall_lu | stall_ldbr;
 
     // The select register: same stall and flush as ID/EX.
     `ALWAYS_FF_RST(clk, w_aresetn,
@@ -413,7 +430,22 @@ module merlin_core #(
     // encoding, preventing dependent instructions from seeing stale data.
     assign alu_y = id_ex_q.csr_stub ? 32'd0 : alu_y_raw;
 
-    // Dedicated branch comparator on the forwarded operands.
+    // Branch / JALR operands: the same selects, but the MEM/WB arm is the
+    // non-load writeback value (the load-to-branch interlock above keeps a
+    // load out of it).  alu_y is already zero for the CSR stub, holds the
+    // immediate for LUI and pc + 4 for a jump, so it equals wb_rd_wdata
+    // for every producer that can reach this arm.
+    logic [31:0] br_rs1;
+    logic [31:0] br_rs2;
+
+    assign br_rs1 = (ex_fwd_a == FWD_EXMEM) ? ex_mem_q.alu_y :
+                    (ex_fwd_a == FWD_MEMWB) ? mem_wb_q.alu_y :
+                                              id_ex_q.rs1_data;
+    assign br_rs2 = (ex_fwd_b == FWD_EXMEM) ? ex_mem_q.alu_y :
+                    (ex_fwd_b == FWD_MEMWB) ? mem_wb_q.alu_y :
+                                              id_ex_q.rs2_data;
+
+    // Dedicated branch comparator on the branch operands.
     logic        cmp_signed;
     logic        cmp_eq;
     logic        cmp_lt;
@@ -421,9 +453,9 @@ module merlin_core #(
     logic        branch_taken;
 
     assign cmp_signed = ~id_ex_q.funct3[1];
-    assign cmp_eq     = (ex_rs1_fwd == ex_rs2_fwd);
-    assign cmp_lt     = ($signed({cmp_signed & ex_rs1_fwd[31], ex_rs1_fwd})
-                         < $signed({cmp_signed & ex_rs2_fwd[31], ex_rs2_fwd}));
+    assign cmp_eq     = (br_rs1 == br_rs2);
+    assign cmp_lt     = ($signed({cmp_signed & br_rs1[31], br_rs1})
+                         < $signed({cmp_signed & br_rs2[31], br_rs2}));
 
     always_comb begin
         unique case (id_ex_q.funct3)
@@ -440,7 +472,7 @@ module merlin_core #(
     assign branch_taken = id_ex_q.branch & branch_cond;
 
     // Resolved next-PC target and flush signal.
-    assign ex_target = id_ex_q.jalr ? ((ex_rs1_fwd + id_ex_q.imm) & JALR_ALIGN_MASK) : alu_y;
+    assign ex_target = id_ex_q.jalr ? ((br_rs1 + id_ex_q.imm) & JALR_ALIGN_MASK) : alu_y;
     assign ex_taken  = id_ex_q.valid & (id_ex_q.jump | id_ex_q.jalr | branch_taken);
     assign ex_flush  = ex_taken;
     logic [31:0] ex_pc_incr;
@@ -455,7 +487,7 @@ module merlin_core #(
     logic       misalign_target;
 
     assign tgt_lo_pc     = id_ex_q.pc[1:0] + id_ex_q.imm[1:0];
-    assign tgt_lo_jalr   = (ex_rs1_fwd[1:0] + id_ex_q.imm[1:0]) & 2'b10;
+    assign tgt_lo_jalr   = (br_rs1[1:0] + id_ex_q.imm[1:0]) & 2'b10;
     assign misalign_link = (id_ex_q.jump & (tgt_lo_pc != 2'b00)) |
                            (id_ex_q.jalr & (tgt_lo_jalr != 2'b00));
     assign misalign_branch = branch_taken & (tgt_lo_pc != 2'b00);

@@ -54,6 +54,8 @@ CASES = {
         ("hazard_jalr_forward.hex", 0x0000_0000),
     "cocotb_test_merlin_hazard_branch_flush_backtoback":
         ("hazard_branch_flush_backtoback.hex", 0x0000_0000),
+    "cocotb_test_merlin_hazard_load_branch":
+        ("hazard_load_branch.hex", 0x0000_0000),
 }
 
 
@@ -215,6 +217,39 @@ async def cocotb_test_merlin_hazard_branch_flush_backtoback(dut):
 
     _assert_single_retirement(tb.trace, [0x00, 0x08, 0x10])
     dut._log.info("branch_flush_backtoback: both taken branches redirected cleanly")
+
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def cocotb_test_merlin_hazard_load_branch(dut):
+    """A load feeding a branch or jalr: the load-to-branch interlock.
+
+    The branch compare and the jalr target never take load data from WB
+    (riscv-ip common-rv32i ISSUE-001 row 3), so a branch or jalr whose
+    source is a load one or two instructions ahead waits a cycle.  The
+    values are checked by the golden trace; the cycles pin the stall.
+    """
+    tb, _ = await _run_case(dut, "hazard_load_branch.hex", 0x0000_0000)
+
+    by_pc = _by_pc(tb.trace)
+    for pc in (0x20, 0x34, 0x54, 0x60):
+        assert pc not in by_pc, f"pc=0x{pc:x} retired: a branch read the wrong value"
+    assert by_pc[0x1C]["pc_wdata"] == 0x24, "A: lw; beq rs1 at distance 1, taken"
+    assert by_pc[0x30]["pc_wdata"] == 0x38, "B: lw; addi; beq rs2 at distance 2, taken"
+    assert by_pc[0x40]["pc_wdata"] == 0x44, "C: lw; bne rs2 at distance 1, not taken"
+    assert by_pc[0x50]["pc_wdata"] == 0x58, "D: lw; addi; jalr at distance 2"
+    assert by_pc[0x50]["rd_wdata"] == 0x54, "D: jalr link"
+
+    # Distance 1: the load-use bubble plus the interlock's.  Distance 2:
+    # the interlock's one bubble.
+    for load_pc, br_pc, gap in ((0x18, 0x1C, 3), (0x28, 0x30, 3),
+                                (0x3C, 0x40, 3), (0x48, 0x50, 3)):
+        got = by_pc[br_pc]["cycle"] - by_pc[load_pc]["cycle"]
+        assert got == gap, (f"pc=0x{br_pc:x} retired {got} cycles after its load "
+                            f"at 0x{load_pc:x}, expected {gap}")
+    _assert_single_retirement(tb.trace, [0x18, 0x1C, 0x24, 0x28, 0x2C, 0x30,
+                                          0x38, 0x3C, 0x40, 0x44, 0x48, 0x4C,
+                                          0x50, 0x58])
+    dut._log.info("load_branch: load-fed branches and jalr resolved after the interlock")
 
 
 @pytest.mark.parametrize("test_level, description",

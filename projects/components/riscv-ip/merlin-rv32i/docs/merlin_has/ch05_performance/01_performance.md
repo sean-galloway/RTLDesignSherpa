@@ -29,7 +29,7 @@ This section will state the ideal CPI (1.0) for a fully pipelined stream with no
 
 ## Hazard Penalties
 
-This section will summarize the penalties for load-use interlocks (one bubble) and taken branches/jumps (two bubbles).
+This section will summarize the penalties for load-use interlocks (one bubble), taken branches/jumps (two bubbles), and a branch or JALR fed by a load one or two instructions ahead (one more bubble, the load-to-branch interlock).
 
 ## fMAX and Area
 
@@ -37,4 +37,4 @@ This section will be populated with synthesis results in a follow-on task.
 
 ---
 
-**Last Updated:** 2026-11-01
+**Last Updated:** 2026-11-21
