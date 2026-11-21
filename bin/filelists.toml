@@ -115,6 +115,16 @@ filelist_dirs = [
 ]
 
 [[area]]
+name = "onyx"
+kind = "component"
+# cache-ip family. The onyx ACE coherency unit (onyx TASK-001, 2026-11-21):
+# the manager between the coherent L1s and memory, generalizing jet-prime's
+# pair fabric to N ports. Module prefix onyx_, root var ONYX_ROOT; the
+# shared common-ip slice is reached by -f include, never copied.
+rtl_roots = ["projects/components/cache-ip/onyx-ace-ccu/rtl"]
+filelist_dirs = ["projects/components/cache-ip/onyx-ace-ccu/rtl/filelists"]
+
+[[area]]
 name = "cache-common"
 kind = "library"
 # cache-ip family shared home, created 2026-10-11 (owner directive): the MESI

@@ -183,3 +183,51 @@ Found and measured:
   CR/CD receive path is sequential), which is the family's one-at-a-time
   convention and onyx v1's; multiple outstanding per cache stays out of
   v1. Next: step 2, the core.
+- 2026-11-21: step 2 done -- the core. `rtl/top/onyx_ccu.sv` (filelist
+  `rtl/filelists/onyx_ccu.f`; the `onyx` area and `ONYX_ROOT` registered in
+  `bin/filelists.toml`, `bin/filelist_registry.py`,
+  `bin/TBClasses/shared/filelist_utils.py`, `make/formal_flat.mk` and the
+  reference rig's Makefile) is `jet_prime_pair_fabric` generalized to
+  N_PORTS (2-4, D11) under the D rulings: per-port pending queues and a
+  rotating-priority grant (D5 per-line lock, SERIAL_MODE bring-up), a
+  transaction table whose slots count the peers yet to accept the AC and
+  yet to answer (the tagged gather of D4; the verdict the OR of the CRs'
+  DataTransfer, PassDirty from the supplier), broadcast AC queues per
+  peer never including the requester (D3), the memory AR issued once
+  every peer accepted its AC or -- DEFER_AR -- once every CR is in with
+  no DataTransfer (D6, both modes), memory beats held until the gather
+  completes and dropped when a peer supplied, per-requester-port snoop
+  data buffers with a round-robin CD write per buffer, per-port replay
+  engines, the write port round-robin over N write-backs and the
+  absorption, retire-sideband release. Cache-side signals are unpacked
+  arrays over N_PORTS; the pair fabric's debug tap names are kept. Lint
+  clean at N 2, 3, 4 (one false combinational cycle fixed: the gather
+  flags moved out of the free-computation block). Not in the core yet:
+  the ACE-Lite IO port (D1), monlite taps (D9), ARSNOOP decode.
+  **Proof that onyx replaces the fabric:** `dv/tb/onyx_pair_rig_tb.sv` is
+  the jet-prime pair-rig harness with onyx_ccu (N_PORTS 2) in the
+  fabric's place, instance name and taps kept, so jet-prime's pair-rig TB
+  (the 2-cache lockstep model with the fabric rules, the ACE compliance
+  scoring, both CPU ports driven) runs unchanged through
+  `dv/tests/test_onyx_pair_rig.py` on the jet-prime grid: from clean,
+  gate 4/4 pair-rig cells + 1 gather, func 6 + 4, full 26 + 18 -- 44 of
+  44, every cell 0 mismatches (gate 4,200-4,659 checks, func 33-34 k,
+  full 227-239 k per cell, the knob sweep MSHR {2,16} x VICTIM {1,4} x
+  {LRU,FIFO} at both geometries included). The gate reports are
+  identical to jet-prime's own fabric cells line for line (checks 4,736,
+  grants [35, 31], 17 lines forwarded, 48 pass-throughs, 16 absorptions,
+  65 memory reads, 17 beats dropped), so onyx at N=2 is the fabric's
+  behavior, not just its contract.
+  **Area, manager alone, out of context at 10 ns** (`make ooc
+  CACHE=onyx2` / `CACHE=jetp_fabric`, both at 18 slots, SNOOP_INFLIGHT 2,
+  clocked on `clk` -- the OOC flow now takes the clock port per target):
+  onyx_ccu 4,628 LUT / 1,664 FF / 1,296 LUTRAM, WNS +2.885 ns, 9 levels;
+  jet_prime_pair_fabric 4,300 / 1,660 / 1,296, +2.757, 10 levels (the
+  rerun reproduces the committed fabric row exactly). The generalization
+  costs 328 LUT (7.6 %) at N=2 -- the per-buffer CD arbitration, the
+  rotating grants and the per-slot peer counters -- and no flops or
+  LUTRAM, with timing unchanged. Next: step 4 (formal: the fabric
+  harness pattern on onyx at N=2 and N=3), then step 5's core-alone DV
+  with BFM caches, step 6's reference-rig slot (REF_CACHE_SEL 4) and
+  board sweeps in both D6 modes, and the IO port / monlite taps as the
+  remaining core steps.

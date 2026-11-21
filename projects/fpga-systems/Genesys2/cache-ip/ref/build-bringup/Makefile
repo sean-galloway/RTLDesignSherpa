@@ -10,6 +10,7 @@ RDS_ROOT  := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-topleve
 # Roots this build's filelist closure resolves against.
 export JET_ROOT          ?= $(RDS_ROOT)/projects/components/cache-ip/jet-mesi-l1
 export JET_PRIME_ROOT    ?= $(RDS_ROOT)/projects/components/cache-ip/jet-prime-mesi-l1
+export ONYX_ROOT         ?= $(RDS_ROOT)/projects/components/cache-ip/onyx-ace-ccu
 export AMBER_ROOT        ?= $(RDS_ROOT)/projects/components/cache-ip/amber-mesi-l1
 export CACHE_COMMON_ROOT ?= $(RDS_ROOT)/projects/components/cache-ip/common-ip
 export CONVERTERS_ROOT   ?= $(RDS_ROOT)/projects/components/utility-ip/converters
@@ -71,7 +72,7 @@ include $(RDS_ROOT)/make/fpga_flow.mk
 LINT_GENERICS += -GREF_CACHE_SEL=$(REF_CACHE_SEL)
 
 # ---- cache-only area / Fmax (TASK-003 comparison) ----------------------------
-# make ooc CACHE=hpd|cva6|jet|jetp|jetp5|jetp6|amber|{jet,jetp6,amber}_nomon [PERIOD=10.0]: out-of-context synth+route
+# make ooc CACHE=hpd|cva6|jet|jetp|jetp5|jetp6|amber|{jet,jetp6,amber}_nomon|jetp_fabric|onyx2 [PERIOD=10.0]: out-of-context synth+route
 # of one cache module via fpga/tcl/ooc_cache.tcl; reports under
 # ../results/ooc/<cache>/<period>ns/ (summary.txt has lut/ff/ramb/wns; outside
 # fpga/, which `make clean` wipes -- the first run lost three rows that way).
@@ -104,9 +105,23 @@ ooc_fl_amber_nomon  := $(ooc_fl_amber)
 ooc_gen_jet_nomon   := USE_MONITOR=1'b0
 ooc_gen_jetp6_nomon := USE_MONITOR=1'b0
 ooc_gen_amber_nomon := USE_MONITOR=1'b0
+# The two-port coherency managers alone (onyx TASK-001 step 2): the pair
+# fabric as the reference rig builds it (FAB_SLOTS 18, SNOOP_INFLIGHT 2)
+# and onyx_ccu at N_PORTS 2 in its place, same table depth.
+ooc_top_jetp_fabric := jet_prime_pair_fabric
+ooc_top_onyx2       := onyx_ccu
+ooc_fl_jetp_fabric  := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_jetp_fabric.f
+ooc_fl_onyx2        := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_onyx_ccu.f
+ooc_gen_jetp_fabric := FAB_SLOTS=18 SNOOP_INFLIGHT=2
+ooc_gen_onyx2       := N_PORTS=2 SLOTS=18 SNOOP_INFLIGHT=2
+# the managers clock on clk/rst_n (the cache tops on aclk/aresetn); the
+# OOC clock port follows, or the timing row is empty
+ooc_clk_jetp_fabric := clk
+ooc_clk_onyx2       := clk
 .PHONY: ooc
 ooc:
 	mkdir -p $(OOC_OUT)
 	cd $(OOC_OUT) && REPO_ROOT=$(RDS_ROOT) OOC_TOP=$(ooc_top_$(CACHE)) OOC_FILELIST=$(ooc_fl_$(CACHE)) \
 	    OOC_OUT=$(OOC_OUT) OOC_PERIOD_NS=$(PERIOD) OOC_GENERICS="$(or $(OOC_GENERICS),$(ooc_gen_$(CACHE)))" \
+	    OOC_CLK="$(or $(ooc_clk_$(CACHE)),aclk)" \
 	    $(VIVADO) -mode batch -log ooc.log -nojournal -source $(TCL_DIR)/ooc_cache.tcl

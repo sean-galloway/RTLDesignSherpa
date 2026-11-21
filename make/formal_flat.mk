@@ -32,6 +32,7 @@ export REPO_ROOT
 export AMBER_ROOT        := $(REPO_ROOT)/projects/components/cache-ip/amber-mesi-l1
 export JET_ROOT          := $(REPO_ROOT)/projects/components/cache-ip/jet-mesi-l1
 export JET_PRIME_ROOT    := $(REPO_ROOT)/projects/components/cache-ip/jet-prime-mesi-l1
+export ONYX_ROOT         := $(REPO_ROOT)/projects/components/cache-ip/onyx-ace-ccu
 export BRIDGE_ROOT       := $(REPO_ROOT)/projects/components/fabric-gen-ip/bridge
 export CACHE_COMMON_ROOT := $(REPO_ROOT)/projects/components/cache-ip/common-ip
 export CONVERTERS_ROOT   := $(REPO_ROOT)/projects/components/utility-ip/converters
