@@ -3,7 +3,7 @@
 **Priority:** P2
 **Status:** CLOSED (2026-11-19)
 **Owner:** Claude (owner, 2026-11-19: "push then start a.")
-**From:** riscv-ip common-rv32i [ISSUE-001](../../../common-rv32i/issue/open/ISSUE-001.md) rows 2 and 3a
+**From:** riscv-ip common-rv32i [ISSUE-001](../../../common-rv32i/issue/closed/ISSUE-001.md) rows 2 and 3a
 
 ## What landed
 

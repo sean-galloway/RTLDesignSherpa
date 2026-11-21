@@ -31,11 +31,11 @@ module kestrel_nexysa7_top #(
     output logic [7:0]  led
 );
 
-    // Harness clock = 100 MHz * VCO_MULT / CLK_DIV.  75 MHz (owner,
-    // 2026-10-20): VCO 900 MHz / 12.  The A7 worst path is ~11.6 ns with
-    // IMPL=explore (README "Board result").
-    localparam int VCO_MULT    = 9;
-    localparam int CLK_DIV     = 12;
+    // Harness clock = 100 MHz * VCO_MULT / CLK_DIV.  80 MHz (owner,
+    // 2026-11-21; was 75 MHz): VCO 800 MHz / 10, met with the XDC's 0.2 ns
+    // spread budget held through routing (README "Board result").
+    localparam int VCO_MULT    = 8;
+    localparam int CLK_DIV     = 10;
     localparam int FPGA_CLK_HZ = (100_000_000 * VCO_MULT) / CLK_DIV;   // 900e6 fits int
     localparam int UART_BAUD   = 115_200;
 

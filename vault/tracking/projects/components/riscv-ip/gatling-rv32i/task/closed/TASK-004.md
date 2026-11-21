@@ -3,7 +3,7 @@
 **Priority:** P2
 **Status:** CLOSED (2026-11-19)
 **Owner:** Claude (owner, 2026-11-19: "do row 4")
-**From:** riscv-ip common-rv32i [ISSUE-001](../../../common-rv32i/issue/open/ISSUE-001.md) row 4
+**From:** riscv-ip common-rv32i [ISSUE-001](../../../common-rv32i/issue/closed/ISSUE-001.md) row 4
 
 ## What landed
 

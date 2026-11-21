@@ -302,6 +302,28 @@ is its purpose. Recorded as no action.
   only change here likely to move the board clock, and a board build would say
   whether it does.
 
+**Addendum (2026-11-21): row 7 measured; the board moves to 80 MHz.** With
+row 1 in, the board build is about 400 LUT smaller (1,613 against 2,026
+before the rework's last step) and its worst path is block RAM -> the
+port-A fetch address. Two findings set the clock:
+- A met board build does not measure margin. Vivado stops improving once
+  the period is met: 81.8 MHz gave +0.118 under the build's placer
+  directive and +0.007 / +0.012 / +0.118 under three more, and 80 MHz gave
+  +0.048 and +0.013 / +0.028 / +0.048 -- the slack hugs zero whatever the
+  period.
+- The fix is to make the tool carry the 0.2 ns budget: setup uncertainty
+  0.2 ns on the harness clock in the board XDC, restored after the
+  placement-time over-constraint, so routing works against the period
+  less the budget. 80 MHz then meets at +0.012 / +0.009 / +0.000 / +0.012
+  (four directives), +0.2 ns real margin on every one.
+
+| Board clock | WNS (build's directive) | Board | Throughput |
+|---|---|---|---|
+| 75 MHz (2026-10-20, before row 1) | +0.156 | 42/42 | 72.2 MIPS |
+| 83.3 MHz | +0.009 | 42/42 | 80.2 MIPS |
+| 81.8 MHz | +0.118 (worst directive +0.007) | 42/42 | 78.7 MIPS |
+| **80 MHz, 0.2 ns budget in the XDC** | **+0.012 with the budget, +0.212 real** | **42/42, CPI 1.039** | **77.0 MIPS** |
+
 ## Suggested order
 
 1. **Row 1, adopt the ALU.** It is contract-free and equivalence-checked, it
@@ -312,6 +334,8 @@ is its purpose. Recorded as no action.
    the gate.
 3. **Row 3 (a), merlin's forwarding selects,** measured the same way. Row 3 (b)
    is a design choice for the owner: one more branch-penalty cycle buys clock.
+   (Not taken, 2026-11-21: a load-to-branch interlock instead, merlin-rv32i
+   TASK-004.)
 4. **Row 4, gatling's PC file,** measured.
 5. **Row 7,** a kestrel board build after row 1, to see whether 75 MHz moves.
 

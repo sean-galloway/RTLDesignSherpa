@@ -3,7 +3,7 @@
 **Priority:** P2
 **Status:** CLOSED (2026-11-19)
 **Owner:** Claude (owner: "do the next steps, please", 2026-11-19)
-**From:** [ISSUE-001](../../issue/open/ISSUE-001.md) row 1
+**From:** [ISSUE-001](../../issue/closed/ISSUE-001.md) row 1
 
 ## What
 

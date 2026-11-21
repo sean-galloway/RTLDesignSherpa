@@ -28,7 +28,7 @@ the rest.
 
 | Path | What |
 |---|---|
-| `rtl/kestrel_nexysa7_top.sv` | board top: 100 MHz -> MMCM -> 75 MHz (VCO 900 / 12), UART -> AXI4-Lite, kestrel_mem_bram, kestrel_core, LEDs |
+| `rtl/kestrel_nexysa7_top.sv` | board top: 100 MHz -> MMCM -> 80 MHz (VCO 800 / 10), UART -> AXI4-Lite, kestrel_mem_bram, kestrel_core, LEDs |
 | `build-bram/` | the build (Vivado tcl, constraints, host CLI) |
 | `bin/kestrel_board.py`, `bin/kestrel_programs.py` | host driver + programs, the SAME code in sim and on the board |
 | `dv/tests/test_kestrel_board_uart.py` | UART-equivalence sim: the programs over the real bridge RTL |
@@ -44,12 +44,24 @@ make host-kestrel         # smoke, then the full rv32ui battery
 LEDs: 0 run, 1 halted, 2 halted on ecall, 3 MMCM locked, 5/6 UART activity,
 7 heartbeat.
 
-## Board result (2026-10-20)
+## Board result (2026-11-21)
 
 `make host-kestrel` on the Nexys A7-100T (serial 210292BFA3EE), current
-design at **75 MHz**: smoke PASS, rv32ui **42/42 PASS** (`ma_data` is the
+design at **80 MHz**: smoke PASS, rv32ui **42/42 PASS** (`ma_data` is the
 expected misaligned-load halt, cause 4), mean CPI **1.039** (1.00 plus the
-load fraction; `ld_st` 1.20): **72.2 MIPS**.
+load fraction; `ld_st` 1.20): **77.0 MIPS**. The 75 MHz point (2026-10-20,
+72.2 MIPS) is in the table.
+
+The build carries the owner's 0.2 ns placement-spread budget as setup
+uncertainty on the harness clock through routing
+(`build-bram/fpga/constraints/kestrel_nexysa7.xdc`), so a met build has
+0.2 ns of real margin: 80 MHz meets it at +0.012 ns (+0.212 ns without the
+budget), and under three more placer directives at +0.009 / +0.000 /
++0.012. Without the budget a met build is no measure of margin: Vivado
+stops improving once the period is met, and the same netlist at 81.8 MHz
+gave +0.118 under the build's directive and +0.007 / +0.012 / +0.118 under
+the other three; at 80 MHz, +0.048 and +0.013 / +0.028 / +0.048
+(common-rv32i ISSUE-001 row 7).
 
 | Design | Clock | Post-route WNS | CPI | Throughput | LUTs | Block RAM |
 |---|---|---|---|---|---|---|
@@ -64,9 +76,12 @@ load fraction; `ld_st` 1.20): **72.2 MIPS**.
 | same, fabric ALU | 71.4 MHz | +0.510 ns | not run | -- | 2,020 | 4 |
 | + x0 kept zero by writes (no read-side zero-select), one shared signed/unsigned comparator per use, OR-combined ALU result | 100 MHz (measurement) | -2.41 ns | -- | -- | 1,982 | 4 |
 | same, `IMPL=explore` (directives, phys_opt, placement over-constraint) | 100 MHz (measurement) | -1.63 ns: worst path 11.6 ns | -- | -- | 2,026 | 4 |
-| same, `IMPL=explore` | **75 MHz** | **+0.156 ns** | **1.039** | **72.2 MIPS** | **1,899** | **4** |
+| same, `IMPL=explore` | 75 MHz | +0.156 ns | 1.039 | 72.2 MIPS | 1,899 | 4 |
 | same, seven ALU rows in one DSP48E1 (option since removed) | 100 MHz (measurement) | -1.71 ns | -- | -- | 2,029 | 4 |
 | same, DSP ALU (removed) | 75 MHz | +0.142 ns | 1.039 | 72.2 MIPS | -- | 4 |
+| + common-rv32i ALU: one adder, one shifter (ISSUE-001 row 1) | 83.3 MHz | +0.009 ns (noise, not closure) | 1.039 | 80.2 MIPS | 1,630 | 4 |
+| same | 81.8 MHz | +0.118 ns; other placer directives down to +0.007 | 1.039 | 78.7 MIPS | 1,614 | 4 |
+| same, 0.2 ns setup uncertainty through route (XDC) | **80 MHz** | **+0.012 ns with the budget (+0.212 real); 3 more directives +0.000 to +0.012** | **1.039** | **77.0 MIPS** | **1,613** | **4** |
 
 : kestrel on the Nexys A7, before and after the timing rework
 
@@ -89,7 +104,9 @@ at about the same length. The implementation flow did: `IMPL=explore` (opt
 `Explore`, place `ExtraPostPlacementOpt` under a temporary 0.3 ns setup
 uncertainty, post-place and post-route `phys_opt AggressiveExplore`, route
 `AggressiveExplore -tns_cleanup`) gains about 0.8 ns on the same netlist
-and is this build's default. Owner: 75 MHz is the target.
+and is this build's default. Owner: 75 MHz was the target (2026-10-20);
+80 MHz, the fastest clock that meets the 0.2 ns budget, replaced it
+(owner, 2026-11-21).
 
 A seven-row DSP ALU built ADD, SUB, AND, OR, XOR, SLT and SLTU in one
 instantiated DSP48E1 (the logic unit and the subtract's sign; UG193's

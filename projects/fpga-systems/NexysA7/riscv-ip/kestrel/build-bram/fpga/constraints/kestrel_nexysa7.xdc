@@ -1,9 +1,16 @@
 ## kestrel RV32I (block-RAM memory) -- Digilent Nexys A7-100T (xc7a100tcsg324-1)
 ## Pins per the Nexys A7 master XDC; same set as the other Nexys A7 harnesses.
 
-## 100 MHz oscillator (the MMCM makes the 50 MHz harness clock)
+## 100 MHz oscillator (the MMCM makes the harness clock, rtl/kestrel_nexysa7_top.sv)
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports sysclk]
 create_clock -period 10.000 -name sysclk_100 -waveform {0.000 5.000} [get_ports sysclk]
+
+## The 0.2 ns placement-spread budget, carried as setup uncertainty on the
+## harness clock through every step, so a build that meets timing has 0.2 ns
+## of real margin (owner rule, 2026-11-08: WNS near zero is placement noise,
+## not closure; common-rv32i ISSUE-001 row 7). IMPL=explore's placement-time
+## over-constraint (fpga/tcl/hooks/) raises it and restores this value.
+set_clock_uncertainty -setup 0.200 [get_clocks -of_objects [get_pins -hier -filter {NAME =~ *u_mmcm/CLKOUT0}]]
 
 ## CPU reset pushbutton (active low)
 set_property -dict {PACKAGE_PIN C12 IOSTANDARD LVCMOS33} [get_ports cpu_resetn]

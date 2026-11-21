@@ -4,7 +4,7 @@
 **Status:** CLOSED (2026-11-21)
 **Owner:** Claude (owner, 2026-11-21: "make it so number one.", accepting
 the interlock over registering the redirect)
-**From:** riscv-ip common-rv32i [ISSUE-001](../../../common-rv32i/issue/open/ISSUE-001.md) row 3
+**From:** riscv-ip common-rv32i [ISSUE-001](../../../common-rv32i/issue/closed/ISSUE-001.md) row 3
 
 ## Why
 

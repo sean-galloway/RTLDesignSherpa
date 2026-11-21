@@ -7,7 +7,7 @@
 
 **Priority:** P2. The big structures are already FPGA-shaped. The findings are
 area (13-27% of each core) and merlin's 100 MHz timing.
-**Status:** OPEN (2026-11-18)
+**Status:** CLOSED (2026-11-21): every row is done or a recorded no-action.
 **Owner:** TBD
 **Report:** [assets/issue001_fpga_uarch/00_FPGA_UARCH_REVIEW.md](../../assets/issue001_fpga_uarch/00_FPGA_UARCH_REVIEW.md).
 It holds the method, every measured number, the ALU equivalence check and the
@@ -32,7 +32,7 @@ reproducing script.
 | 4 | gatling | per-context PC / cause / halt in async-reset flops with loop write and mux read | PC file -> 22 LUTRAM: 1,308 -> 1,200 LUT, 894 -> 772 FF, WNS over 3 placer directives +0.190..+0.470 -> +0.424..+0.660; cause / halt stay flops (the ports show every context at once) | done: gatling-rv32i [TASK-004](../../../gatling-rv32i/task/closed/TASK-004.md) |
 | 5 | all | RVFI-only state (gatling order_q 256 FF, merlin ~256 carried FF, kestrel retire_count) | trimmed on the board; costs only where RVFI is consumed | no-action |
 | 6 | kestrel/gatling mem | gaxi_skid_buffer W channel 2-4 LUT per flop | shared rtl/amba IP; memory systems have 3-3.7 ns slack | no-action here |
-| 7 | kestrel | board runs 75 MHz (single-cycle by design) | row 1 may lift it; needs a board build | open, after row 1 |
+| 7 | kestrel | board runs 75 MHz (single-cycle by design) | with row 1, 80 MHz meets with the 0.2 ns spread budget carried as setup uncertainty through route (+0.012 with it, +0.212 real, four placer directives +0.000..+0.012); board smoke + rv32ui 42/42, CPI 1.039, 72.2 -> 77.0 MIPS; 81.8 / 83.3 MHz ran but met only to placement noise | done: board top + XDC, `projects/fpga-systems/NexysA7/riscv-ip/kestrel/README.md`; closed on the measurement |
 
 The issue resolves when each open row is a task in its own area (common-rv32i,
 merlin-rv32i, gatling-rv32i, kestrel-rv32i) or is closed on a measurement.
