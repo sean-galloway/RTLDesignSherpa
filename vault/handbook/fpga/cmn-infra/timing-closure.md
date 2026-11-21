@@ -60,6 +60,15 @@ Rules:
   directories are where it is written down. When the band grows past the
   budget, the budget follows it.
 - Write "closes by X ns under the 0.2 ns budget", never "closes" alone.
+- Without the budget in the constraint, a sweep cannot price the margin
+  either: Vivado stops improving once the period is met, so the slack hugs
+  zero whatever the period (kestrel, 2026-11-21: 81.8 MHz +0.007 .. +0.118
+  over four placer directives, then 80 MHz +0.013 .. +0.048 -- 0.22 ns of
+  period bought nothing). And a placement-time over-constraint hook must
+  RESTORE the budget, not reset uncertainty to 0.000: kestrel's
+  `overconstrain_off.tcl` did, and the budget would have been gone before
+  routing even with it in the XDC. With both fixed, 80 MHz met at +0.000 ..
+  +0.012 under the budget on four directives (common-rv32i ISSUE-001 row 7).
 
 What this made of two of the night's results: pumice sys75 FPGA SKU at
 +0.083 .. +0.230 is at the edge of the budget, not comfortably closed;
