@@ -1,7 +1,7 @@
 # TASK-001: onyx v1 -- the ACE coherency unit per the D rulings, measured against the pair fabric it replaces
 
 **Priority:** P2
-**Status:** open (filed 2026-11-20)
+**Status:** active (filed 2026-11-20, started 2026-11-21)
 **Owner:** TBD
 
 Filed 2026-11-20 at the owner's word ("follow the D recommendations"):
@@ -147,3 +147,39 @@ Found and measured:
   transport RTL and tests exist (see "What already exists"); 24 of 24
   ACE func cells PASS from clean, 135 framework unit tests PASS; step 1
   rewritten from "build the BFM" to "verify it on onyx's shapes".
+- 2026-11-21: started; step 1 done. The snoop-gather rig
+  (`dv/tb/onyx_snoop_gather_rig_tb.sv`: per port an `axi4ace_snoop_master`
+  mover into an `axi4ace_snoop_slave` mover, four port sets, N_CACHES
+  live) with `dv/tbclasses/onyx_snoop_gather_tb.py` (N `AXI4ACESnoopMaster`
+  BFMs as the fanout, N `AXI4ACESnoopSlave` BFMs as the caches, the golden
+  a Python port of `l1_pkg::amber_snoop_crresp`, deterministic per-cache
+  line data in LINE_BYTES/DATA_WIDTH beats) and
+  `dv/tests/test_onyx_snoop_gather_rig.py` (Pattern B; GATE 1 cell, FUNC 4,
+  FULL 18: N 2/3/4 x DW 32/64 x gate/func/full). Scenarios: the BFM's
+  default responder matrix against the caches' (24 cells, 0 differ -- the
+  l1_pkg claim holds); every (state, type) cell on every port with full
+  line data (8 beats at 64-bit, 16 at 32-bit); broadcast gathers over the
+  MESI-legal patterns with the single-supplier precondition checked;
+  per-port timing profiles pulling completion order apart (the count of
+  gathers that completed out of issue order is reported and non-zero in
+  every multi-port cell); back-to-back per port on all ports at once; a
+  compliance checker per port on every CRRESP. From clean: gate 1/1, func
+  4/4, full 18/18, every cell 0 mismatches, 0 compliance violations with
+  a non-zero check count. The BFM meets the gather shapes.
+  **Finding (RDS-DV):** the cache-side BFM cannot stream snoop data. The
+  CD probe under the fast profile measures 8 beats over 21 cycles first to
+  last (16 over 45 at 32-bit) where back-to-back would be 7 (15): one beat
+  every 3 cycles, because `AXI4ACESnoopSlave._snoop_responder` loops
+  `cd_channel.send(beat)` and `GAXIMaster.send` waits for the pipeline to
+  drain per call (its own `send_burst` docstring says so). Any onyx
+  latency or throughput measured through this BFM carries +2 cycles per
+  CD beat that is the BFM's, not onyx's. Fix is one line in RDS-DV
+  (`send_burst` for the beats); not made here (the DV repo is the
+  owner's, and RDS-DV edits are on hold at their word) -- to file against
+  RDS-DV #86 or as its own issue, the owner's call. The pair-rig numbers
+  are unaffected (jet-prime's snoop side is RTL, not this BFM).
+  Also noted, not a defect: `AXI4ACESnoopMaster` allows one outstanding
+  snoop per port by default (`allow_multiple_outstanding` exists but the
+  CR/CD receive path is sequential), which is the family's one-at-a-time
+  convention and onyx v1's; multiple outstanding per cache stays out of
+  v1. Next: step 2, the core.
