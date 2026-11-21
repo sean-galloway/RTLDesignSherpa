@@ -139,6 +139,12 @@ delta under about half a percent needs repeats to read, and the compare of
 one run against one run reads only the moves above it -- as the `col_ilv`
 read side here is.
 
+> Resolved the same day: the band was `wait_engine`'s progress probe reading
+> the engine's meter on a wall-clock schedule (eight UART transactions at a
+> load-dependent point; the sim advances only inside UART transactions). The
+> probe reads one register on every poll now and the proxy is cycle-identical
+> run to run (granite ISSUE-003 closed).
+
 ## 6. What this leaves
 
 The task's done-when is not met: the cells are not unchanged, by 1.3 percent

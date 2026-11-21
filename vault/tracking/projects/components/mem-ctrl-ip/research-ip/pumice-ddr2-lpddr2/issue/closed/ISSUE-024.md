@@ -69,3 +69,11 @@ loaded-machine case itself is not reproducible on demand; the next
 "did not complete" with a clean log and a moving meter is this mechanism's
 test, and the proxies' `_host_diag` dump (2026-10-23 entry) tells a hang
 from a slow sim without a rerun.
+
+> 2026-11-20 (granite ISSUE-003): the probe's once-a-second wall-clock schedule
+> made the granite perf proxy non-deterministic run to run -- the meter read is
+> eight UART transactions, and in simulation the clock advances only inside
+> UART transactions, so where the probe fell moved the next GO against the
+> refresh counter with the machine's load. `wait_engine` now reads the one
+> `OBS_*_PROD` register on every poll instead; the progress-based extension
+> above is unchanged in effect, and `progress_poll_s` only switches the probe.

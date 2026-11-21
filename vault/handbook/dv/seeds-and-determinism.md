@@ -108,17 +108,23 @@ naive grep flags is not a finding.
 ## The granite perf proxy has a run-to-run band (2026-11-20, memory-controllers MC-019)
 
 The same build directory, seed and environment, run twice, gave cycle counts
-up to 0.4 percent apart on four of five families (granite ISSUE-003; the
-harness runs the host program over a simulated UART and is suspected of
-pacing something on the wall clock, since the band widened under machine
-load). Two consequences for any A/B on it. **An A/B is two RTL forms in ONE
+up to 0.4 percent apart on four of five families (granite ISSUE-003). The
+cause, found the same day: the simulation advances only while a UART
+transaction is in flight (cocotb's bridge blocks the scheduler while the host
+thread runs or sleeps), and the host's engine wait read a progress meter
+once per WALL-CLOCK second -- eight transactions landing at a load-dependent
+point in the poll stream, moving the next phase's GO against the refresh
+counter. **In a host-driven sim, anything the host does on a wall-clock
+schedule is a simulated-time event at a random cycle**; pace it on the
+stream (every poll) or not at all. With the probe on every poll the proxy is
+cycle-identical run to run. Two consequences for any A/B remain. **An A/B is two RTL forms in ONE
 directory**: a `git archive` of HEAD beside the working tree differed on the
 TEST_DUAL=0 pair the change could not reach, and a first reading took that
 for the change. **A one-run delta under about half a percent is the band, not
 the change**; repeat, or read only the moves above it (the real move in
 MC-019 was 1.3 percent on one cell, reproduced four times to within 0.2).
-MC-021's "reruns identical to the cycle" held for a single-family run and does
-not generalise.
+MC-021's "reruns identical to the cycle" held for a single-family run because
+its passes finished inside the first wall-clock second, before the probe fired.
 
 ## Outstanding cleanup
 

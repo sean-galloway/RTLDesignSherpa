@@ -5,7 +5,7 @@
 
 **Priority:** P3 -- it does not fail a test; it sets the floor under which a
 proxy delta cannot be read from one run against one run.
-**Status:** open 2026-11-20
+**Status:** CLOSED 2026-11-20 -- the harness, fixed in the host (pumice_master.wait_engine); the proxy is cycle-identical run to run
 **Owner:** TBD
 
 ## What was seen
@@ -51,3 +51,35 @@ others moving by tens of cycles fits a shifted start, not a different stream.
    the three runs identical to the cycle.
 3. Until then: a proxy delta under about 0.5 percent needs repeats, and an A/B
    is two RTL forms in ONE directory, never two directories.
+
+## Resolution (2026-11-20): the progress probe's wall-clock schedule
+
+The suspect was right in kind and wrong in place. The simulation advances
+only while a UART transaction is in flight (cocotb's bridge blocks the
+scheduler while the host thread computes or sleeps), so the host's sleeps
+and deadlines cost no simulated time -- but `pumice_master.wait_engine`'s
+progress probe (ISSUE-024, 2026-10-29) read the engine's meter once per
+WALL-CLOCK second, and that read is eight UART transactions. Where it landed
+in the stream of status polls depended on the machine's load, so the
+simulated cycle at which the engine's `done` was seen, and the next phase's
+GO fell against the refresh counter, moved with it. `incremental` was
+identical both times because its passes finished inside the first second.
+
+Proved before the fix: with the probe off (`WAIT_ENGINE_PROGRESS_POLL_S=0`)
+four runs across two build directories were cycle-identical on every family;
+with the cocotb seed pinned and the probe on they still differed (the seed
+was never the cause).
+
+The fix: the probe reads the ONE register it needs (`OBS_WR_PROD` /
+`OBS_RD_PROD`) on every poll, never on a schedule. The transaction stream is
+then a function of the engine's progress alone, and the ISSUE-024 extension
+(the deadline moves out while the meter advances) is kept -- it is now
+checked on every poll rather than once a second. `progress_poll_s` only
+switches the probe (0 = off); its magnitude is not read. On the board a poll
+is two UART reads instead of one, in a loop that sleeps 5 ms between them.
+
+Validated: the host unit tests (10 / 10); two proxy runs at the SKU with the
+probe on, cycle-identical; the pumice proxy; the framework suite
+`make clean-all && make run-all-func-parallel`: 226 passed, 2 xfailed in 33 min, no reruns (the plain MC-021 step-5 baseline exactly).
+The rule stays in the handbook: an A/B is two RTL forms in one directory,
+and a model-vs-proxy claim under half a percent wants a repeat even now.

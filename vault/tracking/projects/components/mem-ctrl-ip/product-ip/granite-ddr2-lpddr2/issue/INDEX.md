@@ -12,20 +12,15 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-003** -- the perf proxy is not run-to-run deterministic: the same
-  build directory, seed and environment give cycle counts up to 0.4 percent
-  apart (`col_ilv`), load-dependent; `incremental` identical, the rest moved by
-  tens of cycles, which fits a start shifted against the refresh counter by a
-  wall-clock-paced harness. Sets the floor under a one-run proxy delta. Filed
-  2026-11-20 from memory-controllers MC-019. [open/ISSUE-003.md](open/ISSUE-003.md).
+None.
 
 ## Active
 
@@ -33,6 +28,13 @@ None.
 
 ## Closed
 
+- **ISSUE-003** -- the perf proxy was not run-to-run deterministic (cycle counts up
+  to 0.4 percent apart between identical runs). Closed 2026-11-20: `wait_engine`'s
+  progress probe (ISSUE-024) read the engine's meter once per wall-clock second,
+  eight UART transactions landing at a load-dependent point in the poll stream,
+  which moved the next phase's GO against the refresh counter; the probe now
+  reads one register on every poll, and the proxy is cycle-identical run to
+  run (framework suite clean). [closed/ISSUE-003.md](closed/ISSUE-003.md).
 - **ISSUE-002** -- granite "does not come up on the Nexys at 100 MHz" (2026-11-09):
   the host ran the 75 MHz read-path pair (rddata_delay = t_rddata_en + 1) on a
   100 MHz board, where the a7ddrphy's data-vs-valid offset is 0; the 100 MHz

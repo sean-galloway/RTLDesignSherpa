@@ -132,13 +132,24 @@ def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
 
     timeout_s bounds the time WITHOUT PROGRESS, not the whole run. The
     engine's progress is its bus meter's productive-beat count (OBS_*_PROD,
-    live while the trace is unfrozen), sampled every progress_poll_s; each
-    advance moves the deadline out by timeout_s again, at most max_extensions
-    times. On the board that is the old wall-clock bound (a stuck engine
-    stops counting and times out exactly as before); in simulation, where
-    the same deadline used to expire with the engine mid-phase whenever the
-    machine was loaded (pumice ISSUE-024: 10 of 222 framework cells, 10/10
-    on a rerun alone), a slow but moving engine is waited for.
+    live while the trace is unfrozen), sampled on EVERY poll; each advance
+    moves the deadline out by timeout_s again, at most max_extensions times.
+    On the board that is the old wall-clock bound (a stuck engine stops
+    counting and times out exactly as before); in simulation, where the same
+    deadline used to expire with the engine mid-phase whenever the machine
+    was loaded (pumice ISSUE-024: 10 of 222 framework cells, 10/10 on a rerun
+    alone), a slow but moving engine is waited for.
+
+    Every poll, not every progress_poll_s of wall clock (granite ISSUE-003,
+    2026-11-20): in simulation the clock advances only while a UART
+    transaction is in flight, so a probe scheduled on the wall clock landed
+    at a load-dependent point in the stream of polls, and the simulated cycle
+    at which the NEXT phase's GO fell -- against the refresh counter -- moved
+    with it: the same build, seed and environment gave cycle counts up to
+    0.4 percent apart. With the probe on every poll the transaction stream is
+    a function of the engine's progress alone and a rerun is cycle-identical.
+    progress_poll_s now only switches the probe (0 = off, the pre-ISSUE-024
+    wall-clock wait); its magnitude is not read.
     """
     assert which in ("wr", "rd")
     if progress_poll_s is None:
@@ -148,7 +159,7 @@ def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
     now = time.monotonic()
     deadline = now + timeout_s
     hard_deadline = now + timeout_s * (max_extensions + 1)
-    next_probe = now + progress_poll_s
+    prod_reg = "OBS_WR_PROD" if which == "wr" else "OBS_RD_PROD"
     last_prod = None
     while True:
         s = drv.status()
@@ -159,12 +170,13 @@ def wait_engine(drv: DDR2CharDriver, which: str, timeout_s: float = 15.0,
         now = time.monotonic()
         if now >= deadline or now >= hard_deadline:
             return False
-        if progress_poll_s > 0 and now >= next_probe:
-            prod = drv.perf_meters()[which].prod
+        if progress_poll_s > 0:
+            # one register read per poll (the engine's own meter), never on a
+            # wall-clock schedule: see the docstring (granite ISSUE-003)
+            prod = drv.regs.read(prod_reg)
             if last_prod is not None and prod != last_prod:
                 deadline = now + timeout_s
             last_prod = prod
-            next_probe = now + progress_poll_s
         time.sleep(0.005)
 
 

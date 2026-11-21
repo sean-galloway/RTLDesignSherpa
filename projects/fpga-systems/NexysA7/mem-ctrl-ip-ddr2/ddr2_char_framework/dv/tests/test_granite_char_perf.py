@@ -35,7 +35,10 @@ it at the committed `1'b0` this measures the FRFCFS research core instead (a
 valid control). Knobs: TEST_TREFI (default 585 = board), TEST_TXN (256),
 TEST_GAP (0), TEST_BURST_LEN (8), TEST_FAMILIES, PERF_DUMP, PERF_AXI_TRACE (a
 directory: the accepted AXI request stream per pass as Ramulator traces,
-perf_axi_trace.py), TEST_DUAL (the pick
+perf_axi_trace.py), TEST_PAGE_POLICY (1 = the board's open_page preset, 2 =
+close_page: the flat policy with policy_mode 0 and tr_init 0, as pumice_char's
+ControllerConfig writes them; unset = the RDL reset, the hybrid mode 4 with
+tr_init 2, the board's `defaults`), TEST_DUAL (the pick
 core's row lane, memory-controllers MC-014: built and run -- SCHED_POLICY.dual_issue
 on, DFI_PHASE.row_phase 1 -- by default since 2026-11-16, the FPGA SKU; TEST_DUAL=0
 builds it out and leaves both fields at reset; its own sim_build tag),
@@ -902,7 +905,14 @@ async def cocotb_test_granite_perf(dut):
                                rd_in_order=True)
         page_pol = os.environ.get("TEST_PAGE_POLICY", "")
         if page_pol:
+            # the board's static presets (pumice_char ControllerConfig open_page / close_page) write the flat
+            # policy AND policy_mode 0 with tr_init 0; until 2026-11-20 this knob wrote the flat field alone,
+            # leaving policy_mode at its RDL reset 4 (the hybrid), so TEST_PAGE_POLICY=1 measured the hybrid,
+            # not the board's open_page (memory-controllers ISSUE-006). TEST_PAGE_MODE / TEST_TR_INIT below
+            # still override.
             drv.set_page_policy(int(page_pol, 0))
+            drv.set_page_timeout_cfg(tr_init=0)
+            drv.set_page_mode(0)
             out["page_policy"] = int(page_pol, 0)
         # TEST_ADDR_SCHEME: the board configs program the address map
         # (open_page = SCHEME_ROW_MAJOR, one bank per walk); without it the
