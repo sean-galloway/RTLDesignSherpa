@@ -7,7 +7,7 @@
 **Priority:** P3 -- the model's default GO phase gives the slow mode, 274 / 274
 against the board's 272 / 273, so every single-phase compare of the shipped
 SKU is in; the miss is a mode the model CAN show on a preset that never does.
-**Status:** open 2026-11-19
+**Status:** CLOSED 2026-11-20 -- resolved into a model term (the RTL's page policy), no RTL change
 **Owner:** TBD
 
 ## The question
@@ -60,3 +60,22 @@ the page policy as the RTL has it (the predictor's rule and the static open
 policy's no-AP) is what settles both. Until then any lane / PRE question the
 model prices is off by the demand PREs it does not issue
 (`char_results/rtl_mc019_lane_act_only_2026-11-20.md`, section 4).
+
+## Resolution (2026-11-20): the page policy as the RTL has it
+
+`char_results/model_issue006_page_policy_2026-11-20.md`. The board's
+`defaults` is the hybrid (policy_mode 4, tr_init 2: the drain auto-precharge
+on a known conflict, on a drained queue only where the bank's history arms
+it, else the idle timeout closes the row as the pick's lowest-priority PRE);
+its `open_page` is policy_mode 0, the flat close-on-drain the model already
+had. Both are in the model now (`page_mode`, `tr_init`; `granite_sku100` the
+hybrid, `granite_sku100_open` the flat rule), with the one defect on the way
+named in the record (the delayed command view compared against a live image
+armed nothing). Result: the by-mode compare is 57 / 0 -- `defaults mixed_bl8`
+one mode at every one of 40 GO phases (274 / 274 against the board's
+272 / 273 x5), `open_page mixed_bl8` both modes (2 of 40 phases fast),
+every `defaults` cell within 1.2 percent; the hybrid issues the demand PREs
+and background closes the flat rule never did (4,884 lane PREs on
+col_major_interleaved_bl8). The question above is answered as the board
+answered it: the predictor, not the draw. No more board runs needed. The
+proxy's `TEST_PAGE_POLICY` knob now writes the preset's mode and timeout too.

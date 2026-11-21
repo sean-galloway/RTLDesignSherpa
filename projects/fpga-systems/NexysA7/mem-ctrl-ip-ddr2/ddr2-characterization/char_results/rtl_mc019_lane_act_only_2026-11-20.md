@@ -100,6 +100,14 @@ read pass pays about one slot per PRE that used to ride. (The after form also
 cycles rows more -- 1,648 ACTs against 1,561 -- because the PRE now lands
 later and the predictor's view of the bank changes with it.)
 
+**Correction (later the same day, ISSUE-006):** the proxy's `TEST_PAGE_POLICY=1`
+wrote only the flat policy field and left `policy_mode` at its RDL reset, the
+hybrid (4), so the "open_page" rows above measured the hybrid too; the board's
+open_page preset writes policy_mode 0 (the flat close-on-drain, no history gate,
+no timeout), under which the model -- and, by the board's open_page numbers,
+the RTL -- issue almost no demand PRE. The 1.3 percent is the `defaults`
+preset's. The knob writes mode 0 and tr_init 0 with the policy now.
+
 **Why the model said 0.0.** `lane_pre` is 0 on all fifteen SKU cells of the
 step-8 model CSV: the model never issues a demand PRE on these presets. Its
 SKU auto-precharges on drain (the exact close-on-drain term) and has no term

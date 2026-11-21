@@ -666,6 +666,29 @@ mode: the board's mode is a draw at GO, and a model that picked the lucky
 phase would be fitting the draw, not the controller
 (`char_results/compare_model_sku_vs_board_sku100s4_s8_modes_2026-11-19.md`).
 
+## The page policy was a stand-in, and the stand-in matched the MB/s (2026-11-20, ISSUE-006)
+
+The SKU model ran the board's `defaults` preset as plain open page with the
+drain auto-precharge for three weeks, within 1.8 percent on every cell, while
+the RTL's `defaults` is the hybrid (conflict-only drain auto-precharge gated
+by per-bank history, a 2-cycle idle-timeout close). Two things found it out,
+neither a bandwidth number: a cell with two modes on one preset and one mode
+on the other (the by-mode compare), and a command the RTL issued ~700 times
+per run that the model never issued (MC-019's lane PREs). **A stand-in that
+reproduces a cell's throughput can still be issuing a different command
+stream to get there**; count the commands (`PERF_CMD_TRACE` on the proxy, the
+model's `lane_pre` / `to_pre` / conflict columns) before pricing anything
+that touches them. The term itself was read from `mc_page_policy.sv` and
+`ControllerConfig.apply`, not fitted: the preset is what the host programs,
+and the proxy's own `TEST_PAGE_POLICY` knob had been programming only half of
+it. One defect on the way is worth its sentence: **a delayed view compares
+against the image of its own cycle.** The policy's history sees the issued
+command one cycle late (PRED_CMD_REG); compared against the live row image,
+an ACT found its own row open and read as a mistaken close, and the drain
+auto-precharge never armed (-18 percent on one cell). The RTL's registered
+image lags by the same cycle, and so must the model's
+(`char_results/model_issue006_page_policy_2026-11-20.md`).
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

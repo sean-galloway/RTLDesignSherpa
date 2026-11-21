@@ -15,9 +15,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 1 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -27,14 +27,16 @@ exactly one state by construction rather than by discipline.
   register's 255 / 255 cap alternation (272 / 272) where the fast mode, taken
   on the refresh phase at GO, runs 311 / 522; whether the pick core should
   take the fast mode deterministically. Filed 2026-11-19 from MC-021 step 8.
-- **ISSUE-006** -- the SKU model runs `defaults` (the hybrid page predictor) as
-  plain open page; on `defaults mixed_bl8` the board stayed in the slow mode on
-  five of five runs where `open_page` was fast on three, and the model has the
-  fast phase -- the one cell out of 57 in the MC-021 close-out compare read by
-  mode. Filed 2026-11-19.
 
 ## Closed
 
+- **ISSUE-006** -- the SKU model ran `defaults` (the hybrid page policy) as plain
+  open page. Closed 2026-11-20 into a model term: the RTL's page policy
+  (`page_mode` 4 the hybrid, 0 the flat close-on-drain the board's open_page
+  writes), with which `defaults mixed_bl8` is one mode at all 40 GO phases as
+  the board's five runs were, the by-mode compare 57 / 0, every `defaults` cell
+  within 1.2 percent, and the demand PREs MC-019 found on the lane are in the
+  model. [closed/ISSUE-006.md](closed/ISSUE-006.md).
 - **ISSUE-002** -- the board's `bank_interleave` map at 233-258 MB/s against the
   SKU model's 778. Closed 2026-11-17: a model configuration error -- the host's
   preset is the interleaved map AND close page (PAGE_POLICY_CLOSE), the model

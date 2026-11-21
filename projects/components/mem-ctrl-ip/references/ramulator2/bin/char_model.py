@@ -78,6 +78,13 @@ refresh phase (`GRANITE_GO_OFFSET=<ticks>`, the trace frontend's `start_tick`),
 the open-page mixed cell shows the board's two modes; `board-compare` reads
 such a cell by mode (`--board-also` for the board's reruns, one `--model` CSV
 per model phase, each with its `GO offset` in the notes).
+The page policy is the RTL's since ISSUE-006 (2026-11-20): `page_mode` 4 is the
+hybrid the board's `defaults` preset runs (the drain auto-precharge on a known
+conflict, on a drained queue only where the bank's history arms it, else the
+idle timeout `tr_init` 2 closes the row as the pick's lowest-priority PRE);
+`granite_sku100_open` is mode 0, the flat close-on-drain the board's open_page
+preset writes -- and the only policy the model had before, which issued no
+demand PRE where the RTL's `defaults` issues ~700 per col_ilv run (MC-019).
 `hit_lag` (2) is the record's hit flag: a bank's heads read as row hits two
 slots after its ACT, so the column request shows at ACT + 3 where the hinted
 column fires at ACT + 2 (MC-021 step 4; `sku_hitlag1` reads the hit live);
@@ -449,6 +456,12 @@ class ModelConfig:
     close_on_drain: bool = True        # GraniteSKU: CLOSE_ON_DRAIN auto-precharge
     alternate: bool = True             # GraniteSKU: the row / column alternation of the select
     page_close: bool = False           # GraniteSKU: every column auto-precharges (the board's close_page preset)
+    page_mode: int = 4                 # GraniteSKU: PAGE_POLICY_CFG.policy_mode -- 4 the hybrid (the board's `defaults`, the RDL reset:
+                                       #   the drain auto-precharge on a known conflict always, on a drained queue only where the bank's
+                                       #   history arms it, else the idle timeout closes the row), 0 the legacy flat rule (close-on-drain
+                                       #   everywhere: the board's open_page preset writes mode 0), 1 static_open, 2 static_close,
+                                       #   3 fixed_open (ISSUE-006, 2026-11-20)
+    tr_init: int = 2                   # GraniteSKU: PAGE_TIMEOUT_CFG.tr_init, idle slots before the background close (the RDL reset 2)
     addr_map: str = "row_major"        # the board's ADDR_MAP preset the stream is encoded under (ADDR_MAPS)
     note: str = ""
 
@@ -543,8 +556,9 @@ CONFIGS.update({c.name: c for c in [
 SKU = ModelConfig("granite_sku100", timing_preset="DDR2_GRANITE_SKU100", controller="GraniteSKU",
                   read_buffer=16, write_buffer=16, scheduler="FRFCFS",
                   note="THE SKU: GraniteSKU controller (bank-FIFO store, pick-core select, direction register, "
-                       "row lane, close-on-drain, one slot per MC cycle) at pool 16, BANK_CAP_MIXED 6, cap 255, "
-                       "hold-idle 8, on the host's MC-cycle timings (DDR2_GRANITE_SKU100)")
+                       "row lane, the hybrid page policy -- conflict / history-armed drain auto-precharge, idle "
+                       "timeout 2 -- one slot per MC cycle) at pool 16, BANK_CAP_MIXED 6, cap 255, hold-idle 8, on "
+                       "the host's MC-cycle timings (DDR2_GRANITE_SKU100): the board's `defaults` preset")
 
 
 def _sku(tag: str, note: str, **kw) -> ModelConfig:
@@ -558,11 +572,17 @@ CONFIGS.update({c.name: c for c in [
     # SCHEME_BANK_INTERLEAVE with PAGE_POLICY_CLOSE (the open-page interleave is its `open_interleave`, which the
     # SKU campaign did not run). Until 2026-11-17 this config was open page and ISSUE-002's factor of three was
     # that configuration error, not the RTL.
-    replace(SKU, name="granite_sku100_bi", addr_map="bank_interleave", page_close=True,
+    replace(SKU, name="granite_sku100_bi", addr_map="bank_interleave", page_close=True, page_mode=0,
             note="the SKU with the stream encoded under the board's bank_interleave map (bank_lsb 2) and every "
-                 "column auto-precharging (the preset programs PAGE_POLICY_CLOSE)"),
-    replace(SKU, name="granite_sku100_close", page_close=True,
-            note="the SKU with every column auto-precharging (the board's close_page preset)"),
+                 "column auto-precharging (the preset programs PAGE_POLICY_CLOSE, policy_mode 0)"),
+    replace(SKU, name="granite_sku100_close", page_close=True, page_mode=0,
+            note="the SKU with every column auto-precharging (the board's close_page preset, policy_mode 0)"),
+    # the board's open_page preset: pumice_char's ControllerConfig writes PAGE_POLICY_OPEN and policy_mode 0, the
+    # legacy flat rule -- close-on-drain everywhere, no history gate, no timeout. Until 2026-11-20 this WAS the
+    # model's granite_sku100, standing in for `defaults` too (ISSUE-006)
+    replace(SKU, name="granite_sku100_open", page_mode=0,
+            note="the SKU under the board's open_page preset: policy_mode 0, the flat close-on-drain auto-precharge "
+                 "(the model's only page policy before ISSUE-006)"),
     # the ideal at the SKU's timings: what the timing set alone costs (GenericDDR row-hit-first, pool 16)
     replace(SKU, name="sku_ideal16", controller="GenericDDR", scheduler="FRFCFS-RowHit",
             note="GenericDDR FRFCFS-RowHit at pool 16 on the SKU timing preset: the ideal with the SKU's counters"),
@@ -688,6 +708,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             dir_batch_max=cfg.dir_batch_max,
             dir_hold_idle=cfg.dir_hold_idle, dir_owns_rows=cfg.dir_owns_rows, lane=cfg.lane,
             close_on_drain=cfg.close_on_drain, alternate=cfg.alternate, page_close=cfg.page_close,
+            page_mode=cfg.page_mode, tr_init=cfg.tr_init,
             peek_depth=cfg.peek_depth, req_bank_timing=cfg.req_bank_timing,
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
             hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag, close_lag=cfg.close_lag,
@@ -721,7 +742,7 @@ CSV_FIELDS = [
     "rd_row_hits", "rd_row_misses", "rd_row_conflicts",
     "wr_coalesced", "rd_forwarded", "wr_stall_ticks", "rd_stall_ticks",
     # MC-018: the SKU controller's own counters (0 / empty on GenericDDR). Latencies are MC cycles.
-    "rd_lat_max", "wr_wait_max", "dir_flips", "zero_col_turns", "lane_act", "lane_pre", "cap_refused",
+    "rd_lat_max", "wr_wait_max", "dir_flips", "zero_col_turns", "lane_act", "lane_pre", "to_pre", "cap_refused",
     "slot_col_pct", "slot_row_pct", "elapsed_s", "notes",
 ]
 
@@ -730,11 +751,12 @@ def _sku_cols(c: dict, tag: str = "") -> dict:
     """The GraniteSKU counters of one pass (empty strings on a controller without them)."""
     if "sku_slots" not in c:
         return dict(rd_lat_max="", wr_wait_max="", dir_flips="", zero_col_turns="", lane_act="", lane_pre="",
-                    cap_refused="", slot_col_pct="", slot_row_pct="")
+                    to_pre="", cap_refused="", slot_col_pct="", slot_row_pct="")
     slots = max(int(c["sku_slots"]), 1)
     return dict(rd_lat_max=round(c["sku_max_read_latency"] / 2, 1), wr_wait_max=round(c["sku_max_write_wait"] / 2, 1),
                 dir_flips=c["sku_dir_flips"], zero_col_turns=c["sku_zero_col_turns"],
-                lane_act=c["sku_lane_act"], lane_pre=c["sku_lane_pre"], cap_refused=c["sku_cap_refused"],
+                lane_act=c["sku_lane_act"], lane_pre=c["sku_lane_pre"], to_pre=c.get("sku_to_pre", 0),
+                cap_refused=c["sku_cap_refused"],
                 slot_col_pct=round(100.0 * c["sku_main_col"] / slots, 1),
                 slot_row_pct=round(100.0 * c["sku_main_row"] / slots, 1))
 
@@ -789,7 +811,7 @@ def _two_pass_sku(wc: dict, rc: dict) -> dict:
     return dict(rd_lat_max=r["rd_lat_max"], wr_wait_max=w["wr_wait_max"],
                 dir_flips=w["dir_flips"] + r["dir_flips"], zero_col_turns=w["zero_col_turns"] + r["zero_col_turns"],
                 lane_act=w["lane_act"] + r["lane_act"], lane_pre=w["lane_pre"] + r["lane_pre"],
-                cap_refused=w["cap_refused"] + r["cap_refused"],
+                to_pre=w["to_pre"] + r["to_pre"], cap_refused=w["cap_refused"] + r["cap_refused"],
                 slot_col_pct=r["slot_col_pct"], slot_row_pct=r["slot_row_pct"])
 
 
@@ -1025,8 +1047,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 # model config -> the board preset it stands for
-BOARD_PRESET_OF = {"granite_sku100": ("defaults", "open_page"), "granite_sku100_bi": ("bank_interleave",),
-                   "granite_sku100_close": ("close_page",)}
+BOARD_PRESET_OF = {"granite_sku100": ("defaults",), "granite_sku100_open": ("open_page",),
+                   "granite_sku100_bi": ("bank_interleave",), "granite_sku100_close": ("close_page",)}
 # percent of the board cell the model must land within, per family. The single-direction row-hit families
 # are where the DRAM alone sets the number; random / col_major / mixed are where the SKU terms matter and
 # where the match is the test (the task's wording); close_page is timer-bound and host-path heavy.

@@ -210,6 +210,9 @@ def test_sku_config_is_the_shipped_point():
     assert (c.controller, c.timing_preset) == ("GraniteSKU", "DDR2_GRANITE_SKU100")
     assert (c.read_buffer, c.write_buffer, c.bank_cap_mixed, c.dir_batch_max, c.dir_hold_idle) == (16, 16, 6, 255, 8)
     assert c.dir_owns_rows and c.lane == 3 and c.close_on_drain and c.slot_ticks == 2 and not c.page_close
+    # ISSUE-006: the page policy is the board's `defaults` -- the hybrid (mode 4) with the RDL's idle timeout 2
+    assert (c.page_mode, c.tr_init) == (4, 2)
+    assert cm.CONFIGS["granite_sku100_open"].page_mode == 0      # the board's open_page preset: policy_mode 0
     # ISSUE-004: the decode's request is bank-timed and the rank-level terms hold the fire; the mixed cap is checked
     # at every push; an accepted beat is a head record three MC cycles later (push -> bank FIFO -> head record; the
     # fourth cycle ISSUE-004 measured to the request is the pick pipeline's request register, MC-021)
@@ -419,7 +422,9 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
     import tempfile
     from dataclasses import replace
     sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=512)
-    base = cm.CONFIGS["granite_sku100"]
+    # the bimodal board cell is the open_page preset's (policy_mode 0, the flat close-on-drain): granite_sku100_open
+    # since ISSUE-006; the board's `defaults` (the hybrid, granite_sku100) showed the slow mode on five of five runs
+    base = cm.CONFIGS["granite_sku100_open"]
     rd = {}
     try:
         for lag in (2, 0):
@@ -428,11 +433,15 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
                 with tempfile.TemporaryDirectory() as t:
                     r = cm.run_scenario(replace(base, name=f"cl{lag}o{off}", close_lag=lag), sc, t)
                 rd[(lag, off)] = float(r["rd_bw_mb_s"])
+        os.environ["GRANITE_GO_OFFSET"] = "480"
+        with tempfile.TemporaryDirectory() as t:
+            hyb = float(cm.run_scenario(cm.CONFIGS["granite_sku100"], sc, t)["rd_bw_mb_s"])
     finally:
         os.environ.pop("GRANITE_GO_OFFSET", None)
     assert cm.CONFIGS["granite_sku100"].close_lag == 2
     assert rd[(2, 0)] < 300 < 380 < rd[(2, 480)], rd       # both modes under the shipped terms
     assert rd[(0, 0)] < 300 and rd[(0, 480)] < 300, rd       # one mode without the close lag
+    assert hyb < 300, hyb                                    # the hybrid (the board's defaults) stays in the slow mode at the fast phase
 
 
 def test_board_compare_reads_a_bimodal_cell_by_mode(tmp_path):
@@ -459,12 +468,13 @@ def test_board_compare_reads_a_bimodal_cell_by_mode(tmp_path):
     write(tmp_path / "char_granite_t_every_2026-01-01.csv", bf, [b_fast, b_plain])
     rerun_slow = write(tmp_path / "rerun1.csv", bf, [b_slow])
     rerun_fast = write(tmp_path / "rerun2.csv", bf, [b_fast])
-    m_slow = dict(config="granite_sku100", scenario="mixed_bl8", wr_bw_mb_s=274, rd_bw_mb_s=274,
+    # the test's board rows are the open_page preset, which BOARD_PRESET_OF maps to granite_sku100_open (ISSUE-006)
+    m_slow = dict(config="granite_sku100_open", scenario="mixed_bl8", wr_bw_mb_s=274, rd_bw_mb_s=274,
                   bytes_moved=8192000, wr_cycles=2994444, rd_cycles=2992711, notes="")           # union 547
-    m_fast = dict(config="granite_sku100", scenario="mixed_bl8", wr_bw_mb_s=309, rd_bw_mb_s=568,
+    m_fast = dict(config="granite_sku100_open", scenario="mixed_bl8", wr_bw_mb_s=309, rd_bw_mb_s=568,
                   bytes_moved=8192000, wr_cycles=2652660, rd_cycles=1441000,
                   notes="GO offset 480 ticks against the refresh phase")                           # union 618
-    m_plain = dict(config="granite_sku100", scenario="random_bl8", wr_bw_mb_s=730, rd_bw_mb_s=752,
+    m_plain = dict(config="granite_sku100_open", scenario="random_bl8", wr_bw_mb_s=730, rd_bw_mb_s=752,
                    bytes_moved=1, wr_cycles=1, rd_cycles=1, notes="")
     model_slow = write(tmp_path / "model_slow.csv", mf, [m_slow, m_plain])
     model_fast = write(tmp_path / "model_fast.csv", mf, [m_fast])
@@ -486,3 +496,23 @@ def test_board_compare_reads_a_bimodal_cell_by_mode(tmp_path):
     assert rc == 1 and "1 cells in tolerance, 1 out" in text, text
     rc, text = compare([model_slow, model_fast], [])                           # the model's slow run is a mode the board never showed
     assert rc == 1 and "1 cells in tolerance, 1 out" in text, text
+
+
+def test_hybrid_page_policy_issues_the_demand_pres_the_boards_defaults_do():
+    """ISSUE-006 (2026-11-20): the board's `defaults` preset is the hybrid page policy -- the drain auto-precharge
+    only on a known conflict or where the bank's history arms it, otherwise the row stays open until the idle
+    timeout (tr_init 2) or the next row's demand PRE closes it. The model's one policy before was the flat
+    close-on-drain (the board's open_page preset, policy_mode 0), which never issues a demand PRE; MC-019's proxy
+    counted ~700 per col_ilv run under the hybrid, 424 of them on the lane. The hybrid in the model issues demand
+    PREs on the lane and background closes on that cell; mode 0 issues neither."""
+    import tempfile
+    from dataclasses import replace
+    sc = replace([s for s in cm.SUITES["all"] if s.name == "col_major_interleaved_bl8"][0], txn_count=512)
+    with tempfile.TemporaryDirectory() as t:
+        hyb = cm.run_scenario(cm.CONFIGS["granite_sku100"], sc, t)
+        flat = cm.run_scenario(cm.CONFIGS["granite_sku100_open"], sc, t)
+    assert int(hyb["lane_pre"]) > 10 and int(hyb["to_pre"]) > 0, (hyb["lane_pre"], hyb["to_pre"])   # 40 and 4 at txn 512
+    assert int(flat["lane_pre"]) == 0 and int(flat["to_pre"]) == 0, (flat["lane_pre"], flat["to_pre"])
+    # both are the same stream through the same store and pick: the policy moves the cell by a few percent at most
+    for k in ("wr_bw_mb_s", "rd_bw_mb_s"):
+        assert 0.9 < float(hyb[k]) / float(flat[k]) < 1.1, (k, hyb[k], flat[k])

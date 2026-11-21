@@ -54,3 +54,10 @@ whose other presets never show it.
    re-run on every preset.
 4. Or a recorded no-action: the `defaults` preset does not enter either race
    (ISSUE-006), so the SKU as shipped does not pay for the slow mode.
+
+> 2026-11-20, ISSUE-006 closed: with the RTL's hybrid page policy in the model
+> the `defaults` mixed cell is one mode at every one of 40 GO phases (the
+> board's five of five); the race this issue names forms under `open_page`
+> (policy_mode 0, the flat close-on-drain), where the model shows the fast
+> mode on 2 of 40 phases and the board on 3 of 5 runs. The shipped preset does
+> not enter it; this stays a question about the open-page configuration.

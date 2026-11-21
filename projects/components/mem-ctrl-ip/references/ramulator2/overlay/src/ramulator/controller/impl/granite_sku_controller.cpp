@@ -187,6 +187,17 @@ class GraniteSKUController : public ControllerBase {
   bool m_close_on_drain = true;
   bool m_alternate = true;
   bool m_page_close = false;
+  // the page policy as the RTL has it (mc_page_policy; memory-controllers ISSUE-006, 2026-11-20)
+  int m_page_mode = 4;          // PAGE_POLICY_CFG.policy_mode: 0 = the legacy flat rule (page_close, else close-on-drain: the
+                                //   board's open_page preset, which writes mode 0), 1 static_open (never an auto-precharge),
+                                //   2 static_close, 3 fixed_open (the timeout only), 4 hybrid -- the board's `defaults`, the RDL
+                                //   reset: the drain auto-precharge on a known conflict (a different-row entry behind the
+                                //   column) always, on a drained queue only where the bank's history arms it (drain_close_ok),
+                                //   else the idle timeout closes the row
+  int m_tr_init = 2;            // PAGE_TIMEOUT_CFG.tr_init: idle slots before the background close is requested (0 = off)
+  int m_drain_arm_max_cols = 8; // DRAIN_ARM_MAX_COLS: a row that served at most this many columns before the bank moved on
+                                //   is short-lived, and its successor may close on drain; a longer row is a stream
+  bool m_pred_cmd_reg = true;   // PRED_CMD_REG: the policy's history sees the issued command one slot late (the bank-pick build)
   int m_peek_depth = 1;
   bool m_debug = false;      // print the slot state and the pick between debug_from and debug_to (CK)
   int m_debug_from = 0;
@@ -194,7 +205,7 @@ class GraniteSKUController : public ControllerBase {
   int m_stuck = 0;           // consecutive slots with queued requests and no command: the deadlock detector
 
   // ---- command ids and MC-cycle hop timers ----
-  int m_cmd_act = -1, m_cmd_prepb = -1, m_cmd_rd = -1, m_cmd_wr = -1, m_cmd_rda = -1, m_cmd_wra = -1;
+  int m_cmd_act = -1, m_cmd_prepb = -1, m_cmd_prea = -1, m_cmd_rd = -1, m_cmd_wr = -1, m_cmd_rda = -1, m_cmd_wra = -1;
   int m_row_level = -1;
   int m_num_banks = 0;
   int m_t_rcd = 0, m_t_rp = 0, m_t_wr = 0, m_t_rtp = 0, m_t_ccd = 0;   // MC cycles (the host's derivation)
@@ -226,6 +237,22 @@ class GraniteSKUController : public ControllerBase {
   std::deque<Clk_t> m_act_clks;          // the last ACT issue slots (tRRD / tFAW as the registered ok sees them)
   std::vector<Clk_t> m_bank_act_clk;     // [bank] the slot of the bank's last ACT (the record's hit flag, hit_lag)
   std::vector<Clk_t> m_pair_closed_clk;  // [pair] the slot a PRE closed the row this pair's head was hitting (close_lag)
+  // ---- the page policy's state (mc_page_policy) ----
+  std::vector<int> m_bank_open_row;       // [bank] the open row, -1 closed (the policy's view of the registered row image)
+  std::vector<AddrVec_t> m_bank_open_av;  // [bank] the opening ACT's address: the timeout PRE is issued on it
+  std::vector<int> pp_last_row;           // [bank] the last row this bank really opened
+  std::vector<bool> pp_last_vld, pp_to_closed, pp_keep_open, pp_drain_arm, pp_ap_closed;
+  std::vector<int> pp_row_cols;           // [bank] columns the open row served (saturating)
+  std::vector<bool> m_drain_ok;           // [bank] registered drain_close_ok: the drain auto-precharge may close this bank's row
+  std::vector<int> pp_idle;               // [bank] the idle countdown
+  std::vector<bool> pp_expired;           // [bank] sticky until the row closes
+  bool m_to_req = false;                  // the registered background-close request ...
+  int m_to_bank = 0;                      // ... and its bank (the lowest expired bank wins)
+  std::vector<bool> m_ord;                // [bank] registered open_row_demand: a head of either direction hits the open row
+  struct CmdEv { int cls = CL_NONE; int bank = -1; int row = -1; bool ap = false; bool to = false; };
+  std::vector<CmdEv> m_slot_cmds;         // the commands issued this slot (main, timeout close, lane)
+  std::vector<CmdEv> m_prev_cmds;         // ... and last slot's: the history's view with PRED_CMD_REG
+  std::vector<int> m_row_img_prev;        // [bank] last slot's row image: the one the delayed command view is compared against
   // the lane's fire, waiting for the odd tick
   bool m_lane_pending = false;
   int m_lane_cmd = -1;
@@ -254,6 +281,7 @@ class GraniteSKUController : public ControllerBase {
   size_t s_lane_dropped = 0;
   size_t s_lane_holds = 0;
   size_t s_ap_cols = 0;
+  size_t s_to_pre = 0;          // the background (timeout) closes issued
   size_t s_dir_flips = 0;
   size_t s_dir_flips_fire = 0;
   size_t s_dir_flips_drain = 0;
@@ -300,6 +328,10 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_close_on_drain, bool, "close_on_drain").default_val(true);
     RAMULATOR_PARSE_PARAM(m_alternate, bool, "alternate").default_val(true);
     RAMULATOR_PARSE_PARAM(m_page_close, bool, "page_close").default_val(false);
+    RAMULATOR_PARSE_PARAM(m_page_mode, int, "page_mode").default_val(4);
+    RAMULATOR_PARSE_PARAM(m_tr_init, int, "tr_init").default_val(2);
+    RAMULATOR_PARSE_PARAM(m_drain_arm_max_cols, int, "drain_arm_max_cols").default_val(8);
+    RAMULATOR_PARSE_PARAM(m_pred_cmd_reg, bool, "pred_cmd_reg").default_val(true);
     RAMULATOR_PARSE_PARAM(m_peek_depth, int, "peek_depth").default_val(1);
     RAMULATOR_PARSE_PARAM(m_debug, bool, "debug").default_val(false);
     RAMULATOR_PARSE_PARAM(m_debug_from, int, "debug_from").default_val(0);
@@ -307,6 +339,8 @@ class GraniteSKUController : public ControllerBase {
     if (m_slot_ticks < 1) throw std::runtime_error("GraniteSKU: slot_ticks must be >= 1");
     if (m_lane < 0 || m_lane > 3) throw std::runtime_error("GraniteSKU: lane must be 0..3");
     if (m_peek_depth < 1) throw std::runtime_error("GraniteSKU: peek_depth must be >= 1");
+    if (m_page_mode < 0 || m_page_mode > 4) throw std::runtime_error("GraniteSKU: page_mode is 0..4");
+    if (m_tr_init < 0 || m_tr_init > 255) throw std::runtime_error("GraniteSKU: tr_init is 0..255");
     if (m_dir_batch_max < 0 || m_dir_batch_max > 255) throw std::runtime_error("GraniteSKU: dir_batch_max is 0..255");
     if (m_admit_lag < 0) throw std::runtime_error("GraniteSKU: admit_lag must be >= 0");
     if (m_pool_gate_lag < 0 || m_cap_gate_lag < 0) throw std::runtime_error("GraniteSKU: pool_gate_lag / cap_gate_lag must be >= 0");
@@ -318,6 +352,7 @@ class GraniteSKUController : public ControllerBase {
     const auto& spec = *m_device.m_spec;
     m_cmd_act = spec.get_command_id("ACT");
     m_cmd_prepb = spec.get_command_id("PREpb");
+    m_cmd_prea = spec.get_command_id("PREab");
     m_cmd_rd = spec.get_command_id("RD");
     m_cmd_wr = spec.get_command_id("WR");
     m_cmd_rda = spec.get_command_id("RDA");
@@ -345,6 +380,20 @@ class GraniteSKUController : public ControllerBase {
     m_bank_ap_row.assign(m_num_banks, -1);
     m_bank_act_clk.assign(m_num_banks, static_cast<Clk_t>(-(1 << 30)));
     m_pair_closed_clk.assign(2 * m_num_banks, static_cast<Clk_t>(-(1 << 30)));
+    m_bank_open_row.assign(m_num_banks, -1);
+    m_bank_open_av.assign(m_num_banks, AddrVec_t{});
+    pp_last_row.assign(m_num_banks, -1);
+    pp_last_vld.assign(m_num_banks, false);
+    pp_to_closed.assign(m_num_banks, false);
+    pp_keep_open.assign(m_num_banks, false);
+    pp_drain_arm.assign(m_num_banks, false);
+    pp_ap_closed.assign(m_num_banks, false);
+    pp_row_cols.assign(m_num_banks, 0);
+    m_drain_ok.assign(m_num_banks, false);
+    pp_idle.assign(m_num_banks, 0);
+    pp_expired.assign(m_num_banks, false);
+    m_ord.assign(m_num_banks, false);
+    m_row_img_prev.assign(m_num_banks, -1);
   }
 
   void setup(IFrontEnd* frontend, IMemorySystem* memory_system) override {
@@ -358,6 +407,7 @@ class GraniteSKUController : public ControllerBase {
     m_stats.add("sku_lane_dropped", s_lane_dropped);
     m_stats.add("sku_lane_holds", s_lane_holds);
     m_stats.add("sku_ap_cols", s_ap_cols);
+    m_stats.add("sku_to_pre", s_to_pre);
     m_stats.add("sku_dir_flips", s_dir_flips);
     m_stats.add("sku_dir_flips_fire", s_dir_flips_fire);
     m_stats.add("sku_dir_flips_drain", s_dir_flips_drain);
@@ -495,6 +545,12 @@ class GraniteSKUController : public ControllerBase {
     if (ref_pending) {
       Candidate cand = pick_priority_if();
       if (cand.valid) {
+        if (cand.it->command == m_cmd_prea) {
+          for (int b = 0; b < m_num_banks; b++) if (m_bank_open_row[b] >= 0) {
+            m_bank_open_row[b] = -1;
+            m_slot_cmds.push_back(CmdEv{CL_PRE, b, -1, false, false});
+          }
+        }
         issue(cand.it, *cand.buffer);
         s_main_maint++;
         if (dbg()) std::cout << "[sku] clk " << m_clk << " maint cmd " << cand.it->command << std::endl;
@@ -682,7 +738,10 @@ class GraniteSKUController : public ControllerBase {
 
   void schedule_slot(bool fire_allowed, bool ref_pending) {
     const int np = 2 * m_num_banks;
+    const std::vector<int> row_at_start = m_bank_open_row;   // the registered row image the policy reads this slot
     build_heads();
+    std::vector<bool> ord_now(m_num_banks, false);            // a head of either direction hits its bank's open row
+    for (int p = 0; p < np; p++) if (m_heads[p].vld && m_heads[p].is_col) ord_now[bank_of(p)] = true;
     std::vector<bool> req_nxt(np, false);
     std::vector<int> cls_nxt(np, CL_NONE);
     decode(ref_pending, req_nxt, cls_nxt);
@@ -774,7 +833,7 @@ class GraniteSKUController : public ControllerBase {
       const Head& o = m_heads[W.pair ^ 1];
       other_pair_hit = o.vld && o.is_col;
     }
-    const bool w_ap_policy = m_page_close || (m_close_on_drain && !w_bsr);
+    const bool w_ap_policy = ap_policy(W.vld ? bank_of(W.pair) : -1, w_bsr, w_bempty);
     bool fired_ap = false;
     int fired_cmd = -1;   // the command as issued (the AP variant when it closes)
     if (dmd_fire) {
@@ -878,13 +937,17 @@ class GraniteSKUController : public ControllerBase {
       m_lane_cmd = h.cmd;
       m_lane_addr = h.it->addr_vec;
       if (!h.it->is_stat_updated) { ReqBuffer::iterator it = h.it; update_request_stats(it); }
+      m_slot_cmds.push_back(CmdEv{L.cls, bank_of(L.pair), row_of(*h.it), false, false});
       if (L.cls == CL_ACT) {
         note_act(m_clk);
         m_bank_ap[bank_of(L.pair)] = false;
         m_bank_act_clk[bank_of(L.pair)] = m_clk;
+        m_bank_open_row[bank_of(L.pair)] = row_of(*h.it);
+        m_bank_open_av[bank_of(L.pair)] = h.it->addr_vec;
         if (m_t_rcd <= m_pick_la && !(m_pick_la > 0 && m_t_rcd <= m_la_short)) lane_hint = Win{true, L.pair, CL_COL};
       } else {
         note_close(bank_of(L.pair));
+        m_bank_open_row[bank_of(L.pair)] = -1;
         if (m_t_rp <= m_pick_la && !(m_pick_la > 0 && m_t_rp <= m_la_short)) lane_hint = Win{true, L.pair, CL_ACT};
       }
     } else if (l_hold) {
@@ -977,15 +1040,31 @@ class GraniteSKUController : public ControllerBase {
         s_cols[fired_dir]++;
         if (fired_dir != cur) s_xdir_cols++;
         m_bank_ap[fired_bank] = fired_ap;
-        if (fired_ap) m_bank_ap_row[fired_bank] = row_of(*h.it);
+        if (fired_ap) { m_bank_ap_row[fired_bank] = row_of(*h.it); m_bank_open_row[fired_bank] = -1; }
+        m_slot_cmds.push_back(CmdEv{CL_COL, fired_bank, row_of(*h.it), fired_ap, false});
       } else {
         s_main_row++;
         s_rows[fired_dir]++;
-        if (W.cls == CL_ACT) { note_act(m_clk); m_bank_ap[fired_bank] = false; m_bank_act_clk[fired_bank] = m_clk; }
-        if (W.cls == CL_PRE) note_close(fired_bank);
+        if (W.cls == CL_ACT) {
+          note_act(m_clk); m_bank_ap[fired_bank] = false; m_bank_act_clk[fired_bank] = m_clk;
+          m_bank_open_row[fired_bank] = row_of(*h.it);
+          m_bank_open_av[fired_bank] = h.it->addr_vec;
+        }
+        if (W.cls == CL_PRE) { note_close(fired_bank); m_bank_open_row[fired_bank] = -1; }
+        m_slot_cmds.push_back(CmdEv{W.cls, fired_bank, row_of(*h.it), false, false});
       }
       if (dbg()) std::cout << "[sku]   fire p" << W.pair << " cmd " << fired_cmd << (fired_ap ? " AP" : "") << std::endl;
       issue(h.it, *h.buf);
+    } else if (fire_allowed && timeout_on() && m_to_req && m_bank_open_row[m_to_bank] >= 0 &&
+               !(W.vld && bank_of(W.pair) == m_to_bank) && check_timing(m_cmd_prepb, m_bank_open_av[m_to_bank])) {
+      // mc_page_policy's background close: the pick's lowest-priority command, into a slot no demand command
+      // takes (and never the winner's bank), on a row whose idle timer expired with no head hitting it
+      m_device.issue_command(m_cmd_prepb, m_bank_open_av[m_to_bank], m_clk);
+      note_close(m_to_bank);
+      m_bank_open_row[m_to_bank] = -1;
+      m_slot_cmds.push_back(CmdEv{CL_PRE, m_to_bank, -1, false, true});
+      s_to_pre++;
+      if (dbg()) std::cout << "[sku]   timeout PRE bank " << m_to_bank << std::endl;
     }
 
     // ---- commit the registers ----
@@ -1003,6 +1082,7 @@ class GraniteSKUController : public ControllerBase {
     m_batch = batch_nxt;
     m_batch_done = m_dir_batch_max != 0 && batch_nxt >= m_dir_batch_max;
     bump_idle(flip || (dmd_fire && fired_dir == cur));
+    page_policy_slot(row_at_start, ord_now);
     // deadlock detector: queued requests and no command for 4096 slots is a modelling error, not a stall
     if (dmd_fire || (m_read_buffer.size() + m_write_buffer.size() + m_staged[0].size() + m_staged[1].size()) == 0) {
       m_stuck = 0;
@@ -1021,6 +1101,81 @@ class GraniteSKUController : public ControllerBase {
   void bump_idle(bool reset) {
     if (reset) m_idle = 0;
     else if (m_idle < 255) m_idle++;
+  }
+
+  // ---- mc_page_policy ----
+  bool timeout_on() const { return !m_page_close && (m_page_mode == 3 || m_page_mode == 4); }
+  // the pick's auto-precharge decision for the column firing now (w_sel_ap): the runtime policy owns it in the
+  // static modes; otherwise the flat rule, or the exact close-on-drain term -- which in the hybrid applies on a
+  // drained queue only where the bank's history arms it (ap_conflict_only / drain_close_ok)
+  bool ap_policy(int bank, bool bsr, bool bempty) const {
+    if (m_page_close || m_page_mode == 2) return true;
+    if (m_page_mode == 1 || m_page_mode == 3) return false;
+    const bool conflict_only = m_page_mode == 4;
+    return m_close_on_drain && !bsr && !(conflict_only && bempty && bank >= 0 && !m_drain_ok[bank]);
+  }
+  // the policy's registers, once per slot: the drain-arm history from the issued command stream (one slot late
+  // with PRED_CMD_REG, as the bank-pick build's predictor reads it), the idle timers from the live stream and the
+  // registered open-row demand, and next slot's drain_close_ok and background-close request from this slot's registers
+  void page_policy_slot(const std::vector<int>& row_at_start, const std::vector<bool>& ord_now) {
+    const bool ton = timeout_on();
+    const std::vector<CmdEv>& view = m_pred_cmd_reg ? m_prev_cmds : m_slot_cmds;
+    std::vector<bool> drain_ok_nxt(m_num_banks, false);
+    bool to_req_nxt = false;
+    int to_bank_nxt = 0;
+    for (int b = m_num_banks - 1; b >= 0; b--) {
+      drain_ok_nxt[b] = ton && pp_drain_arm[b] && !pp_keep_open[b];
+      if (ton && pp_expired[b] && row_at_start[b] >= 0 && !m_ord[b] && !pp_keep_open[b]) { to_req_nxt = true; to_bank_nxt = b; }
+    }
+    const int cols_sat = (1 << 4) - 1;   // COLCW = clog2(DRAIN_ARM_MAX_COLS + 2) bits, saturating
+    // the history compares the (delayed) command against the row image as it stood when the command fired: with
+    // PRED_CMD_REG the RTL's registered image lags the fire by the same cycle the command view does (an ACT's bank
+    // reads closed, with the previous row in r_last_row, both when it fires and a cycle later)
+    const std::vector<int>& img = m_pred_cmd_reg ? m_row_img_prev : row_at_start;
+    for (int b = 0; b < m_num_banks; b++) {
+      const bool img_active = img[b] >= 0;
+      const bool active = row_at_start[b] >= 0;
+      if (img_active) { pp_last_row[b] = img[b]; pp_last_vld[b] = true; }
+      if (!ton) { pp_last_vld[b] = false; pp_drain_arm[b] = false; pp_row_cols[b] = 0; }
+      for (const CmdEv& e : view) {
+        if (e.bank != b) continue;
+        if (e.cls == CL_PRE) {
+          pp_ap_closed[b] = false;
+          pp_to_closed[b] = e.to;
+          if (!e.to) pp_keep_open[b] = false;                     // a real row change
+        }
+        if (e.cls == CL_COL && e.ap) { pp_to_closed[b] = true; pp_ap_closed[b] = true; }   // a predicted close
+        if (e.cls == CL_ACT) {
+          if (pp_to_closed[b] && e.row == pp_last_row[b]) pp_keep_open[b] = true;        // we closed a row we needed
+          pp_drain_arm[b] = pp_last_vld[b] && e.row != pp_last_row[b] &&
+                            (pp_row_cols[b] <= m_drain_arm_max_cols || !pp_to_closed[b] || pp_ap_closed[b]);
+          pp_row_cols[b] = 0;
+        } else if (e.cls == CL_COL && pp_row_cols[b] < cols_sat) {
+          pp_row_cols[b]++;
+        }
+      }
+      if (!ton) pp_keep_open[b] = false;
+      // the idle timer: any command to the bank this slot, or queued demand for its open row, re-warms it
+      bool cmd_here = false;
+      for (const CmdEv& e : m_slot_cmds) if (e.bank == b) cmd_here = true;
+      if (!ton || !active) {
+        pp_idle[b] = 0;
+        pp_expired[b] = pp_expired[b] && active;
+      } else if (cmd_here || m_ord[b]) {
+        pp_idle[b] = m_tr_init;
+        pp_expired[b] = false;
+      } else if (pp_idle[b] != 0) {
+        if (pp_idle[b] == 1 && m_tr_init != 0) pp_expired[b] = true;
+        pp_idle[b]--;
+      }
+    }
+    m_drain_ok = drain_ok_nxt;
+    m_to_req = to_req_nxt;
+    m_to_bank = to_bank_nxt;
+    m_ord = ord_now;
+    m_prev_cmds = m_slot_cmds;
+    m_row_img_prev = row_at_start;
+    m_slot_cmds.clear();
   }
 
   // the lane's command on the odd tick, timed at its slot (the pick checked the slot tick; the main

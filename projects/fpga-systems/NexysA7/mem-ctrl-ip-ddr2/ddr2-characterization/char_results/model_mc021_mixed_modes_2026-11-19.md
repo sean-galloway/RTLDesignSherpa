@@ -162,3 +162,7 @@ if the predictor, its rule becomes a model term). The slow attractor itself
 -- the fast mode is better on both directions and the union, and the pick
 core takes one or the other on the refresh phase -- is filed as ISSUE-005, a
 design question outside MC-021.
+
+> 2026-11-20: the one out resolved by ISSUE-006 -- the model's page policy is
+> the RTL's, `defaults` the hybrid; the by-mode compare is 57 / 0
+> (`compare_model_sku_vs_board_sku100s4_s9_modes_2026-11-20.md`).
