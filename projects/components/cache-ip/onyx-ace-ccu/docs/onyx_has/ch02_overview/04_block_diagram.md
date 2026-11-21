@@ -23,30 +23,26 @@
 
 # Block Diagram
 
-**Stub: the exact block diagram is pending D1/D3/D4/D5.** This chapter records the expected manager shape in prose. Figure 2.1 draws that shape and nothing more; it is marked planned because no onyx RTL exists and no module boundary is fixed.
+**Status:** the manager shape is built (`onyx_ccu`, TASK-001 step 2). Figure 2.1 is the planned shape drawn before the D rows closed; it still names the right blocks, and a redraw from the RTL is part of the documentation step.
 
-### Figure 2.1: onyx manager shape (planned)
+### Figure 2.1: onyx manager shape (planned, pre-RTL)
 
 ![onyx ACE CCU, planned manager shape: front-end decode, coherence decision layer, serializer, fanout / gather, memory-side AXI4 master, MonBus taps](../assets/graphviz/01_block_diagram.png)
 
 **Source:** [01_block_diagram.dot](../assets/graphviz/01_block_diagram.dot)
 
-## Expected manager shape
+## The shape as built
 
-The following blocks are the natural decomposition of a snoop-based ACE CCU on the house fabric:
+`onyx_ccu` is one module, and its blocks are the ones the planned figure named, with the D rows now fixing what each is:
 
-1. **Front-end decode, per cache-side port.** Accepts the D2 subset on AR/R/AW/W/B, distinguishes read-side from write-side transactions, and presents a uniform internal request to the coherence decision layer. The exact split and buffering depend on D1 and D2.
-2. **Coherence decision layer.** Decides, for each request, whether to fan out snoops, which snoops to send, and how to interpret the gathered CRRESP bits. This layer also holds the memory-read elision decision (D6) and any directory-lite state (D3).
-3. **Serializer / PoS.** Orders same-address transactions before they are allowed to proceed incompatibly. The structure depends on D5: per-address scoreboard vs in-order bring-up mode, banked vs centralized, outstanding sizing per D10.8.
-4. **Fanout / gather engine.** Drives AC to each peer cache, collects CR and CD, tracks completion, and forwards the chosen data source to the requester or to the memory-side master. The mechanism depends on D4, N3, and N4.
-5. **Memory-side AXI4 master.** Issues reads and writes to memory when the adjudication requires it, and handles `WriteBack`/`Evict` drains from the caches. AWID policy is an open D5 detail.
-6. **MonBus taps.** Non-stalling `*_monlite` observation points on the cache-side, snoop, and memory-side paths, per the D9 direction.
+1. **Per-port front end.** The D-8 sideband pulse enters a four-deep pending queue; the port's AR is taken into the granted slot; the port's R channel is driven by its replay engine or by a forwarded memory beat.
+2. **Transaction table (the point of serialization, D5).** `SLOTS` entries shared by all ports: requester port, line, class, the taken AR, the peer counters, the verdict bits, the completion bits. The grant arbiter (rotating priority over the ports) allocates into it under the per-line lock.
+3. **Fanout and gather (D3, D4).** One AC queue per attached cache in grant order, one in-flight queue per cache for the ACs accepted and unanswered, per-slot counters for the gather, the CRRESP merge.
+4. **Adjudication and the memory read (D6).** The memory AR candidate (lowest slot with every AC accepted, or every CR in under `DEFER_AR`, and no supplier), the AR hold, the memory R router (forward, hold, drop).
+5. **Snoop-data buffers and replay.** One buffer per requester port written by the arbitrated CD beat, one replay engine per port, the absorption read.
+6. **Write port.** Round-robin over the N write-back channels and the absorption, one burst at a time, with the write-back hold.
+7. **Debug taps.** The pair fabric's tap names (busy, slot valid, pending, absorption pending, grant and its port, address and slot), read by the pair-rig testbench. MonBus taps (D9) are not yet built.
 
-## What the open rows change
+## What is not in the shape yet
 
-- D1 (functional scope: CCU-only vs interconnect territory) changes whether the memory-side port is a single AXI4 master or a striped/interleaved set of memory ports.
-- D3 (broadcast vs directory-lite) changes whether the coherence decision layer maintains sharer state and how the fanout engine selects targets.
-- D4 (response-gather mechanism) changes the gather engine's buffering, completion detection, and formal surface.
-- D5 (same-address serialization) changes the serializer structure and the concurrency the manager can offer.
-
-Until these rows close, no module boundaries, signal names, or data-path widths are fixed.
+The ACE-Lite IO port (D1), the monlite taps (D9), and an `ARSNOOP`-decoding front end for a true ACE master. Each is a later step of onyx TASK-001.

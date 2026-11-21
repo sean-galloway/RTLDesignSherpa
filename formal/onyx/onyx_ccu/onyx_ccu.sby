@@ -1,0 +1,50 @@
+[tasks]
+prove
+prove_book
+cover
+
+[options]
+# Two safety tasks (see the harness header; the pair fabric's split, onyx's
+# proof at the same geometry).  prove: the 24 "local"
+# properties, BMC depth 24 -- the longest single-transaction path at four
+# beats per line is a PassDirty fill (reset 2, pulse, grant, AR take, AC
+# accepted, four CD beats, CR, replay, the absorption's AW / 4 W / B,
+# retire, release: ~20 steps), and a same-line request waiting out that
+# lifetime is granted and takes its AR by ~24; every cover is witnessed by
+# step 14.  prove_book: the three end-to-end bookkeeping properties (which
+# IDs are in flight, how many beats each got, which slot a CD beat lands
+# in) whose BMC cost grows ~2.5x per step against ~1.3x for the rest -- a
+# proof over the whole trace, not a local one -- at depth 16: one slot
+# lifetime (free at step 9) plus the ID's reuse and its beats.  Cover
+# depth 40.
+prove: mode bmc
+prove: depth 24
+prove_book: mode bmc
+prove_book: depth 16
+cover: mode cover
+cover: depth 40
+
+[engines]
+prove: smtbmc boolector
+prove_book: smtbmc boolector
+cover: smtbmc boolector
+
+[script]
+# -mem2reg: the transaction table's unpacked arrays (r_line, r_arid, r_dir,
+# the per-slot peer counters ...) become per-element wires `\r_line[0]`
+# that expose can reach; the per-port slot line buffers go the same way
+# (16 words each at this geometry).
+read_verilog -formal -sv -mem2reg onyx_ccu_flat.v
+prove: read -formal -sv -DPROVE_CORE formal_onyx_ccu.sv
+prove_book: read -formal -sv -DPROVE_BOOK formal_onyx_ccu.sv
+cover: read -formal -sv -DPROVE_CORE -DPROVE_BOOK formal_onyx_ccu.sv
+proc
+expose onyx_ccu/w:r_vld onyx_ccu/w:r_nodata onyx_ccu/w:r_ar_taken onyx_ccu/w:w_ac_all onyx_ccu/w:w_gathered onyx_ccu/w:r_dt onyx_ccu/w:r_pd onyx_ccu/w:r_mem_issued onyx_ccu/w:r_mem_done onyx_ccu/w:r_rpl_done onyx_ccu/w:r_abs_issued onyx_ccu/w:r_abs_done onyx_ccu/w:r_rack onyx_ccu/w:r_arw_vld onyx_ccu/w:r_mar_vld onyx_ccu/w:r_mar_slot onyx_ccu/w:r_pend_ovf onyx_ccu/w:r_rpl_vld onyx_ccu/w:r_wstate onyx_ccu/w:r_w_sel onyx_ccu/w:r_w_slot onyx_ccu/w:w_cand_locked onyx_ccu/w:w_mem_pres onyx_ccu/w:w_rpl_pres onyx_ccu/w:w_mr_drop onyx_ccu/w:w_wb_blocked onyx_ccu/w:r_dir* onyx_ccu/w:r_ac_left* onyx_ccu/w:r_cr_left* onyx_ccu/w:r_line* onyx_ccu/w:r_type* onyx_ccu/w:r_arid* onyx_ccu/w:r_arw_slot* onyx_ccu/w:r_rpl_slot* onyx_ccu/w:w_ac_slot* onyx_ccu/w:w_sni_head* onyx_ccu/w:r_pend_cnt* onyx_ccu/w:r_sni_cnt* onyx_ccu/w:w_cand_addr*
+prep -top formal_onyx_ccu
+memory_map
+# sv2v keeps the RTL's elaboration-time $error guards as $print cells
+delete t:$print
+
+[files]
+formal_onyx_ccu.sv
+onyx_ccu_flat.v

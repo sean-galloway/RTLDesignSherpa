@@ -23,31 +23,34 @@
 
 # Memory-Side AXI4 Master
 
+**Status:** as built 2026-11-21 (D1, D5 and D6 decided 2026-11-20, PRD v0.7).
+
 ## Port count and shape
 
-onyx has one AXI4 master toward the house memory path. This is the recommended D1 scope (CCU only, not interconnect territory). If D1 closes on the CCU-only candidate, this master is the sole memory-side port. If D1 later moves into interconnect territory, this chapter is superseded by a multi-port or striped memory interface.
+One AXI4 master toward the house memory path (D1: CCU only). Plain AXI4 AR/R/AW/W/B; no snoop channels on this side. In the reference rig the far side is the house `sdpram_slave_axi4_axi4`; on the Genesys2 board the same slave behind the bridge.
 
-## When the memory-side port is read
+## Reads
 
-D6 fixes when onyx reads memory. At 0.1 the recommended direction is full adjudication:
+onyx issues one memory read per allocated data-class transaction at most: a full line (`ARLEN = FILL_BEATS - 1`, `ARSIZE` the bus width, INCR) at the slot's line address, with the requester's `ARCACHE`, `ARPROT` and `ARUSER` carried through. The read ID is the slot index, so a returning beat names its slot directly and several reads are outstanding at once, one per slot; the requester sees its own `ARID` back on R, not the memory's. A presented AR is held until taken.
 
-- Read memory only when no cache returned `DataTransfer` and no `PassDirty` moved dirty responsibility.
-- If `PassDirty` passed dirty data that the requester did not absorb, write memory.
+When the read issues is the D6 mode (Chapter 3.2): `DEFER_AR = 0` at the last peer's AC accept, `DEFER_AR = 1` once every CR is in with no supplier. A read whose slot a peer then supplies is still drained to completion; its beats are consumed and dropped.
 
-The always-read simplification is a bring-up candidate; it is not architecture at 0.1.
+## Writes
 
-## AWID policy
+The write port carries two kinds of burst, one at a time, round-robin over N + 1 candidates:
 
-AWID assignment is an open D5 detail. The candidate from Chinnakonda §10.10.2 is a unique-AWID freelist: for victims or coherent writes, use unique IDs so the interconnect does not impose ordering; recycle IDs as BRESPs return, preferring the oldest returned ID. Device stores, if ever supported, would use a single ID for program order. The D5 serialization choice determines whether onyx needs this freelist and how wide it must be.
+- **Write-backs,** passed through from a cache's AW/W/B with the cache's own `AWID`, address, length and attributes. A write-back to a line with a slot whose gather is incomplete, or whose absorption is pending, holds at its AW until that clears.
+- **Absorptions,** the manager's own writes of a `PassDirty` line from the slot buffer: a full line at the slot's line address with `AWID = 8'hA0 | requester port` truncated to the ID width (at the rigs' 8-bit IDs, `A0` and `A1`), full strobes. One absorption per supplied-dirty transaction; the slot does not free until its `BRESP`.
+
+`AWID` policy (the open D5 detail of the 0.2 book) is therefore fixed by construction: write-backs keep the cache's ID, absorptions use the manager's reserved IDs, and the port runs one burst at a time so no interconnect reordering question arises.
 
 ## What is fixed
 
-- One AXI4 master is the working memory-side shape (D1 recommended candidate).
-- The memory read/write decision is driven by the D6 adjudication rule.
-- Plain AXI4 channel semantics (AW/W/B/AR/R) apply; no snoop channels on this side.
+- One AXI4 master; the memory read ID is the slot index; the requester's `ARID` is returned to it.
+- The read is issued per the D6 mode and dropped when a peer supplies the line.
+- Write-backs pass through with the cache's ID; absorptions carry the manager's reserved ID.
+- One write burst in flight; the write-back hold against an incomplete gather or pending absorption.
 
 ## What is open
 
-- D1: whether the memory side remains one AXI4 master or grows to multiple memory ports.
-- D5: AWID policy and ordering requirements imposed on the interconnect.
-- D6: whether the full adjudication rule or the bring-up always-read rule is implemented.
+- The ACE-Lite IO port of D1, a later TASK-001 step, will add a non-coherent requester on this side's traffic.

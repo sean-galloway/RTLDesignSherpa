@@ -14,7 +14,11 @@ commit answers three cycles after the last beat), the same pair rig;
 2026-11-19, ninth column -- jet-prime TASK-002, the 2-cycle resident hit
 (the arriving request's data address leads in its capture cycle, a read
 hit answers from the port and a write hit acks in its classify cycle),
-the same pair rig: the column to read against jet's and HPDcache's. Re-run
+the same pair rig: the column to read against jet's and HPDcache's;
+2026-11-21, tenth and eleventh columns -- onyx (onyx TASK-001): the same
+jet-prime pair behind `onyx_ccu` in the pair fabric's place, with the
+memory read alongside the snoop (`REF_CACHE_SEL=4`) and deferred until the
+gather (`REF_CACHE_SEL=5`), plus a table of the two managers alone. Re-run
 `ref/bin/ref_compare.py` after any new sweep.
 **Rig:** Genesys 2 (Kintex-7 325T-2), 100 MHz, the cache-ip pair harness
 with the pipelined cycle injector (common-ip TASK-002), the house 512 KB
@@ -37,6 +41,8 @@ same injector on the same part at the same clock:
 | jet-prime s3 | the same rig as a PAIR: two jet-primes after step 3 through the pipelined `jet_prime_pair_fabric` ([delta 02](../jet-prime-mesi-l1/docs/delta/02_pair_fabric.md)), one per injector, `REF_CACHE_SEL=3` (bin 3: the step-4 fabric with the memory-AR fixes) | the jet rig's structure with jet-prime's RTL: s2's cache behind a fabric that serializes per line, issues the memory read alongside the snoop and keeps several reads outstanding | yes -- a real peer, snooped on every miss (idle in the single-core column, active in the both-injectors numbers below) |
 | jet-prime s5 | the same pair rig, jet-prime after step 5 ([delta 03](../jet-prime-mesi-l1/docs/delta/03_single_miss_path.md)), `REF_CACHE_SEL=3` (bin 4) | s3's pair with the single-miss path shortened: the fill launch goes out in the alloc cycle and the engine holds beats for the way a victim capture is reading; the commit snapshots in the done cycle, leaves the merge as its last slot advances and deposits with the install | yes -- as s3 |
 | jet-prime s6 | the same pair rig, jet-prime after TASK-002 ([delta 04](../jet-prime-mesi-l1/docs/delta/04_two_cycle_hit.md)), `REF_CACHE_SEL=3` (bin 7) | s5's pair with the resident hit at HPDcache's floor: the arriving request's data address leads on the array in its capture cycle (the array reads every way; the way is selected after the tag compare) and a read hit answers from the port in its classify cycle; a write hit acks there too, its array write following from the serve record | yes |
+| onyx | the same pair rig with `onyx_ccu` (N_PORTS 2) in `jet_prime_pair_fabric`'s place, `REF_CACHE_SEL=4` (onyx bin 1; [onyx HAS](../onyx-ace-ccu/docs/onyx_has/onyx_has_index.md)) | s6's two caches behind the coherency unit: broadcast snoop, tagged gather, per-line serialization, the memory read issued once every peer accepted its AC and dropped when a peer supplies the line | yes -- as s6 |
+| onyx-d | the same build with `DEFER_AR=1`, `REF_CACHE_SEL=5` (onyx-d bin 1) | onyx with the memory read issued only once every CR is in and no peer supplied the line: every memory read a necessary one, every miss served from memory paying the gather first | yes -- as s6 |
 
 Why these two: HPDcache is the closest open design to jet's point (a
 lockup-free L1 with an MSHR file, published on this very board in the
@@ -111,60 +117,62 @@ Sources (newest single-core sweep per rig; injector 1 idle):
 - jet-prime s3: `perf_sweep_jetpp_bin3_single_20261117T144843Z.json`
 - jet-prime s5: `perf_sweep_jetpp_bin4_single_20261117T191112Z.json`
 - jet-prime s6: `perf_sweep_jetpp_bin7_single_20261119T132547Z.json`
+- onyx: `perf_sweep_onyx_bin1_single_20261121T134201Z.json`
+- onyx-d: `perf_sweep_onyxd_bin1_single_20261121T134540Z.json`
 
 Error flags / unfinished runs across all sources: 0
 
 ### Cycles per transaction (injector 0, 20,000 transactions)
 
-| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime s1 | jet-prime s2 | jet-prime s3 | jet-prime s5 | jet-prime s6 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| r4k_we0 | 1 | 5.00 | 4.00 | 3.00 | 3.00 | 4.00 | 4.00 | 4.00 | 4.00 | 3.00 |
-| r4k_we0 | 4 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
-| r4k_we0 | 16 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
-| r4k_we255 | 1 | 5.03 | 4.03 | 3.00 | 3.99 | 4.03 | 4.03 | 4.03 | 4.03 | 3.03 |
-| r4k_we255 | 4 | 3.03 | 1.05 | 1.01 | 2.99 | 1.04 | 1.04 | 1.05 | 1.04 | 1.04 |
-| r4k_we255 | 16 | 3.03 | 1.04 | 1.01 | 2.99 | 1.04 | 1.04 | 1.04 | 1.04 | 1.04 |
-| smoke4k_we64 | 1 | 5.08 | 4.08 | 3.07 | 3.29 | 4.06 | 4.06 | 4.06 | 4.02 | 3.02 |
-| smoke4k_we64 | 4 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 |
-| smoke4k_we64 | 16 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 |
-| r16k_we64 | 1 | 5.24 | 4.23 | 3.20 | 3.36 | 4.18 | 4.18 | 4.19 | 4.16 | 3.17 |
-| r16k_we64 | 4 | 3.18 | 1.13 | 1.22 | 1.71 | 1.11 | 1.09 | 1.10 | 1.08 | 1.08 |
-| r16k_we64 | 16 | 3.18 | 1.11 | 1.20 | 1.72 | 1.08 | 1.06 | 1.06 | 1.05 | 1.05 |
-| r64k_we64 | 1 | 20.89 | 17.42 | 13.73 | 10.79 | 14.88 | 14.88 | 15.39 | 12.76 | 12.27 |
-| r64k_we64 | 4 | 18.86 | 11.40 | 8.22 | 9.85 | 8.90 | 6.89 | 7.05 | 6.10 | 6.08 |
-| r64k_we64 | 16 | 18.86 | 10.65 | 7.64 | 9.88 | 8.13 | 5.71 | 5.78 | 5.29 | 5.27 |
-| r64k_we255 | 1 | 30.50 | 21.13 | 13.65 | 14.68 | 18.59 | 18.59 | 19.11 | 13.17 | 12.68 |
-| r64k_we255 | 4 | 28.50 | 12.01 | 10.53 | 14.22 | 9.54 | 9.10 | 9.52 | 8.65 | 8.65 |
-| r64k_we255 | 16 | 28.50 | 10.79 | 10.51 | 14.25 | 8.29 | 8.14 | 8.61 | 8.51 | 8.51 |
-| r128k_we64 | 1 | 29.01 | 24.02 | 18.83 | 15.23 | 20.27 | 20.27 | 21.02 | 16.94 | 16.69 |
-| r128k_we64 | 4 | 27.01 | 16.08 | 11.37 | 14.61 | 12.35 | 8.91 | 9.10 | 8.09 | 8.08 |
-| r128k_we64 | 16 | 27.01 | 15.74 | 10.90 | 14.60 | 12.00 | 8.00 | 8.11 | 7.58 | 7.57 |
+| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime s1 | jet-prime s2 | jet-prime s3 | jet-prime s5 | jet-prime s6 | onyx | onyx-d |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | 5.00 | 4.00 | 3.00 | 3.00 | 4.00 | 4.00 | 4.00 | 4.00 | 3.00 | 3.00 | 3.00 |
+| r4k_we0 | 4 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| r4k_we0 | 16 | 3.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| r4k_we255 | 1 | 5.03 | 4.03 | 3.00 | 3.99 | 4.03 | 4.03 | 4.03 | 4.03 | 3.03 | 3.03 | 3.03 |
+| r4k_we255 | 4 | 3.03 | 1.05 | 1.01 | 2.99 | 1.04 | 1.04 | 1.05 | 1.04 | 1.04 | 1.04 | 1.04 |
+| r4k_we255 | 16 | 3.03 | 1.04 | 1.01 | 2.99 | 1.04 | 1.04 | 1.04 | 1.04 | 1.04 | 1.04 | 1.04 |
+| smoke4k_we64 | 1 | 5.08 | 4.08 | 3.07 | 3.29 | 4.06 | 4.06 | 4.06 | 4.02 | 3.02 | 3.02 | 3.02 |
+| smoke4k_we64 | 4 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 |
+| smoke4k_we64 | 16 | 3.00 | 1.01 | 1.12 | 1.62 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 | 1.01 |
+| r16k_we64 | 1 | 5.24 | 4.23 | 3.20 | 3.36 | 4.18 | 4.18 | 4.19 | 4.16 | 3.17 | 3.17 | 3.20 |
+| r16k_we64 | 4 | 3.18 | 1.13 | 1.22 | 1.71 | 1.11 | 1.09 | 1.10 | 1.08 | 1.08 | 1.08 | 1.08 |
+| r16k_we64 | 16 | 3.18 | 1.11 | 1.20 | 1.72 | 1.08 | 1.06 | 1.06 | 1.05 | 1.05 | 1.05 | 1.05 |
+| r64k_we64 | 1 | 20.89 | 17.42 | 13.73 | 10.79 | 14.88 | 14.88 | 15.39 | 12.76 | 12.27 | 12.27 | 13.67 |
+| r64k_we64 | 4 | 18.86 | 11.40 | 8.22 | 9.85 | 8.90 | 6.89 | 7.05 | 6.10 | 6.08 | 6.08 | 6.38 |
+| r64k_we64 | 16 | 18.86 | 10.65 | 7.64 | 9.88 | 8.13 | 5.71 | 5.78 | 5.29 | 5.27 | 5.27 | 5.37 |
+| r64k_we255 | 1 | 30.50 | 21.13 | 13.65 | 14.68 | 18.59 | 18.59 | 19.11 | 13.17 | 12.68 | 12.68 | 13.70 |
+| r64k_we255 | 4 | 28.50 | 12.01 | 10.53 | 14.22 | 9.54 | 9.10 | 9.52 | 8.65 | 8.65 | 8.65 | 8.76 |
+| r64k_we255 | 16 | 28.50 | 10.79 | 10.51 | 14.25 | 8.29 | 8.14 | 8.61 | 8.51 | 8.51 | 8.51 | 8.52 |
+| r128k_we64 | 1 | 29.01 | 24.02 | 18.83 | 15.23 | 20.27 | 20.27 | 21.02 | 16.94 | 16.69 | 16.69 | 18.74 |
+| r128k_we64 | 4 | 27.01 | 16.08 | 11.37 | 14.61 | 12.35 | 8.91 | 9.10 | 8.09 | 8.08 | 8.08 | 8.33 |
+| r128k_we64 | 16 | 27.01 | 15.74 | 10.90 | 14.60 | 12.00 | 8.00 | 8.11 | 7.58 | 7.57 | 7.57 | 7.68 |
 
 ### Mean latency, accept to response (cycles)
 
-| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime s1 | jet-prime s2 | jet-prime s3 | jet-prime s5 | jet-prime s6 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| r4k_we0 | 1 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 |
-| r4k_we0 | 4 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 |
-| r4k_we0 | 16 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 |
-| r4k_we255 | 1 | 4.03 | 3.03 | 2.00 | 1.01 | 3.03 | 3.03 | 3.03 | 3.03 | 2.03 |
-| r4k_we255 | 4 | 4.03 | 3.19 | 2.00 | 1.01 | 3.17 | 3.17 | 3.18 | 3.17 | 3.16 |
-| r4k_we255 | 16 | 4.03 | 4.38 | 2.00 | 1.01 | 4.35 | 4.35 | 4.37 | 4.35 | 3.77 |
-| smoke4k_we64 | 1 | 4.08 | 3.08 | 2.06 | 1.78 | 3.06 | 3.06 | 3.06 | 3.02 | 2.02 |
-| smoke4k_we64 | 4 | 4.00 | 3.03 | 2.00 | 1.75 | 3.03 | 3.03 | 3.03 | 3.03 | 3.02 |
-| smoke4k_we64 | 16 | 4.00 | 4.01 | 2.00 | 1.75 | 4.01 | 4.01 | 4.01 | 4.01 | 4.00 |
-| r16k_we64 | 1 | 4.24 | 3.23 | 2.18 | 1.85 | 3.18 | 3.18 | 3.19 | 3.16 | 2.17 |
-| r16k_we64 | 4 | 4.18 | 3.54 | 2.25 | 1.82 | 3.42 | 3.37 | 3.38 | 3.30 | 3.30 |
-| r16k_we64 | 16 | 4.18 | 6.17 | 2.44 | 1.82 | 5.89 | 5.81 | 5.83 | 5.65 | 5.65 |
-| r64k_we64 | 1 | 19.89 | 16.42 | 11.41 | 6.99 | 13.88 | 13.88 | 14.39 | 11.76 | 11.27 |
-| r64k_we64 | 4 | 19.86 | 44.61 | 18.11 | 7.51 | 34.60 | 26.54 | 27.18 | 23.38 | 23.33 |
-| r64k_we64 | 16 | 19.86 | 75.16 | 22.49 | 7.55 | 57.89 | 61.65 | 62.42 | 56.04 | 55.91 |
-| r64k_we255 | 1 | 29.50 | 20.13 | 11.34 | 1.10 | 17.59 | 17.59 | 18.11 | 12.17 | 11.68 |
-| r64k_we255 | 4 | 29.50 | 47.04 | 16.69 | 1.09 | 37.16 | 35.40 | 37.06 | 33.57 | 33.57 |
-| r64k_we255 | 16 | 29.50 | 75.39 | 17.52 | 1.10 | 58.11 | 52.30 | 54.71 | 44.95 | 45.25 |
-| r128k_we64 | 1 | 28.01 | 23.02 | 15.89 | 10.02 | 19.27 | 19.27 | 20.02 | 15.94 | 15.69 |
-| r128k_we64 | 4 | 28.01 | 63.33 | 23.29 | 10.89 | 48.41 | 34.65 | 35.40 | 31.35 | 31.30 |
-| r128k_we64 | 16 | 28.01 | 91.97 | 26.74 | 10.91 | 70.76 | 86.06 | 87.01 | 80.04 | 79.97 |
+| config | depth | amber | jet | HPDcache | CVA6 WB | jet-prime s1 | jet-prime s2 | jet-prime s3 | jet-prime s5 | jet-prime s6 | onyx | onyx-d |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 | 2.00 | 2.00 |
+| r4k_we0 | 4 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 | 2.00 | 2.00 |
+| r4k_we0 | 16 | 4.00 | 3.00 | 2.00 | 2.00 | 3.00 | 3.00 | 3.00 | 3.00 | 2.00 | 2.00 | 2.00 |
+| r4k_we255 | 1 | 4.03 | 3.03 | 2.00 | 1.01 | 3.03 | 3.03 | 3.03 | 3.03 | 2.03 | 2.03 | 2.03 |
+| r4k_we255 | 4 | 4.03 | 3.19 | 2.00 | 1.01 | 3.17 | 3.17 | 3.18 | 3.17 | 3.16 | 3.16 | 3.16 |
+| r4k_we255 | 16 | 4.03 | 4.38 | 2.00 | 1.01 | 4.35 | 4.35 | 4.37 | 4.35 | 3.77 | 3.77 | 3.77 |
+| smoke4k_we64 | 1 | 4.08 | 3.08 | 2.06 | 1.78 | 3.06 | 3.06 | 3.06 | 3.02 | 2.02 | 2.02 | 2.02 |
+| smoke4k_we64 | 4 | 4.00 | 3.03 | 2.00 | 1.75 | 3.03 | 3.03 | 3.03 | 3.03 | 3.02 | 3.02 | 3.02 |
+| smoke4k_we64 | 16 | 4.00 | 4.01 | 2.00 | 1.75 | 4.01 | 4.01 | 4.01 | 4.01 | 4.00 | 4.00 | 4.00 |
+| r16k_we64 | 1 | 4.24 | 3.23 | 2.18 | 1.85 | 3.18 | 3.18 | 3.19 | 3.16 | 2.17 | 2.17 | 2.20 |
+| r16k_we64 | 4 | 4.18 | 3.54 | 2.25 | 1.82 | 3.42 | 3.37 | 3.38 | 3.30 | 3.30 | 3.30 | 3.34 |
+| r16k_we64 | 16 | 4.18 | 6.17 | 2.44 | 1.82 | 5.89 | 5.81 | 5.83 | 5.65 | 5.65 | 5.65 | 5.71 |
+| r64k_we64 | 1 | 19.89 | 16.42 | 11.41 | 6.99 | 13.88 | 13.88 | 14.39 | 11.76 | 11.27 | 11.27 | 12.67 |
+| r64k_we64 | 4 | 19.86 | 44.61 | 18.11 | 7.51 | 34.60 | 26.54 | 27.18 | 23.38 | 23.33 | 23.33 | 24.50 |
+| r64k_we64 | 16 | 19.86 | 75.16 | 22.49 | 7.55 | 57.89 | 61.65 | 62.42 | 56.04 | 55.91 | 55.91 | 57.52 |
+| r64k_we255 | 1 | 29.50 | 20.13 | 11.34 | 1.10 | 17.59 | 17.59 | 18.11 | 12.17 | 11.68 | 11.68 | 12.70 |
+| r64k_we255 | 4 | 29.50 | 47.04 | 16.69 | 1.09 | 37.16 | 35.40 | 37.06 | 33.57 | 33.57 | 33.57 | 34.01 |
+| r64k_we255 | 16 | 29.50 | 75.39 | 17.52 | 1.10 | 58.11 | 52.30 | 54.71 | 44.95 | 45.25 | 45.25 | 46.69 |
+| r128k_we64 | 1 | 28.01 | 23.02 | 15.89 | 10.02 | 19.27 | 19.27 | 20.02 | 15.94 | 15.69 | 15.69 | 17.74 |
+| r128k_we64 | 4 | 28.01 | 63.33 | 23.29 | 10.89 | 48.41 | 34.65 | 35.40 | 31.35 | 31.30 | 31.30 | 32.30 |
+| r128k_we64 | 16 | 28.01 | 91.97 | 26.74 | 10.91 | 70.76 | 86.06 | 87.01 | 80.04 | 79.97 | 79.97 | 81.36 |
 
 ### Resident-hit floor and achieved parallelism
 
@@ -179,6 +187,8 @@ Error flags / unfinished runs across all sources: 0
 | jet-prime s3 | 3 | 10.81 | 12 |
 | jet-prime s5 | 3 | 10.59 | 12 |
 | jet-prime s6 | 2 | 10.60 | 12 |
+| onyx | 2 | 10.60 | 12 |
+| onyx-d | 2 | 10.72 | 12 |
 
 ### Cache alone, out of context (xc7k325t-2, 10 ns clock, synth + place + route)
 
@@ -193,6 +203,8 @@ Error flags / unfinished runs across all sources: 0
 | jet-prime s3 | 6047 | 5394 | 16 | 0 | 1888 | +0.118 | 16 |
 | jet-prime s5 | 6010 | 5399 | 16 | 0 | 1998 | +0.321 | 19 |
 | jet-prime s6 | 6033 | 5402 | 16 | 0 | 1998 | +0.082 | 23 |
+| onyx | 6033 | 5402 | 16 | 0 | 1998 | +0.082 | 23 |
+| onyx-d | 6033 | 5402 | 16 | 0 | 1998 | +0.082 | 23 |
 
 ### The same, monitors off (USE_MONITOR=0; HPDcache and CVA6 have none to turn off)
 
@@ -201,6 +213,13 @@ Error flags / unfinished runs across all sources: 0
 | amber | 2370 | 1706 | 16 | 0 | 980 | +0.859 | 22 | 3709 |
 | jet | 3711 | 2886 | 16 | 0 | 1468 | +0.326 | 16 | 5892 |
 | jet-prime s6 | 3908 | 3031 | 16 | 0 | 1587 | +0.157 | 21 | 6033 |
+
+### The managers alone, out of context (xc7k325t-2, 10 ns clock; 18 slots, SNOOP_INFLIGHT 2)
+
+| manager | LUT | FF | LUTRAM | WNS at 10 ns | worst path levels |
+|---|---|---|---|---|---|
+| jet_prime_pair_fabric | 4300 | 1660 | 1296 | +2.757 | 10 |
+| onyx_ccu (N_PORTS 2) | 4628 | 1664 | 1296 | +2.885 | 9 |
 
 
 <!-- end generated -->
@@ -410,6 +429,30 @@ measures the same way.
   12.28 / 12.25, depth 16 5.30 / 5.32. Cache alone out of context at
   10 ns (`ref/results/ooc/jetp6`): 6,033 LUT / 5,402 FF, WNS +0.082 (s5
   6,010 / 5,399 at +0.321, the same path).
+- **onyx in the fabric's place (2026-11-21).** The s6 pair with `onyx_ccu`
+  (N_PORTS 2, 18 slots, SNOOP_INFLIGHT 2) replacing `jet_prime_pair_fabric`,
+  same caches, memory, injectors and knobs. With the memory read alongside
+  the snoop (`REF_CACHE_SEL=4`, the fabric's own timing rule) every one of
+  the 55 single-injector cells and the 55 dual cells, both injectors,
+  reproduces bin 7's cycle count exactly -- not within noise, identical --
+  and every CRC equals bin 7's: onyx at two ports is the fabric's behavior.
+  Hit floor 2, MLP 10.60 on `r64k_we64` at depth 16, as s6. With the read
+  deferred until the gather (`REF_CACHE_SEL=5`) the resident rows are
+  unchanged (every hit-only cell equal; `r16k_we64` +0.4 to +0.9 % from its
+  few misses) and the thrash rows pay the gather on the critical path:
+  depth 1 `r64k_we64` 12.27 -> 13.67 (+11.4 %), `r64k_we255` 12.68 -> 13.70
+  (+8.1 %), `r128k_we64` 16.69 -> 18.74 (+12.2 %); the cost shrinks with
+  depth to +1.8 / +0.2 / +1.5 % at 16, where the gather overlaps other
+  misses. CRCs equal bin 7's there too. The saving the deferred mode buys
+  is memory reads not issued; the rig does not count memory-side ARs yet
+  (a D9 tap), so that side of the trade is recorded as the next
+  measurement. Timing at 100 MHz under the 0.2 ns budget: SEL 4 WNS
+  +0.006 ns, SEL 5 +0.000 ns, both met, the worst path jet-prime's fill
+  engine staging read pointer into the data-array address in both -- onyx
+  is not on the critical path. Manager alone out of context (the fourth
+  table): onyx 4,628 LUT / 1,664 FF / 1,296 LUTRAM at +2.885 ns against
+  the fabric's 4,300 / 1,660 / 1,296 at +2.757, the generalization to N
+  ports 328 LUT (7.6 %) and nothing else.
 - **Area, cache alone at 10 ns.** HPDcache is the smallest in LUTs (3,510)
   and the fastest (WNS +1.37 ns, ten logic levels on its worst path) and
   keeps its arrays in 8 RAMB36 + 4 RAMB18. jet is 5,892 LUT / 5,258 FF /
@@ -472,6 +515,8 @@ make bitstream REF_CACHE_SEL=3 ; make program REF_CACHE_SEL=3 ; make run SEQUENC
 python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --ci1-idle --outstanding 1 2 4 8 16 --out ../results/<name>.json
 make ooc CACHE=hpd ; make ooc CACHE=cva6 ; make ooc CACHE=jet ; make ooc CACHE=jetp ; make ooc CACHE=jetp5 ; make ooc CACHE=jetp6 ; make ooc CACHE=amber
 make ooc CACHE=jet_nomon ; make ooc CACHE=jetp6_nomon ; make ooc CACHE=amber_nomon   # the same with the observers off
+make bitstream REF_CACHE_SEL=4 ; make program REF_CACHE_SEL=4 ; make run SEQUENCES="init smoke" REF_CACHE_SEL=4   # onyx in the fabric's place (SEL 5: DEFER_AR)
+make ooc CACHE=jetp_fabric ; make ooc CACHE=onyx2            # the two managers alone
 python3 ../bin/ref_compare.py                   # the tables above
 ```
 

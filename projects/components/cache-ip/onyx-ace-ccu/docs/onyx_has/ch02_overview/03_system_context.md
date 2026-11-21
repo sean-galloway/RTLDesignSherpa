@@ -25,36 +25,20 @@
 
 ## Where onyx sits
 
-onyx is the coherence manager on the house AXI4 fabric. It consumes ACE transactions from attached caches on one side, issues AXI4 transactions toward memory on another side, and drives/receives the AC/CD/CR snoop channels to/from the peer caches on a third side. A fourth MonBus tap carries observation events without stalling the measured paths.
+onyx is the coherence manager on the house AXI4 fabric: N cache-side ports toward the family's caches, one AXI4 master toward memory, and the AC/CR/CD snoop channels into every attached cache. It replaces jet-prime's pipelined pair fabric, which was the two-cache prototype of exactly this role.
 
-## Onyx rig with amber
-
-```
-CPU/STREAM0 --GAXI--> amber_ace0 --ACE--> onyx --AXI4--> memory
-CPU/STREAM1 --GAXI--> amber_ace1 --ACE-->
-```
-
-In this rig, each `amber_ace` is an ACE master toward onyx and a snoop responder toward onyx. Coherent read misses become `ReadShared` or `ReadUnique`; write promotions become `CleanUnique` or `MakeUnique`; dirty evictions become `WriteBack`; clean evictions become `Evict`. Memory is on the far side of onyx; the caches do not talk directly to memory.
-
-## Onyx rig with jet
-
-The same topology applies with `jet_ace` instances once jet exists:
+## The rig as built
 
 ```
-CPU/STREAM0 --GAXI--> jet_ace0 --ACE--> onyx --AXI4--> memory
-CPU/STREAM1 --GAXI--> jet_ace1 --ACE-->
+CPU/injector 0 --GAXI--> jet_prime_top 0 --AXI4 + sideband--> onyx_ccu --AXI4--> sdpram / bridge
+CPU/injector 1 --GAXI--> jet_prime_top 1 --AXI4 + sideband-->   |
+                                       <--AC / CR, CD --------- fanout and gather
 ```
 
-jet's internal lockup-freedom is invisible to onyx except that jet may present more concurrent transactions to serialize.
+Each jet-prime is an AXI4 master toward onyx (fills on AR/R, write-backs on AW/W/B) with its coherent request class on the D-8 sideband (`coh_req_*`) and its retire on `coh_done_*`; toward onyx it is also the ACE-shaped snoop responder (`m_axi_ac*`, `m_axi_cr*`, `m_axi_cd*`). Memory is reachable only through onyx.
 
-## What exists today around it
+## What exists around it
 
-- `amber` is the first onyx-rig consumer. amber D4 and onyx D7 were decided together on 2026-10-05: onyx owns the ACE-shaped AC/CD/CR snoop port, and `amber` stays bus-agnostic internally behind a thin adapter.
-- `jet` will reuse the same adapter contract; its J-rows must not be pre-decided by onyx.
-- The in-repo AMBA ACE Interface Definition captures the ACE-shaped port contract and the D2 subset.
-- `rtl/amba/ace/` already contains `axi4ace_master_rd/wr`, `axi4ace_slave_rd/wr`, `axi4ace_snoop_slave/master`, and `axi4ace_snoop_monitor_lite` movers — the transport layer for the three port kinds.
-- The RDS-DV `axi4` BFM family will be extended with the `axi4ace` classes; the direction is fixed in PRD D10 but the classes are not yet implemented (RTLDesignSherpa-DV issue #86).
-
-## Boundary with the caches
-
-onyx does not know what is inside `amber` or `jet`. It sees only the ACE-shaped ports: AR/R/AW/W/B for coherent transactions, and AC/CD/CR for snoops. The caches see onyx as their memory system. This decoupling is the point of D7.
+- `jet_prime_top` carries the sideband and the snoop port natively; no adapter sits between it and onyx (D7's snoop half is in the cache already; the ACE-front-side `ARSNOOP` flavor is the adapter's other half, not needed by any house cache).
+- The in-repo AMBA ACE Interface Definition is the normative port contract; the RDS-DV `components.ace` BFMs implement it and were verified on onyx's gather shapes first.
+- The Genesys2 reference rig measures onyx against the pair fabric it replaces (selections 3, 4, 5) and against HPDcache on the same injector, memory and bridge.

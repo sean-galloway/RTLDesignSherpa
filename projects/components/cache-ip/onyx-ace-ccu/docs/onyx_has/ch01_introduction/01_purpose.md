@@ -25,27 +25,22 @@
 
 ## What this document is for
 
-This 0.1 Hardware Architecture Specification is the first architectural checkpoint for `onyx`, the snoop-based ACE coherency unit that turns the family's caches into a coherent system on the house AXI4 fabric. Its job is to fix the parts of onyx that are already decided, make the research question explicit, and leave an honest trace of the open decisions (D1–D6, D8–D11, N1–N7) so that later revisions can show exactly what closed and why.
+This Hardware Architecture Specification records `onyx`, the snoop-based ACE coherency unit that turns the family's caches into a coherent system on the house AXI4 fabric. Version 0.3 (2026-11-21) is the first version with RTL behind it: the D rows were decided on 2026-11-20 (PRD v0.7) and `onyx_ccu` was built, verified against jet-prime's pair-rig grid, argued formally at two ports and placed on the Genesys2 reference rig in onyx TASK-001.
 
-At 0.1 the following are real content:
+Real content at 0.3:
 
 - the purpose of the IP and the research claim it must support;
-- the system context, use cases, and key features;
-- the cache-side ACE port contract, because D7 is decided;
-- the memory-side AXI4 master contract and the snoop fanout contract as the decided landscape permits;
-- the seven proposed design invariants mined from the PRD;
-- the verification success criteria, including the named formal proof obligations;
-- the decision landscape for every open D/N row, with citations to the background material that will inform each choice.
+- the system context, use cases and key features as built;
+- the manager architecture: pipeline, decision layer, serializer, fanout and gather (Chapter 3);
+- the cache-side contract as built (sideband plus plain AXI4 plus the ACE-shaped snoop port), the memory-side master, the fanout port (Chapter 4);
+- the parameters and the configurations the rigs build (Chapter 5);
+- the verification as done and the characterization as measured (Chapter 6).
 
-The following are stubs at 0.1 and are labeled as such in the chapters they shape:
+Still open, labeled where they shape a chapter:
 
-- manager pipeline shape (D1/D2);
-- coherence decision layer and memory-read elision policy (D3/D6);
-- serializer / PoS structure (D5);
-- snoop fanout and response-gather mechanism (D4, N3, N4);
-- MonBus event classes and counter mapping (D9);
-- parameter list and sizing math (D4/D5/D11);
-- synthesis/implementation cost targets (success criterion 5).
+- the ACE-Lite IO port (D1) and the MonBus taps (D9): later steps of TASK-001;
+- the N rows other than N1 and the invariants other than 6: proposed in the PRD, honored by construction where Chapter 3.4 says so;
+- a three-port formal harness and a three-cache rig.
 
 ## Research question
 

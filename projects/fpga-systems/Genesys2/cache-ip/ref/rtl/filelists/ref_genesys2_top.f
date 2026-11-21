@@ -27,6 +27,9 @@
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_top.f
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_pair_fabric.f
 
+# the onyx coherency unit in the pair fabric's place (REF_CACHE_SEL 4 / 5; onyx TASK-001)
+-f $ONYX_ROOT/rtl/filelists/onyx_ccu.f
+
 # UART -> AXIL, the shared jet bridge, the house AXI4 block-RAM slave
 -f $CONVERTERS_ROOT/rtl/filelists/uart_axil_bridge.f
 -f $JET_FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_jet_axil.f

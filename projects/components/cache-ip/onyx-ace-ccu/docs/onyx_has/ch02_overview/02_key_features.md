@@ -23,34 +23,38 @@
 
 # Key Features
 
-## N cache-side ACE ports (2–4, D11)
+## N cache-side ports, 2 to 4 (D11, decided)
 
-onyx accepts coherent transactions from N attached caches. D11 is open, but the recommended direction is an elaboration parameter supporting 2–4 masters, matching the `culsans` range. The internal resources (fanout width, gather buffering, PoS banks, outstanding-access capacity) must size with N.
+`N_PORTS` is an elaboration parameter; every cache-side signal is an unpacked array over it, and the transaction table, the AC queues, the snoop-data buffers and the replay engines scale with it. The measured configuration is two ports.
 
-## D2 coherent-transaction subset
+## The D2 subset (decided)
 
-The front-end decoder handles the recommended research subset: `ReadShared`, `ReadUnique`, `CleanUnique`, `MakeUnique`, `WriteBack`, and `Evict`. The decoder shape depends on whether D2 closes on this subset or grows; the architecture chapter is a stub until D2 closes.
+`ReadNotSharedDirty`, `ReadUnique`, `CleanUnique`, `WriteBack`, `Evict` -- the transactions the house caches issue, carried on the D-8 sideband. `MakeUnique` decodes as a no-data class. Barriers, DVM and the WLU/WU family are out (D8, N5, N6).
 
-## Snoop fanout: broadcast vs directory-lite (D3)
+## Broadcast snoop (D3, decided)
 
-The v1 candidate is broadcast to all attached caches (the `culsans` shape). A directory-lite elaboration parameter is the deferred candidate: copy-of-L1-tags, L1ID-vector in tag, or a separate snoop filter sized ≈1.5× combined L1. The false-positive-snoop corner (a line thought to be in one cache has been victimized) must be handled regardless of the D3 choice.
+Every allocated transaction snoops every attached cache except the requester; onyx keeps no sharer state. A directory-lite filter is a future parameter.
 
-## Response gather (D4)
+## Tagged gather (D4, decided)
 
-Candidates: a fixed response window in which all caches respond (presumed miss after a proven bound), or tagged outstanding snoop IDs with per-transaction completion. Snoops carry no IDs and must be responded to in issue order; the gather mechanism must respect that rule.
+Per transaction, counters of the peers yet to accept the AC and yet to answer; the verdict is the OR of the CRs' `DataTransfer` and the supplier's `PassDirty`. No response window, no presumed miss.
 
-## Same-address serialization (D5)
+## Per-line serialization (D5, decided)
 
-Candidates: a per-address scoreboard allowing interleaving of different addresses (the interesting manager), or full in-order single outstanding (a bring-up mode). The PoS is where same-address transactions are ordered before they proceed incompatibly.
+A transaction table is the point of serialization: one valid slot per line, different lines interleave, the lock held from grant to the requester's retire. `SERIAL_MODE` is the one-at-a-time bring-up shape.
 
-## Memory-read elision (D6)
+## Adjudicated data source with two read modes (D6, decided)
 
-Candidates: full adjudication — read memory only when no cache supplied data and no `PassDirty` moved dirty responsibility — or an always-read simplification for bring-up. The safe rule is not "any `DataTransfer` elides memory"; Shared copies may still require the DRAM read.
+Data is accepted from the one peer that supplies it (Exclusive or Modified under MESI); memory is read otherwise; a `PassDirty` line is absorbed into memory. `DEFER_AR` selects whether the memory read is issued alongside the snoop or only after the gather, so the bandwidth-for-latency trade is measured, not assumed.
 
-## MonBus observation (D9)
+## Fair arbitration everywhere
 
-The D9 direction is `*_monlite` taps for: coherent-transaction start, snoop fanout per transaction, response-gather completion, memory-read elision hit/miss, serialization stalls, and `WriteBack`/`Evict` drains. Tallies live in `monbus_tally_axil` like every other component.
+Rotating priority at the grant over the ports, at the write port over the write-backs and the absorption, and at each snoop-data buffer's write among the peers.
 
-## Design-invariant landscape
+## Observation (D9, decided, not yet built)
 
-Seven proposed liveness rules from the PRD guide the architecture even before the rows close: snoop forward progress; snoops ignore `WriteLineUnique`/`WriteUnique`; snoop responses never depend on `WriteUnique`/`WriteLineUnique` completion; CD never blocks on `WDATA`; multi-copy-atomic stores; CR/CD/CDLAST ordering; and no snoop to the requesting master. These are restated in the snoop fanout contract in [Chapter 4.3](../ch04_interfaces/03_snoop_fanout.md).
+`*_monlite` taps behind `USE_MONITOR` for transaction start, fanout, gather completion, elision hit/miss, serialization stalls and drains are a later TASK-001 step; the debug taps the pair-rig testbench reads are in place.
+
+## Design invariants
+
+Invariant 6 (CD before CR) is decided and relied on; N3 and N4 are honored by construction (Chapter 3.4); the others remain proposed in the PRD.

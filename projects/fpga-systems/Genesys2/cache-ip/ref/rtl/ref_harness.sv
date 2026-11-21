@@ -60,7 +60,8 @@ module ref_harness
     parameter int REF_REORDER_DEPTH = 16,
     // which reference sits in the cache slot: 0 = HPDcache (non-blocking,
     // jet's peer), 1 = CVA6 write-back std_nbdcache (blocking, amber's peer)
-    parameter int REF_CACHE_SEL     = 0,     // 0 HPDcache, 1 CVA6 WB, 2 jet-prime direct, 3 jet-prime pair
+    parameter int REF_CACHE_SEL     = 0,     // 0 HPDcache, 1 CVA6 WB, 2 jet-prime direct, 3 jet-prime pair (pair fabric),
+                                             // 4 jet-prime pair behind onyx_ccu (AR alongside the snoop), 5 the same with DEFER_AR
     parameter int REF_JETP_MSHR_COUNT = 8,   // SEL 2: J1 MSHR count (the jet rig's bin 17 value)
 
     // When 1, expose the bridge's AXIL host interface directly on the
@@ -603,7 +604,7 @@ module ref_harness
     // SEL 3 gives injector 1 a jet-prime of its own)
     // ------------------------------------------------------------------
     generate
-        if (REF_CACHE_SEL != 3) begin : gen_null1
+        if (REF_CACHE_SEL < 3) begin : gen_null1
         ref_null_cache #(
             .REQ_W (CPU_REQ_W),
             .RSP_W (CPU_RSP_W)
@@ -825,7 +826,7 @@ module ref_harness
             .ctrl_state     (jetp_ctrl_state),
             .busy           (jetp_busy)
         );
-        end else if (REF_CACHE_SEL == 3) begin : gen_ref_jetpp
+        end else if (REF_CACHE_SEL >= 3) begin : gen_ref_jetpp
             // jet-prime PAIR (TASK-001 step 3): two jet_prime_top caches, one
             // per injector, through the pipelined jet_prime_pair_fabric onto
             // the memory -- the jet rig's structure with jet-prime's RTL, so
@@ -1080,6 +1081,7 @@ module ref_harness
             .ctrl_state     (jpp_ctrl_state[1]),
             .busy           (jpp_busy[1])
         );
+        if (REF_CACHE_SEL == 3) begin : gen_fab
         jet_prime_pair_fabric #(
             .ADDR_WIDTH     (ADDR_WIDTH),
             .SETS           (SETS),
@@ -1268,6 +1270,229 @@ module ref_harness
             .dbg_grant_addr    (),
             .dbg_grant_slot    ()
         );
+        end else begin : gen_onyx
+            // onyx TASK-001 step 6: onyx_ccu at N_PORTS 2 in the pair fabric's
+            // place -- the same two caches, memory, injectors and knobs, so
+            // the SEL 4 sweeps against SEL 3's are the manager swap alone
+            // (PRD criterion 6); SEL 5 is the same build with the memory
+            // read deferred until the gather (D6's other mode).  The caches'
+            // flat ports pack into onyx's per-port arrays here.
+            logic [IW-1:0]            oc_arid    [2];
+            logic [ADDR_WIDTH-1:0]    oc_araddr  [2];
+            logic [7:0]               oc_arlen   [2];
+            logic [2:0]               oc_arsize  [2];
+            logic [1:0]               oc_arburst [2];
+            logic [3:0]               oc_arcache [2];
+            logic [2:0]               oc_arprot  [2];
+            logic [3:0]               oc_arqos   [2];
+            logic [3:0]               oc_arregion[2];
+            logic [UW-1:0]            oc_aruser  [2];
+            logic [IW-1:0]            oc_rid     [2];
+            logic [BUS_WIDTH-1:0]     oc_rdata   [2];
+            logic [1:0]               oc_rresp   [2];
+            logic [UW-1:0]            oc_ruser   [2];
+            logic [IW-1:0]            oc_awid    [2];
+            logic [ADDR_WIDTH-1:0]    oc_awaddr  [2];
+            logic [7:0]               oc_awlen   [2];
+            logic [2:0]               oc_awsize  [2];
+            logic [1:0]               oc_awburst [2];
+            logic [3:0]               oc_awcache [2];
+            logic [2:0]               oc_awprot  [2];
+            logic [3:0]               oc_awqos   [2];
+            logic [3:0]               oc_awregion[2];
+            logic [UW-1:0]            oc_awuser  [2];
+            logic [BUS_WIDTH-1:0]     oc_wdata   [2];
+            logic [STRB_W-1:0]        oc_wstrb   [2];
+            logic [UW-1:0]            oc_wuser   [2];
+            logic [IW-1:0]            oc_bid     [2];
+            logic [1:0]               oc_bresp   [2];
+            logic [UW-1:0]            oc_buser   [2];
+            logic [ADDR_WIDTH-1:0]    os_acaddr  [2];
+            logic [3:0]               os_acsnoop [2];
+            logic [2:0]               os_acprot  [2];
+            logic [AMBER_CRRESP_WIDTH-1:0] os_crresp [2];
+            logic [BUS_WIDTH-1:0]     os_cddata  [2];
+            logic [ADDR_WIDTH-1:0]    oc_coh_addr[2];
+            logic [2:0]               oc_coh_type[2];
+            logic [IW-1:0]            oc_done_id [2];
+            logic [1:0]               oc_arready_v, oc_rlast_v, oc_rvalid_v, oc_awready_v, oc_wready_v, oc_bvalid_v;
+            logic [1:0]               os_acvalid_v, os_crready_v, os_cdready_v;
+            assign oc_arid[0] = c0_arid;         assign oc_arid[1] = c1_arid;
+            assign oc_araddr[0] = c0_araddr;     assign oc_araddr[1] = c1_araddr;
+            assign oc_arlen[0] = c0_arlen;       assign oc_arlen[1] = c1_arlen;
+            assign oc_arsize[0] = c0_arsize;     assign oc_arsize[1] = c1_arsize;
+            assign oc_arburst[0] = c0_arburst;   assign oc_arburst[1] = c1_arburst;
+            assign oc_arcache[0] = c0_arcache;   assign oc_arcache[1] = c1_arcache;
+            assign oc_arprot[0] = c0_arprot;     assign oc_arprot[1] = c1_arprot;
+            assign oc_arqos[0] = c0_arqos;       assign oc_arqos[1] = c1_arqos;
+            assign oc_arregion[0] = c0_arregion; assign oc_arregion[1] = c1_arregion;
+            assign oc_aruser[0] = c0_aruser;     assign oc_aruser[1] = c1_aruser;
+            assign {c1_arready, c0_arready} = oc_arready_v;
+            assign c0_rid = oc_rid[0];           assign c1_rid = oc_rid[1];
+            assign c0_rdata = oc_rdata[0];       assign c1_rdata = oc_rdata[1];
+            assign c0_rresp = oc_rresp[0];       assign c1_rresp = oc_rresp[1];
+            assign c0_ruser = oc_ruser[0];       assign c1_ruser = oc_ruser[1];
+            assign {c1_rlast, c0_rlast} = oc_rlast_v;
+            assign {c1_rvalid, c0_rvalid} = oc_rvalid_v;
+            assign oc_awid[0] = c0_awid;         assign oc_awid[1] = c1_awid;
+            assign oc_awaddr[0] = c0_awaddr;     assign oc_awaddr[1] = c1_awaddr;
+            assign oc_awlen[0] = c0_awlen;       assign oc_awlen[1] = c1_awlen;
+            assign oc_awsize[0] = c0_awsize;     assign oc_awsize[1] = c1_awsize;
+            assign oc_awburst[0] = c0_awburst;   assign oc_awburst[1] = c1_awburst;
+            assign oc_awcache[0] = c0_awcache;   assign oc_awcache[1] = c1_awcache;
+            assign oc_awprot[0] = c0_awprot;     assign oc_awprot[1] = c1_awprot;
+            assign oc_awqos[0] = c0_awqos;       assign oc_awqos[1] = c1_awqos;
+            assign oc_awregion[0] = c0_awregion; assign oc_awregion[1] = c1_awregion;
+            assign oc_awuser[0] = c0_awuser;     assign oc_awuser[1] = c1_awuser;
+            assign {c1_awready, c0_awready} = oc_awready_v;
+            assign oc_wdata[0] = c0_wdata;       assign oc_wdata[1] = c1_wdata;
+            assign oc_wstrb[0] = c0_wstrb;       assign oc_wstrb[1] = c1_wstrb;
+            assign oc_wuser[0] = c0_wuser;       assign oc_wuser[1] = c1_wuser;
+            assign {c1_wready, c0_wready} = oc_wready_v;
+            assign c0_bid = oc_bid[0];           assign c1_bid = oc_bid[1];
+            assign c0_bresp = oc_bresp[0];       assign c1_bresp = oc_bresp[1];
+            assign c0_buser = oc_buser[0];       assign c1_buser = oc_buser[1];
+            assign {c1_bvalid, c0_bvalid} = oc_bvalid_v;
+            assign s0_acaddr = os_acaddr[0];     assign s1_acaddr = os_acaddr[1];
+            assign s0_acsnoop = os_acsnoop[0];   assign s1_acsnoop = os_acsnoop[1];
+            assign s0_acprot = os_acprot[0];     assign s1_acprot = os_acprot[1];
+            assign {s1_acvalid, s0_acvalid} = os_acvalid_v;
+            assign os_crresp[0] = s0_crresp;     assign os_crresp[1] = s1_crresp;
+            assign {s1_crready, s0_crready} = os_crready_v;
+            assign os_cddata[0] = s0_cddata;     assign os_cddata[1] = s1_cddata;
+            assign {s1_cdready, s0_cdready} = os_cdready_v;
+            assign oc_coh_addr[0] = coh0_addr;   assign oc_coh_addr[1] = coh1_addr;
+            assign oc_coh_type[0] = coh0_type;   assign oc_coh_type[1] = coh1_type;
+            assign oc_done_id[0] = done0_id;     assign oc_done_id[1] = done1_id;
+        onyx_ccu #(
+            .N_PORTS        (2),
+            .ADDR_WIDTH     (ADDR_WIDTH),
+            .LINE_BYTES     (LINE_BYTES),
+            .BUS_WIDTH      (BUS_WIDTH),
+            .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+            .AXI_USER_WIDTH (AXI_USER_WIDTH),
+            .SLOTS          (2 * (REF_JETP_MSHR_COUNT + 1)),
+            .SNOOP_INFLIGHT (2),
+            .DEFER_AR       (REF_CACHE_SEL == 5),
+            .SERIAL_MODE    (1'b0)
+        ) u_onyx (
+            .clk              (aclk),
+            .rst_n            (aresetn),
+            .c_arid           (oc_arid),
+            .c_araddr         (oc_araddr),
+            .c_arlen          (oc_arlen),
+            .c_arsize         (oc_arsize),
+            .c_arburst        (oc_arburst),
+            .c_arlock         ({c1_arlock, c0_arlock}),
+            .c_arcache        (oc_arcache),
+            .c_arprot         (oc_arprot),
+            .c_arqos          (oc_arqos),
+            .c_arregion       (oc_arregion),
+            .c_aruser         (oc_aruser),
+            .c_arvalid        ({c1_arvalid, c0_arvalid}),
+            .c_arready        (oc_arready_v),
+            .c_rid            (oc_rid),
+            .c_rdata          (oc_rdata),
+            .c_rresp          (oc_rresp),
+            .c_rlast          (oc_rlast_v),
+            .c_ruser          (oc_ruser),
+            .c_rvalid         (oc_rvalid_v),
+            .c_rready         ({c1_rready, c0_rready}),
+            .c_awid           (oc_awid),
+            .c_awaddr         (oc_awaddr),
+            .c_awlen          (oc_awlen),
+            .c_awsize         (oc_awsize),
+            .c_awburst        (oc_awburst),
+            .c_awlock         ({c1_awlock, c0_awlock}),
+            .c_awcache        (oc_awcache),
+            .c_awprot         (oc_awprot),
+            .c_awqos          (oc_awqos),
+            .c_awregion       (oc_awregion),
+            .c_awuser         (oc_awuser),
+            .c_awvalid        ({c1_awvalid, c0_awvalid}),
+            .c_awready        (oc_awready_v),
+            .c_wdata          (oc_wdata),
+            .c_wstrb          (oc_wstrb),
+            .c_wlast          ({c1_wlast, c0_wlast}),
+            .c_wuser          (oc_wuser),
+            .c_wvalid         ({c1_wvalid, c0_wvalid}),
+            .c_wready         (oc_wready_v),
+            .c_bid            (oc_bid),
+            .c_bresp          (oc_bresp),
+            .c_buser          (oc_buser),
+            .c_bvalid         (oc_bvalid_v),
+            .c_bready         ({c1_bready, c0_bready}),
+            .s_acaddr         (os_acaddr),
+            .s_acsnoop        (os_acsnoop),
+            .s_acprot         (os_acprot),
+            .s_acvalid        (os_acvalid_v),
+            .s_acready        ({s1_acready, s0_acready}),
+            .s_crresp         (os_crresp),
+            .s_crvalid        ({s1_crvalid, s0_crvalid}),
+            .s_crready        (os_crready_v),
+            .s_cddata         (os_cddata),
+            .s_cdlast         ({s1_cdlast, s0_cdlast}),
+            .s_cdvalid        ({s1_cdvalid, s0_cdvalid}),
+            .s_cdready        (os_cdready_v),
+            .c_coh_req_valid  ({coh1_valid, coh0_valid}),
+            .c_coh_req_addr   (oc_coh_addr),
+            .c_coh_req_type   (oc_coh_type),
+            .c_coh_done_valid ({done1_valid, done0_valid}),
+            .c_coh_done_id    (oc_done_id),
+            .mem_arid         (mem_arid),
+            .mem_araddr       (mem_araddr),
+            .mem_arlen        (mem_arlen),
+            .mem_arsize       (mem_arsize),
+            .mem_arburst      (mem_arburst),
+            .mem_arlock       (mem_arlock),
+            .mem_arcache      (mem_arcache),
+            .mem_arprot       (mem_arprot),
+            .mem_arqos        (mem_arqos),
+            .mem_arregion     (mem_arregion),
+            .mem_aruser       (mem_aruser),
+            .mem_arvalid      (mem_arvalid),
+            .mem_arready      (mem_arready),
+            .mem_rid          (mem_rid),
+            .mem_rdata        (mem_rdata),
+            .mem_rresp        (mem_rresp),
+            .mem_rlast        (mem_rlast),
+            .mem_ruser        (mem_ruser),
+            .mem_rvalid       (mem_rvalid),
+            .mem_rready       (mem_rready),
+            .mem_awid         (mem_awid),
+            .mem_awaddr       (mem_awaddr),
+            .mem_awlen        (mem_awlen),
+            .mem_awsize       (mem_awsize),
+            .mem_awburst      (mem_awburst),
+            .mem_awlock       (mem_awlock),
+            .mem_awcache      (mem_awcache),
+            .mem_awprot       (mem_awprot),
+            .mem_awqos        (mem_awqos),
+            .mem_awregion     (mem_awregion),
+            .mem_awuser       (mem_awuser),
+            .mem_awvalid      (mem_awvalid),
+            .mem_awready      (mem_awready),
+            .mem_wdata        (mem_wdata),
+            .mem_wstrb        (mem_wstrb),
+            .mem_wlast        (mem_wlast),
+            .mem_wuser        (mem_wuser),
+            .mem_wvalid       (mem_wvalid),
+            .mem_wready       (mem_wready),
+            .mem_bid          (mem_bid),
+            .mem_bresp        (mem_bresp),
+            .mem_buser        (mem_buser),
+            .mem_bvalid       (mem_bvalid),
+            .mem_bready       (mem_bready),
+            .dbg_busy         (jpp_fab_busy),
+            .dbg_slot_vld     (),
+            .dbg_pend_vld     (),
+            .dbg_abs_pend     (),
+            .dbg_grant        (),
+            .dbg_grant_dir    (),
+            .dbg_grant_addr   (),
+            .dbg_grant_slot   ()
+        );
+        end
         end else begin : gen_ref_hpd
         ref_hpdcache_top #(
             .ADDR_WIDTH     (ADDR_WIDTH),

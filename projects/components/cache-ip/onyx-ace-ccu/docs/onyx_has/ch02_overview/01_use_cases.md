@@ -23,23 +23,25 @@
 
 # Use Cases
 
-## Three-block coherence with amber
+## Two jet-primes behind onyx
 
-The primary use case is the onyx rig: two `amber` instances plus `onyx` form a coherent three-block system. Each `amber_ace` issues the D2 subset (`ReadShared`, `ReadUnique`, `CleanUnique`, `MakeUnique`, `WriteBack`, `Evict`) to onyx; onyx fans out snoops, gathers responses, and either completes the transaction from peer-cache data or reads memory. This is the pair rig grown by one block, and it is the first deliverable that exercises onyx end-to-end.
+The built use case (onyx TASK-001, 2026-11-21): two `jet_prime_top` caches plus `onyx_ccu` form a coherent three-block system with one shared memory behind the manager -- the jet-prime pair rig with onyx in the pair fabric's place.
 
 ```
-CPU/STREAM0 --GAXI--> amber_ace0 --ACE--> onyx --AXI4--> memory
-CPU/STREAM1 --GAXI--> amber_ace1 --ACE-->
+CPU/injector 0 --GAXI--> jet_prime_top 0 --AXI4 + D-8 sideband--> onyx_ccu --AXI4--> memory
+CPU/injector 1 --GAXI--> jet_prime_top 1 --AXI4 + D-8 sideband-->   |  AC/CR/CD to both caches
 ```
 
-## Three-block coherence with jet
+Each cache is an AXI4 master toward onyx with its request class on the D-8 sideband, and an ACE-shaped snoop responder toward onyx. Coherent read misses are `ReadNotSharedDirty` or `ReadUnique`, write promotions `CleanUnique`, dirty evictions `WriteBack`. This rig runs jet-prime's own pair-rig testbench unchanged (`dv/tests/test_onyx_pair_rig.py`) and sits in the Genesys2 reference rig as selections 4 and 5.
 
-The same topology applies once `jet` exists: two `jet_ace` instances plus `onyx`. The onyx interface contract does not change; jet's lockup-freedom is an internal cache delta. This use case is the future consumer that verifies the interface was defined broadly enough.
+## Three and four caches
+
+`N_PORTS` reaches 4 (D11). The core lints and is formally argued at two ports; the snoop-gather rig exercises the BFM side of the fanout at three and four ports; a three-cache rig with real caches and the N_PORTS 3 formal harness are the next items.
 
 ## Standalone testing with BFM caches
 
-onyx is standalone-testable long before `amber_ace` or `jet_ace` exist. Pattern-B cocotb tests drive the cache-side ACE ports and the snoop fanout with the RDS-DV `axi4ace` BFM family, exactly the way `culsans' ace_ccu_top` can be exercised in isolation. This decouples manager verification from cache verification.
+The snoop fanout and gather were first met by BFMs alone: `dv/tests/test_onyx_snoop_gather_rig.py` puts N RDS-DV snoop-master BFMs (the fanout) against N snoop-slave BFMs (the caches) through the house ACE transport, before any onyx RTL existed (TASK-001 step 1). A core-alone rig with BFM caches on the AXI4 side is a later TASK-001 step.
 
-## The onyx rig as jet's future consumer
+## amber and jet
 
-The onyx-rig topology is also the integration target for `jet_ace`. Jet's research question (what does lockup-freedom buy) is measured against the same onyx manager and the same memory path, so the onyx interface must not pre-decide jet's internal concurrency choices.
+amber and jet carry the same snoop port and the same sideband contract and would attach the same way; both are frozen baselines, and jet-prime is the cache the family measures against HPDcache, so it is the one behind onyx.

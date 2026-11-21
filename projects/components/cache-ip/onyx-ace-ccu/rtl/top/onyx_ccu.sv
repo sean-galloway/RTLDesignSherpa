@@ -635,11 +635,18 @@ module onyx_ccu
     // ------------------------------------------------------------------
     // Memory R: the beat's slot (rid) decides -- forward (gathered, no
     // DT), drop (DT, the replay carries the line), or hold until the
-    // gather completes
+    // gather completes.  Both routes also require a read outstanding for
+    // the slot: an invalid slot has nothing left to gather (its counters
+    // read zero), so without the qualifier a beat the memory was never
+    // asked for would be forwarded to whatever port the stale slot named
+    // -- the onyx formal found that at step 1, where the pair fabric's
+    // explicit verdict bit had covered it.  A beat for no read is a memory
+    // fault (the sim check below names it); it is held, not routed.
     // ------------------------------------------------------------------
     wire [SLOT_W-1:0] w_mr_slot = mem_rid[SLOT_W-1:0];
-    wire w_mr_fwd  = mem_rvalid & w_gathered[w_mr_slot] & ~r_dt[w_mr_slot];
-    wire w_mr_drop = mem_rvalid & r_dt[w_mr_slot];
+    wire w_mr_live = mem_rvalid & r_vld[w_mr_slot] & r_mem_issued[w_mr_slot] & ~r_mem_done[w_mr_slot];
+    wire w_mr_fwd  = w_mr_live & w_gathered[w_mr_slot] & ~r_dt[w_mr_slot];
+    wire w_mr_drop = w_mr_live & r_dt[w_mr_slot];
     wire [PORT_W-1:0] w_mr_dir = r_dir[w_mr_slot];
 
     // ------------------------------------------------------------------

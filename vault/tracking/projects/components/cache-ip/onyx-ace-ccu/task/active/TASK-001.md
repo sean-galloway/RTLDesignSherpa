@@ -231,3 +231,66 @@ Found and measured:
   with BFM caches, step 6's reference-rig slot (REF_CACHE_SEL 4) and
   board sweeps in both D6 modes, and the IO port / monlite taps as the
   remaining core steps.
+- 2026-11-21: steps 4 and 6 done, step 7 begun. **Step 4, formal:**
+  `formal/onyx/onyx_ccu` (Makefile, `onyx_ccu.sby`, `formal_onyx_ccu.sv`,
+  flat bb83dd7f71 from `onyx_ccu.f` at the fabric's geometry ADDR 8 /
+  LINE 16 / BUS 32 / ID 3 / N_PORTS 2 / SLOTS 4 / SNOOP_INFLIGHT 2) is the
+  pair fabric's harness carried over with onyx's changes (the accept and
+  answer counters read through the DUT's all-accepted and gathered flags;
+  the AR waits on all-accepted and no DT; the flag order DT -> all
+  accepted, PD -> DT, gathered -> all accepted; `CDREADY` depends on
+  `CDVALID`; the array ports packed element 0 at the top, as sv2v does).
+  First run: `ap_table_flags` at step 3 and `ap_r_inflight` at step 5 --
+  a real weakness and a harness gap together: the memory could present a
+  beat nobody asked for in the one cycle after reset before its contract
+  armed, and the gather counters read "complete" for an invalid slot, so
+  onyx forwarded it (the fabric's explicit verdict bit had shielded the
+  same harness). RTL fix: both memory-R routes qualified with a read
+  outstanding (`w_mr_live`; a beat for no read is held, as the sim check
+  names it); harness fix: reset held for the two steps before the
+  contracts arm. Then: `cover` 19/19 reached (by step 7); `prove` (24
+  properties, depth 24) PASS 20:30; `prove_book` (3, depth 16) PASS
+  14:41; mutations on scratch copies of the flat -- the gather declared
+  complete at once (FAIL `ap_table_flags` step 3), the fanout including
+  the requester (FAIL `ap_ac_legal` step 3), a second grant to a port
+  with its AR untaken (FAIL `ap_grant_one_ar` step 3). Lesson for the
+  handbook: three sby tasks of one `.sby` launched concurrently in one
+  directory collide on the status database (`no such table:
+  task_property_status`) and die in a second with no verdict -- run them
+  sequentially or from copies. After the RTL fix: pair rig gate 4/4 again
+  (reports unchanged).
+  **Step 6, the reference rig:** `ref_harness.sv` carries onyx as
+  `REF_CACHE_SEL` 4 (DEFER_AR 0) and 5 (DEFER_AR 1) inside the pair
+  block, the two caches shared with SEL 3 and only the manager swapped;
+  flows `ref_onyx_bringup` / `ref_onyxd_bringup`; the rig top filelist
+  includes `onyx_ccu.f`; lint clean at SEL 3/4/5. Builds at 100 MHz under
+  the 0.2 ns budget: SEL 4 WNS +0.006 ns, SEL 5 +0.000 ns (0 failing
+  endpoints), the worst path jet-prime's fill-engine staging read pointer
+  into the data-array address in both (bin 7's path); SEL 5 18,633 LUT /
+  11,881 FF (bin 7 18,241 / 11,896); SEL 4 18,672 / 11,900 (from a rebuild after
+  SEL 5's report set overwrote it; the rebuild reproduced WNS +0.006). Board: both programmed, init + smoke PASS,
+  single (injector 1 idle) and dual 55-point sweeps in both modes, err 0.
+  **SEL 4 equals bin 7 exactly**: every one of the 55 single and 55 dual
+  cells reproduces bin 7's cycle count on both injectors, every CRC equal
+  -- PRD criterion 6 met, and the strongest statement of "onyx replaces
+  the fabric". SEL 5 (deferred read): resident cells equal, `r16k_we64`
+  +0.4 to +0.9 %, thrash depth 1 `r64k_we64` 12.27 -> 13.67 (+11.4 %),
+  `r64k_we255` 12.68 -> 13.70 (+8.1 %), `r128k_we64` 16.69 -> 18.74
+  (+12.2 %), depth 16 +1.8 / +0.2 / +1.5 %; dual the same shape; hit floor
+  2, MLP 10.72. The elision rate (memory reads not issued) is not counted
+  by the rig; a memory-side AR counter is a D9 tap and the next
+  measurement. Results `perf_sweep_onyx_bin1_{single,dual}_20261121T1342*`
+  and `perf_sweep_onyxd_bin1_{single,dual}_20261121T1345/47*`;
+  `ref_compare.py` has the two columns and a managers-alone table; the
+  comparison report carries the reading.
+  **Step 7, docs (begun):** the onyx HAS at 0.3 -- chapters 2 to 6
+  rewritten to the as-built design (pipeline, decision layer, serializer,
+  fanout/gather; the as-built port contracts; parameters; verification;
+  characterization), the component README, the PRD at v0.8 with the
+  criteria's measured status (1, 2, 6 met; 3 safety at N = 2; 4 not
+  built; 5 measured). The ACE interface definition's handshake sentence
+  corrected (READY may wait for VALID; the earlier text forbade a
+  dependency AXI permits). Remaining in TASK-001: the D1 ACE-Lite IO
+  port, the D9 monlite taps (and with them the elision-rate count), the
+  N = 3 formal harness, a core-alone BFM-cache rig, a redrawn block
+  diagram, and the MAS.

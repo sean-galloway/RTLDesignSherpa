@@ -23,35 +23,35 @@
 
 # Serializer and Point of Serialization
 
-**Stub: open until D5 closes.** This chapter records the invariant landscape for same-address serialization and the candidates for implementing it. No architecture is recorded here until D5 closes.
+**Status:** architecture recorded 2026-11-21 (D5 decided 2026-11-20, PRD v0.7).
 
-## Candidates
+## The transaction table is the point of serialization
 
-| Decision | Candidates | What it drives |
-|---|---|---|
-| D5 Same-address serialization | Per-address scoreboard allowing interleaving of different addresses (recommended; the interesting manager) vs full in-order single outstanding (bring-up mode) | the serializer structure, the deadlock/liveness proof, jet J4 interactions |
+onyx holds every transaction in flight in one table of SLOTS entries shared by all ports; a slot is the manager's unit of serialization. A slot carries the requester port, the line, the request class, the taken AR's ID and attributes, the counts of peers yet to accept the AC and yet to answer, the verdict bits (`DataTransfer`, `PassDirty`), and the completion bits (memory read issued and drained, replay done, absorption issued and done, retire seen). The memory read ID is the slot index, so a memory beat names its slot directly and the requester sees its own AR ID back.
 
-## Invariant landscape
+SLOTS defaults to N_PORTS times (MSHR_COUNT plus 1): every entry of every cache and every upgrade can be in flight at once and nothing ever waits for a slot.
 
-Regardless of which D5 candidate is chosen, the serializer must guarantee:
+## The per-line rule
 
-- **No two same-address coherent transactions proceed incompatibly.** Two reads to the same address may interleave; a read and a write that invalidates must be ordered; two writes to the same address must be ordered.
-- **Transactions to different addresses may proceed in any order.** This is the concurrency the per-address scoreboard is meant to preserve.
-- **Fairness under contention.** Fixed-priority arbitration must not starve a master; timeout counters or round-robin escalation are required (Chinnakonda §8.3).
-- **No deadlock under fair arbitration at N ∈ {2, 3, 4}.** This is success criterion 3.
+Two transactions on the same line never proceed together. A grant candidate whose line is held by any valid slot, whichever port holds it, waits ungranted in its port's pending queue; different lines interleave freely (D5). Because the loser's AR stays at its cache, the loser's MSHR entry is pre-AR, and the cache's own pre-AR rule answers any snoop to that entry at the Invalid row: the loser's later grant then resolves against the winner's committed line. The lock is held from the grant to the winner's retire pulse, not to its last beat; the argument for the retire rather than the beat is jet-prime delta 02's, and it holds unchanged for N ports.
 
-## Named proof obligations
+`SERIAL_MODE = 1` is the bring-up shape the PRD row named: a candidate waits while any slot is valid, so one transaction is in flight system-wide.
 
-The PRD success criterion 3 names three liveness scenarios from Chinnakonda that become this chapter's eventual exit criteria:
+## Fairness
 
-1. **Absence of CU livelock at the PoS.** When one master's `CleanUnique` wins and another master's competing `CleanUnique` is dependent on it, the system must not enter a livelock where ownership is repeatedly won and lost before any store completes.
-2. **No WLU/WB-style deadlock in the fanout/gather path.** Snoop responses must make forward progress even when the system interconnect buffers are full of `WriteLineUnique`/`WriteBack` traffic.
-3. **Fairness at N ∈ {2, 3, 4}.** No master may be starved under sustained contention from the other masters.
+Three arbiters rotate:
 
-## Background material
+- the grant, over the N ports: priority starts one past the last granted port, so a port that lost a cycle wins the next contested one;
+- the write port, over the N write-back channels and the absorption, the same way;
+- the CD write into each requester port's snoop-data buffer, over the peers wanting it (Chapter 3.4).
 
-Chinnakonda, *Designing a Multiprocessor Cache Subsystem*, §7.5 describes two ways to maintain order on the bus: use the same `ARID`/`AWID` so the interconnect orders the transactions, or hold the second transaction until the first completes. §10.7 describes the banked PoS with per-address linked lists: older completes first, different addresses any order. §10.9.1 notes that device accesses are routed to a dedicated bank for program order. §10.8 gives outstanding-access sizing math (≈40 read + 40 write transactions for 200-cycle DRAM latency on a 1 GHz 16-byte bus). §10.9 describes the CU livelock scenario where an external snoop repeatedly takes away ownership before the winning transaction can complete.
+No fixed-priority path exists, so a single busy port cannot starve another of grants, of the write port, or of a buffer. A port is held back from a second grant only while its own AR from the previous grant is untaken, which is the cache's pace, not another port's.
 
-## Status
+## What the per-line rule guarantees
 
-No architecture recorded. D5 must choose the same-address serialization mechanism before the PoS can be drawn and the named proof obligations can be targeted.
+- One valid slot per line at any time (the formal harness's first property).
+- A grant never goes to a held line.
+- The lock drops only after the requester's retire, and the retire bit is set only by the requester's own pulse naming the slot's read ID.
+- A write-back is selected for the memory write port only when no slot on its line has an incomplete gather or a pending absorption.
+
+These four are stated and proven on the onyx formal harness at N_PORTS 2 (TASK-001 step 4), carried over from the pair fabric's 27-property argument.

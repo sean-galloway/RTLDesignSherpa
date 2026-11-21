@@ -29,16 +29,23 @@
 
 ## Port count
 
-N ACE-facing slave-side ports accept coherent transactions from attached caches. N is an elaboration parameter; D11 is open but the recommended direction is 2–4 masters. Each port is independent at the pin level: its own AR/R/AW/W/B channels and its own AC/CD/CR snoop channel.
+`N_PORTS` cache-side ports, 2 to 4 (D11, decided 2026-11-20). Each port is independent at the handshake level: its own pending queue, its own armed `ARREADY`, its own replay engine and snoop-data buffer. The ports meet in the shared transaction table (Chapter 3.3).
+
+## What a port carries, as built
+
+A cache-side port is three things the house caches already present:
+
+- **The cache's memory side, plain AXI4.** AR/R for fills, AW/W/B for write-backs, exactly as jet-prime drives them toward the pair fabric. The request class does not ride `ARSNOOP`; the AR is plain AXI4 and onyx regenerates the memory-side AR fields it needs (length, size, burst) from the slot.
+- **The D-8 coherence sideband.** `coh_req_valid/addr/type`: one pulse per fill launch or upgrade (`ReadNotSharedDirty`, `ReadUnique`, `CleanUnique`) and per dirty write-back launch (`WriteBack`), the class in `l1_pkg`'s `AMBER_ACE_*` encoding; and `coh_done_valid/id`: one pulse per retired MSHR entry or completed upgrade, carrying the entry's read ID (`MSHR_COUNT` for the upgrade). The pulse precedes the AR; the cache presents its ARs in launch order, so onyx pairs each granted pulse with the next AR of that port.
+- **The ACE-shaped snoop port (D7).** AC in to the cache, CR and CD out of it, `ACSNOOP` in the IHI0022 encoding, CRRESP five bits, CD-before-CR (invariant 6). jet-prime's `m_axi_ac*`, `m_axi_cr*` and `m_axi_cd*` are this port; no adapter sits between them and onyx.
 
 ## Transaction subset
 
-Each port accepts the D2 subset on the AR and AW channels:
+The D2 subset as decided 2026-11-20: `ReadNotSharedDirty`, `ReadUnique`, `CleanUnique`, `WriteBack`, `Evict` -- what the house caches issue. `WriteBack` and `Evict` allocate nothing in the manager; `MakeUnique` is decoded as a no-data class but no cache issues it yet. `ReadShared` is accepted and snooped as `ReadNotSharedDirty` would be; a MESI cache has no Owned state and does not issue it.
 
-- `ReadShared`, `ReadUnique`, `CleanUnique`, `MakeUnique` on `ARSNOOP[3:0]`
-- `WriteBack`, `Evict` on `AWSNOOP[2:0]`
+## The ACE-front-side flavor
 
-The exact decoder width and BFM scope depend on D2 closing on this subset. Until D2 closes, the contract is "the D2 subset as defined by the PRD."
+An ACE master that carries the class on `ARSNOOP`/`AWSNOOP` rather than on the sideband is the D7 adapter's second half: a thin decode of `ARSNOOP` into the sideband pulse in front of the port. It is not built in v1 because no such master exists in the family yet; the RDS-DV `AXI4ACEMasterRead/Write` BFMs are the first candidates.
 
 ## Normative reference
 
@@ -71,7 +78,7 @@ DECIDED with the CD-before-CR wording.
 ## What is fixed
 
 - onyx is the owner of the ACE-shaped snoop port.
-- The cache-side ports are ACE slave-side: AR/R/AW/W/B plus AC/CD/CR.
+- The cache-side ports are plain AXI4 AR/R/AW/W/B plus the D-8 sideband plus AC/CD/CR (as built, TASK-001 step 2).
 - The D2 subset is the working transaction set.
 - The in-repo AMBA ACE Interface Definition is the normative contract.
 - RACK/WACK are omitted from the onyx↔cache contract (N1 decided).
@@ -79,4 +86,5 @@ DECIDED with the CD-before-CR wording.
 
 ## What is open
 
-- Whether the decoder grows with D2 to include barriers, DVM, or WLU/WU.
+- Whether the decoder grows with D2 to include barriers, DVM, or WLU/WU (N5, N6: not promoted).
+- The ACE-front-side flavor of the port (`ARSNOOP` decode), when a true ACE master appears.

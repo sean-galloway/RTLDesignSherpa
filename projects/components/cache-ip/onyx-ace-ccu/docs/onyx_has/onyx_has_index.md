@@ -23,9 +23,9 @@
 
 # onyx — Snoop-Based ACE Coherency Unit — Hardware Architecture Specification
 
-**Version:** 0.2
-**Date:** 2026-10-11
-**Status:** 0.2: owner rulings recorded — RACK/WACK omitted from the contract (N1 decided); CD-before-CR confirmed as the family convention (invariant 6 decided). Otherwise the same skeleton: context, decided contracts, and the invariant landscape are real content; chapters shaped by the remaining open D/N rows are explicit stubs.
+**Version:** 0.3
+**Date:** 2026-11-21
+**Status:** 0.3: the D rows decided (PRD v0.7, 2026-11-20) and the RTL built -- `onyx_ccu`, jet-prime's pair fabric generalized to N ports, verified on jet-prime's pair-rig grid, argued formally at two ports and measured on the Genesys2 reference rig (onyx TASK-001, 2026-11-21). Open: the ACE-Lite IO port (D1), the MonBus taps (D9), the N rows other than N1.
 
 **Scope:** The architecture of `onyx` as the snoop-based ACE coherency manager for the `cache-ip/` family. This book records the port contracts that are decided (D7), the design-invariant landscape proposed by the PRD, and the open decisions that must close before the manager architecture can be fixed. It does not invent answers for the open rows.
 
@@ -35,7 +35,7 @@
 
 ## Document Organization
 
-**Note:** All chapters linked below for automated document generation. Stub chapters are marked with the D/N row that unblocks them.
+**Note:** All chapters linked below for automated document generation.
 
 ### Front Matter
 
@@ -55,26 +55,26 @@
 
 ### Chapter 3: Architecture
 
-- [Manager Pipeline](ch03_architecture/01_manager_pipeline.md) — stub, blocked on D1/D2
-- [Coherence Decision Layer](ch03_architecture/02_coherence_decision_layer.md) — stub, blocked on D3/D6
-- [Serializer and Point of Serialization](ch03_architecture/03_serializer_pos.md) — stub, blocked on D5
-- [Snoop Fanout and Response Gather](ch03_architecture/04_fanout_gather.md) — stub, blocked on D4/N3/N4
+- [Manager Pipeline](ch03_architecture/01_manager_pipeline.md)
+- [Coherence Decision Layer](ch03_architecture/02_coherence_decision_layer.md)
+- [Serializer and Point of Serialization](ch03_architecture/03_serializer_pos.md)
+- [Snoop Fanout and Response Gather](ch03_architecture/04_fanout_gather.md)
 
 ### Chapter 4: Interfaces
 
 - [Cache-Side ACE Ports](ch04_interfaces/01_cache_side_ace.md)
 - [Memory-Side AXI4 Master](ch04_interfaces/02_memory_side_axi4.md)
 - [Snoop Fanout Port](ch04_interfaces/03_snoop_fanout.md)
-- [Observation: MonBus](ch04_interfaces/04_observation_monbus.md) — stub, blocked on D9
+- [Observation: MonBus](ch04_interfaces/04_observation_monbus.md) — D9 decided; the taps are a later TASK-001 step
 
 ### Chapter 5: Parameters
 
-- [Build-Time Geometry](ch05_parameters/01_parameters.md) — stub, blocked on D4/D5/D11
+- [Build-Time Geometry](ch05_parameters/01_parameters.md)
 
 ### Chapter 6: Integration
 
 - [Verification Strategy](ch06_integration/01_verification.md)
-- [Characterization](ch06_integration/02_characterization.md) — stub, blocked on success criterion 5
+- [Characterization](ch06_integration/02_characterization.md)
 - [Future Hooks](ch06_integration/03_future_hooks.md)
 
 ---
@@ -83,7 +83,7 @@
 
 | Figure | Source | Subject |
 |---|---|---|
-| 2.1 | `assets/graphviz/01_block_diagram.dot` | the planned manager shape, drawn from the prose in [Chapter 2.4](ch02_overview/04_block_diagram.md); module boundaries follow D1/D3/D4/D5 |
+| 2.1 | `assets/graphviz/01_block_diagram.dot` | the manager shape as planned before the D rows closed; the blocks are the built ones ([Chapter 2.4](ch02_overview/04_block_diagram.md)), a redraw from the RTL is pending |
 
 : Table 0.0: Figures and their sources
 

@@ -26,9 +26,9 @@
 | Field | Value |
 |---|---|
 | Title | onyx — Snoop-Based ACE Coherency Unit — Hardware Architecture Specification |
-| Version | 0.2 |
-| Date | 2026-10-11 |
-| Status | 0.2: owner rulings recorded — RACK/WACK omitted from the contract (N1 decided); CD-before-CR confirmed as the family convention (invariant 6 decided). Otherwise the same skeleton: decided contracts and invariant landscape are real; chapters shaped by remaining open D/N rows are stubs. |
+| Version | 0.3 |
+| Date | 2026-11-21 |
+| Status | 0.3: the D rows decided (PRD v0.7, 2026-11-20) and the RTL built -- `onyx_ccu`, the pair fabric generalized to N ports; verified on jet-prime's pair-rig grid, argued formally at two ports, measured on the Genesys2 reference rig (onyx TASK-001). Open: the ACE-Lite IO port, the MonBus taps, the N rows other than N1. |
 | Scope | `onyx` as the coherence manager between the family's ACE-shaped caches and the house AXI4 memory path; N cache-side ACE slave ports, one memory-side AXI4 master, one inter-cache snoop fanout, MonBus observation. |
 | Not in scope | Cache storage inside onyx, directory-based coherence except as the D3 snoop-filter candidate, DVM and full barrier semantics, multi-CCU/multi-domain systems, stash/dealloc, CPU or upstream-master port beyond ACE-Lite IO. |
 
@@ -71,7 +71,7 @@
 
 **Pair rig.** Two `amber` or two `jet` instances plus shared memory, with snoops peer-to-peer. onyx is not in this rig.
 
-**Onyx rig.** An `amber_ace` or `jet_ace` instance attached to `onyx`, with memory on the far side of `onyx`.
+**Onyx rig.** jet-prime caches attached to `onyx`, with memory on the far side of `onyx`; as built, two `jet_prime_top` behind `onyx_ccu`.
 
 ## Revision history
 
@@ -79,6 +79,7 @@
 |---|---|---|
 | 0.1 | 2026-10-11 | Skeleton: purpose, system context, decided D7 interface contract, invariant landscape, and stubs for every chapter shaped by an open D/N row. |
 | 0.2 | 2026-10-11 | Owner rulings recorded: RACK/WACK omitted from the contract (N1 decided); CD-before-CR confirmed as the family convention. |
+| 0.3 | 2026-11-21 | The D rows decided and the RTL built (onyx TASK-001): Chapters 2 to 6 rewritten to `onyx_ccu` as built -- the manager pipeline, decision layer, serializer and fanout/gather, the as-built port contracts, the parameters, the verification and characterization. |
 
 : Table 0.3: Revision history
 

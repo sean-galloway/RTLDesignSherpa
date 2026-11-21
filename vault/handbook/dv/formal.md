@@ -736,3 +736,18 @@ Rules:
 
 Case: jet-prime TASK-003 (2026-11-20), `formal/jet-prime/jet_prime_control/
 formal_jet_prime_control_live.sv`, L1 and L3.
+
+## One `.sby`, several tasks, one directory: run them one at a time (2026-11-21)
+
+Three tasks of one `.sby` (`prove`, `prove_book`, `cover`) launched in the
+same directory in the same second all died within one second, two with no
+verdict at all: `sqlite3.OperationalError: no such table:
+task_property_status`. sby keeps a status database per `.sby` file in the
+working directory, and concurrent tasks race on creating it. The three
+mutants running in their own scratch copies were untouched. A `rc=1` with
+an empty `status` file and a one-second elapsed time is this, not a
+property. Run the tasks of one `.sby` sequentially (a shell script that
+chains them), or give each its own directory copy as the mutants have; the
+`-f` flag only clears the task's workdir, not the shared database.
+
+Case: onyx TASK-001 step 4 (`formal/onyx/onyx_ccu`).

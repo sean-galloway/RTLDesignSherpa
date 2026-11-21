@@ -31,9 +31,9 @@ Per the onyx PRD §"Where the block sits", onyx sits on three kinds of port:
 2. **Memory-side.** One AXI4 master toward the house memory path.
 3. **Inter-cache.** The snoop fanout — AC requests driven into each peer cache, CD snoop data and CR snoop responses returned.
 
-Within those ports, the D2 transaction subset is the recommended research scope: `ReadShared`, `ReadUnique`, `CleanUnique`, `MakeUnique`, `WriteBack`, and `Evict`. These are the transactions the caches need for MESI write-back coherence against a manager, and nothing that requires DVM or barrier semantics.
+Within those ports, the D2 transaction subset (decided 2026-11-20) is what the house caches issue: `ReadNotSharedDirty`, `ReadUnique`, `CleanUnique`, `WriteBack` and `Evict`; `MakeUnique` decodes but no cache issues it. These are the transactions the caches need for MESI write-back coherence against a manager, and nothing that requires DVM or barrier semantics.
 
-The 0.1 HAS records the contracts for the three port kinds where they are decided, and the open candidate landscape where the PRD leaves them open.
+This book records the contracts for the three port kinds as built (TASK-001 step 2) and the few items still open.
 
 ## Explicit non-goals
 

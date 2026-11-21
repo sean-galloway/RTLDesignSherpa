@@ -76,8 +76,10 @@ Three new channels. Direction below is from the point of view of the cache
 | **CR** — snoop response | out | `CRRESP[4:0]` | the answer: will you transfer data, is the line shared, is dirty responsibility passing |
 | **CD** — snoop data | out | `CDDATA`, `CDLAST` | the line's data, when CRRESP said it would come |
 
-Handshake rules mirror AXI4 (VALID/READY, no combinatorial dependency of
-READY on VALID). Ordering rules that matter (IHI 0022H §D3.8–§D3.9, §D5.2,
+Handshake rules mirror AXI4 (VALID/READY; VALID never waits for READY, and
+READY may wait for VALID -- the house rule, and what onyx's CD-write
+arbitration relies on; corrected 2026-11-21, the earlier text forbade a
+dependency AXI permits). Ordering rules that matter (IHI 0022H §D3.8–§D3.9, §D5.2,
 §D6.2):
 
 - **CR and CD only after AC.** The snoop response and any snoop data must

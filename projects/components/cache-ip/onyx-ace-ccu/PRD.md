@@ -23,7 +23,7 @@
 
 # onyx — Product Requirements (DRAFT)
 
-**Version:** 0.7 (draft, 2026-11-20)
+**Version:** 0.8 (draft, 2026-11-21)
 **Status:** the D rows are decided (v0.7, 2026-11-20); the N rows other
 than N1 and the invariants other than 6 remain OPEN/PROPOSED. A decision
 becomes DECIDED when it records a name and a date, the way the reed-solomon
@@ -69,6 +69,17 @@ the owner's pointer: the ACE BFM and the `rtl/amba/ace` transport already
 exist (2026-10-05) and are green; jet-prime's snoop port is already
 AC/CR/CD-shaped while its front side carries the request class on the
 `coh_req` sideband, which onyx v1 takes natively (onyx TASK-001).
+
+v0.8 (2026-11-21, onyx TASK-001 steps 1, 2, 4, 6): the RTL exists --
+`rtl/top/onyx_ccu.sv`, the pair fabric generalized to N ports under the D
+rulings -- and the success criteria carry their measured status below.
+Criterion 6 is met exactly (SEL 4 reproduces the pair fabric's bin 7 cycle
+for cycle on 110 cells); criteria 1 and 2 are met on the pair rig through
+jet-prime's own testbench; criterion 3 is met for safety at N = 2 (the
+fabric's 27 properties, mutations) and open for liveness bounds and N = 3,
+4; criterion 4 (observation) is not built; criterion 5 is measured out of
+context and on the board. The D1 ACE-Lite IO port and the D9 taps are the
+remaining core steps.
 
 ## 1. Purpose
 
@@ -173,11 +184,18 @@ Each is **PROPOSED** pending an owner ruling except where marked **DECIDED**.
    behind the D7 adapter are the same contract) plus onyx form a coherent
    system that passes the golden-model parity suite amber D9 defines —
    the pair rig with onyx in the fabric's place, same traces, same policy
-   space.
+   space. **Met 2026-11-21 (TASK-001 step 2):** jet-prime's pair-rig
+   testbench and grid unchanged against `onyx_pair_rig_tb`, 36 of 36
+   cells at gate/func/full from clean including the MSHR x VICTIM x
+   policy sweep, 0 mismatches; the gate reports equal the fabric's line
+   for line.
 2. **IHI 0022 conformance on the D2 subset.** A scoreboard checks the
    AC/CR/CD behaviour per transaction type: the CR bits (DataTransfer,
    IsShared, PassDirty) of every gather are correct for the transaction
-   and the caches' states.
+   and the caches' states. **Met on what exists (2026-11-21):** the
+   pair-rig testbench's ACE compliance scoring on every snoop of every
+   cell, and the snoop-gather rig's CRRESP matrix check (the caches'
+   `amber_snoop_crresp` cell by cell at 2 to 4 ports, 0 violations).
 3. **The serializer, proven.** Formal: no two same-address coherent
    transactions proceed incompatibly; no deadlock under fair arbitration
    at N ∈ {2, 3, 4} masters; the D4 response-gather mechanism cannot
@@ -185,17 +203,35 @@ Each is **PROPOSED** pending an owner ruling except where marked **DECIDED**.
    book supplies the named proof obligations: absence of CU livelock at
    the PoS, no WLU/WB-style deadlock in the fanout/gather path, and
    fairness (no fixed-priority starvation) under N ∈ {2, 3, 4}.
+   **Safety met at N = 2 (2026-11-21, TASK-001 step 4):**
+   `formal/onyx/onyx_ccu`, the pair fabric's 27 properties restated for
+   onyx -- `prove` depth 24 PASS 20:30, `prove_book` depth 16 PASS 14:41,
+   19 of 19 covers, three mutations failing as written. With the tagged
+   gather (D4) there is no presumed-miss bound to prove: completion is
+   counted, not timed out. **Open:** liveness bounds (the control's
+   derived-bound style) and the N = 3, 4 harness.
 4. **Observation.** Every D9 event class visible on MonBus in simulation
-   and captured on at least one FPGA board.
+   and captured on at least one FPGA board. **Not built** (a later
+   TASK-001 step); the pair fabric's debug taps are in place.
 5. **Cost.** Synthesis/implementation numbers (LUT/FF/RAM, fmax) on
    Nexys A7 and/or Genesys 2, recorded in `docs/` the way pumice
-   characterised, with and without the observers (D9).
+   characterised, with and without the observers (D9). **Measured
+   2026-11-21** (HAS Chapter 6.2): manager alone out of context 4,628 LUT
+   / 1,664 FF / 1,296 LUTRAM at +2.885 ns against the fabric's 4,300 /
+   1,660 / 1,296 at +2.757; the Genesys2 rig at 100 MHz with onyx WNS
+   +0.006 ns (SEL 4) and +0.000 ns (SEL 5), the worst path jet-prime's.
+   Without-observers is moot until the taps exist.
 6. **No slower than the fabric it replaces.** On the cache-ip reference
    rig's pair sweeps, onyx in parallel-issue mode (D6) at cycles per
    transaction equal to `jet_prime_pair_fabric`'s (bin 7, both injectors)
    within measurement noise at every depth; the deferred-read mode's
    memory-read elision rate and its latency cost measured on the same
-   sweeps. Added 2026-11-20 with the D rulings.
+   sweeps. Added 2026-11-20 with the D rulings. **Met exactly 2026-11-21
+   (TASK-001 step 6):** SEL 4 reproduces bin 7's cycle count on all 55
+   single and all 55 dual cells, both injectors, every CRC equal. The
+   deferred mode's latency cost measured: +8 to +12 % at depth 1 on the
+   thrash rows, under +2 % at depth 16, resident rows equal; its elision
+   rate awaits a memory-side AR counter (D9).
 
 ## 6. Non-goals
 

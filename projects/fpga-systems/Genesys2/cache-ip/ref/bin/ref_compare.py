@@ -50,6 +50,12 @@ RESULTS = {
     "jet-prime s3": f"{RIGS}/ref/results/perf_sweep_jetpp_bin3_single_*.json",
     "jet-prime s5": f"{RIGS}/ref/results/perf_sweep_jetpp_bin4_single_*.json",
     "jet-prime s6": f"{RIGS}/ref/results/perf_sweep_jetpp_bin7_single_*.json",
+    # onyx (TASK-001 step 6): the same jet-prime pair behind onyx_ccu in the
+    # pair fabric's place -- "onyx" with the memory read alongside the snoop
+    # (REF_CACHE_SEL 4), "onyx-d" with the read deferred until the gather
+    # (SEL 5, DEFER_AR). Against jet-prime s6 the manager swap alone.
+    "onyx":   f"{RIGS}/ref/results/perf_sweep_onyx_bin*_single_*.json",
+    "onyx-d": f"{RIGS}/ref/results/perf_sweep_onyxd_bin*_single_*.json",
 }
 OOC = {
     "amber": "amber", "jet": "jet", "HPDcache": "hpd", "CVA6 WB": "cva6",
@@ -60,7 +66,12 @@ OOC = {
     "jet-prime s5": "jetp5",
     # s6 changes the control's hit path: its own OOC row
     "jet-prime s6": "jetp6",
+    # onyx changes the manager, not the cache: the cache row is s6's; the
+    # managers have their own table below
+    "onyx": "jetp6", "onyx-d": "jetp6",
 }
+# the two-port managers alone (18 slots, SNOOP_INFLIGHT 2)
+OOC_MGR = {"jet_prime_pair_fabric": "jetp_fabric", "onyx_ccu (N_PORTS 2)": "onyx2"}
 OOC_DIR = f"{CACHE_IP}/results/ooc"
 # The same cache with USE_MONITOR=0 (MonBus observers and their arbiter tied
 # off): HPDcache and CVA6 carry no equivalent, so the area row is shown both
@@ -162,6 +173,16 @@ def main():
             out.append(f"| {n} | pending | | | | | | | {m['lut'] if m else 'pending'} |")
         else:
             out.append(f"| {n} | {s['lut']} | {s['ff']} | {s['ramb36']} | {s['ramb18']} | {s['lutram']} | {float(s['wns_ns']):+.3f} | {s['worst_levels']} | {m['lut'] if m else 'pending'} |")
+    out.append("")
+    out.append("### The managers alone, out of context (xc7k325t-2, 10 ns clock; 18 slots, SNOOP_INFLIGHT 2)\n")
+    out.append("| manager | LUT | FF | LUTRAM | WNS at 10 ns | worst path levels |")
+    out.append("|---|---|---|---|---|---|")
+    for n, d in OOC_MGR.items():
+        s = ooc_summary(d)
+        if not s:
+            out.append(f"| {n} | pending | | | | |")
+        else:
+            out.append(f"| {n} | {s['lut']} | {s['ff']} | {s['lutram']} | {float(s['wns_ns']):+.3f} | {s['worst_levels']} |")
     text = "\n".join(out) + "\n"
     if args.out:
         open(args.out, "w").write(text)

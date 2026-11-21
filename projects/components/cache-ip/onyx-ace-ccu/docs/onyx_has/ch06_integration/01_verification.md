@@ -23,63 +23,31 @@
 
 # Verification Strategy
 
-## Decision status
+**Status:** as done through onyx TASK-001 steps 1, 2 and 4 (2026-11-21). D10 decided 2026-11-20: Pattern-B cocotb, the RDS-DV ACE BFM verified before the RTL, a fabric-style formal argument.
 
-D10 is open but its direction is fixed in PRD v0.5. This chapter records the verification landscape as real content at 0.2 because the success criteria fix the proof obligations and the BFM family direction is concrete.
+## What has been run
 
-## Success criteria as verification exit criteria
+| Layer | Where | What it proves | Result |
+|---|---|---|---|
+| ACE BFM on the gather shapes | `dv/tests/test_onyx_snoop_gather_rig.py` on `dv/tb/onyx_snoop_gather_rig_tb.sv` | N snoop-master BFMs against N snoop-slave BFMs through the house ACE transport: the caches' CRRESP matrix cell by cell with full line data, broadcast gathers over the MESI-legal patterns, out-of-order completion, back-to-back per port, a compliance checker per port | gate 1/1, func 4/4, full 18/18 from clean at 2, 3 and 4 ports and both bus widths; 0 mismatches, 0 violations |
+| The core with real caches | `dv/tests/test_onyx_pair_rig.py` on `dv/tb/onyx_pair_rig_tb.sv` | jet-prime's pair-rig testbench and grid unchanged, onyx in the fabric's place: both CPUs driven, the two-cache lockstep model with the fabric rules, ACE compliance scoring, the MSHR x VICTIM x policy knob sweep | gate 4/4, func 6/6, full 26/26 from clean; 0 mismatches; gate reports identical to the fabric's line for line |
+| Formal, two ports | `formal/onyx/onyx_ccu` | the pair fabric's 27 safety properties restated for onyx at the fabric's geometry (16 lines, four beats, four slots, SNOOP_INFLIGHT 2): the per-line rule, the lock to the retire, AR and AC legality and stability, the gather bookkeeping, routing of every beat, the write-port hold, the table flag order, the engines' liveness of reference | `prove` (24 local properties, BMC depth 24) PASS 20:30; `prove_book` (3 end-to-end bookkeeping properties, depth 16) PASS 14:41; 19 of 19 covers reached by step 7; three mutations each fail the property written for them |
+| Board | Genesys2 reference rig, `REF_CACHE_SEL` 4 and 5 | smoke (init + smoke CRC) and the 55-point single and dual sweeps in both D6 modes | PASS; every cycle count and CRC of SEL 4 equal to the pair fabric's bin 7 (Chapter 6.2) |
 
-The PRD success criteria become the verification plan's exit criteria:
+: Table 6.1: Verification as done
 
-1. **Three-block coherence.** Two `amber` instances (or `amber` + `jet`) plus `onyx` form a coherent system that passes the golden-model parity suite `amber` D9 defines.
-2. **IHI 0022 conformance on the D2 subset.** A scoreboard checks AC/CR/CD behavior per transaction type; the CRRESP bits (`DataTransfer`, `IsShared`, `PassDirty`) of every gather are correct for the transaction and the caches' states.
-3. **The serializer, proven.** Formal proofs of same-address serialization, no-deadlock under fair arbitration at N ∈ {2, 3, 4}, and a proven bound for the D4 response-gather mechanism.
-4. **Observation.** Every D9 event class visible on MonBus in simulation and captured on at least one FPGA board.
-5. **Cost.** Synthesis/implementation numbers (LUT/FF/RAM, fmax) on Nexys A7 and/or Genesys 2.
+## The BFM family (D10)
 
-## Pattern-B cocotb
+`CocoTBFramework.components.ace` in RDS-DV (2026-10-05) is the family named in the PRD row: `AXI4ACEMasterRead/Write`, `AXI4ACESlaveRead`, `AXI4ACESnoopMaster`, `AXI4ACESnoopSlave`, `ACEComplianceChecker`, the `ARSnoop` / `AWSnoop` / `SnoopType` / `CRRESP` types. onyx was its first real application; the gather rig found one gap, recorded on the task page for RDS-DV: the snoop-slave BFM sends one CD beat every three cycles because its responder waits for each beat's handshake before queuing the next, so a latency measured through it carries two extra cycles per beat that are the BFM's. The snoop-master BFM allows one outstanding snoop per port, which is the family convention and onyx v1's.
 
-Tests follow the repo's Pattern-B cocotb gate/func/full structure. The testbench classes live under `bin/TBClasses/axi4ace/` per consumer.
+## The formal argument
 
-## RDS-DV axi4ace BFM family
+The harness (`formal_onyx_ccu.sv`) is the pair fabric's carried over: the environment is both caches, both snoop responders and the memory as free inputs under their documented contracts (the request pulses, the AR in launch order with a fresh ID, the retire after the last beat, the responders answering only accepted ACs in order with CD before CR, the memory answering only issued reads). What onyx changed is what the harness changed: the per-slot accept and answer bits became counters, so the harness reads the DUT's all-accepted and gathered flags; the memory AR waits on all-accepted and the absence of a DataTransfer; the flag order is DataTransfer implies all-accepted, PassDirty implies DataTransfer, gathered implies all-accepted; `CDREADY` depends on `CDVALID`. The first run found one real weakness and one harness gap together: the memory could present a beat nobody asked for in the one cycle after reset where its contract was not yet armed, and onyx's gather counters read "complete" for an invalid slot, so the stray beat was forwarded. The RTL now qualifies both memory-R routes with a read outstanding (a beat for no read is held, as a memory fault), and the harness holds reset for the two steps before the contracts arm. The mutations: the gather declared complete at once, the fanout including the requester, a second grant to a port with its AR untaken; each fails at step 3 on its property.
 
-PRD D10 specifies a layered extension of the RDS-DV `axi4` BFM family:
+A three-port harness needs the per-peer accept and answer shadow the counters summarize; it is the next formal item. Liveness bounds (the control's style, derived from the environment's constants) are not yet stated for onyx.
 
-1. **Field configs.** `AXI4ACEFieldConfigHelper` adds `ARSNOOP[3:0]` / `AWSNOOP[2:0]` to the AR/AW field configs.
-2. **Signal-map patterns.** New `axi4ace_*` protocol patterns (framework-shipped vs user-loadable is a decision to make in RDS-DV).
-3. **Transaction/packet layer.** The six D2 transaction types as an enum; `CRRESP` as a bitfield (`DataTransfer`, `Error`, `PassDirty`, `IsShared`, `WasUnique`).
-4. **Four BFM classes:**
-   - `AXI4ACEMasterRead` — subclass of the axi4 master-read BFM; drives coherent reads, with snoop type on commands; does not model `RACK` because the contract omits it.
-   - `AXI4ACEMasterWrite` — subclass of the axi4 master-write BFM; drives coherent writes; does not model `WACK` because the contract omits it.
-   - `AXI4ACESnoopSlave` — receives AC, drives CR/CD in issue order; programmable cache-state behavior producing the correct CRRESP; the golden-model hook that replays gem5 traces through `amber`.
-   - `AXI4ACESnoopMaster` — drives AC, gathers CR/CD in order; drives onyx's fanout in DV.
-5. **Compliance checker.** In-order CR/CD, no snoop to the requesting master, CD-before-CDLAST, CRRESP validity per snoop type.
-6. **Main-repo TB classes** under `bin/TBClasses/axi4ace/` per consumer.
+## Not yet run
 
-Build order: snoop-slave BFM first (amber's pair rig needs it), snoop-master BFM lands with onyx. RDS-DV implementation is tracked as RTLDesignSherpa-DV issue #86.
-
-## Golden model
-
-The Python reference model is derived from the gem5 Ruby `MESI_Two_Level` spec in `../../../References/gem5-ruby-protocols/`. It is phrased in messages rather than ACE signals, so the verification suite must map the ACE signal-level behavior to the message-level protocol.
-
-## Formal proof obligations
-
-SymbiYosys proofs target:
-
-- **Same-address serialization.** No two same-address coherent transactions proceed incompatibly.
-- **No-deadlock under fair arbitration at N ∈ {2, 3, 4}.**
-- **D4 response-gather livelock bound.** A presumed-miss bound exists and is proven.
-- **Named PRD scenarios:**
-  - CU livelock absence at the PoS.
-  - No WLU/WB-style deadlock in the fanout/gather path.
-  - Fairness (no fixed-priority starvation) at N ∈ {2, 3, 4}.
-
-WLU/WU scope growth is the N5 option; if N5 is promoted, the proof surface expands to include those transaction types.
-
-## Informal cross-checks
-
-`pulp-platform/culsans` (`ace_ccu_top` and the CVA6 coherent cache) is used as an informal cross-check, not an oracle. Its behavior is compared against the D2 subset and the in-repo ACE definition; discrepancies are resolved in favor of IHI 0022 and the PRD.
-
-## What is open
-
-D10 must close the BFM build order, compliance checker detail, and the exact directed-test matrix. The proof obligations listed above are fixed by success criterion 3.
+- A core-alone rig with BFM caches on the AXI4 side, and a three-cache rig with real caches (N_PORTS 3 and 4 are lint-clean and BFM-exercised on the snoop side only).
+- The D9 observation taps and their MonBus scoring.
+- Golden-model parity at the three-block level beyond the pair-rig lockstep model (the gem5 `MESI_Two_Level` mapping remains the plan).

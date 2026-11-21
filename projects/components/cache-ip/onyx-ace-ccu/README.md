@@ -39,12 +39,20 @@ same-address ordering, measured on the house fabric.
 
 ## Status
 
-**Scaffolded 2026-10-05** — README + PRD only. `rtl/`, `dv/`, `docs/` are
-placeholders; no RTL, no testbench, no register model. Decisions are OPEN in
-[PRD.md](PRD.md) until they record a name and a date; so far **D7 is decided
-(2026-10-05): onyx owns the ACE-shaped AC/CD/CR snoop port, and amber/jet
-adapt to it** — decided together with amber D4. The wait that remains is
-amber's pair rig (amber D10), onyx's first consumer.
+**Built 2026-11-21 (onyx TASK-001, steps 1, 2, 4, 6).** The PRD's D rows
+were decided on 2026-11-20 (v0.7) and `rtl/top/onyx_ccu.sv` is the v1
+core: jet-prime's pipelined pair fabric generalized to `N_PORTS` (2 to 4)
+under those rulings -- broadcast snoop, tagged gather, per-line
+serialization, adjudicated data source with the memory read alongside the
+snoop or deferred (`DEFER_AR`). Two jet-primes behind it pass jet-prime's
+whole pair-rig grid unchanged (`dv/tests/test_onyx_pair_rig.py`); the ACE
+snoop BFMs were verified on the gather shapes first
+(`dv/tests/test_onyx_snoop_gather_rig.py`); the formal argument at two
+ports is `formal/onyx/onyx_ccu`; the Genesys2 reference rig carries it as
+`REF_CACHE_SEL` 4 and 5. Not yet built: the ACE-Lite IO port (D1), the
+MonBus taps (D9), an `ARSNOOP` front end. Tracker:
+[`vault/tracking/projects/components/cache-ip/onyx-ace-ccu/`](../../../../vault/tracking/projects/components/cache-ip/onyx-ace-ccu/INDEX.md);
+architecture: [docs/onyx_has](docs/onyx_has/onyx_has_index.md).
 
 ## What it teaches / why it exists
 
@@ -82,12 +90,15 @@ semantics, multi-CCU systems, stash/dealloc features. See
 
 ## Layout
 
-`rtl/`, `dv/`, `docs/` exist as placeholders. When RTL lands, this
-directory follows the per-component layout of
-[`../../dma-ip/stream/`](../../dma-ip/stream/README.md) (fub/macro/top split,
-filelists registry, Pattern-B cocotb tests) and the mandatory rules in
-[`../../CLAUDE.md`](../../CLAUDE.md) (reset macros, shared `sdpram_core` /
-FIFO primitives, array syntax).
+- `rtl/top/onyx_ccu.sv` with `rtl/filelists/onyx_ccu.f` (area `onyx`,
+  root `ONYX_ROOT` in `bin/filelists.toml`); the shared `l1_pkg` by
+  `-f` include.
+- `dv/tb/` the harnesses (`onyx_pair_rig_tb.sv`: jet-prime's pair rig
+  with onyx in the fabric's place; `onyx_snoop_gather_rig_tb.sv`: the
+  BFM-against-BFM gather rig), `dv/tbclasses/`, `dv/tests/` (Pattern B;
+  `make clean-all && make run-all-{gate,func,full}-parallel`).
+- `formal/onyx/onyx_ccu/` (repo root): the safety harness and run file.
+- `docs/onyx_has/`: the architecture book.
 
 ## References
 

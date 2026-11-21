@@ -25,7 +25,7 @@
 
 ## Decision status
 
-**D7 is DECIDED (2026-10-05): onyx owns the AC/CD/CR-shaped snoop port.** This chapter records the fanout contract as real content at 0.1. The exact fanout target selection (broadcast vs directory-lite) is D3 and is still open; the pin contract is fixed.
+**D7 (2026-10-05) and D3/D4 (2026-11-20) are decided; this chapter records the fanout port as built in `onyx_ccu` (TASK-001 step 2).** Targets are selected by broadcast: every attached cache except the requester receives an AC for every allocated transaction; completion is gathered per transaction from per-slot counters of the peers yet to answer (Chapter 3.4).
 
 ## Pin contract
 
@@ -37,7 +37,7 @@ For each attached cache, onyx drives AC and receives CR/CD:
 | CR | in | `CRRESP[4:0]` | The cache's answer: data transfer, error, dirty responsibility, shared indication. |
 | CD | in | `CDDATA`, `CDLAST` | The line's data when CRRESP indicated it would come. |
 
-Handshake rules mirror AXI4: VALID/READY, no combinatorial dependency of READY on VALID.
+Handshake rules are AXI4's: VALID never waits for READY; READY may wait for VALID (the house rule in `vault/handbook/design/valid-ready-contracts.md`: ready may be combinational, never require ready before valid). onyx's `CDREADY` does depend on `CDVALID`: each requester port's snoop-data buffer has one write port, and when two peers want to write the same buffer in one cycle the round-robin pick between them reads their `CDVALID`s (Chapter 3.4). At two ports no two peers ever share a buffer and `CDREADY` is simply "a snoop is outstanding", as in the pair fabric.
 
 ## Core ordering rules
 
@@ -84,6 +84,4 @@ The PRD §"Design invariants (proposed)" lists seven bedrock liveness rules mine
 
 ## What is open
 
-- D3: whether targets are selected by broadcast or by directory-lite state.
-- D4: how responses are gathered and completion detected.
-- N3/N4: fill-sourcing and CD-path independence details.
+- A directory-lite target selection (D3 future parameter); N3 and N4 remain proposed invariants that the design honors (Chapter 3.4).
