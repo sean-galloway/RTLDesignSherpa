@@ -67,24 +67,25 @@ green.
 
 ## Storage and reset census (2026-11-21)
 
-No `ram_style` / `ramstyle` attribute occurs in `rtl/amba/ocelus/*.sv`. This is
-an inventory of state-holding arrays and packed per-entry table state; the
+At the `18a4969dc` baseline, no `ram_style` / `ramstyle` attribute occurred in
+`rtl/amba/ocelus/*.sv`. This is an inventory of the baseline's state-holding
+arrays and packed per-entry table state; the
 combinational `c_*` candidate arrays and MonBus interconnect arrays are not RAM
 candidates. "Reset-free candidate" still requires a directed stale-data test,
 a qualified-read review, and a Vivado inference check before it is kept.
 
 | Module | Arrays / per-entry state | Shape and disposition |
 |---|---|---|
-| `jet_monlite`, `jet_prime_monlite` | `r_alloc_cyc[MSHR_COUNT]` | One dynamic write at allocation, reset loop today; reads only on merge/retire events. First reset-free distributed-RAM candidate. |
+| `jet_monlite`, `jet_prime_monlite` | `r_alloc_cyc[MSHR_COUNT]` | One dynamic write at allocation, with a reset loop at the baseline; reads only on merge/retire events. First reset-free distributed-RAM candidate. |
 | `l1_monlite` | no persistent arrays; `r_drain_line_q`, `r_fill_line_q`, pending packet/timestamp are scalars | Candidate arrays are combinational. Remove payload reset only where the valid/event qualifier is proven; control stays reset. |
 | `axi_monitor_lite` | packed `r_id`, `r_addr`, `r_ts0`, `r_next`, `r_wq`, `r_wq_seq`; mutable `r_beats`, `r_us0`, `r_early_*`; valid/head/tail/pointers separate | First group has allocation/link/push writes and validity-qualified consumers: reset-free unpacked-array candidates. `r_beats`/`r_us0` also update on progress and early state has several cases: keep as flops unless a separate single-write rewrite is proven. |
 | `axi4ace_snoop_monitor_lite` | packed `r_addr`, `r_snoop`, `r_ts0`; mutable `r_beats`, `r_us0` | Address/snoop/allocation stamp are allocation-only candidates; beat count and last-progress stamp also update at the head and stay flops in the first pass. |
-| `chi_monitor_lite` | request `r_txnid`, `r_dbid`, `r_opcode`, `r_pkts`, `r_dat_rem`, `r_wdat_rem`, `r_us_stamp`, `r_cyc_stamp`; snoop `r_s_txnid`, `r_s_rem`, `r_s_us`, `r_s_cyc` | All are reset today. Allocation-only `r_txnid`, `r_opcode`, `r_pkts`, `r_us_stamp`, `r_cyc_stamp`, `r_s_txnid`, `r_s_us`, `r_s_cyc` are candidates. DBID and remaining-debt arrays update in response/data phases and stay flops. Protocol keying/debt behavior is not negotiable. |
+| `chi_monitor_lite` | request `r_txnid`, `r_dbid`, `r_opcode`, `r_pkts`, `r_dat_rem`, `r_wdat_rem`, `r_us_stamp`, `r_cyc_stamp`; snoop `r_s_txnid`, `r_s_rem`, `r_s_us`, `r_s_cyc` | All are reset at the baseline. Allocation-only `r_txnid`, `r_opcode`, `r_pkts`, `r_us_stamp`, `r_cyc_stamp`, `r_s_txnid`, `r_s_us`, `r_s_cyc` are candidates. DBID and remaining-debt arrays update in response/data phases and stay flops. Protocol keying/debt behavior is not negotiable. |
 | `axis_monitor_lite`, `cxs_monitor_lite` | no per-entry arrays | Scalar event/episode state only. Any work must come from a measured event/output cone, not a RAM conversion. |
 | `apb4_monitor`, `apb5_monitor` | `r_trans_table[MAX_TRANSACTIONS]` | Whole struct resets; command fields are written at allocation while state/response/event fields update later. Split only write-once payload fields from validity/control; do not put the whole struct in RAM. |
 | `wb4_monitor` | `track_t r_q[MAX_TRANSACTIONS]` | Command payload writes at push, `rsp_timed_out` later writes at the head. Payload split is a candidate; head/tail/count stay reset. |
 | `monbus_cam`, `monbus_cam_pipe` | `r_valid`, `r_key`, `r_data`, `r_ts` | Move-to-front shift writes many constant positions and dynamically selected span. Not RAM-shaped. Key/data/timestamp reset removal is possible only after all match/dump/eviction reads are shown validity-qualified. |
-| `monbus_group_core`, `monbus_burst_writer` | `r_os_len[4]`, `r_ws_len[4]` | One dynamic write at AW issue and pointer-indexed read; reset today. Reset-free distributed-RAM candidates with read/write-pointer qualification. |
+| `monbus_group_core`, `monbus_burst_writer` | `r_os_len[4]`, `r_ws_len[4]` | One dynamic write at AW issue and pointer-indexed read; reset at the baseline. Reset-free distributed-RAM candidates with read/write-pointer qualification. |
 | `monbus_group_core_1wr` | `r_err_len_q[4]` | One dynamic write at error-AW and pointer-indexed read; same candidate class. |
 | `axi_monitor_timeout` | three timer arrays | Per-entry timers update over time; leave as flops. The full monitor is reference-only for this task. |
 | `axi_monitor_reporter*` | local transaction table, latency and previous-state arrays | Full-monitor reporter state; no deployed consumer and no rewrite under TASK-037. |
@@ -197,8 +198,9 @@ in the existing reset macro; the event stage and shared latency subtractor are
 unchanged.
 
 The new `phase_reuse_clear` checks exact address/ID/nonzero latency, empty
-table, and unchanged refused/drop counts over recycled allocations, an idle
-`cam_clear`, and consumer backpressure. Holding the old address fails all 12
+table, and unchanged refused count over recycled allocations, an idle
+`cam_clear`, and consumer backpressure. Existing suites cover drop reporting;
+this phase does not add a dropped-count assertion. Holding the old address fails all 12
 full cells. Converted RTL: 12/12 full, 259/259 monitor-lite func, 4/4
 same-cycle, 2/2 soak, 17/17 inherited AXI matrix. The first formal attempt
 hit its command timeout at proof step 23; the clean retry completed prove PASS
@@ -321,3 +323,54 @@ slot-zero data fails the equivalence test. Removing key/data/timestamp resets
 then passes the CAM, compressor, and compressed-group tests but increases LUTs
 to 2,232/2,247 with no FF reduction, so it was reverted. Reverted RTL again
 passes all three suites. The pipe's shift-to-front writes are not RAM-shaped.
+
+## Implementation and reproduction record
+
+| Commit | Content |
+|---|---|
+| `00dac5284` | 48-module/two-part baseline, cache and STREAM measurements, storage census |
+| `46cda54de` | jet/jet-prime allocation timestamps to reset-free distributed RAM |
+| `fdd685056` | AXI monitor-lite payload/link/queue storage conversion |
+| `17aa7b582` | ACE snoop allocation payload conversion |
+| `85e217850` | CHI allocation storage and one-hot event selection |
+| `6f67f9d10` | Inline MonBus epoch-cap pipeline; CAM A/B and clear/reuse coverage |
+
+Core reproduction commands (all simulations start with `source env_python` and
+`make -C <area> clean-all`; never bare pytest):
+
+```bash
+make -C val/amba/monitor-lite run-all-full-parallel
+make -C val/amba run-all-full-parallel
+make -C projects/components/cache-ip/jet-prime-mesi-l1/dv/tests run-all-full-parallel
+make -C projects/components/cache-ip/jet-mesi-l1/dv/tests run-all-full-parallel
+make -C projects/components/cache-ip/common-ip/dv/tests run-all-full-parallel
+make -C projects/fpga-systems/Genesys2/cache-ip/ref/dv/tests run-all-full-parallel
+make -C formal/amba/axi_monitor_lite clean prove cover
+make -C formal/amba/monbus_group_core clean prove cover
+TARGETS="xc7k325tffg900-2:6.667 xc7a100tcsg324-1:10.0" \
+  JOBS=6 rtl/amba/fpga/bin/monitor_synth_sweep.sh
+make -C projects/components/fabric-gen-ip/bridge/fpga synth \
+  BRIDGE=bridge_1x2_rd_lite_mon PART=xc7k325tffg900-2 CLK_NS=6.667
+make -C projects/components/fabric-gen-ip/bridge/fpga synth \
+  BRIDGE=bridge_1x2_rd_lite_mon PART=xc7a100tcsg324-1 CLK_NS=10.0
+```
+
+`monbus_compressor` and `monbus_halfbeat_packer` had no array or measured cone
+selected by the census and their compressed-group tests remain green; no change.
+All other reviewed candidates have a kept, reverted, or explicit no-action entry
+above. Residual Artix misses remain documented for CHI HNF, APB4/5, and the
+standalone group core; none is presented as closed timing.
+
+## Final verification and closure status
+
+- cache-common clean FULL: **255/255 PASS** (17:15).
+- monitor-lite clean FULL: **466/466 PASS** (19:56).
+- cache reference clean FULL: **18/21 PASS, 3 FAIL**. All three failures are
+  `jetpp` cells in `test_ref_harness_axil.smoke_test`: nonzero tally bins
+  `[34, 0, 52, 134, 64, 29, 34, 77]` reach the formerly zero-stub check.
+  The active uncommitted `ref_harness.sv` / Onyx diff replaces the stubs with
+  a new `monbus_axil4_group_1wr` + tally chain. Do not overwrite that work.
+  TASK-007 stays ACTIVE until this shared-tree integration failure is resolved
+  or its owner supplies a corrected expectation and the suite passes.
+
+Remaining final jobs are still running and will be recorded when complete.

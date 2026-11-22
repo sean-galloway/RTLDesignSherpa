@@ -776,8 +776,8 @@ module monbus_group_core
     //         (min(window budget, beats-to-4KB, FIFO avail, MAX_BURST)).
     // Batches form naturally and run back-to-back: when a trigger is
     // active the AWs keep issuing until nothing uncommitted remains, and
-    // when it deasserts mid-stream the W/B streams simply drain in flight
-    // -- there is nothing to re-arm and no geometry re-settle bubble.
+    // when it deasserts mid-stream the W/B streams simply drain in flight.
+    // Epoch starts and pointer fixups wait for the registered caps to settle.
     //
     // Window geometry is a saturating down-counter, not a pipeline: the
     // window is a contiguous [base, limit] range written strictly
@@ -1089,9 +1089,8 @@ module monbus_group_core
     //                    the window cannot hold one record, the documented
     //                    misconfiguration)
     //
-    // Fixups are evaluated every cycle (not just under do_flush): they
-    // only move these registers, so an eager rewind between epochs costs
-    // nothing and removes the old WR_IDLE settle bubble entirely.
+    // Fixups are evaluated every cycle (not just under do_flush), but the
+    // registered cap pipeline must settle before the next epoch can issue.
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (`RST_ASSERTED(axi_aresetn)) begin
             r_wr_addr           <= '0;

@@ -196,13 +196,13 @@ geometry, data order, and the handshake accounting are unchanged.
 
 #### Address-window behavior: **wrap, not saturate**
 
-The master-write address is **circular** within `[cfg_base_addr, cfg_limit_addr]`. When the writer rolls past the window's end (or starts out of window, e.g. `r_wr_addr = 0` immediately after reset), the geometry pipeline finds `r_wr_addr` outside `[cfg_base_addr, cfg_limit_addr]` and computes against a pre-rewound `geom_addr = cfg_base_addr`. The final `r_plan_addr` reflects that rewind — so the next burst starts at `cfg_base_addr` and the dump ring keeps moving forever.
+The master-write address is **circular** within `[cfg_base_addr, cfg_limit_addr]`. When an epoch reaches the window's end, or the pointer starts outside the window after reset, `w_geo_blocked` reloads `r_wr_addr` with the registered `r_cfg_base_addr`. The next epoch starts at `cfg_base_addr` and the dump ring keeps moving forever.
 
 This is **not** a saturation behavior. The writer never stalls at `cfg_limit_addr`; it always wraps. Any host-side bookkeeping (SRAM-dump write pointer, ring-buffer position cursor, etc.) **must match this wrap behavior** — saturating a host-visible pointer at the SRAM cap will desynchronize it from the actual ring state. The `stream_char_harness.sv` debug pointer was fixed for exactly this reason on 2026-06-14 (`d82b1e04`); see that commit message for the hardware-confirmed symptom.
 
 #### mod-3 rounding (no `/3` operator)
 
-Rounding a beat count down to a whole record (`X − (X mod 3)`) is done by two `math_mod_3_compress` instances (`u_mod3_geo`, `u_mod3_fifo`) — a carry-save-compressor implementation of `X mod 3` via base-4 digit sum (each 2-bit group has weight `4^k ≡ 1 mod 3`). No `*` or `/` operators, so Vivado neither infers a DSP48 (a combinational path through a far-placed DSP was catastrophic) nor a CARRY4 iterative divider — both used to blow timing. Exhaustively verified for all 65 536 inputs (`val/math/test_math_mod_3_compress.py`).
+Rounding a beat count down to a whole record (`X − (X mod 3)`) uses three `math_mod_3_compress` instances (`u_mod3_win`, `u_mod3_4kb`, `u_mod3_fifo`) — a carry-save-compressor implementation of `X mod 3` via base-4 digit sum (each 2-bit group has weight `4^k ≡ 1 mod 3`). No `*` or `/` operators, so Vivado neither infers a DSP48 (a combinational path through a far-placed DSP was catastrophic) nor a CARRY4 iterative divider — both used to blow timing. Exhaustively verified for all 65 536 inputs (`val/math/test_math_mod_3_compress.py`).
 
 #### Final port behavior
 
@@ -268,7 +268,7 @@ For AXI4 burst capture — say the memory ring lives behind an AXI4 fabric and y
 
 SystemVerilog cannot conditionally include or exclude ports from a single module's port list. The port list is a static syntactic construct, fixed at module declaration. So to give each protocol combination an exact port shape — no spurious AXI4-only fields for the caller to tie off — the family is split:
 
-- **One common backend** (`monbus_group_core.sv`) carries the filter, FIFOs, watermark/timeout burst-writer FSM, slice-counter drain, and optional compressor. Its FUBs are AXI4-shaped on both sides (id / awlen / awsize / awburst / wlast / arlen / rlast / etc.). AXIL wrappers feed single-beat defaults (`len=0`, `size=3`, `burst=INCR`, `id=0`) and force `MAX_BURST_BEATS=1`.
+- **One common backend** (`monbus_group_core.sv`) carries the filter, FIFOs, FSM-free watermark/timeout burst writer, slice-counter drain, and optional compressor. Its FUBs are AXI4-shaped on both sides (id / awlen / awsize / awburst / wlast / arlen / rlast / etc.). AXIL wrappers feed single-beat defaults (`len=0`, `size=3`, `burst=INCR`, `id=0`) and force `MAX_BURST_BEATS=1`.
 - **Four thin wrappers**, each with the right protocol-shaped port list, that directly instantiate the matching leaf skids (`axi4_slave_rd` / `axil4_slave_rd` and `axi4_master_wr` / `axil4_master_wr`) and bridge their FUBs to the core's FUB.
 
 | Wrapper | Slave-read shape | Master-write shape | `MAX_BURST_BEATS` (default) |

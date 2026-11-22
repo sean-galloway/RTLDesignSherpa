@@ -154,11 +154,11 @@ chain is filed as its own item.
 ### Storage pass (2026-11-21)
 
 The write-once ID, address, allocation-stamp, next-link and write-order queue
-arrays now use reset-free, single-write processes with distributed-RAM
-attributes. Validity, phase, error/timeout flags, pointers, beat counts and
-last-progress state stay reset. IDs remain flops in the measured netlist
-because attribution compares every entry in parallel; the other payload arrays
-appear in Vivado's RAM mapping report under the user attribute.
+arrays now use reset-free, single-write processes. Address, stamp, link, and
+queue arrays carry distributed-RAM attributes. Validity, phase, error/timeout
+flags, pointers, beat counts and last-progress state stay reset. IDs deliberately
+carry no RAM attribute and remain flops because attribution compares every entry
+in parallel; the RAM-attributed arrays appear in Vivado's mapping report.
 
 | Wrapper / part | Before LUT / FF / WNS | After LUT / FF / WNS |
 |---|---:|---:|
@@ -172,8 +172,9 @@ appear in Vivado's RAM mapping report under the user attribute.
 | AXI-Lite write, Artix 10 ns | 1,257 / 1,287 / +1.664 ns | 976 / 791 / +1.118 ns |
 
 The new `phase_reuse_clear` checks exact address, ID, latency, table empty,
-and refused/drop accounting after recycled allocations, an idle clear and a
-held consumer. Holding the old address fails all 12 full cells. The converted
+and refused accounting after recycled allocations, an idle clear and a held
+consumer. Drop reporting is covered by the existing drop suite, not by a new
+assertion in this phase. Holding the old address fails all 12 full cells. The converted
 RTL passes those 12, monitor-lite FUNC 259/259, same-cycle 4/4, soak 2/2 and
 the inherited AXI monitor matrix 17/17.
 
