@@ -379,8 +379,8 @@ standalone group core; none is presented as closed timing.
   `monbus_axi4_group_1wr[errors_only-256]`, seed 5527, 148/150 records with
   six beats still in `r_err_beats_acked`. This exposed a TB drain-window bug,
   not an RTL loss. The bounded wait fix is amba BUG-042; all three wrapper/core
-  forms pass 24/24 FULL cells with the reproducing seed. A full rerun is needed
-  to certify the corrected suite.
+  forms pass 24/24 FULL cells with the reproducing seed. The clean full rerun
+  then passed **2,999/2,999** in 24:23 (`task6-amba-full-rerun.log`).
 
 - Final AXI monitor-lite formal: prove **PASS** and cover **PASS**, all covers
   reached (`task6-axi-formal.log`). MonBus group prove/cover also PASS with all
