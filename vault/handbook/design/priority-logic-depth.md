@@ -105,3 +105,15 @@ exclusion as the key's top bit so an excluded slot sorts above every value.
 Keep the serial walk's quirks too (here: nothing beats the 8'hFF starting
 minimum, so an all-8'hFF set reads slot 0) or the equivalence proof says
 no; `formal/mc_common/mc_global_timers` task `equiv` is that proof.
+
+## An encoded pick followed by a payload mux is another serial cone (2026-11-21)
+
+`chi_monitor_lite` registered 22 event candidates, then encoded the highest
+set bit and used that index in a 22-way payload case statement. The path was
+candidate flop -> priority encoder -> payload decoder/mux -> two-bank output
+FIFO. Replacing the index with a highest-priority one-hot and each packet with
+an OR of its selected constant-index entries preserved both picks and tie order.
+RNF moved from 4,647 LUT / 3,480 FF / -0.365 ns to 4,338 / 3,096 / +0.065 ns
+on Artix-7; HNF saved 340 LUT and 384 FF. Its residual miss moved elsewhere
+(response matching into a counter), which is the evidence that the original
+cone was actually removed. Check the new path, not just the intended edit.

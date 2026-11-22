@@ -266,3 +266,16 @@ entry is one packed vector; cast structured write data to it at the port
 (`W'(wdata)`), never index two packed dimensions inside the write. The
 message is an INFO-level warning, so grep the synthesis log for `8-11357`
 whenever a memory's register count looks like its bit count.
+
+## Reset removal is a candidate, not a free win (2026-11-21)
+
+Reset-free payload still occupies flops when its access shape is not a RAM.
+`monbus_cam_pipe` shifts every live key/data/timestamp toward slot zero on a
+touch or install, so LUTRAM inference is not honest. Removing its payload reset
+kept all 4,655 flops and INCREASED routed utilization from 2,154 to 2,232 LUT
+on Kintex-7 and from 2,168 to 2,247 on Artix-7. Clear/reuse equivalence stayed
+green, but the edit was reverted on the A/B numbers. Reset validity and count;
+keep payload reset when it buys nothing. Conversely, a parallel-read array with
+no RAM attribute may correctly remain flops even when its reset is removed --
+`axi_monitor_lite.r_id` is the example; do not leave an ignored `ram_style`
+attribute generating warnings.
