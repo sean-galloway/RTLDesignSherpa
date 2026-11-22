@@ -47,6 +47,37 @@ post-route. Power is Vivado's vectorless estimate (`report_power`, confidence
 
 **Plane:** cross-plane (measured cost of protocol-plane monitors and the output-plane group)
 
+## Current refresh: 2026-11-21 (rtl/amba/monitors TASK-007)
+
+The expanded default sweep ran 48 modules on each part: 96 fresh routed rows,
+no failed or skipped runs. The table selects the modules that guide the current
+optimization work; `reports/summary.csv` carries every row. WNS here is
+register-to-register, not the artificial primary-I/O budget. The older tables
+below remain the September comparison history.
+
+| Module | Kintex LUT / FF / WNS ns | Artix LUT / FF / WNS ns |
+|---|---:|---:|
+| `axi4_master_rd_mon` | 7,164 / 5,552 / +0.664 | 7,499 / 5,552 / **-0.629** |
+| `axi4_master_rd_monlite` | 1,371 / 1,416 / +1.969 | 1,375 / 1,416 / +1.732 |
+| `axi4_master_wr_mon` | 8,345 / 6,156 / **-1.124** | 8,360 / 6,156 / **-3.779** |
+| `axi4_master_wr_monlite` | 1,602 / 1,554 / +1.957 | 1,601 / 1,554 / +2.030 |
+| `axis4_master_monlite` | 1,164 / 630 / +1.489 | 1,164 / 630 / +1.112 |
+| `chi_rnf_port_monlite` | 4,532 / 3,480 / +0.326 | 4,647 / 3,480 / **-0.365** |
+| `chi_hnf_port_monlite` | 4,432 / 3,308 / +0.274 | 4,558 / 3,308 / **-0.606** |
+| `axi4ace_snoop_monitor_lite` | 613 / 797 / +1.367 | 623 / 797 / **-0.425** |
+| `monbus_arbiter` | 1,032 / 1,970 / +2.843 | 1,033 / 1,970 / +3.575 |
+| `monbus_group_core` | 1,377 / 552 / **-2.130** | 1,381 / 552 / **-6.750** |
+| `monbus_burst_writer` | 592 / 379 / +0.757 | 601 / 379 / +0.174 |
+| `monbus_cam` | 3,199 / 4,422 / **-0.740** | 3,197 / 4,422 / **-2.616** |
+
+The smaller monitors remain small on Artix: AXIS 1,164 LUT / +1.112 ns,
+CXS master/slave +1.860/+1.109 ns, Wishbone +0.105 ns. APB4/APB5 are
+520/545 LUT but now miss 100 MHz by 0.133/0.278 ns internally. CHI, ACE snoop,
+the group writer, and the CAM are the measured timing candidates; the shared
+arbiter needs no repeat of MC-004's skid rewrite. The pipelined standalone
+writer meeting both targets while the inline group writer fails both is the
+clearest available A/B reference.
+
 ## What was measured
 
 Every module at its **default parameters** (the wrapper's own defaults, not

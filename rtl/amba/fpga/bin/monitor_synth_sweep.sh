@@ -17,8 +17,11 @@ default_modules="axi4_master_rd axi4_master_rd_cg axi4_master_rd_mon axi4_master
 axi4_master_wr axi4_master_wr_mon axi4_master_wr_monlite axi4_slave_rd axi4_slave_rd_mon axi4_slave_rd_monlite \
 axi5_master_rd axi5_master_rd_mon axi5_master_rd_monlite \
 axil4_master_rd axil4_master_rd_mon axil4_master_rd_monlite axil4_master_wr axil4_master_wr_mon axil4_master_wr_monlite axil5_master_rd_monlite \
-apb4_monitor apb5_monitor axis4_master_monlite axis4_master_monlite_cg wb4_monitor \
-monbus_axil4_axil4_group monbus_axi4_axi4_group monbus_arbiter"
+apb4_monitor apb5_monitor axis4_master_monlite axis4_master_monlite_cg axis4_slave_monlite axis5_master_monlite axis5_slave_monlite wb4_monitor \
+chi_rnf_port_monlite chi_hnf_port_monlite cxs_master_monlite cxs_slave_monlite \
+axi4ace_master_rd_monlite axi4ace_master_wr_monlite axi4ace_slave_rd_monlite axi4ace_slave_wr_monlite \
+axi4ace_snoop_master_monlite axi4ace_snoop_slave_monlite axi4ace_snoop_monitor_lite \
+monbus_axil4_axil4_group monbus_axi4_axi4_group monbus_arbiter monbus_group_core monbus_group_core_1wr monbus_burst_writer monbus_cam"
 modules=${*:-$default_modules}
 # part:period -- 150 MHz on the Kintex-7 (Genesys 2) by default; 100 MHz on the Artix-7 (Nexys A7) on request
 targets=${TARGETS:-"xc7k325tffg900-2:6.667"}

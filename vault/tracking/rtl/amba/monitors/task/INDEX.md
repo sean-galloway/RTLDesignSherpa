@@ -12,8 +12,8 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 2 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
@@ -22,10 +22,10 @@ by construction rather than by discipline.
 
 - **TASK-005** — monitors accept a global usync timer so all packets share a unique stamp (timebase on `counter_freq_invariant`, central source + ~12 matched-depth distribution arms, whole Ocelus fabric: monitors/stream/rapids/bridge/delta; local timer kept as parameter fallback)
 - **TASK-006** — monbus_group drains everything to the fabric: single master-write output, per-class packet steering to different addresses/SRAMs, AXI-Lite read-back data path removed, `irq_out` still asserts on errors
-- **TASK-007** — assess the monitor family (jet_monlite, the monlite wrappers, the Ocelus axi_monitor_* base/CAM/reporters) for the FPGA-review treatment: cost by hierarchy on existing bitstreams, review checklist, worktree A/B per candidate; observer rule holds. Filed 2026-11-10 from the jet ISSUE-002 decision.
 
 ## Active
 
+- **TASK-007** — assess and optimize the deployed monitor family for FPGAs: current cache/STREAM cost by hierarchy, storage/reset/cone census, same-configuration A/B per candidate; full monitor remains the reference oracle, observer behavior holds. Activated 2026-11-21.
 
 ## Closed
 
