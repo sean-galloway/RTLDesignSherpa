@@ -644,11 +644,17 @@ class DDR2CharDriver:
                     align.setdefault("row_phase", int(ph[2]))
             except Exception as exc:
                 print(f"[timings] DFI_PHASE unreadable ({exc!r}); tRTP assumes the worst rd_phase")
-        # JEDEC_PHASE_EXACT=1: the phase-exact derivation (memory-controllers MC-020) on the
-        # board flow too -- the DFI phases read back above replace the worst-phase margin
-        if "phase_exact" not in align and os.environ.get("JEDEC_PHASE_EXACT", "0") == "1":
-            align["phase_exact"] = True
-            print("[timings] JEDEC_PHASE_EXACT: phase-exact derivation", file=sys.stderr, flush=True)
+        # The phase-exact derivation (memory-controllers MC-020) is the DEFAULT since
+        # 2026-11-22, the owner's decision after the 81-cell board run, the memtest and
+        # an endurance soak at the counters: the phases read back above are fixed, and
+        # the one-CK margin was owed only while they were unknown (a phase the device
+        # cannot report still keeps the margin, inside ddr2_timings_mc_cycles). Every
+        # board record before that date was made under the margin; JEDEC_PHASE_EXACT=0
+        # restores it for an A/B against them.
+        if "phase_exact" not in align:
+            align["phase_exact"] = os.environ.get("JEDEC_PHASE_EXACT", "1") != "0"
+            if not align["phase_exact"]:
+                print("[timings] JEDEC_PHASE_EXACT=0: the one-CK phase margin", file=sys.stderr, flush=True)
         timings = dict(ddr2_timings_mc_cycles(mc_clk_hz, **align))
         # JEDEC_OVERRIDE="tCCD=2,tWTR=5": pin individual derived fields (MC
         # cycles) for a board experiment, e.g. to force a write cadence.

@@ -717,6 +717,44 @@ close. No timing change goes to the board without that check clean. The
 board then confirmed it in 81 cells with 0 mismatched beats
 (`char_results/board_mc020_phase_exact_sku100_2026-11-21.md`).
 
+## The default moved to the phase-exact counters, and what the soak had to run (2026-11-22, MC-020)
+
+The owner adopted the phase-exact derivation as the host's default after one
+endurance soak at the new counters
+(`char_results/board_mc020_default_phase_exact_sku100_2026-11-22.md`). Two
+things came out of making the soak mean what it claimed.
+
+**The soak that qualifies a derivation runs on the phases the SKU runs on.**
+The bring-up soak (`SimpleTest` + `long_soak`) soft-resets the controller
+every round, and the reset state is NOT the SKU: row lane off, `row_phase`
+0, the paging resets. The char measures the SKU through
+`ControllerConfig.apply` (lane on, `row_phase` 1, the JEDEC set derived for
+those phases). A soak through the reset state would have run tWR 4 on
+phase-0 row commands, passed, and said nothing about the tWR 3 the SKU runs
+with. The `soak` sequence (`bin/seq_soak.py`) re-applies a named config
+after every per-round reset (`long_soak(reapply=...)`), so its rounds are
+the char's configuration. Before it, no soak had run on the lane at all.
+
+**Derive the timing set from the device as programmed, never at
+construction.** `SimpleTest` and `A7Leveling` derived their JEDEC set in
+`__init__`, reading the DFI phases back from a register that at that point
+held whatever the previous session left (a char run's `row_phase` 1
+against the smoke's reset-state 0). Under the margin the phases moved
+nothing but tRTP, so a set derived from the stale state was still legal;
+the phase-exact derivation counts every hop from them, and a tWR of 3 for
+`row_phase` 1 run at `row_phase` 0 is one CK short. The 2026-11-21 smoke got
+the right value by the accident of a fresh program. Both classes now derive
+in the reset path, after `program_geometry`, and the rule generalises: a
+value derived from device state is derived AFTER the code that sets that
+state, in the same path, or it describes a device that no longer exists.
+
+The records before 2026-11-22 are the margin's. `JEDEC_PHASE_EXACT=0` on
+the board and `TEST_PHASE_EXACT=0` on the proxy restore it; the model's
+`sku_margin` variant is that set, and the three model tests that reproduce
+numbers recorded under it pin the preset by name (`MARGIN` in
+`test_char_model.py`). A test that pins a board number pins the counters
+the board ran on, or the next default change fails it for no defect.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

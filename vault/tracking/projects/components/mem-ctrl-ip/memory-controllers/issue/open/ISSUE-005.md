@@ -61,3 +61,18 @@ whose other presets never show it.
 > (policy_mode 0, the flat close-on-drain), where the model shows the fast
 > mode on 2 of 40 phases and the board on 3 of 5 runs. The shipped preset does
 > not enter it; this stays a question about the open-page configuration.
+
+> 2026-11-22, the phase-exact counters became the host default (MC-020
+> decision 1, `char_results/board_mc020_default_phase_exact_sku100_2026-11-22.md`).
+> The modes moved with the counters: the board's `open_page` cell is 280 / 280
+> (slow, two of three runs) or 303 / 594 (fast, one of three); `defaults` 277 /
+> 276 three of three (one mode, as before). The model's preference INVERTED:
+> at its default (`DDR2_GRANITE_SKU100_PX`) it is in the fast mode at both GO
+> phases 0 and 480 on `defaults` (310 / 571) and on `open_page` (308 / 521),
+> where under the margin it never left the slow mode on `defaults` and showed
+> the fast one on 2 of 40 phases on `open_page`. So the shipped preset's mixed
+> cell is now the one where the model is in the wrong mode on every phase
+> tried (+11.8 percent on the union against a 10 tolerance; the compare's
+> three OUT mixed cells). The question this issue asks is unchanged -- which
+> mode the pick core should take, deterministically -- and the model now needs
+> the 40-phase sweep at the new counters before it can price a rule.

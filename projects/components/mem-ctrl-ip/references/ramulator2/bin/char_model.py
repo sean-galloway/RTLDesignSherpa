@@ -51,7 +51,9 @@ tests writes it off the controller's AXI port) instead of one rebuilt here:
 MC-018 added the SKU itself: `granite_sku100` runs the overlay's GraniteSKU
 controller (granite_sku_controller.cpp: the bank-FIFO store, the pick core's
 select, the direction register, the row lane, close-on-drain, one slot per MC
-cycle) on the DDR2_GRANITE_SKU100 preset (the host's MC-cycle timings in CK);
+cycle) on the DDR2_GRANITE_SKU100_PX preset (the host's phase-exact MC-cycle
+timings in CK, the host default since 2026-11-22; DDR2_GRANITE_SKU100 is the
+one-CK-margin set the host derived before, `sku_margin`);
 `_bi` / `_close` are the board's bank_interleave (bank_lsb 2 AND close page, as
 the host preset programs it) / close_page presets on it, and the `sku_*` configs
 each change ONE term. `board-compare` puts the SKU model
@@ -556,12 +558,13 @@ CONFIGS.update({c.name: c for c in [
 
 
 # ---- MC-018: the SKU and its one-term variants -------------------------------
-SKU = ModelConfig("granite_sku100", timing_preset="DDR2_GRANITE_SKU100", controller="GraniteSKU",
+SKU = ModelConfig("granite_sku100", timing_preset="DDR2_GRANITE_SKU100_PX", controller="GraniteSKU",
                   read_buffer=16, write_buffer=16, scheduler="FRFCFS",
                   note="THE SKU: GraniteSKU controller (bank-FIFO store, pick-core select, direction register, "
                        "row lane, the hybrid page policy -- conflict / history-armed drain auto-precharge, idle "
                        "timeout 2 -- one slot per MC cycle) at pool 16, BANK_CAP_MIXED 6, cap 255, hold-idle 8, on "
-                       "the host's MC-cycle timings (DDR2_GRANITE_SKU100): the board's `defaults` preset")
+                       "the host's phase-exact MC-cycle timings (DDR2_GRANITE_SKU100_PX, the default since "
+                       "2026-11-22, MC-020): the board's `defaults` preset")
 
 
 def _sku(tag: str, note: str, **kw) -> ModelConfig:
@@ -625,8 +628,9 @@ CONFIGS.update({c.name: c for c in [
     _sku("lanepre", "the row lane carrying PRE only", lane=1),
     _sku("laneact", "the row lane carrying ACT only", lane=2),
     _sku("laneidle", "the row lane also firing into an idle main slot, live (the alone-firing lane MC-014 cut)", lane_idle=1),
-    _sku("px", "the SKU's counters derived phase-exact (tRC 6, tWR 3, tWTR 3, tRRD 1, tRFC 13: ddr2_timings_mc_cycles phase_exact, MC-020)",
-         timing_preset="DDR2_GRANITE_SKU100_PX"),
+    _sku("margin", "the SKU's counters under the one-CK phase margin the host derived until 2026-11-22 (tRC 7, tWR 4, "
+         "tWTR 4, tRRD 2, tRFC 14: DDR2_GRANITE_SKU100; the board's JEDEC_PHASE_EXACT=0; MC-020)",
+         timing_preset="DDR2_GRANITE_SKU100"),
     _sku("laneidle_reg", "the row lane firing alone one slot after a registered idle main slot, the main's row winner yielding (MC-020)", lane_idle=2),
     _sku("noalt", "no row / column alternation (columns first always)", alternate=False),
     _sku("peek16_pool32", "pool 32 and a 16-deep row-hit peek past a conflicting head", read_buffer=32,
@@ -688,8 +692,9 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
         dram_cls = _mc_granular_class(dram_cls)
     if cfg.ref_burst > 1:
         dram_cls = _ref_burst_class(dram_cls, cfg.ref_burst)
-    # GRANITE_TIMING_PRESET=<name>: run a config on another timing preset (MC-020: the SKU configs on
-    # DDR2_GRANITE_SKU100_PX, the phase-exact counters, against a board run made with JEDEC_PHASE_EXACT=1)
+    # GRANITE_TIMING_PRESET=<name>: run a config on another timing preset (MC-020 priced the phase-exact
+    # counters this way before they became the SKU's; DDR2_GRANITE_SKU100 is the margin set, a board run
+    # made with JEDEC_PHASE_EXACT=0)
     dram = dram_cls(org_preset=cfg.org_preset,
                     timing_preset=os.environ.get("GRANITE_TIMING_PRESET", "") or cfg.timing_preset)
     if cfg.row_policy == "open":

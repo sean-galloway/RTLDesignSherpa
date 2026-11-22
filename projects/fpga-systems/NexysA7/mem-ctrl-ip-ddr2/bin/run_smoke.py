@@ -61,7 +61,15 @@ def main(argv=None) -> int:
     ap.add_argument("--level-cache", default=None,
                     help="path to persist/reuse the leveled read window")
     ap.add_argument("--mem-mb", type=int, default=128,
-                    help="device size for the memtest sequence")
+                    help="device size for the memtest / soak sequences")
+    # soak sequence knobs
+    ap.add_argument("--soak-minutes", type=float, default=30.0,
+                    help="endurance soak wall-clock (seq: soak)")
+    ap.add_argument("--soak-config", default="defaults",
+                    help="pumice_char ControllerConfig the soak runs under, re-applied "
+                         "every round (seq: soak)")
+    ap.add_argument("--soak-csv", default=None,
+                    help="heartbeat CSV path (seq: soak)")
     # char / page_policy sequence knobs
     ap.add_argument("--profile", default="smoke",
                     help="pumice_char run profile (seq: char)")
@@ -133,6 +141,9 @@ def main(argv=None) -> int:
         "leveling": not args.no_leveling,
         "level_cache": args.level_cache,
         "mem_bytes": args.mem_mb << 20,
+        "soak_minutes": args.soak_minutes,
+        "soak_config": args.soak_config,
+        "soak_csv": args.soak_csv,
         "profile": args.profile,
         "txn_scale": args.txn_scale,
         "char_csv": args.char_csv,

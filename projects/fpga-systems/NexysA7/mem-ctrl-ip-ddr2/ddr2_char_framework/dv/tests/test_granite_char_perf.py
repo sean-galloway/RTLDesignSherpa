@@ -956,8 +956,10 @@ async def cocotb_test_granite_perf(dut):
         # configured with above (TEST_T_RDDATA_EN / TEST_RDDATA_DELAY /
         # TEST_T_PHY_WRLAT); a fixed 4/0/0 here with another tuple on the
         # controller is the pumice BUG-014 shape one layer up.
-        # TEST_PHASE_EXACT=1: the phase-exact derivation (memory-controllers MC-020) -- the DFI phases the
-        # controller was just programmed with replace the worst-phase margin on every hop
+        # The phase-exact derivation (memory-controllers MC-020): the DFI phases the controller was just
+        # programmed with replace the worst-phase margin on every hop. The default since 2026-11-22, as on
+        # the board (ddr2_char.jedec_timings_for); TEST_PHASE_EXACT=0 is the margin the records before
+        # that date ran under.
         out["timings"] = drv.set_jedec_timings(
             float(FPGA_CLK_HZ),
             t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
@@ -966,8 +968,8 @@ async def cocotb_test_granite_perf(dut):
             rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
             wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
             row_phase=(1 if dual else 0),
-            phase_exact=os.environ.get("TEST_PHASE_EXACT", "0") == "1")
-        out["phase_exact"] = int(os.environ.get("TEST_PHASE_EXACT", "0") == "1")
+            phase_exact=os.environ.get("TEST_PHASE_EXACT", "1") != "0")
+        out["phase_exact"] = int(os.environ.get("TEST_PHASE_EXACT", "1") != "0")
         drv.set_refresh_interval(t_refi)
         for fam_key in fam_names:
             out["families"][fam_key] = measure_family(fam_key)

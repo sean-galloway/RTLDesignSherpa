@@ -5,7 +5,7 @@ summary: Cross-controller task lane for the mem-ctrl-ip family (pumice DDR2/LPDD
 
 # memory-controllers — task rollup
 
-**Each lane carries its own Next ID** (task `MC-022`, bug `BUG-005`, issue `ISSUE-007`) — never recycle a number, even when its item closed.
+**Each lane carries its own Next ID** (task `MC-022`, bug `BUG-005`, issue `ISSUE-008`) — never recycle a number, even when its item closed.
 
 **Every item is its own file**, `<ID>.md`, filed under the directory for its
 state (`open/`, `active/`, `closed/`, `dropped/`). Moving an item between
@@ -17,7 +17,7 @@ states is `git mv`, so an item is in exactly one state by construction.
 |---|---|---|
 | [task/](task/INDEX.md) | planned work we decided to do | `MC-022` |
 | [bug/](bug/INDEX.md) | defects in the shared `common-ip` RTL, more than one controller | `BUG-005` |
-| [issue/](issue/INDEX.md) | undiagnosed problems spanning controllers | `ISSUE-007` |
+| [issue/](issue/INDEX.md) | undiagnosed problems spanning controllers | `ISSUE-008` |
 
 Open on 2026-11-07: ISSUE-001 (the microarchitecture is ASIC-shaped for the
 FPGA target; ranked rework list in its report, 14 of 16 rows still open).

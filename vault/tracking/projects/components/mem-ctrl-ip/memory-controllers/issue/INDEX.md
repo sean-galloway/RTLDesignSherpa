@@ -2,7 +2,7 @@
 
 # memory-controllers — issues
 
-**Next ID: ISSUE-007** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-008** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed, spanning more than one
 controller (the shared `common-ip` RTL, or pumice and granite together). It
@@ -15,7 +15,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 2 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -27,6 +27,14 @@ exactly one state by construction rather than by discipline.
   register's 255 / 255 cap alternation (272 / 272) where the fast mode, taken
   on the refresh phase at GO, runs 311 / 522; whether the pick core should
   take the fast mode deterministically. Filed 2026-11-19 from MC-021 step 8.
+  2026-11-22, at the phase-exact counters: the model's preference inverted
+  (fast at both GO phases on `defaults` and `open_page`) where the board stays
+  slow (three of three, two of three).
+- **ISSUE-007** -- the `bank_interleave` row-hit cells at the phase-exact
+  counters sit at the 583 MB/s ceiling with a per-pass draw a step below it
+  (566 on five to seven of eighteen cells, ~520 on one, the cells differing
+  run to run; single-direction passes, so not the direction register); the
+  model is 585 flat. Filed 2026-11-22 from MC-020 decision 1.
 
 ## Closed
 

@@ -21,7 +21,10 @@
   (bl4 / 8 / 16) and the two-bank interleave +4 .. +6 in the model, nothing
   elsewhere; MC-014 cut the alone-firing lane for the 100 MHz cone, so the
   task is a form that does not re-enter it, priced in the model first.
-  Filed 2026-11-17 from MC-018.
+  Filed 2026-11-17 from MC-018. Step 1 (2026-11-21): both forms 0.0; the
+  tax was the host JEDEC derivation's one-CK phase margin. Decision 1
+  (2026-11-22): the phase-exact derivation is the host default after a
+  60-minute soak; the board re-baselined. Open: the `t_rp_ap` RTL step.
   ACTIVE 2026-11-21, step 1 landed: the slot forms price at 0.0; the tax was the
   host derivation's one-CK phase margin; phase-exact counters board-validated
   (col_major writes +10 / +7 / +4.5, close-page presets +35 .. +50, 0 mismatched

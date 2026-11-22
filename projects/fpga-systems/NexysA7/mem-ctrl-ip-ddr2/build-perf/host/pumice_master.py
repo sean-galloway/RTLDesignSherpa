@@ -35,7 +35,7 @@ import os
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 # The driver lives alongside this file.
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
@@ -290,8 +290,11 @@ class A7Leveling:
         self.rden = t_rddata_en
         # dfi_rddata->rddata_valid realign: the pair's delay (see above)
         self.rddly, self.rddly_pinned = resolve_read_path(drv, t_rddata_en, rddata_delay)
-        self.jedec = jedec_for_read_path(drv, t_phy_wrlat=self.wrlat,
-                                         t_rddata_en=self.rden, rddata_delay=self.rddly)
+        # The JEDEC set is derived in _reinit, AFTER soft_reset + program_geometry,
+        # from the DFI phases the device is then programmed with -- see
+        # SimpleTest._derive_jedec for why not here.
+        self.jedec: Optional[Dict[str, int]] = None
+        self._jedec_derived = False
         # RD command sub-phase. 0 on this board: the a7ddrphy applies its own
         # rdphase=1 internally (poking rdphase=1 here reads nothing back).
         self.rdphase = rd_phase
@@ -327,8 +330,10 @@ class A7Leveling:
         # soft_reset above reverted the pumice CSRs to their RTL resets, which
         # are the 1:4 / BL8 values and do NOT match this DFI_RATE=2 / BL4 build.
         program_geometry(self.drv, rd_phase=self.rdphase, wr_phase=0)
-        # The JEDEC timings likewise (jedec_for_read_path): derived once for
-        # the bitstream's clock, written after every reset.
+        # The JEDEC timings likewise (jedec_for_read_path): derived once, here,
+        # from the phases just programmed; written after every reset.
+        if not self._jedec_derived:
+            self._derive_jedec()
         if self.jedec:
             self.drv.pumice.set_jedec_timings(self.jedec)
         # A prior failing read leaves a STICKY rd_error/any_error latch that
@@ -370,8 +375,15 @@ class A7Leveling:
         if rddly == self.rddly:
             return
         self.rddly = rddly
+        self._jedec_derived = False       # the next _reinit derives for the new pair
+
+    def _derive_jedec(self) -> None:
+        """Derive the JEDEC set for the current pair from the device as
+        programmed (after soft_reset + program_geometry); see
+        SimpleTest._derive_jedec."""
         self.jedec = jedec_for_read_path(self.drv, t_phy_wrlat=self.wrlat,
-                                         t_rddata_en=self.rden, rddata_delay=rddly)
+                                         t_rddata_en=self.rden, rddata_delay=self.rddly)
+        self._jedec_derived = True
 
     def _scan_taps(self):
         """At the current bitslip, sweep the 32 IDELAY taps; return passing taps."""
@@ -601,10 +613,11 @@ class SimpleTest:
         self.t_rddata_en = t_rddata_en
         self.rddata_delay, _pinned = resolve_read_path(drv, t_rddata_en, rddata_delay)
         # JEDEC timings for the bitstream's clock and this pair; None = no
-        # clock register (the sim), the RTL resets stay. Re-programmed after
-        # every soft_reset (init, reinit_datapath).
-        self.jedec = jedec_for_read_path(drv, t_phy_wrlat=t_phy_wrlat,
-                                         t_rddata_en=t_rddata_en, rddata_delay=self.rddata_delay)
+        # clock register (the sim), the RTL resets stay. Derived in init(),
+        # after the reset and the geometry (_derive_jedec), and re-programmed
+        # after every soft_reset (init, reinit_datapath).
+        self.jedec: Optional[Dict[str, int]] = None
+        self._jedec_derived = False
         self.rd_phase = rd_phase
         # Optional path to persist / reuse the leveled read window (skips the
         # ~256-iteration sweep on later runs; re-levels + re-saves if the saved
@@ -612,9 +625,29 @@ class SimpleTest:
         self.level_cache = level_cache
         self.level: Optional[LevelingResult] = None
 
+    def _derive_jedec(self) -> None:
+        """Derive the JEDEC set for the pair from the device AS PROGRAMMED.
+
+        Called after soft_reset + program_geometry, never at construction: the
+        derivation reads the DFI phases back (jedec_timings_for), and before
+        the reset the register holds whatever the previous session left --
+        a char run's row_phase 1 against the smoke's reset-state 0. Under the
+        phase margin the phases moved nothing but tRTP, so a set derived from
+        the stale state was still legal; the phase-exact derivation
+        (memory-controllers MC-020) counts every hop from them, and a tWR
+        derived for row_phase 1 (3 MC) run at row_phase 0 is one CK short.
+        The 2026-11-21 board smoke derived at construction and ran tWR 4 for
+        a row_phase it read as 0, the right value for the state it ran in --
+        by the accident of a fresh program, not by construction."""
+        self.jedec = jedec_for_read_path(self.drv, t_phy_wrlat=self.t_phy_wrlat,
+                                         t_rddata_en=self.t_rddata_en,
+                                         rddata_delay=self.rddata_delay)
+        self._jedec_derived = True
+
     def reinit_datapath(self) -> None:
         """soft_reset + re-apply the controller cfg (PHY taps persist) --
-        per-round cleanup for soaks without re-leveling."""
+        per-round cleanup for soaks without re-leveling. The geometry is
+        restored inside drv.soft_reset."""
         d = self.drv
         d.soft_reset()
         time.sleep(0.005)
@@ -622,6 +655,8 @@ class SimpleTest:
                              t_phy_wrlat=self.t_phy_wrlat,
                              t_rddata_en=self.t_rddata_en, rd_in_order=True)
         d.set_dfi_rddata_delay(self.rddata_delay)
+        if not self._jedec_derived:
+            self._derive_jedec()
         if self.jedec:
             d.pumice.set_jedec_timings(self.jedec)
         d.clear_stats()
@@ -639,6 +674,8 @@ class SimpleTest:
         # (1:4 / BL8 / MR0=0x0433) do not match this DFI_RATE=2 / BL4 build, so
         # they are always programmed explicitly rather than rmw-preserved.
         program_geometry(d, rd_phase=self.rd_phase, wr_phase=0)
+        if not self._jedec_derived:
+            self._derive_jedec()
         if self.jedec:
             d.pumice.set_jedec_timings(self.jedec)
         # pumice BUG-033 A/B: TEST_FAST_RD_EARLY=1 sets SCHED_POLICY.fast_rd_release
@@ -663,9 +700,7 @@ class SimpleTest:
             lv_rddly = self.level.rddata_delay
             if lv_rddly is not None and lv_rddly != self.rddata_delay:
                 self.rddata_delay = int(lv_rddly)
-                self.jedec = jedec_for_read_path(d, t_phy_wrlat=self.t_phy_wrlat,
-                                                 t_rddata_en=self.t_rddata_en,
-                                                 rddata_delay=self.rddata_delay)
+                self._derive_jedec()          # the device is programmed (the sweep's last _reinit)
 
     def run(self, burst_len: int = 8, txn_count: int = 64) -> SimpleResult:
         d = self.drv
@@ -792,9 +827,16 @@ def memtest(drv: DDR2CharDriver, st: "SimpleTest",
 def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
               saved: "LevelingResult", minutes: float,
               mem_bytes: int = 128 << 20, csv_path: Optional[str] = None,
-              concurrent_every: int = 10, eye_every_s: float = 300.0) -> bool:
+              concurrent_every: int = 10, eye_every_s: float = 300.0,
+              reapply: Optional[Callable[[], None]] = None) -> bool:
     """Endurance soak: rotating-window rounds + periodic concurrent wr/rd +
     periodic eye re-verify, for `minutes` wall-clock. CSV heartbeat.
+
+    `reapply`, when given, runs after EVERY st.reinit_datapath(): the reset
+    reverts the controller to its RTL state (row lane off, row_phase 0, the
+    paging resets), so a soak meant to run the SKU as the char measures it
+    (a `ControllerConfig.apply`) must be re-programmed each round, or it
+    soaks the power-on state and calls it the SKU (the `soak` sequence).
 
     ONE GLOBAL SEED, WHOLE DEVICE INITIALIZED FIRST. With concurrent cycles
     the memory must be initialized: every write (re)writes f(addr, SEED) and
@@ -839,7 +881,12 @@ def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
     # Initialize the WHOLE device to f(addr, GLOBAL_SEED) (chunked write-all,
     # same as memtest) so every subsequent read — sequential, concurrent, or
     # any controller-internal path — has a defined expectation.
-    st.reinit_datapath()
+    def reinit() -> None:
+        st.reinit_datapath()
+        if reapply is not None:
+            reapply()
+
+    reinit()
     stride0 = blen * 8
     n_chunks = mem_bytes // window
     for ci in range(n_chunks):
@@ -862,7 +909,7 @@ def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
         rnd += 1
         seed = GLOBAL_SEED                            # unconditional expectation
         base = (rnd * window * 7) % (half - window)   # rotate across lower half
-        st.reinit_datapath()
+        reinit()
 
         if concurrent_every and rnd % concurrent_every == 0:
             # CONCURRENT: write A while reading back region B
@@ -895,7 +942,7 @@ def long_soak(drv: DDR2CharDriver, st: "SimpleTest", lv: "A7Leveling",
 
         if time.monotonic() >= next_eye:
             next_eye = time.monotonic() + eye_every_s
-            st.reinit_datapath()
+            reinit()
             lv.apply_taps(saved.bitslip, saved.rd_tap)
             r = _one_pass(drv, 0x0, 8, 64, GLOBAL_SEED)
             if not r["ok"]:

@@ -24,6 +24,12 @@ def _load(name, path):
 
 cm = _load("char_model", os.path.join(HERE, "..", "bin", "char_model.py"))
 
+# The counters the board ran under before 2026-11-22 (the one-CK phase margin, DDR2_GRANITE_SKU100). The SKU's
+# default is the phase-exact set since then (MC-020); a test that reproduces a board or proxy number recorded
+# before that date pins the preset the number was made at.
+MARGIN = "DDR2_GRANITE_SKU100"
+
+
 
 @pytest.fixture(scope="module")
 def pumice_char():
@@ -238,7 +244,9 @@ def test_px_preset_is_the_phase_exact_host_derivation(pumice_char):
 
 def test_sku_config_is_the_shipped_point():
     c = cm.CONFIGS["granite_sku100"]
-    assert (c.controller, c.timing_preset) == ("GraniteSKU", "DDR2_GRANITE_SKU100")
+    # MC-020: the phase-exact counters, the host's default since 2026-11-22 (the margin set is `sku_margin`)
+    assert (c.controller, c.timing_preset) == ("GraniteSKU", "DDR2_GRANITE_SKU100_PX")
+    assert cm.CONFIGS["sku_margin"].timing_preset == "DDR2_GRANITE_SKU100"
     assert (c.read_buffer, c.write_buffer, c.bank_cap_mixed, c.dir_batch_max, c.dir_hold_idle) == (16, 16, 6, 255, 8)
     assert c.dir_owns_rows and c.lane == 3 and c.close_on_drain and c.slot_ticks == 2 and not c.page_close
     # ISSUE-006: the page policy is the board's `defaults` -- the hybrid (mode 4) with the RDL's idle timeout 2
@@ -284,13 +292,16 @@ def test_hit_lag_is_the_record_path_not_the_live_row_image():
     not at ACT + 3; under the four-bank close-page interleave that costs the bank its tRC slot (the proxy's 2.17
     cycles per beat against the 2.0 floor the live-read model settled into). The term is on by default. It binds
     only where a hold discards the hint, which the step-4 RTL change (ap_fire_stale) removes on this cell, so the
-    test runs the RTL the lag was measured on (ap_fire_stale off)."""
+    test runs the RTL the lag was measured on (ap_fire_stale off) and the counters the board ran then (the margin
+    set; at the phase-exact counters the bl4 read side is 520 with either lag -- tRC 6 leaves no slot for the hold to
+    cost)."""
     import tempfile
     from dataclasses import replace
     sc = replace([s for s in cm.SUITES["all"] if s.name == "col_major_bl4"][0], txn_count=4096)
     bw = {}
     for hl in (1, 2):
-        cfg = replace(cm.CONFIGS["granite_sku100_bi"], name=f"hl{hl}", hit_lag=hl, ap_fire_stale=False)
+        cfg = replace(cm.CONFIGS["granite_sku100_bi"], name=f"hl{hl}", hit_lag=hl, ap_fire_stale=False,
+                      timing_preset=MARGIN)
         with tempfile.TemporaryDirectory() as t:
             r = cm.run_scenario(cfg, sc, t)
         bw[hl] = (float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"]))
@@ -334,13 +345,14 @@ def test_admission_gates_decide_the_mixed_close_page_turns():
     instead -- its write turn's first ACT came one slot late, the reads took the bus back -- because its one
     three-slot admission stage was the pool path's; the bank-cap path is one slot shorter (a pop shows in the
     count the cap reads one slot later, the beat lands one slot after acceptance). With the gates the model's
-    windows are the proxy's within a percent; with the old single stage the read window is 0.55 of the write one."""
+    windows are the proxy's within a percent; with the old single stage the read window is 0.55 of the write one.
+    The proxy's windows were measured at the margin counters, so the test runs them."""
     import tempfile
     from dataclasses import replace
     sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=512)
     res = {}
     for name, kw in (("gates", {}), ("admit3", dict(admit_lag=3, pool_gate_lag=0, cap_gate_lag=0))):
-        cfg = replace(cm.CONFIGS["granite_sku100_close"], name=name, **kw)
+        cfg = replace(cm.CONFIGS["granite_sku100_close"], name=name, timing_preset=MARGIN, **kw)
         with tempfile.TemporaryDirectory() as t:
             r = cm.run_scenario(cfg, sc, t)
         res[name] = (int(r["wr_cycles"]), int(r["rd_cycles"]))
@@ -454,8 +466,9 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
     from dataclasses import replace
     sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=512)
     # the bimodal board cell is the open_page preset's (policy_mode 0, the flat close-on-drain): granite_sku100_open
-    # since ISSUE-006; the board's `defaults` (the hybrid, granite_sku100) showed the slow mode on five of five runs
-    base = cm.CONFIGS["granite_sku100_open"]
+    # since ISSUE-006; the board's `defaults` (the hybrid, granite_sku100) showed the slow mode on five of five runs.
+    # The modes' numbers (272 / 522 on the board) are the margin counters', so the test runs them.
+    base = replace(cm.CONFIGS["granite_sku100_open"], timing_preset=MARGIN)
     rd = {}
     try:
         for lag in (2, 0):
@@ -466,7 +479,8 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
                 rd[(lag, off)] = float(r["rd_bw_mb_s"])
         os.environ["GRANITE_GO_OFFSET"] = "480"
         with tempfile.TemporaryDirectory() as t:
-            hyb = float(cm.run_scenario(cm.CONFIGS["granite_sku100"], sc, t)["rd_bw_mb_s"])
+            hyb = float(cm.run_scenario(replace(cm.CONFIGS["granite_sku100"], name="hyb_margin",
+                                                timing_preset=MARGIN), sc, t)["rd_bw_mb_s"])
     finally:
         os.environ.pop("GRANITE_GO_OFFSET", None)
     assert cm.CONFIGS["granite_sku100"].close_lag == 2

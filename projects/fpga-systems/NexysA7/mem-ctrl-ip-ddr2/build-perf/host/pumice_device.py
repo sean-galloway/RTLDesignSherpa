@@ -92,7 +92,13 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     margin on every ns-derived minimum (tRTP had it already); any phase unknown
     keeps the margin. At 100 MHz, phases 0 / 0 / 1: tRC 7 -> 6, tWR 4 -> 3,
     tWTR 4 -> 3, tRRD 2 -> 1, tRFC 14 -> 13, the rest unchanged. The SKU model
-    priced it (sku_px): col_major writes +5 .. +10 percent, nothing moves down."""
+    priced it: col_major writes +5 .. +10 percent, nothing moves down; the board
+    gave +10 / +7 / +5 on those cells and +35 .. +50 on the close-page presets.
+    The host's default since 2026-11-22 (ddr2_char.jedec_timings_for sets it;
+    JEDEC_PHASE_EXACT=0 keeps the margin, the model's `sku_margin`). This
+    function's own default stays False: it is the pure derivation, and a caller
+    that does not say which phases it programmed gets the set that is legal
+    on any."""
     period_ns = 1e9 / float(mc_clk_hz)
     # PHASE MARGIN. A JEDEC delay is a CK-granular constraint, but these
     # counters are MC-cycle granular and a command may sit on ANY of the
