@@ -54,8 +54,12 @@ the unit with `onyx_monlite` (house MonBus packets from the unit's event
 taps, an observer that reports what it drops) and `onyx_counters` (six
 exact counts: transactions, lines supplied, memory reads, reads wasted,
 absorptions, write-backs), held to the pair-rig TB's model in sim and read
-on the reference rig through the tally chain and the harness CSR. Not yet
-built: the ACE-Lite IO port (D1), an `ARSNOOP` front end. Tracker:
+on the reference rig through the tally chain and the harness CSR. The
+observer carries the ocelus layers of masks (observer, packet type, event
+class, error code, port; `ONYX_MON_CTRL` / `ONYX_MON_MASK` on the rig,
+reset to the rare class only), because the house MonBus is a low-bandwidth
+event channel and the integrator picks what to transmit (onyx ISSUE-001).
+Not yet built: the ACE-Lite IO port (D1), an `ARSNOOP` front end. Tracker:
 [`vault/tracking/projects/components/cache-ip/onyx-ace-ccu/`](../../../../vault/tracking/projects/components/cache-ip/onyx-ace-ccu/INDEX.md);
 architecture: [docs/onyx_has](docs/onyx_has/onyx_has_index.md).
 

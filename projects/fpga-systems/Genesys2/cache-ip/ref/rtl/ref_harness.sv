@@ -438,6 +438,12 @@ module ref_harness
     logic [31:0] hcsr_ctrl, hcsr_status;
     logic [63:0] r_cycle_ctr;
     logic [31:0] onyx_cnt [6];   // the onyx counters (zero outside SEL 4 / 5)
+    logic [31:0] onyx_mon_ctrl;  // the onyx observer's masks (CSR 0x038 / 0x03C; onyx_monlite's ocelus layers)
+    logic [31:0] onyx_mon_mask;
+    /* verilator lint_off UNUSEDSIGNAL */
+    logic unused_onyx_mon_cfg;   // the selections without onyx, and the bits the two-port build leaves
+    assign unused_onyx_mon_cfg = &{1'b0, onyx_mon_ctrl, onyx_mon_mask};
+    /* verilator lint_on UNUSEDSIGNAL */
 
     // Aggregate cycle-injector status
     `JET_DBG_NET logic ci0_done, ci0_busy, ci0_err;
@@ -485,7 +491,9 @@ module ref_harness
         .i_cycle_lo    (r_cycle_ctr[31:0]),
         .i_cycle_hi    (r_cycle_ctr[63:32]),
         .i_fabric_dbg  (fabric_dbg_state),
-        .i_onyx_cnt    (onyx_cnt)
+        .i_onyx_cnt    (onyx_cnt),
+        .o_onyx_mon_ctrl (onyx_mon_ctrl),
+        .o_onyx_mon_mask (onyx_mon_mask)
     );
 
     // ------------------------------------------------------------------
@@ -1501,6 +1509,17 @@ module ref_harness
             .mon_packet       (onyx_mon_packet),
             .mon_timestamp    (onyx_mon_timestamp),
             .mon_dropped      (),
+            // the observer's masks from the harness CSR: ONYX_MON_CTRL [0]
+            // enable, [1] error enable, [2] perf enable, [5:4] port mask,
+            // [31:16] perf (event class) mask; ONYX_MON_MASK [15:0] packet
+            // type mask, [31:16] error (event code) mask
+            .mon_cfg_enable       (onyx_mon_ctrl[0]),
+            .mon_cfg_error_enable (onyx_mon_ctrl[1]),
+            .mon_cfg_perf_enable  (onyx_mon_ctrl[2]),
+            .mon_cfg_port_mask    (onyx_mon_ctrl[5:4]),
+            .mon_cfg_perf_mask    (onyx_mon_ctrl[31:16]),
+            .mon_cfg_pkt_mask     (onyx_mon_mask[15:0]),
+            .mon_cfg_error_mask   (onyx_mon_mask[31:16]),
             .cnt_clear        (hcsr_ctrl[0]),
             .cnt_freeze       (hcsr_ctrl[1]),
             .cnt_txn          (onyx_cnt[0]),
@@ -1982,7 +2001,9 @@ module ref_harness_csr (
     input  logic [31:0] i_cycle_lo,
     input  logic [31:0] i_cycle_hi,
     input  logic [3:0]  i_fabric_dbg,
-    input  logic [31:0] i_onyx_cnt [6]   // onyx TASK-001: txn, supplied, mem_read, read_wasted, absorb, wb
+    input  logic [31:0] i_onyx_cnt [6],  // onyx TASK-001: txn, supplied, mem_read, read_wasted, absorb, wb
+    output logic [31:0] o_onyx_mon_ctrl,  // 0x038: the onyx observer's enables, port mask and class mask
+    output logic [31:0] o_onyx_mon_mask   // 0x03C: its packet-type mask and error-code mask
 );
 
     localparam logic [3:0] HCSR_CTRL       = 4'h0;
@@ -1991,9 +2012,21 @@ module ref_harness_csr (
     localparam logic [3:0] HCSR_CYCLE_HI   = 4'h3;
     localparam logic [3:0] HCSR_FABRIC_DBG = 4'h4;
     localparam logic [3:0] HCSR_ONYX_CNT0  = 4'h8;   // 0x020 .. 0x034: the six onyx counters
+    // 0x038 / 0x03C: the onyx observer's masks, the ocelus layers (enables
+    // 1 = on, masks bit set = drop).  Reset: observer, error and perf
+    // enabled, no port masked, the per-transaction classes (TXN_START,
+    // GATHER_DONE, MEM_READ, READ_WASTED, ABSORB, WRITEBACK) masked and
+    // LOCK_WAIT open -- the MonBus is a low-bandwidth event channel and the
+    // host opens the classes it wants to transmit.
+    localparam logic [3:0] HCSR_ONYX_MON_CTRL = 4'hE;
+    localparam logic [3:0] HCSR_ONYX_MON_MASK = 4'hF;
+    localparam logic [31:0] ONYX_MON_CTRL_RESET = 32'h007D_0007;
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
+    logic [31:0] r_onyx_mon_ctrl, r_onyx_mon_mask;
+    assign o_onyx_mon_ctrl = r_onyx_mon_ctrl;
+    assign o_onyx_mon_mask = r_onyx_mon_mask;
 
     // Write path: accept AW and W independently per AXI4-Lite spec.
     logic        r_bvalid;
@@ -2014,6 +2047,8 @@ module ref_harness_csr (
             r_aw_done <= 1'b0;
             r_w_done  <= 1'b0;
             r_ctrl    <= '0;
+            r_onyx_mon_ctrl <= ONYX_MON_CTRL_RESET;
+            r_onyx_mon_mask <= '0;
         end else begin
             // CTRL[0] (tally_clear) is write-1-pulse: a write with bit 0 set
             // raises o_ctrl[0] for exactly one cycle, then it self-clears.
@@ -2034,6 +2069,12 @@ module ref_harness_csr (
                 for (int b = 0; b < 4; b++) begin
                     if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_CTRL)) begin
                         r_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
+                    end
+                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_CTRL)) begin
+                        r_onyx_mon_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
+                    end
+                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_MASK)) begin
+                        r_onyx_mon_mask[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
                 end
             end else if (s_axil_bvalid && s_axil_bready) begin
@@ -2060,6 +2101,8 @@ module ref_harness_csr (
             HCSR_FABRIC_DBG: r_rdata = {28'b0, i_fabric_dbg};
             4'h8, 4'h9, 4'hA, 4'hB, 4'hC, 4'hD:
                              r_rdata = i_onyx_cnt[3'(r_araddr[5:2] - HCSR_ONYX_CNT0)];
+            HCSR_ONYX_MON_CTRL: r_rdata = r_onyx_mon_ctrl;
+            HCSR_ONYX_MON_MASK: r_rdata = r_onyx_mon_mask;
             default:         r_rdata = 32'hDEAD_BEEF;
         endcase
     end

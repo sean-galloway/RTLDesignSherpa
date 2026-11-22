@@ -1,7 +1,7 @@
 # ISSUE-001: onyx's observer puts per-transaction classes on the low-bandwidth MonBus with no class knob; on the board the tally bins are lower bounds
 
 **Priority:** P3
-**Status:** open
+**Status:** closed 2026-11-22 (onyx TASK-001 step 6c)
 **Owner:** TBD
 **Filed:** 2026-11-22 (onyx TASK-001 step 6b)
 
@@ -75,3 +75,20 @@ lands in TASK-001 or waits for the D1 work.
 (c) Open, monitor area, not onyx's: the drop-and-count idiom's report
 (wider saturating payload, or a periodic report under sustained loss) is
 shared with the caches' observers and belongs with the monitors if taken.
+
+## Resolution (2026-11-22)
+
+(a) and (b) done the same day, in onyx TASK-001 step 6c. The handbook
+note records the rule; `onyx_monlite` carries the ocelus mask layers
+(observer, packet type, event class, error code, port), dropped at the
+source, reset on the reference rig to the rare class only
+(`ONYX_MON_CTRL` 0x038 / `ONYX_MON_MASK` 0x03C, reset `0x007D0007`), and
+the sweep opens classes by name (`--onyx-mon-classes`). On the board,
+MEM_READ alone equals its counter in 39 of 55 dual cells and in every
+cell at depth 1 and 2 (`r64k_we64` depth 1: 20,240 = 20,240 where the
+all-open bin read 12,603); the 16 short cells are the thrash cells at
+depth 4 to 16, where the channel is still shared with the two caches'
+unmasked observers, each with a drop report; the masked classes' bins are
+zero in all 55. (c), the drop-report idiom, stays with the monitor area and
+is not reopened here: with the layers set, the report is what it was
+designed to be, a rare event.

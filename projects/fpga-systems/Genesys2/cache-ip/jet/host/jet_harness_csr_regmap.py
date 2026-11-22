@@ -143,4 +143,38 @@ top_block = {
         'type': 'reg',
         'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
     },
+    'ONYX_MON_CTRL': {
+        # onyx's observer, the ocelus mask layers (reference rig REF_CACHE_SEL
+        # 4/5; the CSR exists in every selection). Enables are 1 = on, masks
+        # bit set = drop. perf_mask bit = event code[3:0]: 0 TXN_START, 2
+        # GATHER_DONE, 3 MEM_READ, 4 READ_WASTED, 5 ABSORB, 6 WRITEBACK, 7
+        # LOCK_WAIT. Reset 0x007D0007: everything enabled, the six
+        # per-transaction classes masked, LOCK_WAIT open -- the MonBus is a
+        # low-bandwidth event channel; the host opens what it wants to see.
+        'address': '0x038',
+        'default': '0x007D0007',
+        'name': 'ONYX_MON_CTRL',
+        'offset': '0x038',
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'mon_enable': {'default': '0x1', 'offset': '0', 'sw': 'rw', 'type': 'field'},
+        'error_enable': {'default': '0x1', 'offset': '1', 'sw': 'rw', 'type': 'field'},
+        'perf_enable': {'default': '0x1', 'offset': '2', 'sw': 'rw', 'type': 'field'},
+        'port_mask': {'default': '0x0', 'offset': '7:4', 'sw': 'rw', 'type': 'field'},
+        'perf_mask': {'default': '0x007D', 'offset': '31:16', 'sw': 'rw', 'type': 'field'},
+    },
+    'ONYX_MON_MASK': {
+        # pkt_mask bit = packet type (4 Perf, 0 Error); error_mask bit = error
+        # code[3:0] (9 = the drop report). Reset 0: nothing masked here.
+        'address': '0x03C',
+        'default': '0x00000000',
+        'name': 'ONYX_MON_MASK',
+        'offset': '0x03C',
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'pkt_mask': {'default': '0x0000', 'offset': '15:0', 'sw': 'rw', 'type': 'field'},
+        'error_mask': {'default': '0x0000', 'offset': '31:16', 'sw': 'rw', 'type': 'field'},
+    },
 }

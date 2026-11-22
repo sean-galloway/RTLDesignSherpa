@@ -193,6 +193,15 @@ module onyx_top
     output monitor_packet_t             mon_packet,
     output monbus_timestamp_t           mon_timestamp,
     output logic [7:0]                  mon_dropped,
+    // the observer's masks, the ocelus layers (enables 1 = on; masks bit
+    // set = drop; see onyx_monlite)
+    input  logic                        mon_cfg_enable,
+    input  logic                        mon_cfg_perf_enable,
+    input  logic                        mon_cfg_error_enable,
+    input  logic [15:0]                 mon_cfg_pkt_mask,
+    input  logic [15:0]                 mon_cfg_perf_mask,
+    input  logic [15:0]                 mon_cfg_error_mask,
+    input  logic [N_PORTS-1:0]          mon_cfg_port_mask,
 
     // exact event counters (onyx_counters): cleared and frozen with the
     // rig's tally so one host protocol snapshots both
@@ -273,6 +282,10 @@ module onyx_top
         .evt_absorb_i(evt_absorb), .evt_absorb_slot_i('0),
         .evt_wb_i(evt_wb), .evt_wb_port_i('0),
         .evt_lock_wait_i(evt_lock_wait),
+        .cfg_mon_enable(mon_cfg_enable), .cfg_perf_enable(mon_cfg_perf_enable),
+        .cfg_error_enable(mon_cfg_error_enable), .cfg_pkt_mask(mon_cfg_pkt_mask),
+        .cfg_perf_mask(mon_cfg_perf_mask), .cfg_error_mask(mon_cfg_error_mask),
+        .cfg_port_mask(mon_cfg_port_mask),
         .i_mon_time(i_mon_time),
         .monbus_valid(mon_valid), .monbus_ready(mon_ready),
         .monbus_packet(mon_packet), .monbus_timestamp(mon_timestamp),

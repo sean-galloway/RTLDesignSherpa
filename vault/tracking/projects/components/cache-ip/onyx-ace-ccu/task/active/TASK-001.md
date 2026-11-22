@@ -361,3 +361,59 @@ Found and measured:
   README, `ref_compare.py` counter table, comparison report. Results
   `perf_sweep_onyx_bin2_{single,dual}_20261122T1509/1510*` and
   `perf_sweep_onyxd_bin2_{single,dual}_20261122T1513/1515*`.
+- 2026-11-22 **Step 6c, the observer's mask layers (onyx ISSUE-001):** the
+  owner's ruling that ocelus is for low-bandwidth events and its knobs
+  flood the MonBus trivially (handbook
+  `monbus-is-a-low-bandwidth-channel`) made the v1 observer's lack of a
+  knob the defect, not the channel. `onyx_monlite` now carries the ocelus
+  layers, STREAM's shape: `cfg_mon_enable`; `cfg_perf_enable` /
+  `cfg_error_enable` / `cfg_pkt_mask[type]`; `cfg_perf_mask[code[3:0]]`
+  (one bit per class, the group core's `cfg_core_perf_mask` indexing);
+  `cfg_error_mask[code[3:0]]` (the drop report); `cfg_port_mask[p]` (the
+  events attributed to a port). A masked event is dropped at the source:
+  no holder, nothing counted lost. `onyx_top` carries them as `mon_cfg_*`;
+  the reference harness as two CSRs, `ONYX_MON_CTRL` 0x038 and
+  `ONYX_MON_MASK` 0x03C, reset `0x007D0007` (everything enabled, the six
+  per-transaction classes masked, LOCK_WAIT open); regmap entries; the
+  sweep's `--onyx-mon-classes` / `--onyx-port-mask`; the pair-rig TB
+  drives the layers from the cell's env and holds a masked class to zero,
+  a masked port to zero attributed packets, the disabled observer to
+  silence with nothing lost. **Sim:** four mask cells on the gate (only
+  MEM_READ: 65 packets = the counter, 0 lost; the reset mask: 17 LOCK_WAIT
+  packets; port 0 masked: 170 packets, port 0 never seen, 0 lost; disabled:
+  silent); onyx gate 9/9, func 14/14, full 48/48 from clean; ref gate 9/9
+  from clean with a masked burst on SEL 4 and 5 (TXN_START + MEM_READ open:
+  each bin equals its counter or the observer reported the loss, masked
+  bins zero) and the CSR reset checked in every selection; the SEL 5 burst
+  on the warm shared set issues zero memory reads, which is D6 itself.
+  Lint clean (onyx_top, pair rig, ref harness SEL 0/3/4/5). **Board, SEL 4
+  (bin 3):** 27,668 LUT / 25,090 FF, WNS -0.001 ns on the same jet-prime
+  fill path bin 2 met at +0.001 (placement noise under the 0.2 ns
+  uncertainty budget). Program, init + smoke PASS. Dual sweep with every
+  class open: all 55 cells cycle-identical to bin 2, supplied and wasted
+  identical in all 55 (six early depth-1 cells differ in transactions and
+  write-backs from the dirty state the preceding run left: this sweep
+  followed the smoke, bin 2's followed a single-injector sweep). Dual sweep
+  with MEM_READ alone: the bin equals the counter in 39 of 55 cells, every
+  cell at depth 1 and 2 among them (`r64k_we64` depth 1: 20,240 = 20,240,
+  where the all-open bin read 12,603); the 16 short cells are the 64k /
+  128k thrash cells at depth 4 to 16, where the channel is still shared
+  with the two caches' unmasked observers, and every one carries a drop
+  report; the masked classes' bins are zero in all 55. Results
+  `perf_sweep_onyx_bin3_dual_20261122T223543Z.json` and
+  `perf_sweep_onyx_bin3_memread_dual_20261122T223738Z.json`. HAS ch04/04
+  Table 4.2 (the layers), README. ISSUE-001 closed into this entry. **Board, SEL 5 (bin 3):**
+  26,955 LUT / 25,071 FF, WNS -0.035 ns on 6 endpoints, the jet-prime
+  fill staging RAM (bin 2 met at +0.027: a 0.06 ns swing inside the
+  budgeted spread). Program, init + smoke PASS. All open: cycle-identical
+  to bin 2 in 51 of 55 cells (the four are the first depth-1 cells, warm
+  state), reads wasted 0 in all 55, supplied identical in 54. MEM_READ
+  alone: bin == counter in 45 of 55, 21 of the 22 cells at depth 1 and 2
+  (`disjoint64k_we64` depth 2 short by 3 with a drop report), masked bins
+  zero in all 55. Results `perf_sweep_onyxd_bin3_dual_20261122T230952Z`
+  and `perf_sweep_onyxd_bin3_memread_dual_20261122T231146Z`. The single-
+  injector sweeps were not repeated on bin 3 (the masks do not touch the
+  cycle; the all-open dual sweeps are the cycle check). Left for the
+  observation lane, not onyx: the caches' own observers (`l1_monlite`,
+  `jet_prime_monlite`) carry no mask and still share the channel, which is
+  why one onyx class falls short at depth 4 to 16 in thrash.

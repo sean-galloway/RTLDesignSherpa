@@ -57,6 +57,30 @@
 //
 //   USE_MONITOR=0 ties the observer off (house gen_no_monitor idiom).
 //
+//   Masks, in the ocelus layers (the MonBus is a low-bandwidth event
+//   channel; every per-transaction class here floods it under sustained
+//   traffic, so the integrator picks what to transmit):
+//     cfg_mon_enable            the observer as a whole (1 = on)
+//     cfg_perf_enable           the event classes, all PktTypePerf (1 = on)
+//     cfg_error_enable          the drop report, PktTypeError (1 = on)
+//     cfg_pkt_mask[type]        bit set drops that packet type (bit 4 Perf,
+//                               bit 0 Error), the cfg_*_pkt_mask convention
+//     cfg_perf_mask[code[3:0]]  bit set drops that event class: bit 0
+//                               TXN_START (0x20), 2 GATHER_DONE, 3 MEM_READ,
+//                               4 READ_WASTED, 5 ABSORB, 6 WRITEBACK, 7
+//                               LOCK_WAIT -- the group core's
+//                               cfg_core_perf_mask indexes the same codes
+//     cfg_error_mask[code[3:0]] bit set drops that Error code (bit 9 = the
+//                               drop report, AMBER_EV_DROPPED 0x09)
+//     cfg_port_mask[p]          bit set drops the events attributed to port
+//                               p: TXN_START by the requesting port,
+//                               GATHER_DONE and READ_WASTED by the answering
+//                               port, LOCK_WAIT by the waiting port (MEM_READ,
+//                               ABSORB and WRITEBACK carry no port in v1)
+//   A masked event is dropped at the source: it enters no holder, counts
+//   as nothing lost, and the drop report says only what the channel lost.
+//   A masked drop report leaves the count accumulating in dropped_count.
+//
 //------------------------------------------------------------------------------
 // Parameters:
 //   N_PORTS / SLOTS: onyx_ccu's; AGENT_ID / UNIT_ID: the house monitor ids
@@ -107,6 +131,15 @@ module onyx_monlite
     input  logic                        evt_wb_i,
     input  logic [PORT_W-1:0]           evt_wb_port_i,
     input  logic [N_PORTS-1:0]          evt_lock_wait_i,
+
+    // ---- configuration: the ocelus layers (enables 1 = on; masks bit set = drop) ----
+    input  logic                        cfg_mon_enable,
+    input  logic                        cfg_perf_enable,
+    input  logic                        cfg_error_enable,
+    input  logic [15:0]                 cfg_pkt_mask,
+    input  logic [15:0]                 cfg_perf_mask,
+    input  logic [15:0]                 cfg_error_mask,
+    input  logic [N_PORTS-1:0]          cfg_port_mask,
 
     // ---- side-band timestamp ----
     input  monbus_timestamp_t           i_mon_time,
@@ -205,7 +238,15 @@ module onyx_monlite
                    CL_WB = CL_MEM + 3, CL_LW = CL_MEM + 4;
     logic [7:0]  c_code [N_CL];
     logic [63:0] c_data [N_CL];
-    logic        c_fire [N_CL];
+    logic        c_raw  [N_CL];      // the event this cycle
+    logic        c_port_masked [N_CL];
+    logic        c_fire [N_CL];      // the event, admitted by the masks
+
+    // the layers: the observer, the Perf type, the type mask, then per
+    // class the event mask and the port mask
+    wire w_perf_on = cfg_mon_enable && cfg_perf_enable && !cfg_pkt_mask[PktTypePerf];
+    wire w_err_on  = cfg_mon_enable && cfg_error_enable && !cfg_pkt_mask[PktTypeError]
+                     && !cfg_error_mask[DROP_CODE[3:0]];
 
     wire [63:0] w_grant_data = 64'(evt_grant_port_i) | (64'(evt_grant_cls_i) << 5) | (64'(evt_grant_slot_i) << 8);
     wire [63:0] w_lw_data    = 64'(w_lw_port) | (64'(w_lw_dur_out) << 8);
@@ -217,16 +258,25 @@ module onyx_monlite
             c_data[p] = 64'(evt_gather_slot_i[p]) | (64'(evt_gather_dt_i[p]) << 8) | (64'(evt_gather_pd_i[p]) << 9)
                       | (64'(p) << 12)
                       | (64'(16'(i_mon_time - r_grant_cyc[evt_gather_slot_i[p]])) << 16);
-            c_fire[p] = evt_gather_i[p];
+            c_raw[p]  = evt_gather_i[p];
+            c_port_masked[p] = cfg_port_mask[p];
             c_code[N_PORTS + p] = 8'(ONYX_EV_READ_WASTED);
             c_data[N_PORTS + p] = 64'(p) << 12;
-            c_fire[N_PORTS + p] = evt_read_wasted_i[p];
+            c_raw[N_PORTS + p]  = evt_read_wasted_i[p];
+            c_port_masked[N_PORTS + p] = cfg_port_mask[p];
         end
-        c_code[CL_MEM] = 8'(ONYX_EV_MEM_READ);  c_data[CL_MEM] = 64'(evt_mem_ar_slot_i); c_fire[CL_MEM] = evt_mem_ar_i;
-        c_code[CL_TXN] = 8'(ONYX_EV_TXN_START); c_data[CL_TXN] = w_grant_data;           c_fire[CL_TXN] = evt_grant_i;
-        c_code[CL_ABS] = 8'(ONYX_EV_ABSORB);    c_data[CL_ABS] = 64'(evt_absorb_slot_i); c_fire[CL_ABS] = evt_absorb_i;
-        c_code[CL_WB]  = 8'(ONYX_EV_WRITEBACK); c_data[CL_WB]  = 64'(evt_wb_port_i);     c_fire[CL_WB]  = evt_wb_i;
-        c_code[CL_LW]  = 8'(ONYX_EV_LOCK_WAIT); c_data[CL_LW]  = w_lw_data;              c_fire[CL_LW]  = w_lw_fire;
+        c_code[CL_MEM] = 8'(ONYX_EV_MEM_READ);  c_data[CL_MEM] = 64'(evt_mem_ar_slot_i); c_raw[CL_MEM] = evt_mem_ar_i;
+        c_code[CL_TXN] = 8'(ONYX_EV_TXN_START); c_data[CL_TXN] = w_grant_data;           c_raw[CL_TXN] = evt_grant_i;
+        c_code[CL_ABS] = 8'(ONYX_EV_ABSORB);    c_data[CL_ABS] = 64'(evt_absorb_slot_i); c_raw[CL_ABS] = evt_absorb_i;
+        c_code[CL_WB]  = 8'(ONYX_EV_WRITEBACK); c_data[CL_WB]  = 64'(evt_wb_port_i);     c_raw[CL_WB]  = evt_wb_i;
+        c_code[CL_LW]  = 8'(ONYX_EV_LOCK_WAIT); c_data[CL_LW]  = w_lw_data;              c_raw[CL_LW]  = w_lw_fire;
+        c_port_masked[CL_MEM] = 1'b0;
+        c_port_masked[CL_TXN] = cfg_port_mask[evt_grant_port_i];
+        c_port_masked[CL_ABS] = 1'b0;
+        c_port_masked[CL_WB]  = 1'b0;
+        c_port_masked[CL_LW]  = cfg_port_mask[w_lw_port];
+        for (int c = 0; c < N_CL; c++)
+            c_fire[c] = c_raw[c] && w_perf_on && !cfg_perf_mask[c_code[c][3:0]] && !c_port_masked[c];
     end
 
     // ------------------------------------------------------------------
@@ -335,7 +385,7 @@ module onyx_monlite
     assign w_take = w_pick_vld && fifo_wr_ready;
 
     logic [7:0] r_dropped;
-    wire w_drop_rpt = (r_dropped != 8'd0) && (w_lost == 4'd0) && !w_pick_vld && w_q_empty
+    wire w_drop_rpt = w_err_on && (r_dropped != 8'd0) && (w_lost == 4'd0) && !w_pick_vld && w_q_empty
                       && fifo_wr_ready && !`RST_ASSERTED(rst_n);
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) r_dropped <= 8'd0;

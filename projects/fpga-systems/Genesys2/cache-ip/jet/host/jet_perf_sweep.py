@@ -108,8 +108,25 @@ CONFIGS = [
 ]
 
 
+# onyx's observer classes (onyx_pkg codes) and their bit in ONYX_MON_CTRL.perf_mask
+ONYX_MON_CLASSES = {"TXN_START": 0x20, "GATHER_DONE": 0x22, "MEM_READ": 0x23,
+                    "READ_WASTED": 0x24, "ABSORB": 0x25, "WRITEBACK": 0x26,
+                    "LOCK_WAIT": 0x27}
+
+
+def onyx_perf_mask(classes):
+    """The perf_mask that transmits exactly `classes` ('all' opens every
+    class, 'none' closes them all): a set bit drops the class."""
+    if classes is None or "all" in classes:
+        return 0x0000
+    open_bits = 0 if "none" in classes else sum(
+        1 << (ONYX_MON_CLASSES[c] & 0xF) for c in classes)
+    return 0xFFFF & ~open_bits
+
+
 def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
-              outstanding=(1,), ci1_idle=False, profile="jet"):
+              outstanding=(1,), ci1_idle=False, profile="jet",
+              onyx_classes=None, onyx_port_mask=0):
     """Walk CONFIGS at each injector depth in `outstanding` (TASK-002).
 
     The issued sequence is depth-invariant, so every config's CRCs must be
@@ -117,6 +134,23 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
     what change."""
     names = set(configs) if configs else None
     driver.clear_and_load_profile(PROFILES[profile]())
+    onyx_mon = None
+    if profile == "ref-onyx":
+        # the observer's masks (the ocelus layers): the MonBus is a
+        # low-bandwidth event channel and the reset transmits only
+        # LOCK_WAIT; the sweep opens the classes asked for ('all' by
+        # default, the lower-bound reading of every bin)
+        perf_mask = onyx_perf_mask(onyx_classes)
+        hc = driver.bus["harness"]
+        hc.write("ONYX_MON_CTRL", mon_enable=1, error_enable=1, perf_enable=1,
+                 port_mask=onyx_port_mask & 0xF, perf_mask=perf_mask)
+        hc.write("ONYX_MON_MASK", pkt_mask=0, error_mask=0)
+        onyx_mon = {"classes": sorted(onyx_classes) if onyx_classes else ["all"],
+                    "perf_mask": perf_mask, "port_mask": onyx_port_mask & 0xF,
+                    "ctrl": hc.read("ONYX_MON_CTRL")}
+        say(f"[sweep] onyx observer: classes {onyx_mon['classes']} "
+            f"perf_mask=0x{perf_mask:04x} port_mask=0x{onyx_mon['port_mask']:x} "
+            f"ONYX_MON_CTRL=0x{onyx_mon['ctrl']:08x}")
     driver.tally_clear()  # start from zeroed bins; each run below re-clears
     results = []
     for depth in outstanding:
@@ -168,6 +202,7 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
                 hc = driver.bus["harness"]
                 onyx = {k: hc.read(f"ONYX_CNT_{k.upper()}") for k in
                         ("txn", "supplied", "mem_read", "read_wasted", "absorb", "wb")}
+                onyx["mon"] = onyx_mon
 
             driver.tally_clear()
             driver.tally_freeze(False)
@@ -237,6 +272,15 @@ def main(argv=None):
     ap.add_argument("--profile", default="jet", choices=sorted(PROFILES),
                     help="tally bin profile: 'jet' (the pair rig's) or 'ref-onyx' "
                          "(the reference rig with onyx in the manager slot)")
+    ap.add_argument("--onyx-mon-classes", nargs="+", default=None,
+                    choices=sorted(ONYX_MON_CLASSES) + ["all", "none"],
+                    help="(--profile ref-onyx) the onyx observer classes to transmit "
+                         "(ONYX_MON_CTRL.perf_mask); default 'all'. The MonBus is a "
+                         "low-bandwidth channel: with every class open the thrash cells' "
+                         "bins are lower bounds; one class at a time fits")
+    ap.add_argument("--onyx-port-mask", type=lambda v: int(v, 0), default=0,
+                    help="(--profile ref-onyx) ONYX_MON_CTRL.port_mask: bit p drops the "
+                         "events attributed to port p")
     args = ap.parse_args(argv)
 
     link = open_jet_link(args.port, board_name=args.board,
@@ -247,7 +291,9 @@ def main(argv=None):
         results = run_sweep(driver, count=args.count,
                             configs=args.configs,
                             outstanding=tuple(args.outstanding),
-                            ci1_idle=args.ci1_idle, profile=args.profile)
+                            ci1_idle=args.ci1_idle, profile=args.profile,
+                            onyx_classes=args.onyx_mon_classes,
+                            onyx_port_mask=args.onyx_port_mask)
     finally:
         bridge.close()
 

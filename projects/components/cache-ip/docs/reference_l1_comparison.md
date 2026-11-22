@@ -512,11 +512,19 @@ measures the same way.
   The bin 2 builds reproduce bin 1's cycle count in all 220 cells (the
   observation costs no cycle) and add the chain the jet rig carries:
   27,872 / 27,143 LUT, 25,877 / 25,854 FF, WNS +0.001 / +0.027 ns. The
-  MonBus tally bins for onyx's classes are lower bounds on the board (the
-  house MonBus is a low-bandwidth event channel by design and onyx's
-  observer puts per-transaction classes on it with no class mask, so the
-  channel saturates in thrash; onyx ISSUE-001); the counters are the
-  measurement. Timing at 100 MHz under the 0.2 ns budget: SEL 4 WNS
+  MonBus tally bins for onyx's classes are lower bounds on the board when
+  every class is open (the house MonBus is a low-bandwidth event channel
+  by design, and four of onyx's classes fire once a transaction, so the
+  channel saturates in thrash); the counters are the measurement. The
+  observer carries the ocelus mask layers (`ONYX_MON_CTRL` 0x038, reset
+  to LOCK_WAIT only; `jet_perf_sweep.py --onyx-mon-classes`), and the
+  bin 3 build (27,668 LUT, 25,090 FF, WNS -0.001 ns, the same path)
+  measures them: `MEM_READ` opened alone equals its counter in 39 of 55
+  dual cells and in every cell at depth 1 and 2 (`r64k_we64` depth 1:
+  20,240 = 20,240 where the all-open bin read 12,603), short only in the
+  thrash cells at depth 4 to 16 where the caches' two unmasked observers
+  still share the channel, each with a drop report; the deferred build
+  reads the same way, 45 of 55 (onyx ISSUE-001, closed). Timing at 100 MHz under the 0.2 ns budget: SEL 4 WNS
   +0.006 ns, SEL 5 +0.000 ns, both met, the worst path jet-prime's fill
   engine staging read pointer into the data-array address in both -- onyx
   is not on the critical path. Manager alone out of context (the fourth

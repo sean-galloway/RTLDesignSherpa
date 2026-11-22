@@ -12,15 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-001** ([page](open/ISSUE-001.md)) — the board MonBus channel cannot carry onyx's event stream at the thrash cells' rates; tally bins are lower bounds, the exact counters are the measurement (filed 2026-11-22)
+(none)
 
 ## Active
 
@@ -28,4 +28,4 @@ by construction rather than by discipline.
 
 ## Closed
 
-(none)
+- **ISSUE-001** ([page](closed/ISSUE-001.md)) — onyx's observer put per-transaction classes on the low-bandwidth MonBus with no class knob; closed 2026-11-22 into TASK-001 step 6c: the ocelus mask layers on `onyx_monlite`, reset to the rare class (filed 2026-11-22)

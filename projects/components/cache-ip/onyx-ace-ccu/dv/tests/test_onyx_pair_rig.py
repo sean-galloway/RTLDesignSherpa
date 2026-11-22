@@ -59,6 +59,15 @@ CORNER_MSHR = (2, 16)
 CORNER_VIC = (1, 4)
 INTERIOR = [(4, 2, 0), (8, 2, 2)]
 
+# the observer's mask cells (gate, default geometry, monitor on): env the TB
+# drives onto onyx_monlite's cfg ports -- the ocelus layers
+MASK_CELLS = [
+    ('_mkmem',  {'ONYX_MON_PERF_MASK': '0xF7'}),   # only MEM_READ transmitted
+    ('_mkrare', {'ONYX_MON_PERF_MASK': '0x7D'}),   # the board reset: only LOCK_WAIT
+    ('_pm0',    {'ONYX_MON_PORT_MASK': '0x1'}),    # port 0's events dropped at the source
+    ('_off',    {'ONYX_MON_ENABLE': '0'}),         # the observer disabled: silent, nothing lost
+]
+
 DUT_TOP = 'onyx_pair_rig_tb'
 TEST_PREFIX = 'onyx_pair_rig'
 
@@ -74,7 +83,7 @@ async def cocotb_test_onyx_pair_rig(dut):
 
 
 def _run_cell(request, sets, ways, line_bytes, bus_width, test_level,
-              use_monitor, mshr=8, victim=2, repl=0, knob_suffix=''):
+              use_monitor, mshr=8, victim=2, repl=0, knob_suffix='', mon_env=None):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
     # Merge the rig closures: jet_prime_top.f (the whole top closure incl. the
@@ -125,7 +134,7 @@ def _run_cell(request, sets, ways, line_bytes, bus_width, test_level,
                           REPL_POLICY=repl,
                           MEM_DEPTH=mem_depth,
                           DUT=TEST_PREFIX, LOG_PATH=log_path,
-                          COCOTB_LOG_LEVEL='INFO')
+                          COCOTB_LOG_LEVEL='INFO', **(mon_env or {}))
 
     compile_args = ["--trace-fst", "--trace-structs", "--trace-depth", "99"] if enable_waves else []
     sim_args = ["--trace-fst", "--trace-structs"] if enable_waves else []
@@ -189,20 +198,26 @@ def _generate_cells():
                                  f"v{victim}_{pol_name}"))
                 else:
                     knob_cells = [(DEFAULT_KNOBS, '')]
+                # the observer's mask cells ride the gate at the small geometry
+                mask_cells = [('', {})]
+                if use_monitor and test_level == 'gate' and (sets, ways) == (16, 2):
+                    mask_cells += MASK_CELLS
                 for (mshr, victim, repl), suffix in knob_cells:
+                  for msfx, menv in mask_cells:
                     mon = 'mon' if use_monitor else 'nomon'
                     name = (f"test_{TEST_PREFIX}"
                             f"_s{TBBase.format_dec(sets, 3)}w{ways}"
                             f"l{line_bytes}b{bus_width}"
-                            f"{suffix}_{mon}_{test_level}")
+                            f"{suffix}{msfx}_{mon}_{test_level}")
 
                     def make(s=sets, w=ways, lb=line_bytes, bw=bus_width,
                              um=use_monitor, lvl=test_level, m=mshr,
-                             v=victim, r=repl, sfx=suffix, n=name):
+                             v=victim, r=repl, sfx=suffix + msfx, n=name,
+                             me=menv):
                         def _cell(request):
                             _run_cell(request, s, w, lb, bw, lvl, um,
                                       mshr=m, victim=v, repl=r,
-                                      knob_suffix=sfx)
+                                      knob_suffix=sfx, mon_env=me)
                         _cell.__name__ = n
                         _cell.__doc__ = (
                             f"onyx_pair_rig {n}: two jets + onyx_ccu + shared "

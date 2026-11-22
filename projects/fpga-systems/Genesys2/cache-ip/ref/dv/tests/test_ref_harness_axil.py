@@ -76,6 +76,11 @@ HCSR_CYCLE_LO = 0x08
 HCSR_CYCLE_HI = 0x0C
 HCSR_FABRIC_DBG = 0x10
 HCSR_ONYX_CNT0 = 0x20       # six onyx counters, 0x20..0x34 (REF_CACHE_SEL 4/5; 0 elsewhere)
+HCSR_ONYX_MON_CTRL = 0x38   # the onyx observer's masks: [0] enable [1] error [2] perf [5:4] port mask [31:16] class mask
+HCSR_ONYX_MON_MASK = 0x3C   # [15:0] packet-type mask, [31:16] error-code mask
+ONYX_MON_CTRL_RESET = 0x007D_0007   # everything enabled, the six per-transaction classes masked, LOCK_WAIT open
+ONYX_MON_BIN = {"TXN_START": 11, "MEM_READ": 12, "GATHER_DONE": 13, "READ_WASTED": 14,
+                "ABSORB": 15, "WRITEBACK": 16, "DROP": 17}   # the ref-onyx profile's bins
 
 # Tally config register offsets (64-bit stride)
 TALLY_CAM_CLEAR = 0x100
@@ -408,6 +413,67 @@ async def smoke_test(dut):
         assert (await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_ERR_FLAG)) == 0, "ci0 error flag on the read-only run"
     dut._log.info(f"ci0 read-only CRCs: {[hex(c) for c in crcs]}")
     assert crcs[0] == crcs[1], "read-only re-run of the same stream changed its CRC"
+
+    # The onyx observer's mask layers (onyx ISSUE-001): the CSR resets to
+    # "everything enabled, the per-transaction classes masked" in every
+    # selection; with onyx present, opening one class transmits exactly that
+    # class -- its bin equals its counter (or the observer reported the loss)
+    # and the masked classes' bins stay at zero.
+    mon_ctrl = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL)
+    mon_mask = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_MASK)
+    assert mon_ctrl == ONYX_MON_CTRL_RESET, f"ONYX_MON_CTRL reset 0x{mon_ctrl:08x} != 0x{ONYX_MON_CTRL_RESET:08x}"
+    assert mon_mask == 0, f"ONYX_MON_MASK reset 0x{mon_mask:08x} != 0"
+    if sel >= 4:
+        await _load_onyx_profile(tb)
+        # open TXN_START (code 0x20) and MEM_READ (0x23) only; on the warm
+        # shared set the deferred read (SEL 5) issues no memory read at all
+        # (every line a peer supplies), so TXN_START is the class that fires
+        open_two = ((0xFFFF & ~((1 << 0) | (1 << 3))) << 16) | 0x7
+        await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL, open_two)
+        assert (await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL)) == open_two
+        await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)      # clear the tally and the counters
+        await _run_burst(tb, count)
+        for _ in range(64):
+            await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)       # let the chain drain
+        await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x2)      # freeze
+        bins = await _read_bins(tb, 18)
+        txn = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0)
+        mem_read = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0 + 4 * 2)
+        dut._log.info(f"onyx observer, TXN_START + MEM_READ only: bins 11-17 {bins[11:18]} "
+                      f"counters txn={txn} mem_read={mem_read}")
+        assert txn > 0, "the masked burst allocated no transaction"
+        for name in ("GATHER_DONE", "READ_WASTED", "ABSORB", "WRITEBACK"):
+            assert bins[ONYX_MON_BIN[name]] == 0, f"masked class {name} reached the tally: {bins[ONYX_MON_BIN[name]]}"
+        for name, cnt_ in (("TXN_START", txn), ("MEM_READ", mem_read)):
+            b = bins[ONYX_MON_BIN[name]]
+            assert b <= cnt_, f"{name} bin {b} above its counter {cnt_}"
+            assert b == cnt_ or bins[ONYX_MON_BIN["DROP"]] > 0, \
+                f"{name} bin {b} short of its counter {cnt_} with no drop report"
+        await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x0)
+        await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL, ONYX_MON_CTRL_RESET)
+
+
+def _onyx_profile():
+    """The reference rig's ref-onyx profile (jet_board.build_ref_onyx_profile):
+    the caches' core events in bins 0-10, onyx's classes (agent 0x00A3,
+    onyx_pkg codes) in 11-17."""
+    core = [(key, idx) for key, idx in _default_profile() if idx <= 10]
+    return core + [
+        (_key(0x00A3, 4, 4, 0x20), 11),  # TXN_START
+        (_key(0x00A3, 4, 4, 0x23), 12),  # MEM_READ
+        (_key(0x00A3, 4, 4, 0x22), 13),  # GATHER_DONE
+        (_key(0x00A3, 4, 4, 0x24), 14),  # READ_WASTED
+        (_key(0x00A3, 4, 4, 0x25), 15),  # ABSORB
+        (_key(0x00A3, 4, 4, 0x26), 16),  # WRITEBACK
+        (_key(0x00A3, 4, 0, 0x09), 17),  # onyx monlite drop report
+    ]
+
+
+async def _load_onyx_profile(tb):
+    await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_CLEAR, 0)
+    for key, idx in _onyx_profile():
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_KEY, key)
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 31) | (idx & 0xFF))
 
 
 async def _load_default_profile(tb):
