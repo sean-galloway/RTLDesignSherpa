@@ -353,6 +353,13 @@ class MonbusGroup1wrTB(TBBase):
         by = self.split_by_window()
         self.check_window('err', by['err'], [r for r in sent if r[2]], ERR_BASE, ERR_LIMIT)
         self.check_window('trc', by['trc'], [r for r in sent if not r[2]], TRACE_BASE, TRACE_LIMIT)
+        # B responses can arrive in bunches near the end. The core then drains
+        # one acknowledged record per cycle, so wait for that accounting rather
+        # than assuming the fixed post-capture delay is always sufficient.
+        for _ in range(1024):
+            if int(self.dut.err_rec_count.value) == n_err:
+                break
+            await self.wait_clocks('axi_aclk', 1)
         self.check_irq(n_err)
         self.stop_irq_counter()
         self.log.info(f"{self.test_type}: {len(sent)} records in {len(self.mon.trace_bursts)} bursts "

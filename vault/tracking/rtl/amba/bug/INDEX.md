@@ -2,7 +2,7 @@
 
 # amba — bugs
 
-**Next ID: BUG-042** — never recycle a number, even when its item closed.
+**Next ID: BUG-043** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 41 | done (kept for history) |
+| [closed/](closed/) | 42 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,6 +24,9 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-042** — the 1wr TB checks IRQ accounting before the acknowledged-record
+  pool drains — CLOSED 2026-11-21: wait for `err_rec_count` with a bounded
+  timeout; seed 5527 and all three wrapper/core forms pass 24/24 combined cells.
 - **BUG-041** — latency histogram: HIST_SAMPLE_LOST set on a merely-full FIFO,
   and a full FIFO with a same-cycle pop dropped its command — CLOSED
   2026-10-23: one full condition drives w_push, o_cmd_block and a new

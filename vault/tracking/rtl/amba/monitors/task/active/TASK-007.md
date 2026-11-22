@@ -365,6 +365,8 @@ standalone group core; none is presented as closed timing.
 
 - cache-common clean FULL: **255/255 PASS** (17:15).
 - monitor-lite clean FULL: **466/466 PASS** (19:56).
+- jet-prime clean FULL: **155/155 PASS** (34:30), including monitor/no-monitor pair rigs.
+- jet clean FULL: **149/149 PASS** (34:43), including monitor/no-monitor pair rigs.
 - cache reference clean FULL: **18/21 PASS, 3 FAIL**. All three failures are
   `jetpp` cells in `test_ref_harness_axil.smoke_test`: nonzero tally bins
   `[34, 0, 52, 134, 64, 29, 34, 77]` reach the formerly zero-stub check.
@@ -373,4 +375,11 @@ standalone group core; none is presented as closed timing.
   TASK-007 stays ACTIVE until this shared-tree integration failure is resolved
   or its owner supplies a corrected expectation and the suite passes.
 
-Remaining final jobs are still running and will be recorded when complete.
+- AMBA clean FULL initially found one failure in 2,999 cells:
+  `monbus_axi4_group_1wr[errors_only-256]`, seed 5527, 148/150 records with
+  six beats still in `r_err_beats_acked`. This exposed a TB drain-window bug,
+  not an RTL loss. The bounded wait fix is amba BUG-042; all three wrapper/core
+  forms pass 24/24 FULL cells with the reproducing seed. A full rerun is needed
+  to certify the corrected suite.
+
+The final OOC and AXI formal results are recorded below as they complete.
