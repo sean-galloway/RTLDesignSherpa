@@ -434,6 +434,45 @@ class JetMonliteTB(TBBase):
             self._score(f"counts: {EV_NAMES[ev]} observed",
                         ev in seen, True)
 
+    async def _s_slot_reuse(self):
+        """A recycled slot reports ages from its newest allocation."""
+        self._scenario('SlotReuse')
+        self.mon_mode = 'free'
+        self.dut.mshr_occupancy_i.value = 0
+
+        pkt0, exp0, trace0 = len(self.pkt_log), len(self.exp_events), len(self.q_trace)
+        alloc0 = await self._pulse_alloc(set_idx=5, cls=JET_CLS_RNSD, idx=0)
+        self._exp_alloc(5, JET_CLS_RNSD, 1)
+        merge0 = await self._pulse_merge(idx=0, depth=1)
+        self._exp_merge(0, 1, merge0 - alloc0)
+        retire0 = await self._pulse_retire(idx=0)
+        self._exp_retire(0, 0, retire0 - alloc0)
+        for _ in range(40):
+            await self._negedge_settled()
+        self._strict_stream_match('reuse first', pkt0, exp0, trace0)
+
+        pkt1, exp1, trace1 = len(self.pkt_log), len(self.exp_events), len(self.q_trace)
+        for _ in range(4):
+            await self._negedge_settled()
+        alloc1 = await self._pulse_alloc(set_idx=31, cls=JET_CLS_RU, idx=0)
+        self._exp_alloc(31, JET_CLS_RU, 1)
+        self.mon_mode = 'stall'
+        merge1 = await self._pulse_merge(idx=0, depth=3)
+        self._exp_merge(0, 3, merge1 - alloc1)
+        retire1 = await self._pulse_retire(idx=0)
+        self._exp_retire(0, 0, retire1 - alloc1)
+        self.mon_mode = 'free'
+        for _ in range(60):
+            await self._negedge_settled()
+        self._strict_stream_match('reuse second', pkt1, exp1, trace1)
+
+        second = self.pkt_log[pkt1:]
+        for ev in (EV_MSHR_MERGE, EV_MSHR_RETIRE):
+            self._score(f'reuse: {EV_NAMES[ev]} delivered after backpressure',
+                        sum(p['event_code'] == ev for _, p, _, _ in second), 1)
+        stalled = any(valid and not ready for _, _, valid, ready in self.q_trace[trace1:])
+        self._score('reuse: backpressure exercised', stalled, True)
+
     async def _s_alloc_retire_occ_payloads(self):
         """Drive mshr_occupancy_i from a live model and verify that the
         MSHR_ALLOC payload carries occupancy-after = pre+1 and the
@@ -703,6 +742,7 @@ class JetMonliteTB(TBBase):
             return self.mismatches == 0
 
         await self._s_event_counts()
+        await self._s_slot_reuse()
         await self._s_occupancy_gauge_tracks()
         await self._s_stall_duration()
         await self._s_alloc_retire_occ_payloads()

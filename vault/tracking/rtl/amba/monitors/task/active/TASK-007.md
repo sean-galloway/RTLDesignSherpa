@@ -160,3 +160,28 @@ part), with no failed or skipped runs. Selected Artix results:
 
 The full selected two-part table and reproduction commands are in
 `docs/markdown/rtl-amba/monitor/monitor_characterization.md`.
+
+## Cache monitor conversion (done 2026-11-21)
+
+Both `jet_monlite` and `jet_prime_monlite` now keep `r_alloc_cyc` in a
+reset-free, single-write process with unconditional distributed-RAM attributes.
+Allocation overwrites the indexed entry; only merge/retire events read it. A
+new `SlotReuse` scenario in each TB checks that a recycled slot's merge/retire
+latency uses the newest allocation, including under MonBus backpressure. The
+original RTL passed 6/6 in each suite; forcing the timestamp to zero produced
+three tap-side failures, including the new scenario. The converted RTL is 6/6
+in each. Area gates: jet-prime 21/21, jet 19/19, cache-common 173/173.
+
+| OOC configuration | Before LUT / FF / LUTRAM | After LUT / FF / LUTRAM | Delta and timing |
+|---|---:|---:|---|
+| jet-prime monitored | 6,033 / 5,402 / 1,998 | 5,926 / 4,977 / 2,142 | **-107 LUT, -425 FF, +144 LUTRAM**; WNS +0.082 -> +0.025 ns, same cache fill/data path class |
+| jet monitored | 5,892 / 5,258 / 1,879 | 5,697 / 4,834 / 2,023 | **-195 LUT, -424 FF, +144 LUTRAM**; WNS +0.356 -> +0.245 ns, same cache control/data path class |
+| amber monitored | 3,709 / 2,944 / 1,169 | 3,709 / 2,944 / 1,169 | unchanged; no amber RTL was touched |
+| all three `*_nomon` | 3,908 / 3,711 / 2,370 LUT | identical | controls unchanged |
+
+Vivado maps each live `r_alloc_cyc` as an 8 x 53 table into 18 RAM32M
+primitives under the user attribute. The small WNS differences are placement
+variation, not a claimed timing win; neither monitor becomes the critical
+path. `l1_monlite` is deliberately unchanged: it has no persistent array, its
+scalar payload is small, and amber's measured critical path ends in its output
+FIFO rather than the resettable payload. Onyx remains for its active owner.

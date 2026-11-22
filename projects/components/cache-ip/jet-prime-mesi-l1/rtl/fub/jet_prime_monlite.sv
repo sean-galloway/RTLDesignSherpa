@@ -155,19 +155,16 @@ module jet_prime_monlite
     // ------------------------------------------------------------------
     // Per-entry alloc-cycle tracking (for retire latency + merge age)
     // ------------------------------------------------------------------
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
     monbus_timestamp_t r_alloc_cyc [MSHR_COUNT];
 
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            for (int e = 0; e < MSHR_COUNT; e++) begin
-                r_alloc_cyc[e] <= '0;
-            end
-        end else begin
-            if (mshr_alloc_i) begin
-                r_alloc_cyc[mshr_alloc_idx_i] <= i_mon_time;
-            end
+    // Merge/retire events qualify every read; allocation overwrites the slot.
+    always_ff @(posedge clk) begin
+        if (mshr_alloc_i) begin
+            r_alloc_cyc[mshr_alloc_idx_i] <= i_mon_time;
         end
-    )
+    end
 
     // ------------------------------------------------------------------
     // Stall tracking: measure contiguous stall duration, emit on release.

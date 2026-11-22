@@ -48,4 +48,4 @@ These classes are the observation requirements the architecture must expose. The
 
 ## Observer cost
 
-The cost of observation is measured in the characterization sweep ([Chapter 6.3](../ch06_integration/03_characterization.md)): LUT/FF/RAM and fmax are reported with `jet_monlite` present and with it removed, so the claim "the observer does not perturb what it measures" is quantified.
+The cost of observation is measured in the characterization sweep ([Chapter 6.3](../ch06_integration/03_characterization.md)): LUT/FF/RAM and fmax are reported with `jet_monlite` present and with it removed, so the claim "the observer does not perturb what it measures" is quantified. The per-slot allocation timestamps use reset-free distributed RAM; allocation overwrites an entry before its merge/retire events can read it. The 2026-11-21 OOC conversion reduced the monitored jet build by 195 LUTs and 424 flops without moving the critical path into the observer.
