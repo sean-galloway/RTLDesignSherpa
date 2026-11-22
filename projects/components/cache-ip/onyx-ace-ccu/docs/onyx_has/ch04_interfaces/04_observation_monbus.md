@@ -77,4 +77,4 @@ In the pair rig the harness exposes the observer as a third MonBus output (`mon2
 
 ## What is open
 
-The absorption's slot and the write-back's port are not carried in v1; the tally keys on the event code only, so the DataTransfer flag of `GATHER_DONE` is read from the latch bank, not from a bin.
+The observer carries the class layers but not yet the content filter the AXI monitors pair them with (the address-range and ID filters): a class opened alone still fires on every transaction, which fits the channel at injector depth 1 and 2 and loses about a fifth of its events at depth 8 in the thrash cells. The ocelus answer is a window, not a wider channel: an address window on the grant (a per-slot watch bit set at `TXN_START` and consulted by the slot's later events) and a requester match, so a per-transaction class becomes a watch on the lines of interest. The absorption's slot and the write-back's port are not carried in v1; the tally keys on the event code only, so the DataTransfer flag of `GATHER_DONE` is read from the latch bank, not from a bin.

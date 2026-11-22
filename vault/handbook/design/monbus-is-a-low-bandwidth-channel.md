@@ -32,13 +32,29 @@ stream fits.
 - **A host program does not open the mask to see everything.** The masks
   reset to drop for a reason ([[new-monbus-protocol]]); a program that admits
   every type admits the per-beat perf stream.
+- **Filter by content, not only by class.** A class mask turns a class on
+  or off; it does not make a per-transaction class low-bandwidth. The AXI
+  monitors carry the other half of the idiom for exactly this reason: the
+  address-range and ID filters (`axi_monitor_lite` `cfg_addr_range_enable`
+  / `cfg_addr_match_enable`, `axi_monitor_filtered` `ADDR_FILTER_ENABLE` /
+  `ID_FILTER_ENABLE`). A monitor that emitted on every read and write would
+  flood the channel too; the filters make the stream a watch on a window
+  (these lines, this requester) rather than everything, and the window's
+  event rate is what the channel is sized for. An observer on a new block
+  gets the class layers AND a content filter keyed on what that block
+  attributes events to (an address window, a port, a slot). Owner,
+  2026-11-22.
 - **A number that must be exact under load is a counter, not a packet
   stream.** Put the counter beside the observer, snapshot both in one frozen
   window, and read the tally bins as lower bounds on the board. The observer
   keeps its job: shape in time, payload, latency, the rare event.
 - **An observer with no class knob emits everything.** Wherever its event rate
   is per transaction that is a flood by construction. Give it the same
-  per-class mask the monitors carry, reset to the rare classes.
+  per-class mask the monitors carry, reset to the rare classes, and the
+  content filter above; the mask alone still floods in thrash (onyx on the
+  reference rig: one class alone fits at injector depth 1 and 2 and loses a
+  fifth of its events at depth 8, because the class fires on every
+  transaction and nothing narrows which).
 - **A drop report is itself low-bandwidth.** The drop-and-count idiom emits
   when nothing is waiting and carries a small saturating count; under a
   sustained flood it says "lost", not "how many". Do not read the lost count
