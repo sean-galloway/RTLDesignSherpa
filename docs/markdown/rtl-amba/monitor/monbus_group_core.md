@@ -35,7 +35,7 @@
 
 The `monbus_group_core` module is the protocol-agnostic heart of the `monbus_*_*_group` family. It receives a single monitor-bus (MonBus) stream plus a side-band timestamp, applies per-protocol filter masks, and routes each accepted packet into one of two destinations: a record-granular error/interrupt FIFO drained over an AXI4-shaped slave-read port, or a beat-granular write FIFO drained over an AXI4-shaped master-write port with watermark and timeout flushing.
 
-This core is the single source of truth for filtering, FIFO management, optional compression, and the burst writer/slicer state machines. The `monbus_<p1>_<p2>_group.sv` wrappers are pure structural adapters — they bridge its two AXI4-shaped FUB ports into protocol-specific leaf skids, and nothing more.
+This core is the single source of truth for filtering, FIFO management, optional compression, the FSM-free burst writer, and the slicer counters. The `monbus_<p1>_<p2>_group.sv` wrappers are pure structural adapters — they bridge its two AXI4-shaped FUB ports into protocol-specific leaf skids, and nothing more.
 
 ### Key Features
 
@@ -47,7 +47,7 @@ This core is the single source of truth for filtering, FIFO management, optional
 - AXI4-shaped master-write burst writer with address-window, 4KB, and watermark controls
 - Runtime-selectable compression (`cfg_compress_en`) with optional half-beat packing
 - Raw mode emits complete 24-byte (3-beat) records; compressed mode emits self-tagged 8-byte slots
-- Timing-closed 3-stage geometry pipeline for burst planning at 100 MHz
+- Two-stage epoch-cap pipeline with trigger-time FIFO snapshot and an in-flight room down-counter
 
 Aggregated monitor packets have to serve two consumers with very different needs: a CPU interrupt handler that walks recent error records, and a bulk-capture memory buffer that stores a long trace. This core splits the filtered stream between an error FIFO (read on demand by an IRQ handler) and a write FIFO (flushed to memory as AXI bursts), and handles all the address arithmetic, record framing, and optional compression in one place.
 
@@ -248,9 +248,9 @@ Only one path is active at a time; the two FIFO-write outputs are muxed by `w_us
 
 The write FIFO is flushed to memory as AXI4 bursts. A flush fires when either the FIFO occupancy reaches `cfg_flush_watermark` or `FLUSH_TIMEOUT_CYCLES` elapse since the last accepted W beat — and at least one whole record (`BEATS_PER_UNIT`, 3 in raw mode, 1 compressed) is available.
 
-Burst length is bounded by the minimum of FIFO occupancy, `MAX_BURST_BEATS`, distance to `cfg_limit_addr`, and distance to the next 4KB boundary, then rounded down to whole records. The address arithmetic is pipelined over 3 registered stages — the plan trails `r_wr_addr`, which moves in `WR_IDLE` (at each drain commit and on the rewind-snap and base-step-over branches) — keeping the wide window/4KB/round-to-record chain off the 100 MHz critical path. The fresh FIFO-occupancy cap is applied combinationally at commit, so a stale count cannot short the burst. The mod-3 whole-record rounding uses `math_mod_3_compress` carry-save instances rather than a wide divider.
+Epoch length is bounded by the minimum of FIFO occupancy, distance to `cfg_limit_addr`, and distance to the next 4KB boundary, then rounded down to whole records. The three caps and their minimum are registered in two stages. At a new flush, the FIFO cap is snapshotted and held through that settle, preserving the exact trigger-time burst boundary. The in-flight room is a down-counter; each AW takes the smaller of that room and `MAX_BURST_BEATS`. Mod-3 whole-record rounding uses `math_mod_3_compress` carry-save instances rather than a wide divider.
 
-The writer FSM (`WR_IDLE` → `WR_AW` → `WR_W` → `WR_B`) emits as many AW + N×W + B sub-bursts as needed to drain the planned beat count, advancing the address one 8-byte beat per accepted W. When the current window/4KB region cannot fit a whole record, the writer rewinds `r_wr_addr` to `cfg_base_addr` and re-settles the geometry pipeline.
+The writer is FSM-free. W streams committed beats in AW order and B returns credits in that order. When no whole record fits, the pointer rewinds to `cfg_base_addr` or steps over a short stub at base, then the registered caps settle before the next epoch.
 
 ---
 
@@ -332,7 +332,7 @@ The error FIFO is record-granular (192-bit); the write FIFO is beat-granular (64
 
 ### Timing-Motivated Structure
 
-Several structural choices exist purely to close 100 MHz timing: the 3-stage geometry pipeline, local registering of `cfg_base_addr`/`cfg_limit_addr` with a `max_fanout` cap, the registered raw FIFO count shared by both the flush trigger and the burst cap, and the compressor input skid. A prior split (fresh trigger against a lagged cap) shorted bursts to 21/24 beats — both now derive from the same registered count.
+Timing structure includes the two-stage epoch cap, its trigger-time FIFO snapshot, local registering of `cfg_base_addr`/`cfg_limit_addr`, the registered raw FIFO count shared by the flush trigger and cap, and the compressor input skid. The snapshot is essential: directly using the older pipeline value shorted a 24-beat watermark burst to 21+3 in the directed test.
 
 ### 4KB and Window Compliance
 

@@ -33,7 +33,7 @@
 
 ## Overview
 
-`monbus_burst_writer` drains a 64-bit beat-granular FIFO into an address window `[cfg_base_addr, cfg_limit_addr]` as AXI4 INCR bursts. It is the continuous, FSM-free burst writer of `monbus_group_core` (the amba BUG-039 redesign) with the FIFO and the configuration turned into ports, so that `monbus_group_core_1wr` can run one per address window behind a single port. `monbus_group_core` keeps its inline copy because that copy is timing-closed and formally proven. The two are no longer textually identical: since 2026-11-02 this copy pipelines its AW cap (granite TASK-008), because on an Artix-7 -1 at 100 MHz the one-cycle cap was a 25-level, 15.1 ns path.
+`monbus_burst_writer` drains a 64-bit beat-granular FIFO into an address window `[cfg_base_addr, cfg_limit_addr]` as AXI4 INCR bursts. It is the continuous, FSM-free burst writer of `monbus_group_core` (the amba BUG-039 redesign) with the FIFO and the configuration turned into ports, so that `monbus_group_core_1wr` can run one per address window behind a single port. Both copies pipeline the AW cap. The inline core additionally snapshots the FIFO cap at the flush trigger so its original burst boundaries remain exact; this standalone copy may conservatively use an older, smaller FIFO cap.
 
 What it does, in the original's terms: an AW issues whenever a flush trigger (watermark or timeout) holds and at least one whole record is in the FIFO, an outstanding slot is free, and the window geometry allows a whole record from the running pointer; batches of sub-bursts run back to back; W streams the FIFO in AW order; B is a pure credit return. Records are never split across a window wrap or a 4 KB boundary, and a burst is only ever planned from beats already in the FIFO. The full account, with the epoch model and the pointer discipline, is in [monbus_group_core](monbus_group_core.md).
 
@@ -80,7 +80,7 @@ The inline writer of `monbus_group_core`, with the port names changed and `beats
 - The room left in the in-flight epoch is a down-counter (`r_epoch_room`) instead of total minus covered.
 - A FIFO shrink is detected as the W pop a cycle back (`r_w_issue_d1`), because a W handshake is the only pop.
 
-Behaviour differs from the inline copy only by a bubble of up to two cycles at each epoch start and before each pointer fixup. With `beats_per_unit == 1` the whole-record rounding on every cap folds away, as in the original's compressed mode.
+Both copies pay an epoch-start/pointer-fixup settle bubble. The inline copy freezes the FIFO cap at the trigger; this standalone copy may use a conservative older value and split an epoch smaller when the FIFO just grew. With `beats_per_unit == 1` the whole-record rounding on every cap folds away.
 
 Up to four sub-bursts may be outstanding (`WR_OS_CAP`); `fub_m_bready` is high while any is. The B order is the AW order, which AXI4 guarantees for a single ID.
 

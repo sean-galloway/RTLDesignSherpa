@@ -260,12 +260,26 @@ defeat the pipeline). The compressor always TOUCHes on hit and
 INSTALLs on miss, so the CAM derives this internally and removes the
 two action bits from its own port surface.
 
+### FPGA reset review (2026-11-21)
+
+The production pipelined CAM meets both routed targets before any storage edit:
+2,154 LUT / 4,655 FF / +1.565 ns on Kintex-7 at 6.667 ns and 2,168 / 4,655 /
++0.857 ns on Artix-7 at 10 ns. The unpipelined `monbus_cam` remains the reference
+oracle; its failing match/shift path is not a production target.
+
+Removing key/data/timestamp resets was functionally green, including a new
+clear/reuse equivalence phase, but increased utilization to 2,232/2,247 LUT with
+no FF reduction. The change was therefore reverted. The move-to-front shift is
+not RAM-shaped, and the valid/count state remains reset.
+
 ---
 
 ## Testing
 
 ```bash
-pytest val/amba/test_monbus_cam_pipe.py -v
+source env_python
+make -C val/amba clean-all
+make -C val/amba run-monbus_cam_pipe-full-parallel
 ```
 
 The test drives random access traces through both `monbus_cam` and
@@ -276,6 +290,7 @@ random key/data/ts stream so any divergence shows up immediately.
 
 Additional coverage:
 
+- The same equivalence test includes clear followed by new-key installation and reuse, so stale pre-clear payload cannot match or leak into a hit.
 - `test_monbus_compressor.py` — uses `monbus_cam_pipe` end-to-end
   inside the compressor and cross-checks the slot stream against the
   Python golden encoder.

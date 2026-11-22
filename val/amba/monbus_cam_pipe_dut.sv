@@ -21,6 +21,7 @@ module monbus_cam_pipe_dut #(
 ) (
     input  logic                    clk,
     input  logic                    rst_n,
+    input  logic                    clear,
 
     input  logic                    en,
     input  logic [KEY_WIDTH-1:0]    key,
@@ -61,14 +62,14 @@ module monbus_cam_pipe_dut #(
         // Counting-consumer ports (unused by the compressor reference model).
         .evict_key(), .evict_data(),
         .dump_idx({IDX_WIDTH{1'b0}}), .dump_valid(), .dump_key(), .dump_data(),
-        .soft_clear(1'b0)
+        .soft_clear(clear)
     );
 
     monbus_cam_pipe #(
         .KEY_WIDTH(KEY_WIDTH), .DATA_WIDTH(DATA_WIDTH),
         .TS_WIDTH(TS_WIDTH), .DEPTH(DEPTH)
     ) u_pipe (
-        .clk(clk), .rst_n(rst_n), .clear(1'b0),
+        .clk(clk), .rst_n(rst_n), .clear(clear),
         .access_en(en), .access_key(key),
         .access_new_data(new_data), .access_new_ts(new_ts),
         .result_valid(pipe_valid), .result_hit(pipe_hit), .result_idx(pipe_idx),

@@ -274,3 +274,50 @@ retire/retry accounting.
   remains -0.133/-0.278 ns from latency/event selection into the FIFO; defer
   any split/cone rewrite rather than hiding those misses or churning payload
   without a measured benefit.
+
+## MonBus inline group writer (2026-11-21)
+
+The inline writer now has the standalone writer's two-stage record-cap and
+in-flight room down-counter. Unlike the standalone's deliberately conservative
+stale-FIFO behavior, the inline core snapshots the FIFO cap when a flush first
+triggers and holds it through the two-stage settle. A direct port failed both
+AXI4-burst cells by splitting 24 beats into 21+3; the snapshot version preserves
+the exact 24-beat burst and passes all 7 original group cells plus 6 extended
+master-write/compression/serializer/reset cells. Formal prove and cover PASS;
+all 25 covers are reached.
+
+| Top | Kintex before -> after LUT / FF / WNS | Artix before -> after LUT / FF / WNS |
+|---|---:|---:|
+| `monbus_group_core` | 1,377 / 552 / -2.130 -> 1,386 / 619 / +1.354 | 1,381 / 552 / -6.750 -> 1,389 / 619 / -0.785 |
+| AXIL/AXIL | 1,679 / 1,030 / -2.089 -> 1,703 / 1,095 / +0.250 | 1,682 / 1,030 / -6.421 -> 1,709 / 1,095 / -0.038 |
+| AXI4/AXI4 | 1,909 / 1,272 / -2.355 -> 1,907 / 1,337 / +0.928 | 1,921 / 1,272 / -7.032 -> 1,915 / 1,337 / +0.209 |
+
+The other two routed wrappers also improve to +1.045/+1.421 ns Kintex and
+-0.095/+0.119 ns Artix. The remaining core Artix path is `r_fifo_beats` through
+mod-3 rounding into `r_fifo_units`; no additional arithmetic rewrite is claimed.
+The sweep emitted all ten rows with zero routing errors, although its shell
+returned nonzero during teardown after the last summary (`one: command not
+found`); this is recorded rather than hidden. `bash -n` passes.
+
+The `bridge_1x2_rd_lite_mon` system fixture meets on both parts: Kintex
+5,540 LUT / 4,916 FF / +0.659 ns and Artix 5,618 / 4,916 / +0.034 ns, with
+zero unrouted nets. Neither worst path is the group writer. The cache OOC tops
+and STREAM use the 1wr/no-inline-core structures, so they are controls, not
+proof of this inline edit.
+
+The arbiter remains at its post-MC-004 1,032/1,033 LUT result with +2.843/
++3.575 ns, so no repeat skid work. The B-side `r_os_len` has no reader and is
+synth-pruned. `r_ws_len` is only 36 FF per writer and `r_err_len_q` only 32 FF;
+leave these small circular queues as flops rather than forcing LUTRAM. Full
+monitor CAM/age/reporter structures remain reference-only under TASK-037.
+
+## Production CAM measurement and reset candidate (2026-11-21)
+
+Production already uses `monbus_cam_pipe`; the failing base `monbus_cam` is its
+reference oracle and was not redesigned. The pipe's fresh routed baseline is
+2,154 LUT / 4,655 FF / +1.565 ns Kintex and 2,168 / 4,655 / +0.857 ns Artix.
+A new clear/reuse phase compares it against the reference CAM. Forcing stale
+slot-zero data fails the equivalence test. Removing key/data/timestamp resets
+then passes the CAM, compressor, and compressed-group tests but increases LUTs
+to 2,232/2,247 with no FF reduction, so it was reverted. Reverted RTL again
+passes all three suites. The pipe's shift-to-front writes are not RAM-shaped.

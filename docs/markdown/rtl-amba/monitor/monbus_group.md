@@ -176,58 +176,23 @@ The burst writer fires when **either**:
 
 …and at least `BEATS_PER_UNIT` beats are available (3 in raw mode, 1 in compressed mode).
 
-#### Burst geometry: 4-stage pipeline + fresh-FIFO cap at commit
+#### Burst geometry: registered epoch caps
 
-The drain-plan math was originally a single combinational chain off `r_wr_addr` feeding straight back into `r_wr_addr` — the 100 MHz critical path on Nexys A7 (-1) (WNS −7.06 ns post-route). Since `r_wr_addr` is stable while the writer sits in `WR_IDLE` (only `WR_W` advances it) and the write FIFO only grows there, the **address geometry** is now a **4-stage registered pipeline**, one carry chain per stage:
+The continuous, FSM-free writer caps each epoch by the record-rounded window
+room, 4 KB room, and FIFO contents. Those three caps and their minimum are
+registered in two stages. A new flush snapshots the FIFO cap at its trigger and
+holds it through the settle, so later arrivals cannot change the selected burst
+boundary: the 24-beat watermark case remains one 24-beat burst, not 21+3. The
+no-record-fits fixups read the same registered caps after the same settle.
 
-```
-stage 0 (window):         s0_in_window (r_wr_addr inside [base, limit]) and
-                          s0_gaddr, the address the geometry is measured from
-                          (r_wr_addr in window, else base). Two compares + mux.
-stage 1 (caps):           s1_beats_to_limit = (limit + 1 - s0_gaddr) >> 3,
-                          saturated (one 33-bit subtract; limit + 1 is
-                          registered with the config), and s1_beats_to_4kb.
-stage 2 (planned):        min-cap tree ONLY (min of window / 4KB).
-                          u_mod3_geo is fed combinationally from this
-                          register and consumed by stage 3, so
-                          s2_beats_planned is NOT yet record-rounded.
-stage 3 (rounded + addr): r_plan_geo_units (address-feasible whole-
-                          record count) + r_plan_addr (eff_addr).
-```
+An in-flight epoch keeps its remaining room in `r_epoch_room`, decremented by
+each AW, rather than recomputing `r_epoch_total - r_aw_cov_beats`. Each AW emits
+`min(w_epoch_room, MAX_BURST_BEATS)` beats. This preserves whole-record epoch
+alignment while allowing AXI4 sub-bursts to split records and AXIL to issue one
+beat per AW. W follows AW order and B returns credits in that same order.
 
-Stage 0 was split out of stage 1 on 2026-09-28 (amba ISSUE-001): the window compare gating the limit subtract in one cycle was 11 CARRY4 and 16 logic levels, 10.1 ns on an Artix-7 100T -1 -- the worst register-to-register path of every monitored bridge. The plan now trails `r_wr_addr` by four cycles instead of three, which only the settle counter sees.
-
-A `geom_valid` settle counter (now four) holds the plan invalid for the first few cycles after the writer **leaves `WR_IDLE`**, so the pipeline reflects the settled address before the FSM commits. The counter resets on that state exit only -- **not** when `r_wr_addr` moves *inside* `WR_IDLE`, which the rewind-snap and base-step-over branches below both do. On those paths `geom_valid` stays asserted and the FSM can act on a stale plan for a few cycles. That is tolerable rather than hazardous: a commit always consumes `r_plan_addr`, which travels through the pipeline with its own plan, so a stale plan can never be paired with a fresh address.
-
-##### Rewind-snap: in-window with no record-room left
-
-If a flush fires while `r_wr_addr` is in-window but the remaining bytes to the next 4KB boundary cannot fit a whole record, the pipeline produces `r_plan_ok=false` (units rounded down to zero) and the writer would otherwise wedge in `WR_IDLE`. The FSM detects this case (`do_flush && geom_valid && !r_plan_ok && r_wr_addr != cfg_base_addr`) and **snaps `r_wr_addr` to `cfg_base_addr`**, staying in `WR_IDLE` so the pipeline re-settles with fresh geometry.
-
-A **second branch** covers the case where `cfg_base_addr` *itself* cannot host a whole record: `do_flush && geom_valid && !r_plan_ok && (r_wr_addr == cfg_base_addr)` steps `r_wr_addr` over the short stub to the next 4KB boundary and drains there. So the host does **not** have to place `cfg_base_addr` with a record's worth of room before the next 4KB line — the hardware handles a base that lands in a stub. (The `!=`-only guard, without this second branch, wedged the writer; that is why it exists.)
-
-This case is hit by the AXIL/AXIL master_write stress in Phase 5, where `cfg_base_addr` is intentionally placed only a few beats below a 4KB boundary so the very first drain has to wrap-snap before it can emit anything.
-
-The **FRESH FIFO-occupancy cap** is applied combinationally at the `WR_IDLE` commit (not inside the pipeline):
-
-```
-// Pipeline produces r_plan_geo_units = address-feasible whole-record beats.
-// At commit time, cap by the CURRENT FIFO contents:
-units_commit = min(r_plan_geo_units, w_fifo_units)
-```
-
-where `w_fifo_units = r_fifo_beats - (r_fifo_beats mod 3)` (or `r_fifo_beats` itself in compressed mode where the unit is 1 beat). This matters because the FIFO keeps filling while the writer sits in `WR_IDLE`; a stale (3-cycle-old) FIFO count would short the burst — for example, capping a watermark-triggered 24-beat plan to 21. The fresh path starts from a single counter (no address subtract/shift), so it doesn't recreate the critical path.
-
-Per-AW sub-burst sizing happens **inside the FSM**, capping each AW by `MAX_BURST_BEATS`:
-
-```
-sub_burst_beats = min(remaining_in_cycle, MAX_BURST_BEATS)
-awlen           = sub_burst_beats - 1
-```
-
-The split between drain-cycle plan (whole records) and per-AW sub-burst (`MAX_BURST_BEATS`) is what makes the family work for both AXIL (`MAX_BURST_BEATS = 1`) and AXI4 masters in raw mode (`BEATS_PER_UNIT = 3`):
-
-- **AXI4 master, raw mode:** one drain cycle ≈ one large sub-burst. e.g. 24 beats = 8 records in a single AW + 24 × W + B. Throughput-optimal.
-- **AXIL master, raw mode:** one drain cycle = N single-beat sub-bursts. With `MAX_BURST_BEATS=1` the FSM runs one single-beat sub-burst per beat, so a 3-beat raw record costs three AW + three W + three B handshakes -- the W and B counts scale too, not just the address channel -- at consecutive addresses. The memory image is identical to the AXI4 case; the handshake counts on all three channels differ.
+The only timing difference is an epoch-start/pointer-fixup settle bubble. Burst
+geometry, data order, and the handshake accounting are unchanged.
 
 #### Address-window behavior: **wrap, not saturate**
 

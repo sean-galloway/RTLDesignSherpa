@@ -26,9 +26,17 @@ class CamPipeTB(TBBase):
         self.dut.key.value = 0
         self.dut.new_data.value = 0
         self.dut.new_ts.value = 0
+        self.dut.clear.value = 0
         self.dut.rst_n.value = 0
         await self.wait_clocks('clk', 5)
         self.dut.rst_n.value = 1
+        await self.wait_clocks('clk', 2)
+
+    async def clear(self):
+        self.dut.en.value = 0
+        self.dut.clear.value = 1
+        await self.wait_clocks('clk', 1)
+        self.dut.clear.value = 0
         await self.wait_clocks('clk', 2)
 
     async def run_stream(self, accesses: List[tuple]):

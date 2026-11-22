@@ -14,15 +14,11 @@
 //   This is the writer section of monbus_group_core (amba BUG-039
 //   redesign) lifted out so monbus_group_core_1wr can run one writer per
 //   source behind a single write port. monbus_group_core keeps its own
-//   inline copy (timing-closed, formally proven). The two are NO LONGER
-//   textually identical: this copy pipelines the AW cap (2026-11-02, granite
-//   TASK-008). On an Artix-7 -1 the one-cycle plan was a 25-level path,
-//   15.1 ns. The epoch-start cap is registered in two stages and used only
-//   when its inputs have been quiet for two cycles, and the in-flight room is
-//   a down-counter (r_epoch_room) instead of total - covered. The
-//   no-record-fits fixup (geo_blocked / stub) reads the same registered
-//   caps under the same two-cycle settle. Behavior differs only by a bubble
-//   of up to two cycles at each epoch start and before each pointer fixup.
+//   inline copy. Both pipeline the AW cap in two stages and keep in-flight
+//   room in a down-counter (r_epoch_room). The no-record-fits fixup reads the
+//   same registered caps after the same settle. The inline copy snapshots its
+//   FIFO cap at the flush trigger to preserve exact burst boundaries; this
+//   copy may instead use a conservative older, smaller FIFO cap.
 //
 //   The FIFO read side is a plain valid/ready pop plus the live beat count
 //   (the writer registers the count itself: triggers and the AW cap read

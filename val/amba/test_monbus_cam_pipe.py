@@ -35,6 +35,11 @@ async def monbus_cam_pipe_test(dut):
         seq.append((1, k, 0xD000 + k, 0x100 + k))
     n = await tb.run_stream(seq)
     tb.log.info(f"=== Phase 1 (directed same-key) PASS, {n} accesses ===")
+    await tb.clear()
+    seq = [(1, 33, 0x12345, 0x234), (1, 33, 0x23456, 0x345),
+           (1, 5, 0xABCDE, 0x456), (1, 33, 0x34567, 0x567)]
+    n = await tb.run_stream(seq)
+    tb.log.info(f"=== Phase 1b (clear+reuse) PASS, {n} accesses ===")
     await tb.reset()
 
     # Phase 2: bursts with idle bubbles between groups.

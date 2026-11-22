@@ -101,6 +101,28 @@ change. APB4/APB5 remain small (about 520–545 LUT on Artix) with residual
 -0.133/-0.278 ns latency/event-selection-to-FIFO paths; splitting their mixed
 command/state structs is deferred rather than presented as a fix.
 
+The inline group writer now uses a two-stage epoch cap, a trigger-time FIFO
+snapshot, and an in-flight room down-counter. Routed A/B:
+
+| Top | Kintex LUT / FF / WNS | Artix LUT / FF / WNS |
+|---|---:|---:|
+| `monbus_group_core` | 1,386 / 619 / +1.354 ns | 1,389 / 619 / **-0.785 ns** |
+| AXIL/AXIL group | 1,703 / 1,095 / +0.250 ns | 1,709 / 1,095 / **-0.038 ns** |
+| AXI4/AXI4 group | 1,907 / 1,337 / +0.928 ns | 1,915 / 1,337 / +0.209 ns |
+| AXIL/AXI4 group | 1,860 / 1,261 / +1.045 ns | 1,874 / 1,261 / **-0.095 ns** |
+| AXI4/AXIL group | 1,753 / 1,171 / +1.421 ns | 1,760 / 1,171 / +0.119 ns |
+
+The core's Artix baseline was 1,381 LUT / 552 FF / -6.750 ns. The residual
+path is FIFO-count modulo-3 rounding into the first cap register. Exact burst
+shape is preserved, including the directed 24-beat watermark case. The
+`bridge_1x2_rd_lite_mon` system fixture meets at +0.659 ns Kintex and +0.034 ns
+Artix, with zero unrouted nets and no group-writer worst path.
+
+Production uses `monbus_cam_pipe`, not the unpipelined reference CAM. The pipe
+meets at 2,154/2,168 LUT, 4,655 FF, +1.565/+0.857 ns on Kintex/Artix. Removing
+payload resets increases it to 2,232/2,247 LUT with no FF saving, so that edit
+was reverted; its clear/reuse equivalence check remains in the test suite.
+
 ## What was measured
 
 Every module at its **default parameters** (the wrapper's own defaults, not
