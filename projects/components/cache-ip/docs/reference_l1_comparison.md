@@ -513,7 +513,9 @@ measures the same way.
   observation costs no cycle) and add the chain the jet rig carries:
   27,872 / 27,143 LUT, 25,877 / 25,854 FF, WNS +0.001 / +0.027 ns. The
   MonBus tally bins for onyx's classes are lower bounds on the board (the
-  one channel saturates in thrash; onyx ISSUE-001); the counters are the
+  house MonBus is a low-bandwidth event channel by design and onyx's
+  observer puts per-transaction classes on it with no class mask, so the
+  channel saturates in thrash; onyx ISSUE-001); the counters are the
   measurement. Timing at 100 MHz under the 0.2 ns budget: SEL 4 WNS
   +0.006 ns, SEL 5 +0.000 ns, both met, the worst path jet-prime's fill
   engine staging read pointer into the data-array address in both -- onyx

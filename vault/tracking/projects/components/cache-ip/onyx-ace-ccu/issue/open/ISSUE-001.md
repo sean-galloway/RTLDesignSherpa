@@ -1,4 +1,4 @@
-# ISSUE-001: the board MonBus channel cannot carry onyx's event stream; tally bins are lower bounds
+# ISSUE-001: onyx's observer puts per-transaction classes on the low-bandwidth MonBus with no class knob; on the board the tally bins are lower bounds
 
 **Priority:** P3
 **Status:** open
@@ -28,16 +28,23 @@ whole run.
 
 ## Why
 
-The pair block's one MonBus channel (`monbus_arbiter`, 3 clients ->
-`monbus_axil4_group_1wr` -> `monbus_tally_axil`) is bounded by the group
-writer: one AXI-Lite write transaction per packet word, several cycles a
-packet, shared by the two caches' observers and onyx's. Delivered rate on
-`r64k_we64` depth 1 is about 0.17 onyx packets a cycle plus a similar cache
-stream; onyx alone generates about four events per transaction at a
-transaction every three cycles per injector. The drop-and-count idiom
-(inherited from the caches' observers) reports the loss poorly under
-sustained load: the report is emitted only when nothing is waiting, and its
-payload is 8 bits, so two reports a cell stand for thousands of lost events.
+The MonBus is a low-bandwidth event channel by intent
+(`vault/handbook/design/monbus-is-a-low-bandwidth-channel.md`, written from
+this case on 2026-11-22): it carries rare events, and every per-transaction
+class a monitor can emit is a knob that floods it under sustained traffic.
+The pair block's channel (`monbus_arbiter`, 3 clients ->
+`monbus_axil4_group_1wr` -> `monbus_tally_axil`) drains one AXI-Lite write
+per packet word, several cycles a packet, shared by the two caches'
+observers and onyx's; on `r64k_we64` depth 1 it delivers about 0.17 onyx
+packets a cycle. onyx's observer emits four per-transaction classes
+(`TXN_START`, `GATHER_DONE`, `MEM_READ`, `READ_WASTED`, about four events a
+transaction at a transaction every three cycles per injector) and, unlike
+the ocelus monitors, has no per-class enable mask: every class is always
+on. The saturation is the channel doing what it is for; the deviation from
+the house design is the missing knob. The drop-and-count idiom (inherited
+from the caches' observers) is itself low-bandwidth: the report is emitted
+only when nothing is waiting and its payload is 8 bits, so two reports a
+cell stand for thousands of lost events and say "lost", not "how many".
 
 ## What is not affected
 
@@ -50,11 +57,21 @@ so the chain costs no cycle.
 
 ## Resolves into
 
-One of: (a) record as a known limit of the house chain on this rig (the
-tally bins are lower bounds; the counters are the instrument), with the
-HAS and comparison saying so (done in ch04/04 and ch06/02); (b) a task to
-raise the channel's rate (compression on the group writer, or a tally fed
-directly from the arbiter without the AXI-Lite hop); (c) a task on the
-drop-and-count idiom itself (a wider saturating payload, or a periodic
-report), which the caches' observers would share. (b) and (c) are
-observation plumbing, not onyx, and belong with the monitor area if taken.
+(a) Done 2026-11-22: the handbook note above records the rule and this
+case; the HAS (ch04/04, ch06/02) and the reference comparison say the bins
+are lower bounds on the board and the counters are the measurement. Raising
+the channel's rate so a per-transaction stream fits is NOT a remedy: it is
+against the channel's design.
+
+(b) Open, onyx's: give `onyx_monlite` the per-class enable mask the ocelus
+monitors carry (`cfg_*_pkt_mask` convention, bit set drops the class),
+reset so the per-transaction classes are off and the rare ones
+(`LOCK_WAIT`, the drop report) stay on; the pair-rig TB then checks the
+masked classes emit nothing and the unmasked ones still meet their
+counters; the reference rig's harness CSR carries the mask so the host can
+open one class at a time for shape-in-time reads. Owner's call whether this
+lands in TASK-001 or waits for the D1 work.
+
+(c) Open, monitor area, not onyx's: the drop-and-count idiom's report
+(wider saturating payload, or a periodic report under sustained loss) is
+shared with the caches' observers and belongs with the monitors if taken.

@@ -106,7 +106,7 @@ Filtering *what is tracked* is always fine — an ID-range filter changes which
 transactions get a table entry and never what flows on the bus. That is the
 difference between an observer that scales and one that participates.
 
-Related: [[valid-ready-contracts]], [[sizing-invariants]].
+Related: [[valid-ready-contracts]], [[sizing-invariants]], [[monbus-is-a-low-bandwidth-channel]].
 
 ## The corollary for a monitor's own output: drop and count, never stall
 

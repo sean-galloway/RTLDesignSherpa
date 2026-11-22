@@ -77,7 +77,9 @@ rather than restating a port list here.
 
 **This is the #1 integration mistake!** The ocelus bus sustains at most
 1 packet per 2 cycles (reporter output register), so enabling every
-packet class under heavy traffic congests it.
+packet class under heavy traffic congests it. The channel is low-bandwidth
+by intent; the rule, the budget and the failures behind it are
+`vault/handbook/design/monbus-is-a-low-bandwidth-channel.md`.
 
 ```systemverilog
 WRONG (User's code):

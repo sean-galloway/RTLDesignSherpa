@@ -43,4 +43,4 @@ memory exposed it.
   system cannot flood itself), but a mask is configurable and the hard
   drop was not.
 
-Related: [[observers-do-not-drive]], [[generated-rtl-discipline]], [[transaction-monitor-keys]].
+Related: [[observers-do-not-drive]], [[monbus-is-a-low-bandwidth-channel]], [[generated-rtl-discipline]], [[transaction-monitor-keys]].

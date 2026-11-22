@@ -23,6 +23,7 @@ summary: RTL rules with the failures that taught them.
 - [[axi-burst-splitting]] - a burst cut into pieces restarts every later piece on the size grid; test the split with an UNALIGNED start (converters BUG-011)
 - [[observers-do-not-drive]] - a parallel snoop must not gate the bus it taps
 - [[new-monbus-protocol]] - a new PROTOCOL_* value must reach every consumer; the group cores filter by `filter_family()` (no hard drop since 2026-10-30), but decoders, tallies and configs still name values
+- [[monbus-is-a-low-bandwidth-channel]] - ocelus carries rare events at about one packet per two cycles; every per-transaction class is a knob that floods it under sustained traffic, a flooded channel's bins are lower bounds, and a number that must be exact under load is a counter beside the observer (onyx on the reference rig, 2026-11-22)
 - [[transaction-monitor-keys]] - a monitor's slot table is keyed by what the protocol lets the other side reuse; enumerate per-opcode debts from the spec's flow tables and review before writing the TB (CHI lite review found 7 leaks)
 - [[frame-per-stream]] - packet-open state must be per stream wherever streams can interleave (CXS 2.5.2, AXIS TID)
   (in-path `*_mon` wrappers own ready by design; the rule is not about them)
