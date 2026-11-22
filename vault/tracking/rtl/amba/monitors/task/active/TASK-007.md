@@ -382,4 +382,12 @@ standalone group core; none is presented as closed timing.
   forms pass 24/24 FULL cells with the reproducing seed. A full rerun is needed
   to certify the corrected suite.
 
-The final OOC and AXI formal results are recorded below as they complete.
+- Final AXI monitor-lite formal: prove **PASS** and cover **PASS**, all covers
+  reached (`task6-axi-formal.log`). MonBus group prove/cover also PASS with all
+  25 covers reached.
+- Final OOC matrix: **49 modules x 2 parts = 98/98 rows present**, zero unrouted
+  nets. The final CSV exactly matches the published AXI/ACE/CHI/MonBus/CAM values;
+  the intended RAM mappings are present in the final Vivado logs.
+
+The corrected AMBA full rerun is the only simulation still pending. TASK-007
+stays active because of the cache-reference `jetpp` failures above.
