@@ -89,6 +89,18 @@ The ACE snoop allocation-payload conversion reduces its Kintex/Artix rows to
 Artix improves from -0.425 to +0.118 ns. Its address, snoop-type, and timestamp
 arrays all infer distributed RAM.
 
+CHI combines reset-free allocation payload with one-hot event selection. RN-F
+moves from 4,532/4,647 LUT and 3,480 FF to 4,338 LUT and 3,096 FF on both
+parts; HN-F moves from 4,432/4,558 LUT and 3,308 FF to 4,214/4,218 LUT and
+2,924 FF. Kintex WNS is +0.941/+0.984 ns. Artix RN-F closes at +0.065 ns;
+HN-F remains -0.647 ns in response matching into the snoop counter, with the
+former event/output-FIFO path removed.
+
+AXIS, CXS, and Wishbone meet both targets and have no justified storage/cone
+change. APB4/APB5 remain small (about 520–545 LUT on Artix) with residual
+-0.133/-0.278 ns latency/event-selection-to-FIFO paths; splitting their mixed
+command/state structs is deferred rather than presented as a fix.
+
 ## What was measured
 
 Every module at its **default parameters** (the wrapper's own defaults, not

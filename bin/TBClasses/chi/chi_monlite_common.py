@@ -33,10 +33,12 @@ from TBClasses.chi.chi_monlite_model import (
     PT_COMPL,
     PT_CREDIT,
     PT_ERR,
+    PT_STREAM,
     PT_TMO,
     ChiMonModel,
     Ev,
     episodes,
+    event_priority,
     match,
     unpack,
 )
@@ -178,9 +180,8 @@ class MonliteMixin:
 
     # ---- verdict pieces --------------------------------------------------------------
     def verify(self, name, mark, drops_ok=False, mask=0, idle=True):
-        """Compare the packets since the last call with the model's events
-        since ``mark``. Exact multiset, payload fields included, unless
-        ``drops_ok`` (then missing events must be accounted by EVENT_DROPPED)."""
+        """Compare packets with the model's events since ``mark``, including
+        payload fields and priority for simultaneous TX/RX link events."""
         got = self.take()
         drops = [g for g in got if int(g[0].packet_type) == PT_ERR and int(g[0].event_code) == EV_DROPPED]
         real = [g for g in got if g not in drops]
@@ -190,6 +191,11 @@ class MonliteMixin:
         hard_missing = [e for e in missing if not e.optional]
         for e, p, f in pairs:
             self.counts[f'ev_{e.tag}'] += 1
+        for (first, _, _), (second, _, _) in zip(pairs, pairs[1:]):
+            if first.cyc == second.cyc and first.ptype == PT_STREAM and second.ptype == PT_STREAM:
+                self.counts['priority_checks'] += 1
+                if event_priority(first) < event_priority(second):
+                    self.mfail(f"{name}: cycle {first.cyc} priority reversed: {first.tag} before {second.tag}")
         self.counts['optional_unmatched'] += len(missing) - len(hard_missing)
         for p, f in unexpected[:6]:
             self.mfail(f"{name}: unexpected packet type {int(p.packet_type)} code {int(p.event_code)} "

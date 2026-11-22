@@ -236,3 +236,41 @@ fails all 9 cells.
 
 All three arrays appear in Vivado's RAM mapping report. Storage conversion
 alone closes Artix timing; no ACE event-cone rewrite is justified.
+
+## CHI storage and event selection (2026-11-21)
+
+Allocation-only request/snoop fields now have reset-free write processes. The
+four timestamp arrays infer distributed RAM; TxnID, opcode, and packet counts
+remain flops because they have parallel readers. Both event picks replace the
+priority-index/22-way mux with highest-priority one-hot selection and an OR of
+selected entries. Event generation, queue occupancy, two-event drop accounting,
+and packet timing are unchanged.
+
+The new ordered test check catches simultaneous TX/RX link-event reversal; the
+reversed-priority mutant fails after unordered packet matching previously let
+it pass. Completion/retirement model timestamps are not treated as exact event
+bundle IDs because retirement can occur later. The storage conversion and final
+one-hot RTL pass 26/26 targeted full cells. The stale-TxnID mutation failed all
+24 monitored cells. No CHI formal harness exists.
+
+| Wrapper | Part | Original LUT / FF / WNS | Storage-only WNS | Final LUT / FF / WNS |
+|---|---|---:|---:|---:|
+| RNF | Kintex | 4,532 / 3,480 / +0.326 | +0.478 | 4,338 / 3,096 / +0.941 |
+| RNF | Artix | 4,647 / 3,480 / -0.365 | -0.268 | 4,338 / 3,096 / +0.065 |
+| HNF | Kintex | 4,432 / 3,308 / +0.274 | +0.382 | 4,214 / 2,924 / +0.984 |
+| HNF | Artix | 4,558 / 3,308 / -0.606 | -0.390 | 4,218 / 2,924 / -0.647 |
+
+The one-hot form removes the event-to-output-FIFO critical path and saves a
+further 231--266 LUTs over storage-only. RNF closes Artix; HNF's residual path
+is response/debt matching into `r_snps`, not event selection. Do not add a
+pipeline blindly: the running count feeds event packets and simultaneous
+retire/retry accounting.
+
+## Remaining protocol dispositions
+
+- AXIS and CXS meet both targets and have no per-entry arrays; no change.
+- Wishbone meets both targets; no area-only split justified.
+- APB4/APB5 are small and retain their mixed transaction structs. Artix WNS
+  remains -0.133/-0.278 ns from latency/event selection into the FIFO; defer
+  any split/cone rewrite rather than hiding those misses or churning payload
+  without a measured benefit.

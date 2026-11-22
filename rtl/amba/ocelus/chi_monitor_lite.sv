@@ -292,7 +292,8 @@ module chi_monitor_lite
     );
 
     // ------------------------------------------------------------------
-    // Request table
+    // Request table. Allocation-only fields need no reset; parallel-reader
+    // fields stay flops, while the indexed timestamp reads can use LUTRAM.
     // ------------------------------------------------------------------
     logic [N-1:0]         r_valid;
     logic [TW-1:0]        r_txnid    [N];
@@ -305,7 +306,11 @@ module chi_monitor_lite
     logic [2:0]           r_pkts     [N];        // data packets the request's Size names
     logic [2:0]           r_dat_rem  [N];        // read data packets still owed
     logic [2:0]           r_wdat_rem [N];        // write data packets still owed (set by the DBID response)
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
     logic [AGE_WIDTH-1:0] r_us_stamp [N];
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
     logic [TS_WIDTH-1:0]  r_cyc_stamp[N];
     logic [N-1:0]         r_tmo;                 // timeout reported for this slot
 
@@ -398,7 +403,11 @@ module chi_monitor_lite
     logic [M-1:0]         r_s_valid;
     logic [TW-1:0]        r_s_txnid  [M];
     logic [2:0]           r_s_rem    [M];        // snoop data packets still owed (0 after SnpResp)
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
     logic [AGE_WIDTH-1:0] r_s_us     [M];
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
     logic [TS_WIDTH-1:0]  r_s_cyc    [M];
     logic [M-1:0]         r_s_tmo;
 
@@ -536,10 +545,15 @@ module chi_monitor_lite
         logic [63:0] data;
     } chi_entry_t;
 
-    function automatic logic [4:0] first_idx(input logic [NC-1:0] c);
-        logic [4:0] r;
+    function automatic logic [NC-1:0] first_onehot(input logic [NC-1:0] c);
+        logic [NC-1:0] r;
+        logic seen;
         r = '0;
-        for (int i = 0; i < NC; i++) if (c[i]) r = 5'(i);
+        seen = 1'b0;
+        for (int i = NC - 1; i >= 0; i--) begin
+            r[i] = c[i] && !seen;
+            seen = seen || c[i];
+        end
         return r;
     endfunction
 
@@ -693,33 +707,58 @@ module chi_monitor_lite
         return e;
     endfunction
 
-    logic [NC-1:0] w_cand2;
-    logic [4:0]    w_i1, w_i2;
+    function automatic chi_entry_t cand_entry_onehot(input logic [NC-1:0] sel);
+        chi_entry_t e;
+        e = '0;
+        for (int i = 0; i < NC; i++) begin
+            e = e | ({$bits(chi_entry_t){sel[i]}} & cand_entry(5'(i)));
+        end
+        return e;
+    endfunction
+
+    logic [NC-1:0] w_sel1, w_cand2, w_sel2;
     logic          w_fire1, w_fire2;
     logic [4:0]    w_ev_n;
-    assign w_i1    = first_idx(r_e_cand);
-    assign w_cand2 = r_e_cand & ~(NC'(1) << w_i1);
-    assign w_i2    = first_idx(w_cand2);
+    assign w_sel1  = first_onehot(r_e_cand);
+    assign w_cand2 = r_e_cand & ~w_sel1;
+    assign w_sel2  = first_onehot(w_cand2);
     assign w_fire1 = (|r_e_cand) && !clear;
     assign w_fire2 = (|w_cand2)  && !clear;
     assign w_ev_n  = clear ? 5'd0 : (5'($countones(r_e_cand)) + 5'(r_e_merged));
     chi_entry_t w_e1, w_e2;
-    assign w_e1 = cand_entry(w_i1);
-    assign w_e2 = cand_entry(w_i2);
+    assign w_e1 = cand_entry_onehot(w_sel1);
+    assign w_e2 = cand_entry_onehot(w_sel2);
 
     // ------------------------------------------------------------------
     // Tracking state
     // ------------------------------------------------------------------
+    always_ff @(posedge aclk) begin
+        if (w_req_alloc && w_free) begin
+            r_txnid[w_free_idx]     <= w_req_txnid;
+            r_opcode[w_free_idx]    <= w_req_opc;
+            r_pkts[w_free_idx]      <= owes_wdata(w_req_opc) ? w_req_pkts : 3'd0;
+            r_us_stamp[w_free_idx]  <= r_us;
+            r_cyc_stamp[w_free_idx] <= r_cyc;
+        end
+    end
+
+    always_ff @(posedge aclk) begin
+        if (w_s_alloc && w_s_free) begin
+            r_s_txnid[w_s_free_idx] <= w_snp_txnid;
+            r_s_us[w_s_free_idx]    <= r_us;
+            r_s_cyc[w_s_free_idx]   <= r_cyc;
+        end
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_valid <= '0; r_dbid_ok <= '0; r_need_comp <= '0; r_need_dbid <= '0; r_need_ack <= '0; r_tmo <= '0;
             for (int i = 0; i < N; i++) begin
-                r_txnid[i] <= '0; r_dbid[i] <= '0; r_opcode[i] <= '0; r_pkts[i] <= '0; r_dat_rem[i] <= '0; r_wdat_rem[i] <= '0;
-                r_us_stamp[i] <= '0; r_cyc_stamp[i] <= '0;
+                r_dbid[i] <= '0; r_dat_rem[i] <= '0; r_wdat_rem[i] <= '0;
             end
             r_s_valid <= '0; r_s_tmo <= '0;
             for (int i = 0; i < M; i++) begin
-                r_s_txnid[i] <= '0; r_s_rem[i] <= '0; r_s_us[i] <= '0; r_s_cyc[i] <= '0;
+                r_s_rem[i] <= '0;
             end
             r_scan <= '0; r_s_scan <= '0; r_txns <= '0; r_snps <= '0;
             r_tx_link <= 2'b00; r_rx_link <= 2'b00; r_proto_q <= 1'b0;
@@ -746,17 +785,12 @@ module chi_monitor_lite
             // ---- request slots: allocate, update, retire ----
             if (w_req_alloc && w_free) begin
                 r_valid[w_free_idx]     <= 1'b1;
-                r_txnid[w_free_idx]     <= w_req_txnid;
-                r_opcode[w_free_idx]    <= w_req_opc;
                 r_dbid_ok[w_free_idx]   <= 1'b0;
                 r_need_comp[w_free_idx] <= 1'b1;
                 r_need_dbid[w_free_idx] <= owes_dbid(w_req_opc);
                 r_need_ack[w_free_idx]  <= w_req_eca;
-                r_pkts[w_free_idx]      <= owes_wdata(w_req_opc) ? w_req_pkts : 3'd0;   // write data the DBID will pull
                 r_dat_rem[w_free_idx]   <= is_read_opcode(w_req_opc) ? w_req_pkts : 3'd0;
                 r_wdat_rem[w_free_idx]  <= 3'd0;
-                r_us_stamp[w_free_idx]  <= r_us;
-                r_cyc_stamp[w_free_idx] <= r_cyc;
                 r_tmo[w_free_idx]       <= 1'b0;
             end
             for (int i = 0; i < N; i++) begin
@@ -802,10 +836,7 @@ module chi_monitor_lite
             // ---- snoop slots ----
             if (w_s_alloc && w_s_free) begin
                 r_s_valid[w_s_free_idx] <= 1'b1;
-                r_s_txnid[w_s_free_idx] <= w_snp_txnid;
                 r_s_rem[w_s_free_idx]   <= 3'(LINE_PKTS);
-                r_s_us[w_s_free_idx]    <= r_us;
-                r_s_cyc[w_s_free_idx]   <= r_cyc;
                 r_s_tmo[w_s_free_idx]   <= 1'b0;
             end
             for (int i = 0; i < M; i++) begin

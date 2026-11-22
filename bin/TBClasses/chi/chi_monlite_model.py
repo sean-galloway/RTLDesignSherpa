@@ -65,6 +65,38 @@ PT_CREDIT, PT_CHAN, PT_STREAM = int(PktType.PktTypeCredit), int(PktType.PktTypeC
 _E = CHIErrorCode
 _C = CHICompletionCode
 _T = CHITimeoutCode
+
+_PRIORITY = [
+    (PT_ERR, int(_E.CHI_ERR_PROTOCOL)),
+    (PT_ERR, int(_E.CHI_ERR_RESP_ERR)),
+    (PT_ERR, int(_E.CHI_ERR_ORPHAN_RSP)),
+    (PT_ERR, int(_E.CHI_ERR_ORPHAN_DAT)),
+    (PT_ERR, int(_E.CHI_ERR_ORPHAN_ACK)),
+    (PT_ERR, int(_E.CHI_ERR_ORPHAN_SNP_RSP)),
+    (PT_ERR, int(_E.CHI_ERR_TABLE_FULL)),
+    (PT_ERR, int(_E.CHI_ERR_SNP_TABLE_FULL)),
+    (PT_TMO, int(_T.CHI_TIMEOUT_TXN)),
+    (PT_TMO, int(_T.CHI_TIMEOUT_SNP)),
+    (PT_TMO, int(_T.CHI_TIMEOUT_CREDIT)),
+    (PT_TMO, int(_T.CHI_TIMEOUT_LINK)),
+    (PT_COMPL, int(_C.CHI_COMPL_TXN)),
+    (PT_COMPL, int(_C.CHI_COMPL_RETRY)),
+    (PT_COMPL, int(_C.CHI_COMPL_SNP)),
+    (PT_CREDIT, int(CHICreditCode.CHI_CREDIT_STARVED)),
+    (PT_CREDIT, int(CHICreditCode.CHI_CREDIT_BACKPRESSURE)),
+    (PT_CHAN, int(CHIChannelCode.CHI_CHAN_PCRD_GRANT)),
+    (PT_CHAN, int(CHIChannelCode.CHI_CHAN_PCRD_RETURN)),
+    (PT_CHAN, int(CHIChannelCode.CHI_CHAN_READ_RECEIPT)),
+]
+_PRIORITY = {key: len(_PRIORITY) - i for i, key in enumerate(_PRIORITY)}
+
+
+def event_priority(event):
+    if event.ptype == PT_STREAM:
+        return 2 if event.code < 4 else 1
+    return _PRIORITY[(event.ptype, event.code)]
+
+
 LAYOUT = {
     (PT_COMPL, int(_C.CHI_COMPL_TXN)):   dict(lat=(48, 16), opc=(40, 8), txnid=(24, 12), occ=(16, 8), txns=(0, 16)),
     (PT_COMPL, int(_C.CHI_COMPL_RETRY)): dict(pcrd=(40, 4), txnid=(24, 12), occ=(16, 8), txns=(0, 16)),

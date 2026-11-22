@@ -124,6 +124,7 @@ class _RoleBase(MonliteMixin):
         ok = await self.phase_mask(n) and ok
         ok = await self.phase_disable(n) and ok
         ok = await self.phase_clear(n) and ok
+        ok = await self.phase_reuse() and ok
         ok = await self.phase_drop() and ok
         ok = await self.phase_protocol() and ok
         await self.wait_cycles(50)
@@ -285,6 +286,21 @@ class _RoleBase(MonliteMixin):
         self.verify('after-clear', mark)
         return ok
 
+    async def phase_reuse(self):
+        """One TxnID is recycled across changing transactions and backpressure."""
+        mark = len(self.model.events)
+        ok = True
+        for i in range(4):
+            if i == 3:
+                self.set_monbus_ready(40)
+            await self.issue_reuse(i)
+            ok = await self.wait_idle('TxNID reuse') and ok
+        self.set_monbus_ready(0)
+        await self.drain(200)
+        self.verify('reuse', mark, drops_ok=True)
+        self.counts['reuse_checks'] = self.counts.get('reuse_checks', 0) + 1
+        return ok
+
     async def phase_drop(self):
         """monbus_ready held low through a burst: queue fills, the rest is
         counted and reported as EVENT_DROPPED once the queue drains."""
@@ -373,10 +389,12 @@ class CHIRnfMonliteTB(_RoleBase, CHIRnfPortTB):
         self.random_optional(f, 'req', ('rsvdc', 'mpam', 'pbha', 'mecid', 'secsid1'))
         return f
 
-    def issue_ex(self, kind, addr, data=None, eca=0, order=0):
+    def issue_ex(self, kind, addr, data=None, eca=0, order=0, txnid=None):
         opcode = ReqOpcode.ReadNoSnp if kind == 'r' else ReqOpcode.WriteNoSnpFull
         txn = CHITransaction(opcode=opcode, addr=addr, size=Size.B64, srcid=RN_ID, tgtid=HN_ID,
                              memattr=int(MemAttr.EWA), snpattr=0, expcompack=eca, order=order, data=data)
+        if txnid is not None:
+            txn.txnid = txnid
         if kind == 'r':
             self.expect[id(txn)] = ('r', addr, self.ref[addr])
         else:
@@ -387,6 +405,13 @@ class CHIRnfMonliteTB(_RoleBase, CHIRnfPortTB):
         self.set_sactive()
         self.fub_tx['req'].put(self.req_flit(txn).pack())
         return txn
+
+    async def issue_reuse(self, i):
+        if i & 1:
+            self.issue_ex('w', self.alloc_line(), bytes([0x40 + i]) * 64,
+                          eca=i & 1, txnid=3)
+        else:
+            self.issue_ex('r', self.new_seeded_line(), eca=i & 1, txnid=3)
 
     def _complete(self, txn):
         kind = self.expect[id(txn)][0]
@@ -897,6 +922,19 @@ class CHIHnfMonliteTB(_RoleBase, CHIHnfPortTB):
         ok = await self.wait_until(self.idle_now, 80000, what)
         await self.wait_cycles(extra)
         return ok
+
+    async def issue_reuse(self, i):
+        if i & 1:
+            a, data = self.alloc_line(), bytes([0x40 + i]) * 64
+            self.ref[a] = data
+            t = self.rn.new_txn(ReqOpcode.WriteNoSnpFull, a, Size.B64,
+                                data=data, expcompack=i & 1)
+        else:
+            a = self.new_seeded_line()
+            t = self.rn.new_txn(ReqOpcode.ReadNoSnp, a, Size.B64,
+                                expcompack=i & 1)
+        t.txnid = 3
+        self.rn.issue(t)
 
     async def traffic(self, ops, order=0):
         ok = True

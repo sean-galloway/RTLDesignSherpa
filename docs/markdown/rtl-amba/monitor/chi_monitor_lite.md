@@ -165,6 +165,19 @@ Two events of one class in the same cycle (RespErr on RSP and DAT, orphans on bo
 - **TABLE_FULL is lossy.** An untracked request's responses all arrive as orphans. Size `MAX_TRANSACTIONS` to the requester's outstanding limit; `AGE_WIDTH` is at most 16 (the packet carries a 16-bit age).
 - **No formal proof yet.** Simulation coverage only; see Testing.
 
+### FPGA storage and event selection (2026-11-21)
+
+Allocation-only TxnID, opcode, packet-count, and timestamp fields now have dedicated reset-free write processes. Only the four timestamp arrays carry RAM attributes; IDs, opcodes, and counts have parallel readers and remain flops. Both event picks use one-hot priority selection and an OR-of-selected-entries mux rather than encoding an index and decoding it through a 22-way payload mux. Event generation, two-event queue accounting, and output timing are unchanged.
+
+| Wrapper | Part | Original LUT / FF / WNS | Final LUT / FF / WNS |
+|---|---|---:|---:|
+| RN-F | Kintex-7, 6.667 ns | 4,532 / 3,480 / +0.326 ns | 4,338 / 3,096 / +0.941 ns |
+| RN-F | Artix-7, 10 ns | 4,647 / 3,480 / -0.365 ns | 4,338 / 3,096 / +0.065 ns |
+| HN-F | Kintex-7, 6.667 ns | 4,432 / 3,308 / +0.274 ns | 4,214 / 2,924 / +0.984 ns |
+| HN-F | Artix-7, 10 ns | 4,558 / 3,308 / -0.606 ns | 4,218 / 2,924 / -0.647 ns |
+
+All four timestamp arrays appear as RAM32M in Vivado's mapping report. The final Artix RN-F path and residual HN-F path are response-match/debt logic into a running counter, not the former event-to-output-FIFO mux; HN-F therefore remains a measured timing miss, not a claimed closure. No CHI formal harness exists.
+
 ## Testing
 
 `val/amba/monitor-lite/test_chi_{rnf,hnf}_port_monlite.py` drive the port with the RDS-DV CHI BFMs (`CHIHomeNode` on the RN-F port, `CHIRequestNode` on the HN-F port, a `CHIMonitor` beside each) and a `MonbusSlave` on the Ocelus bus. The TB (`bin/TBClasses/chi/chi_monlite_tb.py` over the port TBs, with `chi_monlite_common.py` and a spec-level reference model in `chi_monlite_model.py` built from the framework's flit and opcode classes, not from `chi_pkg`) predicts every event from the FUB handshakes it samples and matches delivered packets against that prediction with exact payloads; packets are decoded with `TBClasses.monbus` (`CHIErrorCode` and friends, parity-tested against `ocelus_chi_pkg.sv` by `bin/TBClasses/monbus/tests/test_monbus_chi.py`). Same configuration grid as the port tests plus table sizes 2, 3, 4 and 8, snoop tables 2 and 3, queue depths 2 and 7, and a `USE_MONITOR=0` cell: GATE 3 cells, FUNC 8, FULL 13 per wrapper.
