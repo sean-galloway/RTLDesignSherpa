@@ -28,7 +28,12 @@
 -f $JET_PRIME_ROOT/rtl/filelists/jet_prime_pair_fabric.f
 
 # the onyx coherency unit in the pair fabric's place (REF_CACHE_SEL 4 / 5; onyx TASK-001)
--f $ONYX_ROOT/rtl/filelists/onyx_ccu.f
+-f $ONYX_ROOT/rtl/filelists/onyx_top.f
+
+# the MonBus chain of the pair block (SEL 3 to 5): arbiter, group, tally
+-f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_group_1wr.f
+-f $MISC_ROOT/rtl/filelists/monbus_tally_axil.f
 
 # UART -> AXIL, the shared jet bridge, the house AXI4 block-RAM slave
 -f $CONVERTERS_ROOT/rtl/filelists/uart_axil_bridge.f

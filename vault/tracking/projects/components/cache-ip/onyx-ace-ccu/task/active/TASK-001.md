@@ -294,3 +294,70 @@ Found and measured:
   port, the D9 monlite taps (and with them the elision-rate count), the
   N = 3 formal harness, a core-alone BFM-cache rig, a redrawn block
   diagram, and the MAS.
+- 2026-11-21 **Step 6b, D9 observation (sim done; board in progress):**
+  `onyx_ccu` exposes one-cycle event taps (grant with class / port / slot,
+  AC per peer, gather-done per answering port with slot / DT / PD, memory
+  AR, read-wasted per answering port, absorb, write-back, lock-wait per
+  port); `onyx_pkg` carries the codes 0x20-0x27 (0x21 SNOOP_OUT retired as
+  TXN_START x peers); `onyx_monlite` turns them into house MonBus packets
+  (agent 0x00A3) and `onyx_counters` keeps six exact 32-bit counts
+  (transactions, lines supplied, memory reads, reads wasted, absorptions,
+  write-backs; clear pulse + freeze level shared with the rig's tally);
+  `onyx_top` composes ccu + observer + counters behind USE_MONITOR.
+  Three observer findings on the way, each a count that did not match the
+  TB's model: (1) the caches' two-intake engine lost 9 of 66 TXN_START
+  packets at queue depth 4 AND at 16 -- the intake, not the depth; it is
+  now two-deep per-class holders draining one a cycle round-robin, with
+  only a full holder losing, counted; (2) a write the queue refused
+  vanished uncounted -- the take is gated on the FIFO's own wr_ready, not
+  a shadow count; (3) two peers completing two different slots' gathers
+  in one cycle collapsed into one `evt_gather` bit, an event lost that
+  nothing counted (once a gate run) -- the gather and read-wasted taps are
+  per answering port and the counters add a popcount. The pair-rig TB
+  (`OnyxPairRigTB`) now holds the counters to its model exactly
+  (transactions == grants, memory reads == ARs, absorptions, reads wasted
+  == dropped reads, lines supplied == forwarded lines) and the observer to
+  honesty (each class <= its counter, shortfall covered by its own drop
+  reports). onyx gate 5/5, func 10/10, full 44/44 from clean; in the full
+  cells the observer carries ~13,700 packets with 0 to 8 lost, all
+  reported. Reference rig: the pair block carries a 3-client
+  `monbus_arbiter` -> `monbus_axil4_group_1wr` -> `monbus_tally_axil` on
+  bridge slaves 3/4/5 and the six counters at harness CSR 0x020-0x034;
+  host profile `ref-onyx` (bins 11-17 onyx) and `--profile` on the sweep,
+  which reads the counters in the tally's frozen window. Lint clean at
+  SEL 0/3/4/5. SEL 4 / 5 bitstreams building; sweeps with the profile to
+  follow (`perf_sweep_onyx*_bin2_*`). Formal prove + prove_book relaunched
+  on the regenerated flat (ports changed; the 27 properties do not read
+  the taps). Measured already in sim, DEFER_AR 0: every supplied line is a
+  wasted read (supplied == read_wasted, 138/138, 222/222 ...), 3.6 to 6 %
+  of the memory reads in the pair rig's full cells.
+- 2026-11-22 **Step 6b, board:** SEL 4 and SEL 5 rebuilt with the tally
+  chain, observer and counters (bin 2): WNS +0.001 / +0.027 ns at 100 MHz,
+  27,872 / 27,143 LUT, 25,877 / 25,854 FF (the chain the jet rig also
+  carries: +9,200 LUT, +14,000 FF over bin 1). Programmed, init + smoke
+  PASS, single and dual 55-point sweeps in both modes with
+  `--profile ref-onyx`: **all 220 cells cycle-identical to bin 1** (the
+  observation costs no cycle), err 0. First host run failed on the regmap
+  (my six entries had the wrong key shape: `address`/`name`/`size`/`type:
+  reg`, not `offset`/`type: register`); fixed, rerun clean. **The D6
+  trade, counted:** parallel mode (SEL 4) wastes exactly one read per
+  supplied line in every cell but the deepest (reads wasted == lines
+  supplied; `r16k_we64` 116 of 381 reads = 30 %, `r64k_we64` 192 of
+  20,240 = 0.9 %, `r64k_we255` 637 of 20,303 = 3.1 %, `r128k_we64` 638 of
+  30,083 = 2.1 %; at depth 16 a few snoops answer before the AR is taken
+  and 11 of 638 reads are never issued); deferred mode (SEL 5) wastes 0 in
+  all 110 cells and issues exactly `lines supplied` fewer reads (381 ->
+  265, 20,240 -> 20,048, 20,490 -> 19,666, 30,083 -> 29,445). The
+  single-injector cells are the control: supplied 0, wasted 0, reads equal
+  in both modes. **MonBus on the board:** the pair block's one channel
+  (AXI-Lite group writer, three observers) saturates at the thrash cells'
+  rates: bin 11 reads 12,613 against 20,240 transactions at depth 1,
+  3,891 at depth 16, two drop reports a cell with an 8-bit payload;
+  resident and warm-up cells agree with the counters exactly. Filed as
+  onyx ISSUE-001 (the bins are lower bounds; the counters are the
+  instrument). Formal on the regenerated flat (per-port taps): prove PASS,
+  prove_book PASS. HAS ch04/04 and ch06/02 (Table 6.3 observation rows,
+  Table 6.5 the counted trade), PRD criterion 4 built and measured,
+  README, `ref_compare.py` counter table, comparison report. Results
+  `perf_sweep_onyx_bin2_{single,dual}_20261122T1509/1510*` and
+  `perf_sweep_onyxd_bin2_{single,dual}_20261122T1513/1515*`.

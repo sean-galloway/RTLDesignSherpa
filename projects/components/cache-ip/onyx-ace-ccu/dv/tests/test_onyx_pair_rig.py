@@ -31,8 +31,8 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from projects.components.cache_ip.jet_prime_mesi_l1.dv.tbclasses.jet_prime_pair_rig_tb import (
-    JetPairRigTB,
+from projects.components.cache_ip.onyx_ace_ccu.dv.tbclasses.onyx_pair_rig_tb import (
+    OnyxPairRigTB,
 )
 
 JETP_FILELIST_DIR = 'projects/components/cache-ip/jet-prime-mesi-l1/rtl/filelists'
@@ -65,7 +65,7 @@ TEST_PREFIX = 'onyx_pair_rig'
 
 @cocotb.test(timeout_time=1800, timeout_unit="ms")
 async def cocotb_test_onyx_pair_rig(dut):
-    tb = JetPairRigTB(dut)
+    tb = OnyxPairRigTB(dut)
     await tb.setup_clocks_and_reset()
     ok = await tb.run()
     report = tb.get_test_report()
@@ -83,7 +83,7 @@ def _run_cell(request, sets, ways, line_bytes, bus_width, test_level,
     # jet_prime_pair_fabric.f (own source only), dedup'ing order-preserving.
     verilog_sources = []
     includes = []
-    for fl in (f'{JETP_FILELIST_DIR}/jet_prime_top.f', f'{ONYX_FILELIST_DIR}/onyx_ccu.f'):
+    for fl in (f'{JETP_FILELIST_DIR}/jet_prime_top.f', f'{ONYX_FILELIST_DIR}/onyx_top.f'):
         srcs, incs = get_sources_from_filelist(
             repo_root=repo_root,
             filelist_path=fl)

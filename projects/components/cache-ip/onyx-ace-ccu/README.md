@@ -49,8 +49,13 @@ whole pair-rig grid unchanged (`dv/tests/test_onyx_pair_rig.py`); the ACE
 snoop BFMs were verified on the gather shapes first
 (`dv/tests/test_onyx_snoop_gather_rig.py`); the formal argument at two
 ports is `formal/onyx/onyx_ccu`; the Genesys2 reference rig carries it as
-`REF_CACHE_SEL` 4 and 5. Not yet built: the ACE-Lite IO port (D1), the
-MonBus taps (D9), an `ARSNOOP` front end. Tracker:
+`REF_CACHE_SEL` 4 and 5. Observation (D9) is built: `onyx_top` composes
+the unit with `onyx_monlite` (house MonBus packets from the unit's event
+taps, an observer that reports what it drops) and `onyx_counters` (six
+exact counts: transactions, lines supplied, memory reads, reads wasted,
+absorptions, write-backs), held to the pair-rig TB's model in sim and read
+on the reference rig through the tally chain and the harness CSR. Not yet
+built: the ACE-Lite IO port (D1), an `ARSNOOP` front end. Tracker:
 [`vault/tracking/projects/components/cache-ip/onyx-ace-ccu/`](../../../../vault/tracking/projects/components/cache-ip/onyx-ace-ccu/INDEX.md);
 architecture: [docs/onyx_has](docs/onyx_has/onyx_has_index.md).
 
@@ -92,7 +97,9 @@ semantics, multi-CCU systems, stash/dealloc features. See
 
 - `rtl/top/onyx_ccu.sv` with `rtl/filelists/onyx_ccu.f` (area `onyx`,
   root `ONYX_ROOT` in `bin/filelists.toml`); the shared `l1_pkg` by
-  `-f` include.
+  `-f` include. `rtl/top/onyx_top.sv` (`onyx_top.f`) composes it with
+  `rtl/fub/onyx_monlite.sv` and `rtl/fub/onyx_counters.sv` on the event
+  taps; `rtl/includes/onyx_pkg.sv` holds the event codes.
 - `dv/tb/` the harnesses (`onyx_pair_rig_tb.sv`: jet-prime's pair rig
   with onyx in the fabric's place; `onyx_snoop_gather_rig_tb.sv`: the
   BFM-against-BFM gather rig), `dv/tbclasses/`, `dv/tests/` (Pattern B;

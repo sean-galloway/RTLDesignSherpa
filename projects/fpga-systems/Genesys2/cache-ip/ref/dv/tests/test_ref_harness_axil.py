@@ -6,9 +6,13 @@
 #   AXIL4 master BFM, bypassing the UART bridge (cache-ip common-ip TASK-003).
 #   The reference rig is the jet pair harness with the vendored OpenHW HPDcache
 #   in the cache slot behind injector 0, a null responder behind injector 1 and
-#   no MonBus tally (its three apertures are stubs), so this is the jet AXIL
-#   test minus the tally checks: aperture probe, smoke (counts and CRCs),
-#   injector latency instrumentation and the pipelined-depth run.
+#   no MonBus tally (its three apertures are stubs) for REF_CACHE_SEL 0-2, so
+#   there this is the jet AXIL test minus the tally checks: aperture probe,
+#   smoke (counts and CRCs), injector latency instrumentation and the
+#   pipelined-depth run. The pair selections (3: jet-prime pair fabric; 4 and
+#   5: onyx, read alongside the snoop / deferred -- onyx TASK-001) carry two
+#   jet-primes and a real tally chain, and 4 and 5 expose onyx's six exact
+#   counters at harness CSR 0x020-0x034; the smoke checks those.
 
 import os
 import sys
@@ -71,6 +75,7 @@ HCSR_STATUS = 0x04
 HCSR_CYCLE_LO = 0x08
 HCSR_CYCLE_HI = 0x0C
 HCSR_FABRIC_DBG = 0x10
+HCSR_ONYX_CNT0 = 0x20       # six onyx counters, 0x20..0x34 (REF_CACHE_SEL 4/5; 0 elsewhere)
 
 # Tally config register offsets (64-bit stride)
 TALLY_CAM_CLEAR = 0x100
@@ -353,9 +358,29 @@ async def smoke_test(dut):
     dut._log.info(f"ci0 status=0x{status0:08x} err=0x{err0:08x} rsp_crc=0x{rsp_crc0:016x}")
     dut._log.info(f"ci1 status=0x{status1:08x} err=0x{err1:08x} rsp_crc=0x{rsp_crc1:016x}")
 
-    # No tally on the reference rig: the apertures are stubs that read 0.
+    # REF_CACHE_SEL 0-2: no tally, the apertures are stubs that read 0.
+    # 3-5: the pair block's tally counts the two caches' observers, so the
+    # bins carry the smoke's cache events; 4-5 add onyx's exact counters.
+    sel = int(os.environ.get('REF_CACHE_SEL', '0'))
     bins = [await tb.read64(ADDR_TALLY_CNT + i * 8) for i in range(8)]
-    assert sum(bins) == 0, f"tally stub returned non-zero: {bins}"
+    if sel < 3:
+        assert sum(bins) == 0, f"tally stub returned non-zero: {bins}"
+    else:
+        assert sum(bins) > 0, f"pair-block tally saw no cache event: {bins}"
+    onyx = [await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0 + 4 * i) for i in range(6)]
+    txn, supplied, mem_read, read_wasted, absorb, wb = onyx
+    dut._log.info(f"onyx counters (SEL {sel}): txn={txn} supplied={supplied} mem_read={mem_read} "
+                  f"read_wasted={read_wasted} absorb={absorb} wb={wb}")
+    if sel < 4:
+        assert onyx == [0] * 6, f"onyx counters must read 0 without onyx: {onyx}"
+    else:
+        assert txn > 0 and mem_read > 0, f"onyx counted no transactions: {onyx}"
+        if sel == 4:
+            # the read alongside the snoop: every supplied line is a wasted read
+            assert read_wasted == supplied, f"SEL 4: wasted {read_wasted} != supplied {supplied}"
+        else:
+            # the read deferred: never a wasted one
+            assert read_wasted == 0, f"SEL 5: wasted {read_wasted} != 0"
     # The reference cache answered every request of injector 0 and the null
     # responder every request of injector 1.
     for ci_base, name in [(ADDR_CYCLE_INJECTOR0, "ci0"), (ADDR_CYCLE_INJECTOR1, "ci1")]:
@@ -559,7 +584,7 @@ async def injector_pipeline_test(dut):
                 f"{name} depth 8: no throughput gain ({s8['run_cycles']} vs {base['run_cycles']} cycles)"
 
 
-REF_CACHES = {"hpd": 0, "cva6": 1, "jetp": 2, "jetpp": 3}   # REF_CACHE_SEL: HPDcache, CVA6 write-back dcache, jet-prime direct, jet-prime pair
+REF_CACHES = {"hpd": 0, "cva6": 1, "jetp": 2, "jetpp": 3, "onyx": 4, "onyxd": 5}   # REF_CACHE_SEL: HPDcache, CVA6 write-back dcache, jet-prime direct, jet-prime pair, onyx (read alongside the snoop), onyx (read deferred)
 
 
 @pytest.mark.parametrize("ref_cache", list(REF_CACHES), ids=list(REF_CACHES))
@@ -598,6 +623,7 @@ def test_ref_harness_axil(request, test_level, ref_cache):
         'REF_FRAMEWORK_ROOT': REF_FRAMEWORK_ROOT,
         'JET_FRAMEWORK_ROOT': JET_FRAMEWORK_ROOT,
         'AMBER_FRAMEWORK_ROOT': AMBER_FRAMEWORK_ROOT,
+        'REF_CACHE_SEL': str(REF_CACHES[ref_cache]),
         **level_env(test_level),
     }
 

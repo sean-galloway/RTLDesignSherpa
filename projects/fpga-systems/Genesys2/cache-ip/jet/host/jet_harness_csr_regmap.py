@@ -71,4 +71,76 @@ top_block = {
         'type': 'reg',
         'value': {'default': '0x00000000', 'offset': '3:0', 'sw': 'r', 'type': 'field'},
     },
+    'ONYX_CNT_TXN': {
+        # onyx TASK-001 (reference rig REF_CACHE_SEL 4/5 only; the jet rig and
+        # the other selections read 0): transactions granted; cleared by CTRL[0], held by CTRL[1]
+        'address': '0x020',
+        'default': '0x00000000',
+        'name': 'ONYX_CNT_TXN',
+        'offset': '0x020',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'ONYX_CNT_SUPPLIED': {
+        # onyx TASK-001 (reference rig REF_CACHE_SEL 4/5 only; the jet rig and
+        # the other selections read 0): lines a peer supplied; cleared by CTRL[0], held by CTRL[1]
+        'address': '0x024',
+        'default': '0x00000000',
+        'name': 'ONYX_CNT_SUPPLIED',
+        'offset': '0x024',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'ONYX_CNT_MEM_READ': {
+        # onyx TASK-001 (reference rig REF_CACHE_SEL 4/5 only; the jet rig and
+        # the other selections read 0): memory reads issued; cleared by CTRL[0], held by CTRL[1]
+        'address': '0x028',
+        'default': '0x00000000',
+        'name': 'ONYX_CNT_MEM_READ',
+        'offset': '0x028',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'ONYX_CNT_READ_WASTED': {
+        # onyx TASK-001 (reference rig REF_CACHE_SEL 4/5 only; the jet rig and
+        # the other selections read 0): reads issued then the line supplied (beats dropped); cleared by CTRL[0], held by CTRL[1]
+        'address': '0x02C',
+        'default': '0x00000000',
+        'name': 'ONYX_CNT_READ_WASTED',
+        'offset': '0x02C',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'ONYX_CNT_ABSORB': {
+        # onyx TASK-001 (reference rig REF_CACHE_SEL 4/5 only; the jet rig and
+        # the other selections read 0): PassDirty lines absorbed into memory; cleared by CTRL[0], held by CTRL[1]
+        'address': '0x030',
+        'default': '0x00000000',
+        'name': 'ONYX_CNT_ABSORB',
+        'offset': '0x030',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'ONYX_CNT_WB': {
+        # onyx TASK-001 (reference rig REF_CACHE_SEL 4/5 only; the jet rig and
+        # the other selections read 0): cache write-backs taken; cleared by CTRL[0], held by CTRL[1]
+        'address': '0x034',
+        'default': '0x00000000',
+        'name': 'ONYX_CNT_WB',
+        'offset': '0x034',
+        'size': 4,
+        'sw': 'r',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
 }

@@ -132,7 +132,21 @@ module onyx_pair_rig_tb
     output logic                        mon1_valid,
     input  logic                        mon1_ready,
     output logic [127:0]                mon1_packet,
-    output logic [63:0]                 mon1_timestamp
+    output logic [63:0]                 mon1_timestamp,
+    // onyx's observer (D9): the TB counts its packets per event code
+    // against its own fabric model (grants, memory reads, absorptions)
+    output logic                        mon2_valid,
+    input  logic                        mon2_ready,
+    output logic [127:0]                mon2_packet,
+    output logic [63:0]                 mon2_timestamp,
+    output logic [7:0]                  mon2_dropped,
+    // onyx's exact event counters (never cleared or frozen here)
+    output logic [31:0]                 cnt_txn,
+    output logic [31:0]                 cnt_supplied,
+    output logic [31:0]                 cnt_mem_read,
+    output logic [31:0]                 cnt_read_wasted,
+    output logic [31:0]                 cnt_absorb,
+    output logic [31:0]                 cnt_wb
 );
 
     // ------------------------------------------------------------------
@@ -499,6 +513,13 @@ module onyx_pair_rig_tb
     logic [IW-1:0]            c_done_id [2];
     logic [1:0]               c_arready_v, c_rlast_v, c_rvalid_v, c_awready_v, c_wready_v, c_bvalid_v;
     logic [1:0]               s_acvalid_v, s_crready_v, s_cdready_v;
+    logic                     oc_grant_dir;
+    logic [$clog2(FAB_SLOTS)-1:0] oc_grant_slot;
+    logic [$clog2(FAB_SLOTS)-1:0] oc_evt_gather_slot [2];
+    logic                     oc_evt_grant, oc_evt_mem_ar, oc_evt_absorb, oc_evt_wb;
+    logic [1:0]               oc_evt_gather, oc_evt_gather_dt, oc_evt_gather_pd, oc_evt_read_wasted;
+    logic [2:0]               oc_evt_grant_cls;
+    logic [1:0]               oc_evt_ac, oc_evt_lock_wait;
 
     assign c_arid[0] = m0_arid;         assign c_arid[1] = m1_arid;
     assign c_araddr[0] = m0_araddr;     assign c_araddr[1] = m1_araddr;
@@ -672,9 +693,64 @@ module onyx_pair_rig_tb
         .dbg_pend_vld     (),
         .dbg_abs_pend     (),
         .dbg_grant        (),
-        .dbg_grant_dir    (),
+        .dbg_grant_dir    (oc_grant_dir),
         .dbg_grant_addr   (),
-        .dbg_grant_slot   ()
+        .dbg_grant_slot   (oc_grant_slot),
+        .evt_grant        (oc_evt_grant),
+        .evt_grant_cls    (oc_evt_grant_cls),
+        .evt_ac           (oc_evt_ac),
+        .evt_gather       (oc_evt_gather),
+        .evt_gather_slot  (oc_evt_gather_slot),
+        .evt_gather_dt    (oc_evt_gather_dt),
+        .evt_gather_pd    (oc_evt_gather_pd),
+        .evt_mem_ar       (oc_evt_mem_ar),
+        .evt_read_wasted  (oc_evt_read_wasted),
+        .evt_absorb       (oc_evt_absorb),
+        .evt_wb           (oc_evt_wb),
+        .evt_lock_wait    (oc_evt_lock_wait)
+    );
+
+    // onyx's D9 observer beside the unit (onyx_top composes the two; the
+    // pair-rig TB reads u_fabric's internals, so the unit stays u_fabric)
+    onyx_monlite #(
+        .N_PORTS     (2),
+        .SLOTS       (FAB_SLOTS),
+        .USE_MONITOR (USE_MONITOR),
+        .OUT_DEPTH   (16)
+    ) u_onyx_mon (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .evt_grant_i       (oc_evt_grant),
+        .evt_grant_port_i  (oc_grant_dir),
+        .evt_grant_slot_i  (oc_grant_slot),
+        .evt_grant_cls_i   (oc_evt_grant_cls),
+        .evt_ac_i          (oc_evt_ac),
+        .evt_gather_i      (oc_evt_gather),
+        .evt_gather_slot_i (oc_evt_gather_slot),
+        .evt_gather_dt_i   (oc_evt_gather_dt),
+        .evt_gather_pd_i   (oc_evt_gather_pd),
+        .evt_mem_ar_i      (oc_evt_mem_ar),
+        .evt_mem_ar_slot_i (mem_arid[$clog2(FAB_SLOTS)-1:0]),
+        .evt_read_wasted_i (oc_evt_read_wasted),
+        .evt_absorb_i      (oc_evt_absorb),
+        .evt_absorb_slot_i ('0),
+        .evt_wb_i          (oc_evt_wb),
+        .evt_wb_port_i     ('0),
+        .evt_lock_wait_i   (oc_evt_lock_wait),
+        .i_mon_time        (mon_time_q),
+        .monbus_valid      (mon2_valid),
+        .monbus_ready      (mon2_ready),
+        .monbus_packet     (mon2_packet),
+        .monbus_timestamp  (mon2_timestamp),
+        .dropped_count     (mon2_dropped)
+    );
+    onyx_counters #(.N_PORTS(2)) u_onyx_cnt (
+        .clk(clk), .rst_n(rst_n), .clear_i(1'b0), .freeze_i(1'b0),
+        .evt_grant_i(oc_evt_grant), .evt_gather_i(oc_evt_gather), .evt_gather_dt_i(oc_evt_gather_dt),
+        .evt_mem_ar_i(oc_evt_mem_ar), .evt_read_wasted_i(oc_evt_read_wasted),
+        .evt_absorb_i(oc_evt_absorb), .evt_wb_i(oc_evt_wb),
+        .cnt_txn_o(cnt_txn), .cnt_supplied_o(cnt_supplied), .cnt_mem_read_o(cnt_mem_read),
+        .cnt_read_wasted_o(cnt_read_wasted), .cnt_absorb_o(cnt_absorb), .cnt_wb_o(cnt_wb)
     );
 
     // ------------------------------------------------------------------

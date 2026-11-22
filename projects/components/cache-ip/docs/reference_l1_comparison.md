@@ -18,8 +18,11 @@ the same pair rig: the column to read against jet's and HPDcache's;
 2026-11-21, tenth and eleventh columns -- onyx (onyx TASK-001): the same
 jet-prime pair behind `onyx_ccu` in the pair fabric's place, with the
 memory read alongside the snoop (`REF_CACHE_SEL=4`) and deferred until the
-gather (`REF_CACHE_SEL=5`), plus a table of the two managers alone. Re-run
-`ref/bin/ref_compare.py` after any new sweep.
+gather (`REF_CACHE_SEL=5`), plus a table of the two managers alone;
+2026-11-22, the onyx counters table -- the D6 trade counted on the board
+(reads issued, lines supplied, reads wasted) from the bin 2 builds with
+the pair block's tally chain. Re-run `ref/bin/ref_compare.py` after any
+new sweep.
 **Rig:** Genesys 2 (Kintex-7 325T-2), 100 MHz, the cache-ip pair harness
 with the pipelined cycle injector (common-ip TASK-002), the house 512 KB
 AXI4 block-RAM memory, one UART host stack.
@@ -117,8 +120,8 @@ Sources (newest single-core sweep per rig; injector 1 idle):
 - jet-prime s3: `perf_sweep_jetpp_bin3_single_20261117T144843Z.json`
 - jet-prime s5: `perf_sweep_jetpp_bin4_single_20261117T191112Z.json`
 - jet-prime s6: `perf_sweep_jetpp_bin7_single_20261119T132547Z.json`
-- onyx: `perf_sweep_onyx_bin1_single_20261121T134201Z.json`
-- onyx-d: `perf_sweep_onyxd_bin1_single_20261121T134540Z.json`
+- onyx: `perf_sweep_onyx_bin2_single_20261122T150901Z.json`
+- onyx-d: `perf_sweep_onyxd_bin2_single_20261122T151318Z.json`
 
 Error flags / unfinished runs across all sources: 0
 
@@ -195,24 +198,24 @@ Error flags / unfinished runs across all sources: 0
 | cache | LUT | FF | RAMB36 | RAMB18 | LUTRAM | WNS at 10 ns | worst path levels |
 |---|---|---|---|---|---|---|---|
 | amber | 3709 | 2944 | 16 | 0 | 1169 | +0.123 | 19 |
-| jet | 5892 | 5258 | 16 | 0 | 1879 | +0.356 | 16 |
+| jet | 5697 | 4834 | 16 | 0 | 2023 | +0.245 | 17 |
 | HPDcache | 3510 | 4944 | 8 | 4 | 0 | +1.372 | 10 |
 | CVA6 WB | 5669 | 1661 | 32 | 20 | 0 | +0.990 | 14 |
 | jet-prime s1 | 5892 | 5258 | 16 | 0 | 1879 | +0.356 | 16 |
 | jet-prime s2 | 6047 | 5394 | 16 | 0 | 1888 | +0.118 | 16 |
 | jet-prime s3 | 6047 | 5394 | 16 | 0 | 1888 | +0.118 | 16 |
 | jet-prime s5 | 6010 | 5399 | 16 | 0 | 1998 | +0.321 | 19 |
-| jet-prime s6 | 6033 | 5402 | 16 | 0 | 1998 | +0.082 | 23 |
-| onyx | 6033 | 5402 | 16 | 0 | 1998 | +0.082 | 23 |
-| onyx-d | 6033 | 5402 | 16 | 0 | 1998 | +0.082 | 23 |
+| jet-prime s6 | 5926 | 4977 | 16 | 0 | 2142 | +0.159 | 25 |
+| onyx | 5926 | 4977 | 16 | 0 | 2142 | +0.159 | 25 |
+| onyx-d | 5926 | 4977 | 16 | 0 | 2142 | +0.159 | 25 |
 
 ### The same, monitors off (USE_MONITOR=0; HPDcache and CVA6 have none to turn off)
 
 | cache | LUT | FF | RAMB36 | RAMB18 | LUTRAM | WNS at 10 ns | worst path levels | LUT with monitors |
 |---|---|---|---|---|---|---|---|---|
 | amber | 2370 | 1706 | 16 | 0 | 980 | +0.859 | 22 | 3709 |
-| jet | 3711 | 2886 | 16 | 0 | 1468 | +0.326 | 16 | 5892 |
-| jet-prime s6 | 3908 | 3031 | 16 | 0 | 1587 | +0.157 | 21 | 6033 |
+| jet | 3711 | 2886 | 16 | 0 | 1468 | +0.326 | 16 | 5697 |
+| jet-prime s6 | 3908 | 3031 | 16 | 0 | 1587 | +0.157 | 21 | 5926 |
 
 ### The managers alone, out of context (xc7k325t-2, 10 ns clock; 18 slots, SNOOP_INFLIGHT 2)
 
@@ -220,7 +223,55 @@ Error flags / unfinished runs across all sources: 0
 |---|---|---|---|---|---|
 | jet_prime_pair_fabric | 4300 | 1660 | 1296 | +2.757 | 10 |
 | onyx_ccu (N_PORTS 2) | 4628 | 1664 | 1296 | +2.885 | 9 |
+### onyx counters, both injectors (the D6 trade: reads issued, lines supplied, reads wasted)
 
+- onyx: `perf_sweep_onyx_bin2_dual_20261122T151054Z.json`
+- onyx-d: `perf_sweep_onyxd_bin2_dual_20261122T151512Z.json`
+
+| config | depth | mode | transactions | memory reads | lines supplied | reads wasted | wasted / issued | absorptions | write-backs |
+|---|---|---|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 16 |
+| r4k_we0 | 1 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 16 |
+| r4k_we0 | 4 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 16 |
+| r4k_we0 | 4 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 16 |
+| r4k_we0 | 16 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 16 |
+| r4k_we0 | 16 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 16 |
+| r4k_we255 | 1 | onyx | 128 | 64 | 64 | 64 | 1.000 | 64 | 0 |
+| r4k_we255 | 1 | onyx-d | 128 | 0 | 64 | 0 | 0.000 | 64 | 0 |
+| r4k_we255 | 4 | onyx | 128 | 64 | 64 | 64 | 1.000 | 64 | 16 |
+| r4k_we255 | 4 | onyx-d | 128 | 0 | 64 | 0 | 0.000 | 64 | 16 |
+| r4k_we255 | 16 | onyx | 128 | 64 | 64 | 64 | 1.000 | 64 | 16 |
+| r4k_we255 | 16 | onyx-d | 128 | 0 | 64 | 0 | 0.000 | 64 | 16 |
+| smoke4k_we64 | 1 | onyx | 64 | 64 | 16 | 16 | 0.250 | 16 | 0 |
+| smoke4k_we64 | 1 | onyx-d | 64 | 48 | 16 | 0 | 0.000 | 16 | 0 |
+| smoke4k_we64 | 4 | onyx | 32 | 32 | 32 | 32 | 1.000 | 32 | 32 |
+| smoke4k_we64 | 4 | onyx-d | 32 | 0 | 32 | 0 | 0.000 | 32 | 32 |
+| smoke4k_we64 | 16 | onyx | 32 | 32 | 32 | 32 | 1.000 | 32 | 32 |
+| smoke4k_we64 | 16 | onyx-d | 32 | 0 | 32 | 0 | 0.000 | 32 | 32 |
+| r16k_we64 | 1 | onyx | 381 | 381 | 116 | 116 | 0.304 | 116 | 46 |
+| r16k_we64 | 1 | onyx-d | 381 | 265 | 116 | 0 | 0.000 | 116 | 46 |
+| r16k_we64 | 4 | onyx | 383 | 383 | 116 | 116 | 0.303 | 116 | 77 |
+| r16k_we64 | 4 | onyx-d | 383 | 267 | 116 | 0 | 0.000 | 116 | 77 |
+| r16k_we64 | 16 | onyx | 383 | 383 | 116 | 116 | 0.303 | 116 | 77 |
+| r16k_we64 | 16 | onyx-d | 383 | 267 | 116 | 0 | 0.000 | 116 | 77 |
+| r64k_we64 | 1 | onyx | 20240 | 20240 | 192 | 192 | 0.009 | 192 | 4778 |
+| r64k_we64 | 1 | onyx-d | 20240 | 20048 | 192 | 0 | 0.000 | 192 | 4778 |
+| r64k_we64 | 4 | onyx | 20240 | 20240 | 192 | 192 | 0.009 | 192 | 4810 |
+| r64k_we64 | 4 | onyx-d | 20240 | 20048 | 192 | 0 | 0.000 | 192 | 4810 |
+| r64k_we64 | 16 | onyx | 20240 | 20239 | 192 | 191 | 0.009 | 192 | 4810 |
+| r64k_we64 | 16 | onyx-d | 20240 | 20048 | 192 | 0 | 0.000 | 192 | 4810 |
+| r64k_we255 | 1 | onyx | 20490 | 20303 | 637 | 637 | 0.031 | 637 | 19367 |
+| r64k_we255 | 1 | onyx-d | 20490 | 19666 | 637 | 0 | 0.000 | 637 | 19367 |
+| r64k_we255 | 4 | onyx | 20490 | 20303 | 637 | 637 | 0.031 | 637 | 19367 |
+| r64k_we255 | 4 | onyx-d | 20490 | 19666 | 637 | 0 | 0.000 | 637 | 19367 |
+| r64k_we255 | 16 | onyx | 20490 | 20303 | 637 | 637 | 0.031 | 637 | 19367 |
+| r64k_we255 | 16 | onyx-d | 20490 | 19666 | 637 | 0 | 0.000 | 637 | 19367 |
+| r128k_we64 | 1 | onyx | 30083 | 30083 | 638 | 638 | 0.021 | 638 | 7258 |
+| r128k_we64 | 1 | onyx-d | 30083 | 29445 | 638 | 0 | 0.000 | 638 | 7258 |
+| r128k_we64 | 4 | onyx | 30083 | 30083 | 638 | 638 | 0.021 | 638 | 7258 |
+| r128k_we64 | 4 | onyx-d | 30083 | 29445 | 638 | 0 | 0.000 | 638 | 7258 |
+| r128k_we64 | 16 | onyx | 30083 | 30072 | 638 | 627 | 0.021 | 638 | 7258 |
+| r128k_we64 | 16 | onyx-d | 30083 | 29445 | 638 | 0 | 0.000 | 638 | 7258 |
 
 <!-- end generated -->
 
@@ -444,8 +495,25 @@ measures the same way.
   (+8.1 %), `r128k_we64` 16.69 -> 18.74 (+12.2 %); the cost shrinks with
   depth to +1.8 / +0.2 / +1.5 % at 16, where the gather overlaps other
   misses. CRCs equal bin 7's there too. The saving the deferred mode buys
-  is memory reads not issued; the rig does not count memory-side ARs yet
-  (a D9 tap), so that side of the trade is recorded as the next
+  is memory reads not issued, and the bin 2 builds count it (onyx's exact
+  counters through the harness CSR, the last table): with the read
+  alongside the snoop every line a peer supplies is a read the memory
+  answered for nothing -- reads wasted equals lines supplied in every cell
+  but the deepest, 116 of 381 reads (30 %) on the shared resident set
+  `r16k_we64`, 192 of 20,240 (0.9 %) on `r64k_we64`, 637 of 20,303 (3.1 %)
+  on `r64k_we255`, 638 of 30,083 (2.1 %) on `r128k_we64`; with the read
+  deferred, reads wasted is 0 in all 110 cells and memory reads fall by
+  exactly lines supplied (381 -> 265, 20,240 -> 20,048, 20,490 -> 19,666,
+  30,083 -> 29,445). The single-injector cells are the control (no peer
+  holds anything: supplied 0, wasted 0, reads equal in both modes). The
+  trade, then: the deferred mode elides every wasted read -- the sharing
+  rate of the workload, 1 to 30 % of the memory reads here -- for +8 to
+  +12 % per transaction at depth 1 in thrash and under 2 % at depth 16.
+  The bin 2 builds reproduce bin 1's cycle count in all 220 cells (the
+  observation costs no cycle) and add the chain the jet rig carries:
+  27,872 / 27,143 LUT, 25,877 / 25,854 FF, WNS +0.001 / +0.027 ns. The
+  MonBus tally bins for onyx's classes are lower bounds on the board (the
+  one channel saturates in thrash; onyx ISSUE-001); the counters are the
   measurement. Timing at 100 MHz under the 0.2 ns budget: SEL 4 WNS
   +0.006 ns, SEL 5 +0.000 ns, both met, the worst path jet-prime's fill
   engine staging read pointer into the data-array address in both -- onyx
@@ -517,6 +585,7 @@ make ooc CACHE=hpd ; make ooc CACHE=cva6 ; make ooc CACHE=jet ; make ooc CACHE=j
 make ooc CACHE=jet_nomon ; make ooc CACHE=jetp6_nomon ; make ooc CACHE=amber_nomon   # the same with the observers off
 make bitstream REF_CACHE_SEL=4 ; make program REF_CACHE_SEL=4 ; make run SEQUENCES="init smoke" REF_CACHE_SEL=4   # onyx in the fabric's place (SEL 5: DEFER_AR)
 make ooc CACHE=jetp_fabric ; make ooc CACHE=onyx2            # the two managers alone
+python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --profile ref-onyx --outstanding 1 2 4 8 16 --out ../results/perf_sweep_onyx_bin2_dual_<stamp>.json   # SEL 4/5 with the tally chain: bins 11-17 onyx, the six counters per cell
 python3 ../bin/ref_compare.py                   # the tables above
 ```
 

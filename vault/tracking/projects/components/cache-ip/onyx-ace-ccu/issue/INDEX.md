@@ -2,7 +2,7 @@
 
 # vault/tracking/projects/components/cache-ip/onyx-ace-ccu — issues
 
-**Next ID: ISSUE-001** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-002** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed: it resolves INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **ISSUE-001** ([page](open/ISSUE-001.md)) — the board MonBus channel cannot carry onyx's event stream at the thrash cells' rates; tally bins are lower bounds, the exact counters are the measurement (filed 2026-11-22)
 
 ## Active
 

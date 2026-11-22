@@ -114,10 +114,13 @@
 //   the write port's round-robin.  Fair round-robin at the grant over the
 //   N ports, at the write port over N+1, and at each buffer's CD write.
 //
-//   Not in v1: the ACE-Lite IO port (D1; a later step of TASK-001), the
-//   monlite taps (D9; a later step), ARSNOOP decode on the AR (the caches
-//   carry the request class on the sideband; the ACE-front-side flavor is
-//   the D7 adapter's second half).
+//   Observation (D9): the unit exposes one-cycle event taps (evt_*) that
+//   onyx_monlite turns into MonBus packets; onyx_top composes the two.
+//   Nothing on the taps feeds back into the datapath.
+//
+//   Not in v1: the ACE-Lite IO port (D1; a later step of TASK-001),
+//   ARSNOOP decode on the AR (the caches carry the request class on the
+//   sideband; the ACE-front-side flavor is the D7 adapter's second half).
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -319,7 +322,25 @@ module onyx_ccu
     output logic                        dbg_grant,
     output logic [PORT_W-1:0]           dbg_grant_dir,
     output logic [ADDR_WIDTH-1:0]       dbg_grant_addr,
-    output logic [SLOT_W-1:0]           dbg_grant_slot
+    output logic [SLOT_W-1:0]           dbg_grant_slot,
+
+    // ------------------------------------------------------------------
+    // Event taps for the D9 observer (onyx_monlite): one-cycle pulses with
+    // their payload, driven from the datapath's own handshakes; nothing
+    // here feeds back
+    // ------------------------------------------------------------------
+    output logic                        evt_grant,          // = dbg_grant; port dbg_grant_dir, slot dbg_grant_slot
+    output logic [2:0]                  evt_grant_cls,      // the granted request class
+    output logic [N_PORTS-1:0]          evt_ac,             // AC handshake per peer this cycle
+    output logic [N_PORTS-1:0]          evt_gather,         // per answering port: its CR completed a slot's gather
+    output logic [SLOT_W-1:0]           evt_gather_slot [N_PORTS],
+    output logic [N_PORTS-1:0]          evt_gather_dt,      // the slot's verdict after this CR
+    output logic [N_PORTS-1:0]          evt_gather_pd,
+    output logic                        evt_mem_ar,         // memory AR handshake, slot mem_arid
+    output logic [N_PORTS-1:0]          evt_read_wasted,    // per answering port: a DT verdict with the slot's read issued or presented
+    output logic                        evt_absorb,         // absorption BRESP
+    output logic                        evt_wb,             // write-back AW handshake
+    output logic [N_PORTS-1:0]          evt_lock_wait       // a port's valid candidate is held by the per-line lock
 );
 
     // ------------------------------------------------------------------
@@ -1070,6 +1091,34 @@ module onyx_ccu
             end
         end
     )
+
+    // ------------------------------------------------------------------
+    // Event taps (D9)
+    // ------------------------------------------------------------------
+    assign evt_grant     = w_grant;
+    assign evt_grant_cls = w_cand_type[w_grant_dir];
+    assign evt_ac        = w_ac_hs;
+    always_comb begin
+        // the CR that completes a gather: its slot's count is one.  Per
+        // answering port, not one bit: two peers can each complete a
+        // different slot in the same cycle (the pair rig does it once a
+        // run), and a single bit would merge them -- an event lost that
+        // nothing counted.
+        for (int p = 0; p < N_PORTS; p++) begin
+            evt_gather[p]      = w_cr_hs[p] && (r_cr_left[w_sni_head[p]] == PORT_W'(1));
+            evt_gather_slot[p] = w_sni_head[p];
+            evt_gather_dt[p]   = r_dt[w_sni_head[p]] | s_crresp[p][AMBER_CRRESP_DT];
+            evt_gather_pd[p]   = r_pd[w_sni_head[p]]
+                                 | (s_crresp[p][AMBER_CRRESP_DT] & s_crresp[p][AMBER_CRRESP_PD]);
+            evt_read_wasted[p] = w_cr_hs[p] && s_crresp[p][AMBER_CRRESP_DT]
+                && (r_mem_issued[w_sni_head[p]] || (w_mar_vld && (w_mar_slot == w_sni_head[p])));
+        end
+        for (int d = 0; d < N_PORTS; d++)
+            evt_lock_wait[d] = w_cand_vld[d] & w_cand_locked[d];
+    end
+    assign evt_mem_ar = w_mar_hs;
+    assign evt_absorb = (r_wstate == W_B) & w_cur_abs & mem_bvalid & mem_bready;
+    assign evt_wb     = mem_awvalid & mem_awready & ~w_cur_abs;
 
     // ------------------------------------------------------------------
     // Debug taps

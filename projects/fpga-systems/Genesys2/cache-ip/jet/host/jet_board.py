@@ -296,6 +296,47 @@ def build_default_profile() -> List[Tuple[int, int]]:
     ]
 
 
+def build_ref_onyx_profile() -> List[Tuple[int, int]]:
+    """Profile for the cache-ip reference rig with onyx in the manager slot
+    (REF_CACHE_SEL 4 / 5, onyx TASK-001 step 6).
+
+    Bins 0-10 keep the pair-rig profile's meaning for the two jet-prime
+    caches' core and transport observers (agents 0x00A0 / 0x00A1), so the
+    sweep's printout (acc / miss / snoop / evict / drop / fill_end /
+    drain_end) reads the same. Bins 11-17 are onyx's observer (agent
+    0x00A3, onyx_pkg codes 0x20-0x27); jet's own J7 bins are dropped here.
+    Bin 17 is onyx's drop report, which the sweep records as jmon_drops.
+    The D6 elision measure: bin 13 (gathers) with the DataTransfer flag is
+    not binned separately -- the tally keys on code only -- so the pair to
+    read is bin 12 (memory reads taken) against bin 11 (transactions) and
+    bin 14 (reads wasted: issued, then the line was supplied).
+    """
+    return [
+        (_key(0x00A0, 4, 4, 0x00), 0),   # hit
+        (_key(0x00A0, 4, 4, 0x01), 1),   # miss
+        (_key(0x00A0, 4, 4, 0x02), 2),   # snoop accepted
+        (_key(0x00A0, 4, 4, 0x03), 3),   # evict
+        (_key(0x00A1, 0, 0, 0x0E), 4),   # AXI monlite drop report
+        (_key(0x00A0, 4, 4, 0x04), 5),   # tag state transition
+        (_key(0x00A0, 4, 4, 0x05), 6),   # fill start
+        (_key(0x00A0, 4, 4, 0x06), 7),   # fill end
+        (_key(0x00A0, 4, 4, 0x07), 8),   # drain start
+        (_key(0x00A0, 4, 4, 0x08), 9),   # drain end
+        (_key(0x00A0, 4, 0, 0x09), 10),  # core monlite drop report
+        # onyx (agent 0x00A3)
+        (_key(0x00A3, 4, 4, 0x20), 11),  # TXN_START: a grant
+        (_key(0x00A3, 4, 4, 0x23), 12),  # MEM_READ: a memory AR taken
+        (_key(0x00A3, 4, 4, 0x22), 13),  # GATHER_DONE: a slot's last CR
+        (_key(0x00A3, 4, 4, 0x24), 14),  # READ_WASTED: a read issued, then the line supplied
+        (_key(0x00A3, 4, 4, 0x25), 15),  # ABSORB: a PassDirty line written to memory
+        (_key(0x00A3, 4, 4, 0x26), 16),  # WRITEBACK: a cache write-back taken
+        (_key(0x00A3, 4, 0, 0x09), 17),  # onyx monlite drop report
+    ]
+
+
+PROFILES = {"jet": build_default_profile, "ref-onyx": build_ref_onyx_profile}
+
+
 def smoke(driver: JetDriver, *, count: int = 20000, blind: bool = False,
           sleep_fn=None, say=print) -> dict:
     """Both injectors hammer the same 4KB region, then dump tallies.

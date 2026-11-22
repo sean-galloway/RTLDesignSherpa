@@ -77,9 +77,14 @@ Criterion 6 is met exactly (SEL 4 reproduces the pair fabric's bin 7 cycle
 for cycle on 110 cells); criteria 1 and 2 are met on the pair rig through
 jet-prime's own testbench; criterion 3 is met for safety at N = 2 (the
 fabric's 27 properties, mutations) and open for liveness bounds and N = 3,
-4; criterion 4 (observation) is not built; criterion 5 is measured out of
-context and on the board. The D1 ACE-Lite IO port and the D9 taps are the
-remaining core steps.
+4; criterion 4 (observation) is built, held to the pair-rig model in sim
+(exact counters, an honest MonBus observer) and captured on the board,
+where the counters give the D6 trade its numbers (parallel mode wastes one
+read per supplied line, 30 percent of the reads on the shared resident set
+and 1 to 3 percent in thrash; deferred mode wastes none and issues exactly
+that many fewer) and the MonBus tally bins are lower bounds (onyx
+ISSUE-001); criterion 5 is measured out of context and on the board. The D1
+ACE-Lite IO port is the remaining core step.
 
 ## 1. Purpose
 

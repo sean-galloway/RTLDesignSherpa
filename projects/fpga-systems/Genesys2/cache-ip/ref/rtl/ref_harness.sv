@@ -437,6 +437,7 @@ module ref_harness
 
     logic [31:0] hcsr_ctrl, hcsr_status;
     logic [63:0] r_cycle_ctr;
+    logic [31:0] onyx_cnt [6];   // the onyx counters (zero outside SEL 4 / 5)
 
     // Aggregate cycle-injector status
     `JET_DBG_NET logic ci0_done, ci0_busy, ci0_err;
@@ -483,7 +484,8 @@ module ref_harness
         .i_status      (hcsr_status),
         .i_cycle_lo    (r_cycle_ctr[31:0]),
         .i_cycle_hi    (r_cycle_ctr[63:32]),
-        .i_fabric_dbg  (fabric_dbg_state)
+        .i_fabric_dbg  (fabric_dbg_state),
+        .i_onyx_cnt    (onyx_cnt)
     );
 
     // ------------------------------------------------------------------
@@ -648,6 +650,9 @@ module ref_harness
     generate
         if (REF_CACHE_SEL == 1) begin : gen_ref_cva6
             assign ref_evt_write_miss = 1'b0;
+            for (genvar k = 0; k < 6; k++) begin : g_z
+                assign onyx_cnt[k] = '0;
+            end
         ref_cva6_dcache_top #(
             .ADDR_WIDTH     (ADDR_WIDTH),
             .BUS_WIDTH      (BUS_WIDTH),
@@ -719,6 +724,9 @@ module ref_harness
             assign ref_evt_read_miss  = 1'b0;   // jet reports misses on MonBus, not as pins
             assign ref_evt_write_miss = 1'b0;
             assign ref_rsp_error      = 1'b0;
+            for (genvar k = 0; k < 6; k++) begin : g_z
+                assign onyx_cnt[k] = '0;
+            end
             /* verilator lint_off UNUSEDSIGNAL */
             logic                        jetp_acready, jetp_crvalid, jetp_cdvalid, jetp_cdlast;
             logic [AMBER_CRRESP_WIDTH-1:0] jetp_crresp;
@@ -895,9 +903,12 @@ module ref_harness
             logic                        done0_valid, done1_valid;
             logic [IW-1:0]               done0_id, done1_id;
             /* verilator lint_off UNUSEDSIGNAL */
-            logic [1:0]                  jpp_mon_valid, jpp_init_busy, jpp_busy;
+            logic [1:0]                  jpp_mon_valid, jpp_mon_ready, jpp_init_busy, jpp_busy;
             logic [127:0]                jpp_mon_packet [2];
             logic [63:0]                 jpp_mon_timestamp [2];
+            logic                        onyx_mon_valid, onyx_mon_ready;
+            logic [127:0]                onyx_mon_packet;
+            logic [63:0]                 onyx_mon_timestamp;
             logic [3:0]                  jpp_ctrl_state [2];
             logic                        jpp_fab_busy;
             /* verilator lint_on UNUSEDSIGNAL */
@@ -984,7 +995,7 @@ module ref_harness
             .coh_done_id    (done0_id),
             .i_mon_time     (r_cycle_ctr),
             .mon_valid      (jpp_mon_valid[0]),
-            .mon_ready      (1'b1),
+            .mon_ready      (jpp_mon_ready[0]),
             .mon_packet     (jpp_mon_packet[0]),
             .mon_timestamp  (jpp_mon_timestamp[0]),
             .init_busy      (jpp_init_busy[0]),
@@ -1074,7 +1085,7 @@ module ref_harness
             .coh_done_id    (done1_id),
             .i_mon_time     (r_cycle_ctr),
             .mon_valid      (jpp_mon_valid[1]),
-            .mon_ready      (1'b1),
+            .mon_ready      (jpp_mon_ready[1]),
             .mon_packet     (jpp_mon_packet[1]),
             .mon_timestamp  (jpp_mon_timestamp[1]),
             .init_busy      (jpp_init_busy[1]),
@@ -1364,7 +1375,7 @@ module ref_harness
             assign oc_coh_addr[0] = coh0_addr;   assign oc_coh_addr[1] = coh1_addr;
             assign oc_coh_type[0] = coh0_type;   assign oc_coh_type[1] = coh1_type;
             assign oc_done_id[0] = done0_id;     assign oc_done_id[1] = done1_id;
-        onyx_ccu #(
+        onyx_top #(
             .N_PORTS        (2),
             .ADDR_WIDTH     (ADDR_WIDTH),
             .LINE_BYTES     (LINE_BYTES),
@@ -1374,7 +1385,8 @@ module ref_harness
             .SLOTS          (2 * (REF_JETP_MSHR_COUNT + 1)),
             .SNOOP_INFLIGHT (2),
             .DEFER_AR       (REF_CACHE_SEL == 5),
-            .SERIAL_MODE    (1'b0)
+            .SERIAL_MODE    (1'b0),
+            .USE_MONITOR    (1'b1)
         ) u_onyx (
             .clk              (aclk),
             .rst_n            (aresetn),
@@ -1483,6 +1495,20 @@ module ref_harness
             .mem_buser        (mem_buser),
             .mem_bvalid       (mem_bvalid),
             .mem_bready       (mem_bready),
+            .i_mon_time       (r_cycle_ctr),
+            .mon_valid        (onyx_mon_valid),
+            .mon_ready        (onyx_mon_ready),
+            .mon_packet       (onyx_mon_packet),
+            .mon_timestamp    (onyx_mon_timestamp),
+            .mon_dropped      (),
+            .cnt_clear        (hcsr_ctrl[0]),
+            .cnt_freeze       (hcsr_ctrl[1]),
+            .cnt_txn          (onyx_cnt[0]),
+            .cnt_supplied     (onyx_cnt[1]),
+            .cnt_mem_read     (onyx_cnt[2]),
+            .cnt_read_wasted  (onyx_cnt[3]),
+            .cnt_absorb       (onyx_cnt[4]),
+            .cnt_wb           (onyx_cnt[5]),
             .dbg_busy         (jpp_fab_busy),
             .dbg_slot_vld     (),
             .dbg_pend_vld     (),
@@ -1493,7 +1519,206 @@ module ref_harness
             .dbg_grant_slot   ()
         );
         end
+        if (REF_CACHE_SEL == 3) begin : gen_no_onyx_mon
+            assign onyx_mon_valid     = 1'b0;
+            assign onyx_mon_packet    = '0;
+            assign onyx_mon_timestamp = '0;
+            for (genvar k = 0; k < 6; k++) begin : g_z
+                assign onyx_cnt[k] = '0;
+            end
+        end
+
+        // ------------------------------------------------------------------
+        // MonBus: {cache 0, cache 1, onyx} -> arbiter -> group -> tally, the
+        // jet pair rig's chain (onyx TASK-001 step 6b, D9): the host reads
+        // the bins through the shared bridge's tally apertures (s3/s4/s5)
+        // with the harness CSR's CTRL[0] clear and CTRL[1] freeze.  SEL 3
+        // gets the two caches' streams (onyx's client idle).
+        // ------------------------------------------------------------------
+        logic                                 arb_vld [3];
+        logic                                 arb_rdy [3];
+        ocelus_common_pkg::monitor_packet_t   arb_pkt [3];
+        ocelus_common_pkg::monbus_timestamp_t arb_ts  [3];
+        assign arb_vld[0] = jpp_mon_valid[0];   assign arb_vld[1] = jpp_mon_valid[1];
+        assign arb_pkt[0] = jpp_mon_packet[0];  assign arb_pkt[1] = jpp_mon_packet[1];
+        assign arb_ts[0]  = jpp_mon_timestamp[0]; assign arb_ts[1] = jpp_mon_timestamp[1];
+        assign arb_vld[2] = onyx_mon_valid;
+        assign arb_pkt[2] = onyx_mon_packet;
+        assign arb_ts[2]  = onyx_mon_timestamp;
+        assign onyx_mon_ready = arb_rdy[2];
+        assign jpp_mon_ready  = {arb_rdy[1], arb_rdy[0]};
+
+        logic         merged_valid, merged_ready;
+        logic [127:0] merged_packet;
+        logic [63:0]  merged_timestamp;
+        monbus_arbiter #(
+            .CLIENTS            (3),
+            .INPUT_SKID_ENABLE  (1),
+            .OUTPUT_SKID_ENABLE (1),
+            .INPUT_SKID_DEPTH   (2),
+            .OUTPUT_SKID_DEPTH  (2)
+        ) u_monbus_arbiter (
+            .axi_aclk            (aclk),
+            .axi_aresetn         (aresetn),
+            .block_arb           (1'b0),
+            .monbus_valid_in     (arb_vld),
+            .monbus_ready_in     (arb_rdy),
+            .monbus_packet_in    (arb_pkt),
+            .monbus_timestamp_in (arb_ts),
+            .monbus_valid        (merged_valid),
+            .monbus_ready        (merged_ready),
+            .monbus_packet       (merged_packet),
+            .monbus_timestamp    (merged_timestamp),
+            .grant_valid         (),
+            .grant               (),
+            .grant_id            (),
+            .last_grant          ()
+        );
+
+        logic [31:0] group_awaddr;
+        logic [2:0]  group_awprot;
+        logic        group_awvalid, group_awready;
+        logic [63:0] group_wdata;
+        logic [7:0]  group_wstrb;
+        logic        group_wvalid, group_wready;
+        logic [1:0]  group_bresp;
+        logic        group_bvalid, group_bready;
+        logic [63:0] mon_time_out_unused;
+        monbus_axil4_group_1wr #(
+            .ADDR_WIDTH        (32),
+            .USE_COMPRESSION   (0),
+            .HALF_BEAT_EN      (0)
+        ) u_group (
+            .axi_aclk     (aclk),
+            .axi_aresetn  (aresetn),
+            .cam_clear    (1'b0),
+            .monbus_valid (merged_valid),
+            .monbus_ready (merged_ready),
+            .monbus_packet(merged_packet),
+            .monbus_timestamp(merged_timestamp),
+            .mon_time_out (mon_time_out_unused),
+            .m_axil_awvalid(group_awvalid),
+            .m_axil_awready(group_awready),
+            .m_axil_awaddr (group_awaddr),
+            .m_axil_awprot (group_awprot),
+            .m_axil_wvalid (group_wvalid),
+            .m_axil_wready (group_wready),
+            .m_axil_wdata  (group_wdata),
+            .m_axil_wstrb  (group_wstrb),
+            .m_axil_bvalid (group_bvalid),
+            .m_axil_bready (group_bready),
+            .m_axil_bresp  (group_bresp),
+            .irq_out       (),
+            .err_rec_count (),
+            .cfg_base_addr (32'h0000_0000),
+            .cfg_limit_addr(32'hFFFF_FFFF),
+            // flush early and often (the jet rig's BUG-004 finding)
+            .cfg_flush_watermark(16'd48),
+            .cfg_err_base_addr (32'h0000_0000),
+            .cfg_err_limit_addr(32'h0000_0000),
+            .cfg_err_flush_watermark(16'd3),
+            .cfg_compress_en(1'b0),
+            .cfg_axi_pkt_mask   (16'h0000),
+            .cfg_axi_err_select (16'h0000),
+            .cfg_axi_error_mask (16'h0000),
+            .cfg_axi_timeout_mask(16'h0000),
+            .cfg_axi_compl_mask (16'h0000),
+            .cfg_axi_thresh_mask(16'h0000),
+            .cfg_axi_perf_mask  (16'h0000),
+            .cfg_axi_addr_mask  (16'h0000),
+            .cfg_axi_debug_mask (16'h0000),
+            .cfg_axis_pkt_mask   (16'h0000),
+            .cfg_axis_err_select (16'h0000),
+            .cfg_axis_error_mask (16'h0000),
+            .cfg_axis_timeout_mask(16'h0000),
+            .cfg_axis_compl_mask (16'h0000),
+            .cfg_axis_credit_mask(16'h0000),
+            .cfg_axis_channel_mask(16'h0000),
+            .cfg_axis_stream_mask(16'h0000),
+            .cfg_core_pkt_mask   (16'h0000),
+            .cfg_core_err_select (16'h0000),
+            .cfg_core_error_mask (16'h0000),
+            .cfg_core_timeout_mask(16'h0000),
+            .cfg_core_compl_mask (16'h0000),
+            .cfg_core_thresh_mask(16'h0000),
+            .cfg_core_perf_mask  (16'h0000),
+            .cfg_core_debug_mask (16'h0000),
+            .err_fifo_full  (),
+            .write_fifo_full(),
+            .err_fifo_count (),
+            .write_fifo_count(),
+            .mon_compressor_stat_tier1_a(),
+            .mon_compressor_stat_tier1_b(),
+            .mon_compressor_stat_tier1_c(),
+            .mon_compressor_stat_tier0(),
+            .mon_compressor_stat_cam_miss(),
+            .mon_compressor_stat_delta_ts_ovf(),
+            .mon_compressor_stat_event_data_ovf(),
+            .mon_compressor_stat_ed_delta_ovf()
+        );
+
+        localparam int MON_N_PROFILE       = 32;
+        localparam int MON_TALLY_ADDR_BITS = $clog2(MON_N_PROFILE + 1);
+        monbus_tally_axil #(
+            .ADDR_WIDTH      (32),
+            .DATA_WIDTH      (64),
+            .TALLY_ADDR_BITS (MON_TALLY_ADDR_BITS),
+            .N_PROFILE       (MON_N_PROFILE),
+            .TALLY_NUM_LATCH (16)
+        ) u_tally (
+            .aclk(aclk),
+            .aresetn(aresetn),
+            .rec_awaddr (group_awaddr),
+            .rec_awprot (group_awprot),
+            .rec_awvalid(group_awvalid),
+            .rec_awready(group_awready),
+            .rec_wdata  (group_wdata),
+            .rec_wstrb  (group_wstrb),
+            .rec_wvalid (group_wvalid),
+            .rec_wready (group_wready),
+            .rec_bresp  (group_bresp),
+            .rec_bvalid (group_bvalid),
+            .rec_bready (group_bready),
+            .cnt_araddr (s3_araddr),
+            .cnt_arprot (s3_arprot),
+            .cnt_arvalid(s3_arvalid),
+            .cnt_arready(s3_arready),
+            .cnt_rdata  (s3_rdata),
+            .cnt_rresp  (s3_rresp),
+            .cnt_rvalid (s3_rvalid),
+            .cnt_rready (s3_rready),
+            .cfgw_awaddr (s4_awaddr),
+            .cfgw_awprot (s4_awprot),
+            .cfgw_awvalid(s4_awvalid),
+            .cfgw_awready(s4_awready),
+            .cfgw_wdata  (s4_wdata),
+            .cfgw_wstrb  (s4_wstrb),
+            .cfgw_wvalid (s4_wvalid),
+            .cfgw_wready (s4_wready),
+            .cfgw_bresp  (s4_bresp),
+            .cfgw_bvalid (s4_bvalid),
+            .cfgw_bready (s4_bready),
+            .cfgr_araddr (s5_araddr),
+            .cfgr_arprot (s5_arprot),
+            .cfgr_arvalid(s5_arvalid),
+            .cfgr_arready(s5_arready),
+            .cfgr_rdata  (s5_rdata),
+            .cfgr_rresp  (s5_rresp),
+            .cfgr_rvalid (s5_rvalid),
+            .cfgr_rready (s5_rready),
+            .tally_freeze(hcsr_ctrl[1]),
+            .tally_flush (1'b0),
+            .tally_flush_busy(),
+            .tally_clear (hcsr_ctrl[0])
+        );
+        // the count / config apertures' unused channels
+        assign s3_awready = 1'b1; assign s3_wready = 1'b1; assign s3_bvalid = 1'b0; assign s3_bresp = 2'b00;
+        assign s4_arready = 1'b1; assign s4_rvalid = 1'b0; assign s4_rdata = '0; assign s4_rresp = 2'b00;
+        assign s5_awready = 1'b1; assign s5_wready = 1'b1; assign s5_bvalid = 1'b0; assign s5_bresp = 2'b00;
         end else begin : gen_ref_hpd
+            for (genvar k = 0; k < 6; k++) begin : g_z
+                assign onyx_cnt[k] = '0;
+            end
         ref_hpdcache_top #(
             .ADDR_WIDTH     (ADDR_WIDTH),
             .SETS           (SETS),
@@ -1633,9 +1858,12 @@ module ref_harness
     );
 
     // ------------------------------------------------------------------
-    // No MonBus tally: the three tally apertures of the shared bridge map
-    // ack writes and read zero, so the jet host stack runs unchanged
+    // No MonBus tally for the single-cache selections (0-2): the three
+    // tally apertures of the shared bridge ack writes and read zero, so
+    // the jet host stack runs unchanged.  The pair block (3-5) carries the
+    // real tally above.
     // ------------------------------------------------------------------
+    generate if (REF_CACHE_SEL < 3) begin : gen_tally_stubs
     ref_axil_stub #(.ADDR_WIDTH(32), .DATA_WIDTH(64)) u_tally_stub_cnt (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -1707,6 +1935,7 @@ module ref_harness
         .s_axil_rvalid  (s5_rvalid),
         .s_axil_rready  (s5_rready)
     );
+    end endgenerate
 
     // ------------------------------------------------------------------
     // Top-level status aggregation
@@ -1752,7 +1981,8 @@ module ref_harness_csr (
     input  logic [31:0] i_status,
     input  logic [31:0] i_cycle_lo,
     input  logic [31:0] i_cycle_hi,
-    input  logic [3:0]  i_fabric_dbg
+    input  logic [3:0]  i_fabric_dbg,
+    input  logic [31:0] i_onyx_cnt [6]   // onyx TASK-001: txn, supplied, mem_read, read_wasted, absorb, wb
 );
 
     localparam logic [3:0] HCSR_CTRL       = 4'h0;
@@ -1760,6 +1990,7 @@ module ref_harness_csr (
     localparam logic [3:0] HCSR_CYCLE_LO   = 4'h2;
     localparam logic [3:0] HCSR_CYCLE_HI   = 4'h3;
     localparam logic [3:0] HCSR_FABRIC_DBG = 4'h4;
+    localparam logic [3:0] HCSR_ONYX_CNT0  = 4'h8;   // 0x020 .. 0x034: the six onyx counters
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
@@ -1827,6 +2058,8 @@ module ref_harness_csr (
             HCSR_CYCLE_LO:   r_rdata = i_cycle_lo;
             HCSR_CYCLE_HI:   r_rdata = i_cycle_hi;
             HCSR_FABRIC_DBG: r_rdata = {28'b0, i_fabric_dbg};
+            4'h8, 4'h9, 4'hA, 4'hB, 4'hC, 4'hD:
+                             r_rdata = i_onyx_cnt[3'(r_araddr[5:2] - HCSR_ONYX_CNT0)];
             default:         r_rdata = 32'hDEAD_BEEF;
         endcase
     end

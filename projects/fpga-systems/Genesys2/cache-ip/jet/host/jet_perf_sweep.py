@@ -39,7 +39,7 @@ import jet_env  # noqa: F401  (path setup before shared-layer imports)
 sys.path.insert(0, os.path.join(jet_env.repo_root(), "bin"))
 
 from jet_board import (JetDriver, build_jet_bridge,
-                         build_default_profile, harness_probe,
+                         build_default_profile, PROFILES, harness_probe,
                          open_jet_link, TALLY_CFGR_BASE, TALLY_CFGW_BASE)
 
 SEED0 = 0x1234_5678
@@ -109,14 +109,14 @@ CONFIGS = [
 
 
 def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
-              outstanding=(1,), ci1_idle=False):
+              outstanding=(1,), ci1_idle=False, profile="jet"):
     """Walk CONFIGS at each injector depth in `outstanding` (TASK-002).
 
     The issued sequence is depth-invariant, so every config's CRCs must be
     identical across depths; run cycles, latency and the MLP counters are
     what change."""
     names = set(configs) if configs else None
-    driver.clear_and_load_profile(build_default_profile())
+    driver.clear_and_load_profile(PROFILES[profile]())
     driver.tally_clear()  # start from zeroed bins; each run below re-clears
     results = []
     for depth in outstanding:
@@ -161,6 +161,13 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
 
             if do_latch:
                 latch = _latch_capture(driver)
+            onyx = None
+            if profile == "ref-onyx":
+                # onyx's exact counters: cleared with the tally (CTRL[0]) and
+                # frozen with it (CTRL[1]), read in the same frozen window
+                hc = driver.bus["harness"]
+                onyx = {k: hc.read(f"ONYX_CNT_{k.upper()}") for k in
+                        ("txn", "supplied", "mem_read", "read_wasted", "absorb", "wb")}
 
             driver.tally_clear()
             driver.tally_freeze(False)
@@ -175,6 +182,8 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
             }
             if do_latch:
                 rec["latch"] = latch
+            if onyx is not None:
+                rec["onyx"] = onyx
             results.append(rec)
 
             hits, misses, snoops, evicts, drops = delta[0], delta[1], delta[2], \
@@ -200,7 +209,10 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
                 f"mlp0={mlp0:.2f}/{lat0['outst_max']} "
                 f"mlp1={mlp1:.2f}/{lat1['outst_max']} "
                 f"stall0={lat0['stall_cycles']} cstall0={lat0['credit_stall']} "
-                f"wall={wall:.2f}s err={st0['err_flag'] or st1['err_flag']}")
+                f"wall={wall:.2f}s err={st0['err_flag'] or st1['err_flag']}"
+                + (f" onyx txn={onyx['txn']} supplied={onyx['supplied']} "
+                   f"mem_rd={onyx['mem_read']} wasted={onyx['read_wasted']} "
+                   f"absorb={onyx['absorb']} wb={onyx['wb']}" if onyx else ""))
             if unc != 0 or st0["err_flag"] or st1["err_flag"] or not ok:
                 say(f"[sweep] WARNING {name}: unexpected/err/timeout flag set")
 
@@ -222,6 +234,9 @@ def main(argv=None):
                          "for the reference comparison (TASK-003)")
     ap.add_argument("--out", default=None,
                     help="JSON results path (default: results/perf_sweep_*.json")
+    ap.add_argument("--profile", default="jet", choices=sorted(PROFILES),
+                    help="tally bin profile: 'jet' (the pair rig's) or 'ref-onyx' "
+                         "(the reference rig with onyx in the manager slot)")
     args = ap.parse_args(argv)
 
     link = open_jet_link(args.port, board_name=args.board,
@@ -232,7 +247,7 @@ def main(argv=None):
         results = run_sweep(driver, count=args.count,
                             configs=args.configs,
                             outstanding=tuple(args.outstanding),
-                            ci1_idle=args.ci1_idle)
+                            ci1_idle=args.ci1_idle, profile=args.profile)
     finally:
         bridge.close()
 
@@ -245,7 +260,7 @@ def main(argv=None):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as fh:
         json.dump({"count": args.count, "outstanding": args.outstanding,
-                   "results": results}, fh, indent=2)
+                   "profile": args.profile, "results": results}, fh, indent=2)
     print(f"[sweep] results written to {out}")
     return 0
 

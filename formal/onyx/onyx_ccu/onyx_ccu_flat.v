@@ -113,7 +113,19 @@ module onyx_ccu (
 	dbg_grant,
 	dbg_grant_dir,
 	dbg_grant_addr,
-	dbg_grant_slot
+	dbg_grant_slot,
+	evt_grant,
+	evt_grant_cls,
+	evt_ac,
+	evt_gather,
+	evt_gather_slot,
+	evt_gather_dt,
+	evt_gather_pd,
+	evt_mem_ar,
+	evt_read_wasted,
+	evt_absorb,
+	evt_wb,
+	evt_lock_wait
 );
 	reg _sv2v_0;
 	localparam signed [31:0] l1_pkg_AMBER_ADDR_WIDTH = 32;
@@ -244,21 +256,33 @@ module onyx_ccu (
 	output wire [PORT_W - 1:0] dbg_grant_dir;
 	output wire [8 - 1:0] dbg_grant_addr;
 	output wire [SLOT_W - 1:0] dbg_grant_slot;
+	output wire evt_grant;
+	output wire [2:0] evt_grant_cls;
+	output wire [2 - 1:0] evt_ac;
+	output reg [2 - 1:0] evt_gather;
+	output reg [(2 * SLOT_W) - 1:0] evt_gather_slot;
+	output reg [2 - 1:0] evt_gather_dt;
+	output reg [2 - 1:0] evt_gather_pd;
+	output wire evt_mem_ar;
+	output reg [2 - 1:0] evt_read_wasted;
+	output wire evt_absorb;
+	output wire evt_wb;
+	output reg [2 - 1:0] evt_lock_wait;
 	initial begin
 		if ((2 < 2) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:330:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2 must be 2..4 (D11)");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:351:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2 must be 2..4 (D11)");
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:332:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:353:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 16 must be a power of two");
 		if (((FILL_BEATS & (FILL_BEATS - 1)) != 0) || (FILL_BEATS < 2))
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:334:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 16 / 32*8 must be a power of two >= 2");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:355:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 16 / 32*8 must be a power of two >= 2");
 		if ((32 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:336:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 32 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:357:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 32 must be a multiple of 8");
 		if ((4 < 2) || ((1 << SLOT_W) < 4))
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:338:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 4 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:359:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 4 must be >= 2");
 		if ((1 << IW) < 4)
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:340:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2**3 must cover 4 (the memory read IDs)");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:361:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2**3 must cover 4 (the memory read IDs)");
 		if (2 < 1)
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:342:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2 must be >= 1");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:363:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2 must be >= 1");
 	end
 	localparam [3:0] ACSNOOP_READ_SHARED = 4'h1;
 	localparam [3:0] ACSNOOP_READ_UNIQUE = 4'h7;
@@ -1106,12 +1130,38 @@ module onyx_ccu (
 					end
 			end
 		end
+	assign evt_grant = w_grant;
+	assign evt_grant_cls = w_cand_type[w_grant_dir];
+	assign evt_ac = w_ac_hs;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_47
+			reg signed [31:0] p;
+			for (p = 0; p < 2; p = p + 1)
+				begin
+					evt_gather[p] = w_cr_hs[p] && (r_cr_left[w_sni_head[p]] == sv2v_cast_65AE2_signed(1));
+					evt_gather_slot[((2 - 1) - p) * SLOT_W+:SLOT_W] = w_sni_head[p];
+					evt_gather_dt[p] = r_dt[w_sni_head[p]] | s_crresp[(((2 - 1) - p) * l1_pkg_AMBER_CRRESP_WIDTH) + l1_pkg_AMBER_CRRESP_DT];
+					evt_gather_pd[p] = r_pd[w_sni_head[p]] | (s_crresp[(((2 - 1) - p) * l1_pkg_AMBER_CRRESP_WIDTH) + l1_pkg_AMBER_CRRESP_DT] & s_crresp[(((2 - 1) - p) * l1_pkg_AMBER_CRRESP_WIDTH) + l1_pkg_AMBER_CRRESP_PD]);
+					evt_read_wasted[p] = (w_cr_hs[p] && s_crresp[(((2 - 1) - p) * l1_pkg_AMBER_CRRESP_WIDTH) + l1_pkg_AMBER_CRRESP_DT]) && (r_mem_issued[w_sni_head[p]] || (w_mar_vld && (w_mar_slot == w_sni_head[p])));
+				end
+		end
+		begin : sv2v_autoblock_48
+			reg signed [31:0] d;
+			for (d = 0; d < 2; d = d + 1)
+				evt_lock_wait[d] = w_cand_vld[d] & w_cand_locked[d];
+		end
+	end
+	assign evt_mem_ar = w_mar_hs;
+	assign evt_absorb = (((r_wstate == W_B) & w_cur_abs) & mem_bvalid) & mem_bready;
+	assign evt_wb = (mem_awvalid & mem_awready) & ~w_cur_abs;
 	assign dbg_busy = |r_vld;
 	assign dbg_slot_vld = r_vld;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_47
+		begin : sv2v_autoblock_49
 			reg signed [31:0] d;
 			for (d = 0; d < 2; d = d + 1)
 				dbg_pend_vld[d] = r_pend_cnt[d] != {3 {1'sb0}};
@@ -1127,7 +1177,7 @@ module onyx_ccu (
 		if (_sv2v_0)
 			;
 		unused_ar = 1'b0;
-		begin : sv2v_autoblock_48
+		begin : sv2v_autoblock_50
 			reg signed [31:0] d;
 			for (d = 0; d < 2; d = d + 1)
 				unused_ar = unused_ar ^ ^{c_arlen[((2 - 1) - d) * 8+:8], c_arsize[((2 - 1) - d) * 3+:3], c_arburst[((2 - 1) - d) * 2+:2], c_arlock[d], c_arqos[((2 - 1) - d) * 4+:4], c_arregion[((2 - 1) - d) * 4+:4], c_wuser[((2 - 1) - d) * UW+:UW]};

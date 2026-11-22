@@ -72,6 +72,14 @@ OOC = {
 }
 # the two-port managers alone (18 slots, SNOOP_INFLIGHT 2)
 OOC_MGR = {"jet_prime_pair_fabric": "jetp_fabric", "onyx_ccu (N_PORTS 2)": "onyx2"}
+# onyx's exact counters (TASK-001 step 6b, D9): the newest DUAL sweep of each
+# onyx mode that recorded them ("onyx" key per cell; bin2 = the tally-chain
+# build). The D6 measure is reads wasted over reads issued in the parallel
+# mode; the deferred mode's wasted count is its own check (should be 0).
+ONYX_CNT = {
+    "onyx":   f"{RIGS}/ref/results/perf_sweep_onyx_bin*_dual_*.json",
+    "onyx-d": f"{RIGS}/ref/results/perf_sweep_onyxd_bin*_dual_*.json",
+}
 OOC_DIR = f"{CACHE_IP}/results/ooc"
 # The same cache with USE_MONITOR=0 (MonBus observers and their arbiter tied
 # off): HPDcache and CVA6 carry no equivalent, so the area row is shown both
@@ -102,6 +110,16 @@ def load(pattern):
             mlp=ci.get("outst_sum", 0) / max(ci["run_cycles"], 1),
             outst_max=ci.get("outst_max", 0), err=ci["err_flag"], done=r["done"])
     return os.path.basename(f), rows
+
+
+def load_onyx(pattern):
+    """per (config, depth): the onyx counters of the newest dual sweep that has them"""
+    for f in reversed(sorted(glob.glob(pattern))):
+        data = json.load(open(f))["results"]
+        rows = {(r["config"], r.get("outstanding", 1)): r["onyx"] for r in data if "onyx" in r}
+        if rows:
+            return os.path.basename(f), rows
+    return None, {}
 
 
 def ooc_summary(name):
@@ -183,6 +201,23 @@ def main():
             out.append(f"| {n} | pending | | | | |")
         else:
             out.append(f"| {n} | {s['lut']} | {s['ff']} | {s['lutram']} | {float(s['wns_ns']):+.3f} | {s['worst_levels']} |")
+    out.append("### onyx counters, both injectors (the D6 trade: reads issued, lines supplied, reads wasted)\n")
+    osrc, ocnt = {}, {}
+    for n, pat in ONYX_CNT.items():
+        osrc[n], ocnt[n] = load_onyx(pat)
+        out.append(f"- {n}: `{osrc[n]}`" if osrc[n] else f"- {n}: pending")
+    out.append("")
+    out.append("| config | depth | mode | transactions | memory reads | lines supplied | reads wasted | wasted / issued | absorptions | write-backs |")
+    out.append("|---|---|---|---|---|---|---|---|---|---|")
+    for cfg in SHOW_CONFIGS:
+        for d in SHOW_DEPTHS:
+            for n in ONYX_CNT:
+                c = ocnt[n].get((cfg, d))
+                if not c:
+                    out.append(f"| {cfg} | {d} | {n} | pending | | | | | | |")
+                    continue
+                frac = c["read_wasted"] / c["mem_read"] if c["mem_read"] else 0.0
+                out.append(f"| {cfg} | {d} | {n} | {c['txn']} | {c['mem_read']} | {c['supplied']} | {c['read_wasted']} | {frac:.3f} | {c['absorb']} | {c['wb']} |")
     text = "\n".join(out) + "\n"
     if args.out:
         open(args.out, "w").write(text)
