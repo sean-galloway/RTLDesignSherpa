@@ -4,13 +4,17 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
+
+(none)
+
+## Active
 
 - **MC-020** -- a row command into the idle main slot or the column's own
   bank: the one-slot rule still costs `col_major` +14.6 / +9.5 / +5.3 percent
@@ -18,10 +22,11 @@
   elsewhere; MC-014 cut the alone-firing lane for the 100 MHz cone, so the
   task is a form that does not re-enter it, priced in the model first.
   Filed 2026-11-17 from MC-018.
-
-## Active
-
-(none)
+  ACTIVE 2026-11-21, step 1 landed: the slot forms price at 0.0; the tax was the
+  host derivation's one-CK phase margin; phase-exact counters board-validated
+  (col_major writes +10 / +7 / +4.5, close-page presets +35 .. +50, 0 mismatched
+  in 81 cells) behind `JEDEC_PHASE_EXACT=1`. Owner: the default, and the
+  auto-precharge tRP field (`char_results/board_mc020_phase_exact_sku100_2026-11-21.md`).
 
 ## Deferred
 

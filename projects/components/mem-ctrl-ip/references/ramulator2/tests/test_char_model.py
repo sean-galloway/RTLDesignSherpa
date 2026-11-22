@@ -205,6 +205,37 @@ def test_sku_preset_is_the_host_mc_cycle_derivation(pumice_char):
     assert mc(t["nBL"] + t["nRTP"] - 2 + t["nRP"]) == host["tRTP"] + host["tRP"]
 
 
+def test_px_preset_is_the_phase_exact_host_derivation(pumice_char):
+    """MC-020: DDR2_GRANITE_SKU100_PX is what ddr2_timings_mc_cycles(phase_exact=True) programs at 100 MHz with the
+    SKU's fixed DFI phases (RD / WR on 0, row commands on 1): the worst-phase margin replaced by the phase offset."""
+    import math
+    import ramulator
+    pd = pytest.importorskip("pumice_device")
+    host = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=1, phase_exact=True)
+    base = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=1)
+    assert {k for k in host if host[k] != base[k]} == {"tRC", "tWR", "tWTR", "tRRD", "tRFC"}, (host, base)
+    assert (host["tRC"], host["tWR"], host["tWTR"], host["tRRD"], host["tRFC"]) == (6, 3, 3, 1, 13)
+    assert all(host[k] <= base[k] for k in host)                                 # exact is never longer
+    _, t = ramulator.dram.DDR2(org_preset="DDR2_1Gb_x16", timing_preset="DDR2_GRANITE_SKU100_PX").resolve()
+    mc = lambda ck: math.ceil(ck / 2)                                           # noqa: E731
+    assert mc(t["nRCD"]) == host["tRCD"] and mc(t["nRP"]) == host["tRP"]
+    assert mc(t["nRAS"]) == host["tRAS"] and mc(t["nRC"]) == host["tRC"]
+    assert mc(t["nRRD"]) == host["tRRD"] and mc(t["nFAW"]) == host["tFAW"] and mc(t["nRFC"]) == host["tRFC"]
+    assert mc(t["nBL"] + t["nRTP"] - 2) == host["tRTP"]
+    # WR -> explicit PRE: the RTL's PRE sits on phase 1, so its 7 CK are 3 MC + 1; the model fires its main-slot
+    # PRE on the even tick and takes 4 -- one cycle conservative on that one hop (the lane's odd-tick PRE sees 7)
+    assert mc(t["nCWL"] + t["nBL"] + t["nWR"]) == host["tWR"] + 1
+    assert mc(t["nCWL"] + t["nBL"] + t["nWTR"]) == host["tWTR"]
+    # WRA -> ACT, the hop col_major's write chain pays: the same count in both
+    assert mc(t["nCWL"] + t["nBL"] + t["nWR"] + t["nRP"]) == host["tWR"] + host["tRP"]
+    # every count is a legal JEDEC distance on the SKU's phases: 2 m + (b - a) CK >= the CK minimum
+    ck = {k: max(math.ceil(v / 5.0), pd.DDR2_CK_MIN.get(k, 1)) for k, v in pd.DDR2_MT47H64M16_NS.items()}
+    assert 2 * host["tRCD"] - 1 >= ck["tRCD"] and 2 * host["tRP"] >= ck["tRP"] and 2 * host["tRAS"] >= ck["tRAS"]
+    assert 2 * host["tRC"] >= ck["tRC"] and 2 * host["tRRD"] >= ck["tRRD"] and 2 * host["tFAW"] >= ck["tFAW"]
+    assert 2 * host["tRFC"] >= ck["tRFC"] and 2 * host["tWR"] + 1 >= 2 + 2 + ck["tWR"]
+    assert 2 * host["tWTR"] >= 2 + 2 + ck["tWTR"]
+
+
 def test_sku_config_is_the_shipped_point():
     c = cm.CONFIGS["granite_sku100"]
     assert (c.controller, c.timing_preset) == ("GraniteSKU", "DDR2_GRANITE_SKU100")

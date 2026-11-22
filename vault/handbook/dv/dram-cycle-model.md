@@ -689,6 +689,34 @@ auto-precharge never armed (-18 percent on one cell). The RTL's registered
 image lags by the same cycle, and so must the model's
 (`char_results/model_issue006_page_policy_2026-11-20.md`).
 
+## The slot was not the tax: the phase margin was (2026-11-21, MC-020)
+
+The model's `slot1` variant (a command slot every CK) priced `col_major` at
++7 .. +15 percent, and the task read that as the one-slot-per-MC-cycle rule
+and named two idle-slot row-fire forms. Both priced at 0.0: on a one-bank
+chain the main slot fires the ACT the slot its timer opens. What `slot1` had
+measured was the HOST -- `ddr2_timings_mc_cycles` pads every ns-derived
+minimum by one CK for an unknown DFI phase, and the phases are fixed, so the
+exact count is ceil((n_ck - (b - a)) / 2) for a hop from phase a to phase b.
+**When a variant that changes the model's granularity moves a cell, ask
+which term rounded, not which structure is missing**: tRC, tWR, tWTR, tRRD
+and tRFC each lost a cycle, and tRRD alone was halving the ACT rate of every
+close-page stream on the board (bank_interleave 387 -> 583 MB/s).
+
+Two methods out of it. **Price a timing change as a preset, not a knob**: the
+phase-exact counters became `DDR2_GRANITE_SKU100_PX` with a test pinning it to
+the host function AND to the JEDEC minima on the SKU's phases, so the
+model's number was the board's prediction (312 / 448 / 568 against 311 / 446 /
+565). **Check the proxy's command stream at the CK, not the model's
+cycle**: the controller's timers are MC-cycle counters and the DRAM model's
+checker compares CK counts at the wrong clock (its "soft violations" have
+been noise for weeks), so the trace now carries each command's DFI phase and
+`mem-ctrl-ip-ddr2/bin/jedec_ck_check.py` reads CK = 2 x cycle + phase
+against the part, with an auto-precharge as a PRE at the DRAM's internal
+close. No timing change goes to the board without that check clean. The
+board then confirmed it in 81 cells with 0 mismatched beats
+(`char_results/board_mc020_phase_exact_sku100_2026-11-21.md`).
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

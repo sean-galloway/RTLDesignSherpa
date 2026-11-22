@@ -66,7 +66,9 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
                            phy_rd_dq_busy: int = 14,
                            rtw_guard: int = 7,
                            rd_phase: Optional[int] = None,
-                           row_phase: int = 0) -> Dict[str, int]:
+                           row_phase: int = 0,
+                           wr_phase: Optional[int] = None,
+                           phase_exact: bool = False) -> Dict[str, int]:
     """JEDEC DDR2 timings in MC cycles for a controller at ``mc_clk_hz`` driving
     the DRAM at ``ck_per_mc`` CK per MC cycle (DFI_RATE=2 -> 2). Every ns value
     rounds UP; every CK minimum rounds up too and the larger of the two wins.
@@ -79,7 +81,18 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
       tRTW: RD cmd -> WR cmd = max(CL + BL/2 + 2 - WL, t_rddata_en + BL/DFI_RATE)
             -- the JEDEC term alone ignores the PHY read pipeline (see below)
     A HIGHER mc_clk_hz yields more cycles, so a 100 MHz derivation is always safe
-    on a slower board clock -- the ns-bound rows just get conservative."""
+    on a slower board clock -- the ns-bound rows just get conservative.
+
+    phase_exact (memory-controllers MC-020, 2026-11-21): the DFI phases are
+    FIXED -- RD on rd_phase, WR on wr_phase, every row command (ACT / PRE / REF)
+    on row_phase -- so a hop from a command on phase a to one on phase b of a
+    later MC cycle m cycles on is ck_per_mc * m + (b - a) CK, and the count it
+    needs is ceil((n_ck - (b - a)) / ck_per_mc), not the worst-phase margin
+    below. With rd_phase, wr_phase and row_phase all known this replaces the
+    margin on every ns-derived minimum (tRTP had it already); any phase unknown
+    keeps the margin. At 100 MHz, phases 0 / 0 / 1: tRC 7 -> 6, tWR 4 -> 3,
+    tWTR 4 -> 3, tRRD 2 -> 1, tRFC 14 -> 13, the rest unchanged. The SKU model
+    priced it (sku_px): col_major writes +5 .. +10 percent, nothing moves down."""
     period_ns = 1e9 / float(mc_clk_hz)
     # PHASE MARGIN. A JEDEC delay is a CK-granular constraint, but these
     # counters are MC-cycle granular and a command may sit on ANY of the
@@ -202,6 +215,27 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     rtp_mc = max(1, ceil((rd_to_pre_ck + p) / ck_per_mc))
     rd_window_mc = (int(phy_rd_dq_busy) + 1 - (int(t_phy_wrlat) - (int(cmd_delay) - 1))
                     + int(rtw_guard))
+    if phase_exact and rd_phase is not None and wr_phase is not None and row_phase is not None:
+        rp_, wp_, xp_ = int(rd_phase), int(wr_phase), int(row_phase)
+        col_lo = min(rp_, wp_)          # the earlier column phase: the larger ACT -> column count
+
+        def ck_exact(name: str) -> int:   # JEDEC CK count of a ns minimum, with the CK floor
+            return max(ceil(part[name] / tck_ns), DDR2_CK_MIN.get(name, 1))
+
+        def hop(n_ck: int, a: int, b: int) -> int:   # MC cycles from a command on phase a to one on phase b
+            return max(1, ceil((n_ck - (b - a)) / ck_per_mc))
+
+        twr_x, twtr_x = ck_exact("tWR"), ck_exact("tWTR")
+        return dict(
+            tRCD=hop(ck_exact("tRCD"), xp_, col_lo), tRP=hop(ck_exact("tRP"), xp_, xp_),
+            tRAS=hop(ck_exact("tRAS"), xp_, xp_), tRC=hop(ck_exact("tRC"), xp_, xp_),
+            tWR=hop(wl + half_bl + twr_x, wp_, xp_),
+            tRTP=rtp_mc, tRRD=hop(ck_exact("tRRD"), xp_, xp_), tFAW=hop(ck_exact("tFAW"), xp_, xp_),
+            tRFC=hop(ck_exact("tRFC"), xp_, xp_), tREFI=int(part["tREFI"] / period_ns),
+            tCCD=ck(DDR2_CK_MIN["tCCD"]),
+            tWTR=hop(wl + half_bl + twtr_x, wp_, rp_),
+            tRTW=max(ck(cl + half_bl + 2 - wl), rd_window_mc),
+        )
     return dict(
         tRCD=ns(part["tRCD"]), tRP=ns(part["tRP"]), tRAS=ns(part["tRAS"]),
         tRC=ns(part["tRC"]),
@@ -322,8 +356,13 @@ class Pumice(Device):
         self._wr("DFI_PHASE", **fields)
 
     def get_dfi_phase(self) -> tuple:
+        """(rd_phase, wr_phase, row_phase); row_phase None on a map without the field."""
+        try:
+            row = self.regs.field("DFI_PHASE", "row_phase")
+        except Exception:
+            row = None
         return (self.regs.field("DFI_PHASE", "rd_phase"),
-                self.regs.field("DFI_PHASE", "wr_phase"))
+                self.regs.field("DFI_PHASE", "wr_phase"), row)
 
     # ----- PHY timing / memtype --------------------------------------------
     def set_phy_timing(self, *, memtype: Optional[int] = None,

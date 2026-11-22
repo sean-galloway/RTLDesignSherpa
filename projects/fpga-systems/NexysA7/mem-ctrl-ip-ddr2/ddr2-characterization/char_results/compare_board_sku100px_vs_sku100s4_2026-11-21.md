@@ -1,0 +1,85 @@
+# Board: the phase-exact JEDEC counters against the worst-phase margin, the same bitstream (memory-controllers MC-020), 2026-11-21
+
+Nexys A7-100T, bitstream `ddr2_char_granite_sku100_mc021s4_2026-11-19.bit` (HEAD's RTL). Margin = the 2026-11-19 step-5 set (`char_granite_sku100s4_*`), phase-exact = `JEDEC_PHASE_EXACT=1` (`char_granite_sku100px_*_2026-11-21.csv`): tRC 7 -> 6, tWR 4 -> 3, tWTR 4 -> 3, tRRD 2 -> 1, tRFC 14 -> 13. Write / read MB/s at 100 MHz; `mismatched` margin / phase-exact. See `board_mc020_phase_exact_sku100_2026-11-21.md`.
+
+| preset | cell | margin wr / rd | phase-exact wr / rd | delta wr / rd | mismatched |
+|---|---|---|---|---|---|
+| defaults | incremental_bl4 | 775 / 776 | 776 / 777 | +0.2 / +0.2 % | 0 / 0 |
+| defaults | incremental_bl8 | 775 / 776 | 776 / 777 | +0.2 / +0.2 % | 0 / 0 |
+| defaults | incremental_bl16 | 775 / 776 | 777 / 777 | +0.2 / +0.2 % | 0 / 0 |
+| defaults | row_major_bl4 | 775 / 778 | 777 / 779 | +0.3 / +0.1 % | 0 / 0 |
+| defaults | row_major_bl8 | 775 / 778 | 777 / 779 | +0.3 / +0.1 % | 0 / 0 |
+| defaults | row_major_bl16 | 775 / 778 | 777 / 779 | +0.3 / +0.1 % | 0 / 0 |
+| defaults | col_major_bl4 | 283 / 389 | 311 / 389 | +10.1 / +0.0 % | 0 / 0 |
+| defaults | col_major_bl8 | 416 / 520 | 446 / 520 | +7.1 / +0.0 % | 0 / 0 |
+| defaults | col_major_bl16 | 541 / 623 | 565 / 623 | +4.5 / -0.0 % | 0 / 0 |
+| defaults | col_major_interleaved_bl4 | 765 / 762 | 768 / 766 | +0.5 / +0.5 % | 0 / 0 |
+| defaults | col_major_interleaved_bl8 | 768 / 767 | 770 / 770 | +0.3 / +0.4 % | 0 / 0 |
+| defaults | col_major_interleaved_bl16 | 772 / 770 | 776 / 774 | +0.5 / +0.5 % | 0 / 0 |
+| defaults | col_major_bl8_multiid | 416 / 520 | 446 / 520 | +7.1 / +0.0 % | 0 / 0 |
+| defaults | col_major_bl8_gap | 376 / 400 | 376 / 400 | +0.0 / +0.0 % | 0 / 0 |
+| defaults | incremental_bl8_multiid | 775 / 776 | 777 / 777 | +0.2 / +0.2 % | 0 / 0 |
+| defaults | row_major_bl8_multiid | 775 / 778 | 777 / 779 | +0.3 / +0.1 % | 0 / 0 |
+| defaults | col_major_interleaved_bl8_multiid | 768 / 767 | 770 / 770 | +0.3 / +0.4 % | 0 / 0 |
+| open_page | incremental_bl4 | 775 / 778 | 777 / 779 | +0.3 / +0.2 % | 0 / 0 |
+| open_page | incremental_bl8 | 775 / 778 | 777 / 779 | +0.3 / +0.2 % | 0 / 0 |
+| open_page | incremental_bl16 | 775 / 778 | 777 / 779 | +0.3 / +0.2 % | 0 / 0 |
+| open_page | row_major_bl4 | 775 / 778 | 777 / 779 | +0.3 / +0.1 % | 0 / 0 |
+| open_page | row_major_bl8 | 775 / 778 | 777 / 779 | +0.3 / +0.1 % | 0 / 0 |
+| open_page | row_major_bl16 | 775 / 778 | 777 / 779 | +0.3 / +0.1 % | 0 / 0 |
+| open_page | col_major_bl4 | 283 / 389 | 311 / 389 | +10.1 / +0.0 % | 0 / 0 |
+| open_page | col_major_bl8 | 416 / 520 | 446 / 520 | +7.1 / +0.0 % | 0 / 0 |
+| open_page | col_major_bl16 | 541 / 623 | 565 / 623 | +4.5 / +0.0 % | 0 / 0 |
+| open_page | col_major_interleaved_bl4 | 767 / 767 | 773 / 770 | +0.7 / +0.4 % | 0 / 0 |
+| open_page | col_major_interleaved_bl8 | 770 / 770 | 774 / 774 | +0.5 / +0.5 % | 0 / 0 |
+| open_page | col_major_interleaved_bl16 | 772 / 774 | 776 / 777 | +0.5 / +0.4 % | 0 / 0 |
+| open_page | col_major_bl8_multiid | 416 / 520 | 446 / 520 | +7.1 / +0.0 % | 0 / 0 |
+| open_page | col_major_bl8_gap | 376 / 400 | 376 / 400 | +0.0 / +0.0 % | 0 / 0 |
+| open_page | incremental_bl8_multiid | 775 / 778 | 777 / 779 | +0.3 / +0.2 % | 0 / 0 |
+| open_page | row_major_bl8_multiid | 775 / 778 | 777 / 779 | +0.3 / +0.1 % | 0 / 0 |
+| open_page | col_major_interleaved_bl8_multiid | 770 / 770 | 774 / 774 | +0.5 / +0.5 % | 0 / 0 |
+| close_page | incremental_bl4 | 82 / 92 | 92 / 93 | +12.5 / +0.3 % | 0 / 0 |
+| close_page | incremental_bl8 | 82 / 92 | 92 / 93 | +12.5 / +0.2 % | 0 / 0 |
+| close_page | incremental_bl16 | 82 / 92 | 92 / 93 | +12.6 / +0.3 % | 0 / 0 |
+| close_page | row_major_bl4 | 78 / 87 | 87 / 87 | +11.1 / +0.0 % | 0 / 0 |
+| close_page | row_major_bl8 | 78 / 87 | 87 / 87 | +11.1 / +0.0 % | 0 / 0 |
+| close_page | row_major_bl16 | 78 / 87 | 87 / 87 | +11.1 / +0.0 % | 0 / 0 |
+| close_page | col_major_bl4 | 82 / 92 | 92 / 92 | +11.6 / -0.2 % | 0 / 0 |
+| close_page | col_major_bl8 | 80 / 90 | 89 / 89 | +11.3 / -0.2 % | 0 / 0 |
+| close_page | col_major_bl16 | 79 / 88 | 88 / 88 | +11.5 / +0.3 % | 0 / 0 |
+| close_page | col_major_interleaved_bl4 | 386 / 387 | 534 / 574 | +38.1 / +48.3 % | 0 / 0 |
+| close_page | col_major_interleaved_bl8 | 250 / 361 | 344 / 402 | +37.7 / +11.4 % | 0 / 0 |
+| close_page | col_major_interleaved_bl16 | 171 / 238 | 232 / 246 | +35.5 / +3.4 % | 0 / 0 |
+| close_page | col_major_bl8_multiid | 80 / 90 | 89 / 89 | +11.3 / -0.2 % | 0 / 0 |
+| close_page | col_major_bl8_gap | 80 / 90 | 89 / 89 | +11.3 / -0.2 % | 0 / 0 |
+| close_page | incremental_bl8_multiid | 82 / 92 | 92 / 93 | +12.6 / +0.3 % | 0 / 0 |
+| close_page | row_major_bl8_multiid | 78 / 87 | 87 / 87 | +11.1 / +0.0 % | 0 / 0 |
+| close_page | col_major_interleaved_bl8_multiid | 250 / 356 | 344 / 402 | +37.7 / +12.6 % | 0 / 0 |
+| bank_interleave | incremental_bl4 | 387 / 387 | 582 / 583 | +50.3 / +50.5 % | 0 / 0 |
+| bank_interleave | incremental_bl8 | 387 / 387 | 582 / 566 | +50.4 / +46.1 % | 0 / 0 |
+| bank_interleave | incremental_bl16 | 387 / 387 | 583 / 565 | +50.6 / +46.1 % | 0 / 0 |
+| bank_interleave | row_major_bl4 | 387 / 387 | 583 / 582 | +50.5 / +50.4 % | 0 / 0 |
+| bank_interleave | row_major_bl8 | 387 / 387 | 583 / 566 | +50.6 / +46.1 % | 0 / 0 |
+| bank_interleave | row_major_bl16 | 387 / 387 | 521 / 583 | +34.6 / +50.6 % | 0 / 0 |
+| bank_interleave | col_major_bl4 | 283 / 388 | 442 / 442 | +56.5 / +14.1 % | 0 / 0 |
+| bank_interleave | col_major_bl8 | 388 / 388 | 583 / 583 | +50.3 / +50.3 % | 0 / 0 |
+| bank_interleave | col_major_bl16 | 387 / 387 | 577 / 583 | +48.9 / +50.5 % | 0 / 0 |
+| bank_interleave | col_major_interleaved_bl4 | 243 / 317 | 356 / 356 | +46.5 / +12.1 % | 0 / 0 |
+| bank_interleave | col_major_interleaved_bl8 | 387 / 387 | 583 / 566 | +50.7 / +46.2 % | 0 / 0 |
+| bank_interleave | col_major_interleaved_bl16 | 387 / 387 | 583 / 583 | +50.6 / +50.5 % | 0 / 0 |
+| bank_interleave | col_major_bl8_multiid | 388 / 388 | 583 / 566 | +50.3 / +45.9 % | 0 / 0 |
+| bank_interleave | col_major_bl8_gap | 376 / 388 | 376 / 400 | +0.1 / +3.2 % | 0 / 0 |
+| bank_interleave | incremental_bl8_multiid | 387 / 387 | 582 / 583 | +50.6 / +50.6 % | 0 / 0 |
+| bank_interleave | row_major_bl8_multiid | 387 / 387 | 582 / 583 | +50.2 / +50.5 % | 0 / 0 |
+| bank_interleave | col_major_interleaved_bl8_multiid | 387 / 387 | 583 / 583 | +50.7 / +50.6 % | 0 / 0 |
+| defaults | mixed_bl8 | 272 / 273 | 277 / 276 | +1.6 / +1.3 % | 0 / 0 |
+| defaults | row_thrash_bl8 | 768 / 766 | 770 / 772 | +0.3 / +0.8 % | 0 / 0 |
+| defaults | random_bl8 | 723 / 750 | 729 / 754 | +0.9 / +0.6 % | 0 / 0 |
+| open_page | mixed_bl8 | 311 / 522 | 280 / 280 | -10.0 / -46.4 % | 0 / 0 |
+| open_page | row_thrash_bl8 | 770 / 770 | 774 / 774 | +0.5 / +0.5 % | 0 / 0 |
+| open_page | random_bl8 | 728 / 757 | 736 / 761 | +1.1 / +0.6 % | 0 / 0 |
+| close_page | mixed_bl8 | 56 / 59 | 60 / 66 | +6.8 / +11.1 % | 0 / 0 |
+| close_page | row_thrash_bl8 | 238 / 314 | 344 / 351 | +44.8 / +11.9 % | 0 / 0 |
+| close_page | random_bl8 | 203 / 258 | 270 / 281 | +32.7 / +8.8 % | 0 / 0 |
+
+77 cells on the phase-exact run; 48 moved by 1 percent or more

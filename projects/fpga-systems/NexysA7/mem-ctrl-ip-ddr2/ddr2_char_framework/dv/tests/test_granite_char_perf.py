@@ -956,11 +956,18 @@ async def cocotb_test_granite_perf(dut):
         # configured with above (TEST_T_RDDATA_EN / TEST_RDDATA_DELAY /
         # TEST_T_PHY_WRLAT); a fixed 4/0/0 here with another tuple on the
         # controller is the pumice BUG-014 shape one layer up.
+        # TEST_PHASE_EXACT=1: the phase-exact derivation (memory-controllers MC-020) -- the DFI phases the
+        # controller was just programmed with replace the worst-phase margin on every hop
         out["timings"] = drv.set_jedec_timings(
             float(FPGA_CLK_HZ),
             t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
             rddata_delay=int(os.environ.get("TEST_RDDATA_DELAY", "0")),
-            t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")))
+            t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")),
+            rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
+            wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
+            row_phase=(1 if dual else 0),
+            phase_exact=os.environ.get("TEST_PHASE_EXACT", "0") == "1")
+        out["phase_exact"] = int(os.environ.get("TEST_PHASE_EXACT", "0") == "1")
         drv.set_refresh_interval(t_refi)
         for fam_key in fam_names:
             out["families"][fam_key] = measure_family(fam_key)
@@ -982,17 +989,28 @@ async def cocotb_test_granite_perf(dut):
         return out
 
     # PERF_DRAM_TRACE=<path>: every command the DRAM model accepts, as
-    # (model cycle, kind, bank) -- ACT / RD / WR / PRE / PREA / AP. Read off
-    # the model's own hooks, so it is the command stream the DRAM saw.
+    # (model cycle, kind, bank, DFI phase) -- ACT / RD / WR / PRE / PREA / AP. Read off
+    # the model's own hooks, so it is the command stream the DRAM saw; the phase
+    # is the one the DFI slave decoded the command on (MC-020: CK = 2 * cycle + phase
+    # is what a JEDEC check at CK resolution reads).
     dram_trace_path = os.environ.get("PERF_DRAM_TRACE", "")
     dram_trace = []
     if dram_trace_path:
         dm = _dfi.dram
+        cur_phase = [0]
+        _orig_handle = _dfi._handle_command
+        def _handle_with_phase(cmd, phase_override=None):
+            try:
+                cur_phase[0] = int(phase_override) if phase_override is not None else int(_dfi._active_phase())
+            except Exception:
+                cur_phase[0] = 0
+            return _orig_handle(cmd, phase_override=phase_override)
+        _dfi._handle_command = _handle_with_phase
         def _hook(name, kind):
             orig = getattr(dm, name)
             def wrapped(bank_idx, *a, **k):
                 pre_all = kind == "PRE" and k.get("all_banks", a[0] if a else False)
-                dram_trace.append((dm.cycle, "PREA" if pre_all else kind, bank_idx))
+                dram_trace.append((dm.cycle, "PREA" if pre_all else kind, bank_idx, cur_phase[0]))
                 return orig(bank_idx, *a, **k)
             setattr(dm, name, wrapped)
         for name, kind in (("on_activate", "ACT"), ("on_read", "RD"),

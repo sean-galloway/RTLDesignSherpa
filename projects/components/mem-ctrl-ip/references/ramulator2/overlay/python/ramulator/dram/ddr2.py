@@ -257,10 +257,19 @@ _SKU100 = {"rate": 400, "nBL": 2, "tCK_ps": 5000,
            "nWR": 4, "nRTP": 2, "nCWL": -1, "nCCD": 2, "nWTR": 4,
            "nRRD": 4, "nFAW": 9, "nRFC": 28, "nRTW": 42, "nCS": 2}
 
+# MC-020 (2026-11-21): the SKU's counters as a PHASE-EXACT host derivation would program them -- the DFI phases are
+# fixed (columns on phase 0, row commands on row_phase 1), so a same-phase hop needs ceil(n_ck / 2) MC cycles and a
+# column -> row hop ceil((n_ck - 1) / 2), not the worst-phase margin of one CK on every hop: tRC 7 -> 6 MC (12 CK),
+# WRA -> ACT 6 -> 5 and WR -> RD 4 -> 3 (nWR / nWTR back to JEDEC's 3 / 2), tRRD 2 -> 1, tRFC 14 -> 13. This is
+# what pumice_device.ddr2_timings_mc_cycles(phase_exact=True) programs at 100 MHz with phases 0 / 0 / 1 (the test
+# in references/ramulator2/tests pins it); the even-slot rounding gives those counts.
+_SKU100_PX = dict(_SKU100, nRC=12, nWR=3, nWTR=2, nRRD=2, nRFC=26)
+
 DDR2.timing_presets = {
     **_JEDEC_BINS,
     # the granite SKU's own counters (MC-018), see _SKU100
     "DDR2_GRANITE_SKU100": _SKU100,
+    "DDR2_GRANITE_SKU100_PX": _SKU100_PX,
     # the board point: CK 150 MHz (sys 75 MHz, DFI 1:2), CL3 -- pumice_dram_configs "board_ddr2_300"
     "DDR2_MT47H64M16_300_CL3": _part_preset(300, 6667, 3),
     # CK 200 MHz (sys 100 MHz), CL3 -- "ddr2_400_cl3_bl4"

@@ -184,6 +184,9 @@ class GraniteSKUController : public ControllerBase {
   int m_dir_hold_idle = 8;
   bool m_dir_owns_rows = true;
   int m_lane = 3;
+  int m_lane_idle = 0;          // MC-020: 0 = the lane fires beside a main column only (the RTL); 1 = also into a main slot
+                                //   with no command (the live idle-slot fire MC-014 cut); 2 = alone one slot after an idle
+                                //   main slot (a registered idle), the main's row winner yielding that slot
   bool m_close_on_drain = true;
   bool m_alternate = true;
   bool m_page_close = false;
@@ -255,6 +258,7 @@ class GraniteSKUController : public ControllerBase {
   std::vector<int> m_row_img_prev;        // [bank] last slot's row image: the one the delayed command view is compared against
   // the lane's fire, waiting for the odd tick
   bool m_lane_pending = false;
+  bool m_lane_alone_pending = false;   // lane_idle 2: the lane fires alone this slot
   int m_lane_cmd = -1;
   AddrVec_t m_lane_addr;
 
@@ -279,6 +283,7 @@ class GraniteSKUController : public ControllerBase {
   size_t s_lane_act = 0;
   size_t s_lane_pre = 0;
   size_t s_lane_dropped = 0;
+  size_t s_lane_alone = 0;      // lane fires into an idle main slot (lane_idle)
   size_t s_lane_holds = 0;
   size_t s_ap_cols = 0;
   size_t s_to_pre = 0;          // the background (timeout) closes issued
@@ -325,6 +330,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);
     RAMULATOR_PARSE_PARAM(m_lane, int, "lane").default_val(3);
+    RAMULATOR_PARSE_PARAM(m_lane_idle, int, "lane_idle").default_val(0);
     RAMULATOR_PARSE_PARAM(m_close_on_drain, bool, "close_on_drain").default_val(true);
     RAMULATOR_PARSE_PARAM(m_alternate, bool, "alternate").default_val(true);
     RAMULATOR_PARSE_PARAM(m_page_close, bool, "page_close").default_val(false);
@@ -338,6 +344,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_debug_to, int, "debug_to").default_val(0);
     if (m_slot_ticks < 1) throw std::runtime_error("GraniteSKU: slot_ticks must be >= 1");
     if (m_lane < 0 || m_lane > 3) throw std::runtime_error("GraniteSKU: lane must be 0..3");
+    if (m_lane_idle < 0 || m_lane_idle > 2) throw std::runtime_error("GraniteSKU: lane_idle is 0..2");
     if (m_peek_depth < 1) throw std::runtime_error("GraniteSKU: peek_depth must be >= 1");
     if (m_page_mode < 0 || m_page_mode > 4) throw std::runtime_error("GraniteSKU: page_mode is 0..4");
     if (m_tr_init < 0 || m_tr_init > 255) throw std::runtime_error("GraniteSKU: tr_init is 0..255");
@@ -405,6 +412,7 @@ class GraniteSKUController : public ControllerBase {
     m_stats.add("sku_lane_act", s_lane_act);
     m_stats.add("sku_lane_pre", s_lane_pre);
     m_stats.add("sku_lane_dropped", s_lane_dropped);
+    m_stats.add("sku_lane_alone", s_lane_alone);
     m_stats.add("sku_lane_holds", s_lane_holds);
     m_stats.add("sku_ap_cols", s_ap_cols);
     m_stats.add("sku_to_pre", s_to_pre);
@@ -816,11 +824,16 @@ class GraniteSKUController : public ControllerBase {
         la_ok = bank_la_ok(h.cmd, h.it->addr_vec);
       }
     }
-    const bool dmd_fire = fire_allowed && W.vld && class_ok && timer_ok;
+    // lane_idle 2: the lane's registered alone-fire takes this slot's row; the main fires a column beside it or holds
+    const bool dmd_fire = fire_allowed && W.vld && class_ok && timer_ok && !(m_lane_alone_pending && W.cls != CL_COL);
     const bool win_xdir_col = W.vld && W.cls == CL_COL && (dir_of(W.pair) ? 1 : 0) != cur && col_pend[cur] && !m_batch_done;
     const bool hold_next = W.vld && class_ok && la_ok && !dmd_fire && !win_xdir_col;
     // the fired candidate's flags, read before the pop
     const bool fired_col = dmd_fire && W.cls == CL_COL;
+    // mc_page_policy's background close takes a slot no demand command does (decided here, issued in the fire block)
+    const bool to_fire = !dmd_fire && fire_allowed && timeout_on() && m_to_req && m_bank_open_row[m_to_bank] >= 0 &&
+                         !(W.vld && bank_of(W.pair) == m_to_bank) && check_timing(m_cmd_prepb, m_bank_open_av[m_to_bank]);
+    const bool main_idle = fire_allowed && !dmd_fire && !to_fire;
     const int fired_pair = dmd_fire ? W.pair : -1;
     const int fired_bank = dmd_fire ? bank_of(W.pair) : -1;
     const int fired_dir = dmd_fire ? (dir_of(W.pair) ? 1 : 0) : -1;
@@ -928,12 +941,15 @@ class GraniteSKUController : public ControllerBase {
       }
     }
     const bool l_ok = lane_on && L.vld && l_class_ok && !l_clash;
-    const bool l_fire = l_ok && l_timer_ok && fired_col;
+    const bool l_alone = l_ok && l_timer_ok && !fired_col &&
+                         ((m_lane_idle == 1 && main_idle) || (m_lane_idle == 2 && m_lane_alone_pending));
+    const bool l_fire = l_ok && l_timer_ok && (fired_col || l_alone);
     const bool l_hold = l_ok && !l_fire && l_la_ok;
     Win lane_hint{};
     if (l_fire) {
       const Head& h = m_heads[L.pair];
       m_lane_pending = true;
+      if (l_alone) s_lane_alone++;
       m_lane_cmd = h.cmd;
       m_lane_addr = h.it->addr_vec;
       if (!h.it->is_stat_updated) { ReqBuffer::iterator it = h.it; update_request_stats(it); }
@@ -1055,8 +1071,7 @@ class GraniteSKUController : public ControllerBase {
       }
       if (dbg()) std::cout << "[sku]   fire p" << W.pair << " cmd " << fired_cmd << (fired_ap ? " AP" : "") << std::endl;
       issue(h.it, *h.buf);
-    } else if (fire_allowed && timeout_on() && m_to_req && m_bank_open_row[m_to_bank] >= 0 &&
-               !(W.vld && bank_of(W.pair) == m_to_bank) && check_timing(m_cmd_prepb, m_bank_open_av[m_to_bank])) {
+    } else if (to_fire) {
       // mc_page_policy's background close: the pick's lowest-priority command, into a slot no demand command
       // takes (and never the winner's bank), on a row whose idle timer expired with no head hitting it
       m_device.issue_command(m_cmd_prepb, m_bank_open_av[m_to_bank], m_clk);
@@ -1082,6 +1097,8 @@ class GraniteSKUController : public ControllerBase {
     m_batch = batch_nxt;
     m_batch_done = m_dir_batch_max != 0 && batch_nxt >= m_dir_batch_max;
     bump_idle(flip || (dmd_fire && fired_dir == cur));
+    // lane_idle 2: an idle main slot with a lane winner ready arms the alone-fire for the next slot
+    m_lane_alone_pending = m_lane_idle == 2 && main_idle && l_ok && l_timer_ok && !l_fire;
     page_policy_slot(row_at_start, ord_now);
     // deadlock detector: queued requests and no command for 4096 slots is a modelling error, not a stall
     if (dmd_fire || (m_read_buffer.size() + m_write_buffer.size() + m_staged[0].size() + m_staged[1].size()) == 0) {

@@ -634,11 +634,21 @@ class DDR2CharDriver:
         # tRTP is counted from the RD's DFI phase, so derive it from the phase
         # the controller is actually programmed with (every caller sets the DFI
         # phase first). Unreadable -> None, which assumes the worst phase.
-        if "rd_phase" not in align:
+        # ... and, for the phase-exact derivation (MC-020), the WR and row phases too
+        if "rd_phase" not in align or "wr_phase" not in align or "row_phase" not in align:
             try:
-                align["rd_phase"] = int(self.get_dfi_phase()[0])
+                ph = self.get_dfi_phase()
+                align.setdefault("rd_phase", int(ph[0]))
+                align.setdefault("wr_phase", int(ph[1]))
+                if ph[2] is not None:
+                    align.setdefault("row_phase", int(ph[2]))
             except Exception as exc:
                 print(f"[timings] DFI_PHASE unreadable ({exc!r}); tRTP assumes the worst rd_phase")
+        # JEDEC_PHASE_EXACT=1: the phase-exact derivation (memory-controllers MC-020) on the
+        # board flow too -- the DFI phases read back above replace the worst-phase margin
+        if "phase_exact" not in align and os.environ.get("JEDEC_PHASE_EXACT", "0") == "1":
+            align["phase_exact"] = True
+            print("[timings] JEDEC_PHASE_EXACT: phase-exact derivation", file=sys.stderr, flush=True)
         timings = dict(ddr2_timings_mc_cycles(mc_clk_hz, **align))
         # JEDEC_OVERRIDE="tCCD=2,tWTR=5": pin individual derived fields (MC
         # cycles) for a board experiment, e.g. to force a write cadence.

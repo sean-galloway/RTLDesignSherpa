@@ -453,6 +453,9 @@ class ModelConfig:
     dir_hold_idle: int = 8             # GraniteSKU: DIR_HOLD_IDLE (0 = off)
     dir_owns_rows: bool = True         # GraniteSKU: DIR_OWNS_ROWS
     lane: int = 3                      # GraniteSKU: row lane 0 off / 1 PRE only / 2 ACT only / 3 either (DUAL_ISSUE)
+    lane_idle: int = 0                 # GraniteSKU: the lane fires into an idle main slot too -- 1 live (the alone-firing lane
+                                       #   MC-014 cut for the 100 MHz cone), 2 one slot after a registered idle, the main's row
+                                       #   winner yielding that slot (MC-020's candidate form)
     close_on_drain: bool = True        # GraniteSKU: CLOSE_ON_DRAIN auto-precharge
     alternate: bool = True             # GraniteSKU: the row / column alternation of the select
     page_close: bool = False           # GraniteSKU: every column auto-precharges (the board's close_page preset)
@@ -621,6 +624,10 @@ CONFIGS.update({c.name: c for c in [
     _sku("laneoff", "the row lane off (DUAL_ISSUE 0)", lane=0),
     _sku("lanepre", "the row lane carrying PRE only", lane=1),
     _sku("laneact", "the row lane carrying ACT only", lane=2),
+    _sku("laneidle", "the row lane also firing into an idle main slot, live (the alone-firing lane MC-014 cut)", lane_idle=1),
+    _sku("px", "the SKU's counters derived phase-exact (tRC 6, tWR 3, tWTR 3, tRRD 1, tRFC 13: ddr2_timings_mc_cycles phase_exact, MC-020)",
+         timing_preset="DDR2_GRANITE_SKU100_PX"),
+    _sku("laneidle_reg", "the row lane firing alone one slot after a registered idle main slot, the main's row winner yielding (MC-020)", lane_idle=2),
     _sku("noalt", "no row / column alternation (columns first always)", alternate=False),
     _sku("peek16_pool32", "pool 32 and a 16-deep row-hit peek past a conflicting head", read_buffer=32,
          write_buffer=32, peek_depth=16),
@@ -681,7 +688,10 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
         dram_cls = _mc_granular_class(dram_cls)
     if cfg.ref_burst > 1:
         dram_cls = _ref_burst_class(dram_cls, cfg.ref_burst)
-    dram = dram_cls(org_preset=cfg.org_preset, timing_preset=cfg.timing_preset)
+    # GRANITE_TIMING_PRESET=<name>: run a config on another timing preset (MC-020: the SKU configs on
+    # DDR2_GRANITE_SKU100_PX, the phase-exact counters, against a board run made with JEDEC_PHASE_EXACT=1)
+    dram = dram_cls(org_preset=cfg.org_preset,
+                    timing_preset=os.environ.get("GRANITE_TIMING_PRESET", "") or cfg.timing_preset)
     if cfg.row_policy == "open":
         row_policy = ramulator.row_policy.Open()
     elif cfg.row_policy == "closed_cap":
@@ -706,7 +716,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             slot_ticks=cfg.slot_ticks, bank_cap_mixed=cfg.bank_cap_mixed, cap_per_beat=cfg.cap_per_beat,
             admit_lag=cfg.admit_lag, pool_gate_lag=cfg.pool_gate_lag, cap_gate_lag=cfg.cap_gate_lag,
             dir_batch_max=cfg.dir_batch_max,
-            dir_hold_idle=cfg.dir_hold_idle, dir_owns_rows=cfg.dir_owns_rows, lane=cfg.lane,
+            dir_hold_idle=cfg.dir_hold_idle, dir_owns_rows=cfg.dir_owns_rows, lane=cfg.lane, lane_idle=cfg.lane_idle,
             close_on_drain=cfg.close_on_drain, alternate=cfg.alternate, page_close=cfg.page_close,
             page_mode=cfg.page_mode, tr_init=cfg.tr_init,
             peek_depth=cfg.peek_depth, req_bank_timing=cfg.req_bank_timing,
