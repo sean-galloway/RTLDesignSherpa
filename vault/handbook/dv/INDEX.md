@@ -37,6 +37,7 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[test-review]] - auditing test collateral with the review pipeline: what to grab, bundle layout, checklist
 - [[coverage]] - Verilator, functional bar, the monbus packet-type matrix
 - [[formal]] - sv2v/SBY flow, mutation rule, vacuity traps
+- [[riscv-arch-test]] - RISC-V International's golden-signature suite on the falcon RV32I cores: RISCOF's DUT-vs-spike compare in cocotb; build with -mno-relax or a relaxed c.nop hangs the reference; images exceed the 256 KiB TB memory
 - [[cloud-sandbox]] - running sims off the workstation; the Verilator pin, the PyPI pin
 - [[silent-fallbacks]] - why almost every wrong DV conclusion is something that did not happen without saying so
 - [[checks-encode-events-not-cycles]] - a TB check keyed on a cycle offset between two events fails when the pipeline shortens and reads as a design bug; key on the event (FSM state, retire, the write at the hazard) and make a watcher's first sample the current cycle (jet-prime step 5: three such checks)

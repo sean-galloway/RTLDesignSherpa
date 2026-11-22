@@ -49,8 +49,8 @@ not `kestrel`. The bare codename is how the core is referred to in prose
 
 | Directory | Codename | ISA | Microarchitecture | Status |
 |---|---|---|---|---|
-| [`kestrel-rv32i/`](kestrel-rv32i/) | **kestrel** | RV32I | single-cycle | RTL complete; rv32ui battery 42/42 with spike lockstep; riscv-formal 42/42; doc book v0.1 published; board loader sim-verified |
-| [`merlin-rv32i/`](merlin-rv32i/) | **merlin** | RV32I | 5-stage in-order pipeline | Planned; structure only |
+| [`kestrel-rv32i/`](kestrel-rv32i/) | **kestrel** | RV32I | single-cycle | RTL complete; rv32ui battery 42/42 with spike lockstep; riscv-formal 42/42; riscv-arch-test rv32i_m/I 39/39; doc book v0.1 published; board loader sim-verified |
+| [`merlin-rv32i/`](merlin-rv32i/) | **merlin** | RV32I | 5-stage in-order pipeline | RTL complete; rv32ui battery 42/42 with spike lockstep; directed hazard suite; riscv-formal 42/42; riscv-arch-test rv32i_m/I 39/39 |
 | [`peregrine-rv32im/`](peregrine-rv32im/) | **peregrine** | RV32IM | advanced in-order: predictor, traps, L1 caches, AXI master | Planned; structure only |
 | [`gyrfalcon-rv32ima/`](gyrfalcon-rv32ima/) | **gyrfalcon** | RV32IM baseline; gyrfalcon-A flavor RV32IMA | out-of-order capstone: rename, ROB, reservation stations; two flavors — baseline and gyrfalcon-A (`A_EXT=1`: LR/SC + AMO atomics study) | Planned; structure only |
 | [`garuda-rv32imaf/`](garuda-rv32imaf/) | **garuda** | RV32IMAF | gyrfalcon's OoO plus an FPU: FP register file + rename, fcsr precise flags, non-pipelined long-latency units | Planned; structure only (penciled in; beyond the 2026-10-06 design spec, which pins four rungs) |
@@ -88,7 +88,8 @@ FSM; the ALU stays). It answers the kestrel-for-the-compute-FSM question in
 kestrel's own lineage: same RV32I contract, decode and ALU, inverted
 pipeline lesson -- N contexts hide one shared datapath's latency instead of
 stages hiding latency for one stream. The RV32I barrel is built and runs
-four harts on the Nexys A7 (2026-10-21); Xcell is next, tracked in
+four harts on the Nexys A7 (2026-10-21) and passes riscv-arch-test
+rv32i_m/I on every context (156/156, 2026-11-22); Xcell is next, tracked in
 [vault TASK-002](../../../vault/tracking/projects/components/riscv-ip/gatling-rv32i/task/open/TASK-002.md).
 
 ## Goals per rung

@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: kestrel_tb_top
-// Purpose: kestrel_core wrapped with a behavioral 64 KiB unified (von
+// Purpose: kestrel_core wrapped with a behavioral MEM_WORDS-word unified (von
 //          Neumann) word memory.  Programs load at time 0 via +imem=<hex>
 //          (+dmem=<hex>) plusargs into $readmemh word arrays; all reads are
 //          combinational.  Unified memory means instruction fetches see
@@ -36,7 +36,12 @@
 `include "reset_defs.svh"
 
 module kestrel_tb_top #(
-    parameter logic [31:0] RESET_ADDR = 32'h0000_0000
+    parameter logic [31:0] RESET_ADDR = 32'h0000_0000,
+    // Behavioral memory size in words (power of two).  The default
+    // 64 Ki words (256 KiB) serves every directed test and the rv32ui
+    // battery; the riscv-arch-test runner sets 512 Ki (2 MiB) because
+    // jal-01 is a 1.7 MiB image.  Addresses alias modulo the size.
+    parameter int          MEM_WORDS  = 65536
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -70,8 +75,7 @@ module kestrel_tb_top #(
     input  logic [31:0] tb_mem_wdata
 );
 
-    localparam int MEM_WORDS      = 65536;
-    localparam int MEM_ADDR_MSB   = 17;
+    localparam int MEM_ADDR_MSB   = $clog2(MEM_WORDS) + 1;
     localparam int WORD_ADDR_LSB  = 2;
     localparam int BYTE_LANES     = 4;
     localparam int BYTE_WIDTH     = 8;

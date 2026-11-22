@@ -102,7 +102,10 @@ The hovering falcon: the whole machine visible in one cycle.
 - **Teaches:** instruction formats, the datapath, control truth tables, why
   single-cycle costs what it costs.
 - **Verification:** riscv-formal ISA compliance (sby flow, oss-cad-suite);
-  classic `rv32ui-p-*` riscv-tests battery; spike lockstep in rds-dv cocotb.
+  classic `rv32ui-p-*` riscv-tests battery; spike lockstep in rds-dv cocotb;
+  riscv-arch-test (RISC-V International's architectural suite, RISCOF
+  signature format) rv32i_m/I, signatures against the reference model's
+  (added 2026-11-22: 39/39 on kestrel, merlin and gatling).
 - **Packaging:** *Simplified RV32I: kestrel* doc book (Memory Notes
   branding, `bin/md_to_docx.py` → DOCX/PDF).
 
@@ -258,7 +261,9 @@ floating point.
   fcsr flags merging at retirement (garuda). The app gets its own design doc before
   implementation; its modes arrive as the rungs they visualize land.
 - **Verification infrastructure:** spike ISS as the golden model throughout;
-  riscv-tests batteries per ISA scope; cocotb lockstep TBs in the rds-dv
+  riscv-tests batteries per ISA scope; riscv-arch-test signatures per ISA
+  scope (rv32i_m/I, then /M, /A, /F as the rungs add them; the shared
+  harness is `common-rv32i/dv/arch_test/`); cocotb lockstep TBs in the rds-dv
   framework; sby-based formal where it pays (rung 1 fully, rung 2 via the
   retire interface, rungs 3–5 targeted properties).
 

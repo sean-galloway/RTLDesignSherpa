@@ -187,6 +187,10 @@ consumed* (POP), not instructions; grants are in *elements pushed*
 
 - **Base ISA:** spike lockstep on RV32I exactly as kestrel does it —
   reuse the rds-dv flow; rv32ui battery is the gate (42/42 precedent).
+- **riscv-arch-test** rv32i_m/I (3.10.0, RISCOF signature format):
+  `dv/tests/test_gatling_arch.py`, four different tests at once on the
+  barrel, rotated so each context runs all 39; every signature against
+  spike's, 156/156 (added 2026-11-22 (Sean)).
 - **Xcell unit:** directed cocotb — POP empty-stall / credit batch
   N=1,2,4; PUSH grant/backpressure; CFG read of mode shadow;
   ECTX done/observability; element-width zero-extend and slice.
