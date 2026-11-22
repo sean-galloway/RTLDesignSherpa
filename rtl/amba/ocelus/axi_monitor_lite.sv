@@ -217,19 +217,24 @@ module axi_monitor_lite
     //   phase: 0 = waiting for data beats, 1 = waiting for B (writes only)
     // Every field is written whole (allocation) or by one shared value
     // (the beat count, the progress stamp) selected into one slot -- no
-    // per-slot arithmetic. Packed arrays throughout: the formal flow
-    // flattens through sv2v, and yosys rejects an unpacked array named whole
-    // in a sensitivity list (the trans_mgr's w_age_flat exists for the same
-    // reason).
+    // per-slot arithmetic. Write-once payload uses unpacked arrays in
+    // reset-free processes; validity and mutable control stay packed/reset.
+    // No unpacked array is named whole in a sensitivity list, so the sv2v /
+    // yosys formal flow sees only indexed reads.
     // ------------------------------------------------------------------
     logic [N-1:0]                 r_valid;
-    logic [N-1:0][IW-1:0]         r_id;
-    logic [N-1:0][AW-1:0]         r_addr;
+    // Parallel ID comparisons make this a flop array, not a RAM candidate.
+    logic [IW-1:0]                r_id [N];
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [AW-1:0]                r_addr [N];
     logic [N-1:0][7:0]            r_beats;   // data beats still expected (len for a fresh entry)
     logic [N-1:0]                 r_phase;
     logic [N-1:0]                 r_err;     // an error was already reported for this entry
     logic [N-1:0]                 r_tmo;     // a timeout was already reported for this entry
-    logic [N-1:0][TS_WIDTH-1:0]   r_ts0;     // cycle stamp of allocation (latency)
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [TS_WIDTH-1:0]          r_ts0 [N]; // cycle stamp of allocation (latency)
     logic [N-1:0][AGE_WIDTH-1:0]  r_us0;     // microsecond stamp of the last progress (timeout)
     // Ordering: the live entries of one ID form a LINKED LIST in allocation
     // order. head marks the oldest (the one the next same-ID beat or
@@ -244,7 +249,9 @@ module axi_monitor_lite
     logic [N-1:0]                 r_head;
     logic [N-1:0]                 r_tail;
     logic [N-1:0]                 r_has_next;
-    logic [N-1:0][SW-1:0]         r_next;
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [SW-1:0]                r_next [N];
 
     // Free-slot pick: lowest free index.
     logic          w_have_free;
@@ -288,7 +295,9 @@ module axi_monitor_lite
 
     // AW-order FIFO of slot indices (writes only). Depth N: there can never be
     // more TRACKED AWs awaiting W than table entries.
-    logic [N-1:0][SW-1:0] r_wq;
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [SW-1:0] r_wq [N];
     logic [SW-1:0] r_wq_wp, r_wq_rp;
     logic [CW-1:0] r_wq_cnt;
     wire           w_wq_empty = (r_wq_cnt == '0);
@@ -323,7 +332,9 @@ module axi_monitor_lite
     // is early: the burst of the NEXT AW is kept in the one early-burst
     // register, any later one overflows (reported) but is still counted.
     localparam int QW = (WSEQ_WIDTH > 1) ? WSEQ_WIDTH : 2;
-    logic [N-1:0][QW-1:0] r_wq_seq;
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [QW-1:0] r_wq_seq [N];
     logic [QW-1:0] r_aw_seq, r_w_seq;
     wire  [QW-1:0] w_seq_gap  = r_aw_seq - r_w_seq;                  // AWs seen whose W has not finished
     wire           w_aw_ahead = (w_seq_gap != '0) && !w_seq_gap[QW-1]; // this beat's AW has been seen
@@ -502,13 +513,35 @@ module axi_monitor_lite
     wire          w_link         = (|w_same_tail) && !w_tail_freeing;   // new entry goes behind the tail
     wire [SW-1:0] w_tail_slot    = onehot_idx(w_same_tail);
 
+    // Payload contents are live only under the table's valid/queue state.
+    always_ff @(posedge aclk) begin
+        if (w_alloc) begin
+            r_id[w_free_idx]  <= cmd_id;
+            r_addr[w_free_idx] <= cmd_addr;
+            r_ts0[w_free_idx] <= r_now;
+        end
+    end
+
+    always_ff @(posedge aclk) begin
+        if (w_alloc && w_link) begin
+            r_next[w_tail_slot] <= w_free_idx;
+        end
+    end
+
+    always_ff @(posedge aclk) begin
+        if (w_alloc && !IS_READ && !w_alloc_done) begin
+            r_wq[r_wq_wp]     <= w_free_idx;
+            r_wq_seq[r_wq_wp] <= r_aw_seq;
+        end
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_valid <= '0; r_phase <= '0; r_err <= '0; r_tmo <= '0;
-            r_id <= '0; r_addr <= '0; r_beats <= '0; r_ts0 <= '0; r_us0 <= '0;
-            r_head <= '0; r_tail <= '0; r_has_next <= '0; r_next <= '0;
-            r_wq <= '0; r_wq_wp <= '0; r_wq_rp <= '0; r_wq_cnt <= '0;
-            r_wq_seq <= '0; r_aw_seq <= '0; r_w_seq <= '0;
+            r_beats <= '0; r_us0 <= '0;
+            r_head <= '0; r_tail <= '0; r_has_next <= '0;
+            r_wq_wp <= '0; r_wq_rp <= '0; r_wq_cnt <= '0;
+            r_aw_seq <= '0; r_w_seq <= '0;
             r_early_beats <= '0; r_early_last <= '0; r_early_any <= '0;
             r_scan <= '0; r_cmd_stall_us0 <= '0; r_cmd_stalling <= 1'b0; r_cmd_stall_rpt <= 1'b0; r_over_thresh <= 1'b0;
         end else if (clear) begin
@@ -521,13 +554,10 @@ module axi_monitor_lite
             // allocate: the whole entry from the command
             if (w_alloc) begin
                 r_valid[w_free_idx] <= 1'b1;
-                r_id[w_free_idx]    <= cmd_id;
-                r_addr[w_free_idx]  <= cmd_addr;
                 r_beats[w_free_idx] <= w_alloc_beats;
                 r_phase[w_free_idx] <= w_alloc_done;          // write with its data already seen
                 r_err[w_free_idx]   <= w_same_w && w_last_early;   // LAST on the first beat of a longer burst
                 r_tmo[w_free_idx]   <= 1'b0;
-                r_ts0[w_free_idx]   <= r_now;
                 r_us0[w_free_idx]   <= r_us;
                 // join cmd_id's list: behind its tail, or as a new head
                 r_head[w_free_idx]     <= !w_link;
@@ -536,12 +566,9 @@ module axi_monitor_lite
                 if (w_link) begin
                     r_tail[w_tail_slot]     <= 1'b0;
                     r_has_next[w_tail_slot] <= 1'b1;
-                    r_next[w_tail_slot]     <= w_free_idx;
                 end
                 if (!IS_READ) begin
                     if (!w_alloc_done) begin
-                        r_wq[r_wq_wp]     <= w_free_idx;
-                        r_wq_seq[r_wq_wp] <= r_aw_seq;            // this AW's burst number
                         r_wq_wp           <= w_wq_wp_next;
                     end
                     r_early_beats[w_eslot_aw] <= '0; r_early_last[w_eslot_aw] <= 1'b0; r_early_any[w_eslot_aw] <= 1'b0;

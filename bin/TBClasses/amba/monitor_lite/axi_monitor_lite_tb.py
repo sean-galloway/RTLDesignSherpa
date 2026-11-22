@@ -203,6 +203,42 @@ class AxiMonitorLiteTB:
                 self._fail("singles: a completion carries zero latency")
         self.log.info(f"phase singles: {n} transactions, {len(compl)} completions, addresses and ids all matched")
 
+    async def phase_reuse_clear(self):
+        """Recycled slots never expose an earlier allocation's payload."""
+        d = self.dut
+        refused0 = int(d.refused_count.value)
+        for round_idx in range(3):
+            self.take()
+            addr = 0x9000 + round_idx * 0x40
+            txn_id = (round_idx + 1) % (1 << self.id_width)
+            if round_idx == 1 and hasattr(d, 'cam_clear'):
+                d.cam_clear.value = 1
+                await ClockCycles(d.aclk, 1)
+                d.cam_clear.value = 0
+                if int(d.active_transactions.value) != 0:
+                    self._fail('reuse: clear left an active table entry')
+            if round_idx == 2:
+                self.mon.set_ready_randomizer(FlexRandomizer({'ready_delay': ([(20, 20)], [1])}))
+            ok, e = await self.xfer(addr, 1, txn_id)
+            if not ok:
+                self._fail(f'reuse: transaction {round_idx} failed: {e}')
+            if round_idx == 2:
+                self.mon.set_ready_randomizer(FlexRandomizer({'ready_delay': ([(0, 0)], [1])}))
+            await self.settle()
+            got = self.take()
+            compl = find_packets_by_criteria(got, pkt_type=int(PKT_COMPL))
+            if len(compl) != 1:
+                self._fail(f'reuse: round {round_idx} returned {len(compl)} completions')
+            else:
+                self._check_compl(compl[0], addr, txn_id, f'reuse[{round_idx}]')
+            if find_packets_by_criteria(got, pkt_type=int(PKT_ERROR)):
+                self._fail(f'reuse: round {round_idx} returned an unexpected error')
+            if int(d.active_transactions.value) != 0:
+                self._fail(f'reuse: round {round_idx} leaked a table entry')
+        if int(d.refused_count.value) != refused0:
+            self._fail('reuse: refused_count changed without table pressure')
+        self.log.info('phase reuse: recycled addresses/ids, clear, and backpressure all matched')
+
     async def phase_bursts(self):
         self.take()
         for k, beats in enumerate(self.cfg['bursts']):
@@ -494,6 +530,7 @@ class AxiMonitorLiteTB:
 
     async def run_suite(self):
         await self.phase_singles()
+        await self.phase_reuse_clear()
         await self.phase_bursts()
         await self.phase_slverr()
         await self.phase_timeout()

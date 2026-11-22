@@ -138,10 +138,10 @@ utilization of one read monitor inside `cpu_rd_adapter`.
 | Bridge WNS at 6.667 ns, Kintex-7 325T -2 | +0.212 ns | +1.092 ns | |
 | Bridge without monitors, LUTs / FFs | 826 / 767 | | |
 
-The flops are the table: eight 90-bit entries, the event register and the
-four-entry queue. The full monitor's 16-slot CAM is 800 FFs on its own, so
-halving the slots does most of the flop saving; the LUT saving is the
-design.
+The remaining flops are the mutable table control, the parallel ID compare
+state, the event registers and the queue control. The full monitor's 16-slot
+CAM is 800 FFs on its own, so halving the slots does much of the flop saving;
+the LUT saving is the design.
 
 Neither bridge meets 10 ns on the Artix-7, and in neither case is the path
 in a monitor: the full bridge's worst path is inside `monitor_trans_cam`,
@@ -150,6 +150,32 @@ compare chain `s1_beats_to_limit`, 11 CARRY4 in a row), a block both
 bridges share. No path through `axi_monitor_lite` is among the twenty
 worst; all of them have at least 0.85 ns of slack at 10 ns. The group's
 chain is filed as its own item.
+
+### Storage pass (2026-11-21)
+
+The write-once ID, address, allocation-stamp, next-link and write-order queue
+arrays now use reset-free, single-write processes with distributed-RAM
+attributes. Validity, phase, error/timeout flags, pointers, beat counts and
+last-progress state stay reset. IDs remain flops in the measured netlist
+because attribution compares every entry in parallel; the other payload arrays
+appear in Vivado's RAM mapping report under the user attribute.
+
+| Wrapper / part | Before LUT / FF / WNS | After LUT / FF / WNS |
+|---|---:|---:|
+| AXI4 read, Kintex 6.667 ns | 1,371 / 1,416 / +1.969 ns | 1,211 / 1,008 / +1.943 ns |
+| AXI4 read, Artix 10 ns | 1,375 / 1,416 / +1.732 ns | 1,213 / 1,008 / +0.826 ns |
+| AXI4 write, Kintex 6.667 ns | 1,602 / 1,554 / +1.957 ns | 1,314 / 1,058 / +1.778 ns |
+| AXI4 write, Artix 10 ns | 1,601 / 1,554 / +2.030 ns | 1,318 / 1,058 / +1.527 ns |
+| AXI-Lite read, Kintex 6.667 ns | 947 / 1,142 / +2.233 ns | 904 / 799 / +2.373 ns |
+| AXI-Lite read, Artix 10 ns | 949 / 1,142 / +2.148 ns | 905 / 799 / +1.961 ns |
+| AXI-Lite write, Kintex 6.667 ns | 1,209 / 1,156 / +2.055 ns | 974 / 791 / +1.471 ns |
+| AXI-Lite write, Artix 10 ns | 1,257 / 1,287 / +1.664 ns | 976 / 791 / +1.118 ns |
+
+The new `phase_reuse_clear` checks exact address, ID, latency, table empty,
+and refused/drop accounting after recycled allocations, an idle clear and a
+held consumer. Holding the old address fails all 12 full cells. The converted
+RTL passes those 12, monitor-lite FUNC 259/259, same-cycle 4/4, soak 2/2 and
+the inherited AXI monitor matrix 17/17.
 
 ### In systems, on silicon (2026-09-26 and 27)
 

@@ -78,6 +78,12 @@ arbiter needs no repeat of MC-004's skid rewrite. The pipelined standalone
 writer meeting both targets while the inline group writer fails both is the
 clearest available A/B reference.
 
+The AXI4/AXI-Lite rows above are the pre-storage-pass baseline. The subsequent
+reset-free payload conversion is tabulated in [axi_monitor_lite.md](axi_monitor_lite.md):
+at Kintex/Artix respectively, AXI4 read becomes 1,211/1,213 LUT and 1,008 FF,
+AXI4 write 1,314/1,318 and 1,058 FF, AXI-Lite read 904/905 and 799 FF, and
+AXI-Lite write 974/976 and 791 FF. Every one meets its target.
+
 ## What was measured
 
 Every module at its **default parameters** (the wrapper's own defaults, not

@@ -185,3 +185,36 @@ variation, not a claimed timing win; neither monitor becomes the critical
 path. `l1_monlite` is deliberately unchanged: it has no persistent array, its
 scalar payload is small, and amber's measured critical path ends in its output
 FIFO rather than the resettable payload. Onyx remains for its active owner.
+
+## AXI monitor-lite storage pass (2026-11-21)
+
+`axi_monitor_lite` now keeps `r_addr`, `r_ts0`, `r_next`, `r_wq` and `r_wq_seq`
+in reset-free single-write processes with distributed-RAM attributes. `r_id`
+is also unpacked and reset-free, but deliberately carries no RAM attribute:
+every ID is read in parallel for attribution, so Vivado correctly keeps it as
+flops. `r_beats`, `r_us0`, early-burst state and all valid/control state stay
+in the existing reset macro; the event stage and shared latency subtractor are
+unchanged.
+
+The new `phase_reuse_clear` checks exact address/ID/nonzero latency, empty
+table, and unchanged refused/drop counts over recycled allocations, an idle
+`cam_clear`, and consumer backpressure. Holding the old address fails all 12
+full cells. Converted RTL: 12/12 full, 259/259 monitor-lite func, 4/4
+same-cycle, 2/2 soak, 17/17 inherited AXI matrix. The first formal attempt
+hit its command timeout at proof step 23; the clean retry completed prove PASS
+in 13:35 and cover PASS in 8 s, reaching every cover including write
+completion after refusal.
+
+| Wrapper | Kintex before -> after LUT / FF / WNS | Artix before -> after LUT / FF / WNS |
+|---|---:|---:|
+| AXI4 read | 1,371 / 1,416 / +1.969 -> 1,211 / 1,008 / +1.943 | 1,375 / 1,416 / +1.732 -> 1,213 / 1,008 / +0.826 |
+| AXI4 write | 1,602 / 1,554 / +1.957 -> 1,314 / 1,058 / +1.778 | 1,601 / 1,554 / +2.030 -> 1,318 / 1,058 / +1.527 |
+| AXI-Lite read | 947 / 1,142 / +2.233 -> 904 / 799 / +2.373 | 949 / 1,142 / +2.148 -> 905 / 799 / +1.961 |
+| AXI-Lite write | 1,209 / 1,156 / +2.055 -> 974 / 791 / +1.471 | 1,257 / 1,287 / +1.664 -> 976 / 791 / +1.118 |
+
+STREAM `build-mon` synthesis at the same 60 MHz configuration moves 85,286 ->
+81,625 LUT (-3,661), 80,178 -> 71,549 FF (-8,629), with 7,204 -> 7,842 LUTRAM.
+The worst setup path remains the inline MonBus group writer at +6.898 ns; no
+AXI monitor path replaces it. Removing the inapplicable `r_id` attribute left
+those utilization numbers identical and eliminated all 100 ignored-attribute
+warnings in the final synthesis log.
