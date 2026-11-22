@@ -280,6 +280,12 @@ class AXI4ACESnoopMonitorLiteTB(TBBase):
                 f"addr=0x{addr:08X} {snoop_type.name}: channel_id {p.channel_id} "
                 f"!= expected beat count {data_beats}"
             )
+        addr_bits = min(self.addr_width, 48)  # bits 63:48 carry latency
+        if (p.data & ((1 << addr_bits) - 1)) != (addr & ((1 << addr_bits) - 1)):
+            self._fail(
+                f"addr=0x{addr:08X} {snoop_type.name}: COMPLETION data address mismatch "
+                f"(got 0x{p.data:X}, expected low bits 0x{addr:X})"
+            )
 
     async def phase_gate_smoke(self):
         """GATE: small deterministic MESI subset."""
@@ -419,8 +425,27 @@ class AXI4ACESnoopMonitorLiteTB(TBBase):
         self.dut.clear.value = 0
         await self.wait_clocks('aclk', 5)
 
+    async def phase_reuse_clear(self):
+        """A clear followed by reused slots never reports stale payload."""
+        await self._pulse_clear()
+        self._total_completions = 0
+        self._total_errors = 0
+        handler = _make_snoop_handler()
+        for idx, stype in enumerate((SnoopType.READ_UNIQUE, SnoopType.CLEAN_INVALID)):
+            if idx:
+                self._set_cr_cd_backpressure(True)
+            exp_crresp, _ = handler(self.ADDR_MAP['modified'], stype, CacheState.MODIFIED)
+            await self._issue_and_check(
+                self.ADDR_MAP['modified'], stype, handler,
+                data_beats=1 if exp_crresp.data_transfer else 0)
+            self._total_completions += 1
+        self._set_cr_cd_backpressure(False)
+        self._check_transaction_count(self._total_completions)
+        self.log.info('PHASE reuse: clear and backpressured slot reuse matched')
+
     async def run_suite(self):
         await self.phase_gate_smoke()
+        await self.phase_reuse_clear()
         if self.level in ('func', 'full'):
             await self.phase_func_matrix()
         if self.level == 'full':

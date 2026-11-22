@@ -84,6 +84,11 @@ at Kintex/Artix respectively, AXI4 read becomes 1,211/1,213 LUT and 1,008 FF,
 AXI4 write 1,314/1,318 and 1,058 FF, AXI-Lite read 904/905 and 799 FF, and
 AXI-Lite write 974/976 and 791 FF. Every one meets its target.
 
+The ACE snoop allocation-payload conversion reduces its Kintex/Artix rows to
+583/588 LUT and 381 FF, from 613/623 LUT and 797 FF. Kintex WNS is +0.827 ns;
+Artix improves from -0.425 to +0.118 ns. Its address, snoop-type, and timestamp
+arrays all infer distributed RAM.
+
 ## What was measured
 
 Every module at its **default parameters** (the wrapper's own defaults, not

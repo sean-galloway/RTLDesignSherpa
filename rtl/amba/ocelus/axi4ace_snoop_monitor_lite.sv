@@ -170,11 +170,17 @@ module axi4ace_snoop_monitor_lite
     // r_rd_ptr -> oldest, r_wr_ptr -> next free tail.
     // ------------------------------------------------------------------
     logic [N-1:0]                r_valid;
-    logic [N-1:0][AW-1:0]        r_addr;
-    logic [N-1:0][3:0]           r_snoop;
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [AW-1:0]               r_addr [N];
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [3:0]                  r_snoop [N];
     logic [N-1:0][15:0]          r_beats;   // CDLAST beats seen for this snoop
     logic [N-1:0]                r_tmo;     // timeout already reported
-    logic [N-1:0][TS_WIDTH-1:0]  r_ts0;     // i_mon_time at AC handshake
+    (* ram_style = "distributed" *)
+    /* synthesis ramstyle = "MLAB" */
+    logic [TS_WIDTH-1:0]         r_ts0 [N]; // i_mon_time at AC handshake
     logic [N-1:0][AGE_WIDTH-1:0] r_us0;     // r_us at last progress / AC
 
     logic [SW-1:0] r_wr_ptr;
@@ -217,14 +223,20 @@ module axi4ace_snoop_monitor_lite
     // ------------------------------------------------------------------
     // Table update
     // ------------------------------------------------------------------
+    // Allocation overwrites payload before the valid/count state exposes it.
+    always_ff @(posedge aclk) begin
+        if (w_alloc) begin
+            r_addr[w_tail]  <= ac_addr;
+            r_snoop[w_tail] <= ac_snoop;
+            r_ts0[w_tail]   <= TS_WIDTH'(i_mon_time);
+        end
+    end
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_valid   <= '0;
-            r_addr    <= '0;
-            r_snoop   <= '0;
             r_beats   <= '0;
             r_tmo     <= '0;
-            r_ts0     <= '0;
             r_us0     <= '0;
             r_wr_ptr  <= '0;
             r_rd_ptr  <= '0;
@@ -239,11 +251,8 @@ module axi4ace_snoop_monitor_lite
             // allocate a new snoop at the tail
             if (w_alloc) begin
                 r_valid[w_tail] <= 1'b1;
-                r_addr[w_tail]  <= ac_addr;
-                r_snoop[w_tail] <= ac_snoop;
                 r_beats[w_tail] <= 16'd0;
                 r_tmo[w_tail]   <= 1'b0;
-                r_ts0[w_tail]   <= TS_WIDTH'(i_mon_time);
                 r_us0[w_tail]   <= r_us;
             end
 

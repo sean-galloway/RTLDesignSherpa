@@ -218,3 +218,21 @@ The worst setup path remains the inline MonBus group writer at +6.898 ns; no
 AXI monitor path replaces it. Removing the inapplicable `r_id` attribute left
 those utilization numbers identical and eliminated all 100 ignored-attribute
 warnings in the final synthesis log.
+
+## ACE snoop storage pass (2026-11-21)
+
+`axi4ace_snoop_monitor_lite` now stores allocation-only address, snoop type,
+and timestamp in reset-free distributed RAM. Validity, pointers, beat counts,
+and timeout/progress state remain reset flops. A new clear/reuse/backpressure
+scenario checks exact completion addresses and response attribution; the
+address check correctly masks above bit 47 because packet bits 63:48 carry
+latency. Original and converted RTL pass 9/9; substituting the stale address
+fails all 9 cells.
+
+| Part | Before LUT / FF / WNS | After LUT / FF / WNS |
+|---|---:|---:|
+| Kintex-7, 6.667 ns | 613 / 797 / +1.367 ns | 583 / 381 / +0.827 ns |
+| Artix-7, 10 ns | 623 / 797 / -0.425 ns | 588 / 381 / +0.118 ns |
+
+All three arrays appear in Vivado's RAM mapping report. Storage conversion
+alone closes Artix timing; no ACE event-cone rewrite is justified.

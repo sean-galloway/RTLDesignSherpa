@@ -156,7 +156,9 @@ The table is a circular FIFO:
 - Only the head can timeout
 - Multiple outstanding snoops are allowed
 
-This matches ACE's per-channel ordering rule: CR responses and CD data must be returned in the same order as the AC addresses.
+This matches ACE's per-channel ordering rule: CR responses and CD data must be returned in the same order as the AC addresses. Address, snoop type, and allocation timestamp are write-once payload in reset-free distributed RAM; validity, pointers, beat counts, and timeout/progress state remain reset flops. A directed clear/reuse/backpressure scenario checks exact completion addresses and response attribution, and fails when a stale address is substituted.
+
+Routed out-of-context A/B on 2026-11-21 reduced Kintex-7 utilization from 613 LUT / 797 FF to 583 / 381, and Artix-7 from 623 / 797 to 588 / 381. Register-to-register WNS moved from +1.367 to +0.827 ns at 6.667 ns and from -0.425 to +0.118 ns at 10 ns. All three payload arrays appear in Vivado's distributed-RAM mapping report; no event-cone change was needed.
 
 ## Wrappers that Instantiate This Core
 
