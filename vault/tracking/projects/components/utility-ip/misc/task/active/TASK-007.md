@@ -42,6 +42,11 @@
   LUTRAM change and zero unrouted nets. Candidate verification was CAM FULL
   7/7, trans-manager 3/3, and both prove/cover runs PASS; payload mutation
   fails the new clear/reuse test. RTL reverted, test and negative A/B retained.
+- Experiment 2 (reporter snapshot reset removal): **REJECTED**. Kintex
+  +35 LUT / +1 FF / +0.056 ns; Artix +44 LUT / +9 FF / -0.195 ns. Candidate
+  reporter prove/cover and observer FULL **84/84 PASS**. A zero-clock reset
+  mutation replayed stale completion; guarded source stayed quiet and recovered.
+  RTL reverted, normal/zero-clock reset tests and negative A/B retained.
 
 ## Why
 

@@ -351,6 +351,25 @@ extra LUTs. The RTL conversion was reverted; the clear/reuse test and this
 negative measurement remain. Reproduce with
 `RUN_LABEL=cam_reset_after JOBS=2 rtl/amba/fpga/bin/full_observer_synth_sweep.sh feature_master`.
 
+### Experiment 2: reporter snapshot reset removal -- rejected
+
+The reporter transaction snapshot moved to reset-free storage behind a guarded
+first-post-reset view. It passed reporter prove/cover and all 84 observer cells,
+including normal reset/reissue and a zero-clock async-reset case. The latter
+establishes a terminal reporter event and checks `reporter.monbus_valid`
+directly; disabling the guard replays a stale completion, while the guarded
+implementation stays quiet and accepts new traffic.
+
+| Part | Before LUT / FF / WNS | After LUT / FF / WNS | Delta |
+|---|---:|---:|---|
+| Kintex-7 | 21,658 / 16,876 / -1.046 ns | 21,693 / 16,877 / -0.990 ns | **+35 LUT, +1 FF, +0.056 ns** |
+| Artix-7 | 21,976 / 16,866 / -3.868 ns | 22,020 / 16,875 / -4.063 ns | **+44 LUT, +9 FF, -0.195 ns** |
+
+LUTRAM stayed at 444 and both rows had zero unrouted nets. The conversion
+increases area on both parts and has no consistent timing benefit, so it was
+reverted. The strengthened reset tests and negative result remain. Reproduce
+with `RUN_LABEL=reporter_reset_after JOBS=2 rtl/amba/fpga/bin/full_observer_synth_sweep.sh feature_master`.
+
 ## Recommendations
 
 1. **Default to the lite.** It is one sixth of the full monitor in LUTs, one

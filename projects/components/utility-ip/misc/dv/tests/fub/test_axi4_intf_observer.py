@@ -836,12 +836,26 @@ async def cocotb_test_observer_reset_reissue(dut):
     # reason).
     tb._rec = []
 
+    full_taps = hasattr(dut.u_core.gen_rd_mon[0], "gen_full")
+    if full_taps:
+        quiet_start = len(tb.packets)
+        await tb.wait_clocks("aclk", 50)
+        stale = _types_since(tb, quiet_start)
+        assert not (stale & {"Completion", "Error", "Debug"}), (
+            f"stale pre-reset events emerged before new traffic: {sorted(stale)}")
+
     rng_ctrl_after = await tb.read_reg("ADDR_RANGE_CTRL")
     tb.log.info(f"[TASK-084] ADDR_RANGE_CTRL: power-on={rng_ctrl_reset:#x} "
                 f"programmed=0x1 after-reset={rng_ctrl_after:#x}")
 
     # ---- Scenario 2: identical traffic, reprogrammed as a scenario would --
     await _program()
+    if full_taps:
+        quiet_start = len(tb.packets)
+        await tb.wait_clocks("aclk", 50)
+        stale = _types_since(tb, quiet_start)
+        assert not (stale & {"Completion", "Error", "Debug"}), (
+            f"stale pre-reset events emerged after reprogramming: {sorted(stale)}")
     n1 = len(tb.packets)
     await _batch("BATCH-2")
     second = _types_since(tb, n1)
@@ -1037,6 +1051,60 @@ async def cocotb_test_observer_full_saturation_reuse(dut):
     await batch(4)
     assert sum(n for (name, _), n in tb.packet_tally().items() if name == "Completion") == 8, tb.packet_tally()
     assert len(tb.packets) >= n0 + 4
+
+
+@cocotb.test(timeout_time=200, timeout_unit="us")
+async def cocotb_test_observer_full_snapshot_guard(dut):
+    """A zero-clock async reset must not expose a stale terminal snapshot."""
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    await tb.write_reg("OBS_CTRL", 0)
+    await tb.write_reg("MON_CTRL", 0x85)
+    core = dut.u_core
+    reporter = core.gen_rd_mon[0].gen_full.u_rd_mon.u_monitor.u_axi_monitor_base.reporter
+
+    terminal_seen = False
+    reset_done = False
+    n0 = 0
+
+    async def reset_on_terminal():
+        nonlocal terminal_seen, reset_done, n0
+        for _ in range(200):
+            await RisingEdge(dut.aclk)
+            if int(reporter.monbus_valid.value):
+                terminal_seen = True
+                n0 = len(tb.packets)
+                await tb.assert_reset()
+                await tb.deassert_reset()
+                reset_done = True
+                return
+
+    watcher = cocotb.start_soon(reset_on_terminal())
+    await tb.drive_read_burst(addr=0x7000, arid=3, beats=1, gap=0)
+    for _ in range(200):
+        if reset_done:
+            break
+        await RisingEdge(dut.aclk)
+    if not reset_done:
+        watcher.kill()
+    assert terminal_seen and reset_done, "no terminal reporter snapshot was established"
+
+    tb._rec = []
+    await tb.apb.reset_bus()
+    stale_reporter_valid = 0
+    for _ in range(50):
+        await RisingEdge(dut.aclk)
+        stale_reporter_valid |= int(reporter.monbus_valid.value)
+    assert not stale_reporter_valid, "zero-clock reset replayed the stale reporter snapshot"
+
+    await tb.write_reg("OBS_CTRL", 0)
+    await tb.write_reg("MON_CTRL", 0x85)
+    n1 = len(tb.packets)
+    await tb.drive_read_burst(addr=0x8000, arid=4, beats=1, gap=1)
+    await tb.wait_clocks("aclk", 300)
+    new_types = _types_since(tb, n1)
+    assert "Completion" in new_types, new_types
 
 
 def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs",
@@ -1377,3 +1445,13 @@ def test_axi4_intf_master_observer_full_reset_reissue(request, test_level):
 def test_axi4_intf_slave_observer_full_reset_reissue(request, test_level):
     _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_ALL),
                   testcase="cocotb_test_observer_reset_reissue", test_level=test_level)
+
+
+def test_axi4_intf_master_observer_full_snapshot_guard(request):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_full_snapshot_guard")
+
+
+def test_axi4_intf_slave_observer_full_snapshot_guard(request):
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_full_snapshot_guard")
