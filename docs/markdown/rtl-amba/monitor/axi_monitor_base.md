@@ -289,6 +289,7 @@ are the lowest-priority source on the monitor bus (reporter > debug > addr_check
 | `block_ready` | Output | 1 | Flow control: 1 = upstream may proceed, 0 = transaction-table occupancy is at the blocking threshold. Derived from `active_count` vs `MAX_TRANSACTIONS`; the reporter's `INTR_FIFO_DEPTH` has **no** path to it. See [Flow Control and the Saturation-Recovery Contract](#flow-control-and-the-saturation-recovery-contract) |
 | `busy` | Output | 1 | Monitor is busy indicator (`active_count > 0`) |
 | `active_count` | Output | 8 | Number of live transaction-table entries (registered pop-count of CAM occupancy; lags true occupancy by 1 cycle) |
+| `cmd_refused` | Output | 1 | An actual command handshake had neither a same-ID pending merge nor a table allocation. Covers physical fullness and command-cap refusal; never asserts for a held command, filtered ID, or successful allocation. Passive observer taps count this event to report incomplete coverage without gating the observed bus. |
 | `perf_completed_count` | Output | 16 | **Lifetime** completion count from `axi_monitor_reporter_perf` -- packets actually emitted, not window-scoped. Reads 0 when `ENABLE_PERF_LOGIC = 0` |
 | `perf_error_count` | Output | 16 | **Lifetime** error/timeout count from the same block; 0 when `ENABLE_PERF_LOGIC = 0` |
 

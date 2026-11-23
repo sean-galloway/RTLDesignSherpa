@@ -392,6 +392,40 @@ Directed mask boundaries and the reusable equivalence harness in
 `formal/amba/monitor_trans_cam/` remain. Reproduce with
 `RUN_LABEL=cam_alloc_after JOBS=2 rtl/amba/fpga/bin/full_observer_synth_sweep.sh feature_master`.
 
+### Final accepted result
+
+The passive full observer variants, refusal accounting, and strengthened tests
+are retained; none of the three optimization conversions is retained. The final
+`full_after` matrix at source `2733f5516` exactly matches `full_before` in every
+published metric. There is no cumulative LUT, FF, LUTRAM, BRAM, WNS, or logic-
+level improvement to claim.
+
+| Profile / part | Final LUT / FF / LUTRAM / WNS | Delta from baseline |
+|---|---:|---|
+| Full feature master, Kintex-7 | 21,658 / 16,876 / 444 / -1.046 ns | 0 |
+| Full feature slave, Kintex-7 | 21,658 / 16,876 / 444 / -1.046 ns | 0 |
+| Full feature master, Artix-7 | 21,976 / 16,866 / 444 / -3.868 ns | 0 |
+| Full feature slave, Artix-7 | 21,976 / 16,866 / 444 / -3.868 ns | 0 |
+| Full deployment, Kintex-7 | 33,571 / 10,313 / 288 / -14.841 ns | 0 |
+| Full deployment, Artix-7 | 33,544 / 10,305 / 288 / -30.753 ns | 0 |
+| Lite deployment, Kintex-7 | 13,647 / 11,228 / 804 / +0.188 ns | 0 |
+| Lite deployment, Artix-7 | 14,002 / 11,237 / 804 / -1.654 ns | 0 |
+
+All eight final rows have zero unrouted nets. Residual full-monitor misses are
+the ones listed above, not closed timing. The full variants are justified only
+when performance windows, debug, or other full-only behavior is required and
+the integration accepts the measured cost. Further timing work needs a new
+report-led candidate; these three negative experiments must not be represented
+as an FPGA efficiency improvement. Reproduce the final rows with
+`RUN_LABEL=full_after JOBS=4 rtl/amba/fpga/bin/full_observer_synth_sweep.sh`.
+
+Final formal sign-off comprises 19 PASS results: clean prove/cover for the
+transaction manager (unbanked and banked), base, filtered, reporter, and four
+AXI4 full wrappers, plus the CAM equivalence proof. Directed mutation checks
+are recorded in the individual experiments. The final clean FULL AMBA
+regression passed **2999/2999** in 1457.85 s; clean FULL misc FUB passed
+**282/282** in 497.24 s.
+
 ## Recommendations
 
 1. **Default to the lite.** It is one sixth of the full monitor in LUTs, one
@@ -429,6 +463,8 @@ Directed mask boundaries and the reusable equivalence harness in
 `rtl/amba/fpga/tcl/monitor_synth.tcl` (the recipe), `bin/monitor_synth_sweep.sh`
 (the matrix), `bin/summary_table.py` (these tables), `reports/<module>__<part>/`
 (utilization, timing, power per run) and `reports/summary.csv` (one row per run).
+The full observer campaign uses `rtl/amba/fpga/bin/full_observer_synth_sweep.sh`
+and `rtl/amba/fpga/results/full_observer_<label>/`.
 
 ## References
 

@@ -53,6 +53,15 @@
   FULL 7/7, trans-manager 3/3, both prove/cover PASS. Timing is inconsistent
   and area rises sharply, so both RTL files were reverted. Directed boundaries,
   `formal/amba/monitor_trans_cam/`, and the negative A/B remain.
+- Final accepted source `2733f5516`: all **8/8 full_after FPGA rows**, zero
+  unrouted nets, and every published metric exactly matches `full_before`;
+  cumulative optimization delta is zero. Residual full timing misses remain
+  -1.046/-3.868 ns full-feature and -14.841/-30.753 ns deployment-shaped.
+  Final formal sign-off: **19 PASS** results across nine clean prove/cover
+  harnesses plus CAM equivalence. Full variants are retained for full-only
+  features, not presented as an efficiency improvement.
+- Final clean FULL AMBA regression: **2999/2999 PASS** in 1457.85 s.
+- Final clean FULL misc FUB regression: **282/282 PASS** in 497.24 s.
 
 ## Why
 
