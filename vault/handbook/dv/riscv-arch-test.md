@@ -1,6 +1,6 @@
 ---
 title: riscv-arch-test signatures
-summary: RISC-V International's architectural suite on the falcon cores; RISCOF's DUT-vs-reference signature compare inside the cocotb flow; the relaxation and memory traps.
+summary: RISC-V International's architectural suite on the falcon cores; RISCOF's DUT-vs-reference signature compare inside the cocotb flow, against spike and Sail, which must agree; the relaxation and memory traps.
 ---
 
 # riscv-arch-test (the golden-output suite)
@@ -13,7 +13,8 @@ self-checking: each test stores its results into a signature region
 between `begin_signature` and `end_signature`, and a reference model's
 signature for the same test is the golden output. RISCOF is the official
 driver: a DUT plugin and a reference plugin (Sail or spike) build and run
-each test, and RISCOF diffs the two signature files.
+each test, and RISCOF diffs the two signature files. This repo runs both
+references and requires them to agree.
 
 ## What this repo runs
 
@@ -44,13 +45,23 @@ each test, and RISCOF diffs the two signature files.
   (`riscof-plugins/rv32/spike_simple/env`, which halts on a tohost store).
   Both link with that plugin's `link.ld`, so the two images differ only in
   the halt sequence. The tests are written to be independent of layout.
-- **Reference:** spike, `--isa=rv32i +signature=<f>
-  +signature-granularity=4`. That is the reference RISCOF's spike plugin
-  uses. Sail is RISCOF's default reference. It was not installed when this
-  harness was built (2026-11-22). Adding it means a second reference whose
-  signature must also match spike's.
-- **Output files:** each test leaves `Reference-spike.signature` and
-  `DUT-<core>.signature` side by side under
+- **Two references, which must agree.** Both run the same reference ELF.
+  - spike, `--isa=rv32i +signature=<f> +signature-granularity=4`: the
+    reference RISCOF's spike plugin uses.
+  - Sail, RISCOF's default reference model: `sail_riscv_sim --rv32
+    --test-signature <f>`, the default RV32 configuration.
+  - If the two signatures differ, the build raises: the golden output is
+    undefined, so no core result is recorded. Agreement since 2026-11-22:
+    39 of 39.
+- **Sail pin:** the riscv/sail-riscv 0.16 release tarball, unpacked into
+  `vendor/sail-riscv/` (ignored, like the suite). `ensure_sail` checks
+  `--version` and prints the curl command when it is missing;
+  `RV_ARCH_SAIL` overrides the binary. The 3.x RISCOF Sail plugin calls the
+  old `riscv_sim_RV32` name; current Sail ships one `sail_riscv_sim` that
+  takes `--rv32` or a JSON `--config`. The harness calls Sail itself, so
+  the plugin's name does not matter.
+- **Output files:** each test leaves `Reference-spike.signature`,
+  `Reference-sail.signature` and `DUT-<core>.signature` side by side under
   `logs/arch_test_<level>/<test>/`. That is RISCOF's naming, so a failing
   pair diffs with any tool.
 
@@ -82,6 +93,9 @@ each test, and RISCOF diffs the two signature files.
 - **Check the check.** One planted bug: kestrel's SH strobe changed to
   `4'b0001`. That failed sh-align-01 alone, 71 of 73 words, and the other
   38 tests stayed green.
+  The reference agreement was checked the same way: a wrapper that
+  overwrote one word of Sail's signature stopped add-01's build with "the
+  references disagree (first at word 4)".
 
 ## Related
 

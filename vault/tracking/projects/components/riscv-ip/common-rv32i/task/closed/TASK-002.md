@@ -63,12 +63,21 @@ The method and its traps are in the handbook:
   gave kestrel 66 passed, merlin 60 passed and gatling 45 passed, with no
   failures. The arch cells were green at every level in all three.
 
+## Sail made standard (2026-11-22)
+
+Owner, 2026-11-22: "make sail standard, please", after installing it.
+
+- Sail 0.16 (the riscv/sail-riscv release tarball) is in
+  `vendor/sail-riscv/`.
+- `build` now runs every reference ELF on Sail as well as spike and raises
+  if the two signatures differ. Sail is required: `ensure_sail` stops the
+  run with the fetch command when it is missing.
+- Spike and Sail agreed on 39 of 39 before the change was wired in.
+- Check of the check: a Sail wrapper that overwrote one signature word
+  stopped add-01's build with "the references disagree (first at word 4)".
+
 ## Not done
 
-- **Sail as a second reference.** Sail is RISCOF's default reference model.
-  Fetching its release binary was blocked in the session, so spike is the
-  only reference. Adding Sail means a second signature that must equal
-  spike's.
 - **RISCOF itself is not used.** The cocotb flow runs RISCOF's method, and
   the file names match its output. A RISCOF DUT plugin would need a sim
   launch per test.

@@ -7,7 +7,7 @@
 # Module: test_kestrel_arch
 # Purpose: riscv-arch-test 3.10.0 rv32i_m/I on kestrel_core: each test's
 #          signature region, read from the TB memory after the ecall halt,
-#          against spike's RISCOF reference signature.
+#          against the RISCOF reference signature (spike and Sail agree).
 #
 # Documentation: vault/handbook/dv/riscv-arch-test.md
 # Subsystem: riscv-ip/kestrel-rv32i
@@ -17,7 +17,7 @@
 
 """kestrel-rv32i riscv-arch-test signature compare.
 
-The build, the spike reference and the compare are the shared
+The build, the spike and Sail references and the compare are the shared
 ``common-rv32i/dv/arch_test/rv32_arch_test.py``; this file is the kestrel
 harness: KestrelTB on kestrel_tb_top with a 2 MiB memory (jal-01 is a
 1.7 MiB image).  Gate runs add-01, lw-align-01 and sw-align-01; func and
@@ -53,7 +53,7 @@ MAX_CYCLES = 50_000
 
 @cocotb.test(timeout_time=3000, timeout_unit="sec")
 async def cocotb_test_kestrel_arch(dut):
-    """All rv32i_m/I arch tests: ecall halt + signature == spike's."""
+    """All rv32i_m/I arch tests: ecall halt + signature == the reference's (spike == Sail)."""
     repo_root = os.environ.get("REPO_ROOT", str(Path(__file__).resolve().parents[6]))
     level = os.environ.get("TEST_LEVEL", "func")
     work_dir = Path(os.path.dirname(os.environ.get("LOG_PATH", "."))) / f"arch_test_{level}"

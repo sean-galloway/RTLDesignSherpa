@@ -126,7 +126,7 @@ riscv-formal checks binds at this interface (see §5).
   branch flush cases (taken/back-to-back/flush-vs-forward collision).
 - **Spike lockstep** in the rds-dv cocotb flow, as kestrel/gatling.
 - **riscv-arch-test** rv32i_m/I (3.10.0, RISCOF signature format):
-  `dv/tests/test_merlin_arch.py`, every signature against spike's; 39/39
+  `dv/tests/test_merlin_arch.py`, every signature against spike's and Sail's (which must agree); 39/39
   (added 2026-11-22 (Sean): "the golden-output suite").
 - **Waves**: house GTKW save file at `dv/tests/GTKW/` from day one
   (kestrel/gatling precedent, 2026-10-30) — the load-use bubble and the

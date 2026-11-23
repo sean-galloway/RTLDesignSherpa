@@ -468,7 +468,9 @@ functional_scenarios:
                   (ecall halt) and for spike (the suite's spike_simple env);
                   the core must halt with cause 1 at rvmodel_halt and the
                   begin_signature..end_signature words read from the TB
-                  memory must equal spike's +signature dump. Gate = add-01,
+                  memory must equal spike's +signature dump, which Sail
+                  0.16 must reproduce exactly from the same reference ELF
+                  (a disagreement is an error). Gate = add-01,
                   lw-align-01, sw-align-01; func and full = all 39 (39/39,
                   2026-11-22). Mutation-checked: an SH strobe of 4'b0001
                   fails sh-align-01 alone, 71 of 73 words."

@@ -104,8 +104,9 @@ The hovering falcon: the whole machine visible in one cycle.
 - **Verification:** riscv-formal ISA compliance (sby flow, oss-cad-suite);
   classic `rv32ui-p-*` riscv-tests battery; spike lockstep in rds-dv cocotb;
   riscv-arch-test (RISC-V International's architectural suite, RISCOF
-  signature format) rv32i_m/I, signatures against the reference model's
-  (added 2026-11-22: 39/39 on kestrel, merlin and gatling).
+  signature format) rv32i_m/I, signatures against the reference models'
+  (spike and Sail, which must agree; added 2026-11-22: 39/39 on kestrel,
+  merlin and gatling).
 - **Packaging:** *Simplified RV32I: kestrel* doc book (Memory Notes
   branding, `bin/md_to_docx.py` → DOCX/PDF).
 

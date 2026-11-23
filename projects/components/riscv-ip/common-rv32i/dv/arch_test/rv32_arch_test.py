@@ -8,7 +8,8 @@
 # Purpose: riscv-arch-test (RISC-V International's architectural test suite,
 #          3.x / RISCOF signature format) for the falcon-suite RV32I cores:
 #          builds each rv32i_m/I test twice (DUT env and the suite's spike
-#          reference env), runs the reference for the golden signature,
+#          reference env), runs both reference models (spike and Sail) and
+#          requires their signatures to agree for the golden signature,
 #          hands the DUT image to a core's runner, and compares the DUT's
 #          signature region word for word.  Core-independent; each core's
 #          test file supplies the load / run / read-back.
@@ -30,13 +31,16 @@ inside the repo's cocotb flow:
   use the spike plugin's ``link.ld``, so the images differ only in the
   halt sequence;
 * the golden is spike's ``+signature`` dump at granularity 4, one word per
-  line, ``begin_signature`` .. ``end_signature``;
+  line, ``begin_signature`` .. ``end_signature``, and Sail (RISCOF's default
+  reference model) must dump the identical signature from the same reference
+  ELF -- two independent models, or the test is an error, not a pass;
 * the DUT signature is read from the TB memory over the same range after
   the halt, and written as ``DUT-<core>.signature`` next to the reference.
 
 The vendor tree is a pinned clone (``vendor/`` is git-ignored, like
 riscv-tests and riscv-formal): ``ensure_vendor`` checks the commit and says
-how to fetch it when it is missing.
+how to fetch it when it is missing.  Sail is the pinned release binary in
+``vendor/sail-riscv``; ``ensure_sail`` checks the version the same way.
 """
 
 import os
@@ -61,6 +65,13 @@ LINK_BASE = 0x8000_0000
 _TOOLCHAIN_DEFAULT = "/mnt/data/tools/xpack-riscv-none-elf-gcc/bin"
 _SPIKE_DEFAULT = "/mnt/data/tools/spike/bin/spike"
 
+# Sail, the second reference: the riscv/sail-riscv release tarball unpacked
+# into vendor/sail-riscv (git-ignored); RV_ARCH_SAIL overrides the binary.
+SAIL_REL = Path("vendor") / "sail-riscv" / "bin" / "sail_riscv_sim"
+SAIL_VERSION = "0.16"
+_SAIL_URL = ("https://github.com/riscv/sail-riscv/releases/download/"
+             f"{SAIL_VERSION}/sail-riscv-Linux-x86_64.tar.gz")
+
 # -mno-relax: arch_test.h pads its fixed-length LA() with `.option rvc`
 # alignment; with linker relaxation on, the linker shrinks that padding to a
 # 16-bit c.nop, an illegal instruction on an RV32I core (and in spike
@@ -76,6 +87,37 @@ def toolchain():
 
 def spike():
     return os.environ.get("RV_ARCH_SPIKE", _SPIKE_DEFAULT)
+
+
+def ensure_sail(repo_root):
+    """Path of the pinned Sail binary; raise with the fetch command if it is
+    missing or another version."""
+    exe = Path(os.environ.get("RV_ARCH_SAIL", Path(repo_root) / SAIL_REL))
+    dest = Path(repo_root) / SAIL_REL.parents[1]
+    fetch = (f"mkdir -p {dest} && curl -sL {_SAIL_URL} "
+             f"| tar xz -C {dest} --strip-components=1")
+    if not exe.is_file():
+        raise FileNotFoundError(f"Sail not found at {exe}; fetch it: {fetch}")
+    proc = subprocess.run([str(exe), "--version"], capture_output=True, text=True,
+                          check=False)
+    version = proc.stdout.strip()
+    if version != SAIL_VERSION:
+        raise RuntimeError(f"{exe} is Sail {version or '(unknown)'}, expected "
+                           f"{SAIL_VERSION}; re-fetch: {fetch}")
+    return exe
+
+
+def _sail_signature(repo_root, name, ref_elf, sig):
+    """Run the reference ELF on Sail (default RV32 config) and return its
+    signature words."""
+    proc = subprocess.run(
+        [str(ensure_sail(repo_root)), "--rv32", "--test-signature", str(sig),
+         str(ref_elf)], capture_output=True, text=True, timeout=600, check=False)
+    if proc.returncode != 0 or not sig.exists():
+        (sig.parent / "sail.log").write_text(proc.stdout + proc.stderr)
+        raise RuntimeError(f"{name}: Sail reference failed (rc {proc.returncode}); "
+                           f"see {sig.parent / 'sail.log'}")
+    return [int(line, 16) for line in sig.read_text().split()]
 
 
 def ensure_vendor(repo_root):
@@ -181,7 +223,7 @@ class ArchTest:
     halt_pc: int                 # rvmodel_halt (the ecall the core halts on)
     words: dict = field(repr=False)          # DUT image {word_address: word}
     rw_words: frozenset = field(repr=False)  # word addresses of writable segments
-    ref_signature: list = field(repr=False)  # spike's words
+    ref_signature: list = field(repr=False)  # spike's words (== Sail's)
 
     @property
     def sig_words(self):
@@ -217,9 +259,11 @@ def _compile(repo_root, src, env_dir, out):
 
 
 def build(repo_root, name, work_dir):
-    """Compile ``name`` for the DUT and the reference, run spike, and return
-    the ArchTest.  Raises when the reference itself fails."""
+    """Compile ``name`` for the DUT and the reference, run spike and Sail,
+    and return the ArchTest.  Raises when either reference fails or the two
+    references disagree."""
     vendor = ensure_vendor(repo_root)
+    ensure_sail(repo_root)
     work = Path(work_dir) / name
     work.mkdir(parents=True, exist_ok=True)
     src = vendor / SUITE_REL / f"{name}.S"
@@ -236,6 +280,15 @@ def build(repo_root, name, work_dir):
         raise RuntimeError(f"{name}: spike reference failed (rc {proc.returncode}): "
                            f"{proc.stderr.strip()[:200]}")
     ref_words = [int(line, 16) for line in ref_sig.read_text().split()]
+    sail_words = _sail_signature(repo_root, name, ref_elf,
+                                 work / "Reference-sail.signature")
+    if sail_words != ref_words:
+        bad = [i for i, (a, b) in enumerate(zip(ref_words, sail_words)) if a != b]
+        where = (f"first at word {bad[0]}: spike {ref_words[bad[0]]:08x} "
+                 f"sail {sail_words[bad[0]]:08x}" if bad else
+                 f"lengths {len(ref_words)} vs {len(sail_words)}")
+        raise RuntimeError(f"{name}: the references disagree ({where}); "
+                           "the golden signature is undefined")
 
     entry, symbols, segments = read_elf(dut_elf)
     for sym in ("begin_signature", "end_signature", "rvmodel_halt"):

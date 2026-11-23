@@ -8,7 +8,7 @@
 # Purpose: riscv-arch-test 3.10.0 rv32i_m/I on the gatling barrel: four
 #          different tests at once, one per context, rotated so every
 #          context runs every test; each (context, test) signature against
-#          spike's RISCOF reference signature.
+#          the RISCOF reference signature (spike and Sail agree).
 #
 # Documentation: vault/handbook/dv/riscv-arch-test.md
 # Subsystem: riscv-ip/gatling-rv32i
@@ -22,8 +22,9 @@ Round r runs test ``names[(r + c) % n]`` on context c (the rv32ui battery's
 rotation), so each context runs every test and the four running side by side
 are always different programs.  A context passes on an ecall halt at
 rvmodel_halt and a signature, read from its own memory bank, equal to
-spike's; every round also checks the barrel (one retirement per context per
-four-cycle window).  The build, reference and compare are the shared
+the reference's (spike's, which Sail must reproduce); every round also
+checks the barrel (one retirement per context per four-cycle window).  The
+build, both references and the compare are the shared
 ``common-rv32i/dv/arch_test/rv32_arch_test.py``.
 """
 
