@@ -370,6 +370,28 @@ increases area on both parts and has no consistent timing benefit, so it was
 reverted. The strengthened reset tests and negative result remain. Reproduce
 with `RUN_LABEL=reporter_reset_after JOBS=2 rtl/amba/fpga/bin/full_observer_synth_sweep.sh feature_master`.
 
+### Experiment 3: lowest-set CAM allocation -- rejected
+
+Replacing the serial lowest-free scans with `x & (~x + 1)` in the CAM and its
+transaction-manager mirror proved equivalent to the baseline golden CAM. The
+harness compares all match, free, allocation, valid, ID, and payload outputs;
+restricting the golden address pick to the highest slot fails the proof. The
+rewritten candidate also passed all 7 CAM configurations, all 3
+transaction-manager cells, and both transaction-manager prove/cover runs.
+
+| Part | Before LUT / FF / WNS | After LUT / FF / WNS | Delta |
+|---|---:|---:|---|
+| Kintex-7 | 21,658 / 16,876 / -1.046 ns | 22,120 / 16,873 / -1.080 ns | **+462 LUT, -3 FF, -0.034 ns** |
+| Artix-7 | 21,976 / 16,866 / -3.868 ns | 22,489 / 16,872 / -3.318 ns | **+513 LUT, +6 FF, +0.550 ns** |
+
+LUTRAM stayed at 444 and both rows had zero unrouted nets. Kintex timing did
+not improve; Artix gained slack but paid 513 LUTs. The worst endpoints remain
+CAM payload registers, with the source moving from `r_widq_count` to age state,
+so this is not a demonstrated allocator-path closure. The RTL was reverted.
+Directed mask boundaries and the reusable equivalence harness in
+`formal/amba/monitor_trans_cam/` remain. Reproduce with
+`RUN_LABEL=cam_alloc_after JOBS=2 rtl/amba/fpga/bin/full_observer_synth_sweep.sh feature_master`.
+
 ## Recommendations
 
 1. **Default to the lite.** It is one sixth of the full monitor in LUTs, one

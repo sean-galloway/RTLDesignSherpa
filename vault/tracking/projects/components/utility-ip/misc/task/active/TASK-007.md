@@ -47,6 +47,12 @@
   reporter prove/cover and observer FULL **84/84 PASS**. A zero-clock reset
   mutation replayed stale completion; guarded source stayed quiet and recovered.
   RTL reverted, normal/zero-clock reset tests and negative A/B retained.
+- Experiment 3 (lowest-set CAM allocation): **REJECTED**. Kintex
+  +462 LUT / -3 FF / -0.034 ns; Artix +513 LUT / +6 FF / +0.550 ns. Golden
+  equivalence PASS and highest-only golden-pick mutation FAIL; candidate CAM
+  FULL 7/7, trans-manager 3/3, both prove/cover PASS. Timing is inconsistent
+  and area rises sharply, so both RTL files were reverted. Directed boundaries,
+  `formal/amba/monitor_trans_cam/`, and the negative A/B remain.
 
 ## Why
 

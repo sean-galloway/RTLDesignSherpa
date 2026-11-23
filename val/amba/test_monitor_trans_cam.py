@@ -650,6 +650,15 @@ class MonitorTransCamTB(TBBase):
         assert not (r['addr_alloc_oh'] & r['data_alloc_oh']), \
             "addr and data allocated the same slot under disjoint masks"
 
+        shared_slot = 1 << (self.DEPTH // 2)
+        r = await self._step(wants_addr=True, wants_data=True, wants_resp=True,
+                             addr_alloc_mask=shared_slot,
+                             data_alloc_mask=shared_slot,
+                             resp_alloc_mask=shared_slot)
+        assert r['addr_alloc_oh'] == shared_slot
+        assert r['data_alloc_oh'] == 0
+        assert r['resp_alloc_oh'] == 0
+
         self.log.info("=== t18: PASS ===")
 
     async def t19_sync_clear_reuse(self):
