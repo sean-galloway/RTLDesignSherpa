@@ -55,6 +55,7 @@ module formal_axi_monitor_trans_mgr_banked (
     // =========================================================================
     wire [7:0]                           active_count_o;
     wire                                 cmd_refused_o;
+    wire                                 order_refused_o;
     wire                                 addr_hit_any_o;
     wire [MAX_TRANSACTIONS-1:0]          addr_alloc_oh_o;
 
@@ -80,6 +81,7 @@ module formal_axi_monitor_trans_mgr_banked (
         .aresetn               (rst_n),
         .clear                 (cam_clear),
         .cmd_valid             (cmd_valid),
+        .cmd_order_valid       (cmd_valid),
         .cmd_ready             (cmd_ready),
         .cmd_id                (cmd_id),
         .cmd_addr              (cmd_addr),
@@ -107,7 +109,8 @@ module formal_axi_monitor_trans_mgr_banked (
         .active_count          (active_count_o),
         .cmd_refused           (cmd_refused_o),
         .formal_addr_hit_any   (addr_hit_any_o),
-        .formal_addr_alloc_oh  (addr_alloc_oh_o)
+        .formal_addr_alloc_oh  (addr_alloc_oh_o),
+        .formal_order_refused  (order_refused_o)
     );
 
     // =========================================================================
@@ -208,11 +211,14 @@ module formal_axi_monitor_trans_mgr_banked (
             cp_full_then_free: cover (active_count_o == 8'(MAX_TRANSACTIONS - 1));
     end
 
-    // Refusal is an accepted command with neither a pending merge nor an allocation.
+    // Table refusal requires neither a pending merge nor an allocation. An
+    // order-queue refusal may coexist with either because it reports loss of
+    // ordering coverage even when the table itself accepted the command.
     always @(posedge clk) begin
         if (rst_n) begin
-            if (cmd_refused_o) begin
+            if (cmd_refused_o)
                 ap_refused_handshake: assert (cmd_valid && cmd_ready);
+            if (cmd_refused_o && !order_refused_o) begin
                 ap_refused_no_pending:  assert (!addr_hit_any_o);
                 ap_refused_no_alloc:    assert (!(|addr_alloc_oh_o));
             end

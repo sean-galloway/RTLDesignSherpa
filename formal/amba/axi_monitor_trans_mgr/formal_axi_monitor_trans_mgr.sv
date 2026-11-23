@@ -71,6 +71,7 @@ module formal_axi_monitor_trans_mgr (
         .aresetn               (rst_n),
         .clear                 (cam_clear),
         .cmd_valid             (cmd_valid),
+        .cmd_order_valid       (cmd_valid),
         .cmd_ready             (cmd_ready),
         .cmd_id                (cmd_id),
         .cmd_addr              (cmd_addr),

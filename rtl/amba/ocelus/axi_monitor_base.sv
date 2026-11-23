@@ -381,10 +381,11 @@ module axi_monitor_base
     // m_axi_awid as data_id -- with more than one write outstanding that is a
     // LATER transaction's ID than the beats in flight, so an OWNED
     // transaction's beats get refused and its data phase never closes.
-    // The filter's work is already done upstream: an entry exists only if its
-    // AW passed id_owned(cmd_id), so any W beat that can be attributed at all
-    // belongs to an owned transaction. Reads are unaffected -- data_id is RID
-    // there, the beat's own ID, and filtering it is correct.
+    // Table entries exist only for owned AWs. With USE_WDATA_ORDER_Q the raw
+    // cmd_valid sideband also preserves excluded and refused AWs in the W-order
+    // queue, where their untracked bursts drain through WLAST without touching
+    // an owned entry. Reads are unaffected -- data_id is RID there, the beat's
+    // own ID, and filtering it is correct.
     assign w_data_valid_f = IS_READ ? (data_valid && id_owned(data_id))
                                     : data_valid;
     assign w_resp_valid_f = resp_valid && id_owned(resp_id);
@@ -405,6 +406,7 @@ module axi_monitor_base
         .aresetn            (aresetn),
         .clear              (clear),
         .cmd_valid          (w_cmd_valid_f),
+        .cmd_order_valid    (cmd_valid),
         .cmd_ready          (cmd_ready),
         .cmd_id             (cmd_id),
         .cmd_addr           (cmd_addr),

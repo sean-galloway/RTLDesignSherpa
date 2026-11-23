@@ -154,6 +154,7 @@ module axi_monitor_trans_mgr
 
     // Address channel
     input  logic                        cmd_valid,
+    input  logic                        cmd_order_valid,
     input  logic                        cmd_ready,
     input  logic [IW-1:0]               cmd_id,
     input  logic [AW-1:0]               cmd_addr,
@@ -207,6 +208,7 @@ module axi_monitor_trans_mgr
 `ifdef FORMAL
     , output logic                      formal_addr_hit_any
     , output logic [MAX_TRANSACTIONS-1:0] formal_addr_alloc_oh
+    , output logic                      formal_order_refused
 `endif
 );
 
@@ -662,41 +664,28 @@ module axi_monitor_trans_mgr
     localparam int WQW   = (N > 1) ? $clog2(N + 1) : 1;
 
     logic [IW-1:0]  r_widq [N];
+    logic [N-1:0]   r_widq_tracked;
     logic [WQW-1:0] r_widq_count;
+    logic           r_widq_overflow;
     logic [IW-1:0]  w_widq_head;
     logic [N-1:0]   w_widq_cand_oh;
     logic w_widq_push, w_widq_pop, w_widq_head_dead, w_widq_bypass;
+    logic w_widq_head_tracked, w_widq_room, w_widq_bypass_pop;
+    logic w_cmd_tracked, w_order_refused;
 
-    // Push on the AW handshake. The ID comes off the command lines, so no
-    // allocation one-hot is needed and a data-first orphan adopted by its AW
-    // pushes exactly like a fresh allocation.
-    assign w_widq_push   = !IS_READ && USE_WDATA_ORDER_Q && cmd_valid && cmd_ready;
-
-    // Empty queue + a push this cycle == same-cycle AW+W: the head is the ID
-    // arriving now, one cycle before it is registered.
+    // Filtering and allocation refusal remove table tracking, not AXI write
+    // ordering. Every observed AW therefore enters this queue. The disposition
+    // says whether its W beats may update a table entry.
+    assign w_widq_push   = !IS_READ && USE_WDATA_ORDER_Q && cmd_order_valid && cmd_ready;
     assign w_widq_bypass = (r_widq_count == '0) && w_widq_push;
     assign w_widq_head   = w_widq_bypass ? cmd_id : r_widq[0];
+    assign w_widq_head_tracked = w_widq_bypass ? w_cmd_tracked : r_widq_tracked[0];
 
-    // Entries owned by the head AWID that are still expecting W data.
-    //
-    // The queue must be NON-EMPTY (or pushing this cycle) for the head to mean
-    // anything: r_widq[0] holds the last popped ID once the queue drains, and
-    // matching against that stale value would attribute a stray W beat -- one
-    // with no AW behind it at all -- to whatever unrelated transaction happens
-    // to still be open on that ID. With no AW owed, there is no candidate, and
-    // the beat falls through to the stray/orphan path as it should.
     always_comb begin
         w_widq_cand_oh = '0;
-        if (!IS_READ && USE_WDATA_ORDER_Q &&
-            ((r_widq_count != '0) || w_widq_bypass)) begin
+        if (!IS_READ && USE_WDATA_ORDER_Q && !r_widq_overflow &&
+            ((r_widq_count != '0) || w_widq_bypass) && w_widq_head_tracked) begin
             for (int i = 0; i < N; i++) begin
-                // Compare the low IW bits explicitly. The payload `id` field
-                // is a fixed 8 bits while w_widq_head is IW wide, and the
-                // write side zeroes the field before setting [IW-1:0] (see
-                // next.id below), so the upper bits are always 0 and the
-                // implicit zero-extend was correct -- just implicit. Same
-                // part-select the read at `next_id` already uses. ID_WIDTH > 8
-                // is a hard elaboration error, so [IW-1:0] is always in range.
                 w_widq_cand_oh[i] = w_data_state_pred_oh[i] &&
                                     (cam_entry_payload[i].id[IW-1:0] == w_widq_head) &&
                                     !w_freeing_oh[i];
@@ -704,39 +693,115 @@ module axi_monitor_trans_mgr
         end
     end
 
-    assign w_widq_head_dead = (r_widq_count != '0) && !(|w_widq_cand_oh);
-    assign w_widq_pop       = (r_widq_count != '0) &&
-                              ((data_valid && data_ready && data_last) ||
-                               w_widq_head_dead);
+    // An untracked head is not dead merely because it has no CAM entry: its W
+    // burst must run through WLAST. Only tracked entries may retire early.
+    assign w_widq_head_dead = (r_widq_count != '0) && w_widq_head_tracked &&
+                              !r_widq_overflow && !(|w_widq_cand_oh);
+    assign w_widq_pop = (((r_widq_count != '0) || w_widq_bypass) &&
+                         data_valid && data_ready && data_last) ||
+                        ((r_widq_count != '0) && w_widq_head_dead);
+    assign w_widq_bypass_pop = w_widq_bypass && w_widq_pop;
+    assign w_widq_room = (r_widq_count < WQW'(N)) ||
+                         (w_widq_pop && (r_widq_count != '0));
 
-    // Oldest-first among the head ID's entries: AXI4 orders same-ID bursts by
-    // issue order, and slot index does not track issue order once slots start
-    // being recycled (issue #41 defect 1).
     assign w_data_state_first_oh = USE_WDATA_ORDER_Q
                                  ? pick_oldest(w_widq_cand_oh,       w_age_flat)
                                  : pick_oldest(w_data_state_pred_oh, w_age_flat);
 
-    // Shift-out queue: N is small (table depth) and one entry moves per cycle,
-    // so a shift register costs less than pointer wrap logic and keeps head at
-    // index 0 for a flat mux.
+    // Owned AWs also carry a response-order record. B responses may interleave
+    // across IDs, so remove the oldest record matching the response ID rather
+    // than requiring the queue head to match. An untracked match consumes its B
+    // without touching the CAM; no match retains the legacy stray-B handling.
+    logic [IW-1:0] r_bidq [N];
+    logic [N-1:0]  r_bidq_tracked;
+    logic [WQW-1:0] r_bidq_count;
+    logic [SLOTW-1:0] w_bidq_pop_idx;
+    logic w_bidq_push, w_bidq_pop, w_bidq_match, w_bidq_match_new;
+    logic w_bidq_match_tracked, w_bidq_room, w_resp_order_blocked;
+
+    assign w_bidq_push = !IS_READ && USE_WDATA_ORDER_Q && cmd_valid && cmd_ready;
+    always_comb begin
+        w_bidq_match = 1'b0;
+        w_bidq_match_new = 1'b0;
+        w_bidq_match_tracked = 1'b0;
+        w_bidq_pop_idx = '0;
+        if (!IS_READ && USE_WDATA_ORDER_Q && resp_valid && resp_ready) begin
+            for (int i = 0; i < N; i++) begin
+                if (!w_bidq_match && (i < r_bidq_count) && (r_bidq[i] == resp_id)) begin
+                    w_bidq_match = 1'b1;
+                    w_bidq_match_tracked = r_bidq_tracked[i];
+                    w_bidq_pop_idx = SLOTW'(i);
+                end
+            end
+            if (!w_bidq_match && w_bidq_push && (cmd_id == resp_id)) begin
+                w_bidq_match = 1'b1;
+                w_bidq_match_new = 1'b1;
+                w_bidq_match_tracked = 1'b1;
+            end
+        end
+    end
+    assign w_bidq_pop = w_bidq_match;
+    assign w_bidq_room = (r_bidq_count < WQW'(N)) ||
+                         (w_bidq_pop && !w_bidq_match_new && (r_bidq_count != '0));
+    assign w_resp_order_blocked = r_widq_overflow ||
+                                  (!IS_READ && USE_WDATA_ORDER_Q && w_bidq_match &&
+                                   !w_bidq_match_tracked);
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_bidq_count <= '0;
+            r_bidq_tracked <= '0;
+            for (int i = 0; i < N; i++) r_bidq[i] <= '0;
+        end else if (clear) begin
+            r_bidq_count <= '0;
+            r_bidq_tracked <= '0;
+            for (int i = 0; i < N; i++) r_bidq[i] <= '0;
+        end else if (!IS_READ && USE_WDATA_ORDER_Q) begin
+            automatic logic [WQW-1:0] v_cnt = r_bidq_count;
+            if (w_bidq_pop && !w_bidq_match_new && (v_cnt != '0)) begin
+                for (int i = 0; i < N - 1; i++) begin
+                    if (i >= int'(w_bidq_pop_idx)) begin
+                        r_bidq[i] <= r_bidq[i + 1];
+                        r_bidq_tracked[i] <= r_bidq_tracked[i + 1];
+                    end
+                end
+                v_cnt = v_cnt - 1'b1;
+            end
+            if (w_bidq_push && w_bidq_room && !w_bidq_match_new) begin
+                r_bidq[v_cnt[SLOTW-1:0]] <= cmd_id;
+                r_bidq_tracked[v_cnt[SLOTW-1:0]] <= w_cmd_tracked;
+                v_cnt = v_cnt + 1'b1;
+            end
+            r_bidq_count <= v_cnt;
+        end
+    )
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_widq_count <= '0;
+            r_widq_tracked <= '0;
+            r_widq_overflow <= 1'b0;
             for (int i = 0; i < N; i++) r_widq[i] <= '0;
         end else if (clear) begin
             r_widq_count <= '0;
+            r_widq_tracked <= '0;
+            r_widq_overflow <= 1'b0;
             for (int i = 0; i < N; i++) r_widq[i] <= '0;
         end else if (!IS_READ && USE_WDATA_ORDER_Q) begin
             automatic logic [WQW-1:0] v_cnt = r_widq_count;
 
+            if ((w_widq_push && !w_widq_room) || (w_bidq_push && !w_bidq_room))
+                r_widq_overflow <= 1'b1;
             if (w_widq_pop && (v_cnt != '0)) begin
-                for (int i = 0; i < N - 1; i++) r_widq[i] <= r_widq[i + 1];
+                for (int i = 0; i < N - 1; i++) begin
+                    r_widq[i] <= r_widq[i + 1];
+                    r_widq_tracked[i] <= r_widq_tracked[i + 1];
+                end
                 v_cnt = v_cnt - 1'b1;
             end
-            if (w_widq_push && (v_cnt < WQW'(N))) begin
-                // v_cnt is a 0..N count and the push is guarded to v_cnt < N
-                // above, so the low SLOTW bits are the tail index.
+            if (w_widq_push && w_widq_room && !w_widq_bypass_pop) begin
                 r_widq[v_cnt[SLOTW-1:0]] <= cmd_id;
+                r_widq_tracked[v_cnt[SLOTW-1:0]] <= w_cmd_tracked;
                 v_cnt = v_cnt + 1'b1;
             end
             r_widq_count <= v_cnt;
@@ -881,7 +946,10 @@ module axi_monitor_trans_mgr
     always_comb begin
         w_data_cmd_bypass_oh = '0;
         if (!IS_READ && data_valid && data_ready && !(|w_data_state_pred_oh) &&
-            !w_early_pending) begin    // early data queued: this beat is a later transaction's, queue it too (BUG-037)
+            !w_early_pending &&
+            (!USE_WDATA_ORDER_Q ||
+             (((r_widq_count != '0) || w_widq_bypass) &&
+              w_widq_head_tracked && !r_widq_overflow))) begin
             for (int i = 0; i < N; i++) begin
                 w_data_cmd_bypass_oh[i] =
                     w_addr_alloc_mirror_oh[i] ||
@@ -1037,11 +1105,19 @@ module axi_monitor_trans_mgr
                             (w_cmd_entry_count <
                              ($clog2(N+1))'(N - CMD_ENTRY_RESERVE));
 
-    assign addr_wants_alloc = cmd_valid && !addr_hit_any && w_cmd_headroom;
-    assign cmd_refused = cmd_valid && cmd_ready && !addr_hit_any && !(|addr_alloc_oh);
+    assign addr_wants_alloc = cmd_valid && !addr_hit_any && w_cmd_headroom &&
+                              (IS_READ || !USE_WDATA_ORDER_Q ||
+                               (!r_widq_overflow &&
+                                (r_widq_count < WQW'(N)) && (r_bidq_count < WQW'(N))));
+    assign w_cmd_tracked = cmd_valid && (addr_hit_any || (|addr_alloc_oh));
+    assign w_order_refused = (w_widq_push && (!w_widq_room || r_widq_overflow)) ||
+                             (w_bidq_push && (!w_bidq_room || r_widq_overflow));
+    assign cmd_refused = (cmd_valid && cmd_ready && !addr_hit_any && !(|addr_alloc_oh)) ||
+                         w_order_refused;
 `ifdef FORMAL
     assign formal_addr_hit_any = addr_hit_any;
     assign formal_addr_alloc_oh = addr_alloc_oh;
+    assign formal_order_refused = w_order_refused;
 `endif
     always_comb begin
         if (IS_READ) begin
@@ -1049,7 +1125,8 @@ module axi_monitor_trans_mgr
         end else begin
             data_wants_alloc = data_valid && data_ready && !IS_AXI && !data_hit_any;
         end
-        resp_wants_alloc = (!IS_READ) && resp_valid && resp_ready && !resp_hit_any;
+        resp_wants_alloc = (!IS_READ) && resp_valid && resp_ready && !resp_hit_any &&
+                           !w_resp_order_blocked;
     end
 
     // ------------------------------------------------------------------------
@@ -1126,8 +1203,9 @@ module axi_monitor_trans_mgr
     // Response fallback is unchanged: a stray B response updates fields of an
     // already-closed entry but every reachable outcome (COMPLETE / ERROR) is
     // terminal and cleanup-eligible, so it cannot leak a slot.
-    assign resp_update_oh = (|w_resp_cand_open) ? pick_oldest(w_resp_cand_open, w_age_flat)
-                                                : pick_oldest(w_resp_cand_any, w_age_flat);
+    assign resp_update_oh = w_resp_order_blocked ? '0 :
+                            ((|w_resp_cand_open) ? pick_oldest(w_resp_cand_open, w_age_flat)
+                                                 : pick_oldest(w_resp_cand_any, w_age_flat));
 
     // ------------------------------------------------------------------------
     // EARLY WRITE DATA (amba BUG-037). AXI4 lets a master present W beats
@@ -1153,7 +1231,9 @@ module axi_monitor_trans_mgr
     // ------------------------------------------------------------------------
     assign w_early_pending = (r_eq_count != '0) || r_open_any;
     // a W beat with no owner this cycle (no pending entry, bypass suppressed)
-    assign w_early_w       = !IS_READ && IS_AXI && data_valid && data_ready && !(|data_update_oh);
+    assign w_early_w = !IS_READ && IS_AXI && data_valid && data_ready && !(|data_update_oh) &&
+                       !(USE_WDATA_ORDER_Q &&
+                         ((r_widq_count != '0) || w_widq_bypass || r_widq_overflow));
     // the write allocation this cycle absorbs the oldest early burst
     assign w_early_take    = !IS_READ && IS_AXI && (|addr_alloc_oh) && w_early_pending;
     assign w_take_q        = w_early_take && (r_eq_count != '0);

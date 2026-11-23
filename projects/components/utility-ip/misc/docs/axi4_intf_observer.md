@@ -32,8 +32,11 @@ unconnected to observation.
 The read tap observes AR and R. The write tap observes AW, W, and B and
 preserves `USE_WDATA_ORDER_Q` and `NUM_BANKS`, including same-cycle AW+W.
 Master full taps support the existing per-port ID slice using
-`CH_BASE + port * NUM_CHANNELS`; an excluded ID creates neither a transaction
-entry nor a refusal.
+`CH_BASE + port * NUM_CHANNELS`. An excluded ID creates no transaction-table
+entry, but its AW remains in the W-order stream so its beats cannot be charged
+to a later owned write. Owned AWs also carry B-order records, allowing refused
+same-ID responses to be discarded without blocking out-of-order responses
+across different IDs.
 
 ## Configuration and capabilities
 
@@ -53,28 +56,30 @@ meanings.
 
 ## Observation-loss accounting
 
-`cmd_refused` is an actual accepted command that has neither a same-ID pending
-merge nor a transaction-table allocation. It covers both physical table
-fullness and the command-entry reserve cap. It does not assert for:
+`cmd_refused` reports an accepted command that lost transaction-table or
+ordering coverage. It covers physical table fullness, the command-entry reserve
+cap, and AW/B order-queue overflow. It never asserts for valid without ready.
+A table pending merge or allocation normally suppresses refusal, but either can
+coincide with an order-queue refusal; the table accepted the command while the
+ordering structure could not. Excluded IDs do not assert refusal unless their
+required W-order entry overflows.
 
-- valid without ready
-- a same-ID pending merge
-- an ID excluded by the observer's slice
-- a successful allocation after capacity becomes available
-
-Each passive tap saturates a 16-bit refused counter, cleared by reset or its
-monitor clear epoch. Reporter backpressure is not counted as a dropped packet;
-the full tap's `dropped_count` is zero. Sustained backpressure can eventually
-fill the transaction table and appear as refused coverage. A nonzero refused
-count raises `OBS_STICKY.TAP_BLOCKED`, telling software that observation was
-incomplete even though the observed bus continued.
+Order-queue overflow is sticky until monitor clear: further attribution stays
+suppressed rather than silently resynchronizing onto a later transaction. Each
+passive tap saturates a 16-bit refused counter, cleared by reset or its monitor
+clear epoch. Reporter backpressure is not counted as a dropped packet; the full
+tap's `dropped_count` is zero. Sustained backpressure can eventually fill the
+transaction table and appear as refused coverage. A nonzero refused count raises
+`OBS_STICKY.TAP_BLOCKED`, telling software that observation was incomplete even
+though the observed bus continued.
 
 ## Verification
 
 The observer suite covers register capabilities, default traffic, all full
 packet classes, explicit performance-window open/close, debug events, fixed-
 cycle external acceptance under MonBus backpressure, table saturation, exact
-refusal accounting, ID-slice exclusion, banked same-cycle AW+W, clear/reuse,
+refusal accounting, ID-slice W isolation, refused same-ID B isolation, banked
+same-cycle AW+W, saturation reuse without clear, order-overflow/clear recovery,
 normal reset/reissue, and zero-clock reset recovery.
 
 Run it with:

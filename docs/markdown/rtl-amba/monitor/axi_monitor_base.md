@@ -91,7 +91,7 @@ single-bank, age-ranked behaviour exactly.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `USE_WDATA_ORDER_Q` | bit | 0 | **Write monitors only.** Recover AXI4's WID-less W-beat ordering with an AWID FIFO (push on the AW handshake, pop on W-last) instead of an O(N^2) oldest-select over the whole table. Required for banking on a write monitor |
+| `USE_WDATA_ORDER_Q` | bit | 0 | **Write monitors only.** Recover AXI4's WID-less W-beat ordering with an AW-order FIFO instead of an O(N^2) oldest-select over the whole table. Every observed AW occupies an entry, including filtered and refused commands; untracked bursts drain through WLAST without table updates. A companion owned-AW queue orders B responses per ID. Required for banking on a write monitor |
 | `NUM_BANKS` | int | 1 | Split the table into banks by low ID bits so the two O(N^2) structures (oldest-select, rank update) are restricted to same-bank pairs. Must be a power of 2 and divide `MAX_TRANSACTIONS` |
 
 > **Sizing rule — this one bites.** Every transaction sharing an ID lands in the
@@ -134,6 +134,13 @@ master an instance watches otherwise means a rebuild:
 AXI-Lite has no transaction IDs, so the `axil4_*_mon` wrappers tie these off
 rather than exposing them — a filter keyed on a field the protocol lacks has
 nothing to match against.
+
+With `USE_WDATA_ORDER_Q`, the ID filter controls table and B-order admission,
+not whether an AW participates in W ordering. Excluded AWs still occupy raw
+W-order entries until WLAST, and overflow of those entries is reported as lost
+coverage. Change a runtime ID window only while the monitor is idle at a clear
+boundary; retargeting a live stream would change the meaning of outstanding
+order records.
 
 The **address** filter is driven the same way. `ADDR_FILTER_ENABLE` only builds
 the logic; without these three ports driven it stays inert, which is the
@@ -289,7 +296,7 @@ are the lowest-priority source on the monitor bus (reporter > debug > addr_check
 | `block_ready` | Output | 1 | Flow control: 1 = upstream may proceed, 0 = transaction-table occupancy is at the blocking threshold. Derived from `active_count` vs `MAX_TRANSACTIONS`; the reporter's `INTR_FIFO_DEPTH` has **no** path to it. See [Flow Control and the Saturation-Recovery Contract](#flow-control-and-the-saturation-recovery-contract) |
 | `busy` | Output | 1 | Monitor is busy indicator (`active_count > 0`) |
 | `active_count` | Output | 8 | Number of live transaction-table entries (registered pop-count of CAM occupancy; lags true occupancy by 1 cycle) |
-| `cmd_refused` | Output | 1 | An actual command handshake had neither a same-ID pending merge nor a table allocation. Covers physical fullness and command-cap refusal; never asserts for a held command, filtered ID, or successful allocation. Passive observer taps count this event to report incomplete coverage without gating the observed bus. |
+| `cmd_refused` | Output | 1 | An actual command handshake lost table or ordering coverage. Covers physical fullness, command-cap refusal, and AW/B order-queue overflow; never asserts for a held command. An order-queue refusal can coincide with a pending merge or table allocation, and filtered IDs are reported if their required W-order entry overflows. Passive observer taps count this event without gating the observed bus. |
 | `perf_completed_count` | Output | 16 | **Lifetime** completion count from `axi_monitor_reporter_perf` -- packets actually emitted, not window-scoped. Reads 0 when `ENABLE_PERF_LOGIC = 0` |
 | `perf_error_count` | Output | 16 | **Lifetime** error/timeout count from the same block; 0 when `ENABLE_PERF_LOGIC = 0` |
 

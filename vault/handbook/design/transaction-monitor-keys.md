@@ -32,6 +32,28 @@ Each of these is a slot that never retires or retires early, and in a table
 of eight that is a monitor that goes blind after eight transactions and then
 reports everything as TABLE_FULL and orphans.
 
+## Filtering a transaction table does not filter the protocol's order stream
+
+The full AXI observer review on 2026-11-22 found a second keying failure. Its
+ID filter excluded an AW from the transaction table and from the AW-order
+queue, but W has no ID and still carried that excluded burst's beats. The next
+owned AW therefore consumed them; all drop and refusal counters stayed zero.
+A refused owned AW had the same problem, and its B response could complete a
+later tracked write with the same ID.
+
+Admission filtering and phase attribution are separate structures. Every
+observed AW must remain in the W-order stream with a tracked/untracked
+disposition, even when no table slot is allocated. Untracked bursts consume W
+through WLAST without changing the table. Owned AWs also need response-order
+records so an untracked B is discarded in same-ID order while different IDs
+may still respond out of order. If either order structure overflows, invalidate
+further attribution and report the coverage loss; silently resynchronizing on a
+later ID is not a safe fallback.
+
+The directed checks must inspect attribution before the later owned W or B, not
+just count final packets. The corrupted implementation emitted a plausible
+completion count and no error, so a packet-count-only test missed it.
+
 ## How to apply
 
 - Read the ID-reuse rule of the protocol first (CHI B2.4.2 / B2.5, AXI's

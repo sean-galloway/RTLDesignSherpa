@@ -942,7 +942,7 @@ async def cocotb_test_observer_full_passivity(dut):
     max_tx = _p("P_MAX_TRANSACTIONS", 16)
     command_cap = max_tx - 4 if max_tx >= 16 else max_tx
     id_slice = _p("P_ENABLE_ID_SLICE", 0)
-    n_cmds = 6 if id_slice else command_cap + 2
+    n_cmds = max_tx if id_slice else command_cap + 2
     rd_accepted, wr_accepted = [], []
 
     async def count_external():
@@ -1051,6 +1051,191 @@ async def cocotb_test_observer_full_saturation_reuse(dut):
     await batch(4)
     assert sum(n for (name, _), n in tb.packet_tally().items() if name == "Completion") == 8, tb.packet_tally()
     assert len(tb.packets) >= n0 + 4
+
+
+@cocotb.test(timeout_time=500, timeout_unit="us")
+async def cocotb_test_observer_full_write_order(dut):
+    """Excluded AW bursts must consume their own W beats without table updates."""
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    await tb.write_reg("OBS_CTRL", 0)
+    core = dut.u_core
+    table = core.gen_wr_mon[0].gen_full.u_wr_mon.u_monitor.u_axi_monitor_base.w_trans_table
+
+    async def aw(awid, addr, beats):
+        dut.obs_wr_awid.value = awid
+        dut.obs_wr_awaddr.value = addr
+        dut.obs_wr_awlen.value = beats - 1
+        dut.obs_wr_awsize.value = 3
+        dut.obs_wr_awburst.value = 1
+        dut.obs_wr_awvalid.value = 1
+        await RisingEdge(dut.aclk)
+        dut.obs_wr_awvalid.value = 0
+
+    async def wbeat(last):
+        dut.obs_wr_wdata.value = 0x5A5A_0000
+        dut.obs_wr_wstrb.value = 0xFF
+        dut.obs_wr_wlast.value = last
+        dut.obs_wr_wvalid.value = 1
+        await RisingEdge(dut.aclk)
+        dut.obs_wr_wvalid.value = 0
+        dut.obs_wr_wlast.value = 0
+
+    async def bresp(bid):
+        dut.obs_wr_bid.value = bid
+        dut.obs_wr_bresp.value = 0
+        dut.obs_wr_bvalid.value = 1
+        dut.obs_wr_bready.value = 1
+        await RisingEdge(dut.aclk)
+        dut.obs_wr_bvalid.value = 0
+        await RisingEdge(dut.aclk)
+        dut.obs_wr_bready.value = 0
+
+    await aw(2, 0x2200, 1)
+    await aw(4, 0x4400, 2)
+    await aw(3, 0x3300, 1)
+    await wbeat(1)
+    await wbeat(0)
+    await wbeat(1)
+
+    entries = [int(entry.value) for entry in table]
+    owned3 = [entry for entry in entries
+              if ((entry >> 284) & 1) and ((entry >> 235) & 0xFF) == 3]
+    assert len(owned3) == 1, f"expected one live ID3 entry, got {len(owned3)}"
+    entry3 = owned3[0]
+    assert (entry3 >> 243) & 0xFFFF_FFFF == 0x3300, "ID3 address changed"
+    assert not ((entry3 >> 282) & 1), "excluded ID4 data was attributed to ID3"
+    assert (entry3 >> 8) & 0xFF == 0, "ID3 data beat count changed before its W beat"
+    assert (entry3 >> 275) & 7 != 4, "ID3 completed before its W beat"
+
+    await wbeat(1)
+    for bid in (2, 4, 3):
+        await bresp(bid)
+    await tb.wait_clocks("aclk", 300)
+    tally = tb.packet_tally()
+    assert sum(n for (name, _), n in tally.items() if name == "Completion") == 2, tally
+    assert "Error" not in tb.types_seen(), tally
+    assert int(core.obs_wr_refused[0].value) == 0
+    assert int(core.obs_wr_dropped[0].value) == 0
+
+
+@cocotb.test(timeout_time=500, timeout_unit="us")
+async def cocotb_test_observer_full_refused_response_order(dut):
+    """A refused same-ID B must not complete a later tracked write."""
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    await tb.write_reg("OBS_CTRL", 0)
+    core = dut.u_core
+    table = core.gen_wr_mon[0].gen_full.u_wr_mon.u_monitor.u_axi_monitor_base.w_trans_table
+
+    async def aw(awid, addr, beats=1):
+        dut.obs_wr_awid.value = awid
+        dut.obs_wr_awaddr.value = addr
+        dut.obs_wr_awlen.value = beats - 1
+        dut.obs_wr_awsize.value = 3
+        dut.obs_wr_awburst.value = 1
+        dut.obs_wr_awvalid.value = 1
+        await RisingEdge(dut.aclk)
+        dut.obs_wr_awvalid.value = 0
+
+    async def wbeat(last):
+        dut.obs_wr_wdata.value = 0x5A5A_0000
+        dut.obs_wr_wstrb.value = 0xFF
+        dut.obs_wr_wlast.value = last
+        dut.obs_wr_wvalid.value = 1
+        await RisingEdge(dut.aclk)
+        dut.obs_wr_wvalid.value = 0
+        dut.obs_wr_wlast.value = 0
+
+    async def bresp(bid):
+        dut.obs_wr_bid.value = bid
+        dut.obs_wr_bresp.value = 0
+        dut.obs_wr_bvalid.value = 1
+        dut.obs_wr_bready.value = 1
+        await RisingEdge(dut.aclk)
+        dut.obs_wr_bvalid.value = 0
+        await RisingEdge(dut.aclk)
+        dut.obs_wr_bready.value = 0
+
+    for awid in range(12):
+        await aw(awid, 0x8000 + awid * 0x40)
+    await aw(3, 0xD300, beats=2)
+    await RisingEdge(dut.aclk)
+    assert int(core.obs_wr_refused[0].value) == 1
+    for _ in range(12):
+        await wbeat(1)
+    await wbeat(0)
+    await wbeat(1)
+    for bid in range(12):
+        await bresp(bid)
+    await tb.wait_clocks("aclk", 300)
+    assert sum(n for (name, _), n in tb.packet_tally().items()
+               if name == "Completion") == 12, tb.packet_tally()
+
+    # No cam_clear: the old tracked entries must drain naturally. The refused
+    # ID3 response is still owed when this newer ID3 command is accepted.
+    await aw(3, 0x3303)
+    await wbeat(1)
+    await bresp(3)
+    entries = [int(entry.value) for entry in table]
+    owned3 = [entry for entry in entries
+              if ((entry >> 284) & 1) and ((entry >> 235) & 0xFF) == 3]
+    assert len(owned3) == 1, f"expected the new ID3 entry, got {len(owned3)}"
+    assert not ((owned3[0] >> 280) & 1), (
+        "refused ID3 response was attributed to the later tracked ID3 write")
+    await bresp(3)
+    await tb.wait_clocks("aclk", 300)
+    tally = tb.packet_tally()
+    assert sum(n for (name, _), n in tally.items() if name == "Completion") == 13, tally
+    assert "Error" not in tb.types_seen(), tally
+    assert int(core.obs_wr_refused[0].value) == 1
+    assert int(core.obs_wr_dropped[0].value) == 0
+
+
+@cocotb.test(timeout_time=200, timeout_unit="us")
+async def cocotb_test_observer_full_order_overflow(dut):
+    """Order-queue overflow is reported and requires clear before reuse."""
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    await tb.write_reg("OBS_CTRL", 0)
+    core = dut.u_core
+
+    dut.obs_wr_awlen.value = 0
+    dut.obs_wr_awsize.value = 3
+    dut.obs_wr_awburst.value = 1
+    dut.obs_wr_awid.value = 4
+    for i in range(5):
+        dut.obs_wr_awaddr.value = 0x4400 + i * 0x40
+        dut.obs_wr_awvalid.value = 1
+        await RisingEdge(dut.aclk)
+    dut.obs_wr_awvalid.value = 0
+    await RisingEdge(dut.aclk)
+    assert int(core.obs_wr_refused[0].value) == 1
+
+    for _ in range(5):
+        dut.obs_wr_wlast.value = 1
+        dut.obs_wr_wvalid.value = 1
+        await RisingEdge(dut.aclk)
+    dut.obs_wr_wvalid.value = 0
+    dut.obs_wr_wlast.value = 0
+    await tb.drive_write_burst(addr=0x2200, awid=2, beats=1, gap=1)
+    await tb.wait_clocks("aclk", 100)
+    assert int(core.obs_wr_refused[0].value) == 2
+    assert not tb.packets, f"overflowed attribution emitted packets: {tb.packet_tally()}"
+
+    dut.cam_clear.value = 1
+    await RisingEdge(dut.aclk)
+    dut.cam_clear.value = 0
+    await tb.wait_clocks("aclk", 20)
+    assert int(core.obs_wr_refused[0].value) == 0
+    await tb.drive_write_burst(addr=0x2300, awid=2, beats=1, gap=1)
+    await tb.wait_clocks("aclk", 300)
+    tally = tb.packet_tally()
+    assert sum(n for (name, _), n in tally.items() if name == "Completion") == 1, tally
+    assert "Error" not in tb.types_seen(), tally
 
 
 @cocotb.test(timeout_time=200, timeout_unit="us")
@@ -1384,6 +1569,25 @@ _PARAMS_FULL_BANKED = dict(_PARAMS, MAX_TRANSACTIONS=16, NUM_BANKS=4,
                            USE_WDATA_ORDER_Q=1)
 _PARAMS_FULL_SLICE = dict(_PARAMS_FULL_SMALL, ENABLE_ID_SLICE=1,
                           CH_BASE=2, NUM_CHANNELS=2)
+_PARAMS_FULL_ORDER = dict(_PARAMS, MAX_TRANSACTIONS=16, NUM_BANKS=1,
+                          USE_WDATA_ORDER_Q=1, ENABLE_ID_SLICE=1,
+                          CH_BASE=2, NUM_CHANNELS=2)
+
+
+def test_axi4_intf_master_observer_full_write_order(request):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_FULL_ORDER),
+                  testcase="cocotb_test_observer_full_write_order")
+
+
+def test_axi4_intf_master_observer_full_refused_response_order(request):
+    _run_observer(request, 'axi4_intf_master_observer_full',
+                  dict(_PARAMS_FULL_RESERVED, USE_WDATA_ORDER_Q=1),
+                  testcase="cocotb_test_observer_full_refused_response_order")
+
+
+def test_axi4_intf_master_observer_full_order_overflow(request):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_FULL_SLICE),
+                  testcase="cocotb_test_observer_full_order_overflow")
 
 
 def test_axi4_intf_master_observer_full_passivity_small(request):
