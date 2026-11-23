@@ -28,6 +28,8 @@ cm = _load("char_model", os.path.join(HERE, "..", "bin", "char_model.py"))
 # default is the phase-exact set since then (MC-020); a test that reproduces a board or proxy number recorded
 # before that date pins the preset the number was made at.
 MARGIN = "DDR2_GRANITE_SKU100"
+# ... and the self-close reloading the shared tRP, as the margin's host programmed it (MC-020 decision 2)
+MARGIN_AP = dict(t_rp_ap_rd=2, t_rp_ap_wr=2)
 
 
 
@@ -219,7 +221,8 @@ def test_px_preset_is_the_phase_exact_host_derivation(pumice_char):
     pd = pytest.importorskip("pumice_device")
     host = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=1, phase_exact=True)
     base = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=1)
-    assert {k for k in host if host[k] != base[k]} == {"tRC", "tWR", "tWTR", "tRRD", "tRFC"}, (host, base)
+    # (tRP_AP_RD since MC-020 decision 2: the read path's self-close reloads 1 where the margin's shared tRP is 2)
+    assert {k for k in host if host[k] != base[k]} == {"tRC", "tWR", "tWTR", "tRRD", "tRFC", "tRP_AP_RD"}, (host, base)
     assert (host["tRC"], host["tWR"], host["tWTR"], host["tRRD"], host["tRFC"]) == (6, 3, 3, 1, 13)
     assert all(host[k] <= base[k] for k in host)                                 # exact is never longer
     _, t = ramulator.dram.DDR2(org_preset="DDR2_1Gb_x16", timing_preset="DDR2_GRANITE_SKU100_PX").resolve()
@@ -234,12 +237,38 @@ def test_px_preset_is_the_phase_exact_host_derivation(pumice_char):
     assert mc(t["nCWL"] + t["nBL"] + t["nWTR"]) == host["tWTR"]
     # WRA -> ACT, the hop col_major's write chain pays: the same count in both
     assert mc(t["nCWL"] + t["nBL"] + t["nWR"] + t["nRP"]) == host["tWR"] + host["tRP"]
+    # MC-020 decision 2: the self-close's own tRP per path -- the ACT on row_phase 1 after the DRAM's internal close
+    # (RD + BL/2 + tRTP - 2 = 2 CK, WR + WL + BL/2 + tWR = 7 CK, or ACT + tRAS), less the counter that fired
+    assert (host["tRP_AP_RD"], host["tRP_AP_WR"]) == (1, 2)
+    assert (base["tRP_AP_RD"], base["tRP_AP_WR"]) == (base["tRP"], base["tRP"])      # the margin: the shared tRP
+    assert 2 * (host["tRTP"] + host["tRP_AP_RD"]) + 1 >= t["nBL"] + t["nRTP"] - 2 + t["nRP"]   # RDA -> ACT legal
+    assert 2 * (host["tWR"] + host["tRP_AP_WR"]) + 1 >= t["nCWL"] + t["nBL"] + t["nWR"] + t["nRP"]   # WRA -> ACT legal
+    assert host["tRAS"] + host["tRP_AP_RD"] >= host["tRC"] and host["tRAS"] + host["tRP_AP_WR"] >= host["tRC"]
     # every count is a legal JEDEC distance on the SKU's phases: 2 m + (b - a) CK >= the CK minimum
     ck = {k: max(math.ceil(v / 5.0), pd.DDR2_CK_MIN.get(k, 1)) for k, v in pd.DDR2_MT47H64M16_NS.items()}
     assert 2 * host["tRCD"] - 1 >= ck["tRCD"] and 2 * host["tRP"] >= ck["tRP"] and 2 * host["tRAS"] >= ck["tRAS"]
     assert 2 * host["tRC"] >= ck["tRC"] and 2 * host["tRRD"] >= ck["tRRD"] and 2 * host["tFAW"] >= ck["tFAW"]
     assert 2 * host["tRFC"] >= ck["tRFC"] and 2 * host["tWR"] + 1 >= 2 + 2 + ck["tWR"]
     assert 2 * host["tWTR"] >= 2 + 2 + ck["tWTR"]
+
+
+def test_t_rp_ap_fields_are_the_host_derivation(pumice_char):
+    """MC-020 decision 2: the SKU config's t_rp_ap_rd / t_rp_ap_wr are what the host programs into TIMINGS_RP_AP at
+    100 MHz on the SKU's phases, and sku_margin's are the margin host's (the shared tRP)."""
+    pd = pytest.importorskip("pumice_device")
+    host = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=1, phase_exact=True)
+    c = cm.CONFIGS["granite_sku100"]
+    assert (c.t_rp_ap_rd, c.t_rp_ap_wr) == (host["tRP_AP_RD"], host["tRP_AP_WR"])
+    base = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=1)
+    m = cm.CONFIGS["sku_margin"]
+    assert (m.t_rp_ap_rd, m.t_rp_ap_wr) == (base["tRP_AP_RD"], base["tRP_AP_WR"]) == (base["tRP"], base["tRP"])
+
+
+def test_sku_param_overrides_parse_ints_and_bools(monkeypatch):
+    monkeypatch.setenv("GRANITE_SKU_PARAMS", "t_rp_ap_rd=2, t_rp_ap_wr=0x2,ap_seq=false")
+    assert cm._sku_param_overrides() == {"t_rp_ap_rd": 2, "t_rp_ap_wr": 2, "ap_seq": False}
+    monkeypatch.delenv("GRANITE_SKU_PARAMS")
+    assert cm._sku_param_overrides() == {}
 
 
 def test_sku_config_is_the_shipped_point():
@@ -268,6 +297,12 @@ def test_sku_config_is_the_shipped_point():
     assert c.wr_fill_lag == 2
     # MC-021 step 8: the record's hit flag on the way down -- a head whose row a PRE closed requests its ACT two slots later
     assert c.close_lag == 2
+    # MC-020 decision 2: the self-close sequenced as the bank timer does, reloading the host's per-path tRP (1 / 2 at
+    # 100 MHz on phases 0 / 0 / 1); sku_rpshared is the RTL before the fields, sku_margin's host programs tRP for both
+    assert c.ap_seq and (c.t_rp_ap_rd, c.t_rp_ap_wr) == (1, 2)
+    assert (cm.CONFIGS["sku_rpshared"].t_rp_ap_rd, cm.CONFIGS["sku_rpshared"].t_rp_ap_wr) == (2, 2)
+    assert (cm.CONFIGS["sku_margin"].t_rp_ap_rd, cm.CONFIGS["sku_margin"].t_rp_ap_wr) == (2, 2)
+    assert not cm.CONFIGS["sku_noapseq"].ap_seq
     # every variant changes ONE term against the SKU
     from dataclasses import fields
     for name in cm.SKU_VARIANTS:
@@ -278,6 +313,10 @@ def test_sku_config_is_the_shipped_point():
         elif name == "sku_admit3":
             # one term, the admission, in its three fields: the single three-slot stage of the model before step 7
             assert sorted(diff) == ["admit_lag", "cap_gate_lag", "pool_gate_lag"], (name, diff)
+        elif name == "sku_margin":
+            # one term, the host's derivation: the preset and the self-close field it programs as tRP (the write
+            # path's 2 is the shared tRP already; sku_rpshared differs on the read path's field alone)
+            assert sorted(diff) == ["t_rp_ap_rd", "timing_preset"], (name, diff)
         elif name.startswith("sku_pool"):
             assert sorted(diff) == ["read_buffer", "write_buffer"], (name, diff)
         elif name == "sku_ideal16":
@@ -301,7 +340,7 @@ def test_hit_lag_is_the_record_path_not_the_live_row_image():
     bw = {}
     for hl in (1, 2):
         cfg = replace(cm.CONFIGS["granite_sku100_bi"], name=f"hl{hl}", hit_lag=hl, ap_fire_stale=False,
-                      timing_preset=MARGIN)
+                      timing_preset=MARGIN, **MARGIN_AP)
         with tempfile.TemporaryDirectory() as t:
             r = cm.run_scenario(cfg, sc, t)
         bw[hl] = (float(r["wr_bw_mb_s"]), float(r["rd_bw_mb_s"]))
@@ -352,7 +391,7 @@ def test_admission_gates_decide_the_mixed_close_page_turns():
     sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=512)
     res = {}
     for name, kw in (("gates", {}), ("admit3", dict(admit_lag=3, pool_gate_lag=0, cap_gate_lag=0))):
-        cfg = replace(cm.CONFIGS["granite_sku100_close"], name=name, timing_preset=MARGIN, **kw)
+        cfg = replace(cm.CONFIGS["granite_sku100_close"], name=name, timing_preset=MARGIN, **MARGIN_AP, **kw)
         with tempfile.TemporaryDirectory() as t:
             r = cm.run_scenario(cfg, sc, t)
         res[name] = (int(r["wr_cycles"]), int(r["rd_cycles"]))
@@ -468,7 +507,7 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
     # the bimodal board cell is the open_page preset's (policy_mode 0, the flat close-on-drain): granite_sku100_open
     # since ISSUE-006; the board's `defaults` (the hybrid, granite_sku100) showed the slow mode on five of five runs.
     # The modes' numbers (272 / 522 on the board) are the margin counters', so the test runs them.
-    base = replace(cm.CONFIGS["granite_sku100_open"], timing_preset=MARGIN)
+    base = replace(cm.CONFIGS["granite_sku100_open"], timing_preset=MARGIN, **MARGIN_AP)
     rd = {}
     try:
         for lag in (2, 0):
@@ -480,7 +519,7 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
         os.environ["GRANITE_GO_OFFSET"] = "480"
         with tempfile.TemporaryDirectory() as t:
             hyb = float(cm.run_scenario(replace(cm.CONFIGS["granite_sku100"], name="hyb_margin",
-                                                timing_preset=MARGIN), sc, t)["rd_bw_mb_s"])
+                                                timing_preset=MARGIN, **MARGIN_AP), sc, t)["rd_bw_mb_s"])
     finally:
         os.environ.pop("GRANITE_GO_OFFSET", None)
     assert cm.CONFIGS["granite_sku100"].close_lag == 2

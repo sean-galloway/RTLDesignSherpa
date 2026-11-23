@@ -65,6 +65,11 @@ module formal_bank_timer #(
 
     // ---- CSR-programmed timings: constant, and small enough to unroll -------
     (* anyconst *) reg [TW-1:0] t_rcd, t_rp, t_ras, t_rc, t_wr, t_rtp;
+    // the auto-precharge self-close's own tRP per column path (granite
+    // TIMINGS_RP_AP, memory-controllers MC-020 decision 2): free of t_rp, so
+    // the proof covers a host that programs them apart as well as one that
+    // programs tRP into both
+    (* anyconst *) reg [TW-1:0] t_rp_ap_rd, t_rp_ap_wr;
     always @(*) begin
         assume (t_rcd >= 1 && t_rcd <= 4);
         assume (t_rp  >= 1 && t_rp  <= 4);
@@ -72,6 +77,8 @@ module formal_bank_timer #(
         assume (t_rc  >= 1 && t_rc  <= 4);
         assume (t_wr  >= 1 && t_wr  <= 4);
         assume (t_rtp >= 1 && t_rtp <= 4);
+        assume (t_rp_ap_rd >= 1 && t_rp_ap_rd <= 4);
+        assume (t_rp_ap_wr >= 1 && t_rp_ap_wr <= 4);
     end
 
     // ---- free command strobes ----------------------------------------------
@@ -98,7 +105,7 @@ module formal_bank_timer #(
         f_ld = (t <= d) ? {TW{1'b0}} : (t - d[TW-1:0]);
     endfunction
     wire [TW-1:0] ld_rcd = f_ld(t_rcd, 1), ld_ras = f_ld(t_ras, 1), ld_rc = f_ld(t_rc, 1);
-    wire [TW-1:0] ld_rp  = f_ld(t_rp, 1),  ld_rp1 = f_ld(t_rp, 1);
+    wire [TW-1:0] ld_rp  = f_ld(t_rp, 1),  ld_rp1_rd = f_ld(t_rp_ap_rd, 1), ld_rp1_wr = f_ld(t_rp_ap_wr, 1);
     wire [TW-1:0] ld_rtp = f_ld(t_rtp, 1), ld_wr = f_ld(t_wr, 1);
     wire [TW-1:0] rtp_w1 = f_ld(t_rtp, 1), wr_w1 = f_ld(t_wr, 1), ras_w1 = f_ld(t_ras, 1);
     wire rtp_le1 = (t_rtp <= 1), wr_le1 = (t_wr <= 1);
@@ -107,8 +114,9 @@ module formal_bank_timer #(
 
     mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(LA)) dut (
         .clk(clk), .rst_n(rst_n),
-        .ld_rcd_i(ld_rcd), .ld_ras_i(ld_ras), .ld_rc_i(ld_rc), .ld_rp_i(ld_rp), .ld_rp1_i(ld_rp1),
-        .ld_rtp_i(ld_rtp), .ld_wr_i(ld_wr), .t_rp_i(t_rp),
+        .ld_rcd_i(ld_rcd), .ld_ras_i(ld_ras), .ld_rc_i(ld_rc), .ld_rp_i(ld_rp),
+        .ld_rp1_rd_i(ld_rp1_rd), .ld_rp1_wr_i(ld_rp1_wr),
+        .ld_rtp_i(ld_rtp), .ld_wr_i(ld_wr), .t_rp_ap_rd_i(t_rp_ap_rd), .t_rp_ap_wr_i(t_rp_ap_wr),
         .rtp_le1_i(rtp_le1), .wr_le1_i(wr_le1),
         .rcd_la_i(rcd_la), .ras_la_i(ras_la), .rc_la_i(rc_la), .rp_la_i(rp_la), .rtp_la_i(rtp_la), .wr_la_i(wr_la),
         .rtp_w1_i(rtp_w1), .wr_w1_i(wr_w1), .ras_w1_i(ras_w1),
@@ -196,6 +204,29 @@ module formal_bank_timer #(
         r_ap_pending_d <= obs_ap_pending;
     end
 
+    // The self-close's fire and the path it was armed by (MC-020 decision 2).
+    // The fire is the cycle the armed close's two waits are both over -- the
+    // block's w_ap_fire, read off the observability ports (ap_pending with
+    // preblk and ras at zero; the same term r_ap_armed registers). cnt_apf is
+    // seeded 1 the cycle after it, like the command counters above, so
+    // "cnt_apf < t" is the same window shape as a_trp's; ap_dir_wr records
+    // which column armed it. (Reading the fire one cycle late, as the drop
+    // of ap_pending, put the counter one behind and failed a_trp_ap at t=2.)
+    wire w_ap_fired = rst_n && obs_ap_pending && !obs_preblk_nz && !obs_ras_nz;
+    reg [CW-1:0] cnt_apf;
+    reg          seen_apf, ap_dir_wr;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            cnt_apf <= 0; seen_apf <= 1'b0; ap_dir_wr <= 1'b0;
+        end else begin
+            if (set_rd && set_ap) ap_dir_wr <= 1'b0;
+            if (set_wr && set_ap) ap_dir_wr <= 1'b1;
+            if (w_ap_fired) begin cnt_apf <= 1; seen_apf <= 1'b1; end
+            else if (cnt_apf != {CW{1'b1}}) cnt_apf <= cnt_apf + 1'b1;
+        end
+    end
+    wire [TW-1:0] t_rp_ap_sel = ap_dir_wr ? t_rp_ap_wr : t_rp_ap_rd;
+
     // =====================================================================
     // FAMILY 1 -- JEDEC spacing. Each says: the gate cannot open early.
     // =====================================================================
@@ -207,6 +238,14 @@ module formal_bank_timer #(
 
         // tRP: a PRE reloads tRP; no ACT until it elapses.
         if (seen_pre && cnt_pre < t_rp)  a_trp:  assert (!safe_act);
+
+        // tRP after the auto-precharge self-close: the fire reloads the
+        // armed path's tRP_AP (RD or WR), not the explicit PRE's tRP; no ACT
+        // until it elapses. The `cnt_apf <= cnt_pre` guard picks the more
+        // recent close when an explicit PRE followed (it cannot: the row is
+        // closed), kept for the same reason as the tRTP / tWR guards.
+        if (seen_apf && cnt_apf < t_rp_ap_sel && (!seen_pre || cnt_apf <= cnt_pre))
+            a_trp_ap: assert (!safe_act);
 
         // tRCD: ACT -> first column command.
         if (seen_act && cnt_act < t_rcd) a_trcd: assert (!(safe_rd || safe_wr));
@@ -296,6 +335,12 @@ module formal_bank_timer #(
         c_ap_fires:      cover (r_ap_pending_d && !obs_ap_pending && !row_valid);
         // tRP elapses after a PRE and the bank may open again
         c_pre_then_act:  cover (seen_pre && safe_act);
+        // the self-close's own tRP, each path, exactly at N: the ACT is
+        // permitted at cnt == t_rp_ap of the armed path with t_rp_ap apart
+        // from t_rp (so the field, not tRP, is what the fire reloaded)
+        c_trp_ap_rd_exact: cover (seen_apf && !ap_dir_wr && (cnt_apf == t_rp_ap_rd) && safe_act && t_rp_ap_rd != t_rp);
+        c_trp_ap_wr_exact: cover (seen_apf &&  ap_dir_wr && (cnt_apf == t_rp_ap_wr) && safe_act && t_rp_ap_wr != t_rp);
+        c_trp_ap_differ:   cover (seen_apf && t_rp_ap_rd != t_rp_ap_wr && safe_act);
         // Exactly at N (see "THE ENFORCED BOUND IS N" above): reachable now that
         // the timers are JEDEC-exact; unreachable under the old N+1 convention.
         c_trc_exact:     cover (seen_act && (cnt_act == t_rc) && safe_act);

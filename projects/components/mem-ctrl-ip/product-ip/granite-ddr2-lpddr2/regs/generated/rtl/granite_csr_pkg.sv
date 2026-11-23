@@ -356,6 +356,19 @@ package granite_csr_pkg;
 
     typedef struct {
         logic [7:0] value;
+    } granite_csr__TIMINGS_RP_AP__tRP_AP_RD__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } granite_csr__TIMINGS_RP_AP__tRP_AP_WR__out_t;
+
+    typedef struct {
+        granite_csr__TIMINGS_RP_AP__tRP_AP_RD__out_t tRP_AP_RD;
+        granite_csr__TIMINGS_RP_AP__tRP_AP_WR__out_t tRP_AP_WR;
+    } granite_csr__TIMINGS_RP_AP__out_t;
+
+    typedef struct {
+        logic [7:0] value;
     } granite_csr__TIMINGS_RTP_RTW__tRTP__out_t;
 
     typedef struct {
@@ -743,6 +756,7 @@ package granite_csr_pkg;
         granite_csr__MR3__out_t MR3;
         granite_csr__REFRESH_TUNING__out_t REFRESH_TUNING;
         granite_csr__ADDR_MAP__out_t ADDR_MAP;
+        granite_csr__TIMINGS_RP_AP__out_t TIMINGS_RP_AP;
         granite_csr__TIMINGS_RTP_RTW__out_t TIMINGS_RTP_RTW;
         granite_csr__INIT_TIMING0__out_t INIT_TIMING0;
         granite_csr__INIT_TIMING1__out_t INIT_TIMING1;

@@ -12,62 +12,63 @@ Don't override. Generated from: $root
 
 <p>Configuration and observation registers for the granite DDR2/LPDDR2 product SKU. Address-for-address derived from pumice_csr.rdl; absent features are reserved rather than removed.</p>
 
-|Offset|       Identifier      |                  Name                 |
-|------|-----------------------|---------------------------------------|
-| 0x000|          CTRL         |            Control Register           |
-| 0x004|         STATUS        |            Status Register            |
-| 0x010| TIMINGS_RC_RCD_RP_RAS |    Timings: tRC / tRCD / tRP / tRAS   |
-| 0x014|    TIMINGS_RFC_REFI   |         Timings: tRFC / tREFI         |
-| 0x018|TIMINGS_RRD_FAW_WTR_CCD|   Timings: tRRD / tFAW / tWTR / tCCD  |
-| 0x01C|   TIMINGS_CL_CWL_WR   |    Timings: CL / CWL / tWR / tRFCpb   |
-| 0x020|          MR0          |            Mode Register 0            |
-| 0x024|          MR1          |            Mode Register 1            |
-| 0x028|          MR2          |            Mode Register 2            |
-| 0x02C|          MR3          |            Mode Register 3            |
-| 0x048|     REFRESH_TUNING    |             Refresh Tuning            |
-| 0x04C|        ADDR_MAP       |              Address Map              |
-| 0x054|    TIMINGS_RTP_RTW    |          Timings: tRTP / tRTW         |
-| 0x058|      INIT_TIMING0     |      Init Timing 0: tINIT / tDLLK     |
-| 0x05C|      INIT_TIMING1     |Init Timing 1: tMRD / tRP / tRFC (init)|
-| 0x060|       DFI_PHASE       |      DFI Command Phase Placement      |
-| 0x064|       PHY_TIMING      | PHY / DFI data timing + memory config |
-| 0x068|      SCHED_POLICY     |            Scheduler Policy           |
-| 0x06C|      SCHED_WR_WM      |       Scheduler Write Watermarks      |
-| 0x070|    PAGE_POLICY_CFG    |           Page Policy Config          |
-| 0x074|    PAGE_TIMEOUT_CFG   |          Page Timeout Config          |
-| 0x0A0|        CAL_CTRL       |          Calibration Control          |
-| 0x0A4|    CAL_ZQ_INTERVAL    |              ZQ Interval              |
-| 0x0A8|     CAL_ZQ_TIMING     |           ZQ Post-Grant Hold          |
-| 0x0AC|    CAL_TRAIN_TIMING   |            Training Timing            |
-| 0x0B0|   CAL_MRR32_DATA[0]   |          MRR32 Captured Data          |
-| 0x0B4|   CAL_MRR32_DATA[1]   |          MRR32 Captured Data          |
-| 0x0B8|   CAL_MRR32_DATA[2]   |          MRR32 Captured Data          |
-| 0x0BC|   CAL_MRR32_DATA[3]   |          MRR32 Captured Data          |
-| 0x0E0|   CAL_MRR40_DATA[0]   |          MRR40 Captured Data          |
-| 0x0E4|   CAL_MRR40_DATA[1]   |          MRR40 Captured Data          |
-| 0x0E8|   CAL_MRR40_DATA[2]   |          MRR40 Captured Data          |
-| 0x0EC|   CAL_MRR40_DATA[3]   |          MRR40 Captured Data          |
-| 0x0F0|       CAL_STATUS      |           Calibration Status          |
-| 0x180|       LP_MR1_OP       |           LPDDR2 MR1 OP Data          |
-| 0x184|       LP_MR2_OP       |           LPDDR2 MR2 OP Data          |
-| 0x188|       LP_MR3_OP       |           LPDDR2 MR3 OP Data          |
-| 0x18C|   STORE_STATS_MERGE   |       Store Stats: Write Merges       |
-| 0x190|  STORE_STATS_RD_MERGE |        Store Stats: Read Merges       |
-| 0x200|        MON_CTRL       |            Ocelus: Control            |
-| 0x204|   MON_LATENCY_THRESH  |       Ocelus: Latency Threshold       |
-| 0x208|       MON_ROUTE       |         Ocelus: Packet Routing        |
-| 0x20C|      MON_CORE_EV      |        Ocelus: Internal Events        |
-| 0x210|     MON_BASE_ADDR     |       Ocelus: Trace Window Base       |
-| 0x214|     MON_LIMIT_ADDR    |       Ocelus: Trace Window Limit      |
-| 0x218|   MON_ERR_BASE_ADDR   |       Ocelus: Error Window Base       |
-| 0x21C|   MON_ERR_LIMIT_ADDR  |       Ocelus: Error Window Limit      |
-| 0x220|     MON_WATERMARK     |        Ocelus: Flush Watermarks       |
-| 0x224|     MON_ERR_STATUS    |         Ocelus: Error Records         |
-| 0x228|      MON_RD_STATS     |       Ocelus: Read Monitor Stats      |
-| 0x22C|      MON_WR_STATS     |      Ocelus: Write Monitor Stats      |
-| 0x230|     MON_CORE_STATS    |      Ocelus: Internal Event Stats     |
-| 0xFF0|           ID          |               Module ID               |
-| 0xFF4|         BUILD         |               Build Hash              |
+|Offset|       Identifier      |                    Name                   |
+|------|-----------------------|-------------------------------------------|
+| 0x000|          CTRL         |              Control Register             |
+| 0x004|         STATUS        |              Status Register              |
+| 0x010| TIMINGS_RC_RCD_RP_RAS |      Timings: tRC / tRCD / tRP / tRAS     |
+| 0x014|    TIMINGS_RFC_REFI   |           Timings: tRFC / tREFI           |
+| 0x018|TIMINGS_RRD_FAW_WTR_CCD|     Timings: tRRD / tFAW / tWTR / tCCD    |
+| 0x01C|   TIMINGS_CL_CWL_WR   |      Timings: CL / CWL / tWR / tRFCpb     |
+| 0x020|          MR0          |              Mode Register 0              |
+| 0x024|          MR1          |              Mode Register 1              |
+| 0x028|          MR2          |              Mode Register 2              |
+| 0x02C|          MR3          |              Mode Register 3              |
+| 0x048|     REFRESH_TUNING    |               Refresh Tuning              |
+| 0x04C|        ADDR_MAP       |                Address Map                |
+| 0x050|     TIMINGS_RP_AP     |Timings: auto-precharge tRP per column path|
+| 0x054|    TIMINGS_RTP_RTW    |            Timings: tRTP / tRTW           |
+| 0x058|      INIT_TIMING0     |        Init Timing 0: tINIT / tDLLK       |
+| 0x05C|      INIT_TIMING1     |  Init Timing 1: tMRD / tRP / tRFC (init)  |
+| 0x060|       DFI_PHASE       |        DFI Command Phase Placement        |
+| 0x064|       PHY_TIMING      |   PHY / DFI data timing + memory config   |
+| 0x068|      SCHED_POLICY     |              Scheduler Policy             |
+| 0x06C|      SCHED_WR_WM      |         Scheduler Write Watermarks        |
+| 0x070|    PAGE_POLICY_CFG    |             Page Policy Config            |
+| 0x074|    PAGE_TIMEOUT_CFG   |            Page Timeout Config            |
+| 0x0A0|        CAL_CTRL       |            Calibration Control            |
+| 0x0A4|    CAL_ZQ_INTERVAL    |                ZQ Interval                |
+| 0x0A8|     CAL_ZQ_TIMING     |             ZQ Post-Grant Hold            |
+| 0x0AC|    CAL_TRAIN_TIMING   |              Training Timing              |
+| 0x0B0|   CAL_MRR32_DATA[0]   |            MRR32 Captured Data            |
+| 0x0B4|   CAL_MRR32_DATA[1]   |            MRR32 Captured Data            |
+| 0x0B8|   CAL_MRR32_DATA[2]   |            MRR32 Captured Data            |
+| 0x0BC|   CAL_MRR32_DATA[3]   |            MRR32 Captured Data            |
+| 0x0E0|   CAL_MRR40_DATA[0]   |            MRR40 Captured Data            |
+| 0x0E4|   CAL_MRR40_DATA[1]   |            MRR40 Captured Data            |
+| 0x0E8|   CAL_MRR40_DATA[2]   |            MRR40 Captured Data            |
+| 0x0EC|   CAL_MRR40_DATA[3]   |            MRR40 Captured Data            |
+| 0x0F0|       CAL_STATUS      |             Calibration Status            |
+| 0x180|       LP_MR1_OP       |             LPDDR2 MR1 OP Data            |
+| 0x184|       LP_MR2_OP       |             LPDDR2 MR2 OP Data            |
+| 0x188|       LP_MR3_OP       |             LPDDR2 MR3 OP Data            |
+| 0x18C|   STORE_STATS_MERGE   |         Store Stats: Write Merges         |
+| 0x190|  STORE_STATS_RD_MERGE |          Store Stats: Read Merges         |
+| 0x200|        MON_CTRL       |              Ocelus: Control              |
+| 0x204|   MON_LATENCY_THRESH  |         Ocelus: Latency Threshold         |
+| 0x208|       MON_ROUTE       |           Ocelus: Packet Routing          |
+| 0x20C|      MON_CORE_EV      |          Ocelus: Internal Events          |
+| 0x210|     MON_BASE_ADDR     |         Ocelus: Trace Window Base         |
+| 0x214|     MON_LIMIT_ADDR    |         Ocelus: Trace Window Limit        |
+| 0x218|   MON_ERR_BASE_ADDR   |         Ocelus: Error Window Base         |
+| 0x21C|   MON_ERR_LIMIT_ADDR  |         Ocelus: Error Window Limit        |
+| 0x220|     MON_WATERMARK     |          Ocelus: Flush Watermarks         |
+| 0x224|     MON_ERR_STATUS    |           Ocelus: Error Records           |
+| 0x228|      MON_RD_STATS     |         Ocelus: Read Monitor Stats        |
+| 0x22C|      MON_WR_STATS     |        Ocelus: Write Monitor Stats        |
+| 0x230|     MON_CORE_STATS    |        Ocelus: Internal Event Stats       |
+| 0xFF0|           ID          |                 Module ID                 |
+| 0xFF4|         BUILD         |                 Build Hash                |
 
 ### CTRL register
 
@@ -466,6 +467,48 @@ this register (no separate scheme selector). See addr_mapper.sv.</p>
 <p>XOR-hash seed (bank ^= fold(row) ^ seed[BW-1:0])</p>
 
 #### RSVD_31_24 field
+
+<p>Reserved</p>
+
+### TIMINGS_RP_AP register
+
+- Absolute Address: 0x50
+- Base Offset: 0x50
+- Size: 0x4
+
+<p>The tRP the bank timer's auto-precharge self-close reloads, in
+MC cycles, per column path (memory-controllers MC-020 decision
+2, 2026-11-22). The self-close fires the cycle its later
+counter reaches zero -- tRAS from the ACT, or the column's
+recovery (tRTP / tWR) -- and the DRAM starts its internal
+precharge at the CK that recovery (or tRAS) ends, so the
+distance from the fire to the next ACT is not the explicit
+PRE's tRP: the read's internal close is BL/2 + tRTP - 2 CK
+after the RD, the write's WL + BL/2 + tWR after the WR, and
+the host derives each field as the exact hop to an ACT on the
+row phase (pumice_device.ddr2_timings_mc_cycles: at 100 MHz
+on the SKU's phases RD 1, WR 2, where the shared tRP of 2 put
+the one-bank chain ACT -&gt; RDA -&gt; ACT at 7 MC against tRC's
+6). Enforced as exactly N from the fire. Reset = tRP's reset,
+so an unprogrammed register is the shared tRP of the RTL
+before the fields; a host under the one-CK phase margin
+programs tRP into both.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 | tRP_AP_RD|  rw  | 0xF |  — |
+| 15:8| tRP_AP_WR|  rw  | 0xF |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### tRP_AP_RD field
+
+<p>tRP after an RDA's self-close -- MC cycles to the ACT, enforced as exactly N</p>
+
+#### tRP_AP_WR field
+
+<p>tRP after a WRA's self-close -- MC cycles to the ACT, enforced as exactly N</p>
+
+#### RSVD field
 
 <p>Reserved</p>
 

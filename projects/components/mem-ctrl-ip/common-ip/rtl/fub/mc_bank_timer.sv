@@ -74,18 +74,34 @@ module mc_bank_timer
     // 2026-11-07). Until then each of the eight timers redid the same
     // subtractions and compares on the live CSR every cycle: the counter
     // loads f_ld(t, LD) = max(t - LD, 0), the auto-precharge reload
-    // f_ld(t_rp, 1), the "t <= 1" and "t <= LA + 1" effective-view flags and
-    // the f_ld(t, 1) waits. The parent registers them; the CSRs are static
+    // f_ld(t_rp_ap, 1), the "t <= 1" and "t <= LA + 1" effective-view flags
+    // and the f_ld(t, 1) waits. The parent registers them; the CSRs are static
     // during traffic, so the one-cycle lag at programming time is invisible.
     // The formal harness computes the same values from its free timings.
+    //
+    // The auto-precharge self-close reloads a tRP OF ITS OWN, per column
+    // path (memory-controllers MC-020 decision 2, 2026-11-22: granite
+    // TIMINGS_RP_AP.tRP_AP_RD / tRP_AP_WR). The self-close fires the cycle
+    // its later counter reaches zero -- tRAS from the ACT, or the column's
+    // recovery -- and the DRAM's internal precharge starts at the CK that
+    // recovery (or tRAS) ends, so the distance from the fire to an ACT on
+    // the row phase is not the explicit PRE's tRP: the read's internal close
+    // is BL/2 + tRTP - 2 CK after the RD, the write's WL + BL/2 + tWR after
+    // the WR, and the host derives each field as the exact hop (at 100 MHz
+    // on the SKU's phases RD 1, WR 2, where the shared tRP's 2 put the
+    // one-bank chain ACT -> RDA -> ACT at 7 MC against tRC's 6). A host
+    // without the fields programs tRP into both (the research cores tie
+    // them to tRP), which is the block's behaviour before the fields.
     input  logic [TW-1:0]        ld_rcd_i,   // f_ld(t_rcd, LD)
     input  logic [TW-1:0]        ld_ras_i,   // f_ld(t_ras, LD)
     input  logic [TW-1:0]        ld_rc_i,    // f_ld(t_rc,  LD)
     input  logic [TW-1:0]        ld_rp_i,    // f_ld(t_rp,  LD)   explicit PRE
-    input  logic [TW-1:0]        ld_rp1_i,   // f_ld(t_rp,  1)    auto-precharge self-close
+    input  logic [TW-1:0]        ld_rp1_rd_i, // f_ld(t_rp_ap_rd, 1)  auto-precharge self-close after an RDA
+    input  logic [TW-1:0]        ld_rp1_wr_i, // f_ld(t_rp_ap_wr, 1)  ... after a WRA
     input  logic [TW-1:0]        ld_rtp_i,   // f_ld(t_rtp, LD)   RD -> earliest PRE
     input  logic [TW-1:0]        ld_wr_i,    // f_ld(t_wr,  LD)   WR -> earliest PRE (incl WL+BL/2)
-    input  logic [TW-1:0]        t_rp_i,     // tRP itself (the lookahead sum)
+    input  logic [TW-1:0]        t_rp_ap_rd_i, // tRP_AP_RD itself (the lookahead sum, read path)
+    input  logic [TW-1:0]        t_rp_ap_wr_i, // tRP_AP_WR itself (the lookahead sum, write path)
     input  logic                 rtp_le1_i,  // t_rtp <= 1
     input  logic                 wr_le1_i,   // t_wr  <= 1
     input  logic                 rcd_la_i,   // t_rcd <= LA + 1
@@ -136,6 +152,7 @@ module mc_bank_timer
     logic                 r_row_valid;
     logic [ROW_WIDTH-1:0] r_open_row;
     logic                 r_ap_pending;
+    logic                 r_ap_wr;       // the pending auto-precharge is a write's (selects the self-close's tRP)
 
     // ---- load strobes: live, or one register late (SET_LAG) --------------
     logic w_ld_act, w_ld_rd, w_ld_wr, w_ld_pre;
@@ -195,9 +212,10 @@ module mc_bank_timer
     // counter uses (mc_bank_sched r_tccd_fwd). Loading t would enforce t+1
     // (one cycle conservative per transition, which is what made the
     // col_major bubble 9 against a 6-cycle floor; MC-003 2026-10-17).
-    // tRP: reload on the auto-PRE fire (live, D = 1) or the explicit PRE
-    // strobe, else count down. The self-close is the later of the two when
-    // both land in one cycle, so it wins (conservative).
+    // tRP: reload on the auto-PRE fire (live, D = 1; the pending column's
+    // path picks tRP_AP_RD or tRP_AP_WR) or the explicit PRE strobe, else
+    // count down. The self-close is the later of the two when both land in
+    // one cycle, so it wins (conservative).
     // preblk: reload on RD (tRTP) / WR (tWR), else count down.
     logic w_rcd_z, w_ras_z, w_rc_z, w_rp_z, w_preblk_z;   // "count is zero", effective
     logic w_ap_fire;
@@ -208,7 +226,8 @@ module mc_bank_timer
     assign w_rcd_nxt    = w_ld_act  ? ld_rcd_i : f_dec(r_rcd);
     assign w_ras_nxt    = w_ld_act  ? ld_ras_i : f_dec(r_ras);
     assign w_rc_nxt     = w_ld_act  ? ld_rc_i  : f_dec(r_rc);
-    assign w_rp_nxt     = w_ap_fire ? ld_rp1_i : w_ld_pre ? ld_rp_i : f_dec(r_rp);
+    assign w_rp_nxt     = w_ap_fire ? (r_ap_wr ? ld_rp1_wr_i : ld_rp1_rd_i)
+                        : w_ld_pre  ? ld_rp_i : f_dec(r_rp);
     assign w_preblk_nxt = w_ld_rd   ? ld_rtp_i : w_ld_wr  ? ld_wr_i : f_dec(r_preblk);
 
     // ---- the zero-detect and "within LA" flags ---------------------------
@@ -277,7 +296,7 @@ module mc_bank_timer
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_rcd <= '0; r_ras <= '0; r_rc <= '0; r_rp <= '0; r_preblk <= '0;
-            r_row_valid <= 1'b0; r_open_row <= '0; r_ap_pending <= 1'b0;
+            r_row_valid <= 1'b0; r_open_row <= '0; r_ap_pending <= 1'b0; r_ap_wr <= 1'b0;
         end else begin
             r_rcd    <= w_rcd_nxt;
             r_ras    <= w_ras_nxt;
@@ -301,6 +320,7 @@ module mc_bank_timer
                 r_ap_pending <= 1'b0;
             end else if (set_rd_i || set_wr_i) begin
                 r_ap_pending <= set_ap_i;
+                r_ap_wr      <= set_wr_i;
             end
         end
     )
@@ -328,15 +348,17 @@ module mc_bank_timer
     //   - r_row_valid is set by an ACT and cleared by a PRE that the scheduler
     //     itself issues; predicting it would mean predicting the scheduler
     //     from inside the timer.
-    //   - the auto-precharge self-close IS autonomous, but it RELOADS tRP when
-    //     it fires, so `r_rp <= LA` is WRONG for an AP-pending bank -- the true
-    //     condition is max(preblk,ras) + t_rp <= LA. With LA_AP=0 that term is
-    //     left out and an AP-pending bank reads not-safe (conservative).
-    //     With LA_AP=1 it is included EXACTLY: the close fires in the cycle
-    //     max(preblk,ras) reaches 0 (call it X), r_rp is loaded t_rp-1 at the
-    //     end of X and reaches 0 at X+t_rp, so "ACT safe within LA cycles"
-    //     is max(preblk,ras) + t_rp <= LA (and tRC, which keeps counting
-    //     through the close, must itself be within LA).
+    //   - the auto-precharge self-close IS autonomous, but it RELOADS its tRP
+    //     (tRP_AP_RD / tRP_AP_WR, the pending column's path) when it fires,
+    //     so `r_rp <= LA` is WRONG for an AP-pending bank -- the true
+    //     condition is max(preblk,ras) + t_rp_ap <= LA. With LA_AP=0 that
+    //     term is left out and an AP-pending bank reads not-safe
+    //     (conservative). With LA_AP=1 it is included EXACTLY: the close
+    //     fires in the cycle max(preblk,ras) reaches 0 (call it X), r_rp is
+    //     loaded t_rp_ap-1 at the end of X and reaches 0 at X+t_rp_ap, so
+    //     "ACT safe within LA cycles" is max(preblk,ras) + t_rp_ap <= LA
+    //     (and tRC, which keeps counting through the close, must itself be
+    //     within LA).
     // Both omissions are conservative: they can only UNDER-report safety.
     //
     // LA=0 collapses every term to its safe_*_o twin, so the plumbing can be
@@ -355,41 +377,45 @@ module mc_bank_timer
     assign w_preblk_la = w_pend_rd  ? rtp_la_i
                        : w_pend_wr  ? wr_la_i
                        :              w_preblk_la0;
-    // The self-close extrapolation, max(preblk, ras) + t_rp <= LA, is read
-    // under r_ap_pending only. A pending ACT never coexists with it (the
+    // The self-close extrapolation, max(preblk, ras) + t_rp_ap <= LA, is
+    // read under r_ap_pending only. A pending ACT never coexists with it (the
     // live ACT strobe clears r_ap_pending in the cycle that sets the lagged
     // strobe), so the tRAS wait is the counter's own; the pending RD / WR
-    // waits are the CSR-derived (t - 1) values. ZF_REG registers the three
-    // sums on the next counter values, like the flags above.
-    function automatic logic f_ap_le(input logic [TW-1:0] pw, input logic [TW-1:0] rw);
+    // waits are the CSR-derived (t - 1) values, each with its path's tRP.
+    // ZF_REG registers the sums on the next counter values, like the flags
+    // above: the counters' own sum once per path, selected at the read by
+    // the pending column's direction (a flop), so the D inputs stay
+    // register-only and the read is one mux from flops.
+    function automatic logic f_ap_le(input logic [TW-1:0] pw, input logic [TW-1:0] rw, input logic [TW-1:0] t_rp);
         logic [TW:0]   ap_wait;
         logic [TW+1:0] ap_in;
         ap_wait = (pw > rw) ? {1'b0, pw} : {1'b0, rw};
-        ap_in   = {1'b0, ap_wait} + {2'b00, t_rp_i};
+        ap_in   = {1'b0, ap_wait} + {2'b00, t_rp};
         return (ap_in <= (TW+2)'(LA));
     endfunction
     logic w_ap_le_cnt, w_ap_le_rd, w_ap_le_wr;   // the sum within LA: counters' own / pending RD / pending WR
     generate if (ZF_REG) begin : g_ap_reg
-        logic r_ap_le_cnt, r_ap_le_rd, r_ap_le_wr;
+        logic r_ap_le_cnt_rd, r_ap_le_cnt_wr, r_ap_le_rd, r_ap_le_wr;
         `ALWAYS_FF_RST(clk, rst_n,
             if (`RST_ASSERTED(rst_n)) begin
-                r_ap_le_cnt <= 1'b0; r_ap_le_rd <= 1'b0; r_ap_le_wr <= 1'b0;
+                r_ap_le_cnt_rd <= 1'b0; r_ap_le_cnt_wr <= 1'b0; r_ap_le_rd <= 1'b0; r_ap_le_wr <= 1'b0;
             end else begin
-                r_ap_le_cnt <= f_ap_le(w_preblk_nxt, w_ras_nxt);
-                r_ap_le_rd  <= f_ap_le(rtp_w1_i,     w_ras_nxt);
-                r_ap_le_wr  <= f_ap_le(wr_w1_i,      w_ras_nxt);
+                r_ap_le_cnt_rd <= f_ap_le(w_preblk_nxt, w_ras_nxt, t_rp_ap_rd_i);
+                r_ap_le_cnt_wr <= f_ap_le(w_preblk_nxt, w_ras_nxt, t_rp_ap_wr_i);
+                r_ap_le_rd     <= f_ap_le(rtp_w1_i,     w_ras_nxt, t_rp_ap_rd_i);
+                r_ap_le_wr     <= f_ap_le(wr_w1_i,      w_ras_nxt, t_rp_ap_wr_i);
             end
         )
-        assign w_ap_le_cnt = r_ap_le_cnt;
+        assign w_ap_le_cnt = r_ap_wr ? r_ap_le_cnt_wr : r_ap_le_cnt_rd;
         assign w_ap_le_rd  = r_ap_le_rd;
         assign w_ap_le_wr  = r_ap_le_wr;
         wire _unused_ap_reg = &{1'b0, ras_w1_i};   // the pending-ACT wait is dead under r_ap_pending
     end else begin : g_ap_live
         logic [TW-1:0] w_ras_wait;
         assign w_ras_wait  = w_pend_act ? ras_w1_i : r_ras;
-        assign w_ap_le_cnt = f_ap_le(r_preblk, w_ras_wait);
-        assign w_ap_le_rd  = f_ap_le(rtp_w1_i, w_ras_wait);
-        assign w_ap_le_wr  = f_ap_le(wr_w1_i,  w_ras_wait);
+        assign w_ap_le_cnt = f_ap_le(r_preblk, w_ras_wait, r_ap_wr ? t_rp_ap_wr_i : t_rp_ap_rd_i);
+        assign w_ap_le_rd  = f_ap_le(rtp_w1_i, w_ras_wait, t_rp_ap_rd_i);
+        assign w_ap_le_wr  = f_ap_le(wr_w1_i,  w_ras_wait, t_rp_ap_wr_i);
     end endgenerate
     logic w_ap_act_la;
     assign w_ap_act_la = LA_AP && r_row_valid && r_ap_pending

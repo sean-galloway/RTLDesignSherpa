@@ -98,6 +98,16 @@ queue, so a write beat entering an empty bank queue is the pick's request two
 slots later than a read beat; it sets a new bank's phase against the banks
 already cycling under close page, where the ACT collisions under tRRD that
 discard the next-op hint come from (MC-021 step 6; `sku_wrfill0` = before).
+The auto-precharge self-close is the bank timer's since MC-020 decision 2
+(2026-11-22): `ap_seq` (True) fires it the MC cycle both its counters reach
+zero -- tRAS from the ACT, tRTP / tWR from the column -- and reloads a tRP of
+its own, `t_rp_ap_rd` / `t_rp_ap_wr` (the TIMINGS_RP_AP fields the host
+derives: 1 / 2 at the SKU's point, where the shared tRP was 2 / 2 and made the
+one-bank chain ACT -> RDA -> ACT 7 MC against the CK-exact 6). `sku_rpshared`
+is the RTL before the fields, `sku_noapseq` the model before the term (the
+CK-exact DRAM terms alone, 51 / 6 against the board on 2026-11-22).
+`GRANITE_SKU_PARAMS="k=v,..."` overrides any GraniteSKU knob on any config
+for a run, as `GRANITE_TIMING_PRESET` does the preset.
 """
 from __future__ import annotations
 
@@ -445,6 +455,12 @@ class ModelConfig:
                                        #   timers' registered row image -> the record's hit flag -> the request register; MC-021 step 4)
     ap_fire_stale: bool = True         # GraniteSKU: the pair of a column that fired with auto-precharge is masked the slot after its fire
                                        #   (the RTL since MC-021 step 4; False = the RTL before, whose leftover column request won the select)
+    ap_seq: bool = True                # GraniteSKU: the auto-precharge self-close sequenced as the bank timer does -- fire = max(ACT + tRAS,
+                                       #   column + tRTP / tWR) in MC cycles, the ACT at fire + t_rp_ap of the column's path (MC-020 decision 2;
+                                       #   False = the CK-exact DRAM terms alone, the model before 2026-11-22)
+    t_rp_ap_rd: int = 1                # GraniteSKU: TIMINGS_RP_AP.tRP_AP_RD -- the tRP the self-close reloads after an RDA, MC cycles (the host's
+                                       #   phase-exact derivation at 100 MHz; -1 = the shared tRP, the RTL before the field)
+    t_rp_ap_wr: int = 2                # GraniteSKU: TIMINGS_RP_AP.tRP_AP_WR -- after a WRA (the write's close is WL + BL/2 + tWR after the WR)
     close_lag: int = 2                 # GraniteSKU: slots after a PRE before a head that was hitting the closed row requests its ACT (the record's
                                        #   hit flag against the registered row image, the chain hit_lag counts on the way up; MC-021 item 3)
     wr_fill_lag: int = 2               # GraniteSKU: slots after a WRITE beat lands in its bank queue before it is a head record -- the store's
@@ -628,9 +644,14 @@ CONFIGS.update({c.name: c for c in [
     _sku("lanepre", "the row lane carrying PRE only", lane=1),
     _sku("laneact", "the row lane carrying ACT only", lane=2),
     _sku("laneidle", "the row lane also firing into an idle main slot, live (the alone-firing lane MC-014 cut)", lane_idle=1),
+    _sku("rpshared", "the auto-precharge self-close reloading the shared tRP (2 / 2): the RTL before the TIMINGS_RP_AP "
+         "fields (MC-020 decision 2)", t_rp_ap_rd=2, t_rp_ap_wr=2),
+    _sku("noapseq", "the auto-precharge path at the CK-exact DRAM terms alone: the model before the sequenced self-close "
+         "(MC-020 decision 2)", ap_seq=False),
     _sku("margin", "the SKU's counters under the one-CK phase margin the host derived until 2026-11-22 (tRC 7, tWR 4, "
-         "tWTR 4, tRRD 2, tRFC 14: DDR2_GRANITE_SKU100; the board's JEDEC_PHASE_EXACT=0; MC-020)",
-         timing_preset="DDR2_GRANITE_SKU100"),
+         "tWTR 4, tRRD 2, tRFC 14: DDR2_GRANITE_SKU100; the board's JEDEC_PHASE_EXACT=0; MC-020), the self-close "
+         "reloading the shared tRP as the margin's host programs it",
+         timing_preset="DDR2_GRANITE_SKU100", t_rp_ap_rd=2, t_rp_ap_wr=2),
     _sku("laneidle_reg", "the row lane firing alone one slot after a registered idle main slot, the main's row winner yielding (MC-020)", lane_idle=2),
     _sku("noalt", "no row / column alternation (columns first always)", alternate=False),
     _sku("peek16_pool32", "pool 32 and a 16-deep row-hit peek past a conflicting head", read_buffer=32,
@@ -674,6 +695,18 @@ def _ref_burst_class(base, n: int):
     return cls
 
 
+def _sku_param_overrides() -> dict:
+    """GRANITE_SKU_PARAMS="t_rp_ap_rd=2,t_rp_ap_wr=2": GraniteSKU controller knobs overridden for this run on
+    whatever config is named (MC-020 decision 2 priced the RTL before the TIMINGS_RP_AP fields on the four
+    SKU configs this way). Values are ints, or true / false for a bool knob; unset = the config's own."""
+    spec = os.environ.get("GRANITE_SKU_PARAMS", "")
+    out: dict = {}
+    for kv in filter(None, (x.strip() for x in spec.split(","))):
+        k, v = (x.strip() for x in kv.split("=", 1))
+        out[k] = (v.lower() == "true") if v.lower() in ("true", "false") else int(v, 0)
+    return out
+
+
 def _sku_debug_params() -> dict:
     """GRANITE_SKU_DEBUG=<from_ck>:<to_ck> prints the GraniteSKU controller's slot state, picks, lane
     loads and holds between those CK, and every direction flip of the run, on stdout; unset = silent."""
@@ -714,7 +747,8 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
     if cfg.controller == "GraniteSKU":
         # the overlay's SKU controller (granite_sku_controller.cpp); it picks for itself, so the scheduler and
         # row policy children are the required placeholders and inert
-        ctrl = ramulator.controller.GraniteSKU(
+        # the config's knobs, then GRANITE_SKU_PARAMS over them (a run of any config with a knob overridden)
+        sku_kw = dict(
             dram=dram, scheduler=scheduler, refresh_manager=refresh, row_policy=row_policy,
             addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
             read_buffer_size=cfg.read_buffer, write_buffer_size=cfg.write_buffer,
@@ -727,8 +761,11 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             peek_depth=cfg.peek_depth, req_bank_timing=cfg.req_bank_timing,
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
             hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag, close_lag=cfg.close_lag,
+            ap_seq=cfg.ap_seq, t_rp_ap_rd=cfg.t_rp_ap_rd, t_rp_ap_wr=cfg.t_rp_ap_wr,
             **_sku_debug_params(),
         )
+        sku_kw.update(_sku_param_overrides())
+        ctrl = ramulator.controller.GraniteSKU(**sku_kw)
     else:
         ctrl = ramulator.controller.GenericDDR(
             dram=dram, scheduler=scheduler, refresh_manager=refresh, row_policy=row_policy,

@@ -263,6 +263,9 @@ _SKU100 = {"rate": 400, "nBL": 2, "tCK_ps": 5000,
 # WRA -> ACT 6 -> 5 and WR -> RD 4 -> 3 (nWR / nWTR back to JEDEC's 3 / 2), tRRD 2 -> 1, tRFC 14 -> 13. This is
 # what pumice_device.ddr2_timings_mc_cycles(phase_exact=True) programs at 100 MHz with phases 0 / 0 / 1 (the test
 # in references/ramulator2/tests pins it); the even-slot rounding gives those counts.
+# The RDA / WRA -> ACT sums above are the DRAM's CK-exact terms; the RTL's self-close (tRAS or the column's recovery,
+# then its own tRP) is the GraniteSKU controller's ap_seq term since MC-020 decision 2, so the forced nWR of the
+# margin set is no longer what makes the WRA -> ACT count the RTL's -- the controller sequences it.
 _SKU100_PX = dict(_SKU100, nRC=12, nWR=3, nWTR=2, nRRD=2, nRFC=26)
 
 DDR2.timing_presets = {

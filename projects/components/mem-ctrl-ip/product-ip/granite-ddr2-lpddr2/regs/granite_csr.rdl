@@ -227,6 +227,32 @@ addrmap granite_csr {
     } TIMINGS_RTP_RTW @ 0x054;
 
     reg {
+        name = "Timings: auto-precharge tRP per column path";
+        desc = "The tRP the bank timer's auto-precharge self-close reloads, in
+                MC cycles, per column path (memory-controllers MC-020 decision
+                2, 2026-11-22). The self-close fires the cycle its later
+                counter reaches zero -- tRAS from the ACT, or the column's
+                recovery (tRTP / tWR) -- and the DRAM starts its internal
+                precharge at the CK that recovery (or tRAS) ends, so the
+                distance from the fire to the next ACT is not the explicit
+                PRE's tRP: the read's internal close is BL/2 + tRTP - 2 CK
+                after the RD, the write's WL + BL/2 + tWR after the WR, and
+                the host derives each field as the exact hop to an ACT on the
+                row phase (pumice_device.ddr2_timings_mc_cycles: at 100 MHz
+                on the SKU's phases RD 1, WR 2, where the shared tRP of 2 put
+                the one-bank chain ACT -> RDA -> ACT at 7 MC against tRC's
+                6). Enforced as exactly N from the fire. Reset = tRP's reset,
+                so an unprogrammed register is the shared tRP of the RTL
+                before the fields; a host under the one-CK phase margin
+                programs tRP into both.";
+
+        field { sw = rw; hw = r; desc = "tRP after an RDA's self-close -- MC cycles to the ACT, enforced as exactly N"; } tRP_AP_RD[7:0]  = 8'd15;
+        field { sw = rw; hw = r; desc = "tRP after a WRA's self-close -- MC cycles to the ACT, enforced as exactly N";  } tRP_AP_WR[15:8] = 8'd15;
+        field { sw = r;  hw = na; desc = "Reserved";         } RSVD[31:16] = 16'h0;
+
+    } TIMINGS_RP_AP @ 0x050;
+
+    reg {
         name = "DFI Command Phase Placement";
         desc = "Which DFI sub-phase carries the READ vs WRITE command, to match
                 the PHY's rdphase/wrphase contract. For the Nexys A7 a7ddrphy

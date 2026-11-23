@@ -755,6 +755,55 @@ numbers recorded under it pin the preset by name (`MARGIN` in
 `test_char_model.py`). A test that pins a board number pins the counters
 the board ran on, or the next default change fails it for no defect.
 
+## The model's exact term flattered the RTL; price the RTL's sequence first (2026-11-22, MC-020 decision 2)
+
+The SKU model took the auto-precharge path at the DRAM's CK-exact distance
+(RDA -> ACT = BL/2 + tRTP - 2 + tRP CK) where the RTL's bank timer sequences
+two MC counters -- tRAS from the ACT or the column's recovery, then the same
+tRP -- and lands one MC cycle later on the phase-exact counters. The 51 in /
+6 out of the morning's compare was read as "the two auto-precharge cells, one
+ISSUE-007 draw and three mixed-mode cells". Putting the RTL's sequencing into
+the model as a term (`ap_seq`, with the reload value `t_rp_ap_rd` /
+`t_rp_ap_wr`) and running it at the RTL's shared tRP moved the compare to
+**55 in / 2 out with no RTL change**: the two auto-precharge cells landed
+within one percent, and the `defaults` and `close_page` mixed cells came in
+too -- two of the three cells filed against the direction register's modes
+were this term. The two left out are the open_page modes (ISSUE-005) and the
+per-pass draw (ISSUE-007). Three rules fall out:
+
+**The baseline a variant is priced against must be the RTL as it is.** The
+model before this term was the ideal on that path, so every delta it priced
+for the RTL step was measured from a point the RTL did not occupy, and the
+cells it mis-attributed to another issue were the ones where the ideal and
+the RTL differ. When the model is faster than the board on a family, ask
+which of its terms is exact where the RTL sequences, before filing the gap
+under a mode or a draw. A model variant with the term OFF must reproduce the
+earlier CSVs cell for cell (60 / 60 here), or the term changed something it
+did not claim.
+
+**A mutation check that does not rebuild the flat is vacuous.** The formal
+flats (`make/formal_flat.mk`) are built from the filelist once and not
+rebuilt when a source changes; the first mutation of the bank timer (the
+write path reloading the read path's value) "passed" the new `a_trp_ap`
+assertion because `make prove` ran on the flat of the unmutated RTL.
+Remove the flat (or `make clean`) before the mutant run, and confirm the
+flat carries the mutation (`grep` it) before reading the verdict. The
+rebuilt mutant failed the assertion, as it should; the restored RTL proves.
+Also: a harness counter seeded from the DROP of a state bit is one cycle
+behind one seeded from the command strobe -- read the block's internal event
+off the observability ports at the cycle it fires, or the window the
+assertion checks is off by one (it failed at t = 2 and would have passed a
+block one cycle early at t = 1).
+
+**A new port on a core the tests drive by name is undriven in sim.** The
+granite core suite drives `t_rcd_i`, `t_rp_i`, ... from Python by name; the
+two new ports read 0 in Verilator, the self-close reloaded a tRP of 0, and
+one test failed once and passed on its rerun -- the suite's summary matched
+the baseline with "1 rerun" and the rerun had overwritten the log. When a
+block gains a port, grep every TB for the sibling port's name and drive the
+new one there; a passing suite with a rerun is not the baseline until the
+rerun is explained.
+
 ## The JEDEC check that found a table error (2026-11-11)
 
 Writing the class constraint by constraint against JESD79-2F showed the

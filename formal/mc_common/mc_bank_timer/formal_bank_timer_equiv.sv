@@ -29,6 +29,7 @@ module formal_bank_timer_equiv #(
     localparam integer LD = SET_LAG ? 2 : 1;
 
     (* anyconst *) reg [TW-1:0] t_rcd, t_rp, t_ras, t_rc, t_wr, t_rtp;
+    (* anyconst *) reg [TW-1:0] t_rp_ap_rd, t_rp_ap_wr;   // the self-close's tRP per path (MC-020 decision 2), free
     (* anyseq *) reg set_act, set_rd, set_wr, set_pre, set_ap;
     (* anyseq *) reg [ROW_WIDTH-1:0] row;
     always @(*) assume ($countones({set_act, set_rd, set_wr, set_pre}) <= 1);
@@ -37,7 +38,7 @@ module formal_bank_timer_equiv #(
         f_ld = (t <= d) ? {TW{1'b0}} : (t - d[TW-1:0]);
     endfunction
     wire [TW-1:0] ld_rcd = f_ld(t_rcd, LD), ld_ras = f_ld(t_ras, LD), ld_rc = f_ld(t_rc, LD);
-    wire [TW-1:0] ld_rp  = f_ld(t_rp, LD),  ld_rp1 = f_ld(t_rp, 1);
+    wire [TW-1:0] ld_rp  = f_ld(t_rp, LD),  ld_rp1_rd = f_ld(t_rp_ap_rd, 1), ld_rp1_wr = f_ld(t_rp_ap_wr, 1);
     wire [TW-1:0] ld_rtp = f_ld(t_rtp, LD), ld_wr = f_ld(t_wr, LD);
     wire [TW-1:0] rtp_w1 = f_ld(t_rtp, 1), wr_w1 = f_ld(t_wr, 1), ras_w1 = f_ld(t_ras, 1);
     wire rtp_le1 = (t_rtp <= 1), wr_le1 = (t_wr <= 1);
@@ -54,8 +55,9 @@ module formal_bank_timer_equiv #(
 
     mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(LA), .LA_AP(LA_AP), .SET_LAG(SET_LAG), .ZF_REG(1'b1)) dut_new (
         .clk(clk), .rst_n(rst_n),
-        .ld_rcd_i(ld_rcd), .ld_ras_i(ld_ras), .ld_rc_i(ld_rc), .ld_rp_i(ld_rp), .ld_rp1_i(ld_rp1),
-        .ld_rtp_i(ld_rtp), .ld_wr_i(ld_wr), .t_rp_i(t_rp),
+        .ld_rcd_i(ld_rcd), .ld_ras_i(ld_ras), .ld_rc_i(ld_rc), .ld_rp_i(ld_rp),
+        .ld_rp1_rd_i(ld_rp1_rd), .ld_rp1_wr_i(ld_rp1_wr),
+        .ld_rtp_i(ld_rtp), .ld_wr_i(ld_wr), .t_rp_ap_rd_i(t_rp_ap_rd), .t_rp_ap_wr_i(t_rp_ap_wr),
         .rtp_le1_i(rtp_le1), .wr_le1_i(wr_le1),
         .rcd_la_i(rcd_la), .ras_la_i(ras_la), .rc_la_i(rc_la), .rp_la_i(rp_la), .rtp_la_i(rtp_la), .wr_la_i(wr_la),
         .rtp_w1_i(rtp_w1), .wr_w1_i(wr_w1), .ras_w1_i(ras_w1),
@@ -67,8 +69,9 @@ module formal_bank_timer_equiv #(
     );
     mc_bank_timer_gold #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(LA), .LA_AP(LA_AP), .SET_LAG(SET_LAG)) dut_gold (
         .clk(clk), .rst_n(rst_n),
-        .ld_rcd_i(ld_rcd), .ld_ras_i(ld_ras), .ld_rc_i(ld_rc), .ld_rp_i(ld_rp), .ld_rp1_i(ld_rp1),
-        .ld_rtp_i(ld_rtp), .ld_wr_i(ld_wr), .t_rp_i(t_rp),
+        .ld_rcd_i(ld_rcd), .ld_ras_i(ld_ras), .ld_rc_i(ld_rc), .ld_rp_i(ld_rp),
+        .ld_rp1_rd_i(ld_rp1_rd), .ld_rp1_wr_i(ld_rp1_wr),
+        .ld_rtp_i(ld_rtp), .ld_wr_i(ld_wr), .t_rp_ap_rd_i(t_rp_ap_rd), .t_rp_ap_wr_i(t_rp_ap_wr),
         .rtp_le1_i(rtp_le1), .wr_le1_i(wr_le1),
         .rcd_la_i(rcd_la), .ras_la_i(ras_la), .rc_la_i(rc_la), .rp_la_i(rp_la), .rtp_la_i(rtp_la), .wr_la_i(wr_la),
         .rtp_w1_i(rtp_w1), .wr_w1_i(wr_w1), .ras_w1_i(ras_w1),
@@ -107,5 +110,7 @@ module formal_bank_timer_equiv #(
         c_ap_la:  cover (g_obs_ap_pending && g_safe_act_la && !g_safe_act);
         c_rd_la:  cover (g_safe_rdwr_la && !g_safe_rd);
         c_pre_la: cover (g_safe_pre_la && !g_safe_pre);
+        // the per-path self-close tRP is exercised apart from tRP (MC-020 decision 2)
+        c_ap_rp_rd: cover (g_obs_ap_pending && t_rp_ap_rd != t_rp && t_rp_ap_rd != t_rp_ap_wr);
     end
 endmodule

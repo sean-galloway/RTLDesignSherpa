@@ -98,7 +98,21 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
     JEDEC_PHASE_EXACT=0 keeps the margin, the model's `sku_margin`). This
     function's own default stays False: it is the pure derivation, and a caller
     that does not say which phases it programmed gets the set that is legal
-    on any."""
+    on any.
+
+    tRP_AP_RD / tRP_AP_WR (memory-controllers MC-020 decision 2, 2026-11-22):
+    the tRP the bank timer's auto-precharge self-close reloads, per column
+    path (granite TIMINGS_RP_AP; a controller without the register keeps the
+    shared tRP). The RTL sequences two MC counters -- tRAS from the ACT or the
+    column's recovery (tRTP / tWR), whichever ends later, then this one --
+    where the DRAM starts its internal precharge at the CK the recovery (or
+    tRAS) ends and takes the next ACT nRP CK after that. Under the margin
+    both fields are tRP; phase-exact they are the distance from the MC cycle
+    the self-close fires in to an ACT on row_phase, per path because the
+    write's close is WL + BL/2 + tWR after the WR and the read's BL/2 + tRTP
+    - 2 after the RD: at 100 MHz on phases 0 / 0 / 1, RD 1 and WR 2, where
+    the shared tRP (2) made the one-bank chain ACT -> RDA -> ACT 7 MC against
+    the CK-exact 6 (tRC). The tRAS-bound close is covered by each field."""
     period_ns = 1e9 / float(mc_clk_hz)
     # PHASE MARGIN. A JEDEC delay is a CK-granular constraint, but these
     # counters are MC-cycle granular and a command may sit on ANY of the
@@ -232,10 +246,25 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
             return max(1, ceil((n_ck - (b - a)) / ck_per_mc))
 
         twr_x, twtr_x = ck_exact("tWR"), ck_exact("tWTR")
+        # The auto-precharge path's tRP, per column path (see the docstring). The
+        # self-close fires in the MC cycle its later counter reaches zero -- the
+        # column's recovery count (rtp_mc, or the tWR hop) or tRAS -- and the
+        # internal close is at the CK that recovery (or tRAS) ends; the ACT may
+        # follow on row_phase ceil((close_ck + nRP - row_phase) / ck_per_mc)
+        # cycles after the column (or the ACT), so the reload is that distance
+        # less the count that fired, at least 1 (a 0 or 1 both open the slot
+        # after the fire). Each field is the larger of its column-bound and the
+        # tRAS-bound case.
+        rp_x, ras_x = ck_exact("tRP"), ck_exact("tRAS")
+        t_ras_mc, t_wr_mc = hop(ras_x, xp_, xp_), hop(wl + half_bl + twr_x, wp_, xp_)
+        ras_bound = max(1, ceil((ras_x + rp_x) / ck_per_mc) - t_ras_mc)
+        rp_ap_rd = max(1, ceil((rp_ + rd_to_pre_ck + rp_x - xp_) / ck_per_mc) - rtp_mc, ras_bound)
+        rp_ap_wr = max(1, ceil((wp_ + wl + half_bl + twr_x + rp_x - xp_) / ck_per_mc) - t_wr_mc, ras_bound)
         return dict(
-            tRCD=hop(ck_exact("tRCD"), xp_, col_lo), tRP=hop(ck_exact("tRP"), xp_, xp_),
-            tRAS=hop(ck_exact("tRAS"), xp_, xp_), tRC=hop(ck_exact("tRC"), xp_, xp_),
-            tWR=hop(wl + half_bl + twr_x, wp_, xp_),
+            tRCD=hop(ck_exact("tRCD"), xp_, col_lo), tRP=hop(rp_x, xp_, xp_),
+            tRAS=t_ras_mc, tRC=hop(ck_exact("tRC"), xp_, xp_),
+            tWR=t_wr_mc,
+            tRP_AP_RD=rp_ap_rd, tRP_AP_WR=rp_ap_wr,
             tRTP=rtp_mc, tRRD=hop(ck_exact("tRRD"), xp_, xp_), tFAW=hop(ck_exact("tFAW"), xp_, xp_),
             tRFC=hop(ck_exact("tRFC"), xp_, xp_), tREFI=int(part["tREFI"] / period_ns),
             tCCD=ck(DDR2_CK_MIN["tCCD"]),
@@ -251,6 +280,10 @@ def ddr2_timings_mc_cycles(mc_clk_hz: float, *, ck_per_mc: int = 2, cl: int = 3,
         # contract by WL+BL/2. LiteDRAM adds the same two terms
         # (bankmachine.py: precharge_time = write_latency + tWR + tCCD).
         tWR=ck(wl + half_bl + twr_ck),
+        # the auto-precharge path's tRP: under the margin the shared tRP (its
+        # tRAS 5 + tRP 2 is the margin's tRC 7 already; the field pays only
+        # phase-exact)
+        tRP_AP_RD=ns(part["tRP"]), tRP_AP_WR=ns(part["tRP"]),
         tRTP=rtp_mc, tRRD=ns_or_ck("tRRD"), tFAW=ns(part["tFAW"]),
         tRFC=ns(part["tRFC"]), tREFI=int(part["tREFI"] / period_ns),   # floor: never late
         tCCD=ck(DDR2_CK_MIN["tCCD"]),
@@ -556,9 +589,16 @@ class Pumice(Device):
             "TIMINGS_RRD_FAW_WTR_CCD": ("tRRD", "tFAW", "tWTR", "tCCD"),
             "TIMINGS_CL_CWL_WR":      ("tWR",),
             "TIMINGS_RTP_RTW":        ("tRTP", "tRTW"),
+            # granite only (memory-controllers MC-020 decision 2): the tRP the
+            # auto-precharge self-close reloads, per column path. A regmap
+            # without the register (pumice) skips the group: its self-close
+            # reloads tRP, and the derived values are not in the applied dict.
+            "TIMINGS_RP_AP":          ("tRP_AP_RD", "tRP_AP_WR"),
         }
         applied: Dict[str, int] = {}
         for reg, keys in groups.items():
+            if reg not in self.regs.registers:
+                continue
             kw = {k: int(timings[k]) for k in keys if k in timings}
             if kw:
                 self._wr(reg, **kw)

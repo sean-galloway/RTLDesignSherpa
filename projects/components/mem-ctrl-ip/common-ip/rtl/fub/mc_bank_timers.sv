@@ -52,6 +52,11 @@ module mc_bank_timers
     input  logic [7:0]                 t_rc_i,
     input  logic [7:0]                 t_wr_i,    // WR cmd -> earliest PRE (incl WL+BL/2)
     input  logic [7:0]                 t_rtp_i,   // RD cmd -> earliest PRE
+    // The tRP the auto-precharge self-close reloads, per column path (granite
+    // TIMINGS_RP_AP; memory-controllers MC-020 decision 2). A controller
+    // without the fields ties both to t_rp_i: the behaviour before them.
+    input  logic [7:0]                 t_rp_ap_rd_i,   // self-close after an RDA -> ACT
+    input  logic [7:0]                 t_rp_ap_wr_i,   // self-close after a WRA -> ACT
 
     // ----- bank-event strobes from the arbiter -----
     input  logic                       evt_act_i,
@@ -91,7 +96,7 @@ module mc_bank_timers
 );
 
     // 8-bit CSR timings -> TW-bit timer loads, saturating (TW < 8 only)
-    logic [TW-1:0] w_t_rcd, w_t_rp, w_t_ras, w_t_rc, w_t_wr, w_t_rtp;
+    logic [TW-1:0] w_t_rcd, w_t_rp, w_t_ras, w_t_rc, w_t_wr, w_t_rtp, w_t_rp_ap_rd, w_t_rp_ap_wr;
     function automatic logic [TW-1:0] sat_tw(input logic [7:0] t);
         if (TW >= 8)        return TW'(t);
         else if (|(t >> TW)) return {TW{1'b1}};
@@ -103,24 +108,29 @@ module mc_bank_timers
     assign w_t_rc  = sat_tw(t_rc_i);
     assign w_t_wr  = sat_tw(t_wr_i);
     assign w_t_rtp = sat_tw(t_rtp_i);
+    assign w_t_rp_ap_rd = sat_tw(t_rp_ap_rd_i);
+    assign w_t_rp_ap_wr = sat_tw(t_rp_ap_wr_i);
 
     // ---- CSR-derived constants, computed ONCE for every bank (MC-007 row 6) ----
     // f_ld(t, d) = max(t - d, 0): the counter load that makes "safe at count
     // == 0" land exactly at C + t (see mc_bank_timer). LD is 1 live and 2 with
     // the registered event strobe (EVT_REG / SET_LAG). Registered because the
     // CSRs are static during traffic; the lag at programming time is one cycle.
+    // The auto-precharge self-close reloads at D = 1 always, from its own tRP
+    // per path (t_rp_ap_rd / t_rp_ap_wr).
     localparam int LD = EVT_REG ? 2 : 1;
     localparam int LA = BANK_LA;
     function automatic logic [TW-1:0] f_ld(input logic [TW-1:0] t, input int d);
         return (t <= TW'(d)) ? '0 : (t - TW'(d));
     endfunction
-    logic [TW-1:0] r_ld_rcd, r_ld_ras, r_ld_rc, r_ld_rp, r_ld_rp1, r_ld_rtp, r_ld_wr;
-    logic [TW-1:0] r_rtp_w1, r_wr_w1, r_ras_w1, r_t_rp;
+    logic [TW-1:0] r_ld_rcd, r_ld_ras, r_ld_rc, r_ld_rp, r_ld_rp1_rd, r_ld_rp1_wr, r_ld_rtp, r_ld_wr;
+    logic [TW-1:0] r_rtp_w1, r_wr_w1, r_ras_w1, r_t_rp_ap_rd, r_t_rp_ap_wr;
     logic          r_rtp_le1, r_wr_le1, r_rcd_la, r_ras_la, r_rc_la, r_rp_la, r_rtp_la, r_wr_la;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_ld_rcd <= '0; r_ld_ras <= '0; r_ld_rc <= '0; r_ld_rp <= '0; r_ld_rp1 <= '0;
-            r_ld_rtp <= '0; r_ld_wr <= '0; r_rtp_w1 <= '0; r_wr_w1 <= '0; r_ras_w1 <= '0; r_t_rp <= '0;
+            r_ld_rcd <= '0; r_ld_ras <= '0; r_ld_rc <= '0; r_ld_rp <= '0; r_ld_rp1_rd <= '0; r_ld_rp1_wr <= '0;
+            r_ld_rtp <= '0; r_ld_wr <= '0; r_rtp_w1 <= '0; r_wr_w1 <= '0; r_ras_w1 <= '0;
+            r_t_rp_ap_rd <= '0; r_t_rp_ap_wr <= '0;
             r_rtp_le1 <= 1'b1; r_wr_le1 <= 1'b1;
             r_rcd_la <= 1'b1; r_ras_la <= 1'b1; r_rc_la <= 1'b1; r_rp_la <= 1'b1; r_rtp_la <= 1'b1; r_wr_la <= 1'b1;
         end else begin
@@ -128,13 +138,15 @@ module mc_bank_timers
             r_ld_ras  <= f_ld(w_t_ras, LD);
             r_ld_rc   <= f_ld(w_t_rc,  LD);
             r_ld_rp   <= f_ld(w_t_rp,  LD);
-            r_ld_rp1  <= f_ld(w_t_rp,  1);
+            r_ld_rp1_rd <= f_ld(w_t_rp_ap_rd, 1);
+            r_ld_rp1_wr <= f_ld(w_t_rp_ap_wr, 1);
             r_ld_rtp  <= f_ld(w_t_rtp, LD);
             r_ld_wr   <= f_ld(w_t_wr,  LD);
             r_rtp_w1  <= f_ld(w_t_rtp, 1);
             r_wr_w1   <= f_ld(w_t_wr,  1);
             r_ras_w1  <= f_ld(w_t_ras, 1);
-            r_t_rp    <= w_t_rp;
+            r_t_rp_ap_rd <= w_t_rp_ap_rd;
+            r_t_rp_ap_wr <= w_t_rp_ap_wr;
             r_rtp_le1 <= (w_t_rtp <= TW'(1));
             r_wr_le1  <= (w_t_wr  <= TW'(1));
             r_rcd_la  <= (w_t_rcd <= TW'(LA + 1));
@@ -161,10 +173,12 @@ module mc_bank_timers
                 .ld_ras_i        (r_ld_ras),
                 .ld_rc_i         (r_ld_rc),
                 .ld_rp_i         (r_ld_rp),
-                .ld_rp1_i        (r_ld_rp1),
+                .ld_rp1_rd_i     (r_ld_rp1_rd),
+                .ld_rp1_wr_i     (r_ld_rp1_wr),
                 .ld_rtp_i        (r_ld_rtp),
                 .ld_wr_i         (r_ld_wr),
-                .t_rp_i          (r_t_rp),
+                .t_rp_ap_rd_i    (r_t_rp_ap_rd),
+                .t_rp_ap_wr_i    (r_t_rp_ap_wr),
                 .rtp_le1_i       (r_rtp_le1),
                 .wr_le1_i        (r_wr_le1),
                 .rcd_la_i        (r_rcd_la),

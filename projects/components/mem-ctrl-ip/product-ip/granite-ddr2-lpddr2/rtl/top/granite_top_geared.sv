@@ -530,6 +530,8 @@ module granite_top_geared
         .hash_seed_i        (hwif_out.ADDR_MAP.hash_seed.value),
         .t_rcd_i            (hwif_out.TIMINGS_RC_RCD_RP_RAS.tRCD.value),
         .t_rp_i             (hwif_out.TIMINGS_RC_RCD_RP_RAS.tRP.value),
+        .t_rp_ap_rd_i       (hwif_out.TIMINGS_RP_AP.tRP_AP_RD.value),
+        .t_rp_ap_wr_i       (hwif_out.TIMINGS_RP_AP.tRP_AP_WR.value),
         .t_ras_i            (hwif_out.TIMINGS_RC_RCD_RP_RAS.tRAS.value),
         .t_rc_i             (hwif_out.TIMINGS_RC_RCD_RP_RAS.tRC.value),
         .t_wr_i             (hwif_out.TIMINGS_CL_CWL_WR.tWR.value),

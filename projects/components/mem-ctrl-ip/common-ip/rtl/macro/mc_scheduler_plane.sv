@@ -150,6 +150,11 @@ module mc_scheduler_plane
     input  memtype_e                  memtype_i,
     input  logic [7:0]                t_rcd_i,
     input  logic [7:0]                t_rp_i,
+    // the tRP the bank timers' auto-precharge self-close reloads, per column
+    // path (granite TIMINGS_RP_AP, memory-controllers MC-020 decision 2); a
+    // core without the fields ties both to t_rp_i
+    input  logic [7:0]                t_rp_ap_rd_i,
+    input  logic [7:0]                t_rp_ap_wr_i,
     input  logic [7:0]                t_ras_i,
     input  logic [7:0]                t_rc_i,
     input  logic [7:0]                t_wr_i,
@@ -678,6 +683,8 @@ module mc_scheduler_plane
         .t_rc_i           (t_rc_i),
         .t_wr_i           (t_wr_i),
         .t_rtp_i          (t_rtp_i),
+        .t_rp_ap_rd_i     (t_rp_ap_rd_i),
+        .t_rp_ap_wr_i     (t_rp_ap_wr_i),
         .evt_act_i        (evt_act),
         .evt_rd_i         (evt_rd),
         .evt_wr_i         (evt_wr),
@@ -1165,6 +1172,9 @@ module mc_scheduler_plane
             // one-cycle tree was a 17-level CSR path at 100 MHz. The lag
             // (at most 32 cycles after a CSR write) is invisible: r_gm resets
             // to all-ones (never fast) until the first pass completes.
+            // The self-close's tRP_AP_RD / tRP_AP_WR are not scanned: a legal
+            // set has each at most tRC - tRAS (the close's ACT distance is
+            // tRC), so tRC bounds them.
             logic [15:0] w_tv [16];
             logic [3:0]  r_scan_idx;
             logic [15:0] r_scan_max, r_gm;

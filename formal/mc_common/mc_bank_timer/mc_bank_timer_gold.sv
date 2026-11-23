@@ -7,6 +7,16 @@
 // form on every output. Never edit this file to follow the RTL -- a change
 // that needs the golden copy changed is a change of behaviour, and the
 // equivalence proof is what says so. Replace it deliberately, with a note.
+//
+// 2026-11-22 (memory-controllers MC-020 decision 2): a change of behaviour,
+// carried here deliberately. The auto-precharge self-close reloads a tRP OF
+// ITS OWN per column path (ld_rp1_rd_i / ld_rp1_wr_i from granite
+// TIMINGS_RP_AP.tRP_AP_RD / tRP_AP_WR, selected by the pending column's
+// direction r_ap_wr), and the LA_AP lookahead sum takes that path's tRP
+// (t_rp_ap_rd_i / t_rp_ap_wr_i replace t_rp_i). With both fields programmed
+// to tRP this is the 821b5c164 form exactly. The RTL's ZF_REG registers the
+// counters' own sum once per path and selects at the read; this live form
+// selects the tRP into one sum.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
@@ -52,10 +62,12 @@ module mc_bank_timer_gold
     input  logic [TW-1:0]        ld_ras_i,   // f_ld(t_ras, LD)
     input  logic [TW-1:0]        ld_rc_i,    // f_ld(t_rc,  LD)
     input  logic [TW-1:0]        ld_rp_i,    // f_ld(t_rp,  LD)   explicit PRE
-    input  logic [TW-1:0]        ld_rp1_i,   // f_ld(t_rp,  1)    auto-precharge self-close
+    input  logic [TW-1:0]        ld_rp1_rd_i, // f_ld(t_rp_ap_rd, 1)  auto-precharge self-close after an RDA
+    input  logic [TW-1:0]        ld_rp1_wr_i, // f_ld(t_rp_ap_wr, 1)  ... after a WRA
     input  logic [TW-1:0]        ld_rtp_i,   // f_ld(t_rtp, LD)   RD -> earliest PRE
     input  logic [TW-1:0]        ld_wr_i,    // f_ld(t_wr,  LD)   WR -> earliest PRE (incl WL+BL/2)
-    input  logic [TW-1:0]        t_rp_i,     // tRP itself (the lookahead sum)
+    input  logic [TW-1:0]        t_rp_ap_rd_i, // tRP_AP_RD itself (the lookahead sum, read path)
+    input  logic [TW-1:0]        t_rp_ap_wr_i, // tRP_AP_WR itself (the lookahead sum, write path)
     input  logic                 rtp_le1_i,  // t_rtp <= 1
     input  logic                 wr_le1_i,   // t_wr  <= 1
     input  logic                 rcd_la_i,   // t_rcd <= LA + 1
@@ -106,6 +118,7 @@ module mc_bank_timer_gold
     logic                 r_row_valid;
     logic [ROW_WIDTH-1:0] r_open_row;
     logic                 r_ap_pending;
+    logic                 r_ap_wr;       // the pending auto-precharge is a write's (selects the self-close's tRP)
 
     // ---- load strobes: live, or one register late (SET_LAG) --------------
     logic w_ld_act, w_ld_rd, w_ld_wr, w_ld_pre;
@@ -173,7 +186,7 @@ module mc_bank_timer_gold
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_rcd <= '0; r_ras <= '0; r_rc <= '0; r_rp <= '0; r_preblk <= '0;
-            r_row_valid <= 1'b0; r_open_row <= '0; r_ap_pending <= 1'b0;
+            r_row_valid <= 1'b0; r_open_row <= '0; r_ap_pending <= 1'b0; r_ap_wr <= 1'b0;
         end else begin
             // tRCD / tRAS / tRC: reload on ACT, else count down (saturate at 0).
             // Load (t - LD), saturating -- see f_ld: "safe at count == 0"
@@ -194,7 +207,7 @@ module mc_bank_timer_gold
             // tRP: reload on the auto-PRE fire (live, D = 1) or the explicit
             // PRE strobe, else count down. The self-close is the later of the
             // two when both land in one cycle, so it wins (conservative).
-            if (w_ap_fire)         r_rp <= ld_rp1_i;
+            if (w_ap_fire)         r_rp <= r_ap_wr ? ld_rp1_wr_i : ld_rp1_rd_i;
             else if (w_ld_pre)     r_rp <= ld_rp_i;
             else if (r_rp != '0)   r_rp <= r_rp - 1'b1;
 
@@ -219,6 +232,7 @@ module mc_bank_timer_gold
                 r_ap_pending <= 1'b0;
             end else if (set_rd_i || set_wr_i) begin
                 r_ap_pending <= set_ap_i;
+                r_ap_wr      <= set_wr_i;
             end
         end
     )
@@ -282,7 +296,8 @@ module mc_bank_timer_gold
     logic [TW+1:0] w_ap_act_in;     // ... plus tRP: cycles until ACT is safe
     logic          w_ap_act_la;
     assign w_ap_wait   = (w_preblk_wait > w_ras_wait) ? {1'b0, w_preblk_wait} : {1'b0, w_ras_wait};
-    assign w_ap_act_in = {1'b0, w_ap_wait} + {2'b00, t_rp_i};
+    assign w_ap_act_in = {1'b0, w_ap_wait} + {2'b00, (w_pend_rd ? t_rp_ap_rd_i : w_pend_wr ? t_rp_ap_wr_i
+                                                    : r_ap_wr ? t_rp_ap_wr_i : t_rp_ap_rd_i)};
     assign w_ap_act_la = LA_AP && r_row_valid && r_ap_pending
                       && (w_ap_act_in <= (TW+2)'(LA)) && w_rc_la;
     assign safe_act_la_o  = (!r_row_valid && w_rp_la && w_rc_la)

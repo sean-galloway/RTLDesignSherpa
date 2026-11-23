@@ -509,6 +509,8 @@ module andesite_scheduler_plane
         .memtype_i          (memtype_i),
         .t_rcd_i            (t_rcd_i),
         .t_rp_i             (t_rp_i),
+        .t_rp_ap_rd_i       (t_rp_i),   // no TIMINGS_RP_AP here: the self-close reloads tRP (MC-020)
+        .t_rp_ap_wr_i       (t_rp_i),
         .t_ras_i            (t_ras_i),
         .t_rc_i             (t_rc_i),
         .t_wr_i             (t_wr_i),

@@ -119,8 +119,12 @@ for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
             // counter loads f_ld(t, LD), the auto-precharge reload, the
             // "t <= 1" / "t <= LA + 1" flags and the f_ld(t, 1) waits
             .ld_rcd_i(r_ld_rcd), .ld_ras_i(r_ld_ras), .ld_rc_i(r_ld_rc),
-            .ld_rp_i(r_ld_rp), .ld_rp1_i(r_ld_rp1), .ld_rtp_i(r_ld_rtp), .ld_wr_i(r_ld_wr),
-            .t_rp_i(r_t_rp),
+            .ld_rp_i(r_ld_rp), .ld_rp1_rd_i(r_ld_rp1_rd), .ld_rp1_wr_i(r_ld_rp1_wr),
+            .ld_rtp_i(r_ld_rtp), .ld_wr_i(r_ld_wr),
+            // the self-close's tRP per column path (memory-controllers MC-020
+            // decision 2, 2026-11-22): granite's TIMINGS_RP_AP; pumice ties both
+            // to tRP at the plane
+            .t_rp_ap_rd_i(r_t_rp_ap_rd), .t_rp_ap_wr_i(r_t_rp_ap_wr),
             .rtp_le1_i(r_rtp_le1), .wr_le1_i(r_wr_le1),
             .rcd_la_i(r_rcd_la), .ras_la_i(r_ras_la), .rc_la_i(r_rc_la),
             .rp_la_i(r_rp_la), .rtp_la_i(r_rtp_la), .wr_la_i(r_wr_la),
@@ -173,7 +177,7 @@ at 0).
 | `r_rcd`    | tRCD (ACT → RD/WR) | `set_act_i`               | `t_rcd_i`    | `safe_rd/wr`   |
 | `r_ras`    | tRAS (ACT → PRE min) | `set_act_i`             | `t_ras_i`    | `safe_pre`     |
 | `r_rc`     | tRC  (ACT → ACT same bank) | `set_act_i`       | `t_rc_i`     | `safe_act`     |
-| `r_rp`     | tRP  (PRE → ACT)   | `set_pre_i` OR auto-PRE fire | `t_rp_i`   | `safe_act`     |
+| `r_rp`     | tRP  (PRE → ACT)   | `set_pre_i` OR auto-PRE fire | `t_rp_i` (the auto-PRE fire: `t_rp_ap_rd_i` / `t_rp_ap_wr_i`, the pending column's path; pumice ties both to tRP) | `safe_act`     |
 | `r_preblk` | tRTP (RD) / tWR (WR) | `set_rd_i` / `set_wr_i` | `t_rtp_i` / `t_wr_i` | `safe_pre` |
 
 The `t_*_i` reload values are supplied by the parent (`mc_bank_timers`
@@ -220,7 +224,10 @@ assign w_ap_fire = r_ap_pending && (r_preblk == '0) && (r_ras == '0);
 ```
 
 When `w_ap_fire` asserts, the row closes internally (`r_row_valid <= 0`) and
-`r_rp` reloads with `t_rp_i` — exactly as an explicit PRE would. No PRE command
+`r_rp` reloads with the pending column's path tRP (`t_rp_ap_rd_i` /
+`t_rp_ap_wr_i`, memory-controllers MC-020 decision 2; granite programs them from
+`TIMINGS_RP_AP`, pumice ties both to tRP, which is the explicit PRE's reload
+exactly). No PRE command
 is consumed from the scheduler and no extra state is entered. This is the same
 degeneracy the old FSM's "auto-pre pending" trick achieved, but here it is one
 flop and one AND gate.

@@ -76,3 +76,17 @@ whose other presets never show it.
 > three OUT mixed cells). The question this issue asks is unchanged -- which
 > mode the pick core should take, deterministically -- and the model now needs
 > the 40-phase sweep at the new counters before it can price a rule.
+
+> 2026-11-22, later (MC-020 decision 2,
+> `char_results/board_mc020_t_rp_ap_sku100_2026-11-22.md`): the inversion
+> above was not the direction register. The model's auto-precharge path took
+> the DRAM's CK-exact distance where the RTL sequences tRAS (or the column's
+> recovery) then the same tRP; with the RTL's sequence as a term (`ap_seq`,
+> the shared tRP) and no RTL change, the `defaults` mixed cell is one mode
+> again, 290 / 343 (union 581 against the board's 553 x3, in at +5), and the
+> `close_page` mixed cell lands exactly (60 / 66). Only the `open_page` cell
+> keeps the inverted preference (model 617 at GO 0 and 480, board 559 three of
+> three): the question this issue asks is that cell's, under `open_page`, as
+> it was on 2026-11-20. With the TIMINGS_RP_AP field (the RTL step) the model
+> prices `defaults` mixed at 619 and `close_page` mixed at 146 -- the board on
+> the step's bitstream says which mode each takes (section 5 of the record).

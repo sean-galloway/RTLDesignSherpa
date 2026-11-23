@@ -37,10 +37,13 @@ equiv: bank_timer_flat.v $(GOLD_FLAT)
 equiv_live: bank_timer_flat.v $(GOLD_FLAT)
 	sby -f bank_timer.sby equiv_live
 
-prove: bank_timer_flat.v
+# bank_timer.sby lists the golden flat under [files] for every task, so prove
+# and cover need it built too (a clean tree ran them before equiv and failed
+# on the missing file, 2026-11-22).
+prove: bank_timer_flat.v $(GOLD_FLAT)
 	sby -f bank_timer.sby prove
 
-cover: bank_timer_flat.v
+cover: bank_timer_flat.v $(GOLD_FLAT)
 	sby -f bank_timer.sby cover
 
 clean:

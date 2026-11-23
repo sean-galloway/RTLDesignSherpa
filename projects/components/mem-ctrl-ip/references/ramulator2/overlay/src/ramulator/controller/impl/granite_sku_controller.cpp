@@ -125,6 +125,12 @@ namespace Ramulator {
 //     close-page interleave (bank_interleave col_major bl8: 333 against the
 //     board's 387 MB/s; MC-021 step 3, 2026-11-19). lane: 0 off, 1 PRE
 //     only, 2 ACT only, 3 either (the SKU).
+//   * The auto-precharge SELF-CLOSE is the RTL's (ap_seq, memory-controllers MC-020 decision 2): the bank
+//     timer fires it the MC cycle both its counters reach zero -- tRAS from the ACT, tRTP / tWR from the
+//     column -- and reloads a tRP of its own for the next ACT (t_rp_ap_rd / t_rp_ap_wr, the TIMINGS_RP_AP
+//     fields; -1 = the shared tRP, the RTL before the fields). The DRAM spec's RDA / WRA -> ACT terms stay
+//     and the later of the two binds. Before this term the model took the CK-exact distance alone, which on
+//     the phase-exact counters is one MC cycle short of the RTL's 5 + 2 on every close-page read chain.
 //   * Auto-precharge (CLOSE_ON_DRAIN): a column closes its row when the entry
 //     behind it in its bank queue is not the same row (the store's header
 //     bit); page_close makes every column close (the board's close_page).
@@ -180,6 +186,16 @@ class GraniteSKUController : public ControllerBase {
                                 //   it, a read beat 1; memory-controllers MC-021 step 6, 2026-11-19). It binds where a bank's queue runs empty
                                 //   between bursts -- the close-page interleaved cells -- and sets the new bank's phase against the others'
   bool m_ap_fire_stale = true;  // the pair of a column that fired with auto-precharge is masked the slot after its fire (the RTL since MC-021 step 4; false = the RTL before, whose leftover column request won the select)
+  bool m_ap_seq = true;         // the auto-precharge self-close as the RTL's bank timer sequences it: fire = max(ACT + tRAS, column + tRTP / tWR) in MC
+                                //   cycles, the ACT at fire + t_rp_ap of the column's path (MC-020 decision 2; false = the CK-exact DRAM terms alone)
+  int m_t_rp_ap_rd = -1;        // the tRP the self-close reloads after an RDA, MC cycles (TIMINGS_RP_AP.tRP_AP_RD); -1 = the shared tRP (the RTL before the field)
+  int m_t_rp_ap_wr = -1;        // ... after a WRA (TIMINGS_RP_AP.tRP_AP_WR); -1 = the shared tRP
+  int m_ap_close_lag = 0;       // PROBE, not a term (MC-020 decision 2, 2026-11-22): slots after the self-close FIRES before the
+                                //   bank's heads may request their ACT. The proxy measured fire -> ACT 4 slots on ~90 percent of the
+                                //   same-bank close-page chains (the row image clears the cycle after the fire, the record and the
+                                //   request register follow) and the exact distance on the armed rest; a flat gate reproduces neither
+                                //   (1 overshoots the board by +3 / +10 / +8 percent on col_major / row_thrash / random, 2 undershoots
+                                //   -8 / -2 / -2). The term is the record path on the self-close, with the armed fraction; 0 = off
   int m_dir_batch_max = 255;
   int m_dir_hold_idle = 8;
   bool m_dir_owns_rows = true;
@@ -212,6 +228,7 @@ class GraniteSKUController : public ControllerBase {
   int m_row_level = -1;
   int m_num_banks = 0;
   int m_t_rcd = 0, m_t_rp = 0, m_t_wr = 0, m_t_rtp = 0, m_t_ccd = 0;   // MC cycles (the host's derivation)
+  int m_seq_t_ras = 0, m_seq_t_rtp = 0, m_seq_t_wr = 0;                // the bank timer's self-close counters (MC, on the SKU's phases; ap_seq)
   int m_nRRD = 0, m_nFAW = 0;                                          // CK (the registered rank view)
   int m_la_short = 0;                                                   // LA - 1: a hop this short is the speculation's
 
@@ -237,6 +254,8 @@ class GraniteSKUController : public ControllerBase {
   bool m_col_more[2] = {false, false};   // a column of this direction fired last slot with a same-row entry behind
   std::vector<bool> m_bank_ap;           // [bank] closed by an auto-precharge (the un-armed ACT hop)
   std::vector<int> m_bank_ap_row;        // [bank] the row that auto-precharge closed
+  std::vector<Clk_t> m_ap_ready_slot;    // [bank] the first slot an ACT may follow the bank's self-close (ap_seq: fire slot + t_rp_ap)
+  std::vector<Clk_t> m_ap_fire_clk;      // [bank] the tick of the bank's self-close fire (ap_close_lag gates the ACT request from it)
   std::deque<Clk_t> m_act_clks;          // the last ACT issue slots (tRRD / tFAW as the registered ok sees them)
   std::vector<Clk_t> m_bank_act_clk;     // [bank] the slot of the bank's last ACT (the record's hit flag, hit_lag)
   std::vector<Clk_t> m_pair_closed_clk;  // [pair] the slot a PRE closed the row this pair's head was hitting (close_lag)
@@ -286,6 +305,7 @@ class GraniteSKUController : public ControllerBase {
   size_t s_lane_alone = 0;      // lane fires into an idle main slot (lane_idle)
   size_t s_lane_holds = 0;
   size_t s_ap_cols = 0;
+  size_t s_ap_seq_holds = 0;  // main slots an ACT's DRAM terms were open and the sequenced self-close held it (ap_seq)
   size_t s_to_pre = 0;          // the background (timeout) closes issued
   size_t s_dir_flips = 0;
   size_t s_dir_flips_fire = 0;
@@ -326,6 +346,10 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_wr_fill_lag, int, "wr_fill_lag").default_val(2);
     RAMULATOR_PARSE_PARAM(m_close_lag, int, "close_lag").default_val(2);
     RAMULATOR_PARSE_PARAM(m_ap_fire_stale, bool, "ap_fire_stale").default_val(true);
+    RAMULATOR_PARSE_PARAM(m_ap_seq, bool, "ap_seq").default_val(true);
+    RAMULATOR_PARSE_PARAM(m_t_rp_ap_rd, int, "t_rp_ap_rd").default_val(-1);
+    RAMULATOR_PARSE_PARAM(m_t_rp_ap_wr, int, "t_rp_ap_wr").default_val(-1);
+    RAMULATOR_PARSE_PARAM(m_ap_close_lag, int, "ap_close_lag").default_val(0);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);
@@ -374,6 +398,17 @@ class GraniteSKUController : public ControllerBase {
     m_t_wr = mc(spec.get_timing_value("nCWL") + nBL + spec.get_timing_value("nWR"));
     m_t_rtp = mc(nBL + spec.get_timing_value("nRTP") - 2);
     m_t_ccd = mc(spec.get_timing_value("nCCD"));
+    // the bank timer's self-close counters (ap_seq), as the host derives them on the SKU's fixed phases: columns on
+    // phase 0, row commands on row_phase (1 with the lane on, 0 without), so a column -> row-phase hop of n CK is
+    // ceil((n - row) / slot) MC cycles and a row -> row hop ceil(n / slot). m_t_wr / m_t_rtp above keep the plain
+    // slot rounding the hint timers were measured with (MC-021); at the SKU's point only tWR differs (3 against 4)
+    const int row_ck = (m_lane != 0 && m_slot_ticks >= 2) ? 1 : 0;
+    auto hop = [&](int n_ck, int d_ck) { return std::max(1, (std::max(0, n_ck - d_ck) + m_slot_ticks - 1) / m_slot_ticks); };
+    m_seq_t_ras = hop(spec.get_timing_value("nRAS"), 0);
+    m_seq_t_rtp = hop(nBL + spec.get_timing_value("nRTP") - 2, row_ck);
+    m_seq_t_wr = hop(spec.get_timing_value("nCWL") + nBL + spec.get_timing_value("nWR"), row_ck);
+    if (m_t_rp_ap_rd < 0) m_t_rp_ap_rd = m_t_rp;
+    if (m_t_rp_ap_wr < 0) m_t_rp_ap_wr = m_t_rp;
     m_nRRD = spec.get_timing_value("nRRD");
     m_nFAW = spec.get_timing_value("nFAW");
     m_la_short = m_pick_la > 0 ? m_pick_la - 1 : 0;
@@ -385,6 +420,8 @@ class GraniteSKUController : public ControllerBase {
     m_stale.assign(np, false);
     m_bank_ap.assign(m_num_banks, false);
     m_bank_ap_row.assign(m_num_banks, -1);
+    m_ap_ready_slot.assign(m_num_banks, static_cast<Clk_t>(-(1 << 30)));
+    m_ap_fire_clk.assign(m_num_banks, static_cast<Clk_t>(-(1 << 30)));
     m_bank_act_clk.assign(m_num_banks, static_cast<Clk_t>(-(1 << 30)));
     m_pair_closed_clk.assign(2 * m_num_banks, static_cast<Clk_t>(-(1 << 30)));
     m_bank_open_row.assign(m_num_banks, -1);
@@ -415,6 +452,7 @@ class GraniteSKUController : public ControllerBase {
     m_stats.add("sku_lane_alone", s_lane_alone);
     m_stats.add("sku_lane_holds", s_lane_holds);
     m_stats.add("sku_ap_cols", s_ap_cols);
+    m_stats.add("sku_ap_seq_holds", s_ap_seq_holds);
     m_stats.add("sku_to_pre", s_to_pre);
     m_stats.add("sku_dir_flips", s_dir_flips);
     m_stats.add("sku_dir_flips_fire", s_dir_flips_fire);
@@ -664,12 +702,19 @@ class GraniteSKUController : public ControllerBase {
   // ---- timers ----
   // the bank node's own timers (the RTL's per-bank bank_*_ready); rank / channel terms are the fire's
   bool bank_ready_at(int cmd, const AddrVec_t& av, Clk_t clk) {
-    return m_device.m_bank_nodes[m_device.get_flat_bank_id(av)]->check_timing(cmd, av, clk);
+    return m_device.m_bank_nodes[m_device.get_flat_bank_id(av)]->check_timing(cmd, av, clk) && ap_seq_ok(cmd, av, clk);
+  }
+  // ap_seq: an ACT into a bank the self-close closed waits for the sequenced counters (bank_ready_at, the fire, the
+  // lane); the slot is the RTL's MC cycle, the lane's odd tick included
+  Clk_t slot_of(Clk_t clk) const { return clk / m_slot_ticks; }
+  bool ap_seq_ok(int cmd, const AddrVec_t& av, Clk_t clk) const {
+    if (!m_ap_seq || cmd != m_cmd_act) return true;
+    return slot_of(clk) >= m_ap_ready_slot[m_device.get_flat_bank_id(av)];
   }
   // the decode's timer: the bank's (or every timer, req_bank_timing off), open within `la` slots
   bool decode_timer(int cmd, const AddrVec_t& av, int la) {
     const Clk_t at = m_clk + static_cast<Clk_t>(la) * m_slot_ticks;
-    return m_req_bank_timing ? bank_ready_at(cmd, av, at) : m_device.check_timing(cmd, av, at);
+    return m_req_bank_timing ? bank_ready_at(cmd, av, at) : (m_device.check_timing(cmd, av, at) && ap_seq_ok(cmd, av, at));
   }
   // the lookahead the hold reads (bank_*_ready_la): the bank opens within the pipe depth
   bool bank_la_ok(int cmd, const AddrVec_t& av) { return bank_ready_at(cmd, av, m_clk + static_cast<Clk_t>(m_pick_la) * m_slot_ticks); }
@@ -734,9 +779,13 @@ class GraniteSKUController : public ControllerBase {
         // a head whose row a PRE just closed still reads as a hit in the record for close_lag slots (its column
         // request cannot fire), and its ACT request follows the record
         if (m_clk - m_pair_closed_clk[p] < static_cast<Clk_t>(m_close_lag) * m_slot_ticks) continue;
-        // the ACT after an auto-precharge: armed for a head that misses the closed row (the decode's miss
-        // branch, LA_AP), requested at the timer for a head of the same row (measured), unless ap_act_la
+        // the ACT after an auto-precharge: the bank's heads read the row as open until the self-close fires and the
+        // row image clears the cycle after; the record and the request register follow (ap_close_lag, measured:
+        // fire -> ACT 4 slots), so no ACT request before fire + ap_close_lag -- and then armed for a head that
+        // misses the closed row (the decode's miss branch, LA_AP), requested at the timer for a head of the same
+        // row (measured), unless ap_act_la
         const int b = bank_of(p);
+        if (m_ap_seq && m_clk - m_ap_fire_clk[b] < static_cast<Clk_t>(m_ap_close_lag) * m_slot_ticks) continue;
         const bool same_row = m_bank_ap[b] && m_bank_ap_row[b] == row_of(*h.it);
         const int la = (same_row && !m_ap_act_la) ? 0 : m_pick_la;
         if (decode_timer(h.cmd, h.it->addr_vec, la)) { req_nxt[p] = true; cls_nxt[p] = CL_ACT; }
@@ -820,6 +869,7 @@ class GraniteSKUController : public ControllerBase {
       if (class_ok) {
         live_cmd = h.cmd;
         timers_live = check_timing(h.cmd, h.it->addr_vec);
+        if (timers_live && !ap_seq_ok(h.cmd, h.it->addr_vec, m_clk)) { timers_live = false; s_ap_seq_holds++; }
         timer_ok = timers_live && (h.cmd != m_cmd_act || rank_ok_registered());
         la_ok = bank_la_ok(h.cmd, h.it->addr_vec);
       }
@@ -936,7 +986,8 @@ class GraniteSKUController : public ControllerBase {
       }
       if (l_class_ok) {
         // at the slot tick, not the odd tick it fires on: the RTL's counters see the cycle, not the phase
-        l_timer_ok = m_device.check_timing(h.cmd, h.it->addr_vec, m_clk) && (h.cmd != m_cmd_act || rank_ok_registered());
+        l_timer_ok = m_device.check_timing(h.cmd, h.it->addr_vec, m_clk) && ap_seq_ok(h.cmd, h.it->addr_vec, m_clk) &&
+                     (h.cmd != m_cmd_act || rank_ok_registered());
         l_la_ok = bank_la_ok(h.cmd, h.it->addr_vec);
       }
     }
@@ -1056,7 +1107,15 @@ class GraniteSKUController : public ControllerBase {
         s_cols[fired_dir]++;
         if (fired_dir != cur) s_xdir_cols++;
         m_bank_ap[fired_bank] = fired_ap;
-        if (fired_ap) { m_bank_ap_row[fired_bank] = row_of(*h.it); m_bank_open_row[fired_bank] = -1; }
+        if (fired_ap) {
+          m_bank_ap_row[fired_bank] = row_of(*h.it); m_bank_open_row[fired_bank] = -1;
+          // ap_seq: the self-close fires the slot both counters reach zero (tRAS from the ACT, the column's
+          // recovery from this slot) and reloads the path's tRP; the ACT may follow at that slot
+          const Clk_t fire_slot = std::max(slot_of(m_bank_act_clk[fired_bank]) + static_cast<Clk_t>(m_seq_t_ras),
+                                           slot_of(m_clk) + static_cast<Clk_t>(fired_dir ? m_seq_t_wr : m_seq_t_rtp));
+          m_ap_ready_slot[fired_bank] = fire_slot + static_cast<Clk_t>(std::max(1, fired_dir ? m_t_rp_ap_wr : m_t_rp_ap_rd));
+          m_ap_fire_clk[fired_bank] = fire_slot * static_cast<Clk_t>(m_slot_ticks);
+        }
         m_slot_cmds.push_back(CmdEv{CL_COL, fired_bank, row_of(*h.it), fired_ap, false});
       } else {
         s_main_row++;
@@ -1204,7 +1263,7 @@ class GraniteSKUController : public ControllerBase {
     if (!m_lane_pending) return;
     m_lane_pending = false;
     const Clk_t slot_clk = m_clk - (m_clk % m_slot_ticks);
-    if (!check_timing(m_lane_cmd, m_lane_addr)) {
+    if (!check_timing(m_lane_cmd, m_lane_addr) || !ap_seq_ok(m_lane_cmd, m_lane_addr, m_clk)) {
       s_lane_dropped++;
       return;
     }

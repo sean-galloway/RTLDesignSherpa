@@ -81,3 +81,30 @@ def test_ddr2_part_trrd_is_the_2kb_page_value():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+def test_auto_precharge_trp_fields_follow_the_derivation():
+    """memory-controllers MC-020 decision 2: tRP_AP_RD / tRP_AP_WR are the shared tRP under the margin and the
+    exact hop from the self-close's fire cycle to an ACT on row_phase under phase_exact -- 1 / 2 at 100 MHz on
+    the SKU's phases (0 / 0 / 1), where the RTL's shared tRP of 2 put ACT -> RDA -> ACT at 7 MC against tRC 6."""
+    m = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=1)
+    assert (m["tRP_AP_RD"], m["tRP_AP_WR"]) == (m["tRP"], m["tRP"])
+    x = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=1, phase_exact=True)
+    assert (x["tRP_AP_RD"], x["tRP_AP_WR"]) == (1, 2)
+    # the chain through the self-close is at least tRC, each path (tRAS 5 + 1 = 6 = tRC)
+    assert x["tRAS"] + x["tRP_AP_RD"] >= x["tRC"] and x["tRAS"] + x["tRP_AP_WR"] >= x["tRC"]
+    # legal at the CK: fire slot's close CK + nRP <= the ACT's CK on row_phase 1 (RD: 2 + 3 <= 2 * 2 + 1)
+    assert 2 * (x["tRTP"] + x["tRP_AP_RD"]) + 1 >= 2 + 3 and 2 * (x["tWR"] + x["tRP_AP_WR"]) + 1 >= 7 + 3
+    # row commands on phase 0 (the lane off): the read path pays the full hop, the write path's close is late in its cycle
+    x0 = pd.ddr2_timings_mc_cycles(100e6, cl=3, rd_phase=0, wr_phase=0, row_phase=0, phase_exact=True)
+    assert (x0["tRP_AP_RD"], x0["tRP_AP_WR"]) == (2, 1)
+
+
+def test_set_jedec_timings_skips_the_ap_fields_on_a_regmap_without_the_register():
+    """The host serves pumice too; its regmap has no TIMINGS_RP_AP, so the group is skipped and the applied dict
+    does not claim the fields were programmed."""
+    bus = pd.build_ddr2_bus(_MockBridge())
+    p = bus["pumice"]
+    applied = p.set_jedec_timings(dict(tRP=2, tRP_AP_RD=1, tRP_AP_WR=2))
+    assert applied == {"tRP": 2}
+

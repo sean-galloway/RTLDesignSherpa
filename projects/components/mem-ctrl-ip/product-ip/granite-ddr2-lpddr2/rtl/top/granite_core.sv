@@ -171,6 +171,7 @@ module granite_core
     input  logic                       hash_en_i,
     input  logic [7:0]                 hash_seed_i,
     input  logic [7:0]                 t_rcd_i, t_rp_i, t_ras_i, t_rc_i, t_wr_i, t_rtp_i,
+    input  logic [7:0]                 t_rp_ap_rd_i, t_rp_ap_wr_i,   // the self-close's tRP per path (TIMINGS_RP_AP, MC-020)
     input  logic [7:0]                 t_faw_i, t_rrd_i, t_wtr_i, t_rtw_i, t_ccd_i,
     input  logic [15:0]                t_refi_i,
     input  logic                       refi_reload_i,
@@ -286,11 +287,13 @@ module granite_core
     // JEDEC timings as the scheduler plane sees them: the CSR inputs, or the
     // T_* constants under FIXED_TIMINGS. The CSR ports stay either way so the
     // top's wiring is identical; synthesis folds the constant comparators.
-    logic [7:0]  w_t_rcd, w_t_rp, w_t_ras, w_t_rc, w_t_wr, w_t_rtp, w_t_faw;
+    logic [7:0]  w_t_rcd, w_t_rp, w_t_ras, w_t_rc, w_t_wr, w_t_rtp, w_t_faw, w_t_rp_ap_rd, w_t_rp_ap_wr;
     logic [7:0]  w_t_rrd, w_t_wtr, w_t_rtw, w_t_ccd_raw;
     logic [15:0] w_t_refi, w_t_rfc;
     assign w_t_rcd     = FIXED_TIMINGS ? 8'(T_RCD)   : t_rcd_i;
     assign w_t_rp      = FIXED_TIMINGS ? 8'(T_RP)    : t_rp_i;
+    assign w_t_rp_ap_rd = FIXED_TIMINGS ? 8'(T_RP)   : t_rp_ap_rd_i;   // fixed: the shared tRP
+    assign w_t_rp_ap_wr = FIXED_TIMINGS ? 8'(T_RP)   : t_rp_ap_wr_i;
     assign w_t_ras     = FIXED_TIMINGS ? 8'(T_RAS)   : t_ras_i;
     assign w_t_rc      = FIXED_TIMINGS ? 8'(T_RC)    : t_rc_i;
     assign w_t_wr      = FIXED_TIMINGS ? 8'(T_WR)    : t_wr_i;
@@ -942,6 +945,8 @@ module granite_core
         .stat_ref_busy_o    (),
         .t_rcd_i            (w_t_rcd),
         .t_rp_i             (w_t_rp),
+        .t_rp_ap_rd_i       (w_t_rp_ap_rd),
+        .t_rp_ap_wr_i       (w_t_rp_ap_wr),
         .t_ras_i            (w_t_ras),
         .t_rc_i             (w_t_rc),
         .t_wr_i             (w_t_wr),

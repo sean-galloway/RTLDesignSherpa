@@ -79,7 +79,9 @@ def _idle(dut):
     dut.hash_seed_i.value = 0
     for t, v in [("t_rcd_i", 2), ("t_rp_i", 2), ("t_ras_i", 3), ("t_rc_i", 4),
                  ("t_wr_i", 2), ("t_rtp_i", 2), ("t_faw_i", 4), ("t_rrd_i", 1),
-                 ("t_wtr_i", 1), ("t_rtw_i", 1), ("t_ccd_i", 1)]:
+                 ("t_wtr_i", 1), ("t_rtw_i", 1), ("t_ccd_i", 1),
+                 # the self-close's tRP per path (TIMINGS_RP_AP, MC-020 decision 2): the shared tRP here
+                 ("t_rp_ap_rd_i", 2), ("t_rp_ap_wr_i", 2)]:
         getattr(dut, t).value = v
     dut.t_refi_i.value = int(os.environ.get("DBG_TREFI", "50"), 0)
     dut.t_rfc_i.value = 8
