@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/misc — tasks
 
-**Next ID: TASK-007** — never recycle a number, even when its item closed.
+**Next ID: TASK-008** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -13,7 +13,7 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
@@ -22,7 +22,8 @@ by construction rather than by discipline.
 
 ## Active
 
-None.
+- **TASK-007** — passive full-monitor observer variants, exact loss accounting,
+  and measured full-monitor FPGA optimization; spec `c334d64a0`.
 
 ## Closed
 

@@ -39,6 +39,7 @@
 - Create: the two original observer paths as thin lite wrappers
 - Modify: `projects/components/utility-ip/misc/rtl/filelists/axi4_intf_master_observer.f`
 - Modify: `projects/components/utility-ip/misc/rtl/filelists/axi4_intf_slave_observer.f`
+- Test: `projects/components/utility-ip/misc/dv/tests/fub/test_axi4_intf_observer.py` (internal probes address `u_core`)
 - Create: `vault/tracking/projects/components/utility-ip/misc/task/active/TASK-007.md`
 - Modify: `vault/tracking/projects/components/utility-ip/misc/task/INDEX.md`
 

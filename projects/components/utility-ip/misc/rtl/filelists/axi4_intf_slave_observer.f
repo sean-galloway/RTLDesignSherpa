@@ -18,6 +18,7 @@
 # green.
 
 +incdir+$REPO_ROOT/rtl/amba/includes
++incdir+$REPO_ROOT/projects/components/utility-ip/misc/rtl
 
 # Its config regblock + the APB->cmdrsp->passthrough chain behind it.
 $REPO_ROOT/projects/components/utility-ip/misc/rtl/regs/obs_regs.vlt
@@ -41,4 +42,5 @@ $REPO_ROOT/projects/components/utility-ip/misc/rtl/regs/generated/rtl/obs_regs_t
 -f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axi4_group.f
 
+$REPO_ROOT/projects/components/utility-ip/misc/rtl/axi4_intf_slave_observer_core.sv
 $REPO_ROOT/projects/components/utility-ip/misc/rtl/axi4_intf_slave_observer.sv

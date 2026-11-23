@@ -320,6 +320,7 @@ async def cocotb_test_observer_consumer_sustained(dut):
     tb = AXI4IntfObserverTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.start_egress_sink(beat_duty=duty)
+    dut = dut.u_core
     if os.environ.get("BUG039_PROBE"):
         from cocotb.triggers import ReadOnly
         core = dut.g_egress_axil.u_group.u_core
