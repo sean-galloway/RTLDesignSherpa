@@ -41,7 +41,7 @@ The MonBus observer carries every event with its payload and timing, one packet 
 | 0x22 | `GATHER_DONE` | a slot's last CR landed (per answering port) | slot, DataTransfer, PassDirty, answering port, gather latency from the grant |
 | 0x23 | `MEM_READ` | a memory AR taken | slot |
 | 0x24 | `READ_WASTED` | a DataTransfer verdict for a slot whose read was issued or presented: its beats will be dropped (per answering port) | answering port |
-| 0x25 | `ABSORB` | an absorption's BRESP | none in v1 |
+| 0x25 | `ABSORB` | an absorption's BRESP | slot |
 | 0x26 | `WRITEBACK` | a cache write-back AW taken on the write port | none in v1 |
 | 0x27 | `LOCK_WAIT` | a port's candidate waited behind a held line, emitted on release | port, episode duration |
 
@@ -66,10 +66,13 @@ The house MonBus is a low-bandwidth event channel: it carries rare, meaningful e
 | the event class | `cfg_perf_mask[code[3:0]]` | one bit per class: 0 `TXN_START`, 2 `GATHER_DONE`, 3 `MEM_READ`, 4 `READ_WASTED`, 5 `ABSORB`, 6 `WRITEBACK`, 7 `LOCK_WAIT`; the group core's `cfg_core_perf_mask` indexes the same codes, so the two can be set alike |
 | the error code | `cfg_error_mask[code[3:0]]` | bit 9 the drop report (`AMBER_EV_DROPPED`); a masked report leaves the count accumulating in `dropped_count` |
 | the port | `cfg_port_mask[p]` | the events attributed to port p: `TXN_START` by the requesting port, `GATHER_DONE` and `READ_WASTED` by the answering port, `LOCK_WAIT` by the waiting port (`MEM_READ`, `ABSORB` and `WRITEBACK` carry no port in v1) |
+| the content | `cfg_addr_win_enable`, `cfg_addr_win_low`, `cfg_addr_win_high` | an inclusive address window on the transaction, the AXI monitors' address-range filter in onyx's terms: a per-slot watch bit is set at the grant (the grant address against the window) and read by the slot's later events (`GATHER_DONE`, `READ_WASTED`, `MEM_READ`, `ABSORB`); `TXN_START` is the grant itself; the write-back is matched on its own AW address; `LOCK_WAIT` on the waiting candidate's address, latched when the wait begins. Disabled is everything. The drop report is never windowed |
 
 : Table 4.2: onyx observer mask layers (`onyx_monlite`)
 
-`onyx_top` carries the layers as `mon_cfg_*`. On the Genesys2 reference rig they are two harness CSRs: `ONYX_MON_CTRL` (0x038: [0] enable, [1] error enable, [2] perf enable, [7:4] port mask, [31:16] class mask) and `ONYX_MON_MASK` (0x03C: [15:0] packet-type mask, [31:16] error-code mask). The reset is `0x007D0007`: everything enabled, no port masked, the six per-transaction classes masked and `LOCK_WAIT` open, so a bitstream out of reset transmits only the rare class and the host opens what it wants to see (`jet_perf_sweep.py --onyx-mon-classes`, with `all` the lower-bound reading of every bin and one class at a time what the channel carries exactly). The pair-rig testbench drives the layers from its cell's environment and holds a masked class to zero packets, a masked port to zero attributed packets, and the disabled observer to silence with nothing counted lost.
+The class layers turn a class on or off; the window is what makes a per-transaction class a low-bandwidth event. A class opened alone still fires on every transaction, which fits the channel at injector depth 1 and 2 and loses a fifth of its events at depth 8 in the thrash cells; the same class through a window on the lines of interest fires at the window's rate, which the channel is sized for.
+
+`onyx_top` carries the layers as `mon_cfg_*`. On the Genesys2 reference rig they are four harness CSRs: `ONYX_MON_CTRL` (0x038: [0] enable, [1] error enable, [2] perf enable, [3] address window enable, [7:4] port mask, [31:16] class mask), `ONYX_MON_MASK` (0x03C: [15:0] packet-type mask, [31:16] error-code mask) and the window's bounds `ONYX_MON_WIN_LOW` / `ONYX_MON_WIN_HIGH` (0x014 / 0x018, inclusive; the sweep's `--onyx-mon-window LOW HIGH`). The reset is `0x007D0007`: everything enabled, no port masked, the six per-transaction classes masked and `LOCK_WAIT` open, so a bitstream out of reset transmits only the rare class and the host opens what it wants to see (`jet_perf_sweep.py --onyx-mon-classes`, with `all` the lower-bound reading of every bin and one class at a time what the channel carries exactly). The pair-rig testbench drives the layers from its cell's environment and holds a masked class to zero packets, a masked port to zero attributed packets, and the disabled observer to silence with nothing counted lost.
 
 ## Where the packets go
 
@@ -77,4 +80,4 @@ In the pair rig the harness exposes the observer as a third MonBus output (`mon2
 
 ## What is open
 
-The observer carries the class layers but not yet the content filter the AXI monitors pair them with (the address-range and ID filters): a class opened alone still fires on every transaction, which fits the channel at injector depth 1 and 2 and loses about a fifth of its events at depth 8 in the thrash cells. The ocelus answer is a window, not a wider channel: an address window on the grant (a per-slot watch bit set at `TXN_START` and consulted by the slot's later events) and a requester match, so a per-transaction class becomes a watch on the lines of interest. The absorption's slot and the write-back's port are not carried in v1; the tally keys on the event code only, so the DataTransfer flag of `GATHER_DONE` is read from the latch bank, not from a bin.
+The window is one address range; the AXI monitors carry several, and an ID (requester) match besides, which onyx has as the port mask. The write-back's port is not carried in v1; the tally keys on the event code only, so the DataTransfer flag of `GATHER_DONE` is read from the latch bank, not from a bin.

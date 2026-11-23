@@ -63,6 +63,15 @@ class OnyxPairRigTB(JetPairRigTB):
         self.mon_enable = int(os.environ.get('ONYX_MON_ENABLE', '1'), 0)
         self.mon_perf_mask = int(os.environ.get('ONYX_MON_PERF_MASK', '0'), 0)
         self.mon_port_mask = int(os.environ.get('ONYX_MON_PORT_MASK', '0'), 0)
+        # the content filter: ONYX_MON_WIN='low:high' (inclusive, hex) enables
+        # the observer's address window; the TB tracks every event's
+        # transaction address itself (grant address per slot, AW address,
+        # the waiting candidate's address) and counts the in-window events
+        # per class as the observer's expected stream
+        win = os.environ.get('ONYX_MON_WIN', '')
+        self.mon_win = tuple(int(x, 0) for x in win.split(':')) if win else None
+        self.exp_all = {name: 0 for name in ONYX_EV.values()}   # every event, by class
+        self.exp_win = {name: 0 for name in ONYX_EV.values()}   # the in-window events
 
     def _class_masked(self, name):
         code = {v: k for k, v in ONYX_EV.items()}[name]
@@ -78,10 +87,63 @@ class OnyxPairRigTB(JetPairRigTB):
         d.mon2_cfg_perf_mask.value = self.mon_perf_mask
         d.mon2_cfg_error_mask.value = 0
         d.mon2_cfg_port_mask.value = self.mon_port_mask
+        d.mon2_cfg_addr_win_enable.value = 1 if self.mon_win else 0
+        d.mon2_cfg_addr_win_low.value = self.mon_win[0] if self.mon_win else 0
+        d.mon2_cfg_addr_win_high.value = self.mon_win[1] if self.mon_win else 0
         self.log.info(f"onyx observer masks: enable={self.mon_enable} perf_mask=0x{self.mon_perf_mask:04x} "
-                      f"port_mask=0b{self.mon_port_mask:02b}")
+                      f"port_mask=0b{self.mon_port_mask:02b} window={self.mon_win}")
         await super().setup_clocks_and_reset()
         cocotb.start_soon(self._watch_onyx_mon())
+        cocotb.start_soon(self._watch_onyx_events())
+
+    def _in_win(self, addr):
+        return self.mon_win is None or (self.mon_win[0] <= addr <= self.mon_win[1])
+
+    async def _watch_onyx_events(self):
+        """Count the unit's events per class, all and in-window, from the
+        harness's event taps: the model of what the observer must emit."""
+        d = self.dut
+        n_slots = 1 << len(d.oc_grant_slot)
+        slot_win = [False] * n_slots
+        lw_active = [False, False]
+        lw_win = [False, False]
+
+        def bump(name, inside):
+            self.exp_all[name] += 1
+            if inside:
+                self.exp_win[name] += 1
+
+        while True:
+            await RisingEdge(d.clk)
+            if int(d.oc_evt_grant.value):
+                s = int(d.oc_grant_slot.value)
+                slot_win[s] = self._in_win(int(d.oc_grant_addr.value))
+                bump('TXN_START', slot_win[s])
+            gather = int(d.oc_evt_gather.value)
+            wasted = int(d.oc_evt_read_wasted.value)
+            for p in range(2):
+                if (gather >> p) & 1 or (wasted >> p) & 1:
+                    s = int(d.oc_evt_gather_slot[p].value)
+                    if (gather >> p) & 1:
+                        bump('GATHER_DONE', slot_win[s])
+                    if (wasted >> p) & 1:
+                        bump('READ_WASTED', slot_win[s])
+            if int(d.oc_evt_mem_ar.value):
+                s = int(d.mem_arid.value) & (n_slots - 1)
+                bump('MEM_READ', slot_win[s])
+            if int(d.oc_evt_absorb.value):
+                bump('ABSORB', slot_win[int(d.oc_evt_absorb_slot.value)])
+            if int(d.oc_evt_wb.value):
+                bump('WRITEBACK', self._in_win(int(d.mem_awaddr.value)))
+            lw = int(d.oc_evt_lock_wait.value)
+            for p in range(2):
+                if (lw >> p) & 1:
+                    if not lw_active[p]:
+                        lw_active[p] = True
+                        lw_win[p] = self._in_win(int(d.oc_evt_lock_wait_addr[p].value))
+                elif lw_active[p]:
+                    lw_active[p] = False
+                    bump('LOCK_WAIT', lw_win[p])
 
     async def _watch_onyx_mon(self):
         d = self.dut
@@ -125,22 +187,28 @@ class OnyxPairRigTB(JetPairRigTB):
         self._score("onyx counters: absorb == absorptions", cnt['absorb'], s['absorbs'])
         self._score("onyx counters: read_wasted == reads dropped", cnt['read_wasted'], s['r_dropped'])
         self._score("onyx counters: supplied == forwarded lines", cnt['supplied'], s['dt_forwards'])
+        # the TB's own event count (from the taps) equals the counters: the
+        # window model is anchored to the exact instrument
+        ea = self.exp_all
+        for ev, ck in (('TXN_START', 'txn'), ('MEM_READ', 'mem_read'), ('READ_WASTED', 'read_wasted'),
+                       ('ABSORB', 'absorb'), ('WRITEBACK', 'wb')):
+            self._score(f"onyx taps: {ev} events == counter", ea[ev], cnt[ck])
+        self._score("onyx taps: GATHER_DONE events == grants", ea['GATHER_DONE'], grants)
         if self.USE_MONITOR and self.mon_enable:
-            # the observer sees every event the counters saw, less what it
-            # reported lost; every class it carries is bounded by its counter;
-            # a class the perf mask drops is never seen and never lost
-            pairs = (('TXN_START', 'txn'), ('GATHER_DONE', None), ('MEM_READ', 'mem_read'),
-                     ('READ_WASTED', 'read_wasted'), ('ABSORB', 'absorb'), ('WRITEBACK', 'wb'))
+            # the observer sees every in-window event the taps saw, less what
+            # it reported lost; every class it carries is bounded by that; a
+            # class the perf mask drops is never seen and never lost; with
+            # the window off the bound is the counter itself
             short = 0
-            for ev, ck in pairs:
-                exp = grants if ck is None else cnt[ck]
+            for ev in ONYX_EV.values():
+                exp = self.exp_win[ev]
                 if self._class_masked(ev):
                     self._score(f"onyx observer: masked {ev} silent", m[ev], 0)
                     continue
-                self._score(f"onyx observer: {ev} <= its count", m[ev] <= exp, True)
+                self._score(f"onyx observer: {ev} <= its in-window count", m[ev] <= exp, True)
                 short += exp - m[ev]
-            if self._class_masked('LOCK_WAIT'):
-                self._score("onyx observer: masked LOCK_WAIT silent", m['LOCK_WAIT'], 0)
+            if self.mon_win:
+                self.log.info(f"onyx observer window {self.mon_win}: in-window {self.exp_win} of {ea}")
             lost = self.onyx_mon_lost + int(d.mon2_dropped.value)
             if self.mon_port_mask:
                 # a masked port's events are dropped at the source, neither
@@ -161,7 +229,7 @@ class OnyxPairRigTB(JetPairRigTB):
             self._score("onyx observer: no foreign code", self.onyx_mon_other, 0)
             self.log.info(f"onyx observer: {self.onyx_mon_total} packets, {self.onyx_mon_drop_reports} "
                           f"drop reports for {self.onyx_mon_lost} lost events; "
-                          f"port hits {self.onyx_mon_port_hits}; counters {cnt}")
+                          f"port hits {self.onyx_mon_port_hits}; counters {cnt}; events {ea}")
         elif self.USE_MONITOR:
             # cfg_mon_enable 0: nothing transmitted, nothing counted as lost
             self._score("onyx observer disabled: silent", self.onyx_mon_total, 0)
@@ -176,6 +244,7 @@ class OnyxPairRigTB(JetPairRigTB):
                                lost=self.onyx_mon_lost, other=self.onyx_mon_other,
                                total=self.onyx_mon_total, port_hits=self.onyx_mon_port_hits,
                                enable=self.mon_enable, perf_mask=self.mon_perf_mask,
-                               port_mask=self.mon_port_mask)
+                               port_mask=self.mon_port_mask, window=self.mon_win,
+                               events=dict(self.exp_all), in_window=dict(self.exp_win))
         rep['onyx_cnt'] = getattr(self, 'onyx_cnt', {})
         return rep

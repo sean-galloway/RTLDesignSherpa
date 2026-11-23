@@ -148,6 +148,9 @@ module onyx_pair_rig_tb
     input  logic [15:0]                 mon2_cfg_perf_mask,
     input  logic [15:0]                 mon2_cfg_error_mask,
     input  logic [1:0]                  mon2_cfg_port_mask,
+    input  logic                        mon2_cfg_addr_win_enable,
+    input  logic [ADDR_WIDTH-1:0]       mon2_cfg_addr_win_low,
+    input  logic [ADDR_WIDTH-1:0]       mon2_cfg_addr_win_high,
     // onyx's exact event counters (never cleared or frozen here)
     output logic [31:0]                 cnt_txn,
     output logic [31:0]                 cnt_supplied,
@@ -523,6 +526,9 @@ module onyx_pair_rig_tb
     logic [1:0]               s_acvalid_v, s_crready_v, s_cdready_v;
     logic                     oc_grant_dir;
     logic [$clog2(FAB_SLOTS)-1:0] oc_grant_slot;
+    logic [ADDR_WIDTH-1:0]    oc_grant_addr;
+    logic [$clog2(FAB_SLOTS)-1:0] oc_evt_absorb_slot;
+    logic [ADDR_WIDTH-1:0]    oc_evt_lock_wait_addr [2];
     logic [$clog2(FAB_SLOTS)-1:0] oc_evt_gather_slot [2];
     logic                     oc_evt_grant, oc_evt_mem_ar, oc_evt_absorb, oc_evt_wb;
     logic [1:0]               oc_evt_gather, oc_evt_gather_dt, oc_evt_gather_pd, oc_evt_read_wasted;
@@ -702,7 +708,7 @@ module onyx_pair_rig_tb
         .dbg_abs_pend     (),
         .dbg_grant        (),
         .dbg_grant_dir    (oc_grant_dir),
-        .dbg_grant_addr   (),
+        .dbg_grant_addr   (oc_grant_addr),
         .dbg_grant_slot   (oc_grant_slot),
         .evt_grant        (oc_evt_grant),
         .evt_grant_cls    (oc_evt_grant_cls),
@@ -714,8 +720,10 @@ module onyx_pair_rig_tb
         .evt_mem_ar       (oc_evt_mem_ar),
         .evt_read_wasted  (oc_evt_read_wasted),
         .evt_absorb       (oc_evt_absorb),
+        .evt_absorb_slot  (oc_evt_absorb_slot),
         .evt_wb           (oc_evt_wb),
-        .evt_lock_wait    (oc_evt_lock_wait)
+        .evt_lock_wait    (oc_evt_lock_wait),
+        .evt_lock_wait_addr (oc_evt_lock_wait_addr)
     );
 
     // onyx's D9 observer beside the unit (onyx_top composes the two; the
@@ -723,6 +731,7 @@ module onyx_pair_rig_tb
     onyx_monlite #(
         .N_PORTS     (2),
         .SLOTS       (FAB_SLOTS),
+        .ADDR_WIDTH  (ADDR_WIDTH),
         .USE_MONITOR (USE_MONITOR),
         .OUT_DEPTH   (16)
     ) u_onyx_mon (
@@ -731,6 +740,7 @@ module onyx_pair_rig_tb
         .evt_grant_i       (oc_evt_grant),
         .evt_grant_port_i  (oc_grant_dir),
         .evt_grant_slot_i  (oc_grant_slot),
+        .evt_grant_addr_i  (oc_grant_addr),
         .evt_grant_cls_i   (oc_evt_grant_cls),
         .evt_ac_i          (oc_evt_ac),
         .evt_gather_i      (oc_evt_gather),
@@ -741,10 +751,12 @@ module onyx_pair_rig_tb
         .evt_mem_ar_slot_i (mem_arid[$clog2(FAB_SLOTS)-1:0]),
         .evt_read_wasted_i (oc_evt_read_wasted),
         .evt_absorb_i      (oc_evt_absorb),
-        .evt_absorb_slot_i ('0),
+        .evt_absorb_slot_i (oc_evt_absorb_slot),
         .evt_wb_i          (oc_evt_wb),
         .evt_wb_port_i     ('0),
+        .evt_wb_addr_i     (mem_awaddr),
         .evt_lock_wait_i   (oc_evt_lock_wait),
+        .evt_lock_wait_addr_i (oc_evt_lock_wait_addr),
         .cfg_mon_enable    (mon2_cfg_enable),
         .cfg_perf_enable   (mon2_cfg_perf_enable),
         .cfg_error_enable  (mon2_cfg_error_enable),
@@ -752,6 +764,9 @@ module onyx_pair_rig_tb
         .cfg_perf_mask     (mon2_cfg_perf_mask),
         .cfg_error_mask    (mon2_cfg_error_mask),
         .cfg_port_mask     (mon2_cfg_port_mask),
+        .cfg_addr_win_enable (mon2_cfg_addr_win_enable),
+        .cfg_addr_win_low  (mon2_cfg_addr_win_low),
+        .cfg_addr_win_high (mon2_cfg_addr_win_high),
         .i_mon_time        (mon_time_q),
         .monbus_valid      (mon2_valid),
         .monbus_ready      (mon2_ready),

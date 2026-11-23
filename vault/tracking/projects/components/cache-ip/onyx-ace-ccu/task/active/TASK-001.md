@@ -417,3 +417,50 @@ Found and measured:
   observation lane, not onyx: the caches' own observers (`l1_monlite`,
   `jet_prime_monlite`) carry no mask and still share the channel, which is
   why one onyx class falls short at depth 4 to 16 in thrash.
+- 2026-11-22 **Step 6d, the content filter (owner: "On axi, if it matched
+  every rd/wr it would also flood. This is why there are filters like
+  address range/id"; then "make it so"):** a class mask turns a class on or
+  off; the address window is what makes a per-transaction class
+  low-bandwidth. `onyx_monlite` gained `cfg_addr_win_enable / _low / _high`
+  (inclusive; disabled is everything): a per-slot watch bit set at the
+  grant from the grant address, read by the slot's later events
+  (GATHER_DONE, READ_WASTED, MEM_READ, ABSORB); TXN_START is the grant;
+  the write-back matched on its AW address; LOCK_WAIT on the waiting
+  candidate's address latched at the wait's start; the drop report never
+  windowed. `onyx_ccu` exposes `evt_absorb_slot` (the write side's slot:
+  ABSORB now carries its slot) and `evt_lock_wait_addr[p]` (assigned
+  element-wise: a whole-array alias made sv2v pack `w_cand_addr`, which the
+  formal harness exposes per element, and the proof's base step failed on
+  the port name); flat regenerated (REPO_ROOT trick). `onyx_top`
+  `mon_cfg_addr_win_*`; harness CSRs `ONYX_MON_WIN_LOW` 0x014 /
+  `ONYX_MON_WIN_HIGH` 0x018 with `ONYX_MON_CTRL[3]` the enable; regmap;
+  sweep `--onyx-mon-window LOW HIGH`. **Sim:** the pair-rig TB now counts
+  every event itself from the harness taps (grant address per slot, AW
+  address, the candidate's address) and holds that count equal to the
+  counters in every cell (the window model anchored to the exact
+  instrument), then holds the observer to the in-window count; two window
+  cells on the gate (`_win`: 7 of 252 events inside the first KB,
+  7 packets, 0 lost; `_winmem`: MEM_READ through the second KB, 6 of 65,
+  6 packets); onyx gate 11/11, func 16/16, full 50/50 from clean; ref gate
+  9/9 from clean with a window phase on SEL 4 and 5 (TXN_START through the
+  upper half of the 4 KB region a strict subset; through the whole space
+  equal to the counter) and the window CSRs' reset checked everywhere;
+  lint clean (onyx_top, pair rig, harness SEL 3/4/5). **Board (bin 4):**
+  SEL 4 27,328 LUT / 25,187 FF WNS +0.003 ns, SEL 5 27,237 / 25,168
+  +0.013 ns, both 0 failing endpoints; program, init + smoke PASS; every
+  class open cycle-identical to bin 3 in 55 of 55 cells in both modes;
+  MEM_READ alone through a window on the first 8 KB (`0x0000..0x1FFF`):
+  the 30 cells per mode whose region lies inside the window read exactly
+  (bin == counter, 30 of 30, every depth), the thrash cells read the
+  window's share (`r64k_we64` 0.123 of 20,240 against a 0.125 share,
+  `r128k_we64` 0.062 against 0.062, `disjoint64k_we64` 0.063 with the
+  second injector's region outside; the same bin at depth 1 and 16, the
+  issued stream being depth-invariant), masked bins zero, and 0 drop
+  reports in all 110 windowed cells. Results
+  `perf_sweep_{onyx,onyxd}_bin4_dual_*` and
+  `perf_sweep_{onyx,onyxd}_bin4_memread_win8k_dual_*` (20261123T0025..0044Z).
+  HAS ch04/04 Table 4.2 window row and ABSORB slot, ch06/02 Table 6.3 bin 4
+  rows and the windowed reading; comparison; README; handbook note's
+  content-filter bullet (91dab26fd) and onyx row. **Formal** on the
+  regenerated flat (md5 f80fc20fc3, the two new ports): prove PASS (BMC
+  depth 24, 1 h 23 min), prove_book PASS (12 min).

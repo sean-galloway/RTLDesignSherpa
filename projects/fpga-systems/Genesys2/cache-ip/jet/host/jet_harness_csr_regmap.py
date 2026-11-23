@@ -161,8 +161,33 @@ top_block = {
         'mon_enable': {'default': '0x1', 'offset': '0', 'sw': 'rw', 'type': 'field'},
         'error_enable': {'default': '0x1', 'offset': '1', 'sw': 'rw', 'type': 'field'},
         'perf_enable': {'default': '0x1', 'offset': '2', 'sw': 'rw', 'type': 'field'},
+        # addr_win_enable: the content filter -- transmit only the events of
+        # the transactions inside ONYX_MON_WIN_LOW..HIGH (inclusive)
+        'addr_win_enable': {'default': '0x0', 'offset': '3', 'sw': 'rw', 'type': 'field'},
         'port_mask': {'default': '0x0', 'offset': '7:4', 'sw': 'rw', 'type': 'field'},
         'perf_mask': {'default': '0x007D', 'offset': '31:16', 'sw': 'rw', 'type': 'field'},
+    },
+    'ONYX_MON_WIN_LOW': {
+        # the observer's address window, inclusive low bound (CTRL.addr_win_enable)
+        'address': '0x014',
+        'default': '0x00000000',
+        'name': 'ONYX_MON_WIN_LOW',
+        'offset': '0x014',
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+    },
+    'ONYX_MON_WIN_HIGH': {
+        # the observer's address window, inclusive high bound
+        'address': '0x018',
+        'default': '0x00000000',
+        'name': 'ONYX_MON_WIN_HIGH',
+        'offset': '0x018',
+        'size': 4,
+        'sw': 'rw',
+        'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
     },
     'ONYX_MON_MASK': {
         # pkt_mask bit = packet type (4 Perf, 0 Error); error_mask bit = error

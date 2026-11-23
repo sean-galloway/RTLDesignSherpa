@@ -440,9 +440,11 @@ module ref_harness
     logic [31:0] onyx_cnt [6];   // the onyx counters (zero outside SEL 4 / 5)
     logic [31:0] onyx_mon_ctrl;  // the onyx observer's masks (CSR 0x038 / 0x03C; onyx_monlite's ocelus layers)
     logic [31:0] onyx_mon_mask;
+    logic [31:0] onyx_mon_win_low;   // the observer's address window (CSR 0x014 / 0x018; CTRL[3] enables)
+    logic [31:0] onyx_mon_win_high;
     /* verilator lint_off UNUSEDSIGNAL */
     logic unused_onyx_mon_cfg;   // the selections without onyx, and the bits the two-port build leaves
-    assign unused_onyx_mon_cfg = &{1'b0, onyx_mon_ctrl, onyx_mon_mask};
+    assign unused_onyx_mon_cfg = &{1'b0, onyx_mon_ctrl, onyx_mon_mask, onyx_mon_win_low, onyx_mon_win_high};
     /* verilator lint_on UNUSEDSIGNAL */
 
     // Aggregate cycle-injector status
@@ -493,7 +495,9 @@ module ref_harness
         .i_fabric_dbg  (fabric_dbg_state),
         .i_onyx_cnt    (onyx_cnt),
         .o_onyx_mon_ctrl (onyx_mon_ctrl),
-        .o_onyx_mon_mask (onyx_mon_mask)
+        .o_onyx_mon_mask (onyx_mon_mask),
+        .o_onyx_mon_win_low  (onyx_mon_win_low),
+        .o_onyx_mon_win_high (onyx_mon_win_high)
     );
 
     // ------------------------------------------------------------------
@@ -1520,6 +1524,11 @@ module ref_harness
             .mon_cfg_perf_mask    (onyx_mon_ctrl[31:16]),
             .mon_cfg_pkt_mask     (onyx_mon_mask[15:0]),
             .mon_cfg_error_mask   (onyx_mon_mask[31:16]),
+            // the content filter: ONYX_MON_CTRL [3] enables the inclusive
+            // address window ONYX_MON_WIN_LOW .. ONYX_MON_WIN_HIGH
+            .mon_cfg_addr_win_enable (onyx_mon_ctrl[3]),
+            .mon_cfg_addr_win_low    (ADDR_WIDTH'(onyx_mon_win_low)),
+            .mon_cfg_addr_win_high   (ADDR_WIDTH'(onyx_mon_win_high)),
             .cnt_clear        (hcsr_ctrl[0]),
             .cnt_freeze       (hcsr_ctrl[1]),
             .cnt_txn          (onyx_cnt[0]),
@@ -2003,7 +2012,9 @@ module ref_harness_csr (
     input  logic [3:0]  i_fabric_dbg,
     input  logic [31:0] i_onyx_cnt [6],  // onyx TASK-001: txn, supplied, mem_read, read_wasted, absorb, wb
     output logic [31:0] o_onyx_mon_ctrl,  // 0x038: the onyx observer's enables, port mask and class mask
-    output logic [31:0] o_onyx_mon_mask   // 0x03C: its packet-type mask and error-code mask
+    output logic [31:0] o_onyx_mon_mask,  // 0x03C: its packet-type mask and error-code mask
+    output logic [31:0] o_onyx_mon_win_low,   // 0x014 / 0x018: its address window (CTRL[3] enables)
+    output logic [31:0] o_onyx_mon_win_high
 );
 
     localparam logic [3:0] HCSR_CTRL       = 4'h0;
@@ -2020,13 +2031,19 @@ module ref_harness_csr (
     // host opens the classes it wants to transmit.
     localparam logic [3:0] HCSR_ONYX_MON_CTRL = 4'hE;
     localparam logic [3:0] HCSR_ONYX_MON_MASK = 4'hF;
+    // 0x014 / 0x018: the observer's inclusive address window, the content
+    // filter the AXI monitors carry as address ranges; CTRL[3] enables it
+    localparam logic [3:0] HCSR_ONYX_MON_WIN_LO = 4'h5;
+    localparam logic [3:0] HCSR_ONYX_MON_WIN_HI = 4'h6;
     localparam logic [31:0] ONYX_MON_CTRL_RESET = 32'h007D_0007;
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
-    logic [31:0] r_onyx_mon_ctrl, r_onyx_mon_mask;
+    logic [31:0] r_onyx_mon_ctrl, r_onyx_mon_mask, r_onyx_mon_win_lo, r_onyx_mon_win_hi;
     assign o_onyx_mon_ctrl = r_onyx_mon_ctrl;
     assign o_onyx_mon_mask = r_onyx_mon_mask;
+    assign o_onyx_mon_win_low  = r_onyx_mon_win_lo;
+    assign o_onyx_mon_win_high = r_onyx_mon_win_hi;
 
     // Write path: accept AW and W independently per AXI4-Lite spec.
     logic        r_bvalid;
@@ -2049,6 +2066,8 @@ module ref_harness_csr (
             r_ctrl    <= '0;
             r_onyx_mon_ctrl <= ONYX_MON_CTRL_RESET;
             r_onyx_mon_mask <= '0;
+            r_onyx_mon_win_lo <= '0;
+            r_onyx_mon_win_hi <= '0;
         end else begin
             // CTRL[0] (tally_clear) is write-1-pulse: a write with bit 0 set
             // raises o_ctrl[0] for exactly one cycle, then it self-clears.
@@ -2075,6 +2094,12 @@ module ref_harness_csr (
                     end
                     if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_MASK)) begin
                         r_onyx_mon_mask[8*b +: 8] <= r_wdata[8*b +: 8];
+                    end
+                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_WIN_LO)) begin
+                        r_onyx_mon_win_lo[8*b +: 8] <= r_wdata[8*b +: 8];
+                    end
+                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_WIN_HI)) begin
+                        r_onyx_mon_win_hi[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
                 end
             end else if (s_axil_bvalid && s_axil_bready) begin
@@ -2103,6 +2128,8 @@ module ref_harness_csr (
                              r_rdata = i_onyx_cnt[3'(r_araddr[5:2] - HCSR_ONYX_CNT0)];
             HCSR_ONYX_MON_CTRL: r_rdata = r_onyx_mon_ctrl;
             HCSR_ONYX_MON_MASK: r_rdata = r_onyx_mon_mask;
+            HCSR_ONYX_MON_WIN_LO: r_rdata = r_onyx_mon_win_lo;
+            HCSR_ONYX_MON_WIN_HI: r_rdata = r_onyx_mon_win_hi;
             default:         r_rdata = 32'hDEAD_BEEF;
         endcase
     end

@@ -202,6 +202,10 @@ module onyx_top
     input  logic [15:0]                 mon_cfg_perf_mask,
     input  logic [15:0]                 mon_cfg_error_mask,
     input  logic [N_PORTS-1:0]          mon_cfg_port_mask,
+    // the content filter: an inclusive address window on the transaction
+    input  logic                        mon_cfg_addr_win_enable,
+    input  logic [ADDR_WIDTH-1:0]       mon_cfg_addr_win_low,
+    input  logic [ADDR_WIDTH-1:0]       mon_cfg_addr_win_high,
 
     // exact event counters (onyx_counters): cleared and frozen with the
     // rig's tally so one host protocol snapshots both
@@ -221,7 +225,9 @@ module onyx_top
     logic [N_PORTS-1:0]  evt_gather, evt_gather_dt, evt_gather_pd, evt_read_wasted;
     logic [SLOT_W-1:0]   evt_gather_slot [N_PORTS];
     logic                evt_mem_ar, evt_absorb, evt_wb;
+    logic [SLOT_W-1:0]   evt_absorb_slot;
     logic [N_PORTS-1:0]  evt_lock_wait;
+    logic [ADDR_WIDTH-1:0] evt_lock_wait_addr [N_PORTS];
 
     onyx_ccu #(
         .N_PORTS(N_PORTS), .ADDR_WIDTH(ADDR_WIDTH), .LINE_BYTES(LINE_BYTES),
@@ -262,30 +268,34 @@ module onyx_top
         .evt_grant(evt_grant), .evt_grant_cls(evt_grant_cls), .evt_ac(evt_ac),
         .evt_gather(evt_gather), .evt_gather_slot(evt_gather_slot), .evt_gather_dt(evt_gather_dt),
         .evt_gather_pd(evt_gather_pd), .evt_mem_ar(evt_mem_ar), .evt_read_wasted(evt_read_wasted),
-        .evt_absorb(evt_absorb), .evt_wb(evt_wb), .evt_lock_wait(evt_lock_wait)
+        .evt_absorb(evt_absorb), .evt_absorb_slot(evt_absorb_slot), .evt_wb(evt_wb),
+        .evt_lock_wait(evt_lock_wait), .evt_lock_wait_addr(evt_lock_wait_addr)
     );
 
     // the write-back's port rides in the AW's low ID bits only by
     // convention of the caches' IDs, which the observer does not assume:
-    // v1 records the write-back without a port and the absorption without
-    // a slot (both are counts the tally reads)
+    // v1 records the write-back without a port; the window matches the
+    // write-back on its AW address and the absorption on its slot
     onyx_monlite #(
-        .N_PORTS(N_PORTS), .SLOTS(SLOTS), .USE_MONITOR(USE_MONITOR), .OUT_DEPTH(MON_OUT_DEPTH)
+        .N_PORTS(N_PORTS), .SLOTS(SLOTS), .ADDR_WIDTH(ADDR_WIDTH), .USE_MONITOR(USE_MONITOR), .OUT_DEPTH(MON_OUT_DEPTH)
     ) u_mon (
         .clk(clk), .rst_n(rst_n),
         .evt_grant_i(evt_grant), .evt_grant_port_i(dbg_grant_dir), .evt_grant_slot_i(dbg_grant_slot),
+        .evt_grant_addr_i(dbg_grant_addr),
         .evt_grant_cls_i(evt_grant_cls), .evt_ac_i(evt_ac),
         .evt_gather_i(evt_gather), .evt_gather_slot_i(evt_gather_slot),
         .evt_gather_dt_i(evt_gather_dt), .evt_gather_pd_i(evt_gather_pd),
         .evt_mem_ar_i(evt_mem_ar), .evt_mem_ar_slot_i(mem_arid[SLOT_W-1:0]),
         .evt_read_wasted_i(evt_read_wasted),
-        .evt_absorb_i(evt_absorb), .evt_absorb_slot_i('0),
-        .evt_wb_i(evt_wb), .evt_wb_port_i('0),
-        .evt_lock_wait_i(evt_lock_wait),
+        .evt_absorb_i(evt_absorb), .evt_absorb_slot_i(evt_absorb_slot),
+        .evt_wb_i(evt_wb), .evt_wb_port_i('0), .evt_wb_addr_i(mem_awaddr),
+        .evt_lock_wait_i(evt_lock_wait), .evt_lock_wait_addr_i(evt_lock_wait_addr),
         .cfg_mon_enable(mon_cfg_enable), .cfg_perf_enable(mon_cfg_perf_enable),
         .cfg_error_enable(mon_cfg_error_enable), .cfg_pkt_mask(mon_cfg_pkt_mask),
         .cfg_perf_mask(mon_cfg_perf_mask), .cfg_error_mask(mon_cfg_error_mask),
         .cfg_port_mask(mon_cfg_port_mask),
+        .cfg_addr_win_enable(mon_cfg_addr_win_enable), .cfg_addr_win_low(mon_cfg_addr_win_low),
+        .cfg_addr_win_high(mon_cfg_addr_win_high),
         .i_mon_time(i_mon_time),
         .monbus_valid(mon_valid), .monbus_ready(mon_ready),
         .monbus_packet(mon_packet), .monbus_timestamp(mon_timestamp),

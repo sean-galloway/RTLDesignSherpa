@@ -28,7 +28,7 @@
 //     MEM_READ     a memory AR taken: [7:0] slot
 //     READ_WASTED  a DataTransfer verdict for a slot whose read was issued
 //                  or presented (its beats will be dropped): no payload
-//     ABSORB       an absorption's BRESP: [7:0] slot
+//     ABSORB       an absorption's BRESP: [7:0] slot (the write side's slot)
 //     WRITEBACK    a cache write-back AW taken: [PORT_W-1:0] port
 //     LOCK_WAIT    a port's candidate waited behind a held line, emitted
 //                  on release: [PORT_W-1:0] port | [23:8] duration (cycles,
@@ -81,6 +81,19 @@
 //   as nothing lost, and the drop report says only what the channel lost.
 //   A masked drop report leaves the count accumulating in dropped_count.
 //
+//   The content filter, the other half of the ocelus idiom (the AXI
+//   monitors' address-range filter): a class mask turns a class on or off,
+//   and a class that fires on every transaction floods the channel however
+//   few classes are open.  cfg_addr_win_enable / _low / _high is an
+//   inclusive address window; the observer transmits only the events of
+//   the transactions inside it.  onyx attributes its events by slot, so a
+//   per-slot watch bit is set at the grant (the grant address against the
+//   window) and consulted by the slot's later events (GATHER_DONE,
+//   READ_WASTED, MEM_READ, ABSORB); TXN_START is the grant itself; the
+//   write-back is matched on its own AW address; LOCK_WAIT on the waiting
+//   candidate's address, latched when the wait begins.  Window disabled is
+//   everything.  The drop report is never windowed.
+//
 //------------------------------------------------------------------------------
 // Parameters:
 //   N_PORTS / SLOTS: onyx_ccu's; AGENT_ID / UNIT_ID: the house monitor ids
@@ -102,6 +115,7 @@ module onyx_monlite
 #(
     parameter int          N_PORTS     = 2,
     parameter int          SLOTS       = 18,
+    parameter int          ADDR_WIDTH  = 32,
     parameter logic [15:0] AGENT_ID    = ONYX_AGENT_ID,
     parameter logic [7:0]  UNIT_ID     = ONYX_UNIT_ID,
     parameter logic [7:0]  DROP_CODE   = 8'(AMBER_EV_DROPPED),
@@ -117,6 +131,7 @@ module onyx_monlite
     input  logic                        evt_grant_i,
     input  logic [PORT_W-1:0]           evt_grant_port_i,
     input  logic [SLOT_W-1:0]           evt_grant_slot_i,
+    input  logic [ADDR_WIDTH-1:0]       evt_grant_addr_i,
     input  logic [2:0]                  evt_grant_cls_i,
     input  logic [N_PORTS-1:0]          evt_ac_i,
     input  logic [N_PORTS-1:0]          evt_gather_i,          // per answering port
@@ -130,7 +145,9 @@ module onyx_monlite
     input  logic [SLOT_W-1:0]           evt_absorb_slot_i,
     input  logic                        evt_wb_i,
     input  logic [PORT_W-1:0]           evt_wb_port_i,
+    input  logic [ADDR_WIDTH-1:0]       evt_wb_addr_i,
     input  logic [N_PORTS-1:0]          evt_lock_wait_i,
+    input  logic [ADDR_WIDTH-1:0]       evt_lock_wait_addr_i [N_PORTS],
 
     // ---- configuration: the ocelus layers (enables 1 = on; masks bit set = drop) ----
     input  logic                        cfg_mon_enable,
@@ -140,6 +157,10 @@ module onyx_monlite
     input  logic [15:0]                 cfg_perf_mask,
     input  logic [15:0]                 cfg_error_mask,
     input  logic [N_PORTS-1:0]          cfg_port_mask,
+    // the content filter: an inclusive address window (disabled = everything)
+    input  logic                        cfg_addr_win_enable,
+    input  logic [ADDR_WIDTH-1:0]       cfg_addr_win_low,
+    input  logic [ADDR_WIDTH-1:0]       cfg_addr_win_high,
 
     // ---- side-band timestamp ----
     input  monbus_timestamp_t           i_mon_time,
@@ -172,6 +193,24 @@ module onyx_monlite
     )
 
     // ------------------------------------------------------------------
+    // The address window: a per-slot watch bit set at the grant; the
+    // slot's later events read it (the grant cycle itself reads the
+    // live compare, since a memory AR may be taken in the grant's cycle)
+    // ------------------------------------------------------------------
+    function automatic logic in_win(input logic [ADDR_WIDTH-1:0] a);
+        return !cfg_addr_win_enable || ((a >= cfg_addr_win_low) && (a <= cfg_addr_win_high));
+    endfunction
+    wire  w_grant_in_win = in_win(evt_grant_addr_i);
+    logic [SLOTS-1:0] r_slot_watch;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) r_slot_watch <= '0;
+        else if (evt_grant_i) r_slot_watch[evt_grant_slot_i] <= w_grant_in_win;
+    )
+    function automatic logic slot_watch(input logic [SLOT_W-1:0] s);
+        return (evt_grant_i && (evt_grant_slot_i == s)) ? w_grant_in_win : r_slot_watch[s];
+    endfunction
+
+    // ------------------------------------------------------------------
     // Lock-wait episodes per port: duration measured, emitted on release
     // (one port per cycle is emitted; a second release the same cycle
     // waits one cycle in its own register -- the hold shifts the count,
@@ -179,15 +218,19 @@ module onyx_monlite
     // ------------------------------------------------------------------
     logic [N_PORTS-1:0] r_lw_active;
     logic [15:0]        r_lw_dur [N_PORTS];
+    logic [N_PORTS-1:0] r_lw_win;           // the waiting candidate was in the window at the wait's start
     logic [N_PORTS-1:0] r_lw_pend;          // a release waiting to be emitted
     logic [15:0]        r_lw_pend_dur [N_PORTS];
+    logic [N_PORTS-1:0] r_lw_pend_win;
     logic [N_PORTS-1:0] w_lw_release;
     logic               w_lw_fire;
+    logic               w_lw_win_out;
     logic [PORT_W-1:0]  w_lw_port;
     logic [15:0]        w_lw_dur_out;
     always_comb begin
         w_lw_release = r_lw_active & ~evt_lock_wait_i;
         w_lw_fire    = 1'b0;
+        w_lw_win_out = 1'b0;
         w_lw_port    = '0;
         w_lw_dur_out = '0;
         for (int d = N_PORTS - 1; d >= 0; d--) begin
@@ -195,13 +238,16 @@ module onyx_monlite
                 w_lw_fire    = 1'b1;
                 w_lw_port    = PORT_W'(d);
                 w_lw_dur_out = r_lw_pend[d] ? r_lw_pend_dur[d] : r_lw_dur[d];
+                w_lw_win_out = r_lw_pend[d] ? r_lw_pend_win[d] : r_lw_win[d];
             end
         end
     end
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_lw_active <= '0;
+            r_lw_win    <= '0;
             r_lw_pend   <= '0;
+            r_lw_pend_win <= '0;
             for (int d = 0; d < N_PORTS; d++) begin
                 r_lw_dur[d]      <= '0;
                 r_lw_pend_dur[d] <= '0;
@@ -210,8 +256,10 @@ module onyx_monlite
             for (int d = 0; d < N_PORTS; d++) begin
                 if (evt_lock_wait_i[d]) begin
                     r_lw_active[d] <= 1'b1;
-                    if (!r_lw_active[d]) r_lw_dur[d] <= 16'd1;
-                    else if (r_lw_dur[d] != 16'hFFFF) r_lw_dur[d] <= r_lw_dur[d] + 16'd1;
+                    if (!r_lw_active[d]) begin
+                        r_lw_dur[d] <= 16'd1;
+                        r_lw_win[d] <= in_win(evt_lock_wait_addr_i[d]);
+                    end else if (r_lw_dur[d] != 16'hFFFF) r_lw_dur[d] <= r_lw_dur[d] + 16'd1;
                 end else begin
                     r_lw_active[d] <= 1'b0;
                 end
@@ -219,6 +267,7 @@ module onyx_monlite
                 if (w_lw_release[d] && !(w_lw_fire && (w_lw_port == PORT_W'(d)))) begin
                     r_lw_pend[d]     <= 1'b1;
                     r_lw_pend_dur[d] <= r_lw_dur[d];
+                    r_lw_pend_win[d] <= r_lw_win[d];
                 end else if (w_lw_fire && (w_lw_port == PORT_W'(d))) begin
                     r_lw_pend[d]     <= 1'b0;
                 end
@@ -240,7 +289,8 @@ module onyx_monlite
     logic [63:0] c_data [N_CL];
     logic        c_raw  [N_CL];      // the event this cycle
     logic        c_port_masked [N_CL];
-    logic        c_fire [N_CL];      // the event, admitted by the masks
+    logic        c_in_win [N_CL];    // the event's transaction is inside the address window
+    logic        c_fire [N_CL];      // the event, admitted by the masks and the window
 
     // the layers: the observer, the Perf type, the type mask, then per
     // class the event mask and the port mask
@@ -260,10 +310,12 @@ module onyx_monlite
                       | (64'(16'(i_mon_time - r_grant_cyc[evt_gather_slot_i[p]])) << 16);
             c_raw[p]  = evt_gather_i[p];
             c_port_masked[p] = cfg_port_mask[p];
+            c_in_win[p] = slot_watch(evt_gather_slot_i[p]);
             c_code[N_PORTS + p] = 8'(ONYX_EV_READ_WASTED);
             c_data[N_PORTS + p] = 64'(p) << 12;
             c_raw[N_PORTS + p]  = evt_read_wasted_i[p];
             c_port_masked[N_PORTS + p] = cfg_port_mask[p];
+            c_in_win[N_PORTS + p] = slot_watch(evt_gather_slot_i[p]);   // the wasted read's slot is the gather's
         end
         c_code[CL_MEM] = 8'(ONYX_EV_MEM_READ);  c_data[CL_MEM] = 64'(evt_mem_ar_slot_i); c_raw[CL_MEM] = evt_mem_ar_i;
         c_code[CL_TXN] = 8'(ONYX_EV_TXN_START); c_data[CL_TXN] = w_grant_data;           c_raw[CL_TXN] = evt_grant_i;
@@ -275,8 +327,13 @@ module onyx_monlite
         c_port_masked[CL_ABS] = 1'b0;
         c_port_masked[CL_WB]  = 1'b0;
         c_port_masked[CL_LW]  = cfg_port_mask[w_lw_port];
+        c_in_win[CL_MEM] = slot_watch(evt_mem_ar_slot_i);
+        c_in_win[CL_TXN] = w_grant_in_win;
+        c_in_win[CL_ABS] = slot_watch(evt_absorb_slot_i);
+        c_in_win[CL_WB]  = in_win(evt_wb_addr_i);
+        c_in_win[CL_LW]  = w_lw_win_out;
         for (int c = 0; c < N_CL; c++)
-            c_fire[c] = c_raw[c] && w_perf_on && !cfg_perf_mask[c_code[c][3:0]] && !c_port_masked[c];
+            c_fire[c] = c_raw[c] && w_perf_on && !cfg_perf_mask[c_code[c][3:0]] && !c_port_masked[c] && c_in_win[c];
     end
 
     // ------------------------------------------------------------------

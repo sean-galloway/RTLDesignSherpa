@@ -339,8 +339,10 @@ module onyx_ccu
     output logic                        evt_mem_ar,         // memory AR handshake, slot mem_arid
     output logic [N_PORTS-1:0]          evt_read_wasted,    // per answering port: a DT verdict with the slot's read issued or presented
     output logic                        evt_absorb,         // absorption BRESP
-    output logic                        evt_wb,             // write-back AW handshake
-    output logic [N_PORTS-1:0]          evt_lock_wait       // a port's valid candidate is held by the per-line lock
+    output logic [SLOT_W-1:0]           evt_absorb_slot,    // the absorbed slot (the write side's current slot)
+    output logic                        evt_wb,             // write-back AW handshake (its address is mem_awaddr)
+    output logic [N_PORTS-1:0]          evt_lock_wait,      // a port's valid candidate is held by the per-line lock
+    output logic [ADDR_WIDTH-1:0]       evt_lock_wait_addr [N_PORTS]   // that candidate's address (for the observer's window)
 );
 
     // ------------------------------------------------------------------
@@ -1113,11 +1115,16 @@ module onyx_ccu
             evt_read_wasted[p] = w_cr_hs[p] && s_crresp[p][AMBER_CRRESP_DT]
                 && (r_mem_issued[w_sni_head[p]] || (w_mar_vld && (w_mar_slot == w_sni_head[p])));
         end
-        for (int d = 0; d < N_PORTS; d++)
-            evt_lock_wait[d] = w_cand_vld[d] & w_cand_locked[d];
+        for (int d = 0; d < N_PORTS; d++) begin
+            evt_lock_wait[d]      = w_cand_vld[d] & w_cand_locked[d];
+            // element-wise, not a whole-array alias: sv2v packs an aliased
+            // array and the formal harness exposes w_cand_addr per element
+            evt_lock_wait_addr[d] = w_cand_addr[d];
+        end
     end
     assign evt_mem_ar = w_mar_hs;
     assign evt_absorb = (r_wstate == W_B) & w_cur_abs & mem_bvalid & mem_bready;
+    assign evt_absorb_slot = r_w_slot;
     assign evt_wb     = mem_awvalid & mem_awready & ~w_cur_abs;
 
     // ------------------------------------------------------------------

@@ -126,7 +126,7 @@ def onyx_perf_mask(classes):
 
 def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
               outstanding=(1,), ci1_idle=False, profile="jet",
-              onyx_classes=None, onyx_port_mask=0):
+              onyx_classes=None, onyx_port_mask=0, onyx_window=None):
     """Walk CONFIGS at each injector depth in `outstanding` (TASK-002).
 
     The issued sequence is depth-invariant, so every config's CRCs must be
@@ -142,15 +142,22 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
         # default, the lower-bound reading of every bin)
         perf_mask = onyx_perf_mask(onyx_classes)
         hc = driver.bus["harness"]
+        # the content filter: an inclusive address window; the events of the
+        # transactions outside it are dropped at the source
+        if onyx_window:
+            hc.write_word("ONYX_MON_WIN_LOW", onyx_window[0])
+            hc.write_word("ONYX_MON_WIN_HIGH", onyx_window[1])
         hc.write("ONYX_MON_CTRL", mon_enable=1, error_enable=1, perf_enable=1,
+                 addr_win_enable=1 if onyx_window else 0,
                  port_mask=onyx_port_mask & 0xF, perf_mask=perf_mask)
         hc.write("ONYX_MON_MASK", pkt_mask=0, error_mask=0)
         onyx_mon = {"classes": sorted(onyx_classes) if onyx_classes else ["all"],
                     "perf_mask": perf_mask, "port_mask": onyx_port_mask & 0xF,
+                    "window": list(onyx_window) if onyx_window else None,
                     "ctrl": hc.read("ONYX_MON_CTRL")}
         say(f"[sweep] onyx observer: classes {onyx_mon['classes']} "
             f"perf_mask=0x{perf_mask:04x} port_mask=0x{onyx_mon['port_mask']:x} "
-            f"ONYX_MON_CTRL=0x{onyx_mon['ctrl']:08x}")
+            f"window={onyx_mon['window']} ONYX_MON_CTRL=0x{onyx_mon['ctrl']:08x}")
     driver.tally_clear()  # start from zeroed bins; each run below re-clears
     results = []
     for depth in outstanding:
@@ -281,6 +288,12 @@ def main(argv=None):
     ap.add_argument("--onyx-port-mask", type=lambda v: int(v, 0), default=0,
                     help="(--profile ref-onyx) ONYX_MON_CTRL.port_mask: bit p drops the "
                          "events attributed to port p")
+    ap.add_argument("--onyx-mon-window", nargs=2, type=lambda v: int(v, 0), default=None,
+                    metavar=("LOW", "HIGH"),
+                    help="(--profile ref-onyx) the observer's inclusive address window "
+                         "(ONYX_MON_WIN_LOW/HIGH, CTRL.addr_win_enable): transmit only the "
+                         "events of the transactions inside it -- the content filter that "
+                         "makes a per-transaction class a low-bandwidth watch")
     args = ap.parse_args(argv)
 
     link = open_jet_link(args.port, board_name=args.board,
@@ -293,7 +306,8 @@ def main(argv=None):
                             outstanding=tuple(args.outstanding),
                             ci1_idle=args.ci1_idle, profile=args.profile,
                             onyx_classes=args.onyx_mon_classes,
-                            onyx_port_mask=args.onyx_port_mask)
+                            onyx_port_mask=args.onyx_port_mask,
+                            onyx_window=args.onyx_mon_window)
     finally:
         bridge.close()
 

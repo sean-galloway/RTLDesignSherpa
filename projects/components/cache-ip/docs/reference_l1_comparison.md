@@ -524,7 +524,13 @@ measures the same way.
   20,240 = 20,240 where the all-open bin read 12,603), short only in the
   thrash cells at depth 4 to 16 where the caches' two unmasked observers
   still share the channel, each with a drop report; the deferred build
-  reads the same way, 45 of 55 (onyx ISSUE-001, closed). Timing at 100 MHz under the 0.2 ns budget: SEL 4 WNS
+  reads the same way, 45 of 55 (onyx ISSUE-001, closed). The content
+  filter (bin 4: an address window, `--onyx-mon-window LOW HIGH`; 27,328 /
+  27,237 LUT, WNS +0.003 / +0.013 ns) is what makes the class
+  low-bandwidth at any depth: `MEM_READ` through a window on the first
+  8 KB reads exactly in the 30 cells whose region lies inside it, the
+  window's share in the thrash cells (0.123 of `r64k_we64`'s reads against
+  a 0.125 share), and not one of the 110 windowed cells drops a packet. Timing at 100 MHz under the 0.2 ns budget: SEL 4 WNS
   +0.006 ns, SEL 5 +0.000 ns, both met, the worst path jet-prime's fill
   engine staging read pointer into the data-array address in both -- onyx
   is not on the critical path. Manager alone out of context (the fourth

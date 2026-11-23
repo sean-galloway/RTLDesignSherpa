@@ -57,8 +57,10 @@ absorptions, write-backs), held to the pair-rig TB's model in sim and read
 on the reference rig through the tally chain and the harness CSR. The
 observer carries the ocelus layers of masks (observer, packet type, event
 class, error code, port; `ONYX_MON_CTRL` / `ONYX_MON_MASK` on the rig,
-reset to the rare class only), because the house MonBus is a low-bandwidth
-event channel and the integrator picks what to transmit (onyx ISSUE-001).
+reset to the rare class only) and the content filter, an address window
+on the transaction (`ONYX_MON_WIN_LOW` / `HIGH`), because the house MonBus
+is a low-bandwidth event channel and the integrator picks what to transmit
+(onyx ISSUE-001).
 Not yet built: the ACE-Lite IO port (D1), an `ARSNOOP` front end. Tracker:
 [`vault/tracking/projects/components/cache-ip/onyx-ace-ccu/`](../../../../vault/tracking/projects/components/cache-ip/onyx-ace-ccu/INDEX.md);
 architecture: [docs/onyx_has](docs/onyx_has/onyx_has_index.md).

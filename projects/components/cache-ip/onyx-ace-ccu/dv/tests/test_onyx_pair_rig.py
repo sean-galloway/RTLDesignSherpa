@@ -66,6 +66,8 @@ MASK_CELLS = [
     ('_mkrare', {'ONYX_MON_PERF_MASK': '0x7D'}),   # the board reset: only LOCK_WAIT
     ('_pm0',    {'ONYX_MON_PORT_MASK': '0x1'}),    # port 0's events dropped at the source
     ('_off',    {'ONYX_MON_ENABLE': '0'}),         # the observer disabled: silent, nothing lost
+    ('_win',    {'ONYX_MON_WIN': '0x0000:0x03FF'}),  # the address window: only the first KB's transactions
+    ('_winmem', {'ONYX_MON_WIN': '0x0400:0x07FF', 'ONYX_MON_PERF_MASK': '0xF7'}),  # window + one class
 ]
 
 DUT_TOP = 'onyx_pair_rig_tb'

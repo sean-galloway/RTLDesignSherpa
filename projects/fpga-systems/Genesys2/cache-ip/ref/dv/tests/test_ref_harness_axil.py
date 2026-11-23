@@ -78,6 +78,8 @@ HCSR_FABRIC_DBG = 0x10
 HCSR_ONYX_CNT0 = 0x20       # six onyx counters, 0x20..0x34 (REF_CACHE_SEL 4/5; 0 elsewhere)
 HCSR_ONYX_MON_CTRL = 0x38   # the onyx observer's masks: [0] enable [1] error [2] perf [5:4] port mask [31:16] class mask
 HCSR_ONYX_MON_MASK = 0x3C   # [15:0] packet-type mask, [31:16] error-code mask
+HCSR_ONYX_MON_WIN_LOW = 0x14    # the observer's inclusive address window (CTRL[3] enables)
+HCSR_ONYX_MON_WIN_HIGH = 0x18
 ONYX_MON_CTRL_RESET = 0x007D_0007   # everything enabled, the six per-transaction classes masked, LOCK_WAIT open
 ONYX_MON_BIN = {"TXN_START": 11, "MEM_READ": 12, "GATHER_DONE": 13, "READ_WASTED": 14,
                 "ABSORB": 15, "WRITEBACK": 16, "DROP": 17}   # the ref-onyx profile's bins
@@ -423,6 +425,9 @@ async def smoke_test(dut):
     mon_mask = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_MASK)
     assert mon_ctrl == ONYX_MON_CTRL_RESET, f"ONYX_MON_CTRL reset 0x{mon_ctrl:08x} != 0x{ONYX_MON_CTRL_RESET:08x}"
     assert mon_mask == 0, f"ONYX_MON_MASK reset 0x{mon_mask:08x} != 0"
+    for off in (HCSR_ONYX_MON_WIN_LOW, HCSR_ONYX_MON_WIN_HIGH):
+        v = await tb.read32(ADDR_HARNESS_CSR + off)
+        assert v == 0, f"ONYX_MON_WIN at 0x{off:02x} reset 0x{v:08x} != 0"
     if sel >= 4:
         await _load_onyx_profile(tb)
         # open TXN_START (code 0x20) and MEM_READ (0x23) only; on the warm
@@ -449,8 +454,35 @@ async def smoke_test(dut):
             assert b <= cnt_, f"{name} bin {b} above its counter {cnt_}"
             assert b == cnt_ or bins[ONYX_MON_BIN["DROP"]] > 0, \
                 f"{name} bin {b} short of its counter {cnt_} with no drop report"
-        await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x0)
+        # The content filter: TXN_START alone through an address window on
+        # the upper half of the 4 KB region transmits a strict subset of the
+        # transactions; the whole address space transmits them all.
+        open_txn = ((0xFFFF & ~(1 << 0)) << 16) | 0x7
+        results = {}
+        for name, lo, hi in (("upper half", 0x800, 0xFFF), ("everything", 0x0, 0xFFFF_FFFF)):
+            await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_LOW, lo)
+            await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_HIGH, hi)
+            await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL, open_txn | (1 << 3))
+            assert (await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_LOW)) == lo
+            assert (await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_HIGH)) == hi
+            await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)
+            await _run_burst(tb, count)
+            for _ in range(64):
+                await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)
+            await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x2)
+            bins = await _read_bins(tb, 18)
+            txn = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0)
+            results[name] = (bins[ONYX_MON_BIN["TXN_START"]], txn, bins[ONYX_MON_BIN["DROP"]])
+            dut._log.info(f"onyx observer window {name} [0x{lo:x}, 0x{hi:x}]: TXN_START bin {results[name][0]} "
+                          f"of {txn} transactions, drop reports {results[name][2]}")
+            await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x0)
+        b, txn, drops = results["upper half"]
+        assert txn > 0 and 0 < b < txn, f"windowed TXN_START bin {b} is not a strict subset of {txn}"
+        b, txn, drops = results["everything"]
+        assert b == txn or drops > 0, f"whole-space window: TXN_START bin {b} short of {txn} with no drop report"
         await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL, ONYX_MON_CTRL_RESET)
+        await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_LOW, 0)
+        await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_HIGH, 0)
 
 
 def _onyx_profile():
