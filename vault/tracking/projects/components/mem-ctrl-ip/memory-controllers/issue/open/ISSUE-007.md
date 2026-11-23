@@ -48,3 +48,23 @@ could pay it several times over.
 3. Then either a model term (if the RTL's refresh re-phasing is a mechanism
    the model lacks) or a pick-core question (if the slot is a hold the RTL
    need not take), priced in the model first as MC-021 did.
+
+> 2026-11-23 (`char_results/proxy_issue007_bank_interleave_cadence_2026-11-23.md`):
+> steps 1 and 2 done. The model: 584.6 on all 40 GO phases of three cells --
+> the mechanism is not in it. The proxy (close page under
+> SCHEME_BANK_INTERLEAVE, one generator, tREFI 776 .. 784): the levels are
+> cadence ORBITS the stream locks into after a refresh, not a per-refresh
+> cost -- the gap around every refresh is 24 .. 28 cycles in every run; between
+> refreshes the stream runs 1.333 cycles per column (3 columns per 4 cycles,
+> the 583 ceiling with the refresh) or, after some refreshes, 1.500 (8 per
+> 12: the board's 519 = 8 / 9), 1.625 (8 per 13), 1.750 (8 per 14) or 1.250
+> (tFAW-exact, 586), for one or several refresh periods. tREFI 780 is a
+> multiple of the base (4), 1.5 (12) and 1.625 (13) orbit periods, so on the
+> board every refresh re-launches the orbit the pass is in -- that is why a
+> pass holds one level for 461 refreshes. In the 1.5 orbit the first ACT of
+> each burst pair waits five slots past the bank's readiness for a head that
+> is not there; not the pool (32: the orbit moves pass), not the generator's
+> window (8: identical). The 566 level (32 / 33) had no orbit in these eleven
+> phases. Step 3 waits on the pick probe across a slow re-launch (the record
+> names the cycles); filed into MC-023 with the model's open self-close term.
+> New tool: `mem-ctrl-ip-ddr2/bin/dram_trace_segments.py`.

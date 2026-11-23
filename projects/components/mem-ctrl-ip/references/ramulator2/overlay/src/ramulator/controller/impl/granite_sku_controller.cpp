@@ -197,6 +197,13 @@ class GraniteSKUController : public ControllerBase {
                                 //   AXI burst); this probe gives 4 on EVERY chain (87 MB/s against the proxy's 95 / 91 on close_page
                                 //   col_major_bl4 with the field / the shared tRP), so what arms the fourth is not "it lands after the
                                 //   close" and is not yet measured. The term waits for that measurement; false = the model as committed
+                                //   2026-11-23 (ISSUE-005 / ISSUE-007 work): the fourth chain is the col_major walk's ROW STEP -- every
+                                //   burst is a new row, so the head after a burst's last column is a miss from its first record. The
+                                //   probe now gates only a head OF THE CLOSED ROW; with it on: close_page col_major_bl4 92 / 92 (board
+                                //   92 / 95), row_thrash 349 / 352 (344 / 354), random 272 / 280 (270 / 283), bank_interleave
+                                //   col_major_interleaved_bl4 355 / 358 (356 / 361) -- four cells the default over-prices by 10 .. 15 --
+                                //   but close_page mixed_bl8 60 / 66 (board 73 / 121, the default's 73 / 117), so it stays off: the
+                                //   mixed cell's same-row head is not present at the fire the way this probe sees it (MC-023)
   int m_ap_close_lag = 0;       // PROBE, kept for the record: a flat gate from the fire on every head (1 overshoots the board, 2
                                 //   undershoots; the mixture above is the term); 0 = off
   int m_dir_batch_max = 255;
@@ -810,7 +817,9 @@ class GraniteSKUController : public ControllerBase {
         if (m_ap_fire_clk[b] != m_clk) continue;
         for (int d = 0; d < 2; d++) {
           const int p = pair_of(b, d);
-          if (m_heads[p].vld) m_pair_closed_clk[p] = m_clk;
+          // only a head of the row the self-close closed read it as open; a head of another row was a miss from
+          // its first record and the lookahead arms its ACT (the col_major chains across a burst's row step)
+          if (m_heads[p].vld && row_of(*m_heads[p].it) == m_bank_ap_row[b]) m_pair_closed_clk[p] = m_clk;
         }
       }
     }

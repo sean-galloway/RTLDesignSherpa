@@ -844,3 +844,42 @@ before picking "another config".
 
 Related: [[measure-over-the-window]] (the window rule is the same one),
 [[arbiter-compliance-model]].
+
+## A per-pass level is an orbit; read the inter-refresh cadence, not the refresh gap (2026-11-23)
+
+The board's bank_interleave row-hit cells took one of three bandwidth levels
+per pass (583 / 566 / 519 MB/s, exact fractions 1, 32/33, 8/9), a draw per
+pass, and the issue named the refresh phase as the candidate. The model's GO
+sweep over a refresh period showed nothing (584.6 on every phase), so the
+proxy decided it (memory-controllers ISSUE-007,
+`char_results/proxy_issue007_bank_interleave_cadence_2026-11-23.md`). Two
+lessons:
+
+- **The cost was not where the hypothesis put it.** The gap around every
+  refresh is 24 .. 28 cycles in every run, slow pass or fast. What the
+  refresh does is re-launch the stream into another periodic orbit of the
+  pick pipeline (3 columns per 4 cycles, or 8 per 12 / 13 / 14), which then
+  runs for whole refresh periods. Read a trace by inter-refresh SEGMENT
+  (`mem-ctrl-ip-ddr2/bin/dram_trace_segments.py`: cadence, ACT phases,
+  gaps per segment), not by the event the hypothesis names.
+- **A level that holds for a whole pass means the perturbation is
+  stationary against it.** tREFI 780 is a multiple of the base orbit's
+  period (4 cycles) and the slow orbits' (12, 13), so every refresh lands on
+  the same phase of whichever orbit the pass is in and re-launches it; the
+  orbit whose period does not divide 780 (14) lasted one segment. Moving
+  the proxy's tREFI by one cycle walks the phase and chains the slow orbits
+  (779) or never launches them (781, 782). When a board level is pass-stable
+  and a draw per pass, ask what period the perturbation is stationary
+  against before asking what it costs.
+
+The same day's ISSUE-005 sweep gave the rule's mirror for a bimodal cell:
+**price every knob that touches the race before proposing one**
+(`model_issue005_hold_idle_modes_2026-11-23.md`: DIR_HOLD_IDLE 0 .. 16 and
+DIR_OWNS_ROWS across 40 GO phases on two presets). No value gave the wanted
+mode on every phase, and the one that closed the race cost two landed cells
+their field gain -- which a single-knob, single-phase pricing would have
+reported as a win. And: **a model CSV is dated by the controller build that
+made it**; the 2026-11-22 CSVs were written two hours before the term they
+were cited for was finished (MC-020's addendum, MC-023).
+
+Related: [[measure-over-the-window]], [[arbiter-compliance-model]].

@@ -1,10 +1,10 @@
 # memory-controllers — task lane
 
-**Next ID: MC-023** — never recycle a number.
+**Next ID: MC-024** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
@@ -19,6 +19,14 @@
   bank timers' CSR-derived flag (the last false-pathed 2026-11-22). A
   structural cut priced in the model first; floorplanning is recorded as
   making it worse. Filed 2026-11-22 from MC-020 decision 2.
+
+- **MC-023** -- the SKU model's three open fidelity terms: the self-close's
+  record path (the "one in four" is the col_major walk's row step; the
+  `ap_close_rec` probe lands four cells and breaks the close_page mixed one),
+  the bank_interleave bl4 read chain one slot past tRC under `ap_seq` (the
+  2026-11-22 CSVs predate the finished term), the pick pipeline's
+  refresh-relaunched orbits (ISSUE-007) and the hybrid policy's mixed-cell
+  mode (ISSUE-005). Filed 2026-11-23.
 
 ## Active
 

@@ -90,3 +90,27 @@ whose other presets never show it.
 > it was on 2026-11-20. With the TIMINGS_RP_AP field (the RTL step) the model
 > prices `defaults` mixed at 619 and `close_page` mixed at 146 -- the board on
 > the step's bitstream says which mode each takes (section 5 of the record).
+
+> 2026-11-23 (`char_results/model_issue005_hold_idle_modes_2026-11-23.md`): the
+> 40-phase sweep at the phase-exact counters and the field. `open_page`: the
+> board's pair (280 / 280 x26 phases, 308 / 524 x14; the board 8 slow / 2 fast
+> of ten runs). `defaults`: three model modes (280 / 280 x14, 290 / 343 x22,
+> 305 / 489 x4) where the board is 277 / 276 ten of ten -- a fidelity gap on
+> the shipped preset, to MC-023. The mechanism, slot by slot: at the batch cap
+> the holder's ownership PRE (requested one slot before the cap) closes the
+> waiter's row; the waiter's head reads as a hit for close_lag, the holder's
+> hinted re-ACT takes the bank, the waiter's re-PRE lands against the idle
+> counter -- at idle 8 a cross-direction column takes the turn (the fast
+> mode), at idle 7 the waiter's PRE fires first (the slow). One slot, placed
+> by the refresh phase. Candidates priced across the 40 phases on both
+> presets: DIR_HOLD_IDLE 0 / 4 / 6 / 9 / 10 / 12 / 16 and DIR_OWNS_ROWS off.
+> **No value gives the fast mode on every phase** (the read-first shape
+> appears at hold 0 / 4 / 6 with other phases in another mode); hold >= 9
+> gives the time-share on 40 / 40 phases of both presets (union 560, the
+> board's `defaults` 10 of 10 and `open_page` 8 of 10), at the cost of the
+> close_page mixed cell's read-first shape (73 / 121 -> 61 / 61, -16 on the
+> union; 55 in / 2 out against the SKU board set) and the open_page fast
+> phases' 617. The decision is the owner's: build GRANITE_SCHED_DIR_HOLD_IDLE
+> 9 for a deterministic cell at that price, a recorded no-action (the shipped
+> preset is one mode on the board), or a read-priority direction register,
+> which is a design, not a knob, and is not priced.

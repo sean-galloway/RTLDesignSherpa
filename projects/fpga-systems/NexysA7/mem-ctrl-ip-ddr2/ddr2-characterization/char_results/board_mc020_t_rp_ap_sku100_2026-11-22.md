@@ -383,3 +383,21 @@ Decision 2 is built, proved, measured, and lands at the owner's third decision:
 | build C: default placement + the bank timers' CSR-derived registers false-pathed | **WNS +0.002, 0 failing endpoints**, 37,320 LUT / 32,962 FF -- the SKU bitstream | |
 | the board on build C | 95 cells + memtest, 0 mismatched; the model 54 in / 3 out | |
 | the proxy, six traces through `jedec_ck_check.py` | 24,625 .. 197,313 commands each, no violation | |
+
+## 9. Addendum (2026-11-23): the model CSVs of section 6 predate the finished term
+
+Re-running the committed model (c10ce1ef9) on `granite_sku100_bi col_major_bl4`
+gives 446 / 446 with the field and 446 / 446 with the shared tRP, where
+`model_ramulator2_ddr2_granite_sku100_bi_rpap_2026-11-22.csv` says 446 / 520;
+`granite_sku100_close mixed_bl8` is 73 / 117 against the CSV's 73 / 121. The
+four `_rpap_` / `_rps_` CSVs were written 14:28 .. 14:37 on 2026-11-22, the
+controller's last edit (the finished `ap_seq` term) at 16:44; `ap_seq=false`
+reproduces the CSV's 520. So in section 6's table the bank_interleave
+col_major_bl4 line "model predicted 446 / 520" and the compares' 54 / 3 and 52
+/ 5 are the pre-term model's; against the committed model that cell is OUT
+(-13.6 on the read) and the count is 53 / 4. The board's +17 on the cell is
+the RTL's and stands. The term's defect on this chain, and the record-path
+term of section 7, are memory-controllers MC-023 (filed 2026-11-23, with
+the mechanism of the "one in four": the col_major walk's row step -- the head
+after a burst's last column is of the next row, a miss from its first record,
+and the lookahead arms it).
