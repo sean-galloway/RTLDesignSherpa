@@ -392,39 +392,69 @@ Directed mask boundaries and the reusable equivalence harness in
 `formal/amba/monitor_trans_cam/` remain. Reproduce with
 `RUN_LABEL=cam_alloc_after JOBS=2 rtl/amba/fpga/bin/full_observer_synth_sweep.sh feature_master`.
 
+### Review correctness fix: preserve AW and B ordering
+
+Independent review found that ID-filtered AW commands were absent from the
+AW-order queue even though their W beats remained on the bus. A later owned
+entry consumed those beats, with no error or loss-counter indication. Refused
+owned AW commands also needed response ordering: a delayed refused B could
+otherwise mark a later tracked write with the same ID as responded.
+
+The fix records every observed AW with a tracked/untracked disposition.
+Untracked heads consume W through WLAST without table, bypass, or early-data
+updates. A separate owned-AW response queue removes the oldest record matching
+each B ID, suppressing untracked responses while retaining out-of-order B across
+different IDs. Queue overflow is sticky until clear, suppresses further
+attribution, and pulses the refusal indication. This is a correctness change,
+not one of the three rejected optimization candidates; its resource and timing
+delta is reported separately below.
+
+Three directed scenarios check exact table state before the owned W or B:
+filtered two-beat W isolation, refused same-ID B isolation after saturation and
+natural reuse without `cam_clear`, and overflow reporting followed by clear and
+recovery. All three pass. The final formal matrix retains 19 PASS results, and
+the handbook records the general filtering/order-stream lesson.
+
 ### Final accepted result
 
 The passive full observer variants, refusal accounting, and strengthened tests
-are retained; none of the three optimization conversions is retained. The final
-`full_after` matrix at source `2733f5516` exactly matches `full_before` in every
-published metric. There is no cumulative LUT, FF, LUTRAM, BRAM, WNS, or logic-
-level improvement to claim.
+are retained; none of the three optimization conversions is retained. The
+optimization-only delta remains zero. The independent AW/B-order correctness
+fix at `508234595` changes the final hardware cost, so the previous zero-delta
+`full_after` table no longer applies. The table below compares identical
+profile/part pairs and includes that correctness cost, not an efficiency claim.
+Lite is unchanged in every published metric.
 
-| Profile / part | Final LUT / FF / LUTRAM / WNS | Delta from baseline |
+| Profile / part | Final LUT / FF / LUTRAM / WNS | LUT / FF / WNS delta from baseline |
 |---|---:|---|
-| Full feature master, Kintex-7 | 21,658 / 16,876 / 444 / -1.046 ns | 0 |
-| Full feature slave, Kintex-7 | 21,658 / 16,876 / 444 / -1.046 ns | 0 |
-| Full feature master, Artix-7 | 21,976 / 16,866 / 444 / -3.868 ns | 0 |
-| Full feature slave, Artix-7 | 21,976 / 16,866 / 444 / -3.868 ns | 0 |
-| Full deployment, Kintex-7 | 33,571 / 10,313 / 288 / -14.841 ns | 0 |
-| Full deployment, Artix-7 | 33,544 / 10,305 / 288 / -30.753 ns | 0 |
-| Lite deployment, Kintex-7 | 13,647 / 11,228 / 804 / +0.188 ns | 0 |
-| Lite deployment, Artix-7 | 14,002 / 11,237 / 804 / -1.654 ns | 0 |
+| Full feature master, Kintex-7 | 22,581 / 17,041 / 444 / -1.455 ns | +923 / +165 / -0.409 ns |
+| Full feature slave, Kintex-7 | 22,581 / 17,041 / 444 / -1.455 ns | +923 / +165 / -0.409 ns |
+| Full feature master, Artix-7 | 22,733 / 17,042 / 444 / -4.666 ns | +757 / +176 / -0.798 ns |
+| Full feature slave, Artix-7 | 22,733 / 17,042 / 444 / -4.666 ns | +757 / +176 / -0.798 ns |
+| Full deployment, Kintex-7 | 34,725 / 10,983 / 288 / -16.385 ns | +1,154 / +670 / -1.544 ns |
+| Full deployment, Artix-7 | 34,694 / 10,984 / 288 / -32.071 ns | +1,150 / +679 / -1.318 ns |
+| Lite deployment, Kintex-7 | 13,647 / 11,228 / 804 / +0.188 ns | 0 / 0 / 0 ns |
+| Lite deployment, Artix-7 | 14,002 / 11,237 / 804 / -1.654 ns | 0 / 0 / 0 ns |
 
-All eight final rows have zero unrouted nets. Residual full-monitor misses are
-the ones listed above, not closed timing. The full variants are justified only
-when performance windows, debug, or other full-only behavior is required and
-the integration accepts the measured cost. Further timing work needs a new
-report-led candidate; these three negative experiments must not be represented
-as an FPGA efficiency improvement. Reproduce the final rows with
+All eight final rows have zero BRAM and zero unrouted nets. LUTRAM and BRAM do
+not change on any row. Full-feature Kintex has a 17-level CAM-payload to
+AW-order-queue clock-enable path with 88 percent routing delay; Artix has a
+17-level CAM-payload to CAM-payload clock-enable path with 82 percent routing.
+Deployment remains a 62-level CAM-valid to CAM-payload cone, with 87 percent
+routing on Kintex and 80 percent on Artix. These are residual misses, not closed
+timing. The full variants are justified only when performance windows, debug,
+or other full-only behavior is required and the integration accepts the measured
+cost and correctness logic. Further timing work needs a new report-led
+candidate; the three negative experiments and this correctness cost must not be
+represented as an FPGA efficiency improvement. Reproduce the final rows with
 `RUN_LABEL=full_after JOBS=4 rtl/amba/fpga/bin/full_observer_synth_sweep.sh`.
 
 Final formal sign-off comprises 19 PASS results: clean prove/cover for the
 transaction manager (unbanked and banked), base, filtered, reporter, and four
 AXI4 full wrappers, plus the CAM equivalence proof. Directed mutation checks
 are recorded in the individual experiments. The final clean FULL AMBA
-regression passed **2999/2999** in 1457.85 s; clean FULL misc FUB passed
-**282/282** in 497.24 s.
+regression passed **2999/2999** in 2014.96 s; clean FULL misc FUB passed
+**285/285** in 1625.14 s, including **87/87 observer cells**.
 
 ## Recommendations
 

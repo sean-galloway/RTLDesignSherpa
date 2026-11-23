@@ -1,7 +1,7 @@
 # TASK-007: Add and FPGA-optimize passive full-monitor observers
 
 **Priority:** P2
-**Status:** ACTIVE 2026-11-22 -- owner approved native execution.
+**Status:** CLOSED 2026-11-23 -- full verification, formal, and eight-row FPGA matrix complete.
 **Owner:** Kimi Code
 **Filed:** 2026-11-22
 **Spec:** `docs/superpowers/specs/2026-11-22-full-monitor-fpga-observers-design.md` (commit `c334d64a0`)
@@ -53,15 +53,23 @@
   FULL 7/7, trans-manager 3/3, both prove/cover PASS. Timing is inconsistent
   and area rises sharply, so both RTL files were reverted. Directed boundaries,
   `formal/amba/monitor_trans_cam/`, and the negative A/B remain.
-- Final accepted source `2733f5516`: all **8/8 full_after FPGA rows**, zero
-  unrouted nets, and every published metric exactly matches `full_before`;
-  cumulative optimization delta is zero. Residual full timing misses remain
-  -1.046/-3.868 ns full-feature and -14.841/-30.753 ns deployment-shaped.
-  Final formal sign-off: **19 PASS** results across nine clean prove/cover
-  harnesses plus CAM equivalence. Full variants are retained for full-only
-  features, not presented as an efficiency improvement.
-- Final clean FULL AMBA regression: **2999/2999 PASS** in 1457.85 s.
-- Final clean FULL misc FUB regression: **282/282 PASS** in 497.24 s.
+- Review correctness fix `508234595`: preserve every observed AW with tracked
+  disposition and order owned B responses per ID. Directed filtered-W,
+  refused-same-ID-B, and overflow/clear scenarios pass **3/3**; final observer
+  matrix **87/87 PASS**. Formal sign-off remains **19 PASS** results across nine
+  clean prove/cover harnesses plus CAM equivalence. All 37 trans-manager
+  consumers linted in pre-commit.
+- Final source `508234595`: all **8/8 full_after FPGA rows**, zero BRAM and zero
+  unrouted nets. No optimization conversion was retained, but correctness adds
+  area/timing cost. Full feature is 22,581 LUT / 17,041 FF / 444 LUTRAM /
+  -1.455 ns on Kintex and 22,733 / 17,042 / 444 / -4.666 ns on Artix.
+  Deployment full is 34,725 / 10,983 / 288 / -16.385 ns and
+  34,694 / 10,984 / 288 / -32.071 ns. Lite metrics are exactly unchanged.
+- Final clean FULL AMBA regression: **2999/2999 PASS** in 2014.96 s.
+- Final clean FULL misc FUB regression: **285/285 PASS** in 1625.14 s.
+- Deferred review minors: strengthen cap/reverse formal completeness and
+  independent perf/debug capability assertions; make the FPGA sweep script
+  reject nonzero unrouted nets itself (the accepted CSV was checked directly).
 
 ## Why
 

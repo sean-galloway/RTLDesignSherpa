@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,11 +22,9 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-007** — passive full-monitor observer variants, exact loss accounting,
-  and measured full-monitor FPGA optimization; spec `c334d64a0`.
-
 ## Closed
 
+- **TASK-007** — CLOSED 2026-11-23: passive full-monitor observers, exact order-loss accounting, corrected filtered/refused AW/B attribution, and measured FPGA cost; final source `508234595`
 - **TASK-006** — CLOSED 2026-10-16: cxs_intf_observer (cxs_link_snoop + cxs_monitor_lite per port, CXS-mapped meter); 3/3
 - **TASK-003** — CLOSED 2026-10-08: axis4_intf_observer on per-port
   axis_monitor_lite; board packet-class matrix ACCEPT via the reed-solomon
