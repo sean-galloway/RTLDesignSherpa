@@ -30,6 +30,13 @@
 - Final all-level observer matrix: **82/82 PASS** in 340.08 s, including full
   performance/debug, full reset/reissue, all passivity configurations, and all
   banked same-cycle write levels. Final base/filtered clean prove/cover PASS.
+- FPGA baseline `be7f8e891`: all **8/8 rows**, zero unrouted nets. Full feature
+  master is 21,658 LUT / 16,876 FF / 444 LUTRAM / -1.046 ns on Kintex and
+  21,976 / 16,866 / 444 / -3.868 ns on Artix. Deployment full is
+  33,571 / 10,313 / 288 / -14.841 ns and 33,544 / 10,305 / 288 / -30.753 ns.
+  Depth-8 hierarchy selects CAM logic first: 3,845 LUT read and 4,744 write;
+  reporter snapshots are the second candidate. Full tables and reproduction
+  commands are in `monitor_characterization.md`.
 
 ## Why
 

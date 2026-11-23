@@ -280,6 +280,58 @@ group at its defaults (64-record error FIFO, 96-beat write FIFO) is 1,700 to
 to 80 mW dynamic against the lite's 15 to 20 mW at default activity); treat
 them only as a ratio between variants on the same part.
 
+## Full observer FPGA optimization campaign (2026-11-22)
+
+The passive full observer variants and their unoptimized RTL baseline are in
+`be7f8e891`; the approved experiment is
+`docs/superpowers/specs/2026-11-22-full-monitor-fpga-observers-design.md`.
+The full-feature rows enable all six reporter cones and four address ranges at
+16 transactions in one bank. Deployment-shaped rows use 64 transactions in
+four banks and the observer's existing cone defaults. Lite rows are included
+for size context only; they are not feature-equivalent controls. Every row has
+zero BRAM and zero unrouted nets. Setup failing endpoints include the OOC
+primary-I/O paths; WNS and logic levels below are register-to-register.
+
+| Profile / part | LUT | FF | LUTRAM | WNS (ns) | Levels | Setup failing endpoints |
+|---|---:|---:|---:|---:|---:|---:|
+| Full feature master, Kintex-7 | 21,658 | 16,876 | 444 | -1.046 | 14 | 4,628 |
+| Full feature slave, Kintex-7 | 21,658 | 16,876 | 444 | -1.046 | 14 | 4,628 |
+| Full feature master, Artix-7 | 21,976 | 16,866 | 444 | -3.868 | 14 | 10,497 |
+| Full feature slave, Artix-7 | 21,976 | 16,866 | 444 | -3.868 | 14 | 10,497 |
+| Full deployment, Kintex-7 | 33,571 | 10,313 | 288 | -14.841 | 56 | 9,222 |
+| Full deployment, Artix-7 | 33,544 | 10,305 | 288 | -30.753 | 57 | 10,729 |
+| Lite deployment, Kintex-7 | 13,647 | 11,228 | 804 | +0.188 | 14 | 0 |
+| Lite deployment, Artix-7 | 14,002 | 11,237 | 804 | -1.654 | 15 | 3,171 |
+
+At the full-feature Kintex baseline, the read tap is 7,225 LUT / 5,349 FF and
+the write tap 8,595 LUT / 6,101 FF. Their CAMs are the largest logic blocks:
+3,845 LUT / 1,920 FF read and 4,744 LUT / 2,208 FF write. The reporters cost
+2,235 / 2,246 LUT each, including 1,802 / 1,818 FF in their local snapshots.
+These measurements select CAM reset/allocation experiments first and the
+reporter snapshot reset experiment second; no RAM attribute is applicable to
+parallel-read CAM state.
+
+The full-feature worst path is `r_widq_count` through the write transaction
+manager into CAM `r_payload`: -1.046 ns on Kintex and -3.868 ns on Artix, 14
+levels with over 80 percent routing delay. Deployment full is much worse:
+valid-to-payload update cones at 56 / 57 levels and -14.841 / -30.753 ns. This
+is an unoptimized baseline, not a claim that the full observer meets either
+clock target. The Artix lite context also misses 10 ns at this large capacity;
+its worst path is read-skid data into `r_beats`, not a full-monitor cone.
+
+Reproduce the eight-row baseline (and later same-configuration comparisons)
+with:
+
+```bash
+source env_python
+RUN_LABEL=full_before JOBS=4 rtl/amba/fpga/bin/full_observer_synth_sweep.sh
+```
+
+`rtl/amba/fpga/results/full_observer_<label>/summary.csv` collects the rows;
+the per-row report directories contain depth-8 hierarchy, route status, power,
+and register-to-register timing. Raw results remain uncommitted measurement
+artifacts. The candidate A/B row is `feature_master` on both parts.
+
 ## Recommendations
 
 1. **Default to the lite.** It is one sixth of the full monitor in LUTs, one

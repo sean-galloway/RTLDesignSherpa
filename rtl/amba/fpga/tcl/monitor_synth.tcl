@@ -56,6 +56,7 @@ lassign [filelist::flatten $fl] srcs incdirs defines
 set filtered {}
 foreach s $srcs {
     if {[string match "*verilator_xilinx_stubs.sv" $s]} { continue }
+    if {[string match "*.vlt" $s]} { continue }
     if {![file exists $s]} { puts stderr "ERROR: source not found: $s"; exit 1 }
     lappend filtered $s
 }
@@ -78,9 +79,12 @@ if {$reuse} {
 }
 if {!$reuse} {
 read_verilog -sv $filtered
-synth_design -top $top -part $part -mode out_of_context \
-    -include_dirs $incdirs -verilog_define $vdefs \
-    -flatten_hierarchy rebuilt
+set synth_args [list -top $top -part $part -mode out_of_context \
+    -include_dirs $incdirs -verilog_define $vdefs -flatten_hierarchy rebuilt]
+if {[info exists ::env(SYNTH_GENERICS)] && $::env(SYNTH_GENERICS) ne ""} {
+    lappend synth_args -generic $::env(SYNTH_GENERICS)
+}
+synth_design {*}$synth_args
 report_utilization -file "$rpt/utilization_synth.txt"
 
 # ---- constraints ---------------------------------------------------------------
@@ -132,8 +136,12 @@ set clk_names {}
 foreach c [get_clocks] { lappend clk_names [get_property NAME $c] }
 
 # ---- reports -------------------------------------------------------------------
+set hier_depth 1
+if {[info exists ::env(HIER_DEPTH)] && $::env(HIER_DEPTH) ne ""} {
+    set hier_depth $::env(HIER_DEPTH)
+}
 report_utilization    -file "$rpt/utilization_impl.txt"
-report_utilization    -hierarchical -hierarchical_depth 1 -file "$rpt/utilization_hier.txt"
+report_utilization    -hierarchical -hierarchical_depth $hier_depth -file "$rpt/utilization_hier.txt"
 report_timing_summary -file "$rpt/timing_summary.txt" -max_paths 10
 report_timing -setup -max_paths 20 -nworst 1 -sort_by slack -input_pins -file "$rpt/timing_worst.txt"
 # vectorless activity: an ESTIMATE for comparison between variants, not a measurement
@@ -153,6 +161,7 @@ set ut   [read [set fh [open "$rpt/utilization_impl.txt"]]]; close $fh
 set luts [util_num $ut {Slice LUTs}]
 set ffs  [util_num $ut {Slice Registers}]
 set bram [util_num $ut {Block RAM Tile}]
+set lutram [util_num $ut {LUT as Memory}]
 set dsp  [util_num $ut {DSPs}]
 set p_all [get_timing_paths -setup -max_paths 1]
 set wns   [expr {[llength $p_all] ? [get_property SLACK $p_all] : "inf"}]
@@ -174,7 +183,7 @@ if {![file exists $csv]} {
 set fh [open $csv a]; puts $fh $line; close $fh
 set fh [open "$rpt/summary.txt" w]
 puts $fh "bridge=$top part=$part clk_ns=$clk_ns"
-puts $fh "luts=$luts ffs=$ffs bram_tiles=$bram dsps=$dsp"
+puts $fh "luts=$luts ffs=$ffs lutram=$lutram bram_tiles=$bram dsps=$dsp"
 puts $fh "wns_ns=$wns wns_reg2reg_ns=$wns_r2r fmax_reg2reg_mhz=$fmax worst_logic_levels=$levels unrouted_nets=$nets_bad"
 puts $fh "clocks=$clk_names io_delay_ns=$io_ns seconds=$secs"
 close $fh
