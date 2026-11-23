@@ -202,7 +202,12 @@ module axi_monitor_trans_mgr
 
     // Transaction table output
     output bus_transaction_t            trans_table[MAX_TRANSACTIONS],
-    output logic [7:0]                  active_count
+    output logic [7:0]                  active_count,
+    output logic                        cmd_refused
+`ifdef FORMAL
+    , output logic                      formal_addr_hit_any
+    , output logic [MAX_TRANSACTIONS-1:0] formal_addr_alloc_oh
+`endif
 );
 
     localparam int N         = MAX_TRANSACTIONS;
@@ -1033,6 +1038,11 @@ module axi_monitor_trans_mgr
                              ($clog2(N+1))'(N - CMD_ENTRY_RESERVE));
 
     assign addr_wants_alloc = cmd_valid && !addr_hit_any && w_cmd_headroom;
+    assign cmd_refused = cmd_valid && cmd_ready && !addr_hit_any && !(|addr_alloc_oh);
+`ifdef FORMAL
+    assign formal_addr_hit_any = addr_hit_any;
+    assign formal_addr_alloc_oh = addr_alloc_oh;
+`endif
     always_comb begin
         if (IS_READ) begin
             data_wants_alloc = data_valid && data_ready && !data_hit_any;

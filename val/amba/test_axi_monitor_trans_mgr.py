@@ -770,6 +770,88 @@ async def phase_saturation_recovers(tb) -> list:
     return failures
 
 
+async def phase_command_refusal_accounting(tb) -> list:
+    """A passive consumer sees exactly the accepted commands not admitted."""
+    if tb.is_lite:
+        return []
+
+    failures = []
+    if not hasattr(tb.dut, 'cmd_refused'):
+        return ["full monitor has no cmd_refused status output"]
+
+    tb.log.info("PHASE 6: exact command refusal accounting")
+    tb.dut.cmd_valid.value = 0
+    tb.dut.data_valid.value = 0
+    tb.dut.resp_valid.value = 0
+    tb.dut.clear.value = 1
+    await tb.idle(1)
+    tb.dut.clear.value = 0
+    await tb.idle(2)
+    tb.clear_packets()
+
+    refused_count = 0
+
+    async def count_refusals():
+        nonlocal refused_count
+        while True:
+            await RisingEdge(tb.dut.aclk)
+            if int(tb.dut.cmd_refused.value):
+                refused_count += 1
+
+    counter = cocotb.start_soon(count_refusals())
+    depth = len(tb.read_table())
+    id_mask = (1 << len(tb.dut.cmd_id.value)) - 1
+    command_cap = depth - 4 if depth >= 16 else depth
+
+    async def command(txn_id, ready):
+        tb.dut.cmd_id.value = txn_id
+        tb.dut.cmd_addr.value = 0x6000 + (txn_id << 8)
+        tb.dut.cmd_len.value = 0
+        tb.dut.cmd_ready.value = int(ready)
+        tb.dut.cmd_valid.value = 1
+        await RisingEdge(tb.dut.aclk)
+        tb.dut.cmd_valid.value = 0
+        tb.dut.cmd_ready.value = 1
+
+    # Create one pending entry before capacity is exhausted, then fill to the
+    # physical depth (small table) or command-entry cap (reserved table).
+    await command(0, ready=False)
+    for txn_id in range(1, command_cap):
+        await command(txn_id, ready=True)
+    await tb.idle(2)
+
+    # The pending ID merges at capacity; a held new ID does not handshake.
+    await command(0, ready=True)
+    await command(id_mask, ready=False)
+    await tb.idle(1)
+    if refused_count != 0:
+        failures.append(f"premature refusal count {refused_count}, expected 0")
+
+    # An accepted new ID cannot allocate and must be reported exactly once.
+    await command(id_mask, ready=True)
+    await tb.idle(1)
+    if refused_count != 1:
+        failures.append(f"full-table refusal count {refused_count}, expected 1")
+
+    # Retire one tracked command, then admit the previously refused ID.
+    await tb.send_data(txn_id=1, last=True)
+    await tb.drain()
+    await command(id_mask, ready=True)
+    await tb.idle(2)
+    if refused_count != 1:
+        failures.append(
+            f"successful post-retirement command changed refusal count to {refused_count}")
+
+    counter.kill()
+    tb.dut.cmd_valid.value = 0
+    tb.dut.cmd_ready.value = 1
+    tb.dut.clear.value = 1
+    await tb.idle(1)
+    tb.dut.clear.value = 0
+    await tb.drain()
+    return failures
+
+
 @cocotb.test(timeout_time=120, timeout_unit="sec")
 async def axi_monitor_trans_mgr_test(dut):
     """Transaction-tracking regression suite (issue #41 defects 1-3 + timeout)."""
@@ -782,6 +864,7 @@ async def axi_monitor_trans_mgr_test(dut):
     all_failures += await phase_realloc_event_reported(tb)
     all_failures += await phase_timeout_frees_slot(tb)
     all_failures += await phase_saturation_recovers(tb)
+    all_failures += await phase_command_refusal_accounting(tb)
 
     if all_failures:
         tb.log.error("=" * 78)

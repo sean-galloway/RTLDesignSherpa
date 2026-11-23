@@ -430,6 +430,7 @@ module axi5_slave_rd_mon
             .block_ready(w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
             .busy(),
+            .cmd_refused(),
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count(active_transactions), .cfg_conflict_error(cfg_conflict_error),
 

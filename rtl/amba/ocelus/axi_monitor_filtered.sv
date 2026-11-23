@@ -196,6 +196,7 @@ module axi_monitor_filtered
     output logic                        block_ready,
     output logic                        busy,
     output logic [7:0]                  active_count,
+    output logic                        cmd_refused,
 
     // Performance window status (Stage A of perfmon RFC).
     output logic                        window_active,
@@ -362,6 +363,7 @@ module axi_monitor_filtered
         .block_ready             (block_ready),
         .busy                    (busy),
         .active_count            (active_count),
+        .cmd_refused             (cmd_refused),
 
         // Performance window status
         .window_active           (window_active),

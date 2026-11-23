@@ -481,6 +481,7 @@ module axil4_master_wr_mon
             .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
             .busy                    (),                 // Unused (using master busy)
+            .cmd_refused             (),
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count            (active_transactions),
 

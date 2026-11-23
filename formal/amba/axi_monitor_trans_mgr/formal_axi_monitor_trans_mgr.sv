@@ -47,6 +47,9 @@ module formal_axi_monitor_trans_mgr (
     // DUT outputs (sv2v flattened -- signals are exposed as flat wires)
     // =========================================================================
     wire [7:0]                           active_count_o;
+    wire                                 cmd_refused_o;
+    wire                                 addr_hit_any_o;
+    wire [MAX_TRANSACTIONS-1:0]          addr_alloc_oh_o;
 
     // After sv2v, the trans_table output is flattened. We reference it via
     // hierarchical access in the DUT wrapper signals below.
@@ -92,7 +95,10 @@ module formal_axi_monitor_trans_mgr (
         .cfg_addr_filter_high  ('0),
         .timestamp             (timestamp),
         .i_event_reported_flags(i_event_reported_flags),
-        .active_count          (active_count_o)
+        .active_count          (active_count_o),
+        .cmd_refused           (cmd_refused_o),
+        .formal_addr_hit_any   (addr_hit_any_o),
+        .formal_addr_alloc_oh  (addr_alloc_oh_o)
     );
 
     // =========================================================================
@@ -191,6 +197,26 @@ module formal_axi_monitor_trans_mgr (
         if (f_past_valid > 0 && rst_n && $past(rst_n) &&
             $past(active_count_o) == 8'(MAX_TRANSACTIONS))
             cp_full_then_free: cover (active_count_o == 8'(MAX_TRANSACTIONS - 1));
+    end
+
+    // Refusal is an accepted command with neither a pending merge nor an allocation.
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (cmd_refused_o) begin
+                ap_refused_handshake: assert (cmd_valid && cmd_ready);
+                ap_refused_no_pending:  assert (!addr_hit_any_o);
+                ap_refused_no_alloc:    assert (!(|addr_alloc_oh_o));
+            end
+            if (!cmd_ready)
+                ap_held_command_not_refused: assert (!cmd_refused_o);
+
+            cp_cmd_refused: cover (cmd_refused_o);
+            cp_pending_merge_at_cap: cover (
+                cmd_valid && cmd_ready && addr_hit_any_o && !cmd_refused_o);
+        end
+        if (f_past_valid > 0 && rst_n && $past(rst_n))
+            cp_refusal_then_allocation: cover (
+                $past(cmd_refused_o) && (|addr_alloc_oh_o));
     end
 
 endmodule

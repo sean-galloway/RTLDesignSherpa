@@ -517,6 +517,7 @@ module axi4_slave_rd_mon
             .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
             .busy                    (),                    // Unused (using slave busy)
+            .cmd_refused             (),
             /* verilator lint_on PINCONNECTEMPTY */
             .window_active           (window_active),
             .window_cycles           (window_cycles),

@@ -240,6 +240,7 @@ module axi_monitor_base
     output logic                     block_ready,    // Flow control signal
     output logic                     busy,           // Ocelus is busy
     output logic [7:0]               active_count,   // Number of active transactions
+    output logic                     cmd_refused,    // Accepted command not admitted
 
     // Performance window status (Stage A of perfmon RFC).
     //   window_active: high while a measurement window is open. Stage B
@@ -424,6 +425,7 @@ module axi_monitor_base
         .i_timeout_detected (w_timeout_detected),         // ISSUE #41: timeout -> terminal state
         .trans_table        (w_trans_table),
         .active_count       (w_active_count),
+        .cmd_refused        (cmd_refused),
         .cfg_addr_filter_enable(cfg_addr_filter_enable),
         .cfg_addr_filter_low   (cfg_addr_filter_low),
         .cfg_addr_filter_high  (cfg_addr_filter_high),

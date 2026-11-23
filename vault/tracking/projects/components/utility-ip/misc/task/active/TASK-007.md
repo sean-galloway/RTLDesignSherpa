@@ -16,6 +16,11 @@
   by anchoring the sustained-consumer scenario to `u_core`.
 - The misc observer Make targets live in `dv/tests/fub`, not the parent
   `dv/tests` directory; the latter discovers only `error_injector`.
+- Full-monitor refusal accounting: clean FULL **3/3 PASS** at depths 4/8/16;
+  unbanked and banked prove/cover PASS with all seven covers reached. Removing
+  `cmd_ready` from the refusal equation fails `ap_held_command_not_refused`.
+  Formal-only outputs carry the real pending/allocation predicates because
+  Yosys treats hierarchical references as undriven implicit wires.
 
 ## Why
 
