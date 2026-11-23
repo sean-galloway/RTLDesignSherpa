@@ -1,4 +1,0 @@
-bridge=axis4_master_monlite_cg part=xc7a100tcsg324-1 clk_ns=10.0
-luts=1085 ffs=647 bram_tiles=0 dsps=0
-wns_ns=0.067 wns_reg2reg_ns=1.026 fmax_reg2reg_mhz=111.4 worst_logic_levels=6 unrouted_nets=0
-clocks=aclk io_delay_ns=3.0 seconds=41
