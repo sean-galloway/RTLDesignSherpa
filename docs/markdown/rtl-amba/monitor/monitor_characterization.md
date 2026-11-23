@@ -332,6 +332,25 @@ the per-row report directories contain depth-8 hierarchy, route status, power,
 and register-to-register timing. Raw results remain uncommitted measurement
 artifacts. The candidate A/B row is `feature_master` on both parts.
 
+### Experiment 1: CAM ID/payload reset removal -- rejected
+
+Removing reset from parallel-read CAM `r_id` / `r_payload` while retaining
+validity reset/clear passed all 7 CAM configurations, all 3 transaction-manager
+cells, and both transaction-manager prove/cover runs. The new
+`t19_sync_clear_reuse` checks exact old/new IDs and payloads and remains in the
+suite; corrupting payload readback fails it.
+
+| Part | Before LUT / FF / WNS | After LUT / FF / WNS | Delta |
+|---|---:|---:|---|
+| Kintex-7 | 21,658 / 16,876 / -1.046 ns | 22,037 / 16,873 / -0.888 ns | **+379 LUT, -3 FF, +0.158 ns** |
+| Artix-7 | 21,976 / 16,866 / -3.868 ns | 22,433 / 16,873 / -4.421 ns | **+457 LUT, +7 FF, -0.553 ns** |
+
+LUTRAM stayed at 444 and both rows had zero unrouted nets. The small Kintex
+slack change is not a consistent timing win and does not justify hundreds of
+extra LUTs. The RTL conversion was reverted; the clear/reuse test and this
+negative measurement remain. Reproduce with
+`RUN_LABEL=cam_reset_after JOBS=2 rtl/amba/fpga/bin/full_observer_synth_sweep.sh feature_master`.
+
 ## Recommendations
 
 1. **Default to the lite.** It is one sixth of the full monitor in LUTs, one

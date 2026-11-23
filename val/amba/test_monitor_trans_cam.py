@@ -205,6 +205,7 @@ class MonitorTransCamTB(TBBase):
 
     def _drive_idle(self):
         """Park every input at 0 so the next sub-test starts clean."""
+        self.dut.clear.value                = 0
         self.dut.lookup_addr_id.value   = 0
         self.dut.lookup_data_id.value   = 0
         self.dut.lookup_resp_id.value   = 0
@@ -651,6 +652,41 @@ class MonitorTransCamTB(TBBase):
 
         self.log.info("=== t18: PASS ===")
 
+    async def t19_sync_clear_reuse(self):
+        """Synchronous clear invalidates stale payloads before slot reuse."""
+        self.log.info("=== t19: synchronous clear and reuse ===")
+        slot = 0
+        old_id = 0x35 & self._id_mask
+        new_id = 0x6A & self._id_mask
+        old_payload = 0x1234_5678 & self._payload_mask
+        new_payload = 0x5A5A_A5A5 & self._payload_mask
+        await self._step(**self._write_one_slot(slot, True, old_id, old_payload))
+        r = await self._step(addr_id=old_id)
+        assert r['addr_match_oh'] == (1 << slot)
+
+        self.dut.clear.value = 1
+        await RisingEdge(self.dut.clk)
+        self.dut.clear.value = 0
+        self.model = _TransCamModel(self.DEPTH, self._id_mask, self._payload_mask)
+        r = await self._step(addr_id=old_id)
+        assert r['addr_match_oh'] == 0
+        assert r['data_match_oh'] == 0
+        assert r['resp_match_oh'] == 0
+        assert r['entry_valid'] == 0
+        assert r['free_oh'] == self._slot_mask
+
+        await self._step(**self._write_one_slot(slot, True, new_id, new_payload))
+        assert await self._read_payload(slot) == new_payload
+        await RisingEdge(self.dut.clk)
+        r = await self._step(addr_id=old_id)
+        assert r['addr_match_oh'] == 0
+        r = await self._step(addr_id=new_id)
+        assert r['addr_match_oh'] == (1 << slot)
+        assert r['entry_valid'] == (1 << slot)
+        assert await self._read_payload(slot) == new_payload
+        await RisingEdge(self.dut.clk)
+        self.log.info("=== t19: PASS ===")
+
     async def t9_alloc_mutex(self):
         self.log.info("=== t9: all three phases want -> three distinct slots ===")
         # All slots free, all three want. Should get bits 0, 1, 2.
@@ -870,6 +906,7 @@ async def monitor_trans_cam_test(dut):
     await tb.t15_alloc_priority_cascade();           await tb.reset_dut()
     await tb.t16_id_collision_tolerance();           await tb.reset_dut()
     await tb.t18_alloc_mask_confines_allocation(); await tb.reset_dut()
+    await tb.t19_sync_clear_reuse();               await tb.reset_dut()
     await tb.t17_random_stress(n_ops=n_stress_ops)
 
     tb.log.info("=== ALL TESTS PASSED ===")

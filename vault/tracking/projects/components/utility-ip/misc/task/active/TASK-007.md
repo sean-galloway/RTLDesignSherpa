@@ -37,6 +37,11 @@
   Depth-8 hierarchy selects CAM logic first: 3,845 LUT read and 4,744 write;
   reporter snapshots are the second candidate. Full tables and reproduction
   commands are in `monitor_characterization.md`.
+- Experiment 1 (CAM ID/payload reset removal): **REJECTED**. Kintex
+  +379 LUT / -3 FF / +0.158 ns; Artix +457 LUT / +7 FF / -0.553 ns, with no
+  LUTRAM change and zero unrouted nets. Candidate verification was CAM FULL
+  7/7, trans-manager 3/3, and both prove/cover runs PASS; payload mutation
+  fails the new clear/reuse test. RTL reverted, test and negative A/B retained.
 
 ## Why
 
