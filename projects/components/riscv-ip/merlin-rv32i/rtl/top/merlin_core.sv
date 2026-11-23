@@ -220,7 +220,10 @@ module merlin_core #(
         .jump          (id_jump),
         .jalr          (id_jalr),
         .halt_cause    (id_halt_cause),
-        .csr_stub      (id_csr_stub)
+        .csr_stub      (id_csr_stub),
+        .m_op          (),   // M_EXT=0, ZICSR=0: constant 0
+        .csr_op        (),
+        .mret          ()
     );
 
     rv32i_imm_gen u_imm_gen (

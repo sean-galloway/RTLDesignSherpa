@@ -182,7 +182,10 @@ module kestrel_core #(
         .jump          (jump),
         .jalr          (jalr),
         .halt_cause    (dec_halt_cause),
-        .csr_stub      (csr_stub)
+        .csr_stub      (csr_stub),
+        .m_op          (),   // M_EXT=0, ZICSR=0: constant 0
+        .csr_op        (),
+        .mret          ()
     );
 
     // Immediate generator.

@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-001** — peregrine RV32IM core: RTL, DV and targeted formal per PRD 0.2 (staged: traps cacheless, M unit, predictor, caches + fabric).
+(none)
 
 ## Active
 
-(none)
+- **TASK-001** — peregrine RV32IM core: RTL, DV and targeted formal per PRD 0.2 (staged: traps cacheless, M unit, predictor, caches + fabric). Stage 1 (traps, cacheless) done 2026-11-23.
 
 ## Closed
 

@@ -165,6 +165,9 @@ def _ctrl(
     jalr=0,
     halt_cause=0,
     csr_stub=0,
+    m_op=0,
+    csr_op=0,
+    mret=0,
 ):
     return {
         "alu_op": alu_op,
@@ -180,6 +183,9 @@ def _ctrl(
         "jalr": jalr,
         "halt_cause": halt_cause,
         "csr_stub": csr_stub,
+        "m_op": m_op,
+        "csr_op": csr_op,
+        "mret": mret,
     }
 
 
@@ -264,6 +270,33 @@ RESERVED_WORDS = [
     0x02109133,      # sll with funct7=0x01 (reserved)
 ]
 
+# M_EXT=1 / ZICSR=1 build (peregrine, riscv-ip/peregrine-rv32im PRD P11).
+# Every DECODE_GOLDEN word decodes the same except the CSR class (csr_op in
+# place of csr_stub) and mret (a trap return).  The M encodings (funct7
+# 0000001 under OP, all eight funct3) become m_op; wfi becomes a legal
+# no-op; a privileged encoding with a non-zero rd or rs1 field is illegal.
+M_WORDS = [0x02310133 | (f3 << 12) for f3 in range(8)]   # mul..remu x2, x2, x3
+EXT_OVERRIDES = {
+    0x30200073: _ctrl(mret=1),                            # mret
+    0x30029573: _ctrl(rd_wen=1, csr_op=1),
+    0x30005573: _ctrl(rd_wen=1, csr_op=1),
+    0xf1402573: _ctrl(rd_wen=1, csr_op=1),
+    0x3002b573: _ctrl(rd_wen=1, csr_op=1),
+    0x3000e573: _ctrl(rd_wen=1, csr_op=1),
+    0x3000f573: _ctrl(rd_wen=1, csr_op=1),
+    0x10500073: _ctrl(),                                  # wfi: no-op
+    0x02109133: _ctrl(rd_wen=1, m_op=1),                  # mulh x2, x1, x2
+    **{w: _ctrl(rd_wen=1, m_op=1) for w in M_WORDS},
+}
+EXT_ILLEGAL = [
+    0x000000f3,      # ecall with rd = 1
+    0x00108073,      # ebreak with rs1 = 1
+    0x30004073,      # SYSTEM funct3=100 (reserved)
+    0x0000200f,      # MISC-MEM funct3=2 (reserved)
+    0x00000000,
+    0xFFFFFFFF,
+]
+
 # Words chosen so that imm_golden can exercise every format including sign
 # extension and the large U/J encodings.
 IMM_VECTORS = [
@@ -324,6 +357,9 @@ def _check_decode(dut, exp):
     assert int(dut.jalr.value) == exp["jalr"], f"jalr mismatch"
     assert int(dut.halt_cause.value) == exp["halt_cause"], f"halt_cause mismatch"
     assert int(dut.csr_stub.value) == exp["csr_stub"], f"csr_stub mismatch"
+    assert int(dut.m_op.value) == exp["m_op"], "m_op mismatch"
+    assert int(dut.csr_op.value) == exp["csr_op"], "csr_op mismatch"
+    assert int(dut.mret.value) == exp["mret"], "mret mismatch"
 
 
 # ---------------------------------------------------------------------------
@@ -414,12 +450,31 @@ async def cocotb_test_rv32i_decode(dut):
         _check_decode(dut, expected)
 
     illegal = _ctrl(halt_cause=0xF)
-    for insn in ILLEGAL_WORDS + RESERVED_WORDS:
+    # With M_EXT=0 the M encodings are illegal too, and the new outputs stay 0.
+    for insn in ILLEGAL_WORDS + RESERVED_WORDS + M_WORDS:
         dut.insn.value = insn
         await Timer(1, units="ns")
         _check_decode(dut, illegal)
 
     dut._log.info("rv32i_decode test PASSED")
+
+
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def cocotb_test_rv32i_decode_ext(dut):
+    """M_EXT=1, ZICSR=1: the RV32I table plus M, real CSR ops and mret."""
+    checked = 0
+    for insn, expected in {**DECODE_GOLDEN, **EXT_OVERRIDES}.items():
+        dut.insn.value = insn
+        await Timer(1, units="ns")
+        _check_decode(dut, expected)
+        checked += 1
+    illegal = _ctrl(halt_cause=0xF)
+    for insn in EXT_ILLEGAL:
+        dut.insn.value = insn
+        await Timer(1, units="ns")
+        _check_decode(dut, illegal)
+        checked += 1
+    dut._log.info(f"rv32i_decode (M_EXT=1, ZICSR=1) test PASSED: {checked} words")
 
 
 # ---------------------------------------------------------------------------
@@ -430,7 +485,13 @@ DUT_CASES = [
     ("rv32i_alu", "cocotb_test_rv32i_alu"),
     ("rv32i_imm_gen", "cocotb_test_rv32i_imm_gen"),
     ("rv32i_decode", "cocotb_test_rv32i_decode"),
+    ("rv32i_decode", "cocotb_test_rv32i_decode_ext"),
 ]
+
+# Elaboration parameters per test case (default build otherwise).
+CASE_PARAMETERS = {
+    "cocotb_test_rv32i_decode_ext": {"M_EXT": "1", "ZICSR": "1"},
+}
 
 
 @pytest.mark.parametrize("dut_name, testcase", DUT_CASES)
@@ -476,4 +537,5 @@ def test_rv32i_decode(request, dut_name, testcase, test_level, description=None)
         waves=bool(int(os.environ.get("WAVES", "0"))),
         keep_files=True,
         compile_args=compile_args,
+        parameters=CASE_PARAMETERS.get(testcase, {}),
     )

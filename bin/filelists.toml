@@ -357,6 +357,19 @@ filelist_dirs = [
 ]
 
 [[area]]
+name = "riscv-ip/peregrine-rv32im"
+kind = "component"
+# Advanced in-order RV32IM core (falcon-suite rung 3): merlin's pipeline
+# with machine-mode traps, an M unit, a predictor and L1 caches (staged,
+# riscv-ip/peregrine-rv32im TASK-001).  Decode / imm_gen / ALU and the ISA
+# package are common-rv32i's.
+rtl_roots = ["projects/components/riscv-ip/peregrine-rv32im/rtl"]
+filelist_dirs = [
+    "projects/components/riscv-ip/peregrine-rv32im/rtl/filelists",
+    "projects/components/riscv-ip/peregrine-rv32im/dv/filelists",
+]
+
+[[area]]
 name = "riscv-ip/gatling-rv32i"
 kind = "component"
 # Four-context barrel RV32I (tetrad compute engine). Registered 2026-10-21

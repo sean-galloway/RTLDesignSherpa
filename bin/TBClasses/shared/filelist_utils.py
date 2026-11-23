@@ -190,6 +190,7 @@ def get_sources_from_filelist(repo_root, filelist_path=None, *, module=None):
         'RV32I_COMMON_ROOT': os.path.join(components_root, 'riscv-ip', 'common-rv32i'),
         'KESTREL_ROOT': os.path.join(components_root, 'riscv-ip', 'kestrel-rv32i'),
         'MERLIN_ROOT': os.path.join(components_root, 'riscv-ip', 'merlin-rv32i'),
+        'PEREGRINE_ROOT': os.path.join(components_root, 'riscv-ip', 'peregrine-rv32im'),
         'MISC_ROOT': os.path.join(components_root, 'utility-ip', 'misc'),
         'RAPIDS_ROOT': os.path.join(components_root, 'dma-ip', 'rapids'),
         'RETRO_ROOT': os.path.join(components_root, 'legacy-ip', 'retro_legacy_blocks'),

@@ -9,8 +9,19 @@
 //          Halt-cause encoding lives in rv32i_pkg (single source of
 //          truth); decode raises ecall/ebreak/illegal (1/2/F), while cause 3
 //          (misaligned control-flow target, Task 9) is raised by the
-//          core, which can see the resolved next PC.  Shared by kestrel
-//          and gatling: one ISA, one source.
+//          core, which can see the resolved next PC.  Shared by kestrel,
+//          merlin, gatling and peregrine: one ISA, one source.
+//
+// Parameters:
+//   - M_EXT: 1 decodes the M extension (mul/mulh/mulhsu/mulhu/div/divu/
+//     rem/remu) onto m_op; 0 (default) leaves those encodings illegal.
+//   - ZICSR: 1 decodes the CSR class as real CSR operations (csr_op) and
+//     mret as a trap return (mret); halt_cause then means "exception
+//     cause" to a core that traps.  0 (default) keeps the kestrel CSR
+//     stub (csr_stub, zero writeback) and mret as a no-op.
+//   With both parameters 0 the new outputs are constant 0 and every other
+//   output is exactly the pre-2026-11-23 decode (riscv-ip/peregrine-rv32im
+//   PRD P11: one decoder, parameterized, not a wrapper).
 //
 // Documentation: projects/components/riscv-ip/common-rv32i/README.md
 // Subsystem: riscv-ip/common-rv32i
@@ -20,7 +31,10 @@
 
 `timescale 1ns / 1ps
 
-module rv32i_decode (
+module rv32i_decode #(
+    parameter bit M_EXT = 1'b0,
+    parameter bit ZICSR = 1'b0
+) (
     input  logic [31:0] insn,
     output rv32i_pkg::alu_op_e  alu_op,
     output rv32i_pkg::imm_sel_e imm_sel,
@@ -34,7 +48,10 @@ module rv32i_decode (
     output logic                  jump,
     output logic                  jalr,
     output logic [3:0]            halt_cause,
-    output logic                  csr_stub
+    output logic                  csr_stub,
+    output logic                  m_op,     // M_EXT: funct3 selects the op
+    output logic                  csr_op,   // ZICSR: funct3 selects the op
+    output logic                  mret
 );
 
     import rv32i_pkg::*;
@@ -66,6 +83,7 @@ module rv32i_decode (
     localparam logic [6:0] F7_ZERO = 7'b0000000;
     localparam logic [6:0] F7_SUB  = 7'b0100000;
     localparam logic [6:0] F7_SRA  = 7'b0100000;
+    localparam logic [6:0] F7_MULDIV = 7'b0000001;
 
     // Halt causes (HALT_* ) are defined in rv32i_pkg — one encoding for
     // decode (ecall/ebreak/illegal) and the core (cause 3, misaligned
@@ -84,6 +102,7 @@ module rv32i_decode (
     localparam logic [11:0] SYS_ECALL  = 12'h000;
     localparam logic [11:0] SYS_EBREAK = 12'h001;
     localparam logic [11:0] SYS_MRET   = 12'h302;
+    localparam logic [11:0] SYS_WFI    = 12'h105;
 
     // MISC-MEM funct3 encodings
     localparam logic [2:0] F3_FENCE  = 3'b000;
@@ -116,6 +135,9 @@ module rv32i_decode (
         jalr          = 1'b0;
         halt_cause    = HALT_NONE;
         csr_stub      = 1'b0;
+        m_op          = 1'b0;
+        csr_op        = 1'b0;
+        mret          = 1'b0;
 
         unique casez ({opcode, funct3, funct7})
             // R-type arithmetic
@@ -129,6 +151,13 @@ module rv32i_decode (
             {OPCODE_OP, F3_SR,   F7_SRA }: begin alu_op = SRA;  rd_wen = 1'b1; end
             {OPCODE_OP, F3_OR,   F7_ZERO}: begin alu_op = OR;   rd_wen = 1'b1; end
             {OPCODE_OP, F3_AND,  F7_ZERO}: begin alu_op = AND;  rd_wen = 1'b1; end
+
+            // M extension (any funct3 under funct7 0000001).  Illegal
+            // unless M_EXT.
+            {OPCODE_OP, F3_DC,   F7_MULDIV}: begin
+                if (M_EXT) begin m_op = 1'b1; rd_wen = 1'b1; end
+                else       halt_cause = HALT_ILL;
+            end
 
             // I-type arithmetic / logic
             {OPCODE_OP_IMM, F3_ADD,  F7_DC}: begin alu_op = ADD;  imm_sel = I; alu_src_b_imm = 1'b1; rd_wen = 1'b1; end
@@ -167,28 +196,43 @@ module rv32i_decode (
             {OPCODE_LUI,  F3_DC, F7_DC}: begin alu_op = ADD; imm_sel = U; alu_src_b_imm = 1'b1; rd_wen = 1'b1; end
             {OPCODE_AUIPC,F3_DC, F7_DC}: begin alu_op = ADD; imm_sel = U; alu_src_a_pc = 1'b1; alu_src_b_imm = 1'b1; rd_wen = 1'b1; end
 
-            // System: ECALL/EBREAK halt; MRET falls through to pc+4 (the
-            // riscv-tests p-env always points mepc at the next instruction);
-            // any other privileged encoding is an illegal instruction.
+            // System: ECALL/EBREAK halt (or trap, ZICSR).  Without ZICSR,
+            // MRET falls through to pc+4 (the riscv-tests p-env always
+            // points mepc at the next instruction); with ZICSR it is a
+            // trap return, and WFI retires as a no-op (a legal
+            // implementation: the hart may resume at any time).  rd and
+            // rs1 must be zero for these encodings; any other privileged
+            // encoding is an illegal instruction.
             {OPCODE_SYSTEM, F3_PRIV, F7_DC}: begin
-                unique case (insn[31:20])
-                    SYS_ECALL:  halt_cause = HALT_ECALL;
-                    SYS_EBREAK: halt_cause = HALT_EBREAK;
-                    SYS_MRET:   begin /* no operation */ end
-                    default:    halt_cause = HALT_ILL;
-                endcase
+                if (ZICSR && (insn[19:7] != 13'd0)) begin
+                    halt_cause = HALT_ILL;
+                end else begin
+                    unique case (insn[31:20])
+                        SYS_ECALL:  halt_cause = HALT_ECALL;
+                        SYS_EBREAK: halt_cause = HALT_EBREAK;
+                        SYS_MRET:   mret = ZICSR;
+                        SYS_WFI:    if (!ZICSR) halt_cause = HALT_ILL;
+                        default:    halt_cause = HALT_ILL;
+                    endcase
+                end
             end
 
-            // System CSR class: the cores have no CSR state, so the class
-            // retires through a zero writeback (reads return zero, writes
-            // drop).  SYSTEM funct3 100 is reserved and falls to the
-            // illegal default below.
-            {OPCODE_SYSTEM, F3_CSRRW,  F7_DC}: begin csr_stub = 1'b1; rd_wen = 1'b1; end
-            {OPCODE_SYSTEM, F3_CSRRS,  F7_DC}: begin csr_stub = 1'b1; rd_wen = 1'b1; end
-            {OPCODE_SYSTEM, F3_CSRRC,  F7_DC}: begin csr_stub = 1'b1; rd_wen = 1'b1; end
-            {OPCODE_SYSTEM, F3_CSRRWI, F7_DC}: begin csr_stub = 1'b1; rd_wen = 1'b1; end
-            {OPCODE_SYSTEM, F3_CSRRSI, F7_DC}: begin csr_stub = 1'b1; rd_wen = 1'b1; end
-            {OPCODE_SYSTEM, F3_CSRRCI, F7_DC}: begin csr_stub = 1'b1; rd_wen = 1'b1; end
+            // System CSR class.  Without ZICSR the cores have no CSR state,
+            // so the class retires through a zero writeback (reads return
+            // zero, writes drop).  With ZICSR it is a real CSR operation;
+            // the address check (and the read-only write check) is the
+            // core's CSR file.  SYSTEM funct3 100 is reserved and falls to
+            // the illegal default below.
+            {OPCODE_SYSTEM, F3_CSRRW,  F7_DC},
+            {OPCODE_SYSTEM, F3_CSRRS,  F7_DC},
+            {OPCODE_SYSTEM, F3_CSRRC,  F7_DC},
+            {OPCODE_SYSTEM, F3_CSRRWI, F7_DC},
+            {OPCODE_SYSTEM, F3_CSRRSI, F7_DC},
+            {OPCODE_SYSTEM, F3_CSRRCI, F7_DC}: begin
+                csr_stub = ~ZICSR;
+                csr_op   = ZICSR;
+                rd_wen   = 1'b1;
+            end
 
             // FENCE / FENCE.I are architecturally no-ops for this core;
             // MISC-MEM funct3 2-7 are reserved and fall to the illegal

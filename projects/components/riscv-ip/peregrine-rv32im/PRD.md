@@ -292,7 +292,7 @@ the worked version, with measured miss rates replacing the assumed ones.
 | P3 | M unit | **DECIDED (spec):** iterative multicycle with a busy scoreboard | EX, hazard unit |
 | P4 | Caches | **DECIDED (spec; amber PRD v0.8, 2026-10-30, Sean):** split blocking L1s, the D$ is amber, write-back + dirty bit | memory path |
 | P5 | Predictor sizing | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** BTB 32 entries direct-mapped, BHT 256 counters indexed by PC[9:2], no RAS, `BP_EN` parameter for the predict-not-taken A/B | IF area/timing, drill |
-| P6 | CSR set | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `mstatus` (MIE, MPIE, MPP fixed at M), `mie`, `mip`, `mtvec` (direct mode only), `mepc`, `mcause`, `mscratch`, `mtval`; read-only `misa`, `mhartid`=0, `mvendorid`/`marchid`/`mimpid`=0; no Zicntr (gatling's 2026-10-21 precedent; cycle counts come from MonBus). CSR read-after-write stalls rather than forwards | decode, trap unit, rv32mi pass set |
+| P6 | CSR set | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `mstatus` (MIE, MPIE, MPP fixed at M), `mie`, `mip`, `mtvec` (direct mode only), `mepc`, `mcause`, `mscratch`, `mtval`; read-only `misa`, `mhartid`=0, `mvendorid`/`marchid`/`mimpid`/`mconfigptr`=0; PMP CSRs with zero entries (`pmpcfg0-15`, `pmpaddr0-63` read 0, writes ignored: the spec makes them WARL, so a core without PMP still accepts them; added in stage 1, 2026-11-23); no Zicntr (gatling's 2026-10-21 precedent; cycle counts come from MonBus). CSR read-after-write stalls rather than forwards | decode, trap unit, rv32mi pass set |
 | P7 | Address map and fabric | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** RAM cacheable from `RESET_ADDR` (kestrel's 0x0000_0000); CLINT at 0x0200_0000 in the SiFive layout (`msip` +0x0, `mtimecmp` +0x4000, `mtime` +0xBFF8) inside the core wrapper; 0x1000_0000 and up uncached I/O (the `tohost` mailbox and board UART); the I$, D$ and uncached masters merged by a small house AXI4 arbiter to one fabric port | TB top, hive-serv glue |
 | P8 | M-unit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** radix-2 for both (33 cycles), `MUL_DSP` parameter for a 1–2 cycle DSP multiply as the measured contrast | CPI, book chapter |
 | P9 | I$ | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** in-core `peregrine_icache`, direct-mapped 4 KiB, 64 B lines, read-only, one AXI4 read master; marked as the slot a cache-ip I$ would replace | IF, area |
@@ -323,6 +323,11 @@ the worked version, with measured miss rates replacing the assumed ones.
 
 ## 8. History
 
+- 2026-11-23: TASK-001 stage 1 landed (traps, CSR file, cacheless): rv32ui
+  42/42 and rv32mi 12/16 against spike, the four exclusions being the
+  hardware P6 leaves out (counters, debug triggers, PMP regions); a
+  directed interrupt test. P6 gains the zero-entry PMP CSRs the
+  privileged spec requires (see the row).
 - 2026-11-23: PRD 0.2. P11 revised to one parameterized `rv32i_decode`
   (Sean: "can't it have a param so there is one common file?"); P5–P10,
   P12–P14 ruled at their defaults (Sean: "accept defaults on the rest").

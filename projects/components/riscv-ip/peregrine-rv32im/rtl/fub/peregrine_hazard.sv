@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: peregrine_hazard
+// Purpose: Forwarding and interlock unit for the peregrine 5-stage pipelined
+//          RV32I core.  Compares the two source register addresses currently
+//          in ID against the destination addresses pending in EX/MEM and
+//          MEM/WB, selects the newest producer for each read port, and raises
+//          a load-use stall when the instruction in EX is a load whose
+//          destination matches either ID source.  All outputs are purely
+//          combinational; this module has no clock or reset.
+//
+// Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
+// Subsystem: riscv-ip/peregrine-rv32im
+//
+// Author: sean galloway
+// Created: 2026-11-23
+//
+// Parameters: None
+//
+// Notes:
+//   - EX/MEM takes priority over MEM/WB when both stages write the same
+//     destination register.
+//   - Register x0 is never forwarded and never causes a stall: rd_addr==0
+//     disables both forwarding matches and load-use detection.
+//   - The load-use check takes no rd write enable: idex_is_load already
+//     carries the ID/EX valid bit, and every RV32I load writes rd, so a
+//     write enable could not change the stall (the port was removed,
+//     peregrine-rv32im TASK-002).
+//   - ex_flush is broadcast to flush_ifid and flush_idex; the core is
+//     responsible for making flush win over stall.
+//
+// Related Modules:
+//   - peregrine_pkg (FWD_* encodings and pipeline structs)
+//   - peregrine_id_ex, peregrine_ex_mem, peregrine_mem_wb (pipeline registers)
+//
+// Test:
+//   - projects/components/riscv-ip/peregrine-rv32im/dv/tests/test_peregrine_hazard.py
+
+`timescale 1ns / 1ps
+
+module peregrine_hazard (
+    // ID-stage source addresses used for the load-use interlock.
+    input  logic [4:0] id_rs1_addr,
+    input  logic [4:0] id_rs2_addr,
+    // Source addresses used for forwarding-select generation, compared
+    // against the exmem_* and memwb_* producers.  peregrine_core computes the
+    // select one cycle early: it drives the ID sources here and, as
+    // producers, the instructions now in ID/EX and EX/MEM (the ones that
+    // will be in EX/MEM and MEM/WB when the consumer reaches EX), then
+    // registers fwd_a/fwd_b beside ID/EX (riscv-ip common-rv32i ISSUE-001
+    // row 3a).  The unit itself is unchanged; driven from EX-stage sources
+    // and current producers it gives the same select combinationally.
+    input  logic [4:0] fwd_rs1_addr,
+    input  logic [4:0] fwd_rs2_addr,
+    input  logic [4:0] idex_rd_addr,
+    input  logic       idex_is_load,
+    input  logic [4:0] exmem_rd_addr,
+    input  logic       exmem_rd_wen,
+    input  logic [4:0] memwb_rd_addr,
+    input  logic       memwb_rd_wen,
+    input  logic       ex_flush,
+
+    output logic [1:0] fwd_a,
+    output logic [1:0] fwd_b,
+    output logic       stall_ifid,
+    output logic       flush_ifid,
+    output logic       flush_idex
+);
+
+  import peregrine_pkg::*;
+
+  // Forwarding source priority: newest producer wins.
+  // FWD_EXMEM is the instruction currently in the EX/MEM stage; FWD_MEMWB is
+  // the instruction in the MEM/WB stage.  x0 is never a valid producer.
+  always_comb begin
+    if ((exmem_rd_addr != 5'd0) && exmem_rd_wen && (exmem_rd_addr == fwd_rs1_addr))
+      fwd_a = FWD_EXMEM;
+    else if ((memwb_rd_addr != 5'd0) && memwb_rd_wen && (memwb_rd_addr == fwd_rs1_addr))
+      fwd_a = FWD_MEMWB;
+    else
+      fwd_a = FWD_IDEX;
+  end
+
+  always_comb begin
+    if ((exmem_rd_addr != 5'd0) && exmem_rd_wen && (exmem_rd_addr == fwd_rs2_addr))
+      fwd_b = FWD_EXMEM;
+    else if ((memwb_rd_addr != 5'd0) && memwb_rd_wen && (memwb_rd_addr == fwd_rs2_addr))
+      fwd_b = FWD_MEMWB;
+    else
+      fwd_b = FWD_IDEX;
+  end
+
+  // Load-use interlock: a load in EX whose destination matches either ID
+  // source must stall the IF/ID stage for one cycle.
+  assign stall_ifid = idex_is_load &&
+                      (idex_rd_addr != 5'd0) &&
+                      ((idex_rd_addr == id_rs1_addr) ||
+                       (idex_rd_addr == id_rs2_addr));
+
+  // Exception / branch flush is broadcast to IF/ID and ID/EX.
+  assign flush_ifid = ex_flush;
+  assign flush_idex = ex_flush;
+
+endmodule : peregrine_hazard
