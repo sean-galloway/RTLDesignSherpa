@@ -273,6 +273,16 @@ set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *field_storage_reg
 ## command); a host that retunes timings mid-traffic is outside it.
 set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *field_storage_reg*TIMINGS_*}]
 
+## The bank timers register the TIMINGS_* derivatives once for every bank
+## (mc_bank_timers: r_ld_*, r_*_le1, r_*_la, r_*_w1, r_t_rp_ap_*; MC-007 row 6)
+## -- the same static class, one flop downstream of field_storage_reg, under the
+## same idle-write contract. Every register directly in u_bank_timers is one of
+## them (the per-bank counters live below it in g_bank[*].u_bt and stay timed).
+## Added 2026-11-22 (memory-controllers MC-020 decision 2): u_bank_timers/
+## r_wr_le1 -> the DFI command FIFO's write enable was the second failing class
+## of the ExtraTimingOpt placement (24 of 25 endpoints, 10 levels, 77 % route).
+set_false_path -from [get_cells -quiet -hier -filter {NAME =~ *u_sched_plane/u_bank_timers/r_*_reg*}]
+
 ##==============================================================================
 ## Configuration / Bitstream
 ##==============================================================================

@@ -147,6 +147,33 @@ The board runs below are on build A, labelled as such -- 52 ps under a 280 ps
 uncertainty is a bitstream that runs, and the data on the field's effect does
 not depend on which placement ships -- and they are not the SKU's record.
 
+## 5b. Build C: the bank timers' CSR-derived registers false-pathed, and the build closes by two picoseconds
+
+The owner's "continue" (2026-11-22, later). The XDC's false-path set was
+extended to every register directly in `u_bank_timers` -- the TIMINGS_*
+derivatives the block registers once for all banks (`r_ld_*`, `r_*_le1`,
+`r_*_la`, `r_*_w1`, `r_t_rp_ap_*`; MC-007 row 6), one flop downstream of
+`field_storage_reg` and static under the same idle-write contract the owner
+accepted for the TIMINGS_* false paths on 2026-10-31 (the per-bank counters
+below them in `g_bank[*].u_bt` stay timed). The default placement with it:
+
+| build | WNS | failing endpoints | LUT / FF | worst path |
+|---|---|---|---|---|
+| C (default placement + the false path) | **+0.002 ns** | **0** | 37,320 / 32,962 | `u_bank_pick/r_is_col_reg[15]` -> `r_win_cls_reg[0]` (the main select) |
+
+Closed by the rule -- WNS >= 0 under the 0.2 ns budget, zero failing
+endpoints -- and the knife edge the rule's own text warns about ("a design
+that lands at zero here has no margin and the fix is structural, not another
+placement"): the pick select is the worst path at +2 ps. So the SKU bitstream
+with the field is build C
+(`fpga/bitstream/ddr2_char_granite_sku100_mc020d2c_2026-11-22.bit`), the
+board record below is re-taken on it (section 6c), and the structural item
+is filed as **memory-controllers MC-022** with the three path classes of
+builds A and B, the candidates to price in the model first (an exact rotor
+restructuring, the pop a cycle after the fire, a request-stage split), and the
+XDC's own record that floorplanning this cone made it worse three times.
+Floorplanning and directive sweeps are how the band is measured, not closed.
+
 ## 6. The board on build A: the field pays where the chain is column-bound, not where it is tRAS-bound
 
 Nexys A7-100T, build A (`fpga/bitstream/ddr2_char_granite_sku100_mc020d2_2026-11-22.bit`,
@@ -233,8 +260,10 @@ self-close fires whether the timer reopens the bank at one (the field) or two
 clears, the cycle after the fire, and the record and the request register
 follow -- the pipeline MC-021 measured as `close_lag` on an explicit PRE,
 here on the self-close, with no PRE -> ACT hint to arm it. The field pays only
-on the chains the pipeline had already armed (the one in eight that take the
-exact 6, the 2,142 of 65,700 in row_thrash), and in full where the next ACT
+on the chains the pipeline had already armed (the one in FOUR that take the
+exact 6 -- positions 3 and 7 of every eight columns, the chain after the last
+column of each four-column AXI burst -- and the 2,142 of 65,700 in
+row_thrash), and in full where the next ACT
 is another bank's whose request was up before the close (bank_interleave
 col_major_bl4, the mixed cells). The cycle the field removes from the timer is
 real -- the trace's 1,023 chains at exactly tRC say so -- but the pick
@@ -244,11 +273,37 @@ The model with the field priced the full cycle because its decode sees the
 head as an ACT candidate from the RDA's issue (Ramulator closes the bank at
 the issue) and requests it at the timer (`same_row`, no lookahead) or ahead
 of it (`pick_la`): the honest term is the self-close through the record's hit
-path. A flat decode gate from the fire (`ap_close_lag`, left in the controller
-as a probe, default 0) does not reproduce the mixture: 1 slot gives 97 / 390
-/ 307 against the board's 95 / 354 / 283 (+3 / +10 / +8), 2 slots 87 / 347 /
-277 (-8 / -2 / -2); the term needs the armed fraction, which is the next
-model step, with these traces as its target.
+path, with whatever arms the fourth chain. Two probes, both left in the
+controller off by default: a flat decode gate from the fire (`ap_close_lag`)
+does not reproduce the mixture -- 1 slot gives 97 / 390 / 307 against the
+board's 95 / 354 / 283 (+3 / +10 / +8), 2 slots 87 / 347 / 277 (-8 / -2 /
+-2); and the hypothesis "the heads present at the fire take the close_lag
+path, a head landing after it takes the lookahead" (`ap_close_rec`) gives 87 /
+348 / 277 with the field AND with the shared tRP, i.e. four cycles on every
+chain -- so the next burst's head is already queued when the close fires and
+something else arms it (the burst boundary in the store's two-head record is
+the candidate). That measurement is the next model step; until it lands the
+model with the field is +11 .. +15 optimistic on these cells.
+
+## 6c. The board on build C, the SKU bitstream
+
+The same host, build C programmed. Smoke: init PASS, write_read PASS, memtest
+PASS 32 / 32 chunks over 128 MB. Char: `windows` x3 + `every` x1, 95 cells,
+**0 mismatched beats** (`char_granite_sku100rpap{,w2,w3}_windows_2026-11-22.csv`,
+`char_granite_sku100rpap_every_2026-11-22.csv` -- the SKU's record; build A's
+`sku100rpapA` set stays as the unclosed bitstream's). Against build A: 64 of
+68 `every` cells within one percent; the four that moved are bank_interleave
+per-pass levels trading places between 583 / 566 / 518 (ISSUE-007's draw,
+as on every run). The windows runs: identical to build A's to the decimal on
+eight of nine cells each run; `open_page mixed_bl8` took its fast mode on the
+third run (303 / 594, the 2026-11-22 morning's one-in-three), slow on the
+other two (280 / 280) -- ISSUE-005's modes, unchanged by the field.
+
+The model (the field, `rpap`) against build C: **54 in / 3 out**
+(`compare_model_sku_vs_board_sku100rpap_2026-11-22.md`): the two ISSUE-005
+mode cells and `bank_interleave col_major_interleaved_bl4` (board 361, model
+402 -- the field's one undelivered cell, section 6b). The close-page read
+sides the model over-prices by 11 .. 15 are IN by the family's 15 tolerance.
 
 ## 7. Decisions and record
 
@@ -269,26 +324,32 @@ Decision 2 is built, proved, measured, and lands at the owner's third decision:
   preset does not move (its chain is tRAS-bound). The RTL's cost: 46 flops
   (the per-bank direction flop and second registered sum, the two reloads and
   the register) and one mux on the reload.
-- **Not done: the SKU bitstream.** Two placements of this RTL at 100 MHz miss
-  the owner's 0.2 ns budget by 52 and 54 ps on the fire cone, where the RTL
-  without it passed by 14 and 80 ps (section 5). None of the failing paths is
-  in the new logic; the design has no margin there and any placement
-  perturbation flips the sign. Owner's decision 3, one of:
+- **The SKU bitstream: build C, closed by the rule at +2 ps** (section 5b),
+  after builds A and B missed the budget by 52 and 54 ps on the fire cone
+  (section 5) and the owner's "continue". The margin item is MC-022. What
+  the three options were before build C:
   1. a structural item on the fire cone -- the pick core's select stage
      (`r_req` -> `r2_cls` / `r2_pair`, `r_is_col` -> `r_win_cls`) and the
      store's head-hit -> queue-pop -- as its own task, after which this RTL
-     ships; or
+     ships: filed as memory-controllers MC-022 (the owner's "continue"), with
+     the candidates priced in the model first and the note that an exact
+     rotor restructuring alone cannot close it (the store class is untouched
+     by it); or
   2. ship without the field in the SKU: revert the RTL step (the host's
      derivation and the model term stay -- they are correct about the RTL
      either way) and record the +21 / +17 as the price of the knife edge; or
   3. the false-path set extended to the bank timers' CSR-derived registers
      (`r_wr_le1` and its siblings, static by the same contract the TIMINGS_*
      false paths rest on), which takes build B's second class out but not the
-     pick-select paths of either build -- not closure on its own.
+     pick-select paths of either build -- not closure on its own. Done in the
+     XDC on 2026-11-22 (every register directly in `u_bank_timers`); build C,
+     the default placement with it, is in section 5b.
 - **The model's next term** (6b): the self-close through the record's hit
-  path with the armed fraction, target = these traces. Until it lands the
-  model with the field is +11 .. +15 optimistic on the same-bank close-page
-  read sides and the compare against board A reads 52 in / 5 out.
+  path with whatever arms the chain after each AXI burst's last column (one
+  in four; not "it lands after the close" -- that probe gives four cycles on
+  every chain), target = these traces. Until it lands the model with the
+  field is +11 .. +15 optimistic on the same-bank close-page read sides and
+  the compare against board A reads 52 in / 5 out.
 - **The RTL question behind the small gain**: arming the ACT of a head on an
   auto-precharging bank before the row image clears (the lookahead the LA_AP
   term already computes, into the decode's class) is MC-021's `ap_act_la`
@@ -318,5 +379,7 @@ Decision 2 is built, proved, measured, and lands at the owner's third decision:
 | scoria top / macro / fub | 4 passed / 7 failed 12 passed / 10 failed 195 passed 1 skipped -- every failure the recorded stale TB (`u_arbiter`, `t_rcd_i`, `column_pick_smoke`) | the same |
 | andesite top / macro / fub | 4 failed / 10 failed 8 passed / 12 failed 213 passed -- the recorded classes (`andesite_core_tb` compile, `u_arbiter`, `t_rcd_i`, its own arbiter) | the same |
 | model tests / host tests | 45 / 34 | 43 / 32 before the new ones |
-| `GRANITE_SYS_100=1 make bitstream`, two placements | WNS -0.052 / -0.054 under the 0.2 ns budget | +0.014 / +0.080 |
+| `GRANITE_SYS_100=1 make bitstream`: A (default placement), B (ExtraTimingOpt) | WNS -0.052 / -0.054 under the 0.2 ns budget, 15 / 25 endpoints | +0.014 / +0.080 |
+| build C: default placement + the bank timers' CSR-derived registers false-pathed | **WNS +0.002, 0 failing endpoints**, 37,320 LUT / 32,962 FF -- the SKU bitstream | |
+| the board on build C | 95 cells + memtest, 0 mismatched; the model 54 in / 3 out | |
 | the proxy, six traces through `jedec_ck_check.py` | 24,625 .. 197,313 commands each, no violation | |

@@ -781,6 +781,19 @@ under a mode or a draw. A model variant with the term OFF must reproduce the
 earlier CSVs cell for cell (60 / 60 here), or the term changed something it
 did not claim.
 
+**A hypothesis about the mechanism is a term to test, not a sentence to
+write.** The traces said one close-page chain in four takes the exact distance
+after the self-close and three take the pipeline's four cycles, and the exact
+ones sit at the last column of each four-column AXI burst. "The next burst's
+head lands after the close and is a miss from its first record" read as the
+explanation; written as a model term (present heads through the record path,
+later heads through the lookahead) it gave four cycles on every chain -- 87
+MB/s against the proxy's 95 -- so the head is already queued when the close
+fires and something else arms it. The record now says "not yet measured",
+and the probe stays in the controller, off, with its number. Had the sentence
+gone into the record as the mechanism, the next model step would have built
+on it.
+
 **A mutation check that does not rebuild the flat is vacuous.** The formal
 flats (`make/formal_flat.mk`) are built from the filelist once and not
 rebuilt when a source changes; the first mutation of the bank timer (the

@@ -190,12 +190,15 @@ class GraniteSKUController : public ControllerBase {
                                 //   cycles, the ACT at fire + t_rp_ap of the column's path (MC-020 decision 2; false = the CK-exact DRAM terms alone)
   int m_t_rp_ap_rd = -1;        // the tRP the self-close reloads after an RDA, MC cycles (TIMINGS_RP_AP.tRP_AP_RD); -1 = the shared tRP (the RTL before the field)
   int m_t_rp_ap_wr = -1;        // ... after a WRA (TIMINGS_RP_AP.tRP_AP_WR); -1 = the shared tRP
-  int m_ap_close_lag = 0;       // PROBE, not a term (MC-020 decision 2, 2026-11-22): slots after the self-close FIRES before the
-                                //   bank's heads may request their ACT. The proxy measured fire -> ACT 4 slots on ~90 percent of the
-                                //   same-bank close-page chains (the row image clears the cycle after the fire, the record and the
-                                //   request register follow) and the exact distance on the armed rest; a flat gate reproduces neither
-                                //   (1 overshoots the board by +3 / +10 / +8 percent on col_major / row_thrash / random, 2 undershoots
-                                //   -8 / -2 / -2). The term is the record path on the self-close, with the armed fraction; 0 = off
+  bool m_ap_close_rec = false;  // PROBE, kept for the record (MC-020 decision 2, 2026-11-22): the self-close through the record's hit
+                                //   path -- the heads of the bank PRESENT when it fires take the close_lag path (as after a PRE), a head
+                                //   landing later takes the lookahead. The proxy measured fire -> ACT 4 slots on three of four same-bank
+                                //   close-page chains and exactly tRC on the fourth (the chain after the last column of each 4-column
+                                //   AXI burst); this probe gives 4 on EVERY chain (87 MB/s against the proxy's 95 / 91 on close_page
+                                //   col_major_bl4 with the field / the shared tRP), so what arms the fourth is not "it lands after the
+                                //   close" and is not yet measured. The term waits for that measurement; false = the model as committed
+  int m_ap_close_lag = 0;       // PROBE, kept for the record: a flat gate from the fire on every head (1 overshoots the board, 2
+                                //   undershoots; the mixture above is the term); 0 = off
   int m_dir_batch_max = 255;
   int m_dir_hold_idle = 8;
   bool m_dir_owns_rows = true;
@@ -350,6 +353,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_t_rp_ap_rd, int, "t_rp_ap_rd").default_val(-1);
     RAMULATOR_PARSE_PARAM(m_t_rp_ap_wr, int, "t_rp_ap_wr").default_val(-1);
     RAMULATOR_PARSE_PARAM(m_ap_close_lag, int, "ap_close_lag").default_val(0);
+    RAMULATOR_PARSE_PARAM(m_ap_close_rec, bool, "ap_close_rec").default_val(false);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);
@@ -786,8 +790,9 @@ class GraniteSKUController : public ControllerBase {
         // row (measured), unless ap_act_la
         const int b = bank_of(p);
         if (m_ap_seq && m_clk - m_ap_fire_clk[b] < static_cast<Clk_t>(m_ap_close_lag) * m_slot_ticks) continue;
+        // the same_row rule (no lookahead for a head of the row the self-close closed) is the model before ap_close_rec
         const bool same_row = m_bank_ap[b] && m_bank_ap_row[b] == row_of(*h.it);
-        const int la = (same_row && !m_ap_act_la) ? 0 : m_pick_la;
+        const int la = (same_row && !m_ap_act_la && !(m_ap_seq && m_ap_close_rec)) ? 0 : m_pick_la;
         if (decode_timer(h.cmd, h.it->addr_vec, la)) { req_nxt[p] = true; cls_nxt[p] = CL_ACT; }
       }
     }
@@ -797,6 +802,18 @@ class GraniteSKUController : public ControllerBase {
     const int np = 2 * m_num_banks;
     const std::vector<int> row_at_start = m_bank_open_row;   // the registered row image the policy reads this slot
     build_heads();
+    // ap_close_rec: a bank whose self-close fires this slot closes the row under every head it has NOW -- they read it
+    // as open until the row image clears next slot and their ACT requests follow the record (close_lag from here), as
+    // after a PRE; a head landing later is a miss from its first record and the lookahead arms it
+    if (m_ap_seq && m_ap_close_rec) {
+      for (int b = 0; b < m_num_banks; b++) {
+        if (m_ap_fire_clk[b] != m_clk) continue;
+        for (int d = 0; d < 2; d++) {
+          const int p = pair_of(b, d);
+          if (m_heads[p].vld) m_pair_closed_clk[p] = m_clk;
+        }
+      }
+    }
     std::vector<bool> ord_now(m_num_banks, false);            // a head of either direction hits its bank's open row
     for (int p = 0; p < np; p++) if (m_heads[p].vld && m_heads[p].is_col) ord_now[bank_of(p)] = true;
     std::vector<bool> req_nxt(np, false);

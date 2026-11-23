@@ -1,41 +1,28 @@
 # memory-controllers — task lane
 
-**Next ID: MC-022** — never recycle a number.
+**Next ID: MC-023** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-(none)
+- **MC-022** -- the granite fire cone has no margin at 100 MHz: the
+  decision-2 RTL lands at -0.052 / -0.054 ns under the 0.2 ns budget on two
+  placements (the RTL before it +0.014 / +0.080; the XDC's recorded band
+  +0.003 .. -0.159), on the pick select, the store's fire -> pop and the
+  bank timers' CSR-derived flag (the last false-pathed 2026-11-22). A
+  structural cut priced in the model first; floorplanning is recorded as
+  making it worse. Filed 2026-11-22 from MC-020 decision 2.
 
 ## Active
 
-- **MC-020** -- a row command into the idle main slot or the column's own
-  bank: the one-slot rule still costs `col_major` +14.6 / +9.5 / +5.3 percent
-  (bl4 / 8 / 16) and the two-bank interleave +4 .. +6 in the model, nothing
-  elsewhere; MC-014 cut the alone-firing lane for the 100 MHz cone, so the
-  task is a form that does not re-enter it, priced in the model first.
-  Filed 2026-11-17 from MC-018. Step 1 (2026-11-21): both forms 0.0; the
-  tax was the host JEDEC derivation's one-CK phase margin. Decision 1
-  (2026-11-22): the phase-exact derivation is the host default after a
-  60-minute soak; the board re-baselined. Decision 2 (2026-11-22, later):
-  the per-path auto-precharge tRP field built, proved and board-measured
-  (+21 close_page mixed, +17 bank_interleave col_major_bl4 read, +1 .. +3
-  else; the model's sequenced self-close first, 55 / 2 with no RTL change)
-  -- and the sys100 build misses the 0.2 ns budget by 52 / 54 ps on two
-  placements, on the fire cone. Open, decision 3: a structural item on the
-  fire cone, or ship without the field.
-  ACTIVE 2026-11-21, step 1 landed: the slot forms price at 0.0; the tax was the
-  host derivation's one-CK phase margin; phase-exact counters board-validated
-  (col_major writes +10 / +7 / +4.5, close-page presets +35 .. +50, 0 mismatched
-  in 81 cells) behind `JEDEC_PHASE_EXACT=1`. Owner: the default, and the
-  auto-precharge tRP field (`char_results/board_mc020_phase_exact_sku100_2026-11-21.md`).
+(none)
 
 ## Deferred
 
@@ -58,6 +45,35 @@
   Dropped: no timing gain, 277 LUT against a measured loss.
 
 ## Closed
+
+- **MC-020** -- a row command into the idle main slot or the column's own
+  bank: the one-slot rule still costs `col_major` +14.6 / +9.5 / +5.3 percent
+  (bl4 / 8 / 16) and the two-bank interleave +4 .. +6 in the model, nothing
+  elsewhere; MC-014 cut the alone-firing lane for the 100 MHz cone, so the
+  task is a form that does not re-enter it, priced in the model first.
+  Filed 2026-11-17 from MC-018. Step 1 (2026-11-21): both forms 0.0; the
+  tax was the host JEDEC derivation's one-CK phase margin. Decision 1
+  (2026-11-22): the phase-exact derivation is the host default after a
+  60-minute soak; the board re-baselined. Decision 2 (2026-11-22, later):
+  the per-path auto-precharge tRP field built, proved and board-measured
+  (+21 close_page mixed, +17 bank_interleave col_major_bl4 read, +1 .. +3
+  else; the model's sequenced self-close first, 55 / 2 with no RTL change)
+  -- and the sys100 build misses the 0.2 ns budget by 52 / 54 ps on two
+  placements, on the fire cone. Open, decision 3: a structural item on the
+  fire cone, or ship without the field.
+  ACTIVE 2026-11-21, step 1 landed: the slot forms price at 0.0; the tax was the
+  host derivation's one-CK phase margin; phase-exact counters board-validated
+  (col_major writes +10 / +7 / +4.5, close-page presets +35 .. +50, 0 mismatched
+  in 81 cells) behind `JEDEC_PHASE_EXACT=1`. Owner: the default, and the
+  auto-precharge tRP field (`char_results/board_mc020_phase_exact_sku100_2026-11-21.md`).
+  CLOSED 2026-11-22: decision 2 built (`TIMINGS_RP_AP`; the model's
+  sequenced self-close first, 55 / 2 with no RTL change; board +21 on
+  close_page mixed, +17 on bank_interleave col_major_bl4 read, +1 .. +3 on
+  the other close-page reads where the pick pipeline spends the cycle), the
+  sys100 build closed on build C at +0.002 after the bank timers' CSR-derived
+  registers were false-pathed (builds A / B -0.052 / -0.054: MC-022), the
+  board on C 95 cells 0 mismatched, the model 54 / 3
+  (`char_results/board_mc020_t_rp_ap_sku100_2026-11-22.md`).
 
 - **MC-021** -- the un-hinted hop, which turned out to be the pick PIPELINE
   and then seven more terms of the granite SKU model, each measured on the
