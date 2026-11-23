@@ -1,0 +1,9 @@
+# Vivado build output under */fpga/. `reports/` is rewritten by every build
+# and is never evidence on its own; a record that needs a build's numbers
+# copies the directory to a dated reports_<tag>_<date>/ snapshot and cites
+# that. Snapshots committed before 2026-11-23 stay tracked (an ignore rule
+# does not touch tracked files); a new snapshot is local unless the record
+# that cites it adds it deliberately with `git add -f`.
+**/fpga/reports/*
+!**/fpga/reports/.gitkeep
+**/fpga/reports_*/
