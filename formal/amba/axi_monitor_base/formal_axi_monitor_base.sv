@@ -82,6 +82,7 @@ module formal_axi_monitor_base (
     wire                block_ready_o;
     wire                busy_o;
     wire [7:0]          active_count_o;
+    wire                cmd_refused_o;
 
     // =========================================================================
     // DUT instantiation
@@ -159,7 +160,8 @@ module formal_axi_monitor_base (
         .monbus_timestamp          (monbus_timestamp_o),
         .block_ready               (block_ready_o),
         .busy                      (busy_o),
-        .active_count              (active_count_o)
+        .active_count              (active_count_o),
+        .cmd_refused               (cmd_refused_o)
     );
 
     // =========================================================================
@@ -204,10 +206,12 @@ module formal_axi_monitor_base (
     // cannot open a new transaction while block_ready is deasserted.  Without this
     // the free cmd_ready overflows the trans CAM and active_count exceeds
     // MAX_TRANSACTIONS -- exactly what block_ready exists to prevent.
+`ifndef PASSIVE_COVER
     always @(*) begin
         if (!block_ready_o)
             assume (!(cmd_valid && cmd_ready));
     end
+`endif
 
     // =========================================================================
     // Shadow model: track whether any AXI activity has occurred
@@ -341,6 +345,16 @@ module formal_axi_monitor_base (
     always @(posedge clk) begin
         if (f_past_valid > 0 && rst_n && $past(rst_n) && $past(busy_o))
             cp_busy_to_idle: cover (!busy_o);
+    end
+
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (cmd_refused_o)
+                ap_base_refused_handshake: assert (cmd_valid && cmd_ready);
+            if (!cmd_ready)
+                ap_base_held_not_refused: assert (!cmd_refused_o);
+            cp_base_refused: cover (cmd_refused_o);
+        end
     end
 
 endmodule

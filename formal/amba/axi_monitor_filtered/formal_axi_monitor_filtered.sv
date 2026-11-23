@@ -87,6 +87,7 @@ module formal_axi_monitor_filtered (
     wire         busy;
     wire [7:0]   active_count;
     wire         cfg_conflict_error;
+    wire         cmd_refused;
 
     // =========================================================================
     // DUT instantiation
@@ -175,7 +176,8 @@ module formal_axi_monitor_filtered (
         .block_ready                (block_ready),
         .busy                       (busy),
         .active_count               (active_count),
-        .cfg_conflict_error         (cfg_conflict_error)
+        .cfg_conflict_error         (cfg_conflict_error),
+        .cmd_refused                (cmd_refused)
     );
 
     // =========================================================================
@@ -266,6 +268,16 @@ module formal_axi_monitor_filtered (
             cp_monbus_handshake: cover (monbus_valid && monbus_ready);
             cp_busy:            cover (busy);
             cp_conflict:        cover (cfg_conflict_error);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (cmd_refused)
+                ap_filtered_refused_handshake: assert (cmd_valid && cmd_ready);
+            if (!cmd_ready)
+                ap_filtered_held_not_refused: assert (!cmd_refused);
+            cp_filtered_refused: cover (cmd_refused);
         end
     end
 

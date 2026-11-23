@@ -21,6 +21,15 @@
   `cmd_ready` from the refusal equation fails `ap_held_command_not_refused`.
   Formal-only outputs carry the real pending/allocation predicates because
   Yosys treats hierarchical references as undriven implicit wires.
+- Unoptimized full observer RTL baseline: `be7f8e891`. Clean gate **23/23 PASS**
+  (17 existing lite cells plus six full register/traffic/all-cone cells).
+- Full observer passivity/feature gate: initial **31/34**, then targeted fixes
+  for test stimulus/runner structure passed **3/3**; all fixed-cycle saturation,
+  ID-slice, same-cycle banked write, and clear/reuse behaviors passed. Base and
+  filtered prove/cover PASS; base cover uses its passive-snoop configuration.
+- Final all-level observer matrix: **82/82 PASS** in 340.08 s, including full
+  performance/debug, full reset/reissue, all passivity configurations, and all
+  banked same-cycle write levels. Final base/filtered clean prove/cover PASS.
 
 ## Why
 

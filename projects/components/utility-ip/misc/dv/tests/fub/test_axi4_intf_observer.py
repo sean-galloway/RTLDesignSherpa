@@ -611,6 +611,8 @@ async def cocotb_test_observer_all_classes(dut):
     await tb.write_reg("MON_CTRL", 0xFF)          # all EN bits + ADDR_CHECK + MONITOR
     await tb.write_reg("MON_TIMEOUT", 4)          # microseconds, short
     await tb.write_reg("MON_LATENCY", 8)          # trip THRESHOLD easily
+    if (caps0 >> 4) & 1:
+        await tb.write_reg("MON_WINDOW", 1 << 8)  # explicit software window open
     if n_ranges:
         await tb.write_reg("ADDR_RANGE0_LOW", 0x0000_1000)
         await tb.write_reg("ADDR_RANGE0_HIGH", 0x0000_1FFF)
@@ -632,6 +634,9 @@ async def cocotb_test_observer_all_classes(dut):
         await tb.wait_clocks("aclk", 60)
         await tb.drive_read_burst(addr=0x4000 + n * 0x100, arid=4 + n, beats=2, rresp=resp)
         await tb.wait_clocks("aclk", 60)
+    if (caps0 >> 4) & 1:
+        await tb.write_reg("MON_WINDOW", 1 << 9)  # explicit software window close
+        await tb.wait_clocks("aclk", 100)
     # timeout: an address with no data, left to expire
     await tb.drive_read_burst(addr=0x5000, arid=6, beats=0)
     await tb.wait_clocks("aclk", 4000)
@@ -905,6 +910,135 @@ async def cocotb_test_observer_reset_reissue(dut):
         f"probe is not testing what it claims to test.")
 
 
+@cocotb.test(timeout_time=500, timeout_unit="us")
+async def cocotb_test_observer_full_passivity(dut):
+    """Saturation loses only monitoring coverage, never observed-bus traffic."""
+    from cocotb.handle import Force, Release
+
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    await tb.write_reg("OBS_CTRL", 0)
+    core = dut.u_core
+    rd_tap = core.gen_rd_mon[0].gen_full.u_rd_mon
+    wr_tap = core.gen_wr_mon[0].gen_full.u_wr_mon
+    rd_tap.monbus_ready.value = Force(0)
+    wr_tap.monbus_ready.value = Force(0)
+
+    max_tx = _p("P_MAX_TRANSACTIONS", 16)
+    command_cap = max_tx - 4 if max_tx >= 16 else max_tx
+    id_slice = _p("P_ENABLE_ID_SLICE", 0)
+    n_cmds = 6 if id_slice else command_cap + 2
+    rd_accepted, wr_accepted = [], []
+
+    async def count_external():
+        cyc = 0
+        while True:
+            await RisingEdge(dut.aclk)
+            if int(dut.obs_rd_arvalid.value) and int(dut.obs_rd_arready.value):
+                rd_accepted.append(cyc)
+            if int(dut.obs_wr_awvalid.value) and int(dut.obs_wr_awready.value):
+                wr_accepted.append(cyc)
+            cyc += 1
+
+    counter = cocotb.start_soon(count_external())
+    dut.obs_rd_arlen.value = 0
+    dut.obs_rd_arsize.value = 3
+    dut.obs_rd_arburst.value = 1
+    dut.obs_wr_awlen.value = 0
+    dut.obs_wr_awsize.value = 3
+    dut.obs_wr_awburst.value = 1
+    for i in range(n_cmds):
+        dut.obs_rd_arid.value = i
+        dut.obs_rd_araddr.value = 0x1000 + i * 0x40
+        dut.obs_wr_awid.value = i
+        dut.obs_wr_awaddr.value = 0x2000 + i * 0x40
+        dut.obs_rd_arvalid.value = 1
+        dut.obs_wr_awvalid.value = 1
+        await RisingEdge(dut.aclk)
+    dut.obs_rd_arvalid.value = 0
+    dut.obs_wr_awvalid.value = 0
+    await tb.wait_clocks("aclk", 5)
+
+    expected_refused = 0 if id_slice else 2
+    assert rd_accepted == list(range(n_cmds)), rd_accepted
+    assert wr_accepted == list(range(n_cmds)), wr_accepted
+    assert int(core.obs_rd_refused[0].value) == expected_refused
+    assert int(core.obs_wr_refused[0].value) == expected_refused
+    assert int(core.obs_rd_dropped[0].value) == 0
+    assert int(core.obs_wr_dropped[0].value) == 0
+    sticky = await tb.read_reg("OBS_STICKY")
+    assert bool(sticky & 2) == bool(expected_refused)
+
+    rd_tap.monbus_ready.value = Release()
+    wr_tap.monbus_ready.value = Release()
+    dut.cam_clear.value = 1
+    await RisingEdge(dut.aclk)
+    dut.cam_clear.value = 0
+    await tb.wait_clocks("aclk", 20)
+    assert int(core.obs_rd_refused[0].value) == 0
+    assert int(core.obs_wr_refused[0].value) == 0
+    assert not ((await tb.read_reg("OBS_STICKY")) & 2)
+    assert not tb.packets, "clear/reuse emitted stale pre-saturation events"
+
+    await tb.drive_read_burst(addr=0x4000, arid=2 if id_slice else 1, beats=1, gap=1)
+    await tb.drive_write_burst(addr=0x5000, awid=3 if id_slice else 2, beats=1, gap=1)
+    await tb.wait_clocks("aclk", 300)
+    assert sum(n for (name, _), n in tb.packet_tally().items() if name == "Completion") == 2, tb.packet_tally()
+    counter.kill()
+
+
+@cocotb.test(timeout_time=500, timeout_unit="us")
+async def cocotb_test_observer_full_saturation_reuse(dut):
+    """Banked same-cycle AW+W attribution survives clear and write reuse."""
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    await tb.write_reg("OBS_CTRL", 0)
+    core = dut.u_core
+
+    async def batch(base_id):
+        accepted = 0
+        dut.obs_wr_awlen.value = 0
+        dut.obs_wr_awsize.value = 3
+        dut.obs_wr_awburst.value = 1
+        dut.obs_wr_wlast.value = 1
+        dut.obs_wr_wstrb.value = 0xFF
+        for i in range(4):
+            dut.obs_wr_awid.value = base_id + i
+            dut.obs_wr_awaddr.value = 0x6000 + (base_id + i) * 0x40
+            dut.obs_wr_awvalid.value = 1
+            dut.obs_wr_wvalid.value = 1
+            await RisingEdge(dut.aclk)
+            accepted += int(dut.obs_wr_awready.value) & int(dut.obs_wr_wready.value)
+        dut.obs_wr_awvalid.value = 0
+        dut.obs_wr_wvalid.value = 0
+        dut.obs_wr_wlast.value = 0
+        dut.obs_wr_bready.value = 1
+        for i in range(4):
+            dut.obs_wr_bid.value = base_id + i
+            dut.obs_wr_bresp.value = 0
+            dut.obs_wr_bvalid.value = 1
+            await RisingEdge(dut.aclk)
+        dut.obs_wr_bvalid.value = 0
+        dut.obs_wr_bready.value = 0
+        await tb.wait_clocks("aclk", 300)
+        assert accepted == 4
+        assert int(core.obs_wr_refused[0].value) == 0
+
+    await batch(0)
+    assert sum(n for (name, _), n in tb.packet_tally().items() if name == "Completion") == 4, tb.packet_tally()
+    assert "Error" not in tb.types_seen(), tb.packet_tally()
+    dut.cam_clear.value = 1
+    await RisingEdge(dut.aclk)
+    dut.cam_clear.value = 0
+    await tb.wait_clocks("aclk", 20)
+    n0 = len(tb.packets)
+    await batch(4)
+    assert sum(n for (name, _), n in tb.packet_tally().items() if name == "Completion") == 8, tb.packet_tally()
+    assert len(tb.packets) >= n0 + 4
+
+
 def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs",
                   test_level="gate"):
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({
@@ -943,6 +1077,9 @@ def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs
         'NUM_RD_PORTS': params['NUM_RD_PORTS'],
         'NUM_WR_PORTS': params['NUM_WR_PORTS'],
         'N_ADDR_RANGES': params['N_ADDR_RANGES'],
+        'MAX_TRANSACTIONS': params.get('MAX_TRANSACTIONS', 16),
+        'NUM_BANKS': params.get('NUM_BANKS', 1),
+        'ENABLE_ID_SLICE': params.get('ENABLE_ID_SLICE', 0),
     }.items()})
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -1171,3 +1308,72 @@ def test_axi4_intf_slave_observer_full_all_cones(request, test_level):
     """Elaborate every full SLAVE cone and verify its capabilities."""
     _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_ALL),
                   test_level=test_level)
+
+
+_PARAMS_FULL_SMALL = dict(_PARAMS, MAX_TRANSACTIONS=4, NUM_BANKS=1)
+_PARAMS_FULL_RESERVED = dict(_PARAMS, MAX_TRANSACTIONS=16, NUM_BANKS=1)
+_PARAMS_FULL_BANKED = dict(_PARAMS, MAX_TRANSACTIONS=16, NUM_BANKS=4,
+                           USE_WDATA_ORDER_Q=1)
+_PARAMS_FULL_SLICE = dict(_PARAMS_FULL_SMALL, ENABLE_ID_SLICE=1,
+                          CH_BASE=2, NUM_CHANNELS=2)
+
+
+def test_axi4_intf_master_observer_full_passivity_small(request):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_FULL_SMALL),
+                  testcase="cocotb_test_observer_full_passivity")
+
+
+def test_axi4_intf_slave_observer_full_passivity_small(request):
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_FULL_SMALL),
+                  testcase="cocotb_test_observer_full_passivity")
+
+
+def test_axi4_intf_master_observer_full_passivity_reserved(request):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_FULL_RESERVED),
+                  testcase="cocotb_test_observer_full_passivity")
+
+
+def test_axi4_intf_slave_observer_full_passivity_reserved(request):
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_FULL_RESERVED),
+                  testcase="cocotb_test_observer_full_passivity")
+
+
+def test_axi4_intf_master_observer_full_passivity_id_slice(request):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_FULL_SLICE),
+                  testcase="cocotb_test_observer_full_passivity")
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_full_perf_debug(request, test_level):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_all_classes", test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_full_perf_debug(request, test_level):
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_all_classes", test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_full_banked_same_cycle(request, test_level):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_FULL_BANKED),
+                  testcase="cocotb_test_observer_full_saturation_reuse", test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_full_banked_same_cycle(request, test_level):
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_FULL_BANKED),
+                  testcase="cocotb_test_observer_full_saturation_reuse", test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_full_reset_reissue(request, test_level):
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_reset_reissue", test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_full_reset_reissue(request, test_level):
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_ALL),
+                  testcase="cocotb_test_observer_reset_reissue", test_level=test_level)
