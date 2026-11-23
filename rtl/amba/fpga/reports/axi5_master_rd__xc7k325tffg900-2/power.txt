@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 18:57:31 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:19:47 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi5_master_rd__xc7k325tffg900-2/power.txt
 | Design           : axi5_master_rd
 | Device           : xc7k325tffg900-2
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.166        |
+| Total On-Chip Power (W)  | 0.165        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.010        |
+| Dynamic (W)              | 0.008        |
 | Device Static (W)        | 0.156        |
 | Effective TJA (C/W)      | 1.8          |
 | Max Ambient (C)          | 84.7         |
@@ -52,14 +52,14 @@ Table of Contents
 +----------------+-----------+----------+-----------+-----------------+
 | On-Chip        | Power (W) | Used     | Available | Utilization (%) |
 +----------------+-----------+----------+-----------+-----------------+
-| Clocks         |     0.007 |        3 |       --- |             --- |
-| Slice Logic    |     0.002 |      916 |       --- |             --- |
-|   LUT as Logic |     0.002 |      380 |    203800 |            0.19 |
+| Clocks         |     0.006 |        3 |       --- |             --- |
+| Slice Logic    |     0.002 |      754 |       --- |             --- |
+|   LUT as Logic |     0.001 |      298 |    203800 |            0.15 |
 |   Register     |    <0.001 |      444 |    407600 |            0.11 |
-|   Others       |     0.000 |        2 |       --- |             --- |
-| Signals        |     0.001 |      311 |       --- |             --- |
+|   Others       |     0.000 |        4 |       --- |             --- |
+| Signals        |    <0.001 |      306 |       --- |             --- |
 | Static Power   |     0.156 |          |           |                 |
-| Total          |     0.166 |          |           |                 |
+| Total          |     0.165 |          |           |                 |
 +----------------+-----------+----------+-----------+-----------------+
 
 
@@ -69,7 +69,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.078 |       0.010 |      0.068 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.076 |       0.008 |      0.068 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.028 |       0.000 |      0.028 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -139,8 +139,8 @@ Table of Contents
 +----------------+-----------+
 | Name           | Power (W) |
 +----------------+-----------+
-| axi5_master_rd |     0.010 |
-|   ar_channel   |     0.005 |
+| axi5_master_rd |     0.008 |
+|   ar_channel   |     0.004 |
 |   r_channel    |     0.005 |
 +----------------+-----------+
 

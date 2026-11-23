@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Tue Sep 29 01:42:59 2026
-| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date         : Sat Nov 21 20:31:41 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_cdc -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite_cg__xc7k325tffg900-2/cdc.txt
 | Design       : axis4_master_monlite_cg
 | Device       : 7k325t-ffg900
@@ -14,5 +14,5 @@ CDC Report
 
 Severity  Source Clock      Destination Clock  CDC Type                 Exceptions  Endpoints  Safe  Unsafe  Unknown  No ASYNC_REG  
 --------  ----------------  -----------------  -----------------------  ----------  ---------  ----  ------  -------  ------------  
-Critical  input port clock  aclk               No Common Primary Clock  False Path        464     0       0      464             0  
+Critical  input port clock  aclk               No Common Primary Clock  False Path        291     1       0      290             0  
 

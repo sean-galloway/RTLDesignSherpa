@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Tue Sep 29 01:42:42 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:50:43 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axis4_master_monlite__xc7a100tcsg324-1/power.txt
 | Design           : axis4_master_monlite
 | Device           : xc7a100tcsg324-1
@@ -30,14 +30,14 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.104        |
+| Total On-Chip Power (W)  | 0.098        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.020        |
+| Dynamic (W)              | 0.014        |
 | Device Static (W)        | 0.084        |
 | Effective TJA (C/W)      | 4.6          |
-| Max Ambient (C)          | 84.5         |
-| Junction Temperature (C) | 25.5         |
+| Max Ambient (C)          | 84.6         |
+| Junction Temperature (C) | 25.4         |
 | Confidence Level         | Medium       |
 | Setting File             | ---          |
 | Simulation Activity File | ---          |
@@ -49,20 +49,20 @@ Table of Contents
 1.1 On-Chip Components
 ----------------------
 
-+----------------+-----------+----------+-----------+-----------------+
-| On-Chip        | Power (W) | Used     | Available | Utilization (%) |
-+----------------+-----------+----------+-----------+-----------------+
-| Clocks         |     0.016 |        3 |       --- |             --- |
-| Slice Logic    |     0.002 |     2707 |       --- |             --- |
-|   LUT as Logic |     0.002 |     1550 |     63400 |            2.44 |
-|   Register     |    <0.001 |      935 |    126800 |            0.74 |
-|   CARRY4       |    <0.001 |       52 |     15850 |            0.33 |
-|   F7/F8 Muxes  |    <0.001 |        2 |     63400 |           <0.01 |
-|   Others       |     0.000 |        7 |       --- |             --- |
-| Signals        |     0.001 |     1871 |       --- |             --- |
-| Static Power   |     0.084 |          |           |                 |
-| Total          |     0.104 |          |           |                 |
-+----------------+-----------+----------+-----------+-----------------+
++--------------------------+-----------+----------+-----------+-----------------+
+| On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
++--------------------------+-----------+----------+-----------+-----------------+
+| Clocks                   |     0.012 |        3 |       --- |             --- |
+| Slice Logic              |     0.001 |     2235 |       --- |             --- |
+|   LUT as Logic           |     0.001 |     1052 |     63400 |            1.66 |
+|   Register               |    <0.001 |      630 |    126800 |            0.50 |
+|   LUT as Distributed RAM |    <0.001 |      112 |     19000 |            0.59 |
+|   CARRY4                 |    <0.001 |       52 |     15850 |            0.33 |
+|   Others                 |     0.000 |       16 |       --- |             --- |
+| Signals                  |    <0.001 |     1669 |       --- |             --- |
+| Static Power             |     0.084 |          |           |                 |
+| Total                    |     0.098 |          |           |                 |
++--------------------------+-----------+----------+-----------+-----------------+
 
 
 1.2 Power Supply Summary
@@ -71,7 +71,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.035 |       0.020 |      0.015 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.029 |       0.014 |      0.015 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.018 |       0.000 |      0.018 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -140,10 +140,12 @@ Table of Contents
 +----------------------------------------+-----------+
 | Name                                   | Power (W) |
 +----------------------------------------+-----------+
-| axis4_master_monlite                   |     0.020 |
-|   gen_monitor_lite.u_axis_monitor_lite |     0.015 |
-|   u_core                               |     0.005 |
-|     t_channel                          |     0.005 |
+| axis4_master_monlite                   |     0.014 |
+|   gen_monitor_lite.u_axis_monitor_lite |     0.010 |
+|     g_bank[0].u_out_q                  |     0.002 |
+|     g_bank[1].u_out_q                  |     0.002 |
+|   u_core                               |     0.004 |
+|     t_channel                          |     0.004 |
 +----------------------------------------+-----------+
 
 

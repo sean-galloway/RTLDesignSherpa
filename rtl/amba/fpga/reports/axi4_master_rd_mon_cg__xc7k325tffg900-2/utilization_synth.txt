@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Sep 28 18:55:27 2026
-| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date         : Sat Nov 21 20:07:12 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd_mon_cg__xc7k325tffg900-2/utilization_synth.txt
 | Design       : axi4_master_rd_mon_cg
 | Device       : xc7k325tffg900-2
@@ -31,13 +31,13 @@ Table of Contents
 +----------------------------+------+-------+------------+-----------+-------+
 |          Site Type         | Used | Fixed | Prohibited | Available | Util% |
 +----------------------------+------+-------+------------+-----------+-------+
-| Slice LUTs*                | 7375 |     0 |          0 |    203800 |  3.62 |
-|   LUT as Logic             | 7343 |     0 |          0 |    203800 |  3.60 |
+| Slice LUTs*                | 7242 |     0 |          0 |    203800 |  3.55 |
+|   LUT as Logic             | 7210 |     0 |          0 |    203800 |  3.54 |
 |   LUT as Memory            |   32 |     0 |          0 |     64000 |  0.05 |
 |     LUT as Distributed RAM |   32 |     0 |            |           |       |
 |     LUT as Shift Register  |    0 |     0 |            |           |       |
-| Slice Registers            | 5561 |     0 |          0 |    407600 |  1.36 |
-|   Register as Flip Flop    | 5556 |     0 |          0 |    407600 |  1.36 |
+| Slice Registers            | 5569 |     0 |          0 |    407600 |  1.37 |
+|   Register as Flip Flop    | 5564 |     0 |          0 |    407600 |  1.37 |
 |   Register as Latch        |    5 |     0 |          0 |    407600 | <0.01 |
 | F7 Muxes                   |  301 |     0 |          0 |    101900 |  0.30 |
 | F8 Muxes                   |  138 |     0 |          0 |     50950 |  0.27 |
@@ -59,10 +59,10 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 0     |            _ |         Set |            - |
 | 0     |            _ |       Reset |            - |
 | 0     |          Yes |           - |            - |
-| 9     |          Yes |           - |          Set |
-| 5552  |          Yes |           - |        Reset |
+| 12    |          Yes |           - |          Set |
+| 5236  |          Yes |           - |        Reset |
 | 0     |          Yes |         Set |            - |
-| 0     |          Yes |       Reset |            - |
+| 321   |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -156,19 +156,20 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------+------+---------------------+
 | Ref Name | Used | Functional Category |
 +----------+------+---------------------+
-| FDCE     | 5547 |        Flop & Latch |
-| LUT6     | 3479 |                 LUT |
-| LUT4     | 2229 |                 LUT |
+| FDCE     | 5231 |        Flop & Latch |
+| LUT6     | 3551 |                 LUT |
+| LUT4     | 2112 |                 LUT |
 | LUT3     | 1263 |                 LUT |
-| LUT2     | 1071 |                 LUT |
-| LUT5     |  827 |                 LUT |
+| LUT2     | 1066 |                 LUT |
+| LUT5     |  762 |                 LUT |
 | CARRY4   |  482 |          CarryLogic |
+| FDRE     |  321 |        Flop & Latch |
 | MUXF7    |  301 |               MuxFx |
 | MUXF8    |  138 |               MuxFx |
 | RAMD32   |   48 |  Distributed Memory |
 | LUT1     |   42 |                 LUT |
 | RAMS32   |   16 |  Distributed Memory |
-| FDPE     |    9 |        Flop & Latch |
+| FDPE     |   12 |        Flop & Latch |
 | LDCE     |    5 |        Flop & Latch |
 +----------+------+---------------------+
 

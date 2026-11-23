@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 18:55:05 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:02:09 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd_cg__xc7k325tffg900-2/power.txt
 | Design           : axi4_master_rd_cg
 | Device           : xc7k325tffg900-2
@@ -30,7 +30,7 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.162        |
+| Total On-Chip Power (W)  | 0.161        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
 | Dynamic (W)              | 0.005        |
@@ -52,14 +52,14 @@ Table of Contents
 +----------------+-----------+----------+-----------+-----------------+
 | On-Chip        | Power (W) | Used     | Available | Utilization (%) |
 +----------------+-----------+----------+-----------+-----------------+
-| Clocks         |     0.002 |        3 |       --- |             --- |
-| Slice Logic    |     0.002 |      729 |       --- |             --- |
-|   LUT as Logic |     0.002 |      308 |    203800 |            0.15 |
-|   Register     |    <0.001 |      342 |    407600 |            0.08 |
-|   Others       |     0.000 |        7 |       --- |             --- |
-| Signals        |     0.001 |      270 |       --- |             --- |
+| Clocks         |     0.003 |        3 |       --- |             --- |
+| Slice Logic    |     0.001 |      620 |       --- |             --- |
+|   LUT as Logic |     0.001 |      250 |    203800 |            0.12 |
+|   Register     |    <0.001 |      345 |    407600 |            0.08 |
+|   Others       |     0.000 |       11 |       --- |             --- |
+| Signals        |    <0.001 |      272 |       --- |             --- |
 | Static Power   |     0.156 |          |           |                 |
-| Total          |     0.162 |          |           |                 |
+| Total          |     0.161 |          |           |                 |
 +----------------+-----------+----------+-----------+-----------------+
 
 
@@ -140,7 +140,7 @@ Table of Contents
 | Name              | Power (W) |
 +-------------------+-----------+
 | axi4_master_rd_cg |     0.005 |
-|   i_axi_master_rd |     0.005 |
+|   i_axi_master_rd |     0.004 |
 |     ar_channel    |     0.002 |
 |     r_channel     |     0.003 |
 +-------------------+-----------+

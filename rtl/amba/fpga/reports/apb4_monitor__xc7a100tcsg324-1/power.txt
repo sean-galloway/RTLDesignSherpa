@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 19:02:02 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:50:04 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/apb4_monitor__xc7a100tcsg324-1/power.txt
 | Design           : apb4_monitor
 | Device           : xc7a100tcsg324-1
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.096        |
+| Total On-Chip Power (W)  | 0.095        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.012        |
+| Dynamic (W)              | 0.011        |
 | Device Static (W)        | 0.084        |
 | Effective TJA (C/W)      | 4.6          |
 | Max Ambient (C)          | 84.6         |
@@ -53,15 +53,15 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.008 |        3 |       --- |             --- |
-| Slice Logic              |     0.002 |     1439 |       --- |             --- |
-|   LUT as Logic           |     0.002 |      548 |     63400 |            0.86 |
+| Slice Logic              |     0.002 |     1330 |       --- |             --- |
+|   LUT as Logic           |     0.001 |      488 |     63400 |            0.77 |
 |   CARRY4                 |    <0.001 |       46 |     15850 |            0.29 |
 |   LUT as Distributed RAM |    <0.001 |       32 |     19000 |            0.17 |
 |   Register               |    <0.001 |      653 |    126800 |            0.51 |
-|   Others                 |     0.000 |        9 |       --- |             --- |
-| Signals                  |     0.002 |      926 |       --- |             --- |
+|   Others                 |     0.000 |       10 |       --- |             --- |
+| Signals                  |     0.002 |      925 |       --- |             --- |
 | Static Power             |     0.084 |          |           |                 |
-| Total                    |     0.096 |          |           |                 |
+| Total                    |     0.095 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -71,7 +71,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.027 |       0.012 |      0.015 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.026 |       0.011 |      0.015 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.018 |       0.000 |      0.018 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -140,7 +140,7 @@ Table of Contents
 +----------------------------------+-----------+
 | Name                             | Power (W) |
 +----------------------------------+-----------+
-| apb4_monitor                     |     0.012 |
+| apb4_monitor                     |     0.011 |
 |   gen_monitor.monbus_skid_buffer |     0.003 |
 |   gen_monitor.monitor_fifo       |     0.003 |
 +----------------------------------+-----------+

@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 19:01:36 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:33:20 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/wb4_monitor__xc7k325tffg900-2/power.txt
 | Design           : wb4_monitor
 | Device           : xc7k325tffg900-2
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.183        |
+| Total On-Chip Power (W)  | 0.182        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.027        |
+| Dynamic (W)              | 0.025        |
 | Device Static (W)        | 0.156        |
 | Effective TJA (C/W)      | 1.8          |
 | Max Ambient (C)          | 84.7         |
@@ -53,16 +53,16 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.019 |        3 |       --- |             --- |
-| Slice Logic              |     0.004 |     1814 |       --- |             --- |
-|   LUT as Logic           |     0.003 |      590 |    203800 |            0.29 |
+| Slice Logic              |     0.003 |     1709 |       --- |             --- |
+|   LUT as Logic           |     0.003 |      509 |    203800 |            0.25 |
 |   LUT as Distributed RAM |    <0.001 |       32 |     64000 |            0.05 |
 |   CARRY4                 |    <0.001 |       42 |     50950 |            0.08 |
 |   Register               |    <0.001 |      909 |    407600 |            0.22 |
 |   F7/F8 Muxes            |    <0.001 |       37 |    203800 |            0.02 |
-|   Others                 |     0.000 |        8 |       --- |             --- |
-| Signals                  |     0.004 |     1240 |       --- |             --- |
+|   Others                 |     0.000 |        9 |       --- |             --- |
+| Signals                  |     0.003 |     1244 |       --- |             --- |
 | Static Power             |     0.156 |          |           |                 |
-| Total                    |     0.183 |          |           |                 |
+| Total                    |     0.182 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -72,7 +72,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.095 |       0.027 |      0.068 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.094 |       0.025 |      0.068 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.028 |       0.000 |      0.028 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -142,9 +142,9 @@ Table of Contents
 +----------------------------------+-----------+
 | Name                             | Power (W) |
 +----------------------------------+-----------+
-| wb4_monitor                      |     0.027 |
+| wb4_monitor                      |     0.025 |
 |   gen_monitor.monbus_skid_buffer |     0.005 |
-|   gen_monitor.monitor_fifo       |     0.007 |
+|   gen_monitor.monitor_fifo       |     0.006 |
 |     write_pointer_inst           |     0.002 |
 +----------------------------------+-----------+
 

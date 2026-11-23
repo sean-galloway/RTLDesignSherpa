@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Sep 28 18:54:42 2026
-| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date         : Sat Nov 21 19:55:27 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd_cg__xc7k325tffg900-2/utilization_synth.txt
 | Design       : axi4_master_rd_cg
 | Device       : xc7k325tffg900-2
@@ -31,11 +31,11 @@ Table of Contents
 +-------------------------+------+-------+------------+-----------+-------+
 |        Site Type        | Used | Fixed | Prohibited | Available | Util% |
 +-------------------------+------+-------+------------+-----------+-------+
-| Slice LUTs*             |  316 |     0 |          0 |    203800 |  0.16 |
-|   LUT as Logic          |  316 |     0 |          0 |    203800 |  0.16 |
+| Slice LUTs*             |  257 |     0 |          0 |    203800 |  0.13 |
+|   LUT as Logic          |  257 |     0 |          0 |    203800 |  0.13 |
 |   LUT as Memory         |    0 |     0 |          0 |     64000 |  0.00 |
-| Slice Registers         |  342 |     0 |          0 |    407600 |  0.08 |
-|   Register as Flip Flop |  337 |     0 |          0 |    407600 |  0.08 |
+| Slice Registers         |  345 |     0 |          0 |    407600 |  0.08 |
+|   Register as Flip Flop |  340 |     0 |          0 |    407600 |  0.08 |
 |   Register as Latch     |    5 |     0 |          0 |    407600 | <0.01 |
 | F7 Muxes                |    0 |     0 |          0 |    101900 |  0.00 |
 | F8 Muxes                |    0 |     0 |          0 |     50950 |  0.00 |
@@ -57,10 +57,10 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 0     |            _ |         Set |            - |
 | 0     |            _ |       Reset |            - |
 | 0     |          Yes |           - |            - |
-| 5     |          Yes |           - |          Set |
-| 337   |          Yes |           - |        Reset |
+| 8     |          Yes |           - |          Set |
+| 21    |          Yes |           - |        Reset |
 | 0     |          Yes |         Set |            - |
-| 0     |          Yes |       Reset |            - |
+| 316   |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -154,14 +154,15 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------+------+---------------------+
 | Ref Name | Used | Functional Category |
 +----------+------+---------------------+
-| FDCE     |  332 |        Flop & Latch |
-| LUT5     |  204 |                 LUT |
-| LUT4     |  126 |                 LUT |
-| LUT6     |   19 |                 LUT |
-| LUT2     |   16 |                 LUT |
-| LUT3     |   11 |                 LUT |
+| FDRE     |  316 |        Flop & Latch |
+| LUT5     |  134 |                 LUT |
+| LUT6     |   90 |                 LUT |
+| FDCE     |   16 |        Flop & Latch |
+| LUT2     |   15 |                 LUT |
+| LUT4     |   11 |                 LUT |
+| LUT3     |   10 |                 LUT |
+| FDPE     |    8 |        Flop & Latch |
 | LDCE     |    5 |        Flop & Latch |
-| FDPE     |    5 |        Flop & Latch |
 | LUT1     |    4 |                 LUT |
 +----------+------+---------------------+
 

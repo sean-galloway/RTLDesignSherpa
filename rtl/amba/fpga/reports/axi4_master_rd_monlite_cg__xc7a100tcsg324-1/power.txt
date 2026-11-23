@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 19:00:59 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:43:59 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd_monlite_cg__xc7a100tcsg324-1/power.txt
 | Design           : axi4_master_rd_monlite_cg
 | Device           : xc7a100tcsg324-1
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.099        |
+| Total On-Chip Power (W)  | 0.094        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.015        |
+| Dynamic (W)              | 0.010        |
 | Device Static (W)        | 0.084        |
 | Effective TJA (C/W)      | 4.6          |
 | Max Ambient (C)          | 84.6         |
@@ -52,17 +52,17 @@ Table of Contents
 +--------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
-| Clocks                   |     0.010 |        3 |       --- |             --- |
-| Slice Logic              |     0.002 |     3139 |       --- |             --- |
-|   LUT as Logic           |     0.002 |     1381 |     63400 |            2.18 |
-|   Register               |    <0.001 |     1369 |    126800 |            1.08 |
+| Clocks                   |     0.006 |        3 |       --- |             --- |
+| Slice Logic              |     0.002 |     2557 |       --- |             --- |
+|   LUT as Logic           |     0.002 |      983 |     63400 |            1.55 |
+|   LUT as Distributed RAM |    <0.001 |      122 |     19000 |            0.64 |
+|   Register               |    <0.001 |     1021 |    126800 |            0.81 |
 |   CARRY4                 |    <0.001 |       45 |     15850 |            0.28 |
-|   LUT as Distributed RAM |    <0.001 |       40 |     19000 |            0.21 |
-|   F7/F8 Muxes            |    <0.001 |       74 |     63400 |            0.12 |
-|   Others                 |     0.000 |       13 |       --- |             --- |
-| Signals                  |     0.003 |     2127 |       --- |             --- |
+|   F7/F8 Muxes            |    <0.001 |       16 |     63400 |            0.03 |
+|   Others                 |     0.000 |       22 |       --- |             --- |
+| Signals                  |     0.002 |     1726 |       --- |             --- |
 | Static Power             |     0.084 |          |           |                 |
-| Total                    |     0.099 |          |           |                 |
+| Total                    |     0.094 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -72,7 +72,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.030 |       0.015 |      0.015 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.025 |       0.010 |      0.015 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.018 |       0.000 |      0.018 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -141,11 +141,12 @@ Table of Contents
 +--------------------------------------------+-----------+
 | Name                                       | Power (W) |
 +--------------------------------------------+-----------+
-| axi4_master_rd_monlite_cg                  |     0.015 |
-|   u_monlite                                |     0.015 |
-|     gen_monitor_lite.axi_monitor_lite_inst |     0.010 |
-|     u_core                                 |     0.004 |
-|       ar_channel                           |     0.002 |
+| axi4_master_rd_monlite_cg                  |     0.010 |
+|   u_monlite                                |     0.010 |
+|     gen_monitor_lite.axi_monitor_lite_inst |     0.007 |
+|       u_out_q                              |     0.001 |
+|     u_core                                 |     0.003 |
+|       ar_channel                           |     0.001 |
 |       r_channel                            |     0.002 |
 +--------------------------------------------+-----------+
 

@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Sep 28 18:58:30 2026
-| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date         : Sat Nov 21 20:24:23 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_timing -setup -from [all_registers] -to [all_registers] -max_paths 20 -nworst 1 -sort_by slack -input_pins -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axil4_master_rd__xc7k325tffg900-2/timing_worst_reg2reg.txt
 | Design       : axil4_master_rd
 | Device       : 7k325t-ffg900
@@ -12,16 +12,16 @@ Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanc
 
 Timing Report
 
-Slack (MET) :             4.378ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.444ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[3].r_data_reg[3][32]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][31]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.260ns  (logic 0.309ns (13.673%)  route 1.951ns (86.327%))
-  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Data Path Delay:        2.195ns  (logic 0.407ns (18.543%)  route 1.788ns (81.457%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -37,42 +37,195 @@ Slack (MET) :             4.378ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.738     2.754    r_channel/p_0_in[1]
-    SLICE_X43Y68                                                      r  r_channel/g_slot[3].r_data[3][32]_i_1/I0
-    SLICE_X43Y68         LUT4 (Prop_lut4_I0_O)        0.043     2.797 r  r_channel/g_slot[3].r_data[3][32]_i_1/O
-                         net (fo=1, routed)           0.000     2.797    r_channel/g_slot[3].r_data[3][32]_i_1_n_0
-    SLICE_X43Y68         FDCE                                         r  r_channel/g_slot[3].r_data_reg[3][32]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.257     2.600    r_channel/p_0_in[1]
+    SLICE_X30Y68                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][31]_i_1__0/I4
+    SLICE_X30Y68         LUT6 (Prop_lut6_I4_O)        0.132     2.732 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][31]_i_1__0/O
+                         net (fo=1, routed)           0.000     2.732    r_channel/g_skid.g_slot[0].g_norst.r_data[0][31]_i_1__0_n_0
+    SLICE_X30Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][31]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X43Y68         FDCE                                         r  r_channel/g_slot[3].r_data_reg[3][32]/C
+    SLICE_X30Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][31]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X43Y68         FDCE (Setup_fdce_C_D)        0.033     7.175    r_channel/g_slot[3].r_data_reg[3][32]
+    SLICE_X30Y68         FDRE (Setup_fdre_C_D)        0.034     7.176    r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][31]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -2.732    
+  -------------------------------------------------------------------
+                         slack                                  4.444    
+
+Slack (MET) :             4.451ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][21]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.187ns  (logic 0.407ns (18.606%)  route 1.780ns (81.394%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=217, unset)          0.537     0.537    r_channel/aclk
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.249     2.592    r_channel/p_0_in[1]
+    SLICE_X31Y69                                                      r  r_channel/g_skid.g_slot[2].g_norst.r_data[2][21]_i_1/I4
+    SLICE_X31Y69         LUT6 (Prop_lut6_I4_O)        0.132     2.724 r  r_channel/g_skid.g_slot[2].g_norst.r_data[2][21]_i_1/O
+                         net (fo=1, routed)           0.000     2.724    r_channel/g_skid.g_slot[2].g_norst.r_data[2][21]_i_1_n_0
+    SLICE_X31Y69         FDRE                                         r  r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][21]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=217, unset)          0.510     7.177    r_channel/aclk
+    SLICE_X31Y69         FDRE                                         r  r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][21]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X31Y69         FDRE (Setup_fdre_C_D)        0.034     7.176    r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][21]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -2.724    
+  -------------------------------------------------------------------
+                         slack                                  4.451    
+
+Slack (MET) :             4.458ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][16]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.180ns  (logic 0.407ns (18.667%)  route 1.773ns (81.333%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=217, unset)          0.537     0.537    r_channel/aclk
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.242     2.585    r_channel/p_0_in[1]
+    SLICE_X27Y68                                                      r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][16]_i_1/I4
+    SLICE_X27Y68         LUT6 (Prop_lut6_I4_O)        0.132     2.717 r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][16]_i_1/O
+                         net (fo=1, routed)           0.000     2.717    r_channel/g_skid.g_slot[1].g_norst.r_data[1][16]_i_1_n_0
+    SLICE_X27Y68         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][16]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=217, unset)          0.510     7.177    r_channel/aclk
+    SLICE_X27Y68         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][16]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X27Y68         FDRE (Setup_fdre_C_D)        0.034     7.176    r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][16]
+  -------------------------------------------------------------------
+                         required time                          7.176    
+                         arrival time                          -2.717    
+  -------------------------------------------------------------------
+                         slack                                  4.458    
+
+Slack (MET) :             4.460ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][25]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.177ns  (logic 0.407ns (18.691%)  route 1.770ns (81.309%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=217, unset)          0.537     0.537    r_channel/aclk
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.239     2.582    r_channel/p_0_in[1]
+    SLICE_X32Y68                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][25]_i_1__0/I4
+    SLICE_X32Y68         LUT6 (Prop_lut6_I4_O)        0.132     2.714 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][25]_i_1__0/O
+                         net (fo=1, routed)           0.000     2.714    r_channel/g_skid.g_slot[0].g_norst.r_data[0][25]_i_1__0_n_0
+    SLICE_X32Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][25]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=217, unset)          0.510     7.177    r_channel/aclk
+    SLICE_X32Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][25]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X32Y68         FDRE (Setup_fdre_C_D)        0.033     7.175    r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][25]
   -------------------------------------------------------------------
                          required time                          7.175    
-                         arrival time                          -2.797    
+                         arrival time                          -2.714    
   -------------------------------------------------------------------
-                         slack                                  4.378    
+                         slack                                  4.460    
 
-Slack (MET) :             4.380ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.463ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[3].r_data_reg[3][24]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][21]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.259ns  (logic 0.309ns (13.679%)  route 1.950ns (86.321%))
-  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Data Path Delay:        1.941ns  (logic 0.407ns (20.967%)  route 1.534ns (79.033%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -88,42 +241,144 @@ Slack (MET) :             4.380ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.737     2.753    r_channel/p_0_in[1]
-    SLICE_X43Y68                                                      r  r_channel/g_slot[3].r_data[3][24]_i_1/I0
-    SLICE_X43Y68         LUT4 (Prop_lut4_I0_O)        0.043     2.796 r  r_channel/g_slot[3].r_data[3][24]_i_1/O
-                         net (fo=1, routed)           0.000     2.796    r_channel/g_slot[3].r_data[3][24]_i_1_n_0
-    SLICE_X43Y68         FDCE                                         r  r_channel/g_slot[3].r_data_reg[3][24]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.492     1.836    r_channel/p_0_in[1]
+    SLICE_X31Y70                                                      r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/I3
+    SLICE_X31Y70         LUT6 (Prop_lut6_I3_O)        0.132     1.968 r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/O
+                         net (fo=34, routed)          0.510     2.478    r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1_n_0
+    SLICE_X31Y68         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][21]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X43Y68         FDCE                                         r  r_channel/g_slot[3].r_data_reg[3][24]/C
+    SLICE_X31Y68         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][21]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X43Y68         FDCE (Setup_fdce_C_D)        0.034     7.176    r_channel/g_slot[3].r_data_reg[3][24]
+    SLICE_X31Y68         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][21]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -2.478    
+  -------------------------------------------------------------------
+                         slack                                  4.463    
+
+Slack (MET) :             4.463ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][23]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.941ns  (logic 0.407ns (20.967%)  route 1.534ns (79.033%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=217, unset)          0.537     0.537    r_channel/aclk
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.492     1.836    r_channel/p_0_in[1]
+    SLICE_X31Y70                                                      r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/I3
+    SLICE_X31Y70         LUT6 (Prop_lut6_I3_O)        0.132     1.968 r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/O
+                         net (fo=34, routed)          0.510     2.478    r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1_n_0
+    SLICE_X31Y68         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][23]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=217, unset)          0.510     7.177    r_channel/aclk
+    SLICE_X31Y68         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][23]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X31Y68         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][23]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -2.478    
+  -------------------------------------------------------------------
+                         slack                                  4.463    
+
+Slack (MET) :             4.485ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][28]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.154ns  (logic 0.407ns (18.898%)  route 1.747ns (81.102%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=217, unset)          0.537     0.537    r_channel/aclk
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.215     2.559    r_channel/p_0_in[1]
+    SLICE_X33Y69                                                      r  r_channel/g_skid.g_slot[2].g_norst.r_data[2][28]_i_1/I4
+    SLICE_X33Y69         LUT6 (Prop_lut6_I4_O)        0.132     2.691 r  r_channel/g_skid.g_slot[2].g_norst.r_data[2][28]_i_1/O
+                         net (fo=1, routed)           0.000     2.691    r_channel/g_skid.g_slot[2].g_norst.r_data[2][28]_i_1_n_0
+    SLICE_X33Y69         FDRE                                         r  r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][28]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=217, unset)          0.510     7.177    r_channel/aclk
+    SLICE_X33Y69         FDRE                                         r  r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][28]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X33Y69         FDRE (Setup_fdre_C_D)        0.034     7.176    r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][28]
   -------------------------------------------------------------------
                          required time                          7.176    
-                         arrival time                          -2.796    
+                         arrival time                          -2.691    
   -------------------------------------------------------------------
-                         slack                                  4.380    
+                         slack                                  4.485    
 
-Slack (MET) :             4.392ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.513ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[3].r_data_reg[3][33]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][15]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.271ns  (logic 0.320ns (14.091%)  route 1.951ns (85.909%))
-  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Data Path Delay:        1.891ns  (logic 0.407ns (21.528%)  route 1.484ns (78.472%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -139,42 +394,42 @@ Slack (MET) :             4.392ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.738     2.754    r_channel/p_0_in[1]
-    SLICE_X43Y68                                                      r  r_channel/g_slot[3].r_data[3][33]_i_2/I0
-    SLICE_X43Y68         LUT4 (Prop_lut4_I0_O)        0.054     2.808 r  r_channel/g_slot[3].r_data[3][33]_i_2/O
-                         net (fo=1, routed)           0.000     2.808    r_channel/g_slot[3].r_data[3][33]_i_2_n_0
-    SLICE_X43Y68         FDCE                                         r  r_channel/g_slot[3].r_data_reg[3][33]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.352     1.695    r_channel/p_0_in[1]
+    SLICE_X31Y71                                                      r  r_channel/g_skid.g_slot[3].g_norst.r_data[3][33]_i_1/I0
+    SLICE_X31Y71         LUT6 (Prop_lut6_I0_O)        0.132     1.827 r  r_channel/g_skid.g_slot[3].g_norst.r_data[3][33]_i_1/O
+                         net (fo=34, routed)          0.600     2.428    r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3]0
+    SLICE_X27Y70         FDRE                                         r  r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][15]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X43Y68         FDCE                                         r  r_channel/g_slot[3].r_data_reg[3][33]/C
+    SLICE_X27Y70         FDRE                                         r  r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][15]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X43Y68         FDCE (Setup_fdce_C_D)        0.058     7.200    r_channel/g_slot[3].r_data_reg[3][33]
+    SLICE_X27Y70         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][15]
   -------------------------------------------------------------------
-                         required time                          7.200    
-                         arrival time                          -2.808    
+                         required time                          6.941    
+                         arrival time                          -2.428    
   -------------------------------------------------------------------
-                         slack                                  4.392    
+                         slack                                  4.513    
 
-Slack (MET) :             4.396ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.513ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[3].r_data_reg[3][25]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][1]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.267ns  (logic 0.317ns (13.984%)  route 1.950ns (86.016%))
-  Logic Levels:           2  (LUT2=1 LUT4=1)
+  Data Path Delay:        1.891ns  (logic 0.407ns (21.528%)  route 1.484ns (78.472%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -190,42 +445,42 @@ Slack (MET) :             4.396ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.737     2.753    r_channel/p_0_in[1]
-    SLICE_X43Y68                                                      r  r_channel/g_slot[3].r_data[3][25]_i_1/I0
-    SLICE_X43Y68         LUT4 (Prop_lut4_I0_O)        0.051     2.804 r  r_channel/g_slot[3].r_data[3][25]_i_1/O
-                         net (fo=1, routed)           0.000     2.804    r_channel/g_slot[3].r_data[3][25]_i_1_n_0
-    SLICE_X43Y68         FDCE                                         r  r_channel/g_slot[3].r_data_reg[3][25]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.352     1.695    r_channel/p_0_in[1]
+    SLICE_X31Y71                                                      r  r_channel/g_skid.g_slot[3].g_norst.r_data[3][33]_i_1/I0
+    SLICE_X31Y71         LUT6 (Prop_lut6_I0_O)        0.132     1.827 r  r_channel/g_skid.g_slot[3].g_norst.r_data[3][33]_i_1/O
+                         net (fo=34, routed)          0.600     2.428    r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3]0
+    SLICE_X27Y70         FDRE                                         r  r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][1]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X43Y68         FDCE                                         r  r_channel/g_slot[3].r_data_reg[3][25]/C
+    SLICE_X27Y70         FDRE                                         r  r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][1]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X43Y68         FDCE (Setup_fdce_C_D)        0.058     7.200    r_channel/g_slot[3].r_data_reg[3][25]
+    SLICE_X27Y70         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][1]
   -------------------------------------------------------------------
-                         required time                          7.200    
-                         arrival time                          -2.804    
+                         required time                          6.941    
+                         arrival time                          -2.428    
   -------------------------------------------------------------------
-                         slack                                  4.396    
+                         slack                                  4.513    
 
-Slack (MET) :             4.404ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.513ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[2].r_data_reg[2][32]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][22]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.265ns  (logic 0.309ns (13.643%)  route 1.956ns (86.357%))
-  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Data Path Delay:        1.891ns  (logic 0.407ns (21.528%)  route 1.484ns (78.472%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -241,42 +496,42 @@ Slack (MET) :             4.404ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.743     2.759    r_channel/p_0_in[1]
-    SLICE_X42Y68                                                      r  r_channel/g_slot[2].r_data[2][32]_i_1/I3
-    SLICE_X42Y68         LUT5 (Prop_lut5_I3_O)        0.043     2.802 r  r_channel/g_slot[2].r_data[2][32]_i_1/O
-                         net (fo=1, routed)           0.000     2.802    r_channel/g_slot[2].r_data[2][32]_i_1_n_0
-    SLICE_X42Y68         FDCE                                         r  r_channel/g_slot[2].r_data_reg[2][32]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.352     1.695    r_channel/p_0_in[1]
+    SLICE_X31Y71                                                      r  r_channel/g_skid.g_slot[3].g_norst.r_data[3][33]_i_1/I0
+    SLICE_X31Y71         LUT6 (Prop_lut6_I0_O)        0.132     1.827 r  r_channel/g_skid.g_slot[3].g_norst.r_data[3][33]_i_1/O
+                         net (fo=34, routed)          0.600     2.428    r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3]0
+    SLICE_X27Y70         FDRE                                         r  r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][22]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X42Y68         FDCE                                         r  r_channel/g_slot[2].r_data_reg[2][32]/C
+    SLICE_X27Y70         FDRE                                         r  r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][22]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X42Y68         FDCE (Setup_fdce_C_D)        0.064     7.206    r_channel/g_slot[2].r_data_reg[2][32]
+    SLICE_X27Y70         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[3].g_norst.r_data_reg[3][22]
   -------------------------------------------------------------------
-                         required time                          7.206    
-                         arrival time                          -2.802    
+                         required time                          6.941    
+                         arrival time                          -2.428    
   -------------------------------------------------------------------
-                         slack                                  4.404    
+                         slack                                  4.513    
 
-Slack (MET) :             4.435ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.529ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[2].r_data_reg[2][0]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][21]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.203ns  (logic 0.309ns (14.024%)  route 1.894ns (85.976%))
-  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Data Path Delay:        2.110ns  (logic 0.407ns (19.293%)  route 1.703ns (80.707%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -292,42 +547,42 @@ Slack (MET) :             4.435ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.681     2.697    r_channel/p_0_in[1]
-    SLICE_X37Y68                                                      r  r_channel/g_slot[2].r_data[2][0]_i_1/I3
-    SLICE_X37Y68         LUT5 (Prop_lut5_I3_O)        0.043     2.740 r  r_channel/g_slot[2].r_data[2][0]_i_1/O
-                         net (fo=1, routed)           0.000     2.740    r_channel/g_slot[2].r_data[2][0]_i_1_n_0
-    SLICE_X37Y68         FDCE                                         r  r_channel/g_slot[2].r_data_reg[2][0]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.171     2.515    r_channel/p_0_in[1]
+    SLICE_X30Y68                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][21]_i_1__0/I4
+    SLICE_X30Y68         LUT6 (Prop_lut6_I4_O)        0.132     2.647 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][21]_i_1__0/O
+                         net (fo=1, routed)           0.000     2.647    r_channel/g_skid.g_slot[0].g_norst.r_data[0][21]_i_1__0_n_0
+    SLICE_X30Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][21]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X37Y68         FDCE                                         r  r_channel/g_slot[2].r_data_reg[2][0]/C
+    SLICE_X30Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][21]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X37Y68         FDCE (Setup_fdce_C_D)        0.034     7.176    r_channel/g_slot[2].r_data_reg[2][0]
+    SLICE_X30Y68         FDRE (Setup_fdre_C_D)        0.034     7.176    r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][21]
   -------------------------------------------------------------------
                          required time                          7.176    
-                         arrival time                          -2.740    
+                         arrival time                          -2.647    
   -------------------------------------------------------------------
-                         slack                                  4.435    
+                         slack                                  4.529    
 
-Slack (MET) :             4.437ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.533ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[2].r_data_reg[2][23]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][23]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.201ns  (logic 0.309ns (14.037%)  route 1.892ns (85.963%))
-  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Data Path Delay:        2.104ns  (logic 0.407ns (19.341%)  route 1.697ns (80.659%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -343,42 +598,93 @@ Slack (MET) :             4.437ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.679     2.695    r_channel/p_0_in[1]
-    SLICE_X37Y68                                                      r  r_channel/g_slot[2].r_data[2][23]_i_1/I3
-    SLICE_X37Y68         LUT5 (Prop_lut5_I3_O)        0.043     2.738 r  r_channel/g_slot[2].r_data[2][23]_i_1/O
-                         net (fo=1, routed)           0.000     2.738    r_channel/g_slot[2].r_data[2][23]_i_1_n_0
-    SLICE_X37Y68         FDCE                                         r  r_channel/g_slot[2].r_data_reg[2][23]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.166     2.509    r_channel/p_0_in[1]
+    SLICE_X30Y68                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][23]_i_1__0/I4
+    SLICE_X30Y68         LUT6 (Prop_lut6_I4_O)        0.132     2.641 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][23]_i_1__0/O
+                         net (fo=1, routed)           0.000     2.641    r_channel/g_skid.g_slot[0].g_norst.r_data[0][23]_i_1__0_n_0
+    SLICE_X30Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][23]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X37Y68         FDCE                                         r  r_channel/g_slot[2].r_data_reg[2][23]/C
+    SLICE_X30Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][23]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X37Y68         FDCE (Setup_fdce_C_D)        0.034     7.176    r_channel/g_slot[2].r_data_reg[2][23]
+    SLICE_X30Y68         FDRE (Setup_fdre_C_D)        0.033     7.175    r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][23]
+  -------------------------------------------------------------------
+                         required time                          7.175    
+                         arrival time                          -2.641    
+  -------------------------------------------------------------------
+                         slack                                  4.533    
+
+Slack (MET) :             4.545ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][24]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        2.094ns  (logic 0.407ns (19.436%)  route 1.687ns (80.564%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=217, unset)          0.537     0.537    r_channel/aclk
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.156     2.499    r_channel/p_0_in[1]
+    SLICE_X32Y68                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][24]_i_1__0/I4
+    SLICE_X32Y68         LUT6 (Prop_lut6_I4_O)        0.132     2.631 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][24]_i_1__0/O
+                         net (fo=1, routed)           0.000     2.631    r_channel/g_skid.g_slot[0].g_norst.r_data[0][24]_i_1__0_n_0
+    SLICE_X32Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][24]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=217, unset)          0.510     7.177    r_channel/aclk
+    SLICE_X32Y68         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][24]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X32Y68         FDRE (Setup_fdre_C_D)        0.034     7.176    r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][24]
   -------------------------------------------------------------------
                          required time                          7.176    
-                         arrival time                          -2.738    
+                         arrival time                          -2.631    
   -------------------------------------------------------------------
-                         slack                                  4.437    
+                         slack                                  4.545    
 
-Slack (MET) :             4.499ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.549ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[1].r_data_reg[1][32]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][23]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.170ns  (logic 0.309ns (14.242%)  route 1.861ns (85.758%))
-  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Data Path Delay:        2.089ns  (logic 0.407ns (19.481%)  route 1.682ns (80.519%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -394,42 +700,42 @@ Slack (MET) :             4.499ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.648     2.664    r_channel/p_0_in[1]
-    SLICE_X42Y67                                                      r  r_channel/g_slot[1].r_data[1][32]_i_1__0/I3
-    SLICE_X42Y67         LUT5 (Prop_lut5_I3_O)        0.043     2.707 r  r_channel/g_slot[1].r_data[1][32]_i_1__0/O
-                         net (fo=1, routed)           0.000     2.707    r_channel/g_slot[1].r_data[1][32]_i_1__0_n_0
-    SLICE_X42Y67         FDCE                                         r  r_channel/g_slot[1].r_data_reg[1][32]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         1.151     2.494    r_channel/p_0_in[1]
+    SLICE_X31Y69                                                      r  r_channel/g_skid.g_slot[2].g_norst.r_data[2][23]_i_1/I4
+    SLICE_X31Y69         LUT6 (Prop_lut6_I4_O)        0.132     2.626 r  r_channel/g_skid.g_slot[2].g_norst.r_data[2][23]_i_1/O
+                         net (fo=1, routed)           0.000     2.626    r_channel/g_skid.g_slot[2].g_norst.r_data[2][23]_i_1_n_0
+    SLICE_X31Y69         FDRE                                         r  r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][23]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X42Y67         FDCE                                         r  r_channel/g_slot[1].r_data_reg[1][32]/C
+    SLICE_X31Y69         FDRE                                         r  r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][23]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X42Y67         FDCE (Setup_fdce_C_D)        0.064     7.206    r_channel/g_slot[1].r_data_reg[1][32]
+    SLICE_X31Y69         FDRE (Setup_fdre_C_D)        0.033     7.175    r_channel/g_skid.g_slot[2].g_norst.r_data_reg[2][23]
   -------------------------------------------------------------------
-                         required time                          7.206    
-                         arrival time                          -2.707    
+                         required time                          7.175    
+                         arrival time                          -2.626    
   -------------------------------------------------------------------
-                         slack                                  4.499    
+                         slack                                  4.549    
 
-Slack (MET) :             4.566ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.551ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.r_data_count_reg[2]/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[0].r_data_reg[0][5]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][5]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.072ns  (logic 0.309ns (14.910%)  route 1.763ns (85.090%))
-  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Data Path Delay:        2.088ns  (logic 0.373ns (17.865%)  route 1.715ns (82.135%))
+  Logic Levels:           2  (LUT4=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -445,42 +751,42 @@ Slack (MET) :             4.566ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X28Y73         FDCE                                         r  r_channel/g_skid.r_data_count_reg[2]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.550     2.566    r_channel/p_0_in[1]
-    SLICE_X41Y67                                                      r  r_channel/g_slot[0].r_data[0][5]_i_1__0/I3
-    SLICE_X41Y67         LUT5 (Prop_lut5_I3_O)        0.043     2.609 r  r_channel/g_slot[0].r_data[0][5]_i_1__0/O
-                         net (fo=1, routed)           0.000     2.609    r_channel/g_slot[0].r_data[0][5]_i_1__0_n_0
-    SLICE_X41Y67         FDCE                                         r  r_channel/g_slot[0].r_data_reg[0][5]/D
+    SLICE_X28Y73         FDCE (Prop_fdce_C_Q)         0.204     0.741 f  r_channel/g_skid.r_data_count_reg[2]/Q
+                         net (fo=12, routed)          0.384     1.125    r_channel/int_r_count[2]
+    SLICE_X29Y73                                                      f  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_5/I3
+    SLICE_X29Y73         LUT4 (Prop_lut4_I3_O)        0.126     1.251 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_5/O
+                         net (fo=34, routed)          1.331     2.582    r_channel/p_13_out__0
+    SLICE_X27Y72                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][5]_i_1__0/I0
+    SLICE_X27Y72         LUT6 (Prop_lut6_I0_O)        0.043     2.625 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][5]_i_1__0/O
+                         net (fo=1, routed)           0.000     2.625    r_channel/g_skid.g_slot[0].g_norst.r_data[0][5]_i_1__0_n_0
+    SLICE_X27Y72         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][5]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X41Y67         FDCE                                         r  r_channel/g_slot[0].r_data_reg[0][5]/C
+    SLICE_X27Y72         FDRE                                         r  r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][5]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X41Y67         FDCE (Setup_fdce_C_D)        0.034     7.176    r_channel/g_slot[0].r_data_reg[0][5]
+    SLICE_X27Y72         FDRE (Setup_fdre_C_D)        0.034     7.176    r_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][5]
   -------------------------------------------------------------------
                          required time                          7.176    
-                         arrival time                          -2.609    
+                         arrival time                          -2.625    
   -------------------------------------------------------------------
-                         slack                                  4.566    
+                         slack                                  4.551    
 
-Slack (MET) :             4.597ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.557ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[1].r_data_reg[1][11]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][0]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.071ns  (logic 0.309ns (14.918%)  route 1.762ns (85.082%))
-  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Data Path Delay:        1.847ns  (logic 0.407ns (22.036%)  route 1.440ns (77.964%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -496,42 +802,42 @@ Slack (MET) :             4.597ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.549     2.565    r_channel/p_0_in[1]
-    SLICE_X38Y68                                                      r  r_channel/g_slot[1].r_data[1][11]_i_1__0/I3
-    SLICE_X38Y68         LUT5 (Prop_lut5_I3_O)        0.043     2.608 r  r_channel/g_slot[1].r_data[1][11]_i_1__0/O
-                         net (fo=1, routed)           0.000     2.608    r_channel/g_slot[1].r_data[1][11]_i_1__0_n_0
-    SLICE_X38Y68         FDCE                                         r  r_channel/g_slot[1].r_data_reg[1][11]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.492     1.836    r_channel/p_0_in[1]
+    SLICE_X31Y70                                                      r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/I3
+    SLICE_X31Y70         LUT6 (Prop_lut6_I3_O)        0.132     1.968 r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/O
+                         net (fo=34, routed)          0.416     2.384    r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1_n_0
+    SLICE_X31Y70         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][0]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X38Y68         FDCE                                         r  r_channel/g_slot[1].r_data_reg[1][11]/C
+    SLICE_X31Y70         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][0]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X38Y68         FDCE (Setup_fdce_C_D)        0.064     7.206    r_channel/g_slot[1].r_data_reg[1][11]
+    SLICE_X31Y70         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][0]
   -------------------------------------------------------------------
-                         required time                          7.206    
-                         arrival time                          -2.608    
+                         required time                          6.941    
+                         arrival time                          -2.384    
   -------------------------------------------------------------------
-                         slack                                  4.597    
+                         slack                                  4.557    
 
-Slack (MET) :             4.600ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
+Slack (MET) :             4.557ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[1].r_data_reg[1][15]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][32]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        2.069ns  (logic 0.309ns (14.933%)  route 1.760ns (85.067%))
-  Logic Levels:           2  (LUT2=1 LUT5=1)
+  Data Path Delay:        1.847ns  (logic 0.407ns (22.036%)  route 1.440ns (77.964%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -547,92 +853,41 @@ Slack (MET) :             4.600ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.547     2.563    r_channel/p_0_in[1]
-    SLICE_X38Y68                                                      r  r_channel/g_slot[1].r_data[1][15]_i_1__0/I3
-    SLICE_X38Y68         LUT5 (Prop_lut5_I3_O)        0.043     2.606 r  r_channel/g_slot[1].r_data[1][15]_i_1__0/O
-                         net (fo=1, routed)           0.000     2.606    r_channel/g_slot[1].r_data[1][15]_i_1__0_n_0
-    SLICE_X38Y68         FDCE                                         r  r_channel/g_slot[1].r_data_reg[1][15]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.492     1.836    r_channel/p_0_in[1]
+    SLICE_X31Y70                                                      r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/I3
+    SLICE_X31Y70         LUT6 (Prop_lut6_I3_O)        0.132     1.968 r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/O
+                         net (fo=34, routed)          0.416     2.384    r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1_n_0
+    SLICE_X31Y70         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][32]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X38Y68         FDCE                                         r  r_channel/g_slot[1].r_data_reg[1][15]/C
+    SLICE_X31Y70         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][32]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X38Y68         FDCE (Setup_fdce_C_D)        0.065     7.207    r_channel/g_slot[1].r_data_reg[1][15]
-  -------------------------------------------------------------------
-                         required time                          7.207    
-                         arrival time                          -2.606    
-  -------------------------------------------------------------------
-                         slack                                  4.600    
-
-Slack (MET) :             4.636ns  (required time - arrival time)
-  Source:                 ar_channel/wr_ready_reg/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            ar_channel/g_slot[1].r_data_reg[1][25]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.767ns  (logic 0.345ns (19.519%)  route 1.422ns (80.481%))
-  Logic Levels:           2  (LUT2=1 LUT6=1)
-  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
-    Source Clock Delay      (SCD):    0.537ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=217, unset)          0.537     0.537    ar_channel/aclk
-    SLICE_X42Y78         FDCE                                         r  ar_channel/wr_ready_reg/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y78         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  ar_channel/wr_ready_reg/Q
-                         net (fo=40, routed)          0.480     1.276    ar_channel/wr_ready_reg_0
-    SLICE_X41Y78                                                      r  ar_channel/wr_ready_i_3/I1
-    SLICE_X41Y78         LUT2 (Prop_lut2_I1_O)        0.043     1.319 r  ar_channel/wr_ready_i_3/O
-                         net (fo=39, routed)          0.447     1.767    ar_channel/p_0_in[1]
-    SLICE_X42Y79                                                      r  ar_channel/g_slot[1].r_data[1][34]_i_1/I3
-    SLICE_X42Y79         LUT6 (Prop_lut6_I3_O)        0.043     1.810 r  ar_channel/g_slot[1].r_data[1][34]_i_1/O
-                         net (fo=35, routed)          0.495     2.304    ar_channel/g_slot[1].r_data[1][34]_i_1_n_0
-    SLICE_X47Y81         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][25]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       6.667     6.667 r  
-                                                      0.000     6.667 r  aclk (IN)
-                         net (fo=217, unset)          0.510     7.177    ar_channel/aclk
-    SLICE_X47Y81         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][25]/C
-                         clock pessimism              0.000     7.177    
-                         clock uncertainty           -0.035     7.142    
-    SLICE_X47Y81         FDCE (Setup_fdce_C_CE)      -0.201     6.941    ar_channel/g_slot[1].r_data_reg[1][25]
+    SLICE_X31Y70         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][32]
   -------------------------------------------------------------------
                          required time                          6.941    
-                         arrival time                          -2.304    
+                         arrival time                          -2.384    
   -------------------------------------------------------------------
-                         slack                                  4.636    
+                         slack                                  4.557    
 
-Slack (MET) :             4.636ns  (required time - arrival time)
-  Source:                 ar_channel/wr_ready_reg/C
+Slack (MET) :             4.557ns  (required time - arrival time)
+  Source:                 ar_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            ar_channel/g_slot[1].r_data_reg[1][28]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            ar_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][32]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.767ns  (logic 0.345ns (19.519%)  route 1.422ns (80.481%))
+  Data Path Delay:        1.847ns  (logic 0.407ns (22.037%)  route 1.440ns (77.963%))
   Logic Levels:           2  (LUT2=1 LUT6=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
@@ -649,348 +904,42 @@ Slack (MET) :             4.636ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    ar_channel/aclk
-    SLICE_X42Y78         FDCE                                         r  ar_channel/wr_ready_reg/C
+    SLICE_X29Y76         FDCE                                         r  ar_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X42Y78         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  ar_channel/wr_ready_reg/Q
-                         net (fo=40, routed)          0.480     1.276    ar_channel/wr_ready_reg_0
-    SLICE_X41Y78                                                      r  ar_channel/wr_ready_i_3/I1
-    SLICE_X41Y78         LUT2 (Prop_lut2_I1_O)        0.043     1.319 r  ar_channel/wr_ready_i_3/O
-                         net (fo=39, routed)          0.447     1.767    ar_channel/p_0_in[1]
-    SLICE_X42Y79                                                      r  ar_channel/g_slot[1].r_data[1][34]_i_1/I3
-    SLICE_X42Y79         LUT6 (Prop_lut6_I3_O)        0.043     1.810 r  ar_channel/g_slot[1].r_data[1][34]_i_1/O
-                         net (fo=35, routed)          0.495     2.304    ar_channel/g_slot[1].r_data[1][34]_i_1_n_0
-    SLICE_X47Y81         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][28]/CE
+    SLICE_X29Y76         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  ar_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.371     1.131    ar_channel/g_skid.wr_ready_reg_0
+    SLICE_X29Y76                                                      r  ar_channel/g_skid.wr_ready_i_3/I1
+    SLICE_X29Y76         LUT2 (Prop_lut2_I1_O)        0.052     1.183 r  ar_channel/g_skid.wr_ready_i_3/O
+                         net (fo=39, routed)          0.665     1.847    ar_channel/p_0_in[1]
+    SLICE_X28Y77                                                      r  ar_channel/g_skid.g_slot[0].g_norst.r_data[0][34]_i_1/I5
+    SLICE_X28Y77         LUT6 (Prop_lut6_I5_O)        0.132     1.979 r  ar_channel/g_skid.g_slot[0].g_norst.r_data[0][34]_i_1/O
+                         net (fo=35, routed)          0.405     2.384    ar_channel/r_data
+    SLICE_X27Y79         FDRE                                         r  ar_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][32]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    ar_channel/aclk
-    SLICE_X47Y81         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][28]/C
+    SLICE_X27Y79         FDRE                                         r  ar_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][32]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X47Y81         FDCE (Setup_fdce_C_CE)      -0.201     6.941    ar_channel/g_slot[1].r_data_reg[1][28]
+    SLICE_X27Y79         FDRE (Setup_fdre_C_CE)      -0.201     6.941    ar_channel/g_skid.g_slot[0].g_norst.r_data_reg[0][32]
   -------------------------------------------------------------------
                          required time                          6.941    
-                         arrival time                          -2.304    
+                         arrival time                          -2.384    
   -------------------------------------------------------------------
-                         slack                                  4.636    
+                         slack                                  4.557    
 
-Slack (MET) :             4.636ns  (required time - arrival time)
-  Source:                 ar_channel/wr_ready_reg/C
+Slack (MET) :             4.558ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
                             (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            ar_channel/g_slot[1].r_data_reg[1][3]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][10]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
   Path Group:             aclk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.767ns  (logic 0.345ns (19.519%)  route 1.422ns (80.481%))
+  Data Path Delay:        1.846ns  (logic 0.407ns (22.047%)  route 1.439ns (77.953%))
   Logic Levels:           2  (LUT2=1 LUT6=1)
-  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
-    Source Clock Delay      (SCD):    0.537ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=217, unset)          0.537     0.537    ar_channel/aclk
-    SLICE_X42Y78         FDCE                                         r  ar_channel/wr_ready_reg/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y78         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  ar_channel/wr_ready_reg/Q
-                         net (fo=40, routed)          0.480     1.276    ar_channel/wr_ready_reg_0
-    SLICE_X41Y78                                                      r  ar_channel/wr_ready_i_3/I1
-    SLICE_X41Y78         LUT2 (Prop_lut2_I1_O)        0.043     1.319 r  ar_channel/wr_ready_i_3/O
-                         net (fo=39, routed)          0.447     1.767    ar_channel/p_0_in[1]
-    SLICE_X42Y79                                                      r  ar_channel/g_slot[1].r_data[1][34]_i_1/I3
-    SLICE_X42Y79         LUT6 (Prop_lut6_I3_O)        0.043     1.810 r  ar_channel/g_slot[1].r_data[1][34]_i_1/O
-                         net (fo=35, routed)          0.495     2.304    ar_channel/g_slot[1].r_data[1][34]_i_1_n_0
-    SLICE_X47Y81         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][3]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       6.667     6.667 r  
-                                                      0.000     6.667 r  aclk (IN)
-                         net (fo=217, unset)          0.510     7.177    ar_channel/aclk
-    SLICE_X47Y81         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][3]/C
-                         clock pessimism              0.000     7.177    
-                         clock uncertainty           -0.035     7.142    
-    SLICE_X47Y81         FDCE (Setup_fdce_C_CE)      -0.201     6.941    ar_channel/g_slot[1].r_data_reg[1][3]
-  -------------------------------------------------------------------
-                         required time                          6.941    
-                         arrival time                          -2.304    
-  -------------------------------------------------------------------
-                         slack                                  4.636    
-
-Slack (MET) :             4.645ns  (required time - arrival time)
-  Source:                 ar_channel/wr_ready_reg/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            ar_channel/g_slot[0].r_data_reg[0][32]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.994ns  (logic 0.345ns (17.304%)  route 1.649ns (82.696%))
-  Logic Levels:           2  (LUT2=1 LUT6=1)
-  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
-    Source Clock Delay      (SCD):    0.537ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=217, unset)          0.537     0.537    ar_channel/aclk
-    SLICE_X42Y78         FDCE                                         r  ar_channel/wr_ready_reg/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y78         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  ar_channel/wr_ready_reg/Q
-                         net (fo=40, routed)          0.480     1.276    ar_channel/wr_ready_reg_0
-    SLICE_X41Y78                                                      r  ar_channel/wr_ready_i_3/I1
-    SLICE_X41Y78         LUT2 (Prop_lut2_I1_O)        0.043     1.319 r  ar_channel/wr_ready_i_3/O
-                         net (fo=39, routed)          1.168     2.488    ar_channel/p_0_in[1]
-    SLICE_X43Y81                                                      r  ar_channel/g_slot[0].r_data[0][32]_i_1/I4
-    SLICE_X43Y81         LUT6 (Prop_lut6_I4_O)        0.043     2.531 r  ar_channel/g_slot[0].r_data[0][32]_i_1/O
-                         net (fo=1, routed)           0.000     2.531    ar_channel/g_slot[0].r_data[0][32]_i_1_n_0
-    SLICE_X43Y81         FDCE                                         r  ar_channel/g_slot[0].r_data_reg[0][32]/D
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       6.667     6.667 r  
-                                                      0.000     6.667 r  aclk (IN)
-                         net (fo=217, unset)          0.510     7.177    ar_channel/aclk
-    SLICE_X43Y81         FDCE                                         r  ar_channel/g_slot[0].r_data_reg[0][32]/C
-                         clock pessimism              0.000     7.177    
-                         clock uncertainty           -0.035     7.142    
-    SLICE_X43Y81         FDCE (Setup_fdce_C_D)        0.034     7.176    ar_channel/g_slot[0].r_data_reg[0][32]
-  -------------------------------------------------------------------
-                         required time                          7.176    
-                         arrival time                          -2.531    
-  -------------------------------------------------------------------
-                         slack                                  4.645    
-
-Slack (MET) :             4.657ns  (required time - arrival time)
-  Source:                 ar_channel/wr_ready_reg/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            ar_channel/g_slot[1].r_data_reg[1][0]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.747ns  (logic 0.345ns (19.750%)  route 1.402ns (80.250%))
-  Logic Levels:           2  (LUT2=1 LUT6=1)
-  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
-    Source Clock Delay      (SCD):    0.537ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=217, unset)          0.537     0.537    ar_channel/aclk
-    SLICE_X42Y78         FDCE                                         r  ar_channel/wr_ready_reg/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y78         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  ar_channel/wr_ready_reg/Q
-                         net (fo=40, routed)          0.480     1.276    ar_channel/wr_ready_reg_0
-    SLICE_X41Y78                                                      r  ar_channel/wr_ready_i_3/I1
-    SLICE_X41Y78         LUT2 (Prop_lut2_I1_O)        0.043     1.319 r  ar_channel/wr_ready_i_3/O
-                         net (fo=39, routed)          0.447     1.767    ar_channel/p_0_in[1]
-    SLICE_X42Y79                                                      r  ar_channel/g_slot[1].r_data[1][34]_i_1/I3
-    SLICE_X42Y79         LUT6 (Prop_lut6_I3_O)        0.043     1.810 r  ar_channel/g_slot[1].r_data[1][34]_i_1/O
-                         net (fo=35, routed)          0.474     2.284    ar_channel/g_slot[1].r_data[1][34]_i_1_n_0
-    SLICE_X45Y83         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][0]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       6.667     6.667 r  
-                                                      0.000     6.667 r  aclk (IN)
-                         net (fo=217, unset)          0.510     7.177    ar_channel/aclk
-    SLICE_X45Y83         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][0]/C
-                         clock pessimism              0.000     7.177    
-                         clock uncertainty           -0.035     7.142    
-    SLICE_X45Y83         FDCE (Setup_fdce_C_CE)      -0.201     6.941    ar_channel/g_slot[1].r_data_reg[1][0]
-  -------------------------------------------------------------------
-                         required time                          6.941    
-                         arrival time                          -2.284    
-  -------------------------------------------------------------------
-                         slack                                  4.657    
-
-Slack (MET) :             4.657ns  (required time - arrival time)
-  Source:                 ar_channel/wr_ready_reg/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            ar_channel/g_slot[1].r_data_reg[1][17]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.747ns  (logic 0.345ns (19.750%)  route 1.402ns (80.250%))
-  Logic Levels:           2  (LUT2=1 LUT6=1)
-  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
-    Source Clock Delay      (SCD):    0.537ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=217, unset)          0.537     0.537    ar_channel/aclk
-    SLICE_X42Y78         FDCE                                         r  ar_channel/wr_ready_reg/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y78         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  ar_channel/wr_ready_reg/Q
-                         net (fo=40, routed)          0.480     1.276    ar_channel/wr_ready_reg_0
-    SLICE_X41Y78                                                      r  ar_channel/wr_ready_i_3/I1
-    SLICE_X41Y78         LUT2 (Prop_lut2_I1_O)        0.043     1.319 r  ar_channel/wr_ready_i_3/O
-                         net (fo=39, routed)          0.447     1.767    ar_channel/p_0_in[1]
-    SLICE_X42Y79                                                      r  ar_channel/g_slot[1].r_data[1][34]_i_1/I3
-    SLICE_X42Y79         LUT6 (Prop_lut6_I3_O)        0.043     1.810 r  ar_channel/g_slot[1].r_data[1][34]_i_1/O
-                         net (fo=35, routed)          0.474     2.284    ar_channel/g_slot[1].r_data[1][34]_i_1_n_0
-    SLICE_X45Y83         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][17]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       6.667     6.667 r  
-                                                      0.000     6.667 r  aclk (IN)
-                         net (fo=217, unset)          0.510     7.177    ar_channel/aclk
-    SLICE_X45Y83         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][17]/C
-                         clock pessimism              0.000     7.177    
-                         clock uncertainty           -0.035     7.142    
-    SLICE_X45Y83         FDCE (Setup_fdce_C_CE)      -0.201     6.941    ar_channel/g_slot[1].r_data_reg[1][17]
-  -------------------------------------------------------------------
-                         required time                          6.941    
-                         arrival time                          -2.284    
-  -------------------------------------------------------------------
-                         slack                                  4.657    
-
-Slack (MET) :             4.657ns  (required time - arrival time)
-  Source:                 ar_channel/wr_ready_reg/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            ar_channel/g_slot[1].r_data_reg[1][21]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.747ns  (logic 0.345ns (19.750%)  route 1.402ns (80.250%))
-  Logic Levels:           2  (LUT2=1 LUT6=1)
-  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
-    Source Clock Delay      (SCD):    0.537ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=217, unset)          0.537     0.537    ar_channel/aclk
-    SLICE_X42Y78         FDCE                                         r  ar_channel/wr_ready_reg/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y78         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  ar_channel/wr_ready_reg/Q
-                         net (fo=40, routed)          0.480     1.276    ar_channel/wr_ready_reg_0
-    SLICE_X41Y78                                                      r  ar_channel/wr_ready_i_3/I1
-    SLICE_X41Y78         LUT2 (Prop_lut2_I1_O)        0.043     1.319 r  ar_channel/wr_ready_i_3/O
-                         net (fo=39, routed)          0.447     1.767    ar_channel/p_0_in[1]
-    SLICE_X42Y79                                                      r  ar_channel/g_slot[1].r_data[1][34]_i_1/I3
-    SLICE_X42Y79         LUT6 (Prop_lut6_I3_O)        0.043     1.810 r  ar_channel/g_slot[1].r_data[1][34]_i_1/O
-                         net (fo=35, routed)          0.474     2.284    ar_channel/g_slot[1].r_data[1][34]_i_1_n_0
-    SLICE_X45Y83         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][21]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       6.667     6.667 r  
-                                                      0.000     6.667 r  aclk (IN)
-                         net (fo=217, unset)          0.510     7.177    ar_channel/aclk
-    SLICE_X45Y83         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][21]/C
-                         clock pessimism              0.000     7.177    
-                         clock uncertainty           -0.035     7.142    
-    SLICE_X45Y83         FDCE (Setup_fdce_C_CE)      -0.201     6.941    ar_channel/g_slot[1].r_data_reg[1][21]
-  -------------------------------------------------------------------
-                         required time                          6.941    
-                         arrival time                          -2.284    
-  -------------------------------------------------------------------
-                         slack                                  4.657    
-
-Slack (MET) :             4.657ns  (required time - arrival time)
-  Source:                 ar_channel/wr_ready_reg/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            ar_channel/g_slot[1].r_data_reg[1][31]/CE
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.747ns  (logic 0.345ns (19.750%)  route 1.402ns (80.250%))
-  Logic Levels:           2  (LUT2=1 LUT6=1)
-  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
-    Source Clock Delay      (SCD):    0.537ns
-    Clock Pessimism Removal (CPR):    0.000ns
-  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
-    Total System Jitter     (TSJ):    0.071ns
-    Total Input Jitter      (TIJ):    0.000ns
-    Discrete Jitter          (DJ):    0.000ns
-    Phase Error              (PE):    0.000ns
-
-    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
-  -------------------------------------------------------------------    -------------------
-                         (clock aclk rise edge)       0.000     0.000 r  
-                                                      0.000     0.000 r  aclk (IN)
-                         net (fo=217, unset)          0.537     0.537    ar_channel/aclk
-    SLICE_X42Y78         FDCE                                         r  ar_channel/wr_ready_reg/C
-  -------------------------------------------------------------------    -------------------
-    SLICE_X42Y78         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  ar_channel/wr_ready_reg/Q
-                         net (fo=40, routed)          0.480     1.276    ar_channel/wr_ready_reg_0
-    SLICE_X41Y78                                                      r  ar_channel/wr_ready_i_3/I1
-    SLICE_X41Y78         LUT2 (Prop_lut2_I1_O)        0.043     1.319 r  ar_channel/wr_ready_i_3/O
-                         net (fo=39, routed)          0.447     1.767    ar_channel/p_0_in[1]
-    SLICE_X42Y79                                                      r  ar_channel/g_slot[1].r_data[1][34]_i_1/I3
-    SLICE_X42Y79         LUT6 (Prop_lut6_I3_O)        0.043     1.810 r  ar_channel/g_slot[1].r_data[1][34]_i_1/O
-                         net (fo=35, routed)          0.474     2.284    ar_channel/g_slot[1].r_data[1][34]_i_1_n_0
-    SLICE_X45Y83         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][31]/CE
-  -------------------------------------------------------------------    -------------------
-
-                         (clock aclk rise edge)       6.667     6.667 r  
-                                                      0.000     6.667 r  aclk (IN)
-                         net (fo=217, unset)          0.510     7.177    ar_channel/aclk
-    SLICE_X45Y83         FDCE                                         r  ar_channel/g_slot[1].r_data_reg[1][31]/C
-                         clock pessimism              0.000     7.177    
-                         clock uncertainty           -0.035     7.142    
-    SLICE_X45Y83         FDCE (Setup_fdce_C_CE)      -0.201     6.941    ar_channel/g_slot[1].r_data_reg[1][31]
-  -------------------------------------------------------------------
-                         required time                          6.941    
-                         arrival time                          -2.284    
-  -------------------------------------------------------------------
-                         slack                                  4.657    
-
-Slack (MET) :             4.664ns  (required time - arrival time)
-  Source:                 r_channel/wr_ready_reg/C
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Destination:            r_channel/g_slot[0].r_data_reg[0][22]/D
-                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
-  Path Group:             aclk
-  Path Type:              Setup (Max at Slow Process Corner)
-  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
-  Data Path Delay:        1.974ns  (logic 0.309ns (15.650%)  route 1.665ns (84.350%))
-  Logic Levels:           2  (LUT2=1 LUT5=1)
   Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
     Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
     Source Clock Delay      (SCD):    0.537ns
@@ -1006,31 +955,82 @@ Slack (MET) :             4.664ns  (required time - arrival time)
                          (clock aclk rise edge)       0.000     0.000 r  
                                                       0.000     0.000 r  aclk (IN)
                          net (fo=217, unset)          0.537     0.537    r_channel/aclk
-    SLICE_X39Y71         FDCE                                         r  r_channel/wr_ready_reg/C
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X39Y71         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/wr_ready_reg/Q
-                         net (fo=1, routed)           0.213     0.973    r_channel/m_axil_rready
-    SLICE_X39Y71                                                      r  r_channel/g_slot[0].r_data[0][33]_i_4/I1
-    SLICE_X39Y71         LUT2 (Prop_lut2_I1_O)        0.043     1.016 r  r_channel/g_slot[0].r_data[0][33]_i_4/O
-                         net (fo=146, routed)         1.453     2.468    r_channel/p_0_in[1]
-    SLICE_X40Y67                                                      r  r_channel/g_slot[0].r_data[0][22]_i_1__0/I3
-    SLICE_X40Y67         LUT5 (Prop_lut5_I3_O)        0.043     2.511 r  r_channel/g_slot[0].r_data[0][22]_i_1__0/O
-                         net (fo=1, routed)           0.000     2.511    r_channel/g_slot[0].r_data[0][22]_i_1__0_n_0
-    SLICE_X40Y67         FDCE                                         r  r_channel/g_slot[0].r_data_reg[0][22]/D
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.492     1.836    r_channel/p_0_in[1]
+    SLICE_X31Y70                                                      r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/I3
+    SLICE_X31Y70         LUT6 (Prop_lut6_I3_O)        0.132     1.968 r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/O
+                         net (fo=34, routed)          0.415     2.383    r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1_n_0
+    SLICE_X31Y72         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][10]/CE
   -------------------------------------------------------------------    -------------------
 
                          (clock aclk rise edge)       6.667     6.667 r  
                                                       0.000     6.667 r  aclk (IN)
                          net (fo=217, unset)          0.510     7.177    r_channel/aclk
-    SLICE_X40Y67         FDCE                                         r  r_channel/g_slot[0].r_data_reg[0][22]/C
+    SLICE_X31Y72         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][10]/C
                          clock pessimism              0.000     7.177    
                          clock uncertainty           -0.035     7.142    
-    SLICE_X40Y67         FDCE (Setup_fdce_C_D)        0.034     7.176    r_channel/g_slot[0].r_data_reg[0][22]
+    SLICE_X31Y72         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][10]
   -------------------------------------------------------------------
-                         required time                          7.176    
-                         arrival time                          -2.511    
+                         required time                          6.941    
+                         arrival time                          -2.383    
   -------------------------------------------------------------------
-                         slack                                  4.664    
+                         slack                                  4.558    
+
+Slack (MET) :             4.558ns  (required time - arrival time)
+  Source:                 r_channel/g_skid.wr_ready_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Destination:            r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][13]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@3.333ns period=6.667ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            6.667ns  (aclk rise@6.667ns - aclk rise@0.000ns)
+  Data Path Delay:        1.846ns  (logic 0.407ns (22.047%)  route 1.439ns (77.953%))
+  Logic Levels:           2  (LUT2=1 LUT6=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 7.177 - 6.667 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=217, unset)          0.537     0.537    r_channel/aclk
+    SLICE_X29Y73         FDCE                                         r  r_channel/g_skid.wr_ready_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X29Y73         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  r_channel/g_skid.wr_ready_reg/Q
+                         net (fo=5, routed)           0.531     1.291    r_channel/g_skid.wr_ready_reg_0
+    SLICE_X28Y73                                                      r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/I1
+    SLICE_X28Y73         LUT2 (Prop_lut2_I1_O)        0.052     1.343 r  r_channel/g_skid.g_slot[0].g_norst.r_data[0][33]_i_4/O
+                         net (fo=108, routed)         0.492     1.836    r_channel/p_0_in[1]
+    SLICE_X31Y70                                                      r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/I3
+    SLICE_X31Y70         LUT6 (Prop_lut6_I3_O)        0.132     1.968 r  r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1/O
+                         net (fo=34, routed)          0.415     2.383    r_channel/g_skid.g_slot[1].g_norst.r_data[1][33]_i_1_n_0
+    SLICE_X31Y72         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][13]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       6.667     6.667 r  
+                                                      0.000     6.667 r  aclk (IN)
+                         net (fo=217, unset)          0.510     7.177    r_channel/aclk
+    SLICE_X31Y72         FDRE                                         r  r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][13]/C
+                         clock pessimism              0.000     7.177    
+                         clock uncertainty           -0.035     7.142    
+    SLICE_X31Y72         FDRE (Setup_fdre_C_CE)      -0.201     6.941    r_channel/g_skid.g_slot[1].g_norst.r_data_reg[1][13]
+  -------------------------------------------------------------------
+                         required time                          6.941    
+                         arrival time                          -2.383    
+  -------------------------------------------------------------------
+                         slack                                  4.558    
 
 
 

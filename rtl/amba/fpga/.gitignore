@@ -1,2 +1,12 @@
 build/
-reports/*.log
+# The monitor OOC synthesis sweep (bin/monitor_synth_sweep.sh) rewrites every
+# per-variant report directory and summary.csv on each run; 441 tracked files
+# showed as modified and 62 directories as untracked after a sweep, which
+# buried the real changes in git status (owner, 2026-11-22). The reports are
+# build artifacts: the record of a sweep is the note or whitepaper that cites
+# its numbers (amba TASK-034, the monitor characterization sweep), and the
+# tracked set as of dbcea4e0e stays in history. Everything under reports/ is
+# ignored; the .gitkeep keeps the directory in a fresh clone (make clean
+# restores it, make/fpga_flow.mk).
+reports/*
+!reports/.gitkeep

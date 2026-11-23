@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Sep 28 18:58:42 2026
-| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date         : Sat Nov 21 20:24:41 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axil4_master_rd_mon__xc7k325tffg900-2/utilization_synth.txt
 | Design       : axil4_master_rd_mon
 | Device       : xc7k325tffg900-2
@@ -31,8 +31,8 @@ Table of Contents
 +----------------------------+------+-------+------------+-----------+-------+
 |          Site Type         | Used | Fixed | Prohibited | Available | Util% |
 +----------------------------+------+-------+------------+-----------+-------+
-| Slice LUTs*                | 3170 |     0 |          0 |    203800 |  1.56 |
-|   LUT as Logic             | 3142 |     0 |          0 |    203800 |  1.54 |
+| Slice LUTs*                | 3036 |     0 |          0 |    203800 |  1.49 |
+|   LUT as Logic             | 3008 |     0 |          0 |    203800 |  1.48 |
 |   LUT as Memory            |   28 |     0 |          0 |     64000 |  0.04 |
 |     LUT as Distributed RAM |   28 |     0 |            |           |       |
 |     LUT as Shift Register  |    0 |     0 |            |           |       |
@@ -60,9 +60,9 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 0     |            _ |       Reset |            - |
 | 0     |          Yes |           - |            - |
 | 4     |          Yes |           - |          Set |
-| 2850  |          Yes |           - |        Reset |
+| 2644  |          Yes |           - |        Reset |
 | 0     |          Yes |         Set |            - |
-| 0     |          Yes |       Reset |            - |
+| 206   |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -156,13 +156,14 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------+------+---------------------+
 | Ref Name | Used | Functional Category |
 +----------+------+---------------------+
-| FDCE     | 2850 |        Flop & Latch |
-| LUT6     | 1425 |                 LUT |
-| LUT3     |  877 |                 LUT |
-| LUT2     |  691 |                 LUT |
-| LUT4     |  501 |                 LUT |
-| LUT5     |  399 |                 LUT |
+| FDCE     | 2644 |        Flop & Latch |
+| LUT6     | 1528 |                 LUT |
+| LUT3     |  876 |                 LUT |
+| LUT2     |  690 |                 LUT |
+| LUT4     |  466 |                 LUT |
 | CARRY4   |  281 |          CarryLogic |
+| LUT5     |  262 |                 LUT |
+| FDRE     |  206 |        Flop & Latch |
 | MUXF7    |  103 |               MuxFx |
 | RAMD32   |   42 |  Distributed Memory |
 | LUT1     |   30 |                 LUT |

@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 18:59:20 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:28:36 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axil4_master_rd_mon__xc7k325tffg900-2/power.txt
 | Design           : axil4_master_rd_mon
 | Device           : xc7k325tffg900-2
@@ -30,7 +30,7 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.198        |
+| Total On-Chip Power (W)  | 0.199        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
 | Dynamic (W)              | 0.042        |
@@ -53,16 +53,16 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.028 |        3 |       --- |             --- |
-| Slice Logic              |     0.008 |     7208 |       --- |             --- |
-|   LUT as Logic           |     0.007 |     3077 |    203800 |            1.51 |
+| Slice Logic              |     0.009 |     7138 |       --- |             --- |
+|   LUT as Logic           |     0.008 |     2942 |    203800 |            1.44 |
 |   CARRY4                 |    <0.001 |      281 |     50950 |            0.55 |
 |   Register               |    <0.001 |     2854 |    407600 |            0.70 |
 |   LUT as Distributed RAM |    <0.001 |       28 |     64000 |            0.04 |
 |   F7/F8 Muxes            |    <0.001 |      103 |    203800 |            0.05 |
-|   Others                 |     0.000 |       23 |       --- |             --- |
-| Signals                  |     0.006 |     4970 |       --- |             --- |
+|   Others                 |     0.000 |       24 |       --- |             --- |
+| Signals                  |     0.006 |     5100 |       --- |             --- |
 | Static Power             |     0.157 |          |           |                 |
-| Total                    |     0.198 |          |           |                 |
+| Total                    |     0.199 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -143,15 +143,15 @@ Table of Contents
 | Name                           | Power (W) |
 +--------------------------------+-----------+
 | axil4_master_rd_mon            |     0.042 |
-|   axil4_master_rd_inst         |     0.005 |
-|     ar_channel                 |     0.002 |
+|   axil4_master_rd_inst         |     0.004 |
+|     ar_channel                 |     0.001 |
 |     r_channel                  |     0.003 |
-|   gen_monitor.axi_monitor_inst |     0.036 |
-|     u_axi_monitor_base         |     0.036 |
+|   gen_monitor.axi_monitor_inst |     0.038 |
+|     u_axi_monitor_base         |     0.038 |
 |       gen_timeout.timeout      |     0.004 |
 |       reporter                 |     0.016 |
 |       timer                    |     0.002 |
-|       trans_mgr                |     0.010 |
+|       trans_mgr                |     0.012 |
 +--------------------------------+-----------+
 
 

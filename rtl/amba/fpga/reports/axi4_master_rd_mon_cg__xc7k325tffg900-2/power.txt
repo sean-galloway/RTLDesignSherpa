@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 18:57:18 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:22:04 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_rd_mon_cg__xc7k325tffg900-2/power.txt
 | Design           : axi4_master_rd_mon_cg
 | Device           : xc7k325tffg900-2
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.240        |
+| Total On-Chip Power (W)  | 0.243        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.083        |
+| Dynamic (W)              | 0.086        |
 | Device Static (W)        | 0.157        |
 | Effective TJA (C/W)      | 1.8          |
 | Max Ambient (C)          | 84.6         |
@@ -53,16 +53,16 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.055 |        3 |       --- |             --- |
-| Slice Logic              |     0.015 |    15436 |       --- |             --- |
-|   LUT as Logic           |     0.014 |     7340 |    203800 |            3.60 |
+| Slice Logic              |     0.016 |    15332 |       --- |             --- |
+|   LUT as Logic           |     0.015 |     7171 |    203800 |            3.52 |
 |   CARRY4                 |    <0.001 |      482 |     50950 |            0.95 |
-|   Register               |    <0.001 |     5561 |    407600 |            1.36 |
-|   F7/F8 Muxes            |    <0.001 |      439 |    203800 |            0.22 |
+|   Register               |    <0.001 |     5569 |    407600 |            1.37 |
 |   LUT as Distributed RAM |    <0.001 |       32 |     64000 |            0.05 |
-|   Others                 |     0.000 |       29 |       --- |             --- |
-| Signals                  |     0.013 |    10518 |       --- |             --- |
+|   F7/F8 Muxes            |    <0.001 |      439 |    203800 |            0.22 |
+|   Others                 |     0.000 |       32 |       --- |             --- |
+| Signals                  |     0.016 |    10659 |       --- |             --- |
 | Static Power             |     0.157 |          |           |                 |
-| Total                    |     0.240 |          |           |                 |
+| Total                    |     0.243 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -72,7 +72,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.151 |       0.083 |      0.068 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.155 |       0.086 |      0.068 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.028 |       0.000 |      0.028 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -142,13 +142,13 @@ Table of Contents
 +----------------------------------+-----------+
 | Name                             | Power (W) |
 +----------------------------------+-----------+
-| axi4_master_rd_mon_cg            |     0.083 |
-|   axi4_master_rd_mon_inst        |     0.083 |
-|     axi4_master_rd_inst          |     0.008 |
-|       ar_channel                 |     0.003 |
-|       r_channel                  |     0.005 |
-|     gen_monitor.axi_monitor_inst |     0.075 |
-|       u_axi_monitor_base         |     0.075 |
+| axi4_master_rd_mon_cg            |     0.086 |
+|   axi4_master_rd_mon_inst        |     0.086 |
+|     axi4_master_rd_inst          |     0.009 |
+|       ar_channel                 |     0.002 |
+|       r_channel                  |     0.006 |
+|     gen_monitor.axi_monitor_inst |     0.077 |
+|       u_axi_monitor_base         |     0.077 |
 +----------------------------------+-----------+
 
 

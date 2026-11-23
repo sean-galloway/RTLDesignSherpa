@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 19:01:50 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:41:35 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/monbus_axi4_axi4_group__xc7k325tffg900-2/power.txt
 | Design           : monbus_axi4_axi4_group
 | Device           : xc7k325tffg900-2
@@ -30,7 +30,7 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.191        |
+| Total On-Chip Power (W)  | 0.192        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
 | Dynamic (W)              | 0.035        |
@@ -53,16 +53,16 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.015 |        3 |       --- |             --- |
-| Slice Logic              |     0.010 |     3739 |       --- |             --- |
-|   LUT as Logic           |     0.008 |     1543 |    203800 |            0.76 |
+| Slice Logic              |     0.010 |     3657 |       --- |             --- |
+|   LUT as Logic           |     0.008 |     1483 |    203800 |            0.73 |
 |   LUT as Distributed RAM |    <0.001 |      424 |     64000 |            0.66 |
-|   CARRY4                 |    <0.001 |       96 |     50950 |            0.19 |
-|   Register               |    <0.001 |     1386 |    407600 |            0.34 |
-|   F7/F8 Muxes            |    <0.001 |       55 |    203800 |            0.03 |
-|   Others                 |     0.000 |       19 |       --- |             --- |
-| Signals                  |     0.010 |     2264 |       --- |             --- |
+|   Register               |    <0.001 |     1337 |    407600 |            0.33 |
+|   CARRY4                 |    <0.001 |      123 |     50950 |            0.24 |
+|   F7/F8 Muxes            |    <0.001 |       71 |    203800 |            0.03 |
+|   Others                 |     0.000 |       25 |       --- |             --- |
+| Signals                  |     0.011 |     2354 |       --- |             --- |
 | Static Power             |     0.157 |          |           |                 |
-| Total                    |     0.191 |          |           |                 |
+| Total                    |     0.192 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -72,7 +72,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.103 |       0.035 |      0.068 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.104 |       0.035 |      0.068 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.028 |       0.000 |      0.028 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -143,16 +143,16 @@ Table of Contents
 | Name                     | Power (W) |
 +--------------------------+-----------+
 | monbus_axi4_axi4_group   |     0.035 |
-|   u_axi4_rd              |     0.005 |
+|   u_axi4_rd              |     0.006 |
 |     i_r_channel          |     0.005 |
 |   u_axi4_wr              |     0.006 |
 |     aw_channel           |     0.001 |
-|     w_channel            |     0.004 |
+|     w_channel            |     0.005 |
 |   u_core                 |     0.024 |
 |     u_err_fifo           |     0.005 |
 |     u_write_fifo         |     0.006 |
 |       fifo_control_inst  |     0.001 |
-|       read_pointer_inst  |     0.001 |
+|       read_pointer_inst  |     0.002 |
 |       write_pointer_inst |     0.001 |
 +--------------------------+-----------+
 

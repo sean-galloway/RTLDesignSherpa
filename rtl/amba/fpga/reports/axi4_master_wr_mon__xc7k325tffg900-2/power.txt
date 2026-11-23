@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 18:58:28 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:25:38 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi4_master_wr_mon__xc7k325tffg900-2/power.txt
 | Design           : axi4_master_wr_mon
 | Device           : xc7k325tffg900-2
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.234        |
+| Total On-Chip Power (W)  | 0.248        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.077        |
+| Dynamic (W)              | 0.091        |
 | Device Static (W)        | 0.157        |
 | Effective TJA (C/W)      | 1.8          |
 | Max Ambient (C)          | 84.6         |
@@ -52,17 +52,17 @@ Table of Contents
 +--------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
-| Clocks                   |     0.047 |        3 |       --- |             --- |
-| Slice Logic              |     0.017 |    17401 |       --- |             --- |
-|   LUT as Logic           |     0.016 |     8460 |    203800 |            4.15 |
+| Clocks                   |     0.046 |        3 |       --- |             --- |
+| Slice Logic              |     0.022 |    17267 |       --- |             --- |
+|   LUT as Logic           |     0.021 |     8313 |    203800 |            4.08 |
 |   CARRY4                 |    <0.001 |      579 |     50950 |            1.14 |
 |   LUT as Distributed RAM |    <0.001 |       32 |     64000 |            0.05 |
-|   Register               |    <0.001 |     6160 |    407600 |            1.51 |
+|   Register               |    <0.001 |     6156 |    407600 |            1.51 |
 |   F7/F8 Muxes            |    <0.001 |      445 |    203800 |            0.22 |
-|   Others                 |     0.000 |       25 |       --- |             --- |
-| Signals                  |     0.014 |    12002 |       --- |             --- |
+|   Others                 |     0.000 |       27 |       --- |             --- |
+| Signals                  |     0.023 |    12112 |       --- |             --- |
 | Static Power             |     0.157 |          |           |                 |
-| Total                    |     0.234 |          |           |                 |
+| Total                    |     0.248 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -72,7 +72,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.145 |       0.077 |      0.068 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.159 |       0.091 |      0.068 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.028 |       0.000 |      0.028 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -142,17 +142,17 @@ Table of Contents
 +--------------------------------+-----------+
 | Name                           | Power (W) |
 +--------------------------------+-----------+
-| axi4_master_wr_mon             |     0.077 |
-|   axi4_master_wr_inst          |     0.007 |
-|     aw_channel                 |     0.003 |
-|     b_channel                  |     0.001 |
+| axi4_master_wr_mon             |     0.091 |
+|   axi4_master_wr_inst          |     0.006 |
+|     aw_channel                 |     0.002 |
+|     b_channel                  |     0.002 |
 |     w_channel                  |     0.003 |
-|   gen_monitor.axi_monitor_inst |     0.070 |
-|     u_axi_monitor_base         |     0.070 |
+|   gen_monitor.axi_monitor_inst |     0.084 |
+|     u_axi_monitor_base         |     0.084 |
 |       gen_timeout.timeout      |     0.011 |
-|       reporter                 |     0.027 |
+|       reporter                 |     0.028 |
 |       timer                    |     0.003 |
-|       trans_mgr                |     0.024 |
+|       trans_mgr                |     0.038 |
 +--------------------------------+-----------+
 
 

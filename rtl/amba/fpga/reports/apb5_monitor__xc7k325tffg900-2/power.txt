@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Sep 28 19:00:35 2026
-| Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date             : Sat Nov 21 20:30:56 2026
+| Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/apb5_monitor__xc7k325tffg900-2/power.txt
 | Design           : apb5_monitor
 | Device           : xc7k325tffg900-2
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.175        |
+| Total On-Chip Power (W)  | 0.174        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.019        |
+| Dynamic (W)              | 0.018        |
 | Device Static (W)        | 0.156        |
 | Effective TJA (C/W)      | 1.8          |
 | Max Ambient (C)          | 84.7         |
@@ -53,15 +53,15 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.013 |        3 |       --- |             --- |
-| Slice Logic              |     0.003 |     1510 |       --- |             --- |
-|   LUT as Logic           |     0.003 |      562 |    203800 |            0.28 |
+| Slice Logic              |     0.003 |     1402 |       --- |             --- |
+|   LUT as Logic           |     0.002 |      506 |    203800 |            0.25 |
 |   CARRY4                 |    <0.001 |       52 |     50950 |            0.10 |
 |   LUT as Distributed RAM |    <0.001 |       32 |     64000 |            0.05 |
 |   Register               |    <0.001 |      676 |    407600 |            0.17 |
-|   Others                 |     0.000 |        8 |       --- |             --- |
-| Signals                  |     0.002 |      976 |       --- |             --- |
+|   Others                 |     0.000 |        9 |       --- |             --- |
+| Signals                  |     0.002 |      977 |       --- |             --- |
 | Static Power             |     0.156 |          |           |                 |
-| Total                    |     0.175 |          |           |                 |
+| Total                    |     0.174 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -71,7 +71,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.087 |       0.019 |      0.068 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.086 |       0.018 |      0.068 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.028 |       0.000 |      0.028 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -141,9 +141,9 @@ Table of Contents
 +----------------------------------+-----------+
 | Name                             | Power (W) |
 +----------------------------------+-----------+
-| apb5_monitor                     |     0.019 |
-|   gen_monitor.monbus_skid_buffer |     0.005 |
-|   gen_monitor.monitor_fifo       |     0.005 |
+| apb5_monitor                     |     0.018 |
+|   gen_monitor.monbus_skid_buffer |     0.004 |
+|   gen_monitor.monitor_fifo       |     0.004 |
 |     fifo_control_inst            |     0.002 |
 +----------------------------------+-----------+
 

@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Sep 28 19:03:16 2026
-| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date         : Sat Nov 21 20:54:33 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_clock_interaction -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/monbus_axil4_axil4_group__xc7a100tcsg324-1/clock_interaction.txt
 | Design       : monbus_axil4_axil4_group
 | Device       : 7a100t-csg324
@@ -18,6 +18,6 @@ Clock Interaction Table
                             WNS                            TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock  
 From Clock    To Clock      Clock Edges  WNS(ns)  TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints  
 ------------  ------------  -----------  -------  -------  -----------  -----------  ---------------  -------------------  -----------  
-axi_aclk      axi_aclk      rise - rise    -4.92   -72.78           39         5403            10.00  Clean                Timed        
+axi_aclk      axi_aclk      rise - rise    -4.82   -71.66           61         5371            10.00  Clean                Timed        
 
 

@@ -1,8 +1,8 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Sep 28 18:57:30 2026
-| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Date         : Sat Nov 21 20:19:44 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/rtl/amba/fpga/reports/axi5_master_rd__xc7k325tffg900-2/utilization_impl.txt
 | Design       : axi5_master_rd
 | Device       : xc7k325tffg900-2
@@ -32,8 +32,8 @@ Table of Contents
 +-------------------------+------+-------+------------+-----------+-------+
 |        Site Type        | Used | Fixed | Prohibited | Available | Util% |
 +-------------------------+------+-------+------------+-----------+-------+
-| Slice LUTs              |  380 |     0 |          0 |    203800 |  0.19 |
-|   LUT as Logic          |  380 |     0 |          0 |    203800 |  0.19 |
+| Slice LUTs              |  298 |     0 |          0 |    203800 |  0.15 |
+|   LUT as Logic          |  298 |     0 |          0 |    203800 |  0.15 |
 |   LUT as Memory         |    0 |     0 |          0 |     64000 |  0.00 |
 | Slice Registers         |  444 |     0 |          0 |    407600 |  0.11 |
 |   Register as Flip Flop |  444 |     0 |          0 |    407600 |  0.11 |
@@ -57,9 +57,9 @@ Table of Contents
 | 0     |            _ |       Reset |            - |
 | 0     |          Yes |           - |            - |
 | 0     |          Yes |           - |          Set |
-| 444   |          Yes |           - |        Reset |
+| 12    |          Yes |           - |        Reset |
 | 0     |          Yes |         Set |            - |
-| 0     |          Yes |       Reset |            - |
+| 432   |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -69,13 +69,13 @@ Table of Contents
 +--------------------------------------------+------+-------+------------+-----------+-------+
 |                  Site Type                 | Used | Fixed | Prohibited | Available | Util% |
 +--------------------------------------------+------+-------+------------+-----------+-------+
-| Slice                                      |  129 |     0 |          0 |     50950 |  0.25 |
-|   SLICEL                                   |  119 |     0 |            |           |       |
-|   SLICEM                                   |   10 |     0 |            |           |       |
-| LUT as Logic                               |  380 |     0 |          0 |    203800 |  0.19 |
+| Slice                                      |  122 |     0 |          0 |     50950 |  0.24 |
+|   SLICEL                                   |  118 |     0 |            |           |       |
+|   SLICEM                                   |    4 |     0 |            |           |       |
+| LUT as Logic                               |  298 |     0 |          0 |    203800 |  0.15 |
 |   using O5 output only                     |    0 |       |            |           |       |
 |   using O6 output only                     |  290 |       |            |           |       |
-|   using O5 and O6                          |   90 |       |            |           |       |
+|   using O5 and O6                          |    8 |       |            |           |       |
 | LUT as Memory                              |    0 |     0 |          0 |     64000 |  0.00 |
 |   LUT as Distributed RAM                   |    0 |     0 |            |           |       |
 |     using O5 output only                   |    0 |       |            |           |       |
@@ -86,10 +86,10 @@ Table of Contents
 |     using O6 output only                   |    0 |       |            |           |       |
 |     using O5 and O6                        |    0 |       |            |           |       |
 | Slice Registers                            |  444 |     0 |          0 |    407600 |  0.11 |
-|   Register driven from within the Slice    |  443 |       |            |           |       |
-|   Register driven from outside the Slice   |    1 |       |            |           |       |
-|     LUT in front of the register is unused |    0 |       |            |           |       |
-|     LUT in front of the register is used   |    1 |       |            |           |       |
+|   Register driven from within the Slice    |  283 |       |            |           |       |
+|   Register driven from outside the Slice   |  161 |       |            |           |       |
+|     LUT in front of the register is unused |  159 |       |            |           |       |
+|     LUT in front of the register is used   |    2 |       |            |           |       |
 | Unique Control Sets                        |    9 |       |          0 |     50950 |  0.02 |
 +--------------------------------------------+------+-------+------------+-----------+-------+
 * * Note: Available Control Sets calculated as Slice * 1, Review the Control Sets Report for more information regarding control sets.
@@ -185,13 +185,14 @@ Table of Contents
 +----------+------+---------------------+
 | Ref Name | Used | Functional Category |
 +----------+------+---------------------+
-| FDCE     |  444 |        Flop & Latch |
-| LUT5     |  275 |                 LUT |
-| LUT4     |  170 |                 LUT |
-| LUT6     |   10 |                 LUT |
-| LUT2     |   10 |                 LUT |
+| FDRE     |  432 |        Flop & Latch |
+| LUT5     |  173 |                 LUT |
+| LUT6     |  113 |                 LUT |
+| FDCE     |   12 |        Flop & Latch |
+| LUT4     |   10 |                 LUT |
+| LUT2     |    6 |                 LUT |
 | LUT1     |    3 |                 LUT |
-| LUT3     |    2 |                 LUT |
+| LUT3     |    1 |                 LUT |
 +----------+------+---------------------+
 
 
