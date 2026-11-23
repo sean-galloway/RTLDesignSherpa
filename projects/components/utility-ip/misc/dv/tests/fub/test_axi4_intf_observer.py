@@ -375,8 +375,8 @@ async def cocotb_test_observer_consumer_sustained(dut):
     # boundary, so a silent loss localizes to exactly one segment.
     arb = dut.u_arbiter
     grp = dut.g_egress_axil.u_group
-    rd_mon = dut.gen_rd_mon[0].u_rd_mon.gen_monitor_lite.axi_monitor_lite_inst
-    wr_mon = dut.gen_wr_mon[0].u_wr_mon.gen_monitor_lite.axi_monitor_lite_inst
+    rd_mon = dut.gen_rd_mon[0].gen_lite.u_rd_mon.gen_monitor_lite.axi_monitor_lite_inst
+    wr_mon = dut.gen_wr_mon[0].gen_lite.u_wr_mon.gen_monitor_lite.axi_monitor_lite_inst
     arb_accepted = [0, 0]
     group_accepted = [0]
     m_axil_aw = [0]
@@ -1128,4 +1128,46 @@ def test_axi4_intf_slave_observer_hist_sample_lost(request, test_level):
     """HIST_SAMPLE_LOST: clear at exactly the FIFO limit, set past it (SLAVE)."""
     _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS),
                   testcase="cocotb_test_observer_hist_sample_lost",
+                  test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_full(request, test_level):
+    """Default full MASTER observer register contract."""
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS),
+                  test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_full(request, test_level):
+    """Default full SLAVE observer register contract."""
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS),
+                  test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_full_traffic(request, test_level):
+    """Default full MASTER observation path."""
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS),
+                  testcase="cocotb_test_observer_traffic", test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_full_traffic(request, test_level):
+    """Default full SLAVE observation path."""
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS),
+                  testcase="cocotb_test_observer_traffic", test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_full_all_cones(request, test_level):
+    """Elaborate every full MASTER cone and verify its capabilities."""
+    _run_observer(request, 'axi4_intf_master_observer_full', dict(_PARAMS_ALL),
+                  test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_full_all_cones(request, test_level):
+    """Elaborate every full SLAVE cone and verify its capabilities."""
+    _run_observer(request, 'axi4_intf_slave_observer_full', dict(_PARAMS_ALL),
                   test_level=test_level)

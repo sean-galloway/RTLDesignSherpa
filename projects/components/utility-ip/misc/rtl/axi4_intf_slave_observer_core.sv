@@ -831,6 +831,53 @@ module `AXI4_INTF_SLAVE_OBSERVER_MODULE
     genvar gi;
     generate
         for (gi = 0; gi < NUM_RD_PORTS; gi = gi + 1) begin : gen_rd_mon
+            if (USE_FULL_MONITOR) begin : gen_full
+                axi4_rd_monfull_snoop #(
+                    .AXI_ID_WIDTH(AXI_ID_WIDTH), .AXI_ADDR_WIDTH(ADDR_WIDTH),
+                    .UNIT_ID(UNIT_ID), .AGENT_ID({8'h00, 4'h0, gi[3:0]}),
+                    .MAX_TRANSACTIONS(MAX_TRANSACTIONS), .NUM_BANKS(NUM_BANKS),
+                    .ACLK_MHZ(ACLK_MHZ), .CFI_MIN_FREQ_MHZ(CFI_MIN_FREQ_MHZ),
+                    .CFI_MAX_FREQ_MHZ(CFI_MAX_FREQ_MHZ),
+                    .N_ADDR_RANGES(N_ADDR_RANGES), .ADDR_RANGE_IS_ERROR(ADDR_RANGE_IS_ERROR),
+                    .ENABLE_ERROR_LOGIC(TAP_ENABLE_ERROR_LOGIC),
+                    .ENABLE_TIMEOUT_LOGIC(TAP_ENABLE_TIMEOUT_LOGIC),
+                    .ENABLE_COMPL_LOGIC(TAP_ENABLE_COMPL_LOGIC),
+                    .ENABLE_THRESHOLD_LOGIC(TAP_ENABLE_THRESHOLD_LOGIC),
+                    .ENABLE_PERF_LOGIC(TAP_ENABLE_PERF_LOGIC),
+                    .ENABLE_DEBUG_LOGIC(TAP_ENABLE_DEBUG_LOGIC)
+                ) u_rd_mon (
+                    .aclk(aclk), .aresetn(aresetn), .cam_clear(cam_clear),
+                    .cmd_id(obs_rd_arid[gi]), .cmd_addr(obs_rd_araddr[gi]),
+                    .cmd_len(obs_rd_arlen[gi]), .cmd_size(obs_rd_arsize[gi]),
+                    .cmd_burst(obs_rd_arburst[gi]), .cmd_valid(obs_rd_arvalid[gi]),
+                    .cmd_ready(obs_rd_arready[gi]),
+                    .data_id(obs_rd_rid[gi]), .data_resp(obs_rd_rresp[gi]),
+                    .data_last(obs_rd_rlast[gi]), .data_valid(obs_rd_rvalid[gi]),
+                    .data_ready(obs_rd_rready[gi]),
+                    .cfg_monitor_enable(cfg_monitor_enable_w), .cfg_error_enable(cfg_error_enable_w),
+                    .cfg_timeout_enable(cfg_timeout_enable_w), .cfg_perf_enable(cfg_perf_enable_w),
+                    .cfg_compl_enable(cfg_compl_enable_w), .cfg_threshold_enable(cfg_threshold_enable_w),
+                    .cfg_debug_enable(cfg_debug_enable_w), .cfg_timeout_cycles(cfg_timeout_cycles_w),
+                    .cfg_freq_sel(cfg_freq_sel), .cfg_latency_threshold(cfg_latency_threshold_w),
+                    .cfg_axi_pkt_mask(16'h0), .cfg_axi_err_select(16'h0),
+                    .cfg_axi_error_mask(cfg_axi_error_mask), .cfg_axi_timeout_mask(cfg_axi_timeout_mask),
+                    .cfg_axi_compl_mask(cfg_axi_compl_mask), .cfg_axi_thresh_mask(cfg_axi_thresh_mask),
+                    .cfg_axi_perf_mask(cfg_axi_perf_mask), .cfg_axi_addr_mask(cfg_axi_addr_mask),
+                    .cfg_axi_debug_mask(cfg_axi_debug_mask),
+                    .cfg_addr_check_enable(cfg_addr_check_enable_w),
+                    .cfg_addr_range_enable(cfg_addr_range_enable_w),
+                    .cfg_addr_range_low(cfg_addr_range_low_w), .cfg_addr_range_high(cfg_addr_range_high_w),
+                    .cfg_start_event_sel(cfg_start_event_sel_w), .cfg_end_event_sel(cfg_end_event_sel_w),
+                    .cfg_start_trigger(cfg_start_trigger_w), .cfg_end_trigger(cfg_end_trigger_w),
+                    .cfg_window_force_close(cfg_window_force_close_w), .i_mon_time(mon_time_w),
+                    .monbus_valid(mon_valid[gi]), .monbus_ready(mon_ready[gi]),
+                    .monbus_packet(mon_packet[gi]), .monbus_timestamp(mon_ts[gi]),
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .busy(), .active_transactions(), .error_count(), .transaction_count(),
+                    /* verilator lint_on PINCONNECTEMPTY */
+                    .dropped_count(obs_rd_dropped[gi]), .refused_count(obs_rd_refused[gi])
+                );
+            end else begin : gen_lite
             axi4_slave_rd_monlite #(
                 .AXI_ID_WIDTH    (AXI_ID_WIDTH),
                 .AXI_ADDR_WIDTH  (ADDR_WIDTH),
@@ -939,9 +986,8 @@ module `AXI4_INTF_SLAVE_OBSERVER_MODULE
                 .refused_count         (obs_rd_refused[gi])  // lite: commands that found no free table entry
                 /* verilator lint_on PINCONNECTEMPTY */
             );
-            // TAP_BLOCKED source. The full monitor STALLED the bus (block_ready) when its
-            // table filled; the lite refuses the command and counts it, and counts events
-            // lost to monbus backpressure. Same condition, counted instead of stalled.
+            end
+            // Any refused or dropped observation makes the coverage incomplete.
             assign obs_rd_tap_lost[gi] = (obs_rd_dropped[gi] != 16'd0) | (obs_rd_refused[gi] != 16'd0);
         end
     endgenerate
@@ -951,6 +997,54 @@ module `AXI4_INTF_SLAVE_OBSERVER_MODULE
     // =================================================================
     generate
         for (gi = 0; gi < NUM_WR_PORTS; gi = gi + 1) begin : gen_wr_mon
+            if (USE_FULL_MONITOR) begin : gen_full
+                axi4_wr_monfull_snoop #(
+                    .AXI_ID_WIDTH(AXI_ID_WIDTH), .AXI_ADDR_WIDTH(ADDR_WIDTH),
+                    .UNIT_ID(UNIT_ID), .AGENT_ID({8'h00, 4'h1, gi[3:0]}),
+                    .MAX_TRANSACTIONS(MAX_TRANSACTIONS), .NUM_BANKS(NUM_BANKS),
+                    .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q), .ACLK_MHZ(ACLK_MHZ),
+                    .CFI_MIN_FREQ_MHZ(CFI_MIN_FREQ_MHZ), .CFI_MAX_FREQ_MHZ(CFI_MAX_FREQ_MHZ),
+                    .N_ADDR_RANGES(N_ADDR_RANGES), .ADDR_RANGE_IS_ERROR(ADDR_RANGE_IS_ERROR),
+                    .ENABLE_ERROR_LOGIC(TAP_ENABLE_ERROR_LOGIC),
+                    .ENABLE_TIMEOUT_LOGIC(TAP_ENABLE_TIMEOUT_LOGIC),
+                    .ENABLE_COMPL_LOGIC(TAP_ENABLE_COMPL_LOGIC),
+                    .ENABLE_THRESHOLD_LOGIC(TAP_ENABLE_THRESHOLD_LOGIC),
+                    .ENABLE_PERF_LOGIC(TAP_ENABLE_PERF_LOGIC),
+                    .ENABLE_DEBUG_LOGIC(TAP_ENABLE_DEBUG_LOGIC)
+                ) u_wr_mon (
+                    .aclk(aclk), .aresetn(aresetn), .cam_clear(cam_clear),
+                    .cmd_id(obs_wr_awid[gi]), .cmd_addr(obs_wr_awaddr[gi]),
+                    .cmd_len(obs_wr_awlen[gi]), .cmd_size(obs_wr_awsize[gi]),
+                    .cmd_burst(obs_wr_awburst[gi]), .cmd_valid(obs_wr_awvalid[gi]),
+                    .cmd_ready(obs_wr_awready[gi]),
+                    .data_last(obs_wr_wlast[gi]), .data_valid(obs_wr_wvalid[gi]),
+                    .data_ready(obs_wr_wready[gi]),
+                    .resp_id(obs_wr_bid[gi]), .resp_code(obs_wr_bresp[gi]),
+                    .resp_valid(obs_wr_bvalid[gi]), .resp_ready(obs_wr_bready[gi]),
+                    .cfg_monitor_enable(cfg_monitor_enable_w), .cfg_error_enable(cfg_error_enable_w),
+                    .cfg_timeout_enable(cfg_timeout_enable_w), .cfg_perf_enable(cfg_perf_enable_w),
+                    .cfg_compl_enable(cfg_compl_enable_w), .cfg_threshold_enable(cfg_threshold_enable_w),
+                    .cfg_debug_enable(cfg_debug_enable_w), .cfg_timeout_cycles(cfg_timeout_cycles_w),
+                    .cfg_freq_sel(cfg_freq_sel), .cfg_latency_threshold(cfg_latency_threshold_w),
+                    .cfg_axi_pkt_mask(16'h0), .cfg_axi_err_select(16'h0),
+                    .cfg_axi_error_mask(cfg_axi_error_mask), .cfg_axi_timeout_mask(cfg_axi_timeout_mask),
+                    .cfg_axi_compl_mask(cfg_axi_compl_mask), .cfg_axi_thresh_mask(cfg_axi_thresh_mask),
+                    .cfg_axi_perf_mask(cfg_axi_perf_mask), .cfg_axi_addr_mask(cfg_axi_addr_mask),
+                    .cfg_axi_debug_mask(cfg_axi_debug_mask),
+                    .cfg_addr_check_enable(cfg_addr_check_enable_w),
+                    .cfg_addr_range_enable(cfg_addr_range_enable_w),
+                    .cfg_addr_range_low(cfg_addr_range_low_w), .cfg_addr_range_high(cfg_addr_range_high_w),
+                    .cfg_start_event_sel(cfg_start_event_sel_w), .cfg_end_event_sel(cfg_end_event_sel_w),
+                    .cfg_start_trigger(cfg_start_trigger_w), .cfg_end_trigger(cfg_end_trigger_w),
+                    .cfg_window_force_close(cfg_window_force_close_w), .i_mon_time(mon_time_w),
+                    .monbus_valid(mon_valid[NUM_RD_PORTS + gi]), .monbus_ready(mon_ready[NUM_RD_PORTS + gi]),
+                    .monbus_packet(mon_packet[NUM_RD_PORTS + gi]), .monbus_timestamp(mon_ts[NUM_RD_PORTS + gi]),
+                    /* verilator lint_off PINCONNECTEMPTY */
+                    .busy(), .active_transactions(), .error_count(), .transaction_count(),
+                    /* verilator lint_on PINCONNECTEMPTY */
+                    .dropped_count(obs_wr_dropped[gi]), .refused_count(obs_wr_refused[gi])
+                );
+            end else begin : gen_lite
             axi4_slave_wr_monlite #(
                 .AXI_ID_WIDTH    (AXI_ID_WIDTH),
                 .AXI_ADDR_WIDTH  (ADDR_WIDTH),
@@ -1059,9 +1153,8 @@ module `AXI4_INTF_SLAVE_OBSERVER_MODULE
                 .refused_count         (obs_wr_refused[gi])  // lite: commands that found no free table entry
                 /* verilator lint_on PINCONNECTEMPTY */
             );
-            // TAP_BLOCKED source. The full monitor STALLED the bus (block_ready) when its
-            // table filled; the lite refuses the command and counts it, and counts events
-            // lost to monbus backpressure. Same condition, counted instead of stalled.
+            end
+            // Any refused or dropped observation makes the coverage incomplete.
             assign obs_wr_tap_lost[gi] = (obs_wr_dropped[gi] != 16'd0) | (obs_wr_refused[gi] != 16'd0);
         end
     endgenerate
