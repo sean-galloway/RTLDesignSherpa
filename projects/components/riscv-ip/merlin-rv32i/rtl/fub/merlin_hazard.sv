@@ -26,6 +26,10 @@
 //     destination register.
 //   - Register x0 is never forwarded and never causes a stall: rd_addr==0
 //     disables both forwarding matches and load-use detection.
+//   - The load-use check takes no rd write enable: idex_is_load already
+//     carries the ID/EX valid bit, and every RV32I load writes rd, so a
+//     write enable could not change the stall (the port was removed,
+//     merlin-rv32i TASK-002).
 //   - ex_flush is broadcast to flush_ifid and flush_idex; the core is
 //     responsible for making flush win over stall.
 //
@@ -53,7 +57,6 @@ module merlin_hazard (
     input  logic [4:0] fwd_rs1_addr,
     input  logic [4:0] fwd_rs2_addr,
     input  logic [4:0] idex_rd_addr,
-    input  logic       idex_rd_wen,
     input  logic       idex_is_load,
     input  logic [4:0] exmem_rd_addr,
     input  logic       exmem_rd_wen,

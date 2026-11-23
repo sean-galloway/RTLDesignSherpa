@@ -44,12 +44,10 @@ CHECKS_DIR := $(CURDIR)/checks
 HARNESS    := $(REPO_ROOT)/formal/checks $(REPO_ROOT)/formal/insns
 
 # The core's compile closure comes from its own filelist via
-# bin/flatten_filelist.py (inside make/formal_flat.mk) -- never hand-listed.
-# MERLIN_ROOT is not yet exported by the shared formal_flat.mk, so override it
-# here before the include.
+# bin/flatten_filelist.py (inside make/formal_flat.mk) -- never hand-listed;
+# formal_flat.mk exports MERLIN_ROOT beside KESTREL_ROOT.
 FLAT          := merlin_flat.v
 FLAT_FILELIST := $(REPO_ROOT)/projects/components/riscv-ip/merlin-rv32i/rtl/filelists/top/merlin_core.f
-override export MERLIN_ROOT := $(REPO_ROOT)/projects/components/riscv-ip/merlin-rv32i
 include $(REPO_ROOT)/make/formal_flat.mk
 
 # `checks` re-converts on every run: an RTL edit under an unchanged .f must

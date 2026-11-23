@@ -11,7 +11,7 @@ Copied from the kestrel-rv32i test suite:
 Task-3 regression programs:
 
 - `load_after_alu.hex` — a `lw` whose MEM predecessor is a non-memory ALU op.
-- `load_use_distances.hex` — load-use consumers at distances 1/2/3 (distance 1 costs one bubble).
+- `load_use_distances.hex` — load-use consumers at distances 0/1/2, counted as instructions between load and use (distance 0 costs one bubble).
 - `mem_wait_in_wb.hex` — `mem_wait` parks a load in WB while a follower sits in MEM.
 
 Task-4 directed hazard suite (`hazard_*.hex`):
@@ -22,6 +22,6 @@ Task-4 directed hazard suite (`hazard_*.hex`):
 - `hazard_flush_during_loaduse.hex` — taken branch after a load-use stall flushes the consumer's successor.
 - `hazard_jalr_forward.hex` — `jalr` target forwarded from a preceding ALU op and from a load result.
 - `hazard_branch_flush_backtoback.hex` — two taken branches back-to-back.
-- `hazard_load_branch.hex` — a load feeding a branch (rs1 / rs2, distance 1 / 2) and a `jalr`: the load-to-branch interlock (merlin-rv32i TASK-004).
+- `hazard_load_branch.hex` — a load feeding a branch (rs1 / rs2, distance 0 / 1) and a `jalr`: the load-to-branch interlock (merlin-rv32i TASK-004).
 
 Source (kestrel programs): `projects/components/riscv-ip/kestrel-rv32i/dv/tests/programs/`

@@ -102,25 +102,29 @@ async def cocotb_test_merlin_hazard_forward_matrix(dut):
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_merlin_hazard_loaduse_matrix(dut):
-    """Load-use consumers at distances 1/2/3 retire once with correct bubbles."""
+    """Load-use consumers at distances 0/1/2 retire once with correct bubbles.
+
+    Distance is the number of instructions between the load and its
+    consumer (PRD section 5): distance 0 is the instruction right after.
+    """
     tb, _ = await _run_case(dut, "load_use_distances.hex", 0x0000_0000)
 
     by_pc = _by_pc(tb.trace)
     load = by_pc[0x10]
-    d1 = by_pc[0x14]
-    d2 = by_pc[0x1C]
-    d3 = by_pc[0x28]
+    d0 = by_pc[0x14]
+    d1 = by_pc[0x1C]
+    d2 = by_pc[0x28]
 
-    assert d1["rd_wdata"] == 0x12345678
-    assert d2["rd_wdata"] == 0x12345689
-    assert d3["rd_wdata"] == 0x123456AB
-    assert d1["cycle"] == load["cycle"] + 2, (
-        f"distance-1 bubble wrong: load cycle={load['cycle']} "
-        f"consumer cycle={d1['cycle']}")
+    assert d0["rd_wdata"] == 0x12345678
+    assert d1["rd_wdata"] == 0x12345689
+    assert d2["rd_wdata"] == 0x123456AB
+    assert d0["cycle"] == load["cycle"] + 2, (
+        f"distance-0 bubble wrong: load cycle={load['cycle']} "
+        f"consumer cycle={d0['cycle']}")
     _assert_single_retirement(tb.trace, [0x14, 0x1C, 0x28])
     dut._log.info(
-        f"loaduse_matrix: d1 cycle={d1['cycle']}, d2 cycle={d2['cycle']}, "
-        f"d3 cycle={d3['cycle']}, all retired once")
+        f"loaduse_matrix: d0 cycle={d0['cycle']}, d1 cycle={d1['cycle']}, "
+        f"d2 cycle={d2['cycle']}, all retired once")
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -233,13 +237,13 @@ async def cocotb_test_merlin_hazard_load_branch(dut):
     by_pc = _by_pc(tb.trace)
     for pc in (0x20, 0x34, 0x54, 0x60):
         assert pc not in by_pc, f"pc=0x{pc:x} retired: a branch read the wrong value"
-    assert by_pc[0x1C]["pc_wdata"] == 0x24, "A: lw; beq rs1 at distance 1, taken"
-    assert by_pc[0x30]["pc_wdata"] == 0x38, "B: lw; addi; beq rs2 at distance 2, taken"
-    assert by_pc[0x40]["pc_wdata"] == 0x44, "C: lw; bne rs2 at distance 1, not taken"
-    assert by_pc[0x50]["pc_wdata"] == 0x58, "D: lw; addi; jalr at distance 2"
+    assert by_pc[0x1C]["pc_wdata"] == 0x24, "A: lw; beq rs1 at distance 0, taken"
+    assert by_pc[0x30]["pc_wdata"] == 0x38, "B: lw; addi; beq rs2 at distance 1, taken"
+    assert by_pc[0x40]["pc_wdata"] == 0x44, "C: lw; bne rs2 at distance 0, not taken"
+    assert by_pc[0x50]["pc_wdata"] == 0x58, "D: lw; addi; jalr at distance 1"
     assert by_pc[0x50]["rd_wdata"] == 0x54, "D: jalr link"
 
-    # Distance 1: the load-use bubble plus the interlock's.  Distance 2:
+    # Distance 0: the load-use bubble plus the interlock's.  Distance 1:
     # the interlock's one bubble.
     for load_pc, br_pc, gap in ((0x18, 0x1C, 3), (0x28, 0x30, 3),
                                 (0x3C, 0x40, 3), (0x48, 0x50, 3)):

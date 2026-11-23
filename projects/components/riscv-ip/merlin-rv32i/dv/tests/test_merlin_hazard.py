@@ -7,8 +7,9 @@
 # Module: test_merlin_hazard
 # Purpose: Functional unit test for the merlin forwarding and interlock unit.
 #          Covers the no-hazard, EX/MEM-forward, MEM/WB-forward, both-pending
-#          (EX/MEM wins), x0-never-forwards, load-use stall, load-use-vs-x0
-#          no-stall, and flush-wins-over-stall matrix.
+#          (EX/MEM wins, on each port), write-enable-low-never-forwards,
+#          x0-never-forwards, load-use stall, load-use-vs-x0 no-stall, and
+#          flush-wins-over-stall matrix.
 #
 # Documentation: projects/components/riscv-ip/merlin-rv32i/PRD.md
 # Subsystem: riscv-ip/merlin-rv32i
@@ -48,7 +49,6 @@ def _set_inputs(dut, **kwargs):
         "fwd_rs1_addr": kwargs.get("fwd_rs1_addr", kwargs.get("id_rs1_addr", 0)),
         "fwd_rs2_addr": kwargs.get("fwd_rs2_addr", kwargs.get("id_rs2_addr", 0)),
         "idex_rd_addr": 0,
-        "idex_rd_wen": 0,
         "idex_is_load": 0,
         "exmem_rd_addr": 0,
         "exmem_rd_wen": 0,
@@ -89,7 +89,7 @@ async def cocotb_test_merlin_hazard(dut):
         expected={"fwd_a": FWD_IDEX, "fwd_b": FWD_IDEX,
                   "stall_ifid": 0, "flush_ifid": 0, "flush_idex": 0},
         id_rs1_addr=1, id_rs2_addr=2,
-        idex_rd_addr=3, idex_rd_wen=1,
+        idex_rd_addr=3,
         exmem_rd_addr=4, exmem_rd_wen=1,
         memwb_rd_addr=5, memwb_rd_wen=1,
     )
@@ -131,13 +131,46 @@ async def cocotb_test_merlin_hazard(dut):
         memwb_rd_addr=13, memwb_rd_wen=1,
     )
 
+    # 5b) Both pending on port B: EX/MEM wins there too.
+    await _check_case(
+        dut,
+        expected={"fwd_a": FWD_IDEX, "fwd_b": FWD_EXMEM,
+                  "stall_ifid": 0, "flush_ifid": 0, "flush_idex": 0},
+        id_rs1_addr=12, id_rs2_addr=13,
+        exmem_rd_addr=13, exmem_rd_wen=1,
+        memwb_rd_addr=13, memwb_rd_wen=1,
+    )
+
+    # 5c) A producer with rd_wen=0 never forwards: an address match alone
+    #     (a store or branch whose rd field happens to match) selects the
+    #     regfile on both ports.
+    await _check_case(
+        dut,
+        expected={"fwd_a": FWD_IDEX, "fwd_b": FWD_IDEX,
+                  "stall_ifid": 0, "flush_ifid": 0, "flush_idex": 0},
+        id_rs1_addr=18, id_rs2_addr=19,
+        exmem_rd_addr=18, exmem_rd_wen=0,
+        memwb_rd_addr=19, memwb_rd_wen=0,
+    )
+
+    # 5d) EX/MEM write enable low with MEM/WB live on the same register:
+    #     the older MEM/WB value is the newest real producer.
+    await _check_case(
+        dut,
+        expected={"fwd_a": FWD_MEMWB, "fwd_b": FWD_MEMWB,
+                  "stall_ifid": 0, "flush_ifid": 0, "flush_idex": 0},
+        id_rs1_addr=20, id_rs2_addr=20,
+        exmem_rd_addr=20, exmem_rd_wen=0,
+        memwb_rd_addr=20, memwb_rd_wen=1,
+    )
+
     # 6) x0 producer never forwards, even with wen=1 and address match.
     await _check_case(
         dut,
         expected={"fwd_a": FWD_IDEX, "fwd_b": FWD_IDEX,
                   "stall_ifid": 0, "flush_ifid": 0, "flush_idex": 0},
         id_rs1_addr=0, id_rs2_addr=0,
-        idex_rd_addr=0, idex_rd_wen=1,
+        idex_rd_addr=0, 
         exmem_rd_addr=0, exmem_rd_wen=1,
         memwb_rd_addr=0, memwb_rd_wen=1,
     )
@@ -150,7 +183,7 @@ async def cocotb_test_merlin_hazard(dut):
         expected={"fwd_a": FWD_IDEX, "fwd_b": FWD_IDEX,
                   "stall_ifid": 1, "flush_ifid": 0, "flush_idex": 0},
         id_rs1_addr=14, id_rs2_addr=15,
-        idex_rd_addr=14, idex_rd_wen=1, idex_is_load=1,
+        idex_rd_addr=14, idex_is_load=1,
     )
 
     # 8) Load-use vs x0: load in EX writing x0 must not stall.
@@ -159,7 +192,7 @@ async def cocotb_test_merlin_hazard(dut):
         expected={"fwd_a": FWD_IDEX, "fwd_b": FWD_IDEX,
                   "stall_ifid": 0, "flush_ifid": 0, "flush_idex": 0},
         id_rs1_addr=0, id_rs2_addr=16,
-        idex_rd_addr=0, idex_rd_wen=1, idex_is_load=1,
+        idex_rd_addr=0, idex_is_load=1,
     )
 
     # 9) ex_flush asserts both flush outputs and beats stall.
@@ -168,7 +201,7 @@ async def cocotb_test_merlin_hazard(dut):
         expected={"fwd_a": FWD_IDEX, "fwd_b": FWD_IDEX,
                   "stall_ifid": 1, "flush_ifid": 1, "flush_idex": 1},
         id_rs1_addr=17,
-        idex_rd_addr=17, idex_rd_wen=1, idex_is_load=1,
+        idex_rd_addr=17, idex_is_load=1,
         ex_flush=1,
     )
 

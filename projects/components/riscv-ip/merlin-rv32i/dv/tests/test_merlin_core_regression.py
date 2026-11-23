@@ -8,7 +8,7 @@
 # Purpose: Regression tests for CRITICAL-1 and CRITICAL-2 from Task 3 review.
 #          These cases are deliberately not covered by the golden kestrel
 #          programs: a load after a non-memory ALU predecessor, and load-use
-#          hazards at distances 1/2/3.
+#          hazards at distances 0/1/2 (instructions between load and use).
 #
 # Documentation: projects/components/riscv-ip/merlin-rv32i/PRD.md
 # Subsystem: riscv-ip/merlin-rv32i
@@ -86,31 +86,32 @@ async def cocotb_test_merlin_core_load_after_alu(dut):
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_merlin_core_load_use_distances(dut):
-    """CRITICAL-2: load-use consumers at distances 1, 2, 3 retire once.
+    """CRITICAL-2: load-use consumers at distances 0, 1, 2 retire once.
 
-    Distance-1 must cost exactly one bubble; distances 2/3 resolve through
-    forwarding without double retirement.
+    Distance is the number of instructions between the load and its
+    consumer (PRD section 5).  Distance 0 must cost exactly one bubble;
+    distances 1/2 resolve through forwarding without double retirement.
     """
     tb, _ = await _run_case(dut, "load_use_distances.hex", 0x0000_0000)
 
     by_pc = {b["pc"]: b for b in tb.trace}
 
     load = by_pc[0x10]
-    d1 = by_pc[0x14]   # add x4, x3, x0
-    d2 = by_pc[0x1c]   # add x6, x3, x5
-    d3 = by_pc[0x28]   # add x9, x3, x8
+    d0 = by_pc[0x14]   # add x4, x3, x0
+    d1 = by_pc[0x1c]   # add x6, x3, x5
+    d2 = by_pc[0x28]   # add x9, x3, x8
 
-    assert d1["rd_wdata"] == 0x12345678, (
+    assert d0["rd_wdata"] == 0x12345678, (
+        f"distance-0 consumer rd_wdata=0x{d0['rd_wdata']:x}")
+    assert d1["rd_wdata"] == 0x12345689, (
         f"distance-1 consumer rd_wdata=0x{d1['rd_wdata']:x}")
-    assert d2["rd_wdata"] == 0x12345689, (
+    assert d2["rd_wdata"] == 0x123456AB, (
         f"distance-2 consumer rd_wdata=0x{d2['rd_wdata']:x}")
-    assert d3["rd_wdata"] == 0x123456AB, (
-        f"distance-3 consumer rd_wdata=0x{d3['rd_wdata']:x}")
 
-    # Distance-1 must be delayed by exactly one cycle vs. back-to-back retirement.
-    assert d1["cycle"] == load["cycle"] + 2, (
-        f"distance-1 bubble count wrong: load cycle={load['cycle']} "
-        f"consumer cycle={d1['cycle']}")
+    # Distance 0 must be delayed by exactly one cycle vs. back-to-back retirement.
+    assert d0["cycle"] == load["cycle"] + 2, (
+        f"distance-0 bubble count wrong: load cycle={load['cycle']} "
+        f"consumer cycle={d0['cycle']}")
 
     # No consumer retired twice.
     for pc in (0x14, 0x1c, 0x28):
@@ -118,8 +119,8 @@ async def cocotb_test_merlin_core_load_use_distances(dut):
             f"consumer at pc=0x{pc:x} retired more than once")
 
     dut._log.info(
-        f"load_use_distances: d1 cycle={d1['cycle']}, d2 cycle={d2['cycle']}, "
-        f"d3 cycle={d3['cycle']}, all consumers retired exactly once")
+        f"load_use_distances: d0 cycle={d0['cycle']}, d1 cycle={d1['cycle']}, "
+        f"d2 cycle={d2['cycle']}, all consumers retired exactly once")
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -203,7 +204,7 @@ async def cocotb_test_merlin_core_csr_forward(dut):
     tb, _ = await _run_case(dut, "csr_forward.hex", 0x0000_0000)
 
     by_pc = {b["pc"]: b for b in tb.trace}
-    csr = by_pc[0x04]   # csrrci x30, 0x81d, 31 -> x30 = 0
+    csr = by_pc[0x04]   # csrrwi x30, 0x81d, 31 -> x30 = 0 (stub)
     d0 = by_pc[0x08]    # sltu x6, x30, x29   -> 0 < 5 = 1
     d1 = by_pc[0x10]    # add  x7, x30, x29   -> 0 + 5 = 5
 

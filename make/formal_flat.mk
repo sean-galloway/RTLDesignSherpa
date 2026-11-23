@@ -39,6 +39,7 @@ export CONVERTERS_ROOT   := $(REPO_ROOT)/projects/components/utility-ip/converte
 export GATLING_ROOT      := $(REPO_ROOT)/projects/components/riscv-ip/gatling-rv32i
 export RV32I_COMMON_ROOT := $(REPO_ROOT)/projects/components/riscv-ip/common-rv32i
 export KESTREL_ROOT      := $(REPO_ROOT)/projects/components/riscv-ip/kestrel-rv32i
+export MERLIN_ROOT       := $(REPO_ROOT)/projects/components/riscv-ip/merlin-rv32i
 export RAPIDS_ROOT       := $(REPO_ROOT)/projects/components/dma-ip/rapids
 export RETRO_ROOT        := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks
 export STREAM_ROOT       := $(REPO_ROOT)/projects/components/dma-ip/stream

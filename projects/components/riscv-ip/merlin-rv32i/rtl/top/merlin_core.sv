@@ -327,7 +327,6 @@ module merlin_core #(
         .fwd_rs1_addr (id_ex_d.rs1_addr),
         .fwd_rs2_addr (id_ex_d.rs2_addr),
         .idex_rd_addr (id_ex_q.rd_addr),
-        .idex_rd_wen  (id_ex_q.rd_wen & id_ex_q.valid),
         .idex_is_load (idex_is_load),
         .exmem_rd_addr(id_ex_q.rd_addr),
         .exmem_rd_wen (id_ex_q.rd_wen & id_ex_q.valid),

@@ -12,15 +12,13 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
-
-- **TASK-002** — follow-ups from the TASK-001 final review (hazard idex_rd_wen doc, unit-test symmetry cases, docstring nits, MERLIN_ROOT into formal_flat.mk)
 
 (none)
 
@@ -30,6 +28,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-002** — follow-ups from the TASK-001 final review: idex_rd_wen port removed (it could not change the stall), four hazard unit cases (port-B priority, rd_wen=0 never forwards) each mutation-checked, load-use distances renamed 0/1/2, csrrwi comment, MERLIN_ROOT into make/formal_flat.mk; suite 60/60, formal merlin and kestrel 42/42
 - **TASK-004** — FPGA rework (common-rv32i ISSUE-001 row 3): load-to-branch interlock in place of a registered redirect; worst WNS over 3 placer directives +0.065 -> +0.231, ~+70 LUT, 0.11 pct stalls on the rv32ui streams
 - **TASK-003** — FPGA rework (common-rv32i ISSUE-001 rows 2 + 3a): control-only pipeline-register reset, forwarding selects registered from ID, link/LUI into alu_y in EX; 1,378 -> 1,262 LUT, FDCE 811 -> 134, meets 100 MHz under 3/3 placer directives (was 1/3)
 - **TASK-001** — implement merlin per PRD v0.2 (5-stage pipelined RV32I:
