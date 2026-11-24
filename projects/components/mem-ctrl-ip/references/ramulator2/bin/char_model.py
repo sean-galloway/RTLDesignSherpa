@@ -477,7 +477,8 @@ class ModelConfig:
                                        #   priced for memory-controllers MC-024 (no read cap, writes capped at wr_burst, a write
                                        #   turn forced after wr_starve slots of a starved write head)
     wr_starve: int = 512               # GraniteSKU dir_mode 1: write-starvation bound, MC cycles
-    wr_burst: int = 16                 # GraniteSKU dir_mode 1: write hold cap, columns
+    wr_burst: int = 128                # GraniteSKU dir_mode 1: write hold cap, columns (512 / 128 = the CSR reset, the
+                                       #   owner's MC-024 decision 1 of 2026-11-24: 140 MB/s of writes while reads hold the bus)
                                        #   column + tRTP / tWR) in MC cycles, the ACT at fire + t_rp_ap of the column's path (MC-020 decision 2;
                                        #   False = the CK-exact DRAM terms alone, the model before 2026-11-22)
     t_rp_ap_rd: int = 1                # GraniteSKU: TIMINGS_RP_AP.tRP_AP_RD -- the tRP the self-close reloads after an RDA, MC cycles (the host's

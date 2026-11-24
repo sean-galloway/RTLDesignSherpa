@@ -226,10 +226,10 @@ class GraniteSKUController : public ControllerBase {
   //   register does) or on write STARVATION: a write head queued wr_starve slots with no write column fired
   //   (registered, as the RTL would carry it). 0 = the symmetric register, the RTL. Priced and NOT carried: a
   //   pool-occupancy watermark drain (the writers refill the pool as fast as it drains, so the drain ran to the
-  //   cap and the reads starved: 289 MB/s), and a read quantum under write pressure (more turnarounds, a lower
-  //   write share: 113 against 124 on mixed_rd4).
+  //   cap and the reads starved: 289 MB/s), and a read quantum under write pressure (more turnarounds). The
+  //   defaults 512 / 128 are the CSR reset (MC-024 decision 1): 140 MB/s of writes while reads hold the bus.
   int m_dir_mode = 0;
-  int m_wr_starve = 512, m_wr_burst = 16;
+  int m_wr_starve = 512, m_wr_burst = 128;
   bool m_press = false;       // write starvation, registered
   int m_wr_wait = 0;          // slots a write head has been queued with no write column
   bool m_dir_owns_rows = true;
@@ -390,7 +390,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_mode, int, "dir_mode").default_val(0);
     RAMULATOR_PARSE_PARAM(m_wr_starve, int, "wr_starve").default_val(512);
-    RAMULATOR_PARSE_PARAM(m_wr_burst, int, "wr_burst").default_val(16);
+    RAMULATOR_PARSE_PARAM(m_wr_burst, int, "wr_burst").default_val(128);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);
     RAMULATOR_PARSE_PARAM(m_lane, int, "lane").default_val(3);
     RAMULATOR_PARSE_PARAM(m_lane_idle, int, "lane_idle").default_val(0);

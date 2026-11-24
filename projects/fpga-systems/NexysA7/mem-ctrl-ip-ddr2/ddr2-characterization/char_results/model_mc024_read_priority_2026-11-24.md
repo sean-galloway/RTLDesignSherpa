@@ -130,10 +130,14 @@ One mode on every refresh phase holds across the dial:
 
 Every point is one mode within 2 percent on 40 / 40 phases of both presets.
 
+**The owner's choice (MC-024 decision 1, 2026-11-24): 512 / 128** as the
+CSR reset; the model's `wr_burst` default and `sku_rdprio` follow it.
+
 ## 6. Record
 
 - Model: `dir_mode`, `wr_starve`, `wr_burst` (GraniteSKU knobs and
-  `ModelConfig` fields; preset `sku_rdprio` = 512 / 16); `dir_mode 0`
+  `ModelConfig` fields; preset `sku_rdprio` = 512 / 128 since decision 1,
+  512 / 16 in the first pricing); `dir_mode 0`
   reproduces the committed `_rfcb_2026-11-24` CSVs to the cycle on all four
   configs.
 - `sustained` suite: the mixed family's `param` lengthens the read (> 0) or

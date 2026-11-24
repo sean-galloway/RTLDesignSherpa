@@ -7,6 +7,7 @@ import importlib.util
 import os
 import sys
 
+import re
 import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -618,8 +619,9 @@ def test_rfc_block_is_the_sku_default_and_moves_the_first_act_after_a_refresh():
 def test_read_priority_register_makes_the_mixed_cell_one_mode_and_bounds_the_writes():
     """MC-024 (priced 2026-11-24): the read-priority direction register (dir_mode 1) takes the board's fast shape
     as the rule. On the mixed cell under both open-page presets it is ONE mode at two GO phases a refresh period
-    apart (the symmetric register is a race the refresh phase places, ISSUE-005), the union is above the
-    symmetric register's, the reads' mean latency halves, and no write head waits much past wr_starve."""
+    apart (the symmetric register is a race the refresh phase places, ISSUE-005), the reads and the union are
+    above the symmetric register's, the reads' mean latency falls, and no write head waits much past
+    wr_starve. At the CSR reset 512 / 128 (decision 1): ~455 MB/s reads, union ~599 against 555 / 581."""
     import os
     import tempfile
     from dataclasses import replace
@@ -640,8 +642,10 @@ def test_read_priority_register_makes_the_mixed_cell_one_mode_and_bounds_the_wri
         sym = out[(cfg, 0, 0)]
         rds = [float(r["rd_bw_mb_s"]) for r in rp]
         assert abs(rds[0] - rds[1]) / rds[0] < 0.02, (cfg, rds)                      # one mode
-        assert min(rds) > 1.5 * float(sym["rd_bw_mb_s"]), (cfg, rds, sym["rd_bw_mb_s"])
-        assert float(rp[0]["rd_avg_latency_cyc"]) < 0.75 * float(sym["rd_avg_latency_cyc"]), cfg
+        assert min(rds) > 1.2 * float(sym["rd_bw_mb_s"]), (cfg, rds, sym["rd_bw_mb_s"])
+        un = lambda r: float(re.search(r"union ([0-9.]+)", r["notes"])[1])
+        assert min(un(r) for r in rp) > 1.02 * un(sym), (cfg, [un(r) for r in rp], un(sym))
+        assert float(rp[0]["rd_avg_latency_cyc"]) < 0.9 * float(sym["rd_avg_latency_cyc"]), cfg
         assert all(float(r["wr_wait_max"]) < cm.CONFIGS[cfg].wr_starve + 128 for r in rp), cfg
     assert cm.CONFIGS["granite_sku100"].dir_mode == 0 and cm.CONFIGS["sku_rdprio"].dir_mode == 1
 
@@ -663,9 +667,13 @@ def test_contended_write_rate_is_measured_while_the_reads_hold_the_bus():
             return cm.run_scenario(replace(cm.CONFIGS["granite_sku100"], name="live", **kw), sc, t)
     sym = run(4, dir_mode=0)
     assert float(sym["wr_bw_rd_live_mb_s"]) == float(sym["wr_bw_mb_s"])            # writes finished first
-    rp4, rp16 = run(4, dir_mode=1), run(16, dir_mode=1)
+    rp4, rp16 = run(4, dir_mode=1, wr_burst=16), run(16, dir_mode=1, wr_burst=16)
     live4, live16 = float(rp4["wr_bw_rd_live_mb_s"]), float(rp16["wr_bw_rd_live_mb_s"])
     assert live4 < 0.4 * float(rp4["wr_bw_mb_s"]), (live4, rp4["wr_bw_mb_s"])      # the tail inflates the window
     assert abs(live4 - live16) / live16 < 0.1 and live16 < 40, (live4, live16)      # a steady floor
     wide = run(16, dir_mode=1, wr_starve=256, wr_burst=255)
+    # the CSR reset (512 / 128, MC-024 decision 1): ~140 MB/s of writes under sustained reads
+    reset = run(16, dir_mode=1)
+    assert (cm.CONFIGS["granite_sku100"].wr_starve, cm.CONFIGS["granite_sku100"].wr_burst) == (512, 128)
+    assert 120 < float(reset["wr_bw_rd_live_mb_s"]) < 160, reset["wr_bw_rd_live_mb_s"]
     assert float(wide["wr_bw_rd_live_mb_s"]) > float(sym["wr_bw_mb_s"]), wide["wr_bw_rd_live_mb_s"]
