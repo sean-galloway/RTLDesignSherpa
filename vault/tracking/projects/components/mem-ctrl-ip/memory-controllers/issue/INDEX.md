@@ -15,13 +15,21 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 1 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **ISSUE-007** -- the `bank_interleave` row-hit cells at the phase-exact
+  counters sit at the 583 MB/s ceiling with a per-pass draw a step below it
+  (566 on five to seven of eighteen cells, ~520 on one, the cells differing
+  run to run; single-direction passes, so not the direction register); the
+  model is 585 flat. Filed 2026-11-22 from MC-020 decision 1.
+
+## Closed
 
 - **ISSUE-005** -- the open-page mixed cell's slow attractor: the direction
   register's 255 / 255 cap alternation (272 / 272) where the fast mode, taken
@@ -30,13 +38,9 @@ exactly one state by construction rather than by discipline.
   2026-11-22, at the phase-exact counters: the model's preference inverted
   (fast at both GO phases on `defaults` and `open_page`) where the board stays
   slow (three of three, two of three).
-- **ISSUE-007** -- the `bank_interleave` row-hit cells at the phase-exact
-  counters sit at the 583 MB/s ceiling with a per-pass draw a step below it
-  (566 on five to seven of eighteen cells, ~520 on one, the cells differing
-  run to run; single-direction passes, so not the direction register); the
-  model is 585 flat. Filed 2026-11-22 from MC-020 decision 1.
-
-## Closed
+  Closed 2026-11-24 into MC-024: read priority is one mode on every run
+  (297 / 455 x3 on both open-page presets); the power-on register keeps the
+  race by decision. [closed/ISSUE-005.md](closed/ISSUE-005.md).
 
 - **ISSUE-006** -- the SKU model ran `defaults` (the hybrid page policy) as plain
   open page. Closed 2026-11-20 into a model term: the RTL's page policy

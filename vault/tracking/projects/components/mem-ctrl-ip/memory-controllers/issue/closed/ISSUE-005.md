@@ -8,7 +8,7 @@
 shows neither mode's race on the board (five of five runs at 272 / 273, see
 ISSUE-006); this is the `open_page` preset, and it is a throughput
 opportunity, not a correctness question.
-**Status:** open 2026-11-19
+**Status:** CLOSED 2026-11-24 into memory-controllers MC-024
 **Owner:** TBD
 
 ## The question
@@ -140,3 +140,13 @@ whose other presets never show it.
 > one mode on every refresh phase, the board's fast shape as the rule). This
 > issue closes into MC-024 when it lands on the board.
 
+
+> **Closed 2026-11-24 into MC-024** (`char_results/board_mc024_read_priority_sku100_2026-11-24.md`). The read-priority register
+> (`SCHED_POLICY.dir_mode` 1, 512 / 128) has one mode on every refresh phase
+> (proxy five of five, model 40 of 40 under both open-page presets) and on
+> every board run: `defaults` and `open_page` mixed_bl8 297 / 455 x3 each,
+> union 594 against the symmetric register's 553 / 559, 0 mismatched. The
+> power-on register stays symmetric by the owner's decision ("power up should
+> be the most generic setting"), and with it the race this issue describes:
+> it is a property of the generic setting, and the optimized setting for the
+> mixed cell is a CSR write.

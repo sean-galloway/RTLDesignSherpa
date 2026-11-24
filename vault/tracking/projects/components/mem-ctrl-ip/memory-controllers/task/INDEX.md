@@ -5,8 +5,8 @@
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 2 | in progress right now |
-| [closed/](closed/) | 19 | done (kept for history) |
+| [active/](active/) | 1 | in progress right now |
+| [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -21,14 +21,6 @@
   making it worse. Filed 2026-11-22 from MC-020 decision 2.
 
 ## Active
-
-- **MC-024** -- the read-priority direction register: a runtime mode of
-  the pick core's register (no read cap, write holds capped at `wr_burst`,
-  a write turn after `wr_starve` starved cycles). Owner's decisions
-  2026-11-24: knobs reset 512 / 128 (mixed cell 299 / 454, union 599
-  against 555; 140 MB/s of writes while reads hold the bus), `dir_mode`
-  resets 0 (power-up is the most generic setting); benchmarks report each
-  cell at the defaults and at its optimized settings. RTL in progress.
 
 - **MC-023** -- the SKU model's open fidelity terms. Item 2 DONE 2026-11-23:
   the self-close lookahead guard was true at `ap_close_lag` 0 (a pending
@@ -59,6 +51,17 @@
   Dropped: no timing gain, 277 LUT against a measured loss.
 
 ## Closed
+
+- **MC-024** -- the read-priority direction register: a runtime mode of
+  the pick core's register (no read cap, write holds capped at `wr_burst`,
+  a write turn after `wr_starve` starved cycles). Owner's decisions
+  2026-11-24: knobs reset 512 / 128 (mixed cell 299 / 454, union 599
+  against 555; 140 MB/s of writes while reads hold the bus), `dir_mode`
+  resets 0 (power-up is the most generic setting); benchmarks report each
+  cell at the defaults and at its optimized settings. CLOSED 2026-11-24: built and proved, closes at 100 MHz (+0.003); on the
+  board the open-page mixed cells are 297 / 455 x3 (union 594 against
+  553 / 559), one mode on every run, the model 56 in / 1 out; ISSUE-005
+  closed into it. [closed/MC-024.md](closed/MC-024.md).
 
 - **MC-020** -- a row command into the idle main slot or the column's own
   bank: the one-slot rule still costs `col_major` +14.6 / +9.5 / +5.3 percent
