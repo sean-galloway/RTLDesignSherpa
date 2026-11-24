@@ -429,6 +429,7 @@ module jet_prime_coh_core
     logic                       wb_full;
     logic [LINE_W-1:0]          ctrl_wb_sn_line;
     logic                       wb_sn_hit;
+    logic                       wb_sn_passed;
     logic [1:0]                 ctrl_wb_sn_eff;
     logic [WB_W-1:0]            wb_sn_match_idx;
     logic                       ctrl_wb_sn_lock;
@@ -629,6 +630,7 @@ module jet_prime_coh_core
         .wb_full_i               (wb_full),
         .wb_sn_line_o            (ctrl_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
+        .wb_sn_passed_i          (wb_sn_passed),
         .wb_sn_eff_o             (ctrl_wb_sn_eff),
         .wb_sn_match_idx_i       (wb_sn_match_idx),
         .wb_sn_lock_o            (ctrl_wb_sn_lock),
@@ -772,9 +774,11 @@ module jet_prime_coh_core
         .drain_addr_o    (wb_drain_addr),
         .drain_beat_idx_i (wb_drain_beat_idx),
         .drain_beat_data_o(wb_drain_beat_data),
+        .drain_start_i   (ctrl_drain_start),
         .drain_done_i    (eng_drain_done),
         .sn_line_i       (ctrl_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
+        .sn_passed_o     (wb_sn_passed),
         .sn_match_idx_o  (wb_sn_match_idx),
         .sn_lock_i       (ctrl_wb_sn_lock),
         .sn_rd_slot_i    (ctrl_wb_sn_rd_slot),

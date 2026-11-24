@@ -847,7 +847,8 @@ module jet_prime_pair_fabric
     // Write port: write-back pass-through + PassDirty absorption, one
     // burst in flight system-wide, fair round-robin {wb0, wb1, absorb}.
     // A write-back to a line with a slot that has no verdict yet, or an
-    // absorption not yet landed, holds.
+    // absorption not yet landed, holds.  Two write-backs to one line go
+    // in the order they were presented (below).
     // ------------------------------------------------------------------
     localparam logic [1:0] W_IDLE = 2'd0;
     localparam logic [1:0] W_AW   = 2'd1;
@@ -860,10 +861,42 @@ module jet_prime_pair_fabric
     logic [1:0]        r_w_rr;
     logic [BEAT_INDEX_WIDTH-1:0] r_w_beat;
 
+    // Write-backs to one line in presentation order (jet-prime BUG-002).
+    // A cache whose victim drain had started when a snoop passed the line
+    // dirty still drains it (its AW is presented and cannot be withdrawn);
+    // that AW is held above until the absorption lands, and once released
+    // it must not lose the round-robin to the NEW owner's later write-back
+    // of the same line, or the stale bytes land last.  A write-back
+    // presented while the other cache already presents one to the same
+    // line yields until that one is taken; the one burst in flight then
+    // orders the two in memory.  (Two first presented in the same cycle
+    // cannot be a stale/new pair: the new owner's write-back follows its
+    // own fill, which follows the verdict that the stale AW predates.)
+    logic [1:0] r_aw_pres;    // presented last cycle and not taken
+    logic [1:0] r_aw_yield;   // presented after the other's, same line
+    logic       w_aw_same_line;
+    logic [1:0] w_aw_younger;
+    assign w_aw_same_line = c_awvalid[0] & c_awvalid[1]
+                            & (line_of(c_awaddr[0]) == line_of(c_awaddr[1]));
+    assign w_aw_younger[0] = w_aw_same_line
+                             & (r_aw_yield[0] | (r_aw_pres[1] & ~r_aw_pres[0]));
+    assign w_aw_younger[1] = w_aw_same_line
+                             & (r_aw_yield[1] | (r_aw_pres[0] & ~r_aw_pres[1]));
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_aw_pres  <= '0;
+            r_aw_yield <= '0;
+        end else begin
+            r_aw_pres  <= c_awvalid & ~{c1_awready, c0_awready};
+            r_aw_yield <= w_aw_younger;
+        end
+    )
+
     logic [1:0] w_wb_blocked;
     always_comb begin
         for (int d = 0; d < 2; d++) begin
-            w_wb_blocked[d] = 1'b0;
+            w_wb_blocked[d] = w_aw_younger[d];
             for (int s = 0; s < FAB_SLOTS; s++) begin
                 if (r_vld[s] && (r_line[s] == line_of(c_awaddr[d]))
                     && (!r_cr_done[s] || (r_pd[s] && !r_abs_done[s])))

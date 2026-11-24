@@ -451,8 +451,19 @@ class JetFillTB(TBBase):
         # held slot stays in flight
         for _ in range(60):
             await self._cycle()
-        self._score("hold: no beat presented while the hold is up",
-                    sum(r['beats'] for k, r in self.slot.items() if k in (1, 2)), 0)
+        # the held slot presents no beat; the one behind it only when its
+        # burst queued behind the held one (in order) -- out of order it may
+        # be mid-burst at this sample, legitimately (the hold is per
+        # (set, way)), so its partial count is not a violation
+        self.log.info(f"hold: beats so far slot1="
+                      f"{self.slot[1]['beats'] if 1 in self.slot else '-'} "
+                      f"slot2={self.slot[2]['beats'] if 2 in self.slot else '-'} "
+                      f"ooo={self.ooo}")
+        self._score("hold: no beat of the held slot presented while the hold is up",
+                    self.slot[1]['beats'] if 1 in self.slot else 0, 0)
+        if two and not self.ooo:
+            self._score("hold: no beat of the slot behind the held head (in order)",
+                        self.slot[2]['beats'] if 2 in self.slot else 0, 0)
         self._score("hold: slot 1 still in flight", 1 in self.slot, True)
         # the second fill waits behind the held head only when its burst
         # queued behind it -- the in-order responder (gate); out of order

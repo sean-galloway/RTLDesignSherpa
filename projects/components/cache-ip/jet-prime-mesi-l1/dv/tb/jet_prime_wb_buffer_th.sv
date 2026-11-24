@@ -51,11 +51,13 @@ module jet_prime_wb_buffer_th
     output logic [ADDR_WIDTH-1:0]    drain_addr_o,
     input  logic [BEAT_W-1:0]        drain_beat_idx_i,
     output logic [BUS_WIDTH-1:0]     drain_beat_data_o,
+    input  logic                     drain_start_i,
     input  logic                     drain_done_i,
 
     // Snarf (beat-addressed stream reads + the slot lock)
     input  logic [LINE_W-1:0]        sn_line_i,
     output logic                     sn_hit_o,
+    output logic                     sn_passed_o,
     output logic [SLOT_W-1:0]        sn_match_idx_o,
     input  logic                     sn_lock_i,
     input  logic [SLOT_W-1:0]        sn_rd_slot_i,

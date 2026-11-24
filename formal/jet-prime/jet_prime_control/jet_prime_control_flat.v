@@ -373,9 +373,11 @@ module jet_prime_wb_buffer (
 	drain_addr_o,
 	drain_beat_idx_i,
 	drain_beat_data_o,
+	drain_start_i,
 	drain_done_i,
 	sn_line_i,
 	sn_hit_o,
+	sn_passed_o,
 	sn_match_idx_o,
 	sn_lock_i,
 	sn_rd_slot_i,
@@ -415,9 +417,11 @@ module jet_prime_wb_buffer (
 	output wire [ADDR_WIDTH - 1:0] drain_addr_o;
 	input wire [BEAT_W - 1:0] drain_beat_idx_i;
 	output wire [BUS_WIDTH - 1:0] drain_beat_data_o;
+	input wire drain_start_i;
 	input wire drain_done_i;
 	input wire [LINE_W - 1:0] sn_line_i;
 	output wire sn_hit_o;
+	output wire sn_passed_o;
 	output wire [SLOT_W - 1:0] sn_match_idx_o;
 	input wire sn_lock_i;
 	input wire [SLOT_W - 1:0] sn_rd_slot_i;
@@ -427,23 +431,25 @@ module jet_prime_wb_buffer (
 	input wire [1:0] sn_eff_i;
 	output reg [OCC_W - 1:0] wb_occupancy_o;
 	initial if ((LINE_W + OFFSET_W) != ADDR_WIDTH)
-		$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:162:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_W + $clog2(LINE_BYTES) must equal ADDR_WIDTH");
+		$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:184:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_W + $clog2(LINE_BYTES) must equal ADDR_WIDTH");
 	initial begin
 		if ((VICTIM_DEPTH < 1) || (VICTIM_DEPTH > 4))
-			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:172:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: VICTIM_DEPTH must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:194:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: VICTIM_DEPTH must be in 1..4 (J5)");
 		if ((LINE_BYTES & (LINE_BYTES - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:174:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_BYTES must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:196:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_BYTES must be a power of two");
 		if ((BUS_WIDTH % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:176:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: BUS_WIDTH must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:198:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: BUS_WIDTH must be a multiple of 8");
 		if (FILL_BEATS < 2)
-			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:178:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_BYTES / BUS_WIDTH*8 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:200:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_BYTES / BUS_WIDTH*8 must be >= 2");
 	end
 	reg [VICTIM_DEPTH - 1:0] r_valid;
 	reg [VICTIM_DEPTH - 1:0] r_allocated;
 	reg [LINE_W - 1:0] r_line [0:VICTIM_DEPTH - 1];
 	(* ram_style = "distributed" *) reg [BUS_WIDTH - 1:0] r_data [0:((2 ** SLOT_W) * FILL_BEATS) - 1];
 	reg [BEAT_W - 1:0] r_beats_rcvd [0:VICTIM_DEPTH - 1];
-	reg [1:0] r_eff [0:VICTIM_DEPTH - 1];
+	reg [VICTIM_DEPTH - 1:0] r_dead;
+	reg [VICTIM_DEPTH - 1:0] r_passed;
+	reg r_head_draining;
 	reg [SLOT_W - 1:0] r_head;
 	reg [SLOT_W - 1:0] r_tail;
 	reg [SLOT_W - 1:0] r_open_slot;
@@ -456,7 +462,9 @@ module jet_prime_wb_buffer (
 	assign cap_gnt_o = cap_i & (r_open | w_any_free);
 	assign cap_slot_o = (r_open ? r_open_slot : r_tail);
 	wire [SLOT_W - 1:0] w_head_idx;
+	wire w_head_drain_live;
 	assign w_head_idx = r_head;
+	assign w_head_drain_live = r_head_draining | drain_start_i;
 	assign drain_valid_o = r_valid[w_head_idx];
 	function automatic [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5;
 		input reg [ADDR_WIDTH - 1:0] inp;
@@ -493,6 +501,7 @@ module jet_prime_wb_buffer (
 		end
 	end
 	assign sn_hit_o = w_sn_match;
+	assign sn_passed_o = w_sn_match & r_passed[w_sn_match_idx];
 	assign sn_match_idx_o = w_sn_match_idx;
 	assign sn_rd_data_o = r_data[{sn_rd_slot_i, sn_rd_beat_i}];
 	assign sn_bresp_cycle_o = (w_sn_match & drain_done_i) & (w_sn_match_idx == w_head_idx);
@@ -522,13 +531,15 @@ module jet_prime_wb_buffer (
 			r_tail <= 1'sb0;
 			r_open <= 1'b0;
 			r_open_slot <= 1'sb0;
+			r_dead <= 1'sb0;
+			r_passed <= 1'sb0;
+			r_head_draining <= 1'b0;
 			begin : sv2v_autoblock_4
 				reg signed [31:0] s;
 				for (s = 0; s < VICTIM_DEPTH; s = s + 1)
 					begin
 						r_line[s] <= 1'sb0;
 						r_beats_rcvd[s] <= 1'sb0;
-						r_eff[s] <= 1'sb0;
 					end
 			end
 		end
@@ -540,7 +551,8 @@ module jet_prime_wb_buffer (
 				r_valid[r_tail] <= 1'b0;
 				r_line[r_tail] <= cap_line_i;
 				r_beats_rcvd[r_tail] <= 1'sb0;
-				r_eff[r_tail] <= 2'b00;
+				r_dead[r_tail] <= 1'b0;
+				r_passed[r_tail] <= 1'b0;
 				r_tail <= sv2v_cast_7C1AF_signed((sv2v_cast_32_signed(r_tail) + 1) % VICTIM_DEPTH);
 			end
 			if (r_open && cap_beat_i) begin : sv2v_autoblock_5
@@ -552,11 +564,23 @@ module jet_prime_wb_buffer (
 					r_open <= 1'b0;
 				end
 			end
-			if (w_sn_match && (sn_eff_i != 2'b00))
-				r_eff[w_sn_match_idx] <= sn_eff_i;
-			if (drain_done_i && r_allocated[w_head_idx]) begin
+			if (w_sn_match && (sn_eff_i != 2'b00)) begin
+				if (w_head_drain_live && (w_sn_match_idx == w_head_idx))
+					r_passed[w_sn_match_idx] <= 1'b1;
+				else begin
+					r_valid[w_sn_match_idx] <= 1'b0;
+					r_dead[w_sn_match_idx] <= 1'b1;
+				end
+			end
+			if (drain_start_i)
+				r_head_draining <= 1'b1;
+			else if (drain_done_i)
+				r_head_draining <= 1'b0;
+			if ((drain_done_i || r_dead[w_head_idx]) && r_allocated[w_head_idx]) begin
 				r_valid[w_head_idx] <= 1'b0;
 				r_allocated[w_head_idx] <= 1'b0;
+				r_dead[w_head_idx] <= 1'b0;
+				r_passed[w_head_idx] <= 1'b0;
 				r_head <= sv2v_cast_7C1AF_signed((sv2v_cast_32_signed(r_head) + 1) % VICTIM_DEPTH);
 			end
 		end
@@ -748,6 +772,7 @@ module jet_prime_control (
 	wb_full_i,
 	wb_sn_line_o,
 	wb_sn_hit_i,
+	wb_sn_passed_i,
 	wb_sn_eff_o,
 	wb_sn_match_idx_i,
 	wb_sn_lock_o,
@@ -910,6 +935,7 @@ module jet_prime_control (
 	input wire wb_full_i;
 	output wire [LINE_W - 1:0] wb_sn_line_o;
 	input wire wb_sn_hit_i;
+	input wire wb_sn_passed_i;
 	output wire [1:0] wb_sn_eff_o;
 	input wire [WB_W - 1:0] wb_sn_match_idx_i;
 	output wire wb_sn_lock_o;
@@ -963,19 +989,19 @@ module jet_prime_control (
 	output wire ctrl_error_o;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:498:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:501:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:500:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:503:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:502:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:505:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:504:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:507:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:506:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:509:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
 		if ((2 < 2) || (2 > 16))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:508:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:511:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
 		if ((2 < 1) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:510:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:513:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
 	end
 	localparam [2:0] STALL_NONE = 3'd0;
 	localparam [2:0] STALL_MSHR_FULL = 3'd1;
@@ -1215,6 +1241,7 @@ module jet_prime_control (
 	reg [2:0] w_sn_tstate;
 	reg w_sn_tclaimed;
 	wire w_src_wb;
+	wire w_sn_wb_live;
 	wire w_src_mshr;
 	wire w_src_array;
 	wire [1:0] w_sn_src;
@@ -1267,7 +1294,7 @@ module jet_prime_control (
 					w_sn_tclaimed = 1'b1;
 		end
 	end
-	assign w_src_wb = wb_sn_hit_i;
+	assign w_src_wb = wb_sn_hit_i & ~wb_sn_passed_i;
 	wire [MW - 1:0] w_launch_idx;
 	wire w_mshr_pre_ar;
 	assign w_launch_idx = (r_fill_pend ? r_fill_idx : mshr_alloc_idx_i);
@@ -1736,7 +1763,8 @@ module jet_prime_control (
 	assign wb_cap_line_o = (w_cap_active ? r_cap_line : {w_victim_tag, w_req_set});
 	assign wb_cap_beat_o = (0 ? r_cap_d1 : w_cap_adr);
 	assign wb_cap_beat_data_o = dat_b_rdata_i;
-	assign drain_start_o = wb_drain_valid_i & ~r_drain_busy;
+	assign w_sn_wb_live = (w_sn_gnt & w_src_wb) | ((r_sn_state != SN_IDLE) & (r_sn_src == SRC_WB));
+	assign drain_start_o = (wb_drain_valid_i & ~r_drain_busy) & ~w_sn_wb_live;
 	function automatic signed [SET_W - 1:0] sv2v_cast_DCA8A_signed;
 		input reg signed [SET_W - 1:0] inp;
 		sv2v_cast_DCA8A_signed = inp;

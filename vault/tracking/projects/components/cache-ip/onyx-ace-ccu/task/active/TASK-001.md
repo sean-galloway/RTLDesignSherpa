@@ -534,3 +534,31 @@ Found and measured:
   (and the io-first `perf_sweep_onyx_bin5_dual_20261124T093316Z`, kept
   as the order trap's evidence). HAS ch06/01 board row, ch06/02 bin 5
   rows and reading.
+- 2026-11-24 **onyx ISSUE-002 resolved on both sides (jet-prime BUG-002).**
+  Wider than filed: a coherence bug between any two writers, not an IO
+  race. A hot-set soak phase in jet-prime's pair rig (both CPUs, 70 %
+  writes, `WAYS + 3` tags in two sets) reproduced it with two caches and
+  no IO port: 2 of 20 full cells, seed 83331 line 0x1b9 -- a victim's
+  drain held at the fabric while a snoop passed its line on, released
+  after the absorption, lost the round-robin to the new owner's write-back
+  and landed 13 cycles after it. Fixed: jet-prime ends a WB entry a snoop
+  passes on before its drain starts, marks a draining one passed (drains,
+  answers no further snoop), holds drain starts during a WB-sourced snoop;
+  onyx and the pair fabric forward two write-backs to one line in
+  presentation order (`r_aw_pres` / `r_aw_yield`; the IO rule stays). The
+  onyx rig's hot phase also puts the IO's ReadOnce / WriteUnique /
+  WriteLineUnique on the hot cache lines (before: its own region only);
+  that exposed a model gap shared with jet-prime's rig and core model (a
+  second snoop to a line whose pending upgrade a snoop had killed was
+  resolved as resident S; the RTL's Invalid is right). **Results:** onyx
+  full 51/51 from clean (24-98 WB snarfs per cache per cell, 4-32 entries
+  ended, 17-74 passed drains, same-line write-back pairs in 3 cells; e.g.
+  `s128w4l64b64` full IO: 325 ReadOnce, 243 shareable writes, 69 with a
+  supplier); jet-prime full 155/155; ref gate 9/9; lint SEL 3/4/5 clean.
+  Mutations: the order hold removed fails a pair-rig seed (116 of 24) at
+  the new order check first; entries never ended fails 26 of 26 cells.
+  Formal: `ap_wb_order` (onyx, pair fabric), control `ap_wb_no_drain_in_svc`
+  / `ap_wb_ended_never_drains`; all covers reached (onyx 28/28); flats
+  regenerated (onyx md5 9dc5d1a2d7); proofs running. Why the suites missed
+  it: jet-prime BUG-002 and the handbook escape analysis. jet carries the
+  same rule (jet BUG-005, deferred: jet is frozen).

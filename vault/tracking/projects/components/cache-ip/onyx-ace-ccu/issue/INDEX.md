@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-002** ([page](open/ISSUE-002.md)) — a snarfed write-back victim still drains after passing the line dirty (jet-prime's buffer contract); an IO WriteUnique that lands before the late drain is overwritten; the onyx-side ordering is in, the cache-side cancel is jet-prime's (filed 2026-11-23)
+(none)
 
 ## Active
 
-(none)
+- **ISSUE-002** ([page](active/ISSUE-002.md)) — a snarfed write-back victim still drains after passing the line dirty; wider than filed: a coherence bug between any two writers, reproduced with two caches as jet-prime BUG-002. Resolved 2026-11-24 on both sides (the cache ends a passed-on entry; onyx and the pair fabric order same-line write-backs by presentation); closes on the proofs (filed 2026-11-23)
 
 ## Closed
 

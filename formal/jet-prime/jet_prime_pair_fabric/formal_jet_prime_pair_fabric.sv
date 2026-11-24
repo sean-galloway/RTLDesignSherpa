@@ -886,6 +886,29 @@ module formal_jet_prime_pair_fabric #(
     // (which ID was taken when, what the snoop queue holds) -- an order of
     // magnitude dearer per step, proven to depth 16, past every cover's
     // witness and one slot lifetime plus its reuse.
+    // ------------------------------------------------------------------
+    // Write-back order (jet-prime BUG-002): when both caches present a
+    // write-back to one line, the one presented first is taken first --
+    // a stale drain (its snoop passed the line on after the AW went out)
+    // must land before the new owner's write-back, not after.  f_since[d]
+    // counts the cycles d's current AW has been presented (5 bits, past
+    // the BMC depth).
+    // ------------------------------------------------------------------
+    reg [4:0] f_since0, f_since1;
+    always @(posedge clk) begin
+        if (!rst_n || !c_awvalid[0] || c_awready[0]) f_since0 <= 5'd0;
+        else if (f_since0 != 5'd31) f_since0 <= f_since0 + 5'd1;
+        if (!rst_n || !c_awvalid[1] || c_awready[1]) f_since1 <= 5'd0;
+        else if (f_since1 != 5'd31) f_since1 <= f_since1 + 5'd1;
+    end
+    wire f_aw_same = c_awvalid[0] && c_awvalid[1]
+                     && (line_of(c0_awaddr) == line_of(c1_awaddr));
+    wire [1:0] v_wb_order;
+    assign v_wb_order[0] = c_awvalid[0] && c_awready[0] && f_aw_same
+                           && (f_since1 > f_since0);
+    assign v_wb_order[1] = c_awvalid[1] && c_awready[1] && f_aw_same
+                           && (f_since0 > f_since1);
+
 `ifdef PROVE_CORE
     always @(posedge clk) begin
         if (rst_n && (f_past_valid >= 2)) begin
@@ -915,6 +938,7 @@ module formal_jet_prime_pair_fabric #(
             ap_rack_source:   assert (v_rack_src == 4'd0);
             ap_free_complete: assert (v_free == 4'd0);
             ap_wb_select_hold: assert (v_wb_hold == 4'd0);
+            ap_wb_order:      assert (v_wb_order == 2'd0);
             ap_mar_stable:    assert (!v_mar_stable);
             ap_r_stable:      assert (v_r_stable == 2'd0);
             ap_ac_stable:     assert (v_ac_stable == 2'd0);
@@ -980,6 +1004,10 @@ module formal_jet_prime_pair_fabric #(
             cp_two_reads_out: cover ((mo == 4'b0011) || (mo == 4'b0101) || (mo == 4'b0110)
                                      || (mo == 4'b1001) || (mo == 4'b1010) || (mo == 4'b1100));
             cp_slot_freed:    cover ((vld_d & ~obs_vld) != 4'd0);
+            // BUG-002: two write-backs to one line, the younger taken
+            // after the older (the order hold exercised)
+            cp_wb_order_wait: cover (f_aw_same && (c_awready != 2'd0)
+                                     && (f_since0 != f_since1));
         end
     end
 

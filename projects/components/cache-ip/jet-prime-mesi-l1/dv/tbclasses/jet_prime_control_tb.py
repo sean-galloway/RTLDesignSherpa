@@ -2369,16 +2369,13 @@ class JetControlTB(TBBase):
                 break
         else:
             raise RuntimeError("snarf: capture never completed")
-        # snoop 1: ReadOnce the victim line mid-drain -- snarfed at M with
-        # the buffered data; the effect is recorded on the WB entry.
-        exp_cd = [self._beat_of(vdata, b) for b in range(self.FILL_BEATS)]
-        res = await self._snoop(vline, SN_READ_ONCE, 'snarf:ro',
-                                ref='M', deliver=True, exp_cd=exp_cd)
-        self._score("snarf: effect recorded on the WB entry",
-                    res['wb_eff'], PEND_INVALIDATE_I)
-        # the race: present snoop 2 so its grant cycle IS the entry's
+        # the race: present the snoop so its grant cycle IS the entry's
         # BRESP cycle (the drain stub exposes its countdown; the drive
-        # point after a settle that observed it at 0 is the BRESP cycle)
+        # point after a settle that observed it at 0 is the BRESP cycle).
+        # (An earlier snoop mid-drain would have passed the entry on, and
+        # a passed entry answers no further snoop -- jet-prime BUG-002;
+        # that case is wbwait (b2).)
+        exp_cd = [self._beat_of(vdata, b) for b in range(self.FILL_BEATS)]
         res = await self._snoop(vline, SN_CLEAN_SHARED, 'snarf:bresp',
                                 ref='M', deliver=True, exp_cd=exp_cd,
                                 sync_drain_cd=True)
@@ -2629,8 +2626,15 @@ class JetControlTB(TBBase):
         exp_cd_a = [self._beat_of(va_data, b) for b in range(self.FILL_BEATS)]
         res = await self._snoop(va, SN_READ_ONCE, 'wbwait:snarf',
                                 ref='M', deliver=True, exp_cd=exp_cd_a)
-        self._score("wbwait: snarf recorded the effect",
+        self._score("wbwait: snarf presented the effect",
                     res['wb_eff'], PEND_INVALIDATE_I)
+        # (b2) the same line again: the head's drain had started, so the
+        # first snoop passed the entry on -- it still drains, but answers
+        # no further snoop (the Invalid row, no data; jet-prime BUG-002)
+        res = await self._snoop(va, SN_READ_ONCE, 'wbwait:passed',
+                                ref='I', deliver=False)
+        self._score("wbwait: a passed entry presents no effect",
+                    res['wb_eff'], 0)
         # (c) an absent line: the Invalid row, no CD
         res = await self._snoop((0x5F0 << self.SET_BITS) | 60,
                                 SN_READ_UNIQUE, 'wbwait:absent',

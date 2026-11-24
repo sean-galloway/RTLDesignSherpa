@@ -1002,11 +1002,47 @@ module onyx_ccu
     logic [WSEL_W-1:0] r_w_rr;
     logic [BEAT_INDEX_WIDTH-1:0] r_w_beat;
 
+    // Write-backs to one line in presentation order (jet-prime BUG-002).
+    // A cache whose victim drain had started when a snoop passed the line
+    // dirty still drains it (its AW is presented and cannot be withdrawn);
+    // the hold below keeps it until the absorption lands, and once
+    // released it must not lose the round-robin to the NEW owner's later
+    // write-back of the same line, or the stale bytes land last.  A
+    // write-back presented while another port already presents one to the
+    // same line yields until that one is taken; the one burst in flight
+    // then orders the two in memory.  (Two first presented in the same
+    // cycle cannot be a stale/new pair: the new owner's write-back follows
+    // its own fill, which follows the verdict that the stale AW predates.)
+    logic [N_PORTS-1:0] r_aw_pres;    // presented last cycle and not taken
+    logic [N_PORTS-1:0] r_aw_yield;   // presented after another's, same line
+    logic [N_PORTS-1:0] w_aw_younger;
+    always_comb begin
+        for (int d = 0; d < N_PORTS; d++) begin
+            w_aw_younger[d] = 1'b0;
+            for (int e = 0; e < N_PORTS; e++) begin
+                if ((e != d) && c_awvalid[d] && c_awvalid[e]
+                    && (line_of(c_awaddr[d]) == line_of(c_awaddr[e]))
+                    && (r_aw_yield[d] || (r_aw_pres[e] && !r_aw_pres[d])))
+                    w_aw_younger[d] = 1'b1;
+            end
+        end
+    end
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_aw_pres  <= '0;
+            r_aw_yield <= '0;
+        end else begin
+            r_aw_pres  <= c_awvalid & ~c_awready;
+            r_aw_yield <= w_aw_younger;
+        end
+    )
+
     logic [N_PORTS-1:0] w_wb_blocked;
     logic               w_wb_blocked_io;   // the IO's non-shareable write, the same hold
     always_comb begin
         for (int d = 0; d < N_PORTS; d++) begin
-            w_wb_blocked[d] = 1'b0;
+            w_wb_blocked[d] = w_aw_younger[d];
             for (int s = 0; s < SLOTS; s++) begin
                 if (r_vld[s] && (r_line[s] == line_of(c_awaddr[d]))
                     && (!w_gathered[s] || (r_pd[s] && !r_abs_done[s])))
@@ -1023,8 +1059,9 @@ module onyx_ccu
 
     // the IO's WriteUnique forwards once its slot is gathered and any
     // PassDirty line absorbed -- and once no cache presents a write-back
-    // to the line: a victim snarfed for the snoop still drains (jet-prime's
-    // WB buffer), and it must land before the IO's data, not after
+    // to the line: a victim whose drain had started when the snoop passed
+    // it dirty still drains (jet-prime's WB buffer cannot withdraw a
+    // presented AW), and it must land before the IO's data, not after
     logic w_io_line_wb;
     always_comb begin
         w_io_line_wb = 1'b0;

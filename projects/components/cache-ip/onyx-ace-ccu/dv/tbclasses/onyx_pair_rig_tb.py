@@ -276,6 +276,8 @@ class OnyxPairRigTB(JetPairRigTB):
         await self._s_io_concurrent()
         if self.TEST_LEVEL in ('func', 'full'):
             await self._random_lockstep(self.FULL_TXN[self.TEST_LEVEL])
+            await self._hot_set_contention(self.FULL_TXN[self.TEST_LEVEL])
+            self._scenario('HotSetContention')
             if self.USE_MONITOR == 0:
                 self._scenario('MonbusPresentVsAbsent')
         await self._quiescence()
@@ -646,12 +648,31 @@ class OnyxPairRigTB(JetPairRigTB):
         got_crresp = int(uc.sn_crresp_o.value)
         side.snoops += 1
 
+        try:
+            rtl_src = (f"wb={int(uc.w_src_wb.value)} mshr={int(uc.w_src_mshr.value)} "
+                       f"arr={int(uc.w_src_array.value)} ref={int(uc.w_sn_ref.value)} "
+                       f"pre_ar={int(uc.w_mshr_pre_ar.value)}")
+        except AttributeError:
+            rtl_src = '?'
+        self._dbg(line, f"snoop grant c{c} {name} crresp={got_crresp:#x} rtl[{rtl_src}] "
+                  f"model wb={line in side.wb} passed={line in side.wb_passed} "
+                  f"entry={line in side.entries} upgr={side.upgr['valid'] and side.upgr['line'] == line} "
+                  f"state={self._installed_state(side, line)}")
         cd = None
-        if line in side.wb:
+        if line in side.wb and line not in side.wb_passed:
+            # the base's WB rule (jet-prime BUG-002): the entry passes the
+            # line on and ends, or -- its drain started -- drains and
+            # answers no further snoop
             res = oracle_step('M', name)
             side.wb_grants += 1
             if (res.crresp >> CRRESP_DT) & 1:
                 cd = side.wb[line]
+            if side.draining == line:
+                side.wb_passed.add(line)
+            else:
+                del side.wb[line]
+                side.wb_order.remove(line)
+                side.ended += 1
         elif line in side.entries:
             e = side.entries[line]
             if not e['ar']:
@@ -676,7 +697,10 @@ class OnyxPairRigTB(JetPairRigTB):
                 res = res._replace(crresp=crresp)
                 if (crresp >> CRRESP_DT) & 1:
                     cd = e['src']
-        elif side.upgr['valid'] and line == side.upgr['line']:
+        elif (side.upgr['valid'] and line == side.upgr['line']
+              and not side.upgr['killed']):
+            # (a killed upgrade's line was invalidated by the snoop
+            # that killed it: a later snoop resolves on the array, I)
             res = oracle_step('S', name)
             if res.next_state != 'S':
                 side.exp_sn_tagwr.append({
@@ -859,6 +883,7 @@ class OnyxPairRigTB(JetPairRigTB):
         """One IO read: ReadOnce (shareable) or ReadNoSnoop; full-width INCR
         beats.  Queued for the model before the AR is presented; its data
         is scored on the wire."""
+        self._dbg(self._line_of(addr), f"IO read issue {label} sh={shareable} n={nbeats}")
         size = self.STRB_W.bit_length() - 1
         ctx = self._io_ctx('rd', addr, nbeats, size, shareable, CLS_IO_READ, label)
         self.ft_queue[IO].append(ctx)
@@ -912,6 +937,7 @@ class OnyxPairRigTB(JetPairRigTB):
         WriteNoSnoop; full-width INCR beats with one strobe for the burst.
         A shareable write is queued for the model (it takes a slot); a
         non-shareable one awaits its AW on the pass-through queue."""
+        self._dbg(self._line_of(addr), f"IO write issue {label} sh={shareable} lu={line_unique}")
         size = self.STRB_W.bit_length() - 1
         cls = CLS_IO_WRITE
         ctx = self._io_ctx('wr', addr, len(beats), size, shareable, cls, label)
@@ -1126,14 +1152,17 @@ class OnyxPairRigTB(JetPairRigTB):
         self._scenario('IoConcurrent')
 
     # ---------------- the random IO loop beside the CPU loops
-    async def _io_loop(self, n, rng):
+    async def _io_loop(self, n, rng, coh_lines=None):
+        """The IO's soak.  coh_lines (the hot phase): its coherent kinds
+        (ReadOnce, WriteUnique, WriteLineUnique) go to those cache lines;
+        the non-snooping kinds stay in its own region either way."""
         full = (1 << self.STRB_W) - 1
         for i in range(n):
             r = rng.random()
             nb = rng.randrange(1, self.FILL_BEATS + 1)
             if r < 0.40:
                 # ReadOnce anywhere (the caches' lines included)
-                line = rng.randrange(self.SPAN)
+                line = rng.choice(coh_lines) if coh_lines else rng.randrange(self.SPAN)
                 b0 = rng.randrange(self.FILL_BEATS - nb + 1)
                 await self._io_read(self._base_of(line) + b0 * self.STRB_W, nb, True, f'io_r{i}')
             elif r < 0.60:
@@ -1142,6 +1171,8 @@ class OnyxPairRigTB(JetPairRigTB):
                 await self._io_read(self._base_of(line) + b0 * self.STRB_W, nb, False, f'io_rn{i}')
             else:
                 line = self.IO_BASE_LINE + rng.randrange(self.IO_LINES)
+                if coh_lines and r < 0.90:
+                    line = rng.choice(coh_lines)
                 b0 = rng.randrange(self.FILL_BEATS - nb + 1)
                 beats = [rng.getrandbits(self.BUS_WIDTH) for _ in range(nb)]
                 if r < 0.80:
@@ -1167,6 +1198,25 @@ class OnyxPairRigTB(JetPairRigTB):
         await t1
         await t2
         self._scenario('RandomDualCpuPlusIo')
+
+    async def _hot_set_contention(self, n):
+        """The base's hot phase plus the IO on the same lines: ReadOnce,
+        WriteUnique and WriteLineUnique to lines the caches hold dirty, in
+        their WB buffers, or mid-drain (onyx ISSUE-002: until the cache
+        side stopped draining a passed-on victim, the soak kept the IO's
+        writes in its own region)."""
+        lines = self._hot_lines()
+        hot = self._hot_addr_fn(lines)
+        rng0 = random.Random(((self.SEED << 1) | 0) ^ 0x5EED)
+        rng1 = random.Random(((self.SEED << 1) | 1) ^ 0x5EED)
+        rng2 = random.Random(((self.SEED << 2) | 2) ^ 0x5EED)
+        t0 = cocotb.start_soon(self._cpu_loop(0, n, rng0, hot, 0.7))
+        t1 = cocotb.start_soon(self._cpu_loop(1, n, rng1, hot, 0.7))
+        t2 = cocotb.start_soon(self._io_loop(self.IO_TXN[self.TEST_LEVEL],
+                                             rng2, coh_lines=lines))
+        await t0
+        await t1
+        await t2
 
     def get_test_report(self):
         rep = super().get_test_report()

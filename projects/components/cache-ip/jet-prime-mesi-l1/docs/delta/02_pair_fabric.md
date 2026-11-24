@@ -129,7 +129,13 @@ One burst at a time, round-robin over {cache 0 write-back, cache 1
 write-back, absorption}. The absorption writes a PassDirty line from the
 slot buffer with AWID `8'hA0 | dir`. A write-back AW to a line **holds
 while a slot on that line has no CR yet** or an absorption to it is
-pending. The hold is defensive, not load-bearing: the memory AR issues
+pending, and **two write-backs to one line go in presentation order**: one
+presented while the other cache already presents one to the same line
+yields until that one is taken (BUG-002, [delta 05](05_wb_ownership.md):
+a victim whose drain had started when a snoop passed its line on still
+drains, and it must land before the new owner's write-back, not after;
+`ap_wb_order`). The absorption hold is what keeps that stale drain behind
+the absorption. Against reads it is defensive, not load-bearing: the memory AR issues
 only after the peer has accepted the AC (`ap_mar_legal`, proven in step
 4), and `l1_snoop_resp` latches the verdict at that accept -- so the
 verdict is decided before any read of the line reaches memory. A

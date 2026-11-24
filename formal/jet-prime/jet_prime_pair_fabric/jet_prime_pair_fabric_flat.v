@@ -846,6 +846,22 @@ module jet_prime_pair_fabric (
 	reg [SLOT_W - 1:0] r_w_slot;
 	reg [1:0] r_w_rr;
 	reg [BEAT_INDEX_WIDTH - 1:0] r_w_beat;
+	reg [1:0] r_aw_pres;
+	reg [1:0] r_aw_yield;
+	wire w_aw_same_line;
+	wire [1:0] w_aw_younger;
+	assign w_aw_same_line = (c_awvalid[0] & c_awvalid[1]) & (line_of(c_awaddr[0]) == line_of(c_awaddr[1]));
+	assign w_aw_younger[0] = w_aw_same_line & (r_aw_yield[0] | (r_aw_pres[1] & ~r_aw_pres[0]));
+	assign w_aw_younger[1] = w_aw_same_line & (r_aw_yield[1] | (r_aw_pres[0] & ~r_aw_pres[1]));
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_aw_pres <= 1'sb0;
+			r_aw_yield <= 1'sb0;
+		end
+		else begin
+			r_aw_pres <= c_awvalid & ~{c1_awready, c0_awready};
+			r_aw_yield <= w_aw_younger;
+		end
 	reg [1:0] w_wb_blocked;
 	always @(*) begin
 		if (_sv2v_0)
@@ -854,7 +870,7 @@ module jet_prime_pair_fabric (
 			reg signed [31:0] d;
 			for (d = 0; d < 2; d = d + 1)
 				begin
-					w_wb_blocked[d] = 1'b0;
+					w_wb_blocked[d] = w_aw_younger[d];
 					begin : sv2v_autoblock_15
 						reg signed [31:0] s;
 						for (s = 0; s < 4; s = s + 1)

@@ -53,5 +53,6 @@ No fixed-priority path exists, so a single busy port cannot starve another of gr
 - A grant never goes to a held line.
 - The lock drops only after the requester's retire, and the retire bit is set only by the requester's own pulse naming the slot's read ID.
 - A write-back is selected for the memory write port only when no slot on its line has an incomplete gather or a pending absorption.
+- Two write-backs to one line are forwarded in the order they were presented: one presented while another port already presents one to the same line yields until that one is taken (jet-prime BUG-002: a victim whose drain had started when a snoop passed its line on still drains, and must land before the new owner's write-back of the line).
 
-These four are stated and proven on the onyx formal harness at N_PORTS 2 (TASK-001 step 4), carried over from the pair fabric's 27-property argument.
+The first four are stated and proven on the onyx formal harness at N_PORTS 2 (TASK-001 step 4), carried over from the pair fabric's 27-property argument; the fifth is `ap_wb_order` on the same harness (2026-11-24).

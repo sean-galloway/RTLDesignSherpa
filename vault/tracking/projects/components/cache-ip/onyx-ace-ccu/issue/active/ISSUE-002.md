@@ -1,7 +1,7 @@
 # ISSUE-002: a snarfed write-back victim still drains after passing the line dirty; an IO WriteUnique that lands before it is overwritten
 
 **Priority:** P3
-**Status:** open
+**Status:** ACTIVE 2026-11-24 -- resolved on both sides and sim-verified; the proofs on the regenerated flats are running
 **Owner:** TBD
 **Filed:** 2026-11-23 (onyx TASK-001 step 7)
 
@@ -52,4 +52,32 @@ back. jet-prime drains it anyway.
 
 ## Resolution
 
-(open)
+2026-11-24. The hazard was wider than filed: it is not an IO-port race but a
+coherence bug between any two writers. jet-prime's own pair rig reproduced it
+with two caches and no IO once a hot-set soak phase was added (jet-prime
+BUG-002: a victim's drain, held at the fabric while a snoop passed its line
+on, landed after the new owner's write-back). Both sides are now fixed:
+
+- **The cache side (jet-prime BUG-002, its delta 05).** A WB entry a snoop
+  passes on before its drain starts ends: out of the snarf CAM, retired
+  without a drain. One whose drain had started cannot withdraw its AW: it
+  drains, and answers no further snoop (`sn_passed_o`). `jet_prime_control`
+  holds drain starts during a WB-sourced snoop service. So the "victim whose
+  AW is presented only after the IO's write has landed" above can no longer
+  exist.
+- **The manager side (onyx).** The IO rule above stays (the IO's WriteUnique
+  waits for any presented write-back to its line). Added for caches: two
+  write-backs to one line go in presentation order (`r_aw_pres` /
+  `r_aw_yield` in `onyx_ccu`, `ap_wb_order` on the formal harness, cover
+  `cp_wb_order_wait` reached at step 4). The same rule went into
+  `jet_prime_pair_fabric`.
+- **The soak.** The pair rig's IO loop now issues ReadOnce, WriteUnique and
+  WriteLineUnique to the hot lines the caches fight over (the hot-set phase
+  after the uniform soak); before, its writes stayed in its own region. That
+  phase also exposed a model gap shared with jet-prime's rig: a second snoop
+  to a line whose pending upgrade an earlier snoop had killed was resolved as
+  the upgrade's resident S; the RTL's Invalid is correct (fixed in both
+  models and the core model).
+
+Closes when the onyx `prove` / `prove_book` and jet-prime's control and
+pair-fabric proofs pass on the regenerated flats.

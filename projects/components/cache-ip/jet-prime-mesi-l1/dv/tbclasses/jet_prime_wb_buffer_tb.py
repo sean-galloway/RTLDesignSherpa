@@ -39,6 +39,7 @@ class WbBufferModel:
         self.tail = 0       # physical allocate pointer
         self.open_slot = None
         self.beats_rcvd = 0
+        self.head_draining = False   # drain_start_i seen, no BRESP yet
 
     def _mask_line(self, line):
         return line & ((1 << self.LINE_W) - 1)
@@ -53,7 +54,8 @@ class WbBufferModel:
             'data': 0,
             'beats_rcvd': 0,
             'valid': False,
-            'eff': JET_PEND_NONE,
+            'dead': False,     # passed on before its drain: never drains
+            'passed': False,   # passed on while draining: drains, no snarf
             'slot': slot,
         }
         self.entries.append(entry)
@@ -81,13 +83,21 @@ class WbBufferModel:
         return None, None
 
     def retire(self):
+        self.head_draining = False
         idx, entry = self.oldest_valid()
         if entry is not None:
             self.entries.pop(idx)
             self.head = (self.head + 1) % self.DEPTH
 
+    def pop_dead_head(self):
+        """One clock: an ended entry at the head retires undrained."""
+        if self.entries and self.entries[0]['dead']:
+            self.entries.pop(0)
+            self.head = (self.head + 1) % self.DEPTH
+
     def occupancy(self):
-        return len(self.entries)
+        # wb_occupancy_o counts r_valid; an ended entry is not valid
+        return len([e for e in self.entries if not e['dead']])
 
     def full(self):
         return len(self.entries) >= self.DEPTH
@@ -100,9 +110,17 @@ class WbBufferModel:
         return None, None
 
     def apply_sn_eff(self, line, value):
+        """A snoop effect ends the entry (the line was passed on), unless
+        it is the head with its drain started: then it is passed -- it
+        drains, and answers no further snoop (jet-prime BUG-002)."""
         idx, entry = self.snarf_match(line)
-        if entry is not None:
-            entry['eff'] = value
+        if entry is None or value == JET_PEND_NONE:
+            return
+        if self.head_draining and idx == 0:
+            entry['passed'] = True
+        else:
+            entry['dead'] = True
+            entry['valid'] = False
 
 
 class JetWbBufferTB(TBBase):
@@ -166,6 +184,36 @@ class JetWbBufferTB(TBBase):
         d.drain_done_i.value = 0
         d.sn_line_i.value = 0
         d.sn_eff_i.value = 0
+        d.drain_start_i.value = 0
+
+    async def _tick(self, n=1):
+        """n clocks, retiring ended head entries as the RTL does (one per
+        clock)."""
+        for _ in range(n):
+            await RisingEdge(self.dut.clk)
+            self.model.pop_dead_head()
+
+    async def _do_drain_start(self, note=""):
+        """Pulse drain_start_i for the head (jet_prime_control's start)."""
+        d = self.dut
+        d.drain_start_i.value = 1
+        await RisingEdge(d.clk)
+        d.drain_start_i.value = 0
+        self.model.head_draining = True
+
+    async def _do_sn_eff(self, line, eff, note=""):
+        """One snoop-effect cycle on `line`, then let ended heads retire."""
+        d = self.dut
+        d.sn_line_i.value = line
+        d.sn_eff_i.value = eff
+        await self._settle()
+        self._score(f"{note} sn_hit_o at the effect", int(d.sn_hit_o.value),
+                    1 if self.model.snarf_match(line)[1] is not None else 0)
+        await RisingEdge(d.clk)
+        self.model.apply_sn_eff(line, eff)
+        d.sn_line_i.value = 0
+        d.sn_eff_i.value = 0
+        await self._tick(self.VICTIM_DEPTH)
 
     async def _drain_line(self):
         """The head entry's line, read by beat through drain_beat_idx_i /
@@ -244,6 +292,8 @@ class JetWbBufferTB(TBBase):
         idx, entry = self.model.snarf_match(line)
         exp_hit = 1 if (entry is not None and expect_match) else 0
         self._score(f"{note} sn_hit_o", int(d.sn_hit_o.value), exp_hit)
+        self._score(f"{note} sn_passed_o", int(d.sn_passed_o.value),
+                    1 if (exp_hit and entry['passed']) else 0)
         if entry is not None and expect_match:
             self._score(f"{note} sn_data (by beat)",
                         await self._sn_line(), entry['data'])
@@ -341,6 +391,7 @@ class JetWbBufferTB(TBBase):
         await RisingEdge(d.clk)
         self.model.retire()
         d.drain_done_i.value = 0
+        await self._tick(self.VICTIM_DEPTH)
         await self._check_occupancy(note)
 
     async def _do_bresp(self, note=""):
@@ -350,6 +401,7 @@ class JetWbBufferTB(TBBase):
         await RisingEdge(d.clk)
         self.model.retire()
         d.drain_done_i.value = 0
+        await self._tick(self.VICTIM_DEPTH)
         await self._check_occupancy(note)
 
     # -- directed scenarios -------------------------------------------------
@@ -431,25 +483,54 @@ class JetWbBufferTB(TBBase):
         d.sn_line_i.value = 0
         d.drain_done_i.value = 0
 
-    async def _scen_snarf_invalidated_still_drains(self):
-        """Invalidated snarfed victim still drains to completion."""
-        tag = 0x77
-        await self._do_capture(tag, note="inv capture")
+    async def _scen_snarf_ends_entry(self):
+        """A snoop effect on an entry whose drain has not started ends it:
+        out of the CAM at once, retired at the head with no drain (the
+        line was passed on; ACE forbids writing it back -- jet-prime
+        BUG-002, onyx ISSUE-002).  Both effects end it."""
+        for eff in (JET_PEND_INVALIDATE_I, JET_PEND_DOWNGRADE_S):
+            tag = 0x77 + eff
+            await self._do_capture(tag, note=f"end{eff} capture")
+            line = self._mkline(tag)
+            await self._do_sn_eff(line, eff, note=f"end{eff}")
+            await self._check_snarf(line, f"end{eff} after", True)
+            self._score(f"end{eff} model empty", self.model.occupancy(), 0)
+            await self._check_occupancy(f"end{eff} retired undrained")
+            await self._check_drain_head(f"end{eff} no drain")
+            await self._check_full(f"end{eff} slot free", False)
+
+    async def _scen_snarf_queued_entry_skipped(self):
+        """A passed-on entry behind the head stays allocated (FIFO order)
+        until the head retires, then is skipped without a drain."""
+        if self.VICTIM_DEPTH < 2:
+            return
+        ta, tb = 0x91, 0x92
+        await self._do_capture(ta, note="q capture A")
+        await self._do_capture(tb, note="q capture B")
+        lb = self._mkline(tb)
+        await self._do_sn_eff(lb, JET_PEND_INVALIDATE_I, note="q B")
+        await self._check_snarf(lb, "q B gone", True)
+        await self._check_occupancy("q only A valid")
+        await self._check_drain_head("q head is A")
+        await self._do_drain_one(note="q drain A")
+        await self._check_drain_head("q B skipped")
+        await self._check_occupancy("q empty")
+        self._score("q model empty", len(self.model.entries), 0)
+
+    async def _scen_snarf_draining_head_passes(self):
+        """A snoop effect on the head whose drain has started: the AW may
+        be presented and cannot be withdrawn, so the entry drains -- and is
+        marked passed (sn_passed_o) so no further snoop is answered from
+        it, while the CAM hit keeps the own-lookup drain-race stall."""
+        tag = 0xA5
+        await self._do_capture(tag, note="pass capture")
         line = self._mkline(tag)
-        # Snoop match + record invalidate effect.
-        d = self.dut
-        d.sn_line_i.value = line
-        d.sn_eff_i.value = JET_PEND_INVALIDATE_I
-        await self._settle()
-        self.model.apply_sn_eff(line, JET_PEND_INVALIDATE_I)
-        self._score("inv sn_hit_o", int(d.sn_hit_o.value), 1)
-        await RisingEdge(d.clk)
-        d.sn_line_i.value = 0
-        d.sn_eff_i.value = 0
-        # Entry must still drain to completion.
-        await self._do_drain_one(note="inv drain")
-        await self._check_occupancy("inv retired")
-        assert self.model.occupancy() == 0
+        await self._do_drain_start(note="pass start")
+        await self._do_sn_eff(line, JET_PEND_INVALIDATE_I, note="pass")
+        await self._check_snarf(line, "pass after", True)
+        await self._check_drain_head("pass still drains")
+        await self._do_drain_one(note="pass drain")
+        await self._check_snarf(line, "pass retired", True)
 
     # -- random phase -------------------------------------------------------
     async def _random_phase(self, n_ops):
@@ -469,14 +550,12 @@ class JetWbBufferTB(TBBase):
                 entry = random.choice(valids)
                 line = entry['line']
                 eff = random.choice([JET_PEND_DOWNGRADE_S, JET_PEND_INVALIDATE_I])
-                d = self.dut
-                d.sn_line_i.value = line
-                d.sn_eff_i.value = eff
-                await self._settle()
-                m.apply_sn_eff(line, eff)
-                await RisingEdge(d.clk)
-                d.sn_line_i.value = 0
-                d.sn_eff_i.value = 0
+                await self._do_sn_eff(line, eff, note=f"rnd{i} eff")
+            elif (r < 0.85 and m.entries and m.entries[0]['valid']
+                  and not m.head_draining):
+                # the control's drain start for the head (a later effect
+                # on it then passes it instead of ending it)
+                await self._do_drain_start(note=f"rnd{i} start")
             else:
                 await self.wait_clocks('clk', 1)
             # occasional checks
@@ -495,7 +574,9 @@ class JetWbBufferTB(TBBase):
         await self._scen_oldest_first_order()
         await self._scen_snarf_hit()
         await self._scen_snarf_at_bresp()
-        await self._scen_snarf_invalidated_still_drains()
+        await self._scen_snarf_ends_entry()
+        await self._scen_snarf_queued_entry_skipped()
+        await self._scen_snarf_draining_head_passes()
         await self._random_phase(self.OP_COUNTS[self.TEST_LEVEL])
         # drain anything left
         while self.model.oldest_valid()[1] is not None:

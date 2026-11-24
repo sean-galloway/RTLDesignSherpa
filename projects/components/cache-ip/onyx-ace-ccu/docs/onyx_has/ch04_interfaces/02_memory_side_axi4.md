@@ -39,7 +39,7 @@ When the read issues is the D6 mode (Chapter 3.2): `DEFER_AR = 0` at the last pe
 
 The write port carries two kinds of burst, one at a time, round-robin over N + 1 candidates:
 
-- **Write-backs,** passed through from a cache's AW/W/B with the cache's own `AWID`, address, length and attributes. A write-back to a line with a slot whose gather is incomplete, or whose absorption is pending, holds at its AW until that clears.
+- **Write-backs,** passed through from a cache's AW/W/B with the cache's own `AWID`, address, length and attributes. A write-back to a line with a slot whose gather is incomplete, or whose absorption is pending, holds at its AW until that clears; one presented while another port already presents a write-back to the same line holds until that one is taken, so two write-backs to a line land in presentation order.
 - **Absorptions,** the manager's own writes of a `PassDirty` line from the slot buffer: a full line at the slot's line address with `AWID = 8'hA0 | requester port` truncated to the ID width (at the rigs' 8-bit IDs, `A0` and `A1`), full strobes. One absorption per supplied-dirty transaction; the slot does not free until its `BRESP`.
 
 `AWID` policy (the open D5 detail of the 0.2 book) is therefore fixed by construction: write-backs keep the cache's ID, absorptions use the manager's reserved IDs, and the port runs one burst at a time so no interconnect reordering question arises.
