@@ -645,3 +645,27 @@ def test_read_priority_register_makes_the_mixed_cell_one_mode_and_bounds_the_wri
         assert all(float(r["wr_wait_max"]) < cm.CONFIGS[cfg].wr_starve + 128 for r in rp), cfg
     assert cm.CONFIGS["granite_sku100"].dir_mode == 0 and cm.CONFIGS["sku_rdprio"].dir_mode == 1
 
+
+
+def test_contended_write_rate_is_measured_while_the_reads_hold_the_bus():
+    """MC-024 correction (2026-11-24): wr_bw_mb_s is the write window, which under read priority includes the
+    writes-only tail after the reads end (124 MB/s on mixed_rd4 at 512 / 16, of which ~23 is the share while
+    the reads run). wr_bw_rd_live_mb_s counts only the writes done by the last read completion. It is the
+    write window itself when the writes finish first (the symmetric register), it is the same steady value at
+    reads x4 and x16, and the two knobs move it: a long write burst at a short starvation bound lifts it past
+    the symmetric register's."""
+    import tempfile
+    from dataclasses import replace
+    base = [s for s in cm.SUITES["sustained"] if s.name == "mixed_rd4_bl8"][0]
+    def run(p, **kw):
+        sc = replace(base, name=f"mixed_rd{p}_bl8", param=p, txn_count=2000)
+        with tempfile.TemporaryDirectory() as t:
+            return cm.run_scenario(replace(cm.CONFIGS["granite_sku100"], name="live", **kw), sc, t)
+    sym = run(4, dir_mode=0)
+    assert float(sym["wr_bw_rd_live_mb_s"]) == float(sym["wr_bw_mb_s"])            # writes finished first
+    rp4, rp16 = run(4, dir_mode=1), run(16, dir_mode=1)
+    live4, live16 = float(rp4["wr_bw_rd_live_mb_s"]), float(rp16["wr_bw_rd_live_mb_s"])
+    assert live4 < 0.4 * float(rp4["wr_bw_mb_s"]), (live4, rp4["wr_bw_mb_s"])      # the tail inflates the window
+    assert abs(live4 - live16) / live16 < 0.1 and live16 < 40, (live4, live16)      # a steady floor
+    wide = run(16, dir_mode=1, wr_starve=256, wr_burst=255)
+    assert float(wide["wr_bw_rd_live_mb_s"]) > float(sym["wr_bw_mb_s"]), wide["wr_bw_rd_live_mb_s"]

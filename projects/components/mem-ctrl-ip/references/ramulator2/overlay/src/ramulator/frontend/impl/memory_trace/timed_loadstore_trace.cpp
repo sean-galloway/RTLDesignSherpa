@@ -38,6 +38,10 @@ namespace fs = std::filesystem;
 // direction the first send tick and the last completion tick
 // (read_first_send_tick / read_last_complete_tick, write_...): the window a
 // board timer measures (first beat in to last response out) for that direction.
+// writes_at_read_last: the writes completed when the last read completed, so a
+// run whose reads outlast its writes' service can price the write share WHILE the
+// reads hold the bus (memory-controllers MC-024: the write window alone includes
+// the writes-only tail after the reads end).
 class TimedLoadStoreTrace : public IFrontEnd, public Implementation {
   RAMULATOR_REGISTER_IMPLEMENTATION(IFrontEnd, TimedLoadStoreTrace, "TimedLoadStoreTrace")
 
@@ -74,6 +78,7 @@ class TimedLoadStoreTrace : public IFrontEnd, public Implementation {
   size_t s_first_send[2] = {0, 0};      // [0] read, [1] write
   size_t s_last_complete[2] = {0, 0};
   bool m_sent_type[2] = {false, false};
+  size_t s_writes_at_read_last = 0;
 
  public:
   void init() override {
@@ -113,6 +118,7 @@ class TimedLoadStoreTrace : public IFrontEnd, public Implementation {
     m_stats.add("read_last_complete_tick", s_last_complete[0]);
     m_stats.add("write_first_send_tick", s_first_send[1]);
     m_stats.add("write_last_complete_tick", s_last_complete[1]);
+    m_stats.add("writes_at_read_last", s_writes_at_read_last);
   };
 
   void tick() override {
@@ -167,6 +173,7 @@ class TimedLoadStoreTrace : public IFrontEnd, public Implementation {
       } else {
         s_reads_completed++;
         s_last_complete[0] = m_clk;
+        s_writes_at_read_last = s_writes_completed;
       }
       record_end();
     };

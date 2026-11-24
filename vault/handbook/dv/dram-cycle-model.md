@@ -916,3 +916,22 @@ tabulate where the perturbation lands turn by turn on both sides -- a lock and
 a drift look identical in the MB/s; and probe the perturbation's episode on
 the RTL (the DRAM trace may not carry the command -- this one has no REF),
 since three slots per refresh were enough to turn a lock into a drift.
+
+## A direction's window is not its share of a contended bus (2026-11-24, MC-024)
+
+The read-priority register's write floor under sustained reads was first
+quoted as 124 MB/s: the writes' bytes over the write window, first write sent
+to last write done. Under read priority the writes finish AFTER the reads, so
+that window includes a writes-only tail at full rate after the reads end;
+measured only up to the last read completion, the floor was 23 MB/s, a
+fifth. The equal-stream board cell had the same blend (307 MB/s of writes
+was 23 while the reads ran, then a solo tail). Two rules. A per-direction MB/s
+on a two-direction cell is a share of the contended bus only while the other
+direction is still live: count the bytes done by the other direction's last
+completion (the frontend's `writes_at_read_last`, the CSV's
+`wr_bw_rd_live_mb_s`), and check the result is the same at two contention
+lengths (reads x4 and x16 agreed at 23; the windows read 124 and 36). And a
+knob sweep priced on the blended number can reject the right answer: every
+"longer write bursts do not raise the floor" row was the tail talking, and
+on the contended rate a 255-column burst at a 256-cycle bound beat the
+symmetric register on every column but one.

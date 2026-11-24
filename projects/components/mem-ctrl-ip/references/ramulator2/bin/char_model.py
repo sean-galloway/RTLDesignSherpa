@@ -226,6 +226,8 @@ PATTERNS = [
 # shorter direction's MB/s is its share while the longer one keeps the bus contended. Not a board suite.
 SUSTAINED = [
     Scenario("mixed_rd4_bl8", "mixed", burst_len=8, txn_count=8000, threads=WINDOW_GENS, split=True, param=4),
+    # reads 16x: long enough that the writes' share while the reads hold the bus is a steady state
+    Scenario("mixed_rd16_bl8", "mixed", burst_len=8, txn_count=8000, threads=WINDOW_GENS, split=True, param=16),
     Scenario("mixed_wr4_bl8", "mixed", burst_len=8, txn_count=8000, threads=WINDOW_GENS, split=True, param=-4),
 ]
 SUITES = {"every": EVERY, "windows": WINDOWS, "sustained": SUSTAINED, "all": EVERY + WINDOWS, "patterns": PATTERNS,
@@ -820,7 +822,11 @@ CSV_FIELDS = [
     "wr_coalesced", "rd_forwarded", "wr_stall_ticks", "rd_stall_ticks",
     # MC-018: the SKU controller's own counters (0 / empty on GenericDDR). Latencies are MC cycles.
     "rd_lat_max", "wr_wait_max", "dir_flips", "zero_col_turns", "lane_act", "lane_pre", "to_pre", "cap_refused",
-    "slot_col_pct", "slot_row_pct", "elapsed_s", "notes",
+    "slot_col_pct", "slot_row_pct",
+    # MC-024: the write MB/s while the reads hold the bus (mixed only): the writes completed by the last
+    # read completion over the window up to it. wr_bw_mb_s is the write window, which includes any
+    # writes-only tail after the reads end.
+    "wr_bw_rd_live_mb_s", "elapsed_s", "notes",
 ]
 
 
@@ -841,6 +847,19 @@ def _sku_cols(c: dict, tag: str = "") -> dict:
 def _window(fe: dict, kind: str) -> int:
     first, last = fe[f"{kind}_first_send_tick"], fe[f"{kind}_last_complete_tick"]
     return max(int(last) - int(first), 0)
+
+
+def _wr_bw_rd_live(fe: dict, wr_bytes: int) -> float:
+    """MC-024: the write MB/s up to the last read completion (the share the writes get while reads hold
+    the bus), from the frontend's writes_at_read_last; the window starts at the first write sent. When
+    the writes finish first they were never held behind live reads, and it is their own window."""
+    done = int(fe.get("num_writes_completed", 0))
+    if not done or "writes_at_read_last" not in fe:
+        return 0.0
+    if int(fe["write_last_complete_tick"]) <= int(fe["read_last_complete_tick"]):
+        return _bw(wr_bytes, _window(fe, "write"))      # the writes finished first: their own window
+    live_bytes = wr_bytes * int(fe["writes_at_read_last"]) // done
+    return _bw(live_bytes, max(int(fe["read_last_complete_tick"]) - int(fe["write_first_send_tick"]), 0))
 
 
 def _bw(bytes_moved: int, cycles: int) -> float:
@@ -960,6 +979,7 @@ def run_scenario(cfg: ModelConfig, sc: Scenario, tmpdir: str) -> dict:
                      + (f"; streams {per_dir_bytes} / {rd_bytes} bytes" if rd_bytes != per_dir_bytes else ""))
         row["wr_bw_mb_s"] = _bw(per_dir_bytes, row["wr_cycles"])
         row["rd_bw_mb_s"] = _bw(rd_bytes, row["rd_cycles"])
+        row["wr_bw_rd_live_mb_s"] = _wr_bw_rd_live(fe, per_dir_bytes)
     elif sc.family == "rw_mix":
         path = os.path.join(tmpdir, f"{sc.name}.trace")
         write_trace(path, [interleave_mixed_bursts(w_walks, sc.burst_len, sc.param)], addr_map=am)
