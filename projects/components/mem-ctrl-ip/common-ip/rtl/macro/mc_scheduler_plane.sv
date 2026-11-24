@@ -83,6 +83,7 @@ module mc_scheduler_plane
     parameter int RFC_W              = 16,   // mc_bank_pick tRFC / tZQCS recovery counter width (saturating load)
     parameter bit DIR_OWNS_ROWS      = 1'b0, // mc_bank_pick: the bus direction may close the other direction's row
     parameter int DIR_HOLD_IDLE      = 0,    // mc_bank_pick: hold the direction on a queued head, N idle cycles (0 = off)
+    parameter bit HAS_RD_PRIO        = 1'b0, // mc_bank_pick: build the read-priority direction register (memory-controllers MC-024)
     parameter bit HAS_CMD_HISTORY    = 1'b0,
     // refresh feature reduction (passed to mc_xddr2_refresh_ctrl)
     parameter bit REF_HAS_POSTPONE    = 1'b1,
@@ -115,6 +116,10 @@ module mc_scheduler_plane
     input  logic [7:0]                sched_wr_high_wm_i,
     input  logic [7:0]                sched_wr_batch_max_i,
     input  logic [7:0]                sched_wr_low_wm_i,
+    // read-priority direction register (mc_bank_pick HAS_RD_PRIO builds; MC-024)
+    input  logic                      sched_rd_prio_en_i,
+    input  logic [11:0]               sched_wr_starve_i,
+    input  logic [7:0]                sched_wr_burst_i,
     input  logic [1:0]                sched_prio_sub_i,
     input  logic                      sched_qos_en_i,
     input  logic [2:0]                page_mode_i,
@@ -797,6 +802,7 @@ module mc_scheduler_plane
             .RFC_W       (RFC_W),
             .DIR_OWNS_ROWS(DIR_OWNS_ROWS),
             .DIR_HOLD_IDLE(DIR_HOLD_IDLE),
+            .HAS_RD_PRIO (HAS_RD_PRIO),
             .DUAL_ISSUE  (DUAL_ISSUE)
         ) u_bank_pick (
             .aclk               (aclk),
@@ -868,6 +874,9 @@ module mc_scheduler_plane
             .t_wr_i             (t_wr_i),
             .t_rtp_i            (t_rtp_i),
             .dir_batch_max_i    (sched_wr_batch_max_i),
+            .rd_prio_en_i       (sched_rd_prio_en_i),
+            .wr_starve_i        (sched_wr_starve_i),
+            .wr_burst_i         (sched_wr_burst_i),
             .evt_act_o          (evt_act),
             .evt_rd_o           (evt_rd),
             .evt_wr_o           (evt_wr),
@@ -1058,6 +1067,7 @@ module mc_scheduler_plane
         assign dbg_dir_batch_o = 8'd0;
         wire _unused_arb = &{1'b0, wr_head_i, wr_head2_i, rd_head_i, rd_head2_i,
                              r_rd_ret_busy_sync1, sched_wr_batch_max_i,
+                             sched_rd_prio_en_i, sched_wr_starve_i, sched_wr_burst_i,
                              wr_commit_ready_now_i};
     end endgenerate
 

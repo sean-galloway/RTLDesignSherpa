@@ -935,3 +935,15 @@ knob sweep priced on the blended number can reject the right answer: every
 "longer write bursts do not raise the floor" row was the tail talking, and
 on the contended rate a 255-column burst at a 256-cycle bound beat the
 symmetric register on every column but one.
+
+## An A/B that adds a register write moves GO; on a race cell that is a different mode (2026-11-24, MC-024)
+
+The read-priority RTL's mode-0 check wrote `SCHED_POLICY.dir_mode = 0`
+explicitly and the proxy's `open_page` mixed cell at tREFI 781 read 279.6 /
+281.7 where the run before the RTL read 300.3 / 506.7. The same cell with
+the field left at its reset read 300.3 / 506.7 to the decimal: the one extra
+APB write before GO shifted GO against the free-running refresh counter, and
+the cell's mode is a draw on that phase (ISSUE-005). On a cell with
+refresh-placed modes, an A/B is only an A/B if both arms make the same
+register writes; to show "mode 0 is today's register", run the reset, not a
+written zero, or compare across a refresh-phase sweep rather than one phase.

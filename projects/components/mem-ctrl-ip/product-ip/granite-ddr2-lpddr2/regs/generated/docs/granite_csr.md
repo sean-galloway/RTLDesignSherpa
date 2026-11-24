@@ -54,6 +54,7 @@ Don't override. Generated from: $root
 | 0x188|       LP_MR3_OP       |             LPDDR2 MR3 OP Data            |
 | 0x18C|   STORE_STATS_MERGE   |         Store Stats: Write Merges         |
 | 0x190|  STORE_STATS_RD_MERGE |          Store Stats: Read Merges         |
+| 0x194|      SCHED_DIR_RP     | Scheduler Read-Priority Direction Register|
 | 0x200|        MON_CTRL       |              Ocelus: Control              |
 | 0x204|   MON_LATENCY_THRESH  |         Ocelus: Latency Threshold         |
 | 0x208|       MON_ROUTE       |           Ocelus: Packet Routing          |
@@ -718,7 +719,8 @@ request. All hw-readable so they drive the controller core.</p>
 |  12 | dual_issue|  rw  | 0x0 |  — |
 |15:13| RSVD_15_13|   r  | 0x0 |  — |
 |23:16| age_thresh|  rw  | 0x0 |  — |
-|31:24| RSVD_31_24|   r  | 0x0 |  — |
+|  24 |  dir_mode |  rw  | 0x0 |  — |
+|31:25| RSVD_31_25|   r  | 0x0 |  — |
 
 #### order_mode field
 
@@ -760,7 +762,11 @@ request. All hw-readable so they drive the controller core.</p>
 
 <p>age_threshold mode: age (MC cycles/16) above which a reference is boosted. INERT in granite: the store is built with HAS_AGE=0 (no per-slot ages; pumice TASK-059), so this field has no effect; the pick orders by bank state and class only</p>
 
-#### RSVD_31_24 field
+#### dir_mode field
+
+<p>Direction register mode (memory-controllers MC-024). 0 = symmetric (RESET: the most generic setting, the owner's 2026-11-24 rule): both directions capped at SCHED_WR_WM.wr_batch_max, the bus turns when a direction drains or hits the cap. 1 = read priority: a read hold has no cap, a write hold is capped at SCHED_DIR_RP.wr_burst columns, and the bus also turns to the writes when a write head has waited SCHED_DIR_RP.wr_starve cycles with no write column. Priced in the SKU model at wr_starve 512 / wr_burst 128 on the mixed cell: 299 / 454 MB/s write / read (union 599 against 555), read latency 12.8 mean / 256 max cycles (19 / 450), 140 MB/s of writes while reads keep the bus busy, one mode on every refresh phase. Change it only while the controller is idle.</p>
+
+#### RSVD_31_25 field
 
 <p>Reserved</p>
 
@@ -1392,6 +1398,37 @@ a run. 0 when STORE_MERGE_EN = 0.</p>
 #### VAL field
 
 <p>read merges performed</p>
+
+### SCHED_DIR_RP register
+
+- Absolute Address: 0x194
+- Base Offset: 0x194
+- Size: 0x4
+
+<p>The read-priority direction register's two knobs (memory-controllers MC-024), read only when SCHED_POLICY.dir_mode = 1. Together they set the write share while reads keep the bus busy, and the mixed cell's union falls as that share rises (char_results/model_mc024_read_priority_2026-11-24.md). Reset 512 / 128, the owner's choice of 2026-11-24. Static configuration: change only while the controller is idle.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 11:0| wr_starve|  rw  |0x200|  — |
+|15:12|RSVD_15_12|   r  | 0x0 |  — |
+|23:16| wr_burst |  rw  | 0x80|  — |
+|31:24|RSVD_31_24|   r  | 0x0 |  — |
+
+#### wr_starve field
+
+<p>Write-starvation bound, MC cycles: the direction register turns to the writes when a write head has been queued this long with no write column fired. 0 = never (writes wait for the reads to drain). Reset 512.</p>
+
+#### RSVD_15_12 field
+
+<p>Reserved</p>
+
+#### wr_burst field
+
+<p>Write hold cap, columns: a write hold turns the bus back to waiting reads after this many write columns. 0 = no cap. Reset 128. Longer bursts give the writes more of a contended bus with fewer turnarounds; the worst read waits about one burst (~2 cycles a column).</p>
+
+#### RSVD_31_24 field
+
+<p>Reserved</p>
 
 ### MON_CTRL register
 

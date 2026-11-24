@@ -4,8 +4,8 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 2 | in progress right now |
 | [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
@@ -20,15 +20,15 @@
   structural cut priced in the model first; floorplanning is recorded as
   making it worse. Filed 2026-11-22 from MC-020 decision 2.
 
-- **MC-024** -- the read-priority direction register: a runtime mode of
-  the pick core's register (no read cap, write holds of 16, a write turn
-  after 512 starved cycles). Priced in the SKU model: the mixed cell 278 /
-  278 -> 307 / 597 (+10.6 percent union), read latency halved, one mode on
-  every refresh phase; the cost is the write share under sustained reads
-  (278 -> 124). RTL designed (~40 LUT); waiting on the owner's write-floor
-  and reset-default decisions. Filed 2026-11-24 (ISSUE-005's third option).
-
 ## Active
+
+- **MC-024** -- the read-priority direction register: a runtime mode of
+  the pick core's register (no read cap, write holds capped at `wr_burst`,
+  a write turn after `wr_starve` starved cycles). Owner's decisions
+  2026-11-24: knobs reset 512 / 128 (mixed cell 299 / 454, union 599
+  against 555; 140 MB/s of writes while reads hold the bus), `dir_mode`
+  resets 0 (power-up is the most generic setting); benchmarks report each
+  cell at the defaults and at its optimized settings. RTL in progress.
 
 - **MC-023** -- the SKU model's open fidelity terms. Item 2 DONE 2026-11-23:
   the self-close lookahead guard was true at `ap_close_lag` 0 (a pending

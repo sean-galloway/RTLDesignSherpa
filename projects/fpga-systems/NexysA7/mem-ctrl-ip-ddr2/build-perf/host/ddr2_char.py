@@ -791,6 +791,11 @@ class DDR2CharDriver:
         access_pref / prio_sub / qos_en -- see Pumice.set_sched_policy."""
         self.pumice.set_sched_policy(**kw)
 
+    def set_dir_mode(self, **kw) -> None:
+        """SCHED_POLICY.dir_mode + SCHED_DIR_RP (granite, MC-024) -- see
+        Pumice.set_dir_mode."""
+        self.pumice.set_dir_mode(**kw)
+
     def set_refresh(self, **kw) -> None:
         """REF_CTRL: mode / postpone / pullin -- see Pumice.set_refresh."""
         self.pumice.set_refresh(**kw)

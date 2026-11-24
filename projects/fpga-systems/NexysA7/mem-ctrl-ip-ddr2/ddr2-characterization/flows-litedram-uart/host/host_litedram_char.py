@@ -77,6 +77,11 @@ class LiteDRAMCharDriver(DDR2CharDriver):
     def set_refresh(self, *_, **__) -> None: pass
     def set_refresh_interval(self, *_, **__) -> None: pass
     def set_sched_policy(self, *_, **__) -> None: pass
+    def set_dir_mode(self, *, read_priority: bool, **__) -> None:
+        # LiteDRAM has no direction register to switch: the symmetric default
+        # is a no-op, read priority (granite MC-024) is not measurable here
+        if read_priority:
+            raise ValueError("read_priority is a granite CSR (MC-024); LiteDRAM has none")
 
     def soft_reset(self, restore_geometry: bool = False, **_) -> None:
         """CTRL.soft_reset resets the generators AND chargen_regs (so every

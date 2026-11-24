@@ -4,6 +4,8 @@ equiv_n4
 cover
 dual
 dual_cover
+rdprio
+rdprio_cover
 
 [options]
 # Lockstep equivalence of the MC-011 resolved winner / stale-mask registers
@@ -25,6 +27,15 @@ dual: mode prove
 dual: depth 8
 dual_cover: mode cover
 dual_cover: depth 24
+# the read-priority direction register (memory-controllers MC-024), mode on,
+# the DUT alone against a reference starvation counter kept from its ports:
+# bounded from reset (the reference and the core's counter start together),
+# the knobs anyconst and small (wr_starve 1..4, wr_burst 1..3) so the depth
+# passes the starvation compare and the write cap several times
+rdprio: mode bmc
+rdprio: depth 24
+rdprio_cover: mode cover
+rdprio_cover: depth 30
 
 [engines]
 equiv: smtbmc bitwuzla
@@ -32,6 +43,8 @@ equiv_n4: smtbmc bitwuzla
 cover: smtbmc bitwuzla
 dual: smtbmc bitwuzla
 dual_cover: smtbmc bitwuzla
+rdprio: smtbmc bitwuzla
+rdprio_cover: smtbmc bitwuzla
 
 [script]
 read_verilog -formal bank_pick_flat.v
@@ -41,15 +54,20 @@ equiv_n4: read -formal -sv formal_bank_pick_equiv.sv
 cover: read -formal -sv formal_bank_pick_equiv.sv
 dual: read -formal -sv formal_bank_pick_dual.sv
 dual_cover: read -formal -sv formal_bank_pick_dual.sv
+rdprio: read -formal -sv formal_bank_pick_rdprio.sv
+rdprio_cover: read -formal -sv formal_bank_pick_rdprio.sv
 equiv_n4: chparam -set NUM_BANKS 4 -set NUM_ENTRIES 4 -set DIR_OWNS_ROWS 0 -set DIR_HOLD_IDLE 0 formal_bank_pick_equiv
 equiv: prep -top formal_bank_pick_equiv
 equiv_n4: prep -top formal_bank_pick_equiv
 cover: prep -top formal_bank_pick_equiv
 dual: prep -top formal_bank_pick_dual
 dual_cover: prep -top formal_bank_pick_dual
+rdprio: prep -top formal_bank_pick_rdprio
+rdprio_cover: prep -top formal_bank_pick_rdprio
 
 [files]
 formal_bank_pick_equiv.sv
 formal_bank_pick_dual.sv
+formal_bank_pick_rdprio.sv
 bank_pick_flat.v
 bank_pick_gold_flat.v

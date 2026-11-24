@@ -108,3 +108,45 @@ def test_set_jedec_timings_skips_the_ap_fields_on_a_regmap_without_the_register(
     applied = p.set_jedec_timings(dict(tRP=2, tRP_AP_RD=1, tRP_AP_WR=2))
     assert applied == {"tRP": 2}
 
+
+
+def _granite_bus(bridge):
+    """The granite controller regmap as a Pumice device (the char driver's granite composition)."""
+    import ddr2_char as dc
+    from pumice_device import DeviceBus
+    bus = DeviceBus(bridge)
+    bus.add("pumice", base=pd.DDR2_APB_BASE, regmap_file=dc.CONTROLLER_REGMAPS["granite"], cls=pd.Pumice)
+    return bus
+
+
+def test_dir_mode_programs_granite_and_refuses_read_priority_on_pumice():
+    """memory-controllers MC-024: SCHED_POLICY.dir_mode + SCHED_DIR_RP on granite (reset 0 and 512 / 128, the
+    owner's choices); pumice has only the symmetric register -- False is a no-op there, True raises rather than
+    measuring the wrong mode under the right name."""
+    gb = _MockBridge()
+    g = _granite_bus(gb)["pumice"]
+    assert g.field("SCHED_DIR_RP", "wr_starve") == 0     # the mock reads 0; the RDL reset is below
+    g.set_dir_mode(read_priority=True, wr_starve=512, wr_burst=128)
+    assert g.field("SCHED_POLICY", "dir_mode") == 1
+    assert (g.field("SCHED_DIR_RP", "wr_starve"), g.field("SCHED_DIR_RP", "wr_burst")) == (512, 128)
+    g.set_dir_mode(read_priority=False)
+    assert g.field("SCHED_POLICY", "dir_mode") == 0
+    assert g.field("SCHED_DIR_RP", "wr_burst") == 128      # None leaves a knob as it is
+    pb = _MockBridge()
+    p = pd.build_ddr2_bus(pb)["pumice"]
+    p.set_dir_mode(read_priority=False)
+    assert pb.mem == {}
+    with pytest.raises(ValueError):
+        p.set_dir_mode(read_priority=True)
+
+
+def test_granite_regmap_resets_the_direction_register_generic():
+    """The owner's 2026-11-24 rule: power-up is the most generic setting -- dir_mode resets 0 (symmetric), and
+    the read-priority knobs reset to the chosen 512 / 128."""
+    import ddr2_char as dc
+    import runpy
+    top = runpy.run_path(dc.CONTROLLER_REGMAPS["granite"])["top_block"]
+    assert int(top["SCHED_POLICY"]["dir_mode"]["default"], 16) == 0
+    assert int(top["SCHED_DIR_RP"]["wr_starve"]["default"], 16) == 512
+    assert int(top["SCHED_DIR_RP"]["wr_burst"]["default"], 16) == 128
+    assert top["SCHED_DIR_RP"]["address"] == "0x194"

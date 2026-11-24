@@ -673,6 +673,31 @@ class Pumice(Device):
         if kw:
             self._wr("SCHED_POLICY", **kw)
 
+    def set_dir_mode(self, *, read_priority: bool,
+                     wr_starve: Optional[int] = None,
+                     wr_burst: Optional[int] = None) -> None:
+        """The direction register's mode (granite SCHED_POLICY.dir_mode and
+        SCHED_DIR_RP; memory-controllers MC-024). read_priority False = the
+        symmetric register (the reset); True = read priority, tuned by
+        wr_starve (MC cycles a write head may wait, 0 = never) and wr_burst
+        (write hold cap in columns, 0 = none); None leaves a knob as it is.
+        A map without the field (pumice) has only the symmetric register:
+        False is a no-op there, True raises rather than measuring the wrong
+        mode under the right name."""
+        if not self._has_field("SCHED_POLICY", "dir_mode"):
+            if read_priority:
+                raise ValueError("read_priority needs SCHED_POLICY.dir_mode (granite, MC-024); "
+                                 "this controller's map has no such field")
+            return
+        kw: Dict[str, int] = {}
+        if wr_starve is not None:
+            kw["wr_starve"] = wr_starve & 0xFFF
+        if wr_burst is not None:
+            kw["wr_burst"] = wr_burst & 0xFF
+        if kw:
+            self._wr("SCHED_DIR_RP", **kw)
+        self._wr("SCHED_POLICY", dir_mode=1 if read_priority else 0)
+
     def _has_field(self, reg: str, name: str) -> bool:
         """True if this controller's register map has reg.name."""
         try:

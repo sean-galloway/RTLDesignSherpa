@@ -369,6 +369,9 @@ module scoria_scheduler_plane
         .sched_wr_high_wm_i (sched_wr_high_wm_i),
         .sched_wr_batch_max_i(sched_wr_batch_max_i),
         .sched_wr_low_wm_i  (sched_wr_low_wm_i),
+        .sched_rd_prio_en_i (1'b0),          // no read-priority register here (memory-controllers MC-024)
+        .sched_wr_starve_i  (12'd0),
+        .sched_wr_burst_i   (8'd0),
         .sched_prio_sub_i   (sched_prio_sub_i),
         .sched_qos_en_i     (sched_qos_en_i),
         .page_mode_i        (page_mode_i),

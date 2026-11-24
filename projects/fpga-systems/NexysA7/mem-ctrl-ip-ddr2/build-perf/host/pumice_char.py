@@ -458,6 +458,16 @@ class ControllerConfig:
     # else leaves it on. Written explicitly either way so the run's state does
     # not depend on the register's reset value.
     fast_rd:       bool = os.environ.get("TEST_FAST_RD", "1") != "0"
+    # SCHED_POLICY.dir_mode (granite, memory-controllers MC-024): False = the
+    # symmetric direction register (the reset, the owner's "power up is the
+    # most generic setting"), True = read priority with SCHED_DIR_RP's
+    # wr_starve / wr_burst (None = the reset 512 / 128). Written on every
+    # config so a matrix is not order-dependent; a pumice map has no field
+    # and takes False as a no-op. TEST_READ_PRIORITY=1 turns it on for every
+    # config of a run (an A/B), as TEST_DUAL_ISSUE does the lane.
+    read_priority: bool = os.environ.get("TEST_READ_PRIORITY", "0") == "1"
+    wr_starve:     Optional[int] = None
+    wr_burst:      Optional[int] = None
     # JEDEC DDR2 timings (MC cycles) derived from the part + the MC clock.
     # Until 2026-09-08 nothing programmed TIMINGS_*, so every board number was
     # taken on the RDL resets (tRCD/tRP 15 cycles, tCCD 4 = 8 CK, tREFI 1950
@@ -612,6 +622,9 @@ class ControllerConfig:
             qos_en=bool(self.qos_en) if self.qos_en is not None else False,
             dual_issue=lane if (lane or self.dual_issue is not None) else None,
             fast_rd_release=bool(self.fast_rd))
+        drv.set_dir_mode(read_priority=self.read_priority,
+                         wr_starve=self.wr_starve if self.wr_starve is not None else 512,
+                         wr_burst=self.wr_burst if self.wr_burst is not None else 128)
 
 
 # Presets. Every knob here is a CSR the CURRENT controller reads (2026-09-09
@@ -657,6 +670,10 @@ CONFIGS: Dict[str, ControllerConfig] = {
     # 2026-09-27; granite was re-checked 2026-10-30 at read gaps 0/8/15 and
     # TR 1/2 with zero bank-state violations at the DRAM model.
     "defaults": ControllerConfig("defaults", page_reset=True),
+    # the read-priority direction register (memory-controllers MC-024) on the
+    # power-on settings: the mixed cells' optimized setting, a CSR write away
+    # from `defaults` (granite only; a pumice map raises)
+    "rd_priority": ControllerConfig("rd_priority", page_reset=True, read_priority=True),
     "close_page": ControllerConfig(
         "close_page", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_CLOSE,
         order_mode=0, rd_in_order=True),

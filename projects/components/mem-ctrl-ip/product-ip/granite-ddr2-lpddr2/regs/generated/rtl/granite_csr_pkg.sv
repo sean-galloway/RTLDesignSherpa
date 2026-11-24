@@ -490,6 +490,10 @@ package granite_csr_pkg;
     } granite_csr__SCHED_POLICY__age_thresh__out_t;
 
     typedef struct {
+        logic value;
+    } granite_csr__SCHED_POLICY__dir_mode__out_t;
+
+    typedef struct {
         granite_csr__SCHED_POLICY__order_mode__out_t order_mode;
         granite_csr__SCHED_POLICY__prio_sub__out_t prio_sub;
         granite_csr__SCHED_POLICY__row_sel__out_t row_sel;
@@ -498,6 +502,7 @@ package granite_csr_pkg;
         granite_csr__SCHED_POLICY__qos_en__out_t qos_en;
         granite_csr__SCHED_POLICY__dual_issue__out_t dual_issue;
         granite_csr__SCHED_POLICY__age_thresh__out_t age_thresh;
+        granite_csr__SCHED_POLICY__dir_mode__out_t dir_mode;
     } granite_csr__SCHED_POLICY__out_t;
 
     typedef struct {
@@ -616,6 +621,19 @@ package granite_csr_pkg;
     typedef struct {
         granite_csr__LP_MR3_OP__VAL__out_t VAL;
     } granite_csr__LP_MR3_OP__out_t;
+
+    typedef struct {
+        logic [11:0] value;
+    } granite_csr__SCHED_DIR_RP__wr_starve__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } granite_csr__SCHED_DIR_RP__wr_burst__out_t;
+
+    typedef struct {
+        granite_csr__SCHED_DIR_RP__wr_starve__out_t wr_starve;
+        granite_csr__SCHED_DIR_RP__wr_burst__out_t wr_burst;
+    } granite_csr__SCHED_DIR_RP__out_t;
 
     typedef struct {
         logic value;
@@ -773,6 +791,7 @@ package granite_csr_pkg;
         granite_csr__LP_MR1_OP__out_t LP_MR1_OP;
         granite_csr__LP_MR2_OP__out_t LP_MR2_OP;
         granite_csr__LP_MR3_OP__out_t LP_MR3_OP;
+        granite_csr__SCHED_DIR_RP__out_t SCHED_DIR_RP;
         granite_csr__MON_CTRL__out_t MON_CTRL;
         granite_csr__MON_LATENCY_THRESH__out_t MON_LATENCY_THRESH;
         granite_csr__MON_ROUTE__out_t MON_ROUTE;

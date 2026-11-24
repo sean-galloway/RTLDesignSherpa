@@ -5,3 +5,4 @@
 -f $REPO_ROOT/formal/mc_common/mc_bank_pick/filelists/gold.f
 $REPO_ROOT/formal/mc_common/mc_bank_pick/formal_bank_pick_equiv.sv
 $REPO_ROOT/formal/mc_common/mc_bank_pick/formal_bank_pick_dual.sv
+$REPO_ROOT/formal/mc_common/mc_bank_pick/formal_bank_pick_rdprio.sv

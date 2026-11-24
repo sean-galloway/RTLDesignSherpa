@@ -169,6 +169,20 @@ module mc_bank_pick
     // MB/s total against 394-403, no low state.
     parameter bit DIR_OWNS_ROWS = 1'b0,
     parameter int DIR_HOLD_IDLE = 0,
+    // Read-priority direction register (memory-controllers MC-024, priced in
+    // the SKU model first: char_results/model_mc024_read_priority_2026-11-24.md).
+    // A runtime mode of the register above, selected by rd_prio_en_i:
+    //   - a read hold has no batch cap;
+    //   - a write hold is capped at wr_burst_i columns (0 = no cap);
+    //   - the register also leaves the reads for the writes on WRITE
+    //     STARVATION: a write head queued wr_starve_i cycles with no write
+    //     column fired (0 = never). The flag is registered off a saturating
+    //     counter, so the compare sits in its own cycle.
+    // Everything else -- the leftover rule, the cross-direction fire, the
+    // drain flip, the hold-idle, the ownership courtesy -- is the symmetric
+    // register's. rd_prio_en_i = 0 is today's register bit for bit.
+    // 0 = not built: the counter is elided and the mode inputs are unused.
+    parameter bit HAS_RD_PRIO = 1'b0,
     // The row lane (see the header). 0 = single issue, bit-identical.
     parameter bit DUAL_ISSUE = 1'b0,
 
@@ -307,6 +321,10 @@ module mc_bank_pick
     // ---- policy: consecutive columns in one direction while the other
     //      direction has column requests (0 = unlimited) ----
     input  logic [7:0]                dir_batch_max_i,
+    // ---- read-priority mode (HAS_RD_PRIO builds; static CSRs) ----
+    input  logic                      rd_prio_en_i,     // 1 = the read-priority register
+    input  logic [11:0]               wr_starve_i,      // write-starvation bound, cycles (0 = never)
+    input  logic [7:0]                wr_burst_i,       // write hold cap, columns (0 = none)
 
     // ---- event strobes to bank + global timers ----
     output logic                      evt_act_o,
@@ -350,7 +368,7 @@ module mc_bank_pick
     // ---- direction debug (mc_monlite MC_EV_DIR_FLIP; unconnected = pruned) ----
     output logic                      dbg_dir_flip_o,   // the direction turned last cycle (one cycle)
     output logic                      dbg_dir_o,        // current direction, 1 = write
-    output logic [1:0]                dbg_dir_cause_o,  // why it turned: 0 old-direction fire, 1 drained, 2 batch cap
+    output logic [1:0]                dbg_dir_cause_o,  // why it turned: 0 old-direction fire, 1 drained, 2 batch cap, 3 write starvation
     output logic [7:0]                dbg_dir_batch_o   // column ops in the batch that ended
 );
 
@@ -1518,6 +1536,40 @@ module mc_bank_pick
         end
     end
 
+    // ---- read-priority mode: write starvation (MC-024) -------------------
+    // r_wr_wait counts cycles a write head is queued (the registered head
+    // records) with no write column fired; it clears on a write column fire
+    // or when no write head is queued, and saturates. r_wr_starved is its
+    // compare against wr_starve_i, registered, so the next-state branch reads
+    // a flop and the compare is off the fire cone.
+    logic w_rp, w_wr_starved;
+    assign w_rp = HAS_RD_PRIO && rd_prio_en_i;
+    generate if (HAS_RD_PRIO) begin : g_rd_prio
+        logic [11:0] r_wr_wait;
+        logic        r_wr_starved;
+        logic        w_wr_queued;
+        always_comb begin
+            w_wr_queued = 1'b0;
+            for (int b = 0; b < NUM_BANKS; b++)
+                if (wr_head_i[b].vld) w_wr_queued = 1'b1;
+        end
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                r_wr_wait    <= '0;
+                r_wr_starved <= 1'b0;
+            end else begin
+                r_wr_starved <= rd_prio_en_i && (wr_starve_i != 12'd0) && (r_wr_wait >= wr_starve_i);
+                if (w_col_fire_now && w_sel_is_wr)  r_wr_wait <= '0;
+                else if (!w_wr_queued)              r_wr_wait <= '0;
+                else if (r_wr_wait != 12'hFFF)      r_wr_wait <= r_wr_wait + 12'd1;
+            end
+        )
+        assign w_wr_starved = r_wr_starved;
+    end else begin : g_no_rd_prio
+        assign w_wr_starved = 1'b0;
+        wire _unused_rp = &{1'b0, rd_prio_en_i, wr_starve_i, wr_burst_i};
+    end endgenerate
+
     // ---- direction register next state ----------------------------------
     // Stick until the current direction runs dry, or the batch cap is hit
     // while the other direction has columns. See the register load below for
@@ -1530,6 +1582,11 @@ module mc_bank_pick
         end else if (w_col_fire_now && (w_sel_is_wr != r_dir)) begin
             w_dir_nxt       = w_sel_is_wr;
             w_dir_batch_nxt = 8'd1;
+        end else if (w_rp && !r_dir && w_wr_starved) begin
+            // read priority: a write head has waited wr_starve_i cycles with
+            // no write column -- the writes' turn (MC-024). Registered terms.
+            w_dir_nxt       = 1'b1;
+            w_dir_batch_nxt = '0;
         end else if ((r_dir ? !w_wr_col_pend : !w_rd_col_pend)
                      && (r_dir ? w_rd_col_any : w_wr_col_any)
                      // "drained" is not "has not fired its first column yet":
@@ -1669,7 +1726,13 @@ module mc_bank_pick
             r_dir        <= w_dir_nxt;
             r_dir_batch  <= w_dir_batch_nxt;
             r_dir_flip   <= w_dir_flip_nxt;
-            r_batch_done <= (dir_batch_max_i != 8'd0) && (w_dir_batch_nxt >= dir_batch_max_i);
+            // the hold's cap. Symmetric: dir_batch_max_i both ways. Read
+            // priority: none on a read hold, wr_burst_i on a write hold. Both
+            // compares run on w_dir_batch_nxt in parallel; the mode and
+            // w_dir_nxt select (MC-024: the one change on the MC-022 cone).
+            r_batch_done <= w_rp
+                            ? (w_dir_nxt && (wr_burst_i != 8'd0) && (w_dir_batch_nxt >= wr_burst_i))
+                            : ((dir_batch_max_i != 8'd0) && (w_dir_batch_nxt >= dir_batch_max_i));
 
             // pop shadow (one cycle, one-hot)
             r_shadow <= w_col_fire_now ? (NPAIR'(1) << w_win_pair) : '0;
@@ -1736,6 +1799,8 @@ module mc_bank_pick
     always_comb begin
         if (w_col_fire_now && (w_sel_is_wr != r_dir) && !r_dir_flip)
             w_dir_cause = 2'd0;
+        else if (w_rp && !r_dir && w_wr_starved)
+            w_dir_cause = 2'd3;
         else if ((r_dir ? !w_wr_col_pend : !w_rd_col_pend)
                  && (r_dir ? w_rd_col_any : w_wr_col_any))
             w_dir_cause = 2'd1;

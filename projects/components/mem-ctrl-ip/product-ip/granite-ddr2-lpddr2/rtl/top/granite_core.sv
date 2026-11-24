@@ -163,6 +163,9 @@ module granite_core
     input  logic [7:0]                 sched_wr_high_wm_i,
     input  logic [7:0]                 sched_wr_batch_max_i,
     input  logic [7:0]                 sched_wr_low_wm_i,
+    input  logic                       sched_rd_prio_en_i,  // SCHED_POLICY.dir_mode (MC-024)
+    input  logic [11:0]                sched_wr_starve_i,   // SCHED_DIR_RP.wr_starve
+    input  logic [7:0]                 sched_wr_burst_i,    // SCHED_DIR_RP.wr_burst
     input  logic [1:0]                 sched_prio_sub_i,
     input  logic                       sched_qos_en_i,
     input  logic [7:0]                 sched_age_thresh_i,
@@ -904,6 +907,7 @@ module granite_core
         .FAST_RD_RELEASE(GRANITE_FAST_RD_RELEASE),
         .DIR_OWNS_ROWS (GRANITE_SCHED_DIR_OWNS_ROWS),
         .DIR_HOLD_IDLE (GRANITE_SCHED_DIR_HOLD_IDLE),
+        .HAS_RD_PRIO   (GRANITE_SCHED_RD_PRIO),
         .HAS_ZQ        (1'b0),
         // Init is owned by u_init_plane; the scheduler plane takes its
         // external-init mode (the same mode scoria's wrapper uses).
@@ -1040,6 +1044,9 @@ module granite_core
         .sched_wr_high_wm_i (sched_wr_high_wm_i),
         .sched_wr_batch_max_i(sched_wr_batch_max_i),
         .sched_wr_low_wm_i  (sched_wr_low_wm_i),
+        .sched_rd_prio_en_i (sched_rd_prio_en_i),
+        .sched_wr_starve_i  (sched_wr_starve_i),
+        .sched_wr_burst_i   (sched_wr_burst_i),
         .sched_prio_sub_i   (sched_prio_sub_i),
         .sched_qos_en_i     (sched_qos_en_i),
         .cmd_valid_o        (w_cmd_v),

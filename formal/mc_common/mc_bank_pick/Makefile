@@ -19,8 +19,8 @@ $(GOLD_FLAT): mc_bank_pick_gold.sv filelists/gold.f
 		$$(grep -v '^+incdir+' $(FLAT_BUILD)/gold.f) > $@.tmp
 	@mv $@.tmp $@
 
-.PHONY: equiv equiv_n4 cover dual dual_cover all clean
-all: equiv equiv_n4 cover dual dual_cover
+.PHONY: equiv equiv_n4 cover dual dual_cover rdprio rdprio_cover all clean
+all: equiv equiv_n4 cover dual dual_cover rdprio rdprio_cover
 equiv: $(FLAT) $(GOLD_FLAT)
 	sby -f bank_pick.sby equiv
 equiv_n4: $(FLAT) $(GOLD_FLAT)
@@ -32,5 +32,10 @@ dual: $(FLAT) $(GOLD_FLAT)
 	sby -f bank_pick.sby dual
 dual_cover: $(FLAT) $(GOLD_FLAT)
 	sby -f bank_pick.sby dual_cover
+# the read-priority direction register (MC-024), DUT alone, mode on
+rdprio: $(FLAT) $(GOLD_FLAT)
+	sby -f bank_pick.sby rdprio
+rdprio_cover: $(FLAT) $(GOLD_FLAT)
+	sby -f bank_pick.sby rdprio_cover
 clean:
-	rm -rf *_flat.v .flat_build bank_pick_equiv bank_pick_equiv_n4 bank_pick_cover bank_pick_dual bank_pick_dual_cover
+	rm -rf *_flat.v .flat_build bank_pick_equiv bank_pick_equiv_n4 bank_pick_cover bank_pick_dual bank_pick_dual_cover bank_pick_rdprio bank_pick_rdprio_cover

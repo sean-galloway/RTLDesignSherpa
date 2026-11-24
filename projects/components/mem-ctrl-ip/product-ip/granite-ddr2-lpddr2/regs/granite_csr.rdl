@@ -662,7 +662,12 @@ addrmap granite_csr {
             desc = "age_threshold mode: age (MC cycles/16) above which a reference is boosted. INERT in granite: the store is built with HAS_AGE=0 (no per-slot ages; pumice TASK-059), so this field has no effect; the pick orders by bank state and class only";
         } age_thresh[23:16] = 8'h0;
 
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_24[31:24] = 8'h0;
+        field {
+            sw = rw; hw = r;
+            desc = "Direction register mode (memory-controllers MC-024). 0 = symmetric (RESET: the most generic setting, the owner's 2026-11-24 rule): both directions capped at SCHED_WR_WM.wr_batch_max, the bus turns when a direction drains or hits the cap. 1 = read priority: a read hold has no cap, a write hold is capped at SCHED_DIR_RP.wr_burst columns, and the bus also turns to the writes when a write head has waited SCHED_DIR_RP.wr_starve cycles with no write column. Priced in the SKU model at wr_starve 512 / wr_burst 128 on the mixed cell: 299 / 454 MB/s write / read (union 599 against 555), read latency 12.8 mean / 256 max cycles (19 / 450), 140 MB/s of writes while reads keep the bus busy, one mode on every refresh phase. Change it only while the controller is idle.";
+        } dir_mode[24:24] = 1'b0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_25[31:25] = 7'h0;
 
     } SCHED_POLICY @ 0x068;
 
@@ -783,6 +788,26 @@ addrmap granite_csr {
     // open page. The address is left a hole rather than reused so the rest of
     // the map does not shift and an old host reading 0x07C gets nothing
     // instead of something else's meaning.
+
+    reg {
+        name = "Scheduler Read-Priority Direction Register";
+        desc = "The read-priority direction register's two knobs (memory-controllers MC-024), read only when SCHED_POLICY.dir_mode = 1. Together they set the write share while reads keep the bus busy, and the mixed cell's union falls as that share rises (char_results/model_mc024_read_priority_2026-11-24.md). Reset 512 / 128, the owner's choice of 2026-11-24. Static configuration: change only while the controller is idle.";
+
+        field {
+            sw = rw; hw = r;
+            desc = "Write-starvation bound, MC cycles: the direction register turns to the writes when a write head has been queued this long with no write column fired. 0 = never (writes wait for the reads to drain). Reset 512.";
+        } wr_starve[11:0] = 12'd512;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_12[15:12] = 4'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Write hold cap, columns: a write hold turns the bus back to waiting reads after this many write columns. 0 = no cap. Reset 128. Longer bursts give the writes more of a contended bus with fewer turnarounds; the worst read waits about one burst (~2 cycles a column).";
+        } wr_burst[23:16] = 8'd128;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_24[31:24] = 8'h0;
+
+    } SCHED_DIR_RP @ 0x194;   // not 0x080: OBS_ROW_HIT[8] held 0x080-0x09C (pumice; granite until the 2026-10-24 narrowing), a retired hole
 
 
 

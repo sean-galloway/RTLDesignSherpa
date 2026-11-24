@@ -1221,10 +1221,13 @@ class GraniteSKUController : public ControllerBase {
       // starvation, registered from this slot's write heads and the counter
       bool wr_queued = false;
       for (int p = 0; p < np; p++) if (m_heads[p].vld && dir_of(p)) wr_queued = true;
-      if (fired_col && fired_dir == 1) m_wr_wait = 0;
-      else if (wr_queued) m_wr_wait++;
-      else m_wr_wait = 0;
+      // the RTL's r_wr_starved: the compare on the counter's CURRENT value, registered (mc_bank_pick g_rd_prio),
+      // so the flag is a slot behind the count; then the count (clear on a write column or no write head,
+      // saturating at 12 bits)
       m_press = m_wr_starve > 0 && m_wr_wait >= m_wr_starve;
+      if (fired_col && fired_dir == 1) m_wr_wait = 0;
+      else if (!wr_queued) m_wr_wait = 0;
+      else if (m_wr_wait < 4095) m_wr_wait++;
     }
     m_dir = dir_nxt;
     m_dir_flip = flip;

@@ -522,6 +522,9 @@ module granite_top_geared
         // with work never yielded (granite TASK-003, 2026-10-30)
         .sched_wr_batch_max_i(8'(DIR_BATCH_MAX)),
         .sched_wr_low_wm_i  (hwif_out.SCHED_WR_WM.wr_low_wm.value),
+        .sched_rd_prio_en_i (hwif_out.SCHED_POLICY.dir_mode.value),   // MC-024; reset 0 = the symmetric register
+        .sched_wr_starve_i  (hwif_out.SCHED_DIR_RP.wr_starve.value),
+        .sched_wr_burst_i   (hwif_out.SCHED_DIR_RP.wr_burst.value),
         .sched_prio_sub_i   (hwif_out.SCHED_POLICY.prio_sub.value),
         .sched_qos_en_i     (hwif_out.SCHED_POLICY.qos_en.value),
         .sched_age_thresh_i (hwif_out.SCHED_POLICY.age_thresh.value),

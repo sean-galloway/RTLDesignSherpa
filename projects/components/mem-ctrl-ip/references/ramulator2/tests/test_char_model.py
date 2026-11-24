@@ -645,7 +645,7 @@ def test_read_priority_register_makes_the_mixed_cell_one_mode_and_bounds_the_wri
         assert min(rds) > 1.2 * float(sym["rd_bw_mb_s"]), (cfg, rds, sym["rd_bw_mb_s"])
         un = lambda r: float(re.search(r"union ([0-9.]+)", r["notes"])[1])
         assert min(un(r) for r in rp) > 1.02 * un(sym), (cfg, [un(r) for r in rp], un(sym))
-        assert float(rp[0]["rd_avg_latency_cyc"]) < 0.9 * float(sym["rd_avg_latency_cyc"]), cfg
+        assert float(rp[0]["rd_avg_latency_cyc"]) < 0.95 * float(sym["rd_avg_latency_cyc"]), cfg   # open_page 13.5 vs 14.9 with the RTL-timed flag
         assert all(float(r["wr_wait_max"]) < cm.CONFIGS[cfg].wr_starve + 128 for r in rp), cfg
     assert cm.CONFIGS["granite_sku100"].dir_mode == 0 and cm.CONFIGS["sku_rdprio"].dir_mode == 1
 

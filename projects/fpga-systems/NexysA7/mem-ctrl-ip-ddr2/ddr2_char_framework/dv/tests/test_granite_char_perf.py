@@ -45,7 +45,10 @@ builds it out and leaves both fields at reset; its own sim_build tag),
 TEST_NUM_ENTRIES (the store pool per direction, the SKU 16 since 2026-11-16, 8
 before; memory-controllers MC-015 found the write ceiling there), PERF_W_HOPS (a path: every valid/ready
 hop of the write path sampled per cycle, handshake gaps and stall counts per
-hop, PERF_W_HOPS_CYCLES deep -- the MC-015 probe), TEST_DIR_BATCH_MAX (the
+hop, PERF_W_HOPS_CYCLES deep -- the MC-015 probe), TEST_DIR_MODE / TEST_WR_STARVE / TEST_WR_BURST (the direction register's
+mode, memory-controllers MC-024: unset = the reset, the symmetric register; 1 =
+read priority at the SCHED_DIR_RP reset 512 / 128 unless the other two say),
+TEST_DIR_BATCH_MAX (the
 pick core's direction batch cap, board 255 = GRANITE_DIR_BATCH_MAX; its own
 sim_build tag suffix, as TEST_NUM_ENTRIES now has), PERF_DIR_FLIPS (a path:
 every direction flip of the pick core with its cause and the batch it ended,
@@ -950,6 +953,19 @@ async def cocotb_test_granite_perf(dut):
         dual = os.environ.get("TEST_DUAL", "1") == "1"
         drv.set_sched_policy(dual_issue=dual)
         out["dual_issue"] = int(dual)
+        # TEST_DIR_MODE: the direction register's mode (memory-controllers MC-024). Unset = the RDL reset,
+        # 0, the symmetric register; 1 = read priority, tuned by TEST_WR_STARVE / TEST_WR_BURST (unset = the
+        # reset 512 / 128).
+        dir_mode = os.environ.get("TEST_DIR_MODE", "")
+        if dir_mode:
+            ws, wb = os.environ.get("TEST_WR_STARVE", ""), os.environ.get("TEST_WR_BURST", "")
+            drv.set_dir_mode(read_priority=int(dir_mode, 0) == 1,
+                             wr_starve=int(ws, 0) if ws else None, wr_burst=int(wb, 0) if wb else None)
+            out["dir_mode"] = int(dir_mode, 0)
+            if ws:
+                out["wr_starve"] = int(ws, 0)
+            if wb:
+                out["wr_burst"] = int(wb, 0)
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL,
@@ -1178,6 +1194,9 @@ def _run_granite_perf(request, over=None):
         "MISM_DUMP": _g("MISM_DUMP", ""),
         "DFI_CMD_TRACE": _g("DFI_CMD_TRACE", "0"),
         "TEST_PAGE_POLICY": _g("TEST_PAGE_POLICY", ""),
+        "TEST_DIR_MODE": _g("TEST_DIR_MODE", ""),
+        "TEST_WR_STARVE": _g("TEST_WR_STARVE", ""),
+        "TEST_WR_BURST": _g("TEST_WR_BURST", ""),
         "TEST_ADDR_SCHEME": _g("TEST_ADDR_SCHEME", ""),
         "TEST_TREFI": _g("TEST_TREFI", "585"),
         "TEST_TXN": _g("TEST_TXN", "256"),

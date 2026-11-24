@@ -327,7 +327,7 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 ## A field that software toggles while traffic runs must be timed.
 ##==============================================================================
 set_false_path -from [get_cells -hierarchical -regexp \
-    {.*u_csr/field_storage_reg\[(TIMINGS_[A-Z_0-9]+|DFI_PHASE|PHY_TIMING|SCHED_TUNING|REFRESH_TUNING|ADDR_MAP|INIT_TUNING|INIT_TIMING[01]|CAL_ZQ_INTERVAL|CAL_ZQ_TIMING|CAL_TRAIN_TIMING|SCHED_POLICY|SCHED_WR_WM|PAGE_POLICY_CFG|PAGE_TIMEOUT_CFG|REF_CTRL|REF_TIMING_PB|MR[0-3]|LP_MR[123]_OP|MON_LATENCY_THRESH|MON_ROUTE|MON_CORE_EV|MON_BASE_ADDR|MON_LIMIT_ADDR|MON_ERR_BASE_ADDR|MON_ERR_LIMIT_ADDR)\].*}]
+    {.*u_csr/field_storage_reg\[(TIMINGS_[A-Z_0-9]+|DFI_PHASE|PHY_TIMING|SCHED_TUNING|REFRESH_TUNING|ADDR_MAP|INIT_TUNING|INIT_TIMING[01]|CAL_ZQ_INTERVAL|CAL_ZQ_TIMING|CAL_TRAIN_TIMING|SCHED_POLICY|SCHED_WR_WM|SCHED_DIR_RP|PAGE_POLICY_CFG|PAGE_TIMEOUT_CFG|REF_CTRL|REF_TIMING_PB|MR[0-3]|LP_MR[123]_OP|MON_LATENCY_THRESH|MON_ROUTE|MON_CORE_EV|MON_BASE_ADDR|MON_LIMIT_ADDR|MON_ERR_BASE_ADDR|MON_ERR_LIMIT_ADDR)\].*}]
 
 ## The harness CSR's own configuration into the controller and the PHY: the
 ## controller cfg word (memory variant, PHY write latency, read-data enable,

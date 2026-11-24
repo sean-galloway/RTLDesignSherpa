@@ -104,6 +104,12 @@ package granite_pkg;
     // in a mixed load (granite TASK-003, 2026-11-01).
     parameter bit GRANITE_SCHED_DIR_OWNS_ROWS = 1'b1;
     parameter int GRANITE_SCHED_DIR_HOLD_IDLE = 8;
+    // Read-priority direction register (mc_bank_pick HAS_RD_PRIO,
+    // memory-controllers MC-024): built in, selected at run time by
+    // SCHED_POLICY.dir_mode (reset 0, the symmetric register -- the owner's
+    // 2026-11-24 rule that power-up is the most generic setting), tuned by
+    // SCHED_DIR_RP (wr_starve 512 / wr_burst 128 at reset).
+    parameter bit GRANITE_SCHED_RD_PRIO = 1'b1;
 
     // ------------------------------------------------------------------
     // RAS plane: ABSENT in this SKU (true bypass, reserved CSR decode
