@@ -102,8 +102,10 @@ report), then "yes" to build it.
     discard the finished M instruction, and a timer re-raised 3 to 40
     cycles after each acknowledge livelocked it (PRD §4.3, handbook
     [interrupts-must-not-discard-finished-work](../../../../../../../handbook/design/interrupts-must-not-discard-finished-work.md)).
-    This is a design addition beyond the owner's ruling and is flagged
-    for review.
+    This is a design addition beyond the owner's ruling. Owner,
+    2026-11-24: "do the simple solution first; we can reevaluate later.
+    add an issue to track it" -- kept, tracked as
+    riscv-ip/peregrine-rv32im ISSUE-001.
 - **DV.**
   - `test_peregrine_mdu`: the unit. A 14 x 14 edge cross product of all
     eight operations against a spec model, plus 2,000 (func) or 20,000

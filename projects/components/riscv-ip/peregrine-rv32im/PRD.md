@@ -156,7 +156,9 @@ instruction, discarding its 33 cycles of work. A timer re-raised 3 to 40
 cycles after each acknowledge then caught every M instruction before it
 retired: a livelock, measured in the directed suite. The cost is interrupt
 latency: a run of back-to-back M instructions delays an interrupt by
-about 34 cycles each.
+about 34 cycles each. Kept as the simple solution for now (Sean,
+2026-11-24: "do the simple solution first; we can reevaluate later"); the
+alternatives are tracked in riscv-ip/peregrine-rv32im ISSUE-001.
 
 ### 4.4 M unit
 

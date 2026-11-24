@@ -2,7 +2,7 @@
 
 # vault/tracking/projects/components/riscv-ip/peregrine-rv32im — issues
 
-**Next ID: ISSUE-001** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-002** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed: it resolves INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **ISSUE-001** — M instructions are not interruptible (the stage-2 livelock fix): interrupt latency vs forward progress; the simple solution is kept for now, reevaluate later (owner, 2026-11-24)
 
 ## Active
 
