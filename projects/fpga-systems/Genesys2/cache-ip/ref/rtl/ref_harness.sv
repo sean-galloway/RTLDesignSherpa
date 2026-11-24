@@ -442,9 +442,19 @@ module ref_harness
     logic [31:0] onyx_mon_mask;
     logic [31:0] onyx_mon_win_low;   // the observer's address window (CSR 0x014 / 0x018; CTRL[3] enables)
     logic [31:0] onyx_mon_win_high;
+    // the IO doorbell (CSR 0x040 .. 0x058; onyx TASK-001 step 7): one
+    // single-beat access on onyx's ACE-Lite IO port per go
+    logic        io_go, io_write, io_sh;
+    logic [31:0] io_addr;
+    logic [63:0] io_wdata;
+    logic [7:0]  io_strb;
+    logic        io_busy, io_done, io_absent;
+    logic [1:0]  io_resp;
+    logic [63:0] io_rdata;
     /* verilator lint_off UNUSEDSIGNAL */
     logic unused_onyx_mon_cfg;   // the selections without onyx, and the bits the two-port build leaves
-    assign unused_onyx_mon_cfg = &{1'b0, onyx_mon_ctrl, onyx_mon_mask, onyx_mon_win_low, onyx_mon_win_high};
+    assign unused_onyx_mon_cfg = &{1'b0, onyx_mon_ctrl, onyx_mon_mask, onyx_mon_win_low, onyx_mon_win_high,
+                                   io_go, io_write, io_sh, io_addr, io_wdata, io_strb};
     /* verilator lint_on UNUSEDSIGNAL */
 
     // Aggregate cycle-injector status
@@ -497,7 +507,18 @@ module ref_harness
         .o_onyx_mon_ctrl (onyx_mon_ctrl),
         .o_onyx_mon_mask (onyx_mon_mask),
         .o_onyx_mon_win_low  (onyx_mon_win_low),
-        .o_onyx_mon_win_high (onyx_mon_win_high)
+        .o_onyx_mon_win_high (onyx_mon_win_high),
+        .o_io_go       (io_go),
+        .o_io_write    (io_write),
+        .o_io_sh       (io_sh),
+        .o_io_addr     (io_addr),
+        .o_io_wdata    (io_wdata),
+        .o_io_strb     (io_strb),
+        .i_io_busy     (io_busy),
+        .i_io_done     (io_done),
+        .i_io_resp     (io_resp),
+        .i_io_rdata    (io_rdata),
+        .i_io_absent   (io_absent)
     );
 
     // ------------------------------------------------------------------
@@ -665,6 +686,9 @@ module ref_harness
             for (genvar k = 0; k < 6; k++) begin : g_z
                 assign onyx_cnt[k] = '0;
             end
+            // no IO port in this selection: the doorbell reads absent
+            assign io_busy = 1'b0; assign io_done = 1'b0; assign io_resp = 2'b00;
+            assign io_rdata = '0;  assign io_absent = 1'b1;
         ref_cva6_dcache_top #(
             .ADDR_WIDTH     (ADDR_WIDTH),
             .BUS_WIDTH      (BUS_WIDTH),
@@ -739,6 +763,9 @@ module ref_harness
             for (genvar k = 0; k < 6; k++) begin : g_z
                 assign onyx_cnt[k] = '0;
             end
+            // no IO port in this selection: the doorbell reads absent
+            assign io_busy = 1'b0; assign io_done = 1'b0; assign io_resp = 2'b00;
+            assign io_rdata = '0;  assign io_absent = 1'b1;
             /* verilator lint_off UNUSEDSIGNAL */
             logic                        jetp_acready, jetp_crvalid, jetp_cdvalid, jetp_cdlast;
             logic [AMBER_CRRESP_WIDTH-1:0] jetp_crresp;
@@ -1387,6 +1414,48 @@ module ref_harness
             assign oc_coh_addr[0] = coh0_addr;   assign oc_coh_addr[1] = coh1_addr;
             assign oc_coh_type[0] = coh0_type;   assign oc_coh_type[1] = coh1_type;
             assign oc_done_id[0] = done0_id;     assign oc_done_id[1] = done1_id;
+
+            // the ACE-Lite IO port (D1, step 7) and the host's doorbell
+            // master on it: one single-beat read or write per IO_CTRL.go
+            logic [IW-1:0]            io_arid, io_rid, io_awid, io_bid;
+            logic [ADDR_WIDTH-1:0]    io_araddr, io_awaddr;
+            logic [7:0]               io_arlen, io_awlen;
+            logic [2:0]               io_arsize, io_awsize, io_arprot, io_awprot, io_awsnoop;
+            logic [1:0]               io_arburst, io_awburst, io_ardomain, io_awdomain, io_arbar, io_awbar;
+            logic [1:0]               io_rresp, io_bresp;
+            logic                     io_arlock, io_awlock;
+            logic [3:0]               io_arcache, io_awcache, io_arqos, io_awqos, io_arregion, io_awregion, io_arsnoop;
+            logic [UW-1:0]            io_aruser, io_ruser, io_awuser, io_wuser, io_buser;
+            logic                     io_arvalid, io_arready, io_rvalid, io_rready, io_rlast;
+            logic                     io_awvalid, io_awready, io_wvalid, io_wready, io_wlast, io_bvalid, io_bready;
+            logic [BUS_WIDTH-1:0]     io_rdata_b, io_wdata_b, io_rdata_lat;
+            logic [STRB_W-1:0]        io_wstrb;
+            assign io_absent = 1'b0;
+            ref_io_master #(
+                .ADDR_WIDTH (ADDR_WIDTH),
+                .BUS_WIDTH  (BUS_WIDTH),
+                .ID_WIDTH   (IW),
+                .USER_WIDTH (UW)
+            ) u_io_master (
+                .aclk(aclk), .aresetn(aresetn),
+                .go_i(io_go), .write_i(io_write), .shareable_i(io_sh),
+                .addr_i(ADDR_WIDTH'(io_addr)), .wdata_i(BUS_WIDTH'(io_wdata)), .wstrb_i(STRB_W'(io_strb)),
+                .busy_o(io_busy), .done_o(io_done), .resp_o(io_resp), .rdata_o(io_rdata_lat),
+                .io_arid(io_arid), .io_araddr(io_araddr), .io_arlen(io_arlen), .io_arsize(io_arsize),
+                .io_arburst(io_arburst), .io_arlock(io_arlock), .io_arcache(io_arcache), .io_arprot(io_arprot),
+                .io_arqos(io_arqos), .io_arregion(io_arregion), .io_aruser(io_aruser), .io_arsnoop(io_arsnoop),
+                .io_ardomain(io_ardomain), .io_arbar(io_arbar), .io_arvalid(io_arvalid), .io_arready(io_arready),
+                .io_rid(io_rid), .io_rdata(io_rdata_b), .io_rresp(io_rresp), .io_rlast(io_rlast), .io_ruser(io_ruser),
+                .io_rvalid(io_rvalid), .io_rready(io_rready),
+                .io_awid(io_awid), .io_awaddr(io_awaddr), .io_awlen(io_awlen), .io_awsize(io_awsize),
+                .io_awburst(io_awburst), .io_awlock(io_awlock), .io_awcache(io_awcache), .io_awprot(io_awprot),
+                .io_awqos(io_awqos), .io_awregion(io_awregion), .io_awuser(io_awuser), .io_awsnoop(io_awsnoop),
+                .io_awdomain(io_awdomain), .io_awbar(io_awbar), .io_awvalid(io_awvalid), .io_awready(io_awready),
+                .io_wdata(io_wdata_b), .io_wstrb(io_wstrb), .io_wlast(io_wlast), .io_wuser(io_wuser),
+                .io_wvalid(io_wvalid), .io_wready(io_wready), .io_bid(io_bid), .io_bresp(io_bresp),
+                .io_buser(io_buser), .io_bvalid(io_bvalid), .io_bready(io_bready)
+            );
+            assign io_rdata = 64'(io_rdata_lat);
         onyx_top #(
             .N_PORTS        (2),
             .ADDR_WIDTH     (ADDR_WIDTH),
@@ -1463,6 +1532,19 @@ module ref_harness
             .c_coh_req_type   (oc_coh_type),
             .c_coh_done_valid ({done1_valid, done0_valid}),
             .c_coh_done_id    (oc_done_id),
+            .io_arid(io_arid), .io_araddr(io_araddr), .io_arlen(io_arlen), .io_arsize(io_arsize),
+            .io_arburst(io_arburst), .io_arlock(io_arlock), .io_arcache(io_arcache), .io_arprot(io_arprot),
+            .io_arqos(io_arqos), .io_arregion(io_arregion), .io_aruser(io_aruser), .io_arsnoop(io_arsnoop),
+            .io_ardomain(io_ardomain), .io_arbar(io_arbar), .io_arvalid(io_arvalid), .io_arready(io_arready),
+            .io_rid(io_rid), .io_rdata(io_rdata_b), .io_rresp(io_rresp), .io_rlast(io_rlast), .io_ruser(io_ruser),
+            .io_rvalid(io_rvalid), .io_rready(io_rready),
+            .io_awid(io_awid), .io_awaddr(io_awaddr), .io_awlen(io_awlen), .io_awsize(io_awsize),
+            .io_awburst(io_awburst), .io_awlock(io_awlock), .io_awcache(io_awcache), .io_awprot(io_awprot),
+            .io_awqos(io_awqos), .io_awregion(io_awregion), .io_awuser(io_awuser), .io_awsnoop(io_awsnoop),
+            .io_awdomain(io_awdomain), .io_awbar(io_awbar), .io_awvalid(io_awvalid), .io_awready(io_awready),
+            .io_wdata(io_wdata_b), .io_wstrb(io_wstrb), .io_wlast(io_wlast), .io_wuser(io_wuser),
+            .io_wvalid(io_wvalid), .io_wready(io_wready), .io_bid(io_bid), .io_bresp(io_bresp),
+            .io_buser(io_buser), .io_bvalid(io_bvalid), .io_bready(io_bready),
             .mem_arid         (mem_arid),
             .mem_araddr       (mem_araddr),
             .mem_arlen        (mem_arlen),
@@ -1514,13 +1596,14 @@ module ref_harness
             .mon_timestamp    (onyx_mon_timestamp),
             .mon_dropped      (),
             // the observer's masks from the harness CSR: ONYX_MON_CTRL [0]
-            // enable, [1] error enable, [2] perf enable, [5:4] port mask,
-            // [31:16] perf (event class) mask; ONYX_MON_MASK [15:0] packet
-            // type mask, [31:16] error (event code) mask
+            // enable, [1] error enable, [2] perf enable, [6:4] port mask
+            // (the two caches, bit 6 the IO port), [31:16] perf (event
+            // class) mask; ONYX_MON_MASK [15:0] packet type mask, [31:16]
+            // error (event code) mask
             .mon_cfg_enable       (onyx_mon_ctrl[0]),
             .mon_cfg_error_enable (onyx_mon_ctrl[1]),
             .mon_cfg_perf_enable  (onyx_mon_ctrl[2]),
-            .mon_cfg_port_mask    (onyx_mon_ctrl[5:4]),
+            .mon_cfg_port_mask    (onyx_mon_ctrl[6:4]),
             .mon_cfg_perf_mask    (onyx_mon_ctrl[31:16]),
             .mon_cfg_pkt_mask     (onyx_mon_mask[15:0]),
             .mon_cfg_error_mask   (onyx_mon_mask[31:16]),
@@ -1554,6 +1637,12 @@ module ref_harness
             for (genvar k = 0; k < 6; k++) begin : g_z
                 assign onyx_cnt[k] = '0;
             end
+            // no IO port in the pair fabric: the doorbell reads absent
+            assign io_busy = 1'b0;
+            assign io_done = 1'b0;
+            assign io_resp = 2'b00;
+            assign io_rdata = '0;
+            assign io_absent = 1'b1;
         end
 
         // ------------------------------------------------------------------
@@ -1747,6 +1836,9 @@ module ref_harness
             for (genvar k = 0; k < 6; k++) begin : g_z
                 assign onyx_cnt[k] = '0;
             end
+            // no IO port in this selection: the doorbell reads absent
+            assign io_busy = 1'b0; assign io_done = 1'b0; assign io_resp = 2'b00;
+            assign io_rdata = '0;  assign io_absent = 1'b1;
         ref_hpdcache_top #(
             .ADDR_WIDTH     (ADDR_WIDTH),
             .SETS           (SETS),
@@ -2014,28 +2106,51 @@ module ref_harness_csr (
     output logic [31:0] o_onyx_mon_ctrl,  // 0x038: the onyx observer's enables, port mask and class mask
     output logic [31:0] o_onyx_mon_mask,  // 0x03C: its packet-type mask and error-code mask
     output logic [31:0] o_onyx_mon_win_low,   // 0x014 / 0x018: its address window (CTRL[3] enables)
-    output logic [31:0] o_onyx_mon_win_high
+    output logic [31:0] o_onyx_mon_win_high,
+    // 0x040 .. 0x058: the IO doorbell (onyx TASK-001 step 7) -- one
+    // single-beat access on onyx's ACE-Lite IO port per IO_CTRL.go
+    output logic        o_io_go,          // one-cycle pulse (IO_CTRL[0], write-1)
+    output logic        o_io_write,       // IO_CTRL[1]: 1 write, 0 read
+    output logic        o_io_sh,          // IO_CTRL[2]: shareable (ReadOnce / WriteUnique)
+    output logic [31:0] o_io_addr,        // IO_ADDR
+    output logic [63:0] o_io_wdata,       // IO_WDATA_LO / HI
+    output logic [7:0]  o_io_strb,        // IO_CTRL[15:8]
+    input  logic        i_io_busy,        // IO_STATUS[0]
+    input  logic        i_io_done,        // IO_STATUS[1]
+    input  logic [1:0]  i_io_resp,        // IO_STATUS[3:2]
+    input  logic [63:0] i_io_rdata,       // IO_RDATA_LO / HI
+    input  logic        i_io_absent       // IO_STATUS[31]: no IO port in this selection
 );
 
-    localparam logic [3:0] HCSR_CTRL       = 4'h0;
-    localparam logic [3:0] HCSR_STATUS     = 4'h1;
-    localparam logic [3:0] HCSR_CYCLE_LO   = 4'h2;
-    localparam logic [3:0] HCSR_CYCLE_HI   = 4'h3;
-    localparam logic [3:0] HCSR_FABRIC_DBG = 4'h4;
-    localparam logic [3:0] HCSR_ONYX_CNT0  = 4'h8;   // 0x020 .. 0x034: the six onyx counters
+    // the word index is addr[6:2]: 0x00 .. 0x7C (the first sixteen words
+    // were the whole map until the IO doorbell took 0x40 .. 0x58)
+    localparam logic [4:0] HCSR_CTRL       = 5'h00;
+    localparam logic [4:0] HCSR_STATUS     = 5'h01;
+    localparam logic [4:0] HCSR_CYCLE_LO   = 5'h02;
+    localparam logic [4:0] HCSR_CYCLE_HI   = 5'h03;
+    localparam logic [4:0] HCSR_FABRIC_DBG = 5'h04;
+    localparam logic [4:0] HCSR_ONYX_CNT0  = 5'h08;   // 0x020 .. 0x034: the six onyx counters
     // 0x038 / 0x03C: the onyx observer's masks, the ocelus layers (enables
     // 1 = on, masks bit set = drop).  Reset: observer, error and perf
     // enabled, no port masked, the per-transaction classes (TXN_START,
     // GATHER_DONE, MEM_READ, READ_WASTED, ABSORB, WRITEBACK) masked and
     // LOCK_WAIT open -- the MonBus is a low-bandwidth event channel and the
     // host opens the classes it wants to transmit.
-    localparam logic [3:0] HCSR_ONYX_MON_CTRL = 4'hE;
-    localparam logic [3:0] HCSR_ONYX_MON_MASK = 4'hF;
+    localparam logic [4:0] HCSR_ONYX_MON_CTRL = 5'h0E;
+    localparam logic [4:0] HCSR_ONYX_MON_MASK = 5'h0F;
     // 0x014 / 0x018: the observer's inclusive address window, the content
     // filter the AXI monitors carry as address ranges; CTRL[3] enables it
-    localparam logic [3:0] HCSR_ONYX_MON_WIN_LO = 4'h5;
-    localparam logic [3:0] HCSR_ONYX_MON_WIN_HI = 4'h6;
+    localparam logic [4:0] HCSR_ONYX_MON_WIN_LO = 5'h05;
+    localparam logic [4:0] HCSR_ONYX_MON_WIN_HI = 5'h06;
     localparam logic [31:0] ONYX_MON_CTRL_RESET = 32'h007D_0007;
+    // 0x040 .. 0x058: the IO doorbell
+    localparam logic [4:0] HCSR_IO_ADDR     = 5'h10;
+    localparam logic [4:0] HCSR_IO_WDATA_LO = 5'h11;
+    localparam logic [4:0] HCSR_IO_WDATA_HI = 5'h12;
+    localparam logic [4:0] HCSR_IO_CTRL     = 5'h13;   // [0] go (W1 pulse) [1] write [2] shareable [15:8] wstrb
+    localparam logic [4:0] HCSR_IO_STATUS   = 5'h14;   // [0] busy [1] done [3:2] resp [31] absent
+    localparam logic [4:0] HCSR_IO_RDATA_LO = 5'h15;
+    localparam logic [4:0] HCSR_IO_RDATA_HI = 5'h16;
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
@@ -2044,6 +2159,13 @@ module ref_harness_csr (
     assign o_onyx_mon_mask = r_onyx_mon_mask;
     assign o_onyx_mon_win_low  = r_onyx_mon_win_lo;
     assign o_onyx_mon_win_high = r_onyx_mon_win_hi;
+    logic [31:0] r_io_addr, r_io_wdata_lo, r_io_wdata_hi, r_io_ctrl;
+    assign o_io_go    = r_io_ctrl[0];
+    assign o_io_write = r_io_ctrl[1];
+    assign o_io_sh    = r_io_ctrl[2];
+    assign o_io_strb  = r_io_ctrl[15:8];
+    assign o_io_addr  = r_io_addr;
+    assign o_io_wdata = {r_io_wdata_hi, r_io_wdata_lo};
 
     // Write path: accept AW and W independently per AXI4-Lite spec.
     logic        r_bvalid;
@@ -2068,10 +2190,16 @@ module ref_harness_csr (
             r_onyx_mon_mask <= '0;
             r_onyx_mon_win_lo <= '0;
             r_onyx_mon_win_hi <= '0;
+            r_io_addr     <= '0;
+            r_io_wdata_lo <= '0;
+            r_io_wdata_hi <= '0;
+            r_io_ctrl     <= '0;
         end else begin
             // CTRL[0] (tally_clear) is write-1-pulse: a write with bit 0 set
             // raises o_ctrl[0] for exactly one cycle, then it self-clears.
+            // IO_CTRL[0] (go) is the same shape.
             r_ctrl[0] <= 1'b0;
+            r_io_ctrl[0] <= 1'b0;
             if (s_axil_awvalid && s_axil_awready) begin
                 r_aw_done <= 1'b1;
                 r_awaddr  <= s_axil_awaddr;
@@ -2086,20 +2214,32 @@ module ref_harness_csr (
                 r_aw_done <= 1'b0;
                 r_w_done  <= 1'b0;
                 for (int b = 0; b < 4; b++) begin
-                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_CTRL)) begin
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_CTRL)) begin
                         r_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
-                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_CTRL)) begin
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_ONYX_MON_CTRL)) begin
                         r_onyx_mon_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
-                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_MASK)) begin
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_ONYX_MON_MASK)) begin
                         r_onyx_mon_mask[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
-                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_WIN_LO)) begin
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_ONYX_MON_WIN_LO)) begin
                         r_onyx_mon_win_lo[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
-                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_ONYX_MON_WIN_HI)) begin
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_ONYX_MON_WIN_HI)) begin
                         r_onyx_mon_win_hi[8*b +: 8] <= r_wdata[8*b +: 8];
+                    end
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_IO_ADDR)) begin
+                        r_io_addr[8*b +: 8] <= r_wdata[8*b +: 8];
+                    end
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_IO_WDATA_LO)) begin
+                        r_io_wdata_lo[8*b +: 8] <= r_wdata[8*b +: 8];
+                    end
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_IO_WDATA_HI)) begin
+                        r_io_wdata_hi[8*b +: 8] <= r_wdata[8*b +: 8];
+                    end
+                    if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_IO_CTRL)) begin
+                        r_io_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
                 end
             end else if (s_axil_bvalid && s_axil_bready) begin
@@ -2118,18 +2258,25 @@ module ref_harness_csr (
     assign s_axil_rdata   = r_rdata;
 
     always_comb begin
-        case (r_araddr[5:2])
+        case (r_araddr[6:2])
             HCSR_CTRL:       r_rdata = r_ctrl;
             HCSR_STATUS:     r_rdata = i_status;
             HCSR_CYCLE_LO:   r_rdata = i_cycle_lo;
             HCSR_CYCLE_HI:   r_rdata = i_cycle_hi;
             HCSR_FABRIC_DBG: r_rdata = {28'b0, i_fabric_dbg};
-            4'h8, 4'h9, 4'hA, 4'hB, 4'hC, 4'hD:
-                             r_rdata = i_onyx_cnt[3'(r_araddr[5:2] - HCSR_ONYX_CNT0)];
+            5'h08, 5'h09, 5'h0A, 5'h0B, 5'h0C, 5'h0D:
+                             r_rdata = i_onyx_cnt[3'(r_araddr[6:2] - HCSR_ONYX_CNT0)];
             HCSR_ONYX_MON_CTRL: r_rdata = r_onyx_mon_ctrl;
             HCSR_ONYX_MON_MASK: r_rdata = r_onyx_mon_mask;
             HCSR_ONYX_MON_WIN_LO: r_rdata = r_onyx_mon_win_lo;
             HCSR_ONYX_MON_WIN_HI: r_rdata = r_onyx_mon_win_hi;
+            HCSR_IO_ADDR:     r_rdata = r_io_addr;
+            HCSR_IO_WDATA_LO: r_rdata = r_io_wdata_lo;
+            HCSR_IO_WDATA_HI: r_rdata = r_io_wdata_hi;
+            HCSR_IO_CTRL:     r_rdata = r_io_ctrl;      // go reads 0
+            HCSR_IO_STATUS:   r_rdata = {i_io_absent, 27'b0, i_io_resp, i_io_done, i_io_busy};
+            HCSR_IO_RDATA_LO: r_rdata = i_io_rdata[31:0];
+            HCSR_IO_RDATA_HI: r_rdata = i_io_rdata[63:32];
             default:         r_rdata = 32'hDEAD_BEEF;
         endcase
     end

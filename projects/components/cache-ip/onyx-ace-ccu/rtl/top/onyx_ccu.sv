@@ -118,13 +118,47 @@
 //   onyx_monlite turns into MonBus packets; onyx_top composes the two.
 //   Nothing on the taps feeds back into the datapath.
 //
-//   Not in v1: the ACE-Lite IO port (D1; a later step of TASK-001),
-//   ARSNOOP decode on the AR (the caches carry the request class on the
-//   sideband; the ACE-front-side flavor is the D7 adapter's second half).
+//   The ACE-Lite IO port (D1, TASK-001 step 7).  One non-caching requester
+//   (io_*: AXI4 plus AxSNOOP / AxDOMAIN / AxBAR, no snoop channels -- IHI
+//   0022 D11) is requester N_PORTS of the table, beside the N caches:
+//     ReadOnce       (ARDOMAIN shareable, ARSNOOP 0): a slot, an AC to
+//                    EVERY cache (ACSNOOP ReadOnce), the memory read per
+//                    the D6 mode; a peer's DataTransfer supplies the
+//                    requested beats from the IO buffer (a ReadOnce leaves
+//                    the holder's state to the cache: the house table
+//                    passes a Modified line dirty, which onyx absorbs);
+//                    the read must lie within one line at full-width beats.
+//     ReadNoSnoop    (ARDOMAIN non-shareable or system): a slot with no
+//                    peers -- the AR goes to memory as issued (any legal
+//                    AXI burst), the beats return as they come.
+//     WriteUnique /  (AWDOMAIN shareable, AWSNOOP 0 / 1): a slot, an AC to
+//     WriteLineUnique every cache (ACSNOOP CleanInvalid: a Modified holder
+//                    passes the line dirty and invalidates, a clean holder
+//                    invalidates); the IO's AW is held un-accepted while the
+//                    slot gathers and any PassDirty line is absorbed, then
+//                    passes through the write port with the IO's own fields
+//                    (partial strobes included) and its BRESP frees the slot.
+//     WriteNoSnoop   (non-shareable): the write port, as a cache
+//                    write-back is (the same hold against an incomplete
+//                    gather or pending absorption on its line).
+//   One IO read and one IO write are in flight at a time (the same-ID
+//   ordering AXI requires of the port, by construction); the IO takes the
+//   per-line lock like a cache and holds it until its last beat or its
+//   BRESP.  A WriteUnique whose line a cache is writing back lets the
+//   write-back land first (its AW is forwarded only when no cache presents
+//   an AW to the line).  AxBAR is ignored (D8), ARSNOOP other than ReadOnce
+//   and AWSNOOP other than WriteUnique / WriteLineUnique are not decoded
+//   (sim-checked).  The IO port carries no retire sideband: its slot's
+//   retire is its last beat / its BRESP.
+//
+//   Not in v1: ARSNOOP decode on the caches' AR (the caches carry the
+//   request class on the sideband; the ACE-front-side flavor is the D7
+//   adapter's second half).
 //
 //------------------------------------------------------------------------------
 // Parameters:
-//   N_PORTS        -- coherent cache ports, 2..4 (D11).
+//   N_PORTS        -- coherent cache ports, 2..4 (D11); the IO port is
+//                     requester N_PORTS (one, always present).
 //   SLOTS          -- transaction table depth, shared by all ports; also
 //                     the memory read IDs in use (0 .. SLOTS-1).  At
 //                     N_PORTS * (MSHR_COUNT + 1) nothing ever waits for a
@@ -138,8 +172,8 @@
 //   - Single clock / active-low reset (clk / rst_n); ALWAYS_FF_RST macros.
 //   - Cache-side signals are unpacked arrays over N_PORTS; a rig flattens
 //     them to per-port names.  dbg_grant_dir keeps the pair fabric's tap
-//     name (the requester port of a grant) so the pair-rig TB reads onyx
-//     unchanged.
+//     name (the requester of a grant: a cache port, or N_PORTS for the IO
+//     port) so the pair-rig TB reads onyx unchanged.
 //   - The memory read ID is the slot index; the requester sees its own
 //     ARID back.  Beats of different slots may interleave on a cache's R
 //     channel (AXI4 permits it per ID; jet_prime_fill demuxes by ID).
@@ -148,7 +182,8 @@
 // Related Modules:
 //   - Instantiated by: onyx_pair_rig_tb (two jet-primes, the pair fabric's
 //     place), the Genesys2 reference harness (a later step)
-//   - Consumes: N jet_prime_top memory sides + D-8 sidebands + ACE responders
+//   - Consumes: N jet_prime_top memory sides + D-8 sidebands + ACE responders,
+//     one ACE-Lite master (the pair rig's BFM; the reference rig's doorbell)
 //   - Package: l1_pkg (ACE request classes, CRRESP bit positions)
 //
 //------------------------------------------------------------------------------
@@ -162,6 +197,7 @@
 
 module onyx_ccu
     import l1_pkg::*;
+    import onyx_pkg::*;
 #(
     parameter int N_PORTS        = 2,
     parameter int ADDR_WIDTH     = AMBER_ADDR_WIDTH,
@@ -181,7 +217,12 @@ module onyx_ccu
     localparam int SLOT_W           = (SLOTS > 1) ? $clog2(SLOTS) : 1,
     localparam int PORT_W           = (N_PORTS > 1) ? $clog2(N_PORTS) : 1,
     localparam int OFFSET_W         = $clog2(LINE_BYTES),
-    localparam int LINE_W           = ADDR_WIDTH - OFFSET_W
+    localparam int LINE_W           = ADDR_WIDTH - OFFSET_W,
+    localparam int BYTE_W           = $clog2(STRB_W),
+    localparam int N_REQ            = N_PORTS + 1,          // the caches and the IO port
+    localparam int RQ_W             = $clog2(N_REQ),        // a requester index
+    localparam int IO               = N_PORTS,              // the IO port's requester index
+    localparam int PC_W             = $clog2(N_PORTS + 1)   // a count of peers (0 .. N_PORTS)
 ) (
     input  logic                        clk,
     input  logic                        rst_n,
@@ -263,6 +304,62 @@ module onyx_ccu
     input  logic [IW-1:0]               c_coh_done_id  [N_PORTS],
 
     // ------------------------------------------------------------------
+    // ACE-Lite IO port (D1): one non-caching master's AXI4 with the ACE
+    // address fields (AxSNOOP, AxDOMAIN, AxBAR); no snoop channels
+    // ------------------------------------------------------------------
+    input  logic [IW-1:0]               io_arid,
+    input  logic [ADDR_WIDTH-1:0]       io_araddr,
+    input  logic [7:0]                  io_arlen,
+    input  logic [2:0]                  io_arsize,
+    input  logic [1:0]                  io_arburst,
+    input  logic                        io_arlock,
+    input  logic [3:0]                  io_arcache,
+    input  logic [2:0]                  io_arprot,
+    input  logic [3:0]                  io_arqos,
+    input  logic [3:0]                  io_arregion,
+    input  logic [UW-1:0]               io_aruser,
+    input  logic [3:0]                  io_arsnoop,
+    input  logic [1:0]                  io_ardomain,
+    input  logic [1:0]                  io_arbar,
+    input  logic                        io_arvalid,
+    output logic                        io_arready,
+    output logic [IW-1:0]               io_rid,
+    output logic [BUS_WIDTH-1:0]        io_rdata,
+    output logic [1:0]                  io_rresp,
+    output logic                        io_rlast,
+    output logic [UW-1:0]               io_ruser,
+    output logic                        io_rvalid,
+    input  logic                        io_rready,
+
+    input  logic [IW-1:0]               io_awid,
+    input  logic [ADDR_WIDTH-1:0]       io_awaddr,
+    input  logic [7:0]                  io_awlen,
+    input  logic [2:0]                  io_awsize,
+    input  logic [1:0]                  io_awburst,
+    input  logic                        io_awlock,
+    input  logic [3:0]                  io_awcache,
+    input  logic [2:0]                  io_awprot,
+    input  logic [3:0]                  io_awqos,
+    input  logic [3:0]                  io_awregion,
+    input  logic [UW-1:0]               io_awuser,
+    input  logic [2:0]                  io_awsnoop,
+    input  logic [1:0]                  io_awdomain,
+    input  logic [1:0]                  io_awbar,
+    input  logic                        io_awvalid,
+    output logic                        io_awready,
+    input  logic [BUS_WIDTH-1:0]        io_wdata,
+    input  logic [STRB_W-1:0]           io_wstrb,
+    input  logic                        io_wlast,
+    input  logic [UW-1:0]               io_wuser,
+    input  logic                        io_wvalid,
+    output logic                        io_wready,
+    output logic [IW-1:0]               io_bid,
+    output logic [1:0]                  io_bresp,
+    output logic [UW-1:0]               io_buser,
+    output logic                        io_bvalid,
+    input  logic                        io_bready,
+
+    // ------------------------------------------------------------------
     // Memory-side AXI4 master
     // ------------------------------------------------------------------
     output logic [IW-1:0]               mem_arid,
@@ -320,7 +417,7 @@ module onyx_ccu
     output logic [N_PORTS-1:0]          dbg_pend_vld,
     output logic                        dbg_abs_pend,
     output logic                        dbg_grant,
-    output logic [PORT_W-1:0]           dbg_grant_dir,
+    output logic [RQ_W-1:0]             dbg_grant_dir,      // the requester: a cache port, or N_PORTS for the IO port
     output logic [ADDR_WIDTH-1:0]       dbg_grant_addr,
     output logic [SLOT_W-1:0]           dbg_grant_slot,
 
@@ -340,9 +437,10 @@ module onyx_ccu
     output logic [N_PORTS-1:0]          evt_read_wasted,    // per answering port: a DT verdict with the slot's read issued or presented
     output logic                        evt_absorb,         // absorption BRESP
     output logic [SLOT_W-1:0]           evt_absorb_slot,    // the absorbed slot (the write side's current slot)
-    output logic                        evt_wb,             // write-back AW handshake (its address is mem_awaddr)
-    output logic [N_PORTS-1:0]          evt_lock_wait,      // a port's valid candidate is held by the per-line lock
-    output logic [ADDR_WIDTH-1:0]       evt_lock_wait_addr [N_PORTS]   // that candidate's address (for the observer's window)
+    output logic                        evt_wb,             // a write taken on the write port other than an absorption: a cache write-back or an IO write (its address is mem_awaddr)
+    output logic                        evt_wb_io,          // ... and it is the IO port's
+    output logic [N_REQ-1:0]            evt_lock_wait,      // a requester's valid candidate is held by the per-line lock
+    output logic [ADDR_WIDTH-1:0]       evt_lock_wait_addr [N_REQ]     // that candidate's address (for the observer's window)
 );
 
     // ------------------------------------------------------------------
@@ -368,15 +466,24 @@ module onyx_ccu
     // ------------------------------------------------------------------
     // Encodings
     // ------------------------------------------------------------------
-    localparam logic [3:0] ACSNOOP_READ_SHARED  = 4'h1;   // IHI0022
-    localparam logic [3:0] ACSNOOP_READ_UNIQUE  = 4'h7;
-    localparam logic [3:0] ACSNOOP_MAKE_INVALID = 4'hC;
+    localparam logic [3:0] ACSNOOP_READ_ONCE     = 4'h0;   // IHI0022; the house decode (l1_snoop_resp)
+    localparam logic [3:0] ACSNOOP_READ_SHARED   = 4'h1;
+    localparam logic [3:0] ACSNOOP_READ_UNIQUE   = 4'h7;
+    localparam logic [3:0] ACSNOOP_CLEAN_INVALID = 4'h9;
+    localparam logic [3:0] ACSNOOP_MAKE_INVALID  = 4'hC;
+
+    // the IO port's two transaction kinds in the request-class code space
+    // (onyx_pkg): the grant's class on TXN_START, the slot's r_type
+    localparam logic [2:0] CLS_IO_READ  = ONYX_CLS_IO_READ;
+    localparam logic [2:0] CLS_IO_WRITE = ONYX_CLS_IO_WRITE;
 
     function automatic logic [3:0] map_snoop(input logic [2:0] req_type);
         case (req_type)
             AMBER_ACE_READ_SHARED,
             AMBER_ACE_READ_NOT_SHARED_DIRTY: return ACSNOOP_READ_SHARED;
             AMBER_ACE_READ_UNIQUE:           return ACSNOOP_READ_UNIQUE;
+            CLS_IO_READ:                     return ACSNOOP_READ_ONCE;      // the IO's ReadOnce
+            CLS_IO_WRITE:                    return ACSNOOP_CLEAN_INVALID;  // the IO's WriteUnique: dirty data first
             default:                         return ACSNOOP_MAKE_INVALID;
         endcase
     endfunction
@@ -405,9 +512,18 @@ module onyx_ccu
     localparam int PEND_W     = 3;
     localparam int BUF_AW     = SLOT_W + BEAT_INDEX_WIDTH;  // {slot, beat}
     localparam int BUF_DEPTH  = SLOTS * FILL_BEATS;
-    localparam int NW         = N_PORTS + 1;                // write-port candidates
+    localparam int NW         = N_PORTS + 2;                // write-port candidates: wb_0..N-1, the absorption, the IO
     localparam int WSEL_W     = $clog2(NW);
-    localparam int NPEER      = N_PORTS - 1;                // peers per transaction
+    localparam int W_ABS      = N_PORTS;                    // the absorption's candidate index
+    localparam int W_IO       = N_PORTS + 1;                // the IO write's
+    localparam int NPEER      = N_PORTS - 1;                // peers of a cache's transaction
+
+    // ------------------------------------------------------------------
+    // IO decode: a shareable domain (inner 01 / outer 10) snoops; non-
+    // shareable (00) and system (11) go straight to memory
+    // ------------------------------------------------------------------
+    wire w_io_ar_sh = io_ardomain[0] ^ io_ardomain[1];
+    wire w_io_aw_sh = io_awdomain[0] ^ io_awdomain[1];
 
     // ------------------------------------------------------------------
     // Sideband decode
@@ -422,7 +538,7 @@ module onyx_ccu
     // Transaction table
     // ------------------------------------------------------------------
     logic [SLOTS-1:0]      r_vld;
-    logic [PORT_W-1:0]     r_dir     [SLOTS];     // the requester port
+    logic [RQ_W-1:0]       r_dir     [SLOTS];     // the requester: a cache port, or IO
     logic [LINE_W-1:0]     r_line    [SLOTS];
     logic [2:0]            r_type    [SLOTS];
     logic [SLOTS-1:0]      r_nodata;
@@ -431,8 +547,8 @@ module onyx_ccu
     logic [3:0]            r_arcache [SLOTS];
     logic [2:0]            r_arprot  [SLOTS];
     logic [UW-1:0]         r_aruser  [SLOTS];
-    logic [PORT_W-1:0]     r_ac_left [SLOTS];     // peers yet to accept the AC
-    logic [PORT_W-1:0]     r_cr_left [SLOTS];     // peers whose CR is yet to arrive
+    logic [PC_W-1:0]       r_ac_left [SLOTS];     // peers yet to accept the AC (N_PORTS-1 for a cache, N_PORTS or 0 for the IO)
+    logic [PC_W-1:0]       r_cr_left [SLOTS];     // peers whose CR is yet to arrive
     logic [SLOTS-1:0]      r_dt;                  // a peer supplies the line
     logic [SLOTS-1:0]      r_pd;                  // ... and passes dirty
     logic [SLOTS-1:0]      r_mem_issued;
@@ -441,6 +557,22 @@ module onyx_ccu
     logic [SLOTS-1:0]      r_abs_issued;
     logic [SLOTS-1:0]      r_abs_done;
     logic [SLOTS-1:0]      r_rack;
+    logic [SLOTS-1:0]      r_iow;                 // the IO's WriteUnique: no read, delivered at its BRESP
+    logic [SLOTS-1:0]      r_iow_done;
+
+    // the IO port's state: one read and one write in flight at a time
+    logic                  r_ior_busy;            // an IO read holds a slot (grant .. free)
+    logic [SLOT_W-1:0]     r_ior_slot;
+    logic [ADDR_WIDTH-1:0] r_io_araddr;           // the IO read's own AR, captured at the take
+    logic [7:0]            r_io_arlen;
+    logic [2:0]            r_io_arsize;
+    logic [1:0]            r_io_arburst;
+    logic                  r_io_arlock;
+    logic [3:0]            r_io_arqos;
+    logic [3:0]            r_io_arregion;
+    logic                  r_iow_busy;            // an IO write is in flight (its grant or its selection .. BRESP)
+    logic                  r_iow_slot_vld;        // ... and it is a WriteUnique with a slot
+    logic [SLOT_W-1:0]     r_iow_slot;
 
     logic [SLOTS-1:0]      w_ac_all;              // every peer accepted its AC
     logic [SLOTS-1:0]      w_gathered;            // every peer's CR is in
@@ -459,7 +591,8 @@ module onyx_ccu
     end
     always_comb begin
         for (int s = 0; s < SLOTS; s++) begin
-            w_delivered[s] = (r_dt[s] | r_nodata[s]) ? r_rpl_done[s] : r_mem_done[s];
+            w_delivered[s] = r_iow[s] ? r_iow_done[s]
+                             : (r_dt[s] | r_nodata[s]) ? r_rpl_done[s] : r_mem_done[s];
             // a slot whose memory AR is presented this cycle is not free
             // (the fabric formal's ap_free_complete)
             w_free_now[s]  = r_vld[s] & w_gathered[s] & w_delivered[s]
@@ -478,10 +611,17 @@ module onyx_ccu
     logic [2:0]              r_pend_type [N_PORTS][PEND_DEPTH];
     logic [N_PORTS-1:0]      r_pend_ovf;   // debug only (TB-checked)
 
-    logic [N_PORTS-1:0]      w_cand_vld;
-    logic [ADDR_WIDTH-1:0]   w_cand_addr [N_PORTS];
-    logic [2:0]              w_cand_type [N_PORTS];
-    logic [N_PORTS-1:0]      w_cand_live;
+    // the IO port's candidate is its own AR or AW, held by AXI until
+    // accepted: a read whenever none is in flight, else a shareable write
+    // whenever none is in flight (a non-shareable write is the write
+    // port's, not the table's)
+    wire w_io_rd_cand = io_arvalid & ~r_ior_busy;
+    wire w_io_wr_cand = io_awvalid & w_io_aw_sh & ~r_iow_busy;
+
+    logic [N_REQ-1:0]        w_cand_vld;
+    logic [ADDR_WIDTH-1:0]   w_cand_addr [N_REQ];
+    logic [2:0]              w_cand_type [N_REQ];
+    logic [N_REQ-1:0]        w_cand_live;
     always_comb begin
         for (int d = 0; d < N_PORTS; d++) begin
             if (r_pend_cnt[d] != '0) begin
@@ -496,13 +636,17 @@ module onyx_ccu
                 w_cand_type[d] = c_coh_req_type[d];
             end
         end
+        w_cand_vld[IO]  = w_io_rd_cand | w_io_wr_cand;
+        w_cand_live[IO] = 1'b1;
+        w_cand_addr[IO] = w_io_rd_cand ? io_araddr : io_awaddr;
+        w_cand_type[IO] = w_io_rd_cand ? CLS_IO_READ : CLS_IO_WRITE;
     end
 
     // per-line lock: any valid slot on the candidate's line (SERIAL_MODE:
     // any valid slot at all)
-    logic [N_PORTS-1:0] w_cand_locked;
+    logic [N_REQ-1:0] w_cand_locked;
     always_comb begin
-        for (int d = 0; d < N_PORTS; d++) begin
+        for (int d = 0; d < N_REQ; d++) begin
             w_cand_locked[d] = SERIAL_MODE & (|r_vld);
             for (int s = 0; s < SLOTS; s++) begin
                 if (r_vld[s] && (r_line[s] == line_of(w_cand_addr[d])))
@@ -525,32 +669,41 @@ module onyx_ccu
         end
     end
 
-    // an AR waits to be taken for this port (granted, AR not yet
-    // handshaken): no second grant to the port until it is
-    logic [N_PORTS-1:0] r_arw_vld;
-    logic [SLOT_W-1:0]  r_arw_slot [N_PORTS];
+    // an AR waits to be taken for this requester (granted, AR not yet
+    // handshaken): no second grant to the requester until it is
+    logic [N_REQ-1:0]   r_arw_vld;
+    logic [SLOT_W-1:0]  r_arw_slot [N_REQ];
 
-    // grant: rotating priority from r_rr over the N ports
-    logic [N_PORTS-1:0] w_cand_ok;
-    logic [PORT_W-1:0]  r_rr;
+    // grant: rotating priority from r_rr over the N ports and the IO
+    logic [N_REQ-1:0]   w_cand_ok;
+    logic [RQ_W-1:0]    r_rr;
     logic               w_grant;
-    logic [PORT_W-1:0]  w_grant_dir;
+    logic [RQ_W-1:0]    w_grant_dir;
     always_comb begin
-        for (int d = 0; d < N_PORTS; d++)
+        for (int d = 0; d < N_REQ; d++)
             w_cand_ok[d] = w_cand_vld[d] & ~w_cand_locked[d] & w_slot_free & ~r_arw_vld[d];
         w_grant     = |w_cand_ok;
         w_grant_dir = r_rr;
-        for (int k = N_PORTS - 1; k >= 0; k--) begin
-            automatic int idx = (32'(r_rr) + k) % N_PORTS;
-            if (w_cand_ok[idx]) w_grant_dir = PORT_W'(idx);
+        for (int k = N_REQ - 1; k >= 0; k--) begin
+            automatic int idx = (32'(r_rr) + k) % N_REQ;
+            if (w_cand_ok[idx]) w_grant_dir = RQ_W'(idx);
         end
     end
+    // the grant's requester and kind, and the peers it snoops: a cache's
+    // transaction snoops the other N-1 caches; the IO's shareable read or
+    // write snoops all N; its non-shareable read snoops none
+    wire w_grant_io    = (w_grant_dir == RQ_W'(IO));
+    wire w_grant_io_wr = w_grant_io & (w_cand_type[IO] == CLS_IO_WRITE);
+    wire [PC_W-1:0] w_grant_npeer = !w_grant_io ? PC_W'(NPEER)
+                                  : (w_grant_io_wr | w_io_ar_sh) ? PC_W'(N_PORTS) : '0;
 
     // ------------------------------------------------------------------
-    // Cache AR take: arready from registers only
+    // AR take: arready from registers only (the caches, the IO read)
     // ------------------------------------------------------------------
-    assign c_arready = r_arw_vld;
+    assign c_arready  = r_arw_vld[N_PORTS-1:0];
+    assign io_arready = r_arw_vld[IO];
     wire [N_PORTS-1:0] w_ar_take = c_arvalid & c_arready;
+    wire               w_io_ar_take = io_arvalid & io_arready;
 
     // ------------------------------------------------------------------
     // Snoop queues: per peer p, the slots awaiting an AC to p in grant
@@ -576,6 +729,40 @@ module onyx_ccu
         end
     end
 
+    // The peers' handshakes per slot this cycle.  At N_PORTS = 2 a cache's
+    // transaction has one peer; at N_PORTS >= 3, and always for the IO's
+    // transaction (every cache is its peer), two peers can accept their
+    // ACs or answer their CRs for the SAME slot in one cycle, so the
+    // slot's counters step by the count, not by one --
+    // a per-peer decrement written twice to one register lands once (the
+    // first IO read against two sharers hung on exactly that).  The
+    // verdict bits OR over the cycle's CRs the same way.
+    logic [PC_W-1:0]    w_ac_dec [SLOTS];
+    logic [PC_W-1:0]    w_cr_dec [SLOTS];
+    logic [SLOTS-1:0]   w_cr_dt_now, w_cr_pd_now;
+    logic [N_PORTS-1:0] w_cr_last;          // peer p's CR is the last of its slot's this cycle
+    always_comb begin
+        for (int s = 0; s < SLOTS; s++) begin
+            w_ac_dec[s] = '0;
+            w_cr_dec[s] = '0;
+            w_cr_dt_now[s] = 1'b0;
+            w_cr_pd_now[s] = 1'b0;
+            for (int p = 0; p < N_PORTS; p++) begin
+                if (w_ac_hs[p] && (w_ac_slot[p] == SLOT_W'(s))) w_ac_dec[s] = w_ac_dec[s] + PC_W'(1);
+                if (w_cr_hs[p] && (w_sni_head[p] == SLOT_W'(s))) begin
+                    w_cr_dec[s] = w_cr_dec[s] + PC_W'(1);
+                    w_cr_dt_now[s] = w_cr_dt_now[s] | s_crresp[p][AMBER_CRRESP_DT];
+                    w_cr_pd_now[s] = w_cr_pd_now[s] | (s_crresp[p][AMBER_CRRESP_DT] & s_crresp[p][AMBER_CRRESP_PD]);
+                end
+            end
+        end
+        for (int p = 0; p < N_PORTS; p++) begin
+            w_cr_last[p] = w_cr_hs[p];
+            for (int q = p + 1; q < N_PORTS; q++)
+                if (w_cr_hs[q] && (w_sni_head[q] == w_sni_head[p])) w_cr_last[p] = 1'b0;
+        end
+    end
+
     always_comb begin
         for (int p = 0; p < N_PORTS; p++) begin
             s_acaddr[p]  = {r_line[w_ac_slot[p]], OFFSET_W'(0)};
@@ -592,19 +779,19 @@ module onyx_ccu
     // requester port of p's current snoop; one writer per buffer per
     // cycle, round-robin among the peers wanting it
     // ------------------------------------------------------------------
-    logic [PORT_W-1:0] w_cd_tgt [N_PORTS];      // the buffer peer p's beat targets
-    logic [PORT_W-1:0] r_cd_rr  [N_PORTS];      // per-buffer rotating pointer
-    logic [N_PORTS-1:0] w_buf_we;
-    logic [PORT_W-1:0]  w_buf_src [N_PORTS];    // the peer writing buffer a
+    logic [RQ_W-1:0]   w_cd_tgt [N_PORTS];      // the buffer peer p's beat targets (a requester's)
+    logic [PORT_W-1:0] r_cd_rr  [N_REQ];        // per-buffer rotating pointer over the peers
+    logic [N_REQ-1:0]  w_buf_we;
+    logic [PORT_W-1:0] w_buf_src [N_REQ];       // the peer writing buffer a
     always_comb begin
         for (int p = 0; p < N_PORTS; p++)
             w_cd_tgt[p] = r_dir[w_sni_head[p]];
-        for (int a = 0; a < N_PORTS; a++) begin
+        for (int a = 0; a < N_REQ; a++) begin
             w_buf_we[a]  = 1'b0;
             w_buf_src[a] = r_cd_rr[a];
             for (int k = N_PORTS - 1; k >= 0; k--) begin
                 automatic int p = (32'(r_cd_rr[a]) + k) % N_PORTS;
-                if (w_cd_want[p] && (w_cd_tgt[p] == PORT_W'(a))) begin
+                if (w_cd_want[p] && (w_cd_tgt[p] == RQ_W'(a))) begin
                     w_buf_we[a]  = 1'b1;
                     w_buf_src[a] = PORT_W'(p);
                 end
@@ -612,7 +799,7 @@ module onyx_ccu
         end
         for (int p = 0; p < N_PORTS; p++) begin
             s_cdready[p] = w_cd_want[p] & w_buf_we[w_cd_tgt[p]]
-                           & (w_buf_src[w_cd_tgt[p]] == PORT_W'(p));
+                           & (w_buf_src[w_cd_tgt[p]] == PORT_W'(p));   // the target is a live requester's buffer
             w_cd_hs[p]   = s_cdready[p];
         end
     end
@@ -642,16 +829,19 @@ module onyx_ccu
     assign w_mar_slot = r_mar_vld ? r_mar_slot : w_marc_slot;
     wire   w_mar_hs   = w_mar_vld & mem_arready;
 
+    // a cache's read is the slot's full line; the IO's read is its own AR
+    // (one IO read in flight: the captured fields are the slot's)
+    wire w_mar_io = (r_dir[w_mar_slot] == RQ_W'(IO));
     assign mem_arid     = IW'(w_mar_slot);
-    assign mem_araddr   = {r_line[w_mar_slot], OFFSET_W'(0)};
-    assign mem_arlen    = 8'(FILL_BEATS - 1);
-    assign mem_arsize   = 3'($clog2(STRB_W));
-    assign mem_arburst  = 2'b01;
-    assign mem_arlock   = 1'b0;
+    assign mem_araddr   = w_mar_io ? r_io_araddr  : {r_line[w_mar_slot], OFFSET_W'(0)};
+    assign mem_arlen    = w_mar_io ? r_io_arlen   : 8'(FILL_BEATS - 1);
+    assign mem_arsize   = w_mar_io ? r_io_arsize  : 3'(BYTE_W);
+    assign mem_arburst  = w_mar_io ? r_io_arburst : 2'b01;
+    assign mem_arlock   = w_mar_io ? r_io_arlock  : 1'b0;
     assign mem_arcache  = r_arcache[w_mar_slot];
     assign mem_arprot   = r_arprot[w_mar_slot];
-    assign mem_arqos    = 4'b0000;
-    assign mem_arregion = 4'b0000;
+    assign mem_arqos    = w_mar_io ? r_io_arqos    : 4'b0000;
+    assign mem_arregion = w_mar_io ? r_io_arregion : 4'b0000;
     assign mem_aruser   = r_aruser[w_mar_slot];
     assign mem_arvalid  = w_mar_vld;
 
@@ -670,26 +860,29 @@ module onyx_ccu
     wire w_mr_live = mem_rvalid & r_vld[w_mr_slot] & r_mem_issued[w_mr_slot] & ~r_mem_done[w_mr_slot];
     wire w_mr_fwd  = w_mr_live & w_gathered[w_mr_slot] & ~r_dt[w_mr_slot];
     wire w_mr_drop = w_mr_live & r_dt[w_mr_slot];
-    wire [PORT_W-1:0] w_mr_dir = r_dir[w_mr_slot];
+    wire [RQ_W-1:0] w_mr_dir = r_dir[w_mr_slot];
 
     // ------------------------------------------------------------------
-    // Replay per port: the DT line from the port's buffer, or the single
-    // no-data beat of an upgrade; a memory beat for the port has priority
+    // Replay per requester: the DT line from the requester's buffer (the
+    // IO's: the beats its AR asked for, from its offset), or the single
+    // no-data beat of an upgrade; a memory beat for the requester has
+    // priority.  An IO write slot has nothing to replay.
     // ------------------------------------------------------------------
-    logic [N_PORTS-1:0] r_rpl_vld;
-    logic [SLOT_W-1:0]  r_rpl_slot [N_PORTS];
-    logic [BEAT_INDEX_WIDTH-1:0] r_rpl_beat [N_PORTS];
-    logic [N_PORTS-1:0] r_rpl_hold;
+    logic [N_REQ-1:0]   r_rpl_vld;
+    logic [SLOT_W-1:0]  r_rpl_slot [N_REQ];
+    logic [BEAT_INDEX_WIDTH-1:0] r_rpl_beat [N_REQ];   // the buffer beat
+    logic [7:0]         r_rpl_cnt  [N_REQ];            // beats replayed so far (the IO's RLAST)
+    logic [N_REQ-1:0]   r_rpl_hold;
 
-    logic [N_PORTS-1:0] w_rplc_vld;
-    logic [SLOT_W-1:0]  w_rplc_slot [N_PORTS];
+    logic [N_REQ-1:0]   w_rplc_vld;
+    logic [SLOT_W-1:0]  w_rplc_slot [N_REQ];
     always_comb begin
-        for (int d = 0; d < N_PORTS; d++) begin
+        for (int d = 0; d < N_REQ; d++) begin
             w_rplc_vld[d]  = 1'b0;
             w_rplc_slot[d] = '0;
             for (int s = SLOTS - 1; s >= 0; s--) begin
-                if (r_vld[s] && (r_dir[s] == PORT_W'(d)) && w_gathered[s] && r_ar_taken[s]
-                    && (r_dt[s] || r_nodata[s]) && !r_rpl_done[s]
+                if (r_vld[s] && (r_dir[s] == RQ_W'(d)) && w_gathered[s] && r_ar_taken[s]
+                    && (r_dt[s] || r_nodata[s]) && !r_iow[s] && !r_rpl_done[s]
                     && !(r_rpl_vld[d] && (r_rpl_slot[d] == SLOT_W'(s)))) begin
                     w_rplc_vld[d]  = 1'b1;
                     w_rplc_slot[d] = SLOT_W'(s);
@@ -698,26 +891,27 @@ module onyx_ccu
         end
     end
 
-    // slot line buffers: one per requester port, indexed {slot, beat};
-    // one write port (the arbitrated CD beat) and two asynchronous reads
-    // (the port's replay, the absorption) -- distributed RAM, payload only
-    logic [BUF_AW-1:0]    w_buf_waddr [N_PORTS];
-    logic [BUS_WIDTH-1:0] w_buf_wdata [N_PORTS];
-    logic [BUF_AW-1:0]    w_rpl_raddr [N_PORTS];
-    logic [BUS_WIDTH-1:0] w_rpl_rdata [N_PORTS];
+    // slot line buffers: one per requester (the caches, the IO), indexed
+    // {slot, beat}; one write port (the arbitrated CD beat) and two
+    // asynchronous reads (the requester's replay, the absorption) --
+    // distributed RAM, payload only
+    logic [BUF_AW-1:0]    w_buf_waddr [N_REQ];
+    logic [BUS_WIDTH-1:0] w_buf_wdata [N_REQ];
+    logic [BUF_AW-1:0]    w_rpl_raddr [N_REQ];
+    logic [BUS_WIDTH-1:0] w_rpl_rdata [N_REQ];
     logic [BUF_AW-1:0]    w_abs_raddr;
-    logic [BUS_WIDTH-1:0] w_abs_rdata_a [N_PORTS];
+    logic [BUS_WIDTH-1:0] w_abs_rdata_a [N_REQ];
     always_comb begin
-        for (int a = 0; a < N_PORTS; a++) begin
+        for (int a = 0; a < N_REQ; a++) begin
             w_buf_waddr[a] = {w_sni_head[w_buf_src[a]], r_cd_beat[w_buf_src[a]]};
             w_buf_wdata[a] = s_cddata[w_buf_src[a]];
         end
-        for (int d = 0; d < N_PORTS; d++)
+        for (int d = 0; d < N_REQ; d++)
             w_rpl_raddr[d] = {r_rpl_slot[d], r_rpl_beat[d]};
     end
 
     generate
-        for (genvar a = 0; a < N_PORTS; a++) begin : g_buf
+        for (genvar a = 0; a < N_REQ; a++) begin : g_buf
             (* ram_style = "distributed" *)
             /* synthesis ramstyle = "MLAB" */
             logic [BUS_WIDTH-1:0] mem [BUF_DEPTH];
@@ -730,46 +924,72 @@ module onyx_ccu
         end
     endgenerate
 
-    // per-port R output: memory beat (priority) or replay beat
-    logic [N_PORTS-1:0] w_mem_want, w_rpl_pres, w_mem_pres, w_rvalid, w_rpl_hs, w_mem_hs;
+    // per-requester R output: memory beat (priority) or replay beat; the
+    // caches' and the IO's R channels are requester 0..N-1 and N
+    logic [N_REQ-1:0] rq_rready;
     always_comb begin
-        for (int d = 0; d < N_PORTS; d++) begin
-            w_mem_want[d] = w_mr_fwd & (w_mr_dir == PORT_W'(d));
+        for (int d = 0; d < N_PORTS; d++) rq_rready[d] = c_rready[d];
+        rq_rready[IO] = io_rready;
+    end
+    logic [N_REQ-1:0] w_mem_want, w_rpl_pres, w_mem_pres, w_rvalid, w_rpl_hs, w_mem_hs;
+    always_comb begin
+        for (int d = 0; d < N_REQ; d++) begin
+            w_mem_want[d] = w_mr_fwd & (w_mr_dir == RQ_W'(d));
             w_rpl_pres[d] = r_rpl_vld[d] & (r_rpl_hold[d] | ~w_mem_want[d]);
             w_mem_pres[d] = w_mem_want[d] & ~w_rpl_pres[d];
             w_rvalid[d]   = w_rpl_pres[d] | w_mem_pres[d];
-            w_rpl_hs[d]   = w_rpl_pres[d] & c_rready[d];
-            w_mem_hs[d]   = w_mem_pres[d] & c_rready[d];
+            w_rpl_hs[d]   = w_rpl_pres[d] & rq_rready[d];
+            w_mem_hs[d]   = w_mem_pres[d] & rq_rready[d];
         end
     end
     wire w_mr_hs = (|w_mem_hs) | w_mr_drop;
-    assign mem_rready = w_mr_drop | (w_mr_fwd & w_mem_pres[w_mr_dir] & c_rready[w_mr_dir]);
+    assign mem_rready = w_mr_drop | (w_mr_fwd & w_mem_pres[w_mr_dir] & rq_rready[w_mr_dir]);
 
-    logic [N_PORTS-1:0] w_out_rlast;
+    logic [IW-1:0]        rq_rid   [N_REQ];
+    logic [BUS_WIDTH-1:0] rq_rdata [N_REQ];
+    logic [1:0]           rq_rresp [N_REQ];
+    logic [UW-1:0]        rq_ruser [N_REQ];
+    logic [N_REQ-1:0]     w_out_rlast;
     always_comb begin
-        for (int d = 0; d < N_PORTS; d++) begin
+        for (int d = 0; d < N_REQ; d++) begin
             if (w_rpl_pres[d]) begin
-                c_rid[d]       = r_arid[r_rpl_slot[d]];
-                c_rdata[d]     = r_nodata[r_rpl_slot[d]] ? '0 : w_rpl_rdata[d];
-                c_rresp[d]     = 2'b00;
+                rq_rid[d]      = r_arid[r_rpl_slot[d]];
+                rq_rdata[d]    = r_nodata[r_rpl_slot[d]] ? '0 : w_rpl_rdata[d];
+                rq_rresp[d]    = 2'b00;
+                // a cache's replay is the whole line; the IO's is the beats
+                // its AR asked for (all within the line)
                 w_out_rlast[d] = r_nodata[r_rpl_slot[d]]
-                                 | (r_rpl_beat[d] == BEAT_INDEX_WIDTH'(FILL_BEATS - 1));
-                c_ruser[d]     = '0;
+                                 | ((d == IO) ? (r_rpl_cnt[d] == r_io_arlen)
+                                              : (r_rpl_beat[d] == BEAT_INDEX_WIDTH'(FILL_BEATS - 1)));
+                rq_ruser[d]    = '0;
             end else begin
-                c_rid[d]       = r_arid[w_mr_slot];
-                c_rdata[d]     = mem_rdata;
-                c_rresp[d]     = mem_rresp;
+                rq_rid[d]      = r_arid[w_mr_slot];
+                rq_rdata[d]    = mem_rdata;
+                rq_rresp[d]    = mem_rresp;
                 w_out_rlast[d] = mem_rlast;
-                c_ruser[d]     = mem_ruser;
+                rq_ruser[d]    = mem_ruser;
             end
         end
+        for (int d = 0; d < N_PORTS; d++) begin
+            c_rid[d]   = rq_rid[d];
+            c_rdata[d] = rq_rdata[d];
+            c_rresp[d] = rq_rresp[d];
+            c_ruser[d] = rq_ruser[d];
+        end
     end
-    assign c_rlast  = w_out_rlast;
-    assign c_rvalid = w_rvalid;
+    assign c_rlast   = w_out_rlast[N_PORTS-1:0];
+    assign c_rvalid  = w_rvalid[N_PORTS-1:0];
+    assign io_rid    = rq_rid[IO];
+    assign io_rdata  = rq_rdata[IO];
+    assign io_rresp  = rq_rresp[IO];
+    assign io_ruser  = rq_ruser[IO];
+    assign io_rlast  = w_out_rlast[IO];
+    assign io_rvalid = w_rvalid[IO];
 
     // ------------------------------------------------------------------
-    // Write port: write-back pass-through + PassDirty absorption, one
-    // burst in flight system-wide, round-robin over {wb_0..wb_N-1, absorb}
+    // Write port: write-back pass-through + PassDirty absorption + the IO
+    // write, one burst in flight system-wide, round-robin over
+    // {wb_0..wb_N-1, absorb, io}
     // ------------------------------------------------------------------
     localparam logic [1:0] W_IDLE = 2'd0;
     localparam logic [1:0] W_AW   = 2'd1;
@@ -777,12 +997,13 @@ module onyx_ccu
     localparam logic [1:0] W_B    = 2'd3;
 
     logic [1:0]        r_wstate;
-    logic [WSEL_W-1:0] r_w_sel;        // 0..N-1 = wb of port, N = absorb
+    logic [WSEL_W-1:0] r_w_sel;        // 0..N-1 = wb of port, N = absorb, N+1 = the IO write
     logic [SLOT_W-1:0] r_w_slot;
     logic [WSEL_W-1:0] r_w_rr;
     logic [BEAT_INDEX_WIDTH-1:0] r_w_beat;
 
     logic [N_PORTS-1:0] w_wb_blocked;
+    logic               w_wb_blocked_io;   // the IO's non-shareable write, the same hold
     always_comb begin
         for (int d = 0; d < N_PORTS; d++) begin
             w_wb_blocked[d] = 1'b0;
@@ -792,7 +1013,28 @@ module onyx_ccu
                     w_wb_blocked[d] = 1'b1;
             end
         end
+        w_wb_blocked_io = 1'b0;
+        for (int s = 0; s < SLOTS; s++) begin
+            if (r_vld[s] && (r_line[s] == line_of(io_awaddr))
+                && (!w_gathered[s] || (r_pd[s] && !r_abs_done[s])))
+                w_wb_blocked_io = 1'b1;
+        end
     end
+
+    // the IO's WriteUnique forwards once its slot is gathered and any
+    // PassDirty line absorbed -- and once no cache presents a write-back
+    // to the line: a victim snarfed for the snoop still drains (jet-prime's
+    // WB buffer), and it must land before the IO's data, not after
+    logic w_io_line_wb;
+    always_comb begin
+        w_io_line_wb = 1'b0;
+        for (int d = 0; d < N_PORTS; d++)
+            if (c_awvalid[d] && (line_of(c_awaddr[d]) == r_line[r_iow_slot]))
+                w_io_line_wb = 1'b1;
+    end
+    wire w_io_w_slot = io_awvalid & w_io_aw_sh & r_iow_slot_vld & w_gathered[r_iow_slot]
+                       & (~r_pd[r_iow_slot] | r_abs_done[r_iow_slot]) & ~w_io_line_wb;
+    wire w_io_w_pass = io_awvalid & ~w_io_aw_sh & ~r_iow_busy & ~w_wb_blocked_io;
 
     // absorption candidate: lowest slot with PassDirty not yet written
     logic              w_absc_vld;
@@ -813,7 +1055,8 @@ module onyx_ccu
     always_comb begin
         for (int d = 0; d < N_PORTS; d++)
             w_wcand[d] = c_awvalid[d] & ~w_wb_blocked[d];
-        w_wcand[N_PORTS] = w_absc_vld;
+        w_wcand[W_ABS] = w_absc_vld;
+        w_wcand[W_IO]  = w_io_w_slot | w_io_w_pass;
         w_wsel = r_w_rr;
         for (int k = NW - 1; k >= 0; k--) begin
             automatic int idx = (32'(r_w_rr) + k) % NW;
@@ -822,38 +1065,41 @@ module onyx_ccu
     end
     wire w_wvalid = |w_wcand;
 
-    wire               w_cur_abs = (r_w_sel == WSEL_W'(N_PORTS));
+    wire               w_cur_abs = (r_w_sel == WSEL_W'(W_ABS));
+    wire               w_cur_io  = (r_w_sel == WSEL_W'(W_IO));
+    wire               w_cur_wb  = !w_cur_abs && !w_cur_io;
     wire [PORT_W-1:0]  w_cur_dir = PORT_W'(r_w_sel);
     logic [BUS_WIDTH-1:0] w_abs_rdata;
     assign w_abs_raddr = {r_w_slot, r_w_beat};
     assign w_abs_rdata = w_abs_rdata_a[r_dir[r_w_slot]];
 
+    // the absorption's own burst, the IO's AW as issued, or the cache's
     assign mem_awid     = w_cur_abs ? IW'(8'hA0 | 8'(r_dir[r_w_slot]))
-                                    : c_awid[w_cur_dir];
+                        : w_cur_io  ? io_awid     : c_awid[w_cur_dir];
     assign mem_awaddr   = w_cur_abs ? {r_line[r_w_slot], OFFSET_W'(0)}
-                                    : c_awaddr[w_cur_dir];
-    assign mem_awlen    = w_cur_abs ? 8'(FILL_BEATS - 1) : c_awlen[w_cur_dir];
-    assign mem_awsize   = w_cur_abs ? 3'($clog2(STRB_W)) : c_awsize[w_cur_dir];
-    assign mem_awburst  = w_cur_abs ? 2'b01 : c_awburst[w_cur_dir];
-    assign mem_awlock   = w_cur_abs ? 1'b0 : c_awlock[w_cur_dir];
-    assign mem_awcache  = w_cur_abs ? 4'b0000 : c_awcache[w_cur_dir];
-    assign mem_awprot   = w_cur_abs ? 3'b000 : c_awprot[w_cur_dir];
-    assign mem_awqos    = w_cur_abs ? 4'b0000 : c_awqos[w_cur_dir];
-    assign mem_awregion = w_cur_abs ? 4'b0000 : c_awregion[w_cur_dir];
-    assign mem_awuser   = w_cur_abs ? '0 : c_awuser[w_cur_dir];
-    assign mem_awvalid  = (r_wstate == W_AW) && (w_cur_abs || c_awvalid[w_cur_dir]);
+                        : w_cur_io  ? io_awaddr   : c_awaddr[w_cur_dir];
+    assign mem_awlen    = w_cur_abs ? 8'(FILL_BEATS - 1) : w_cur_io ? io_awlen    : c_awlen[w_cur_dir];
+    assign mem_awsize   = w_cur_abs ? 3'(BYTE_W)         : w_cur_io ? io_awsize   : c_awsize[w_cur_dir];
+    assign mem_awburst  = w_cur_abs ? 2'b01              : w_cur_io ? io_awburst  : c_awburst[w_cur_dir];
+    assign mem_awlock   = w_cur_abs ? 1'b0               : w_cur_io ? io_awlock   : c_awlock[w_cur_dir];
+    assign mem_awcache  = w_cur_abs ? 4'b0000            : w_cur_io ? io_awcache  : c_awcache[w_cur_dir];
+    assign mem_awprot   = w_cur_abs ? 3'b000             : w_cur_io ? io_awprot   : c_awprot[w_cur_dir];
+    assign mem_awqos    = w_cur_abs ? 4'b0000            : w_cur_io ? io_awqos    : c_awqos[w_cur_dir];
+    assign mem_awregion = w_cur_abs ? 4'b0000            : w_cur_io ? io_awregion : c_awregion[w_cur_dir];
+    assign mem_awuser   = w_cur_abs ? '0                 : w_cur_io ? io_awuser   : c_awuser[w_cur_dir];
+    assign mem_awvalid  = (r_wstate == W_AW) && (w_cur_abs || (w_cur_io ? io_awvalid : c_awvalid[w_cur_dir]));
 
     wire w_wlast = w_cur_abs ? (r_w_beat == BEAT_INDEX_WIDTH'(FILL_BEATS - 1))
-                             : c_wlast[w_cur_dir];
-    assign mem_wdata  = w_cur_abs ? w_abs_rdata : c_wdata[w_cur_dir];
-    assign mem_wstrb  = w_cur_abs ? {STRB_W{1'b1}} : c_wstrb[w_cur_dir];
+                 : w_cur_io  ? io_wlast : c_wlast[w_cur_dir];
+    assign mem_wdata  = w_cur_abs ? w_abs_rdata    : w_cur_io ? io_wdata : c_wdata[w_cur_dir];
+    assign mem_wstrb  = w_cur_abs ? {STRB_W{1'b1}} : w_cur_io ? io_wstrb : c_wstrb[w_cur_dir];
     assign mem_wlast  = w_wlast;
     assign mem_wuser  = '0;
-    assign mem_wvalid = (r_wstate == W_W) && (w_cur_abs || c_wvalid[w_cur_dir]);
+    assign mem_wvalid = (r_wstate == W_W) && (w_cur_abs || (w_cur_io ? io_wvalid : c_wvalid[w_cur_dir]));
 
     always_comb begin
         for (int d = 0; d < N_PORTS; d++) begin
-            automatic logic mine = !w_cur_abs && (w_cur_dir == PORT_W'(d));
+            automatic logic mine = w_cur_wb && (w_cur_dir == PORT_W'(d));
             c_awready[d] = (r_wstate == W_AW) && mine && mem_awready;
             c_wready[d]  = (r_wstate == W_W)  && mine && mem_wready;
             c_bvalid[d]  = (r_wstate == W_B)  && mine && mem_bvalid;
@@ -862,17 +1108,26 @@ module onyx_ccu
             c_buser[d]   = mem_buser;
         end
     end
-    assign mem_bready = (r_wstate == W_B) && (w_cur_abs || c_bready[w_cur_dir]);
+    assign io_awready = (r_wstate == W_AW) && w_cur_io && mem_awready;
+    assign io_wready  = (r_wstate == W_W)  && w_cur_io && mem_wready;
+    assign io_bvalid  = (r_wstate == W_B)  && w_cur_io && mem_bvalid;
+    assign io_bid     = mem_bid;
+    assign io_bresp   = mem_bresp;
+    assign io_buser   = mem_buser;
+    assign mem_bready = (r_wstate == W_B) && (w_cur_abs || (w_cur_io ? io_bready : c_bready[w_cur_dir]));
 
     // ------------------------------------------------------------------
-    // Retire sideband: the requester's entry (by read ID) is gone
+    // Retire sideband: the requester's entry (by read ID) is gone.  A
+    // cache's; the IO port has none (its slot's rack is set at the grant)
     // ------------------------------------------------------------------
     logic [SLOTS-1:0] w_rack_hit;
     always_comb begin
         for (int s = 0; s < SLOTS; s++) begin
+            automatic logic [PORT_W-1:0] dp = PORT_W'(r_dir[s]);
             w_rack_hit[s] = r_vld[s] & r_ar_taken[s] & ~r_rack[s]
-                            & c_coh_done_valid[r_dir[s]]
-                            & (c_coh_done_id[r_dir[s]] == r_arid[s]);
+                            & (r_dir[s] != RQ_W'(IO))
+                            & c_coh_done_valid[dp]
+                            & (c_coh_done_id[dp] == r_arid[s]);
         end
     end
 
@@ -892,9 +1147,23 @@ module onyx_ccu
             r_abs_issued <= '0;
             r_abs_done   <= '0;
             r_rack       <= '0;
+            r_iow        <= '0;
+            r_iow_done   <= '0;
             r_rr         <= '0;
             r_pend_ovf   <= '0;
             r_arw_vld    <= '0;
+            r_ior_busy   <= 1'b0;
+            r_ior_slot   <= '0;
+            r_io_araddr  <= '0;
+            r_io_arlen   <= '0;
+            r_io_arsize  <= '0;
+            r_io_arburst <= '0;
+            r_io_arlock  <= 1'b0;
+            r_io_arqos   <= '0;
+            r_io_arregion <= '0;
+            r_iow_busy   <= 1'b0;
+            r_iow_slot_vld <= 1'b0;
+            r_iow_slot   <= '0;
             r_mar_vld    <= 1'b0;
             r_mar_slot   <= '0;
             r_rpl_vld    <= '0;
@@ -911,20 +1180,23 @@ module onyx_ccu
             end
             for (int d = 0; d < N_PORTS; d++) begin
                 r_pend_cnt[d] <= '0;
-                r_arw_slot[d] <= '0;
                 r_snq_cnt[d]  <= '0;
                 r_sni_cnt[d]  <= '0;
                 r_cd_beat[d]  <= '0;
+            end
+            for (int d = 0; d < N_REQ; d++) begin
+                r_arw_slot[d] <= '0;
                 r_cd_rr[d]    <= '0;
                 r_rpl_slot[d] <= '0;
                 r_rpl_beat[d] <= '0;
+                r_rpl_cnt[d]  <= '0;
             end
         end else begin
             // ---------------- pending queues: push the pulse, pop the grant
             for (int d = 0; d < N_PORTS; d++) begin
                 automatic logic push = coh_req_vld[d]
-                                       & ~(w_grant & (w_grant_dir == PORT_W'(d)) & w_cand_live[d]);
-                automatic logic pop  = w_grant & (w_grant_dir == PORT_W'(d)) & ~w_cand_live[d];
+                                       & ~(w_grant & (w_grant_dir == RQ_W'(d)) & w_cand_live[d]);
+                automatic logic pop  = w_grant & (w_grant_dir == RQ_W'(d)) & ~w_cand_live[d];
                 if (pop) begin
                     for (int k = 0; k < PEND_DEPTH - 1; k++) begin
                         r_pend_addr[d][k] <= r_pend_addr[d][k+1];
@@ -947,16 +1219,20 @@ module onyx_ccu
                 end
             end
 
-            // ---------------- grant: allocate the slot, arm the AR take
+            // ---------------- grant: allocate the slot, arm the AR take.  A
+            // cache's transaction: its class, N-1 peers, the AR awaited, the
+            // retire awaited.  The IO's read: N peers (shareable) or none,
+            // the AR awaited, no retire (rack set).  The IO's WriteUnique:
+            // N peers, no AR (taken), no read (nodata), delivered at its B.
             if (w_grant) begin
                 r_vld[w_slot_idx]        <= 1'b1;
                 r_dir[w_slot_idx]        <= w_grant_dir;
                 r_line[w_slot_idx]       <= line_of(w_cand_addr[w_grant_dir]);
                 r_type[w_slot_idx]       <= w_cand_type[w_grant_dir];
-                r_nodata[w_slot_idx]     <= is_nodata(w_cand_type[w_grant_dir]);
-                r_ar_taken[w_slot_idx]   <= 1'b0;
-                r_ac_left[w_slot_idx]    <= PORT_W'(NPEER);
-                r_cr_left[w_slot_idx]    <= PORT_W'(NPEER);
+                r_nodata[w_slot_idx]     <= w_grant_io ? w_grant_io_wr : is_nodata(w_cand_type[w_grant_dir]);
+                r_ar_taken[w_slot_idx]   <= w_grant_io_wr;
+                r_ac_left[w_slot_idx]    <= w_grant_npeer;
+                r_cr_left[w_slot_idx]    <= w_grant_npeer;
                 r_dt[w_slot_idx]         <= 1'b0;
                 r_pd[w_slot_idx]         <= 1'b0;
                 r_mem_issued[w_slot_idx] <= 1'b0;
@@ -964,13 +1240,29 @@ module onyx_ccu
                 r_rpl_done[w_slot_idx]   <= 1'b0;
                 r_abs_issued[w_slot_idx] <= 1'b0;
                 r_abs_done[w_slot_idx]   <= 1'b0;
-                r_rack[w_slot_idx]       <= 1'b0;
-                r_arw_vld[w_grant_dir]   <= 1'b1;
-                r_arw_slot[w_grant_dir]  <= w_slot_idx;
-                r_rr                     <= PORT_W'((32'(w_grant_dir) + 1) % N_PORTS);
+                r_rack[w_slot_idx]       <= w_grant_io;
+                r_iow[w_slot_idx]        <= w_grant_io_wr;
+                r_iow_done[w_slot_idx]   <= 1'b0;
+                if (!w_grant_io_wr) begin
+                    r_arw_vld[w_grant_dir]   <= 1'b1;
+                    r_arw_slot[w_grant_dir]  <= w_slot_idx;
+                end
+                if (w_grant_io && !w_grant_io_wr) begin
+                    r_ior_busy <= 1'b1;
+                    r_ior_slot <= w_slot_idx;
+                end
+                if (w_grant_io_wr) begin
+                    r_iow_busy     <= 1'b1;
+                    r_iow_slot_vld <= 1'b1;
+                    r_iow_slot     <= w_slot_idx;
+                end
+                r_rr                     <= RQ_W'((32'(w_grant_dir) + 1) % N_REQ);
             end
+            // the IO read's slot frees: the port may read again
+            if (r_ior_busy && w_free_now[r_ior_slot])
+                r_ior_busy <= 1'b0;
 
-            // ---------------- AR take
+            // ---------------- AR take (the caches, the IO read with its burst)
             for (int d = 0; d < N_PORTS; d++) begin
                 if (w_ar_take[d]) begin
                     r_ar_taken[r_arw_slot[d]] <= 1'b1;
@@ -981,15 +1273,31 @@ module onyx_ccu
                     r_arw_vld[d]              <= 1'b0;
                 end
             end
+            if (w_io_ar_take) begin
+                r_ar_taken[r_arw_slot[IO]] <= 1'b1;
+                r_arid[r_arw_slot[IO]]     <= io_arid;
+                r_arcache[r_arw_slot[IO]]  <= io_arcache;
+                r_arprot[r_arw_slot[IO]]   <= io_arprot;
+                r_aruser[r_arw_slot[IO]]   <= io_aruser;
+                r_io_araddr   <= io_araddr;
+                r_io_arlen    <= io_arlen;
+                r_io_arsize   <= io_arsize;
+                r_io_arburst  <= io_arburst;
+                r_io_arlock   <= io_arlock;
+                r_io_arqos    <= io_arqos;
+                r_io_arregion <= io_arregion;
+                r_arw_vld[IO] <= 1'b0;
+            end
 
             // ---------------- snoop queues per peer (a pop shifts first, a
             // same-cycle push lands on the freed tail)
             for (int p = 0; p < N_PORTS; p++) begin
-                automatic logic push_q = w_grant & (w_grant_dir != PORT_W'(p));
+                // a grant snoops every port but its requester; the IO's
+                // non-shareable read snoops none
+                automatic logic push_q = w_grant & (w_grant_dir != RQ_W'(p)) & (w_grant_npeer != '0);
                 if (w_ac_hs[p]) begin
                     for (int k = 0; k < SLOTS - 1; k++)
                         r_snq[p][k] <= r_snq[p][k+1];
-                    r_ac_left[w_ac_slot[p]] <= r_ac_left[w_ac_slot[p]] - PORT_W'(1);
                 end
                 if (push_q)
                     r_snq[p][SLOT_W'(r_snq_cnt[p] - SNQ_W'(w_ac_hs[p]))] <= w_slot_idx;
@@ -997,7 +1305,6 @@ module onyx_ccu
                 if (w_cr_hs[p]) begin
                     for (int k = 0; k < SNOOP_INFLIGHT - 1; k++)
                         r_sni[p][k] <= r_sni[p][k+1];
-                    r_cr_left[w_sni_head[p]] <= r_cr_left[w_sni_head[p]] - PORT_W'(1);
                     if (s_crresp[p][AMBER_CRRESP_DT]) begin
                         r_dt[w_sni_head[p]] <= 1'b1;
                         r_pd[w_sni_head[p]] <= s_crresp[p][AMBER_CRRESP_PD];
@@ -1016,8 +1323,13 @@ module onyx_ccu
                 if (w_cd_hs[p])
                     r_cd_beat[p] <= s_cdlast[p] ? '0 : r_cd_beat[p] + BEAT_INDEX_WIDTH'(1);
             end
+            // the slots' peer counters step by this cycle's handshakes
+            for (int s = 0; s < SLOTS; s++) begin
+                if (w_ac_dec[s] != '0) r_ac_left[s] <= r_ac_left[s] - w_ac_dec[s];
+                if (w_cr_dec[s] != '0) r_cr_left[s] <= r_cr_left[s] - w_cr_dec[s];
+            end
             // the CD write pointers rotate past the peer that wrote
-            for (int a = 0; a < N_PORTS; a++) begin
+            for (int a = 0; a < N_REQ; a++) begin
                 if (w_buf_we[a])
                     r_cd_rr[a] <= PORT_W'((32'(w_buf_src[a]) + 1) % N_PORTS);
             end
@@ -1033,8 +1345,9 @@ module onyx_ccu
             if (w_mr_hs && mem_rlast)
                 r_mem_done[w_mr_slot] <= 1'b1;
 
-            // ---------------- replay engines
-            for (int d = 0; d < N_PORTS; d++) begin
+            // ---------------- replay engines (the IO's starts at its AR's
+            // beat within the line and counts its ARLEN+1 beats)
+            for (int d = 0; d < N_REQ; d++) begin
                 if (r_rpl_vld[d]) begin
                     if (w_rpl_hs[d]) begin
                         r_rpl_hold[d] <= 1'b0;
@@ -1043,6 +1356,7 @@ module onyx_ccu
                             r_rpl_done[r_rpl_slot[d]] <= 1'b1;
                         end else begin
                             r_rpl_beat[d] <= r_rpl_beat[d] + BEAT_INDEX_WIDTH'(1);
+                            r_rpl_cnt[d]  <= r_rpl_cnt[d] + 8'd1;
                         end
                     end else if (w_rpl_pres[d]) begin
                         r_rpl_hold[d] <= 1'b1;
@@ -1050,7 +1364,8 @@ module onyx_ccu
                 end else if (w_rplc_vld[d]) begin
                     r_rpl_vld[d]  <= 1'b1;
                     r_rpl_slot[d] <= w_rplc_slot[d];
-                    r_rpl_beat[d] <= '0;
+                    r_rpl_beat[d] <= (d == IO) ? r_io_araddr[OFFSET_W-1 -: BEAT_INDEX_WIDTH] : '0;
+                    r_rpl_cnt[d]  <= '0;
                     r_rpl_hold[d] <= 1'b0;
                 end
             end
@@ -1064,8 +1379,12 @@ module onyx_ccu
                         r_w_rr   <= WSEL_W'((32'(w_wsel) + 1) % NW);
                         r_w_beat <= '0;
                         r_wstate <= W_AW;
-                        if (w_wsel == WSEL_W'(N_PORTS))
+                        if (w_wsel == WSEL_W'(W_ABS))
                             r_abs_issued[w_absc_slot] <= 1'b1;
+                        // the IO's non-shareable write holds the port from its
+                        // selection (its WriteUnique has held it since its grant)
+                        if (w_wsel == WSEL_W'(W_IO))
+                            r_iow_busy <= 1'b1;
                     end
                 end
                 W_AW: begin
@@ -1081,6 +1400,15 @@ module onyx_ccu
                     if (mem_bvalid && mem_bready) begin
                         r_wstate <= W_IDLE;
                         if (w_cur_abs) r_abs_done[r_w_slot] <= 1'b1;
+                        // the IO write is done: its WriteUnique slot is
+                        // delivered (and frees), the port may write again
+                        if (w_cur_io) begin
+                            r_iow_busy <= 1'b0;
+                            if (r_iow_slot_vld) begin
+                                r_iow_done[r_iow_slot] <= 1'b1;
+                                r_iow_slot_vld         <= 1'b0;
+                            end
+                        end
                     end
                 end
                 default: r_wstate <= W_IDLE;
@@ -1101,21 +1429,21 @@ module onyx_ccu
     assign evt_grant_cls = w_cand_type[w_grant_dir];
     assign evt_ac        = w_ac_hs;
     always_comb begin
-        // the CR that completes a gather: its slot's count is one.  Per
-        // answering port, not one bit: two peers can each complete a
-        // different slot in the same cycle (the pair rig does it once a
-        // run), and a single bit would merge them -- an event lost that
-        // nothing counted.
+        // the CR that completes a gather: the slot's count equals this
+        // cycle's CRs for it, and this is the last of them (two peers of
+        // one slot answering together report once).  Per answering port,
+        // not one bit: two peers can each complete a different slot in the
+        // same cycle (the pair rig does it once a run), and a single bit
+        // would merge them -- an event lost that nothing counted.
         for (int p = 0; p < N_PORTS; p++) begin
-            evt_gather[p]      = w_cr_hs[p] && (r_cr_left[w_sni_head[p]] == PORT_W'(1));
+            evt_gather[p]      = w_cr_last[p] && (r_cr_left[w_sni_head[p]] == w_cr_dec[w_sni_head[p]]);
             evt_gather_slot[p] = w_sni_head[p];
-            evt_gather_dt[p]   = r_dt[w_sni_head[p]] | s_crresp[p][AMBER_CRRESP_DT];
-            evt_gather_pd[p]   = r_pd[w_sni_head[p]]
-                                 | (s_crresp[p][AMBER_CRRESP_DT] & s_crresp[p][AMBER_CRRESP_PD]);
+            evt_gather_dt[p]   = r_dt[w_sni_head[p]] | w_cr_dt_now[w_sni_head[p]];
+            evt_gather_pd[p]   = r_pd[w_sni_head[p]] | w_cr_pd_now[w_sni_head[p]];
             evt_read_wasted[p] = w_cr_hs[p] && s_crresp[p][AMBER_CRRESP_DT]
                 && (r_mem_issued[w_sni_head[p]] || (w_mar_vld && (w_mar_slot == w_sni_head[p])));
         end
-        for (int d = 0; d < N_PORTS; d++) begin
+        for (int d = 0; d < N_REQ; d++) begin
             evt_lock_wait[d]      = w_cand_vld[d] & w_cand_locked[d];
             // element-wise, not a whole-array alias: sv2v packs an aliased
             // array and the formal harness exposes w_cand_addr per element
@@ -1126,6 +1454,7 @@ module onyx_ccu
     assign evt_absorb = (r_wstate == W_B) & w_cur_abs & mem_bvalid & mem_bready;
     assign evt_absorb_slot = r_w_slot;
     assign evt_wb     = mem_awvalid & mem_awready & ~w_cur_abs;
+    assign evt_wb_io  = w_cur_io;
 
     // ------------------------------------------------------------------
     // Debug taps
@@ -1154,6 +1483,9 @@ module onyx_ccu
             unused_ar = unused_ar ^ (^{c_arlen[d], c_arsize[d], c_arburst[d], c_arlock[d],
                                        c_arqos[d], c_arregion[d], c_wuser[d]});
         unused_ar = unused_ar ^ (^mem_rid[IW-1:SLOT_W]);
+        // the IO's snoop codes and barriers: decoded by the domain alone
+        // (sim-checked below); its W user field is zeroed like the caches'
+        unused_ar = unused_ar ^ (^{io_arsnoop, io_awsnoop, io_arbar, io_awbar, io_wuser});
     end
     /* verilator lint_on UNUSEDSIGNAL */
 
@@ -1186,6 +1518,25 @@ module onyx_ccu
         end
         if (|r_pend_ovf)
             $error("onyx_ccu: pending queue overflow");
+        // the IO port's v1 contract: a shareable read is a ReadOnce within
+        // one line at full-width INCR beats; a shareable write is a
+        // WriteUnique / WriteLineUnique within one line
+        if (w_io_ar_take && w_io_ar_sh) begin
+            if (io_arsnoop != ACSNOOP_READ_ONCE)
+                $error("onyx_ccu: IO shareable read with ARSNOOP %h (v1 decodes ReadOnce only)", io_arsnoop);
+            if (io_arsize != 3'(BYTE_W) || io_arburst != 2'b01)
+                $error("onyx_ccu: IO shareable read must be full-width INCR beats (size %0d burst %0d)",
+                       io_arsize, io_arburst);
+            if ((32'(io_araddr[OFFSET_W-1:0]) + ((32'(io_arlen) + 1) << io_arsize)) > LINE_BYTES)
+                $error("onyx_ccu: IO shareable read crosses a line (addr %h len %0d)", io_araddr, io_arlen);
+        end
+        if (io_awvalid && io_awready && w_io_aw_sh) begin
+            if (io_awsnoop > 3'd1)
+                $error("onyx_ccu: IO shareable write with AWSNOOP %h (v1 decodes WriteUnique / WriteLineUnique)",
+                       io_awsnoop);
+            if ((32'(io_awaddr[OFFSET_W-1:0]) + ((32'(io_awlen) + 1) << io_awsize)) > LINE_BYTES)
+                $error("onyx_ccu: IO shareable write crosses a line (addr %h len %0d)", io_awaddr, io_awlen);
+        end
     end
     /* verilator lint_on SYNCASYNCNET */
     // pragma translate_on

@@ -20,8 +20,9 @@
 //     of a DataTransfer verdict (the verdict may be known before the gather
 //     completes, so "no DT" replaces "no (CR and DT)");
 //   - a DataTransfer CR sets the slot's DT (and PD) before the gather is
-//     complete, so the flag order is DT -> all ACs accepted, PD -> DT,
-//     gathered -> all ACs accepted;
+//     complete, so the flag order is DT -> an AC accepted (all of them for
+//     a cache's one peer; the IO's second peer may still be waiting), PD ->
+//     DT, gathered -> all ACs accepted;
 //   - cdready depends on cdvalid (the per-buffer CD write arbitration;
 //     AXI allows READY to wait for VALID): at N_PORTS=2 each peer is the
 //     only writer of the other port's buffer, so cdready = cdvalid & (a
@@ -31,6 +32,14 @@
 //     {c0, c1} accordingly.
 // A N_PORTS=3 harness needs the per-peer accept/answer shadow the counters
 // summarize; it is the next formal item, not this one.
+//
+// The ACE-Lite IO port (onyx TASK-001 step 7, D1) is the third requester:
+// its AR / AW / W are free inputs under A-io below, its slots snoop BOTH
+// caches (so a cache's "the other direction" becomes "any other
+// requester" throughout), its read is replayed or forwarded on its own R
+// channel, its WriteUnique passes the write port once gathered and
+// absorbed, and its retire is its last beat or its BRESP.  The exposed
+// requester index (r_dir) is two bits here: 0 / 1 the caches, 2 the IO.
 //
 // Mutations (2026-11-21, each on a scratch copy of the flat; `prove` task):
 //   M1 the gather declared complete at once (w_gathered = 1): FAIL
@@ -82,10 +91,20 @@
 //     FILL_BEATS CD beats with CDLAST on the last (the last may share the
 //     CR's cycle), a non-DT CR follows none; PassDirty only with DT; a
 //     MakeInvalid snoop is never answered with data (IHI0022 Table 3.0);
+//     at most one peer supplies a slot (MESI: one holder Exclusive or
+//     Modified -- the D6 precondition the RTL's sim check names; with the
+//     IO's two peers the environment has to be told);
 //   - A-mem: a memory R beat names a read onyx issued and not yet
-//     drained, RLAST on its FILL_BEATS-th beat, bursts of different IDs
+//     drained, RLAST on its last beat (the AR's length: a line for a
+//     cache's read, the IO's own for its), bursts of different IDs
 //     interleaving freely; AXI R stability; BVALID only with a write
 //     outstanding.
+//   - A-io: the IO master's AR and AW are full-width INCR bursts within one
+//     line (the v1 contract for a shareable access; a harness restriction
+//     for a non-shareable one, so the memory shadow's beat count stays two
+//     bits), ARSNOOP 0 and AWSNOOP 0 / 1 (the kinds v1 decodes), AXI
+//     stability on AR / AW / W, and W beats only after the AW was accepted
+//     with WLAST on the AWLEN+1-th (the doorbell and the BFM both do this).
 
 module formal_onyx_ccu #(
     parameter int AW = 8      // ADDR_WIDTH of the specialized flat
@@ -187,6 +206,45 @@ module formal_onyx_ccu #(
     input  logic        c1_coh_done_valid,
     input  logic [2:0]  c1_coh_done_id,
 
+    // ACE-Lite IO port (free): a non-caching master's AR / R / AW / W / B
+    input  logic [2:0]  io_arid,
+    input  logic [AW-1:0] io_araddr,
+    input  logic [7:0]  io_arlen,
+    input  logic [2:0]  io_arsize,
+    input  logic [1:0]  io_arburst,
+    input  logic        io_arlock,
+    input  logic [3:0]  io_arcache,
+    input  logic [2:0]  io_arprot,
+    input  logic [3:0]  io_arqos,
+    input  logic [3:0]  io_arregion,
+    input  logic        io_aruser,
+    input  logic [3:0]  io_arsnoop,
+    input  logic [1:0]  io_ardomain,
+    input  logic [1:0]  io_arbar,
+    input  logic        io_arvalid,
+    input  logic        io_rready,
+    input  logic [2:0]  io_awid,
+    input  logic [AW-1:0] io_awaddr,
+    input  logic [7:0]  io_awlen,
+    input  logic [2:0]  io_awsize,
+    input  logic [1:0]  io_awburst,
+    input  logic        io_awlock,
+    input  logic [3:0]  io_awcache,
+    input  logic [2:0]  io_awprot,
+    input  logic [3:0]  io_awqos,
+    input  logic [3:0]  io_awregion,
+    input  logic        io_awuser,
+    input  logic [2:0]  io_awsnoop,
+    input  logic [1:0]  io_awdomain,
+    input  logic [1:0]  io_awbar,
+    input  logic        io_awvalid,
+    input  logic [31:0] io_wdata,
+    input  logic [3:0]  io_wstrb,
+    input  logic        io_wlast,
+    input  logic        io_wuser,
+    input  logic        io_wvalid,
+    input  logic        io_bready,
+
     // shared memory (free)
     input  logic        mem_arready,
     input  logic [2:0]  mem_rid,
@@ -215,20 +273,28 @@ module formal_onyx_ccu #(
     localparam PEND_DEPTH = 4;
     localparam SN_INFL = 2;
 
-    // l1_pkg ACE request classes jet_prime_top emits, IHI0022 ACSNOOP
+    // l1_pkg ACE request classes jet_prime_top emits, IHI0022 ACSNOOP; the
+    // IO's two kinds in the same code space (onyx_pkg)
     localparam [2:0] REQ_RU   = 3'b001;
     localparam [2:0] REQ_CU   = 3'b010;
     localparam [2:0] REQ_WB   = 3'b100;
     localparam [2:0] REQ_RNSD = 3'b110;
-    localparam [3:0] ACSNOOP_READ_SHARED  = 4'h1;
-    localparam [3:0] ACSNOOP_READ_UNIQUE  = 4'h7;
-    localparam [3:0] ACSNOOP_MAKE_INVALID = 4'hC;
+    localparam [2:0] CLS_IO_RD = 3'b111;
+    localparam [2:0] CLS_IO_WR = 3'b101;
+    localparam [3:0] ACSNOOP_READ_ONCE     = 4'h0;
+    localparam [3:0] ACSNOOP_READ_SHARED   = 4'h1;
+    localparam [3:0] ACSNOOP_READ_UNIQUE   = 4'h7;
+    localparam [3:0] ACSNOOP_CLEAN_INVALID = 4'h9;
+    localparam [3:0] ACSNOOP_MAKE_INVALID  = 4'hC;
     localparam CR_DT = 0;             // l1_pkg AMBER_CRRESP_DT
     localparam CR_PD = 2;             // l1_pkg AMBER_CRRESP_PD
-    // write-port FSM (onyx_ccu localparams; w_sel 2 = the absorption)
+    // write-port FSM (onyx_ccu localparams; w_sel 2 = the absorption, 3 = the IO)
     localparam [1:0] W_IDLE = 2'd0;
     localparam [1:0] W_AW   = 2'd1;
     localparam [1:0] W_B    = 2'd3;
+    localparam [1:0] W_SEL_ABS = 2'd2;
+    localparam [1:0] W_SEL_IO  = 2'd3;
+    localparam [1:0] IO = 2'd2;       // the IO port's requester index
 
     function automatic [LINE_W-1:0] line_of(input [AW-1:0] a);
         line_of = a[AW-1:OFF_W];
@@ -238,6 +304,8 @@ module formal_onyx_ccu #(
         case (t)
             3'b000, REQ_RNSD: map_snoop = ACSNOOP_READ_SHARED;
             REQ_RU:           map_snoop = ACSNOOP_READ_UNIQUE;
+            CLS_IO_RD:        map_snoop = ACSNOOP_READ_ONCE;
+            CLS_IO_WR:        map_snoop = ACSNOOP_CLEAN_INVALID;
             default:          map_snoop = ACSNOOP_MAKE_INVALID;
         endcase
     endfunction
@@ -268,6 +336,10 @@ module formal_onyx_ccu #(
     logic        s0_acvalid, s1_acvalid;
     logic        s0_crready, s1_crready;
     logic        s0_cdready, s1_cdready;
+    logic        io_arready, io_rvalid, io_rlast, io_ruser, io_awready, io_wready, io_bvalid, io_buser;
+    logic [2:0]  io_rid, io_bid;
+    logic [31:0] io_rdata;
+    logic [1:0]  io_rresp, io_bresp;
     logic [2:0]  mem_arid;
     logic [AW-1:0] mem_araddr;
     logic [7:0]  mem_arlen;
@@ -304,27 +376,37 @@ module formal_onyx_ccu #(
     logic [1:0]  dbg_pend_vld;
     logic        dbg_abs_pend;
     logic        dbg_grant;
-    logic        dbg_grant_dir;
+    logic [1:0]  dbg_grant_dir;      // the requester: 0 / 1 the caches, 2 the IO
     logic [AW-1:0] dbg_grant_addr;
     logic [1:0]  dbg_grant_slot;
 
     // exposed internals (onyx_ccu.sby `expose`)
-    logic [3:0]  obs_vld, obs_dir, obs_nodata, obs_ar_taken, obs_ac_all;
+    logic [3:0]  obs_vld, obs_nodata, obs_ar_taken, obs_ac_all;
     logic [3:0]  obs_gathered, obs_dt, obs_pd, obs_mem_issued, obs_mem_done;
-    logic [3:0]  obs_ac_left, obs_cr_left;   // one peer at N_PORTS=2: one bit each
     logic [3:0]  obs_rpl_done, obs_abs_issued, obs_abs_done, obs_rack;
+    logic [3:0]  obs_iow, obs_iow_done;        // the IO's WriteUnique slots
+    logic [SLOTS*2-1:0] obs_dir_f;             // two bits per slot
+    logic [SLOTS*2-1:0] obs_ac_left_f, obs_cr_left_f;   // peers left, 0..2
     logic        obs_mar_vld;
     logic [1:0]  obs_mar_slot;
-    logic [1:0]  obs_arw_vld, obs_pend_ovf, obs_rpl_vld;
+    logic [2:0]  obs_arw_vld, obs_rpl_vld;     // per requester
+    logic [1:0]  obs_pend_ovf;
     logic [1:0]  obs_wstate, obs_w_sel, obs_w_slot;
-    logic [1:0]  obs_cand_locked, obs_mem_pres, obs_rpl_pres, obs_wb_blocked;
+    logic [2:0]  obs_cand_locked, obs_mem_pres, obs_rpl_pres;
+    logic [1:0]  obs_wb_blocked;
+    logic        obs_wb_blocked_io, obs_io_line_wb, obs_io_w_slot, obs_io_w_pass;
     logic        obs_mr_drop;
+    logic        obs_ior_busy, obs_iow_busy, obs_iow_slot_vld;
+    logic [1:0]  obs_ior_slot, obs_iow_slot;
+    logic [AW-1:0] obs_io_araddr;
+    logic [7:0]  obs_io_arlen;
     logic [SLOTS*LINE_W-1:0] obs_line_f;
     logic [SLOTS*3-1:0]      obs_type_f;
     logic [SLOTS*IW-1:0]     obs_arid_f;
-    logic [2*2-1:0]          obs_arw_slot_f, obs_rpl_slot_f, obs_ac_slot_f, obs_sni_head_f;
+    logic [3*2-1:0]          obs_arw_slot_f, obs_rpl_slot_f;
+    logic [2*2-1:0]          obs_ac_slot_f, obs_sni_head_f;
     logic [2*3-1:0]          obs_pend_cnt_f;
-    logic [2*AW-1:0]         obs_cand_addr_f;
+    logic [3*AW-1:0]         obs_cand_addr_f;
     logic [2*2-1:0]          obs_sni_cnt_f;
 
     onyx_ccu dut (
@@ -357,6 +439,19 @@ module formal_onyx_ccu #(
         .c_coh_req_valid({c1_coh_req_valid, c0_coh_req_valid}),
         .c_coh_req_addr({c0_coh_req_addr, c1_coh_req_addr}), .c_coh_req_type({c0_coh_req_type, c1_coh_req_type}),
         .c_coh_done_valid({c1_coh_done_valid, c0_coh_done_valid}), .c_coh_done_id({c0_coh_done_id, c1_coh_done_id}),
+        .io_arid(io_arid), .io_araddr(io_araddr), .io_arlen(io_arlen), .io_arsize(io_arsize),
+        .io_arburst(io_arburst), .io_arlock(io_arlock), .io_arcache(io_arcache), .io_arprot(io_arprot),
+        .io_arqos(io_arqos), .io_arregion(io_arregion), .io_aruser(io_aruser), .io_arsnoop(io_arsnoop),
+        .io_ardomain(io_ardomain), .io_arbar(io_arbar), .io_arvalid(io_arvalid), .io_arready(io_arready),
+        .io_rid(io_rid), .io_rdata(io_rdata), .io_rresp(io_rresp), .io_rlast(io_rlast), .io_ruser(io_ruser),
+        .io_rvalid(io_rvalid), .io_rready(io_rready),
+        .io_awid(io_awid), .io_awaddr(io_awaddr), .io_awlen(io_awlen), .io_awsize(io_awsize),
+        .io_awburst(io_awburst), .io_awlock(io_awlock), .io_awcache(io_awcache), .io_awprot(io_awprot),
+        .io_awqos(io_awqos), .io_awregion(io_awregion), .io_awuser(io_awuser), .io_awsnoop(io_awsnoop),
+        .io_awdomain(io_awdomain), .io_awbar(io_awbar), .io_awvalid(io_awvalid), .io_awready(io_awready),
+        .io_wdata(io_wdata), .io_wstrb(io_wstrb), .io_wlast(io_wlast), .io_wuser(io_wuser),
+        .io_wvalid(io_wvalid), .io_wready(io_wready), .io_bid(io_bid), .io_bresp(io_bresp),
+        .io_buser(io_buser), .io_bvalid(io_bvalid), .io_bready(io_bready),
         .mem_arid(mem_arid), .mem_araddr(mem_araddr), .mem_arlen(mem_arlen), .mem_arsize(mem_arsize),
         .mem_arburst(mem_arburst), .mem_arlock(mem_arlock), .mem_arcache(mem_arcache), .mem_arprot(mem_arprot),
         .mem_arqos(mem_arqos), .mem_arregion(mem_arregion), .mem_aruser(mem_aruser), .mem_arvalid(mem_arvalid),
@@ -376,16 +471,22 @@ module formal_onyx_ccu #(
         .w_ac_all(obs_ac_all), .w_gathered(obs_gathered), .r_dt(obs_dt), .r_pd(obs_pd),
         .r_mem_issued(obs_mem_issued), .r_mem_done(obs_mem_done), .r_rpl_done(obs_rpl_done),
         .r_abs_issued(obs_abs_issued), .r_abs_done(obs_abs_done), .r_rack(obs_rack), .r_arw_vld(obs_arw_vld),
+        .r_iow(obs_iow), .r_iow_done(obs_iow_done),
         .r_mar_vld(obs_mar_vld), .r_mar_slot(obs_mar_slot),
         .r_pend_ovf(obs_pend_ovf), .r_rpl_vld(obs_rpl_vld), .r_wstate(obs_wstate),
         .r_w_sel(obs_w_sel), .r_w_slot(obs_w_slot), .w_cand_locked(obs_cand_locked),
         .w_mem_pres(obs_mem_pres), .w_rpl_pres(obs_rpl_pres), .w_mr_drop(obs_mr_drop),
-        .w_wb_blocked(obs_wb_blocked),
-        .\r_dir[0] (obs_dir[0]), .\r_dir[1] (obs_dir[1]), .\r_dir[2] (obs_dir[2]), .\r_dir[3] (obs_dir[3]),
-        .\r_ac_left[0] (obs_ac_left[0]), .\r_ac_left[1] (obs_ac_left[1]),
-        .\r_ac_left[2] (obs_ac_left[2]), .\r_ac_left[3] (obs_ac_left[3]),
-        .\r_cr_left[0] (obs_cr_left[0]), .\r_cr_left[1] (obs_cr_left[1]),
-        .\r_cr_left[2] (obs_cr_left[2]), .\r_cr_left[3] (obs_cr_left[3]),
+        .w_wb_blocked(obs_wb_blocked), .w_wb_blocked_io(obs_wb_blocked_io), .w_io_line_wb(obs_io_line_wb),
+        .w_io_w_slot(obs_io_w_slot), .w_io_w_pass(obs_io_w_pass),
+        .r_ior_busy(obs_ior_busy), .r_iow_busy(obs_iow_busy), .r_iow_slot_vld(obs_iow_slot_vld),
+        .r_ior_slot(obs_ior_slot), .r_iow_slot(obs_iow_slot),
+        .r_io_araddr(obs_io_araddr), .r_io_arlen(obs_io_arlen),
+        .\r_dir[0] (obs_dir_f[0 +: 2]), .\r_dir[1] (obs_dir_f[2 +: 2]),
+        .\r_dir[2] (obs_dir_f[4 +: 2]), .\r_dir[3] (obs_dir_f[6 +: 2]),
+        .\r_ac_left[0] (obs_ac_left_f[0 +: 2]), .\r_ac_left[1] (obs_ac_left_f[2 +: 2]),
+        .\r_ac_left[2] (obs_ac_left_f[4 +: 2]), .\r_ac_left[3] (obs_ac_left_f[6 +: 2]),
+        .\r_cr_left[0] (obs_cr_left_f[0 +: 2]), .\r_cr_left[1] (obs_cr_left_f[2 +: 2]),
+        .\r_cr_left[2] (obs_cr_left_f[4 +: 2]), .\r_cr_left[3] (obs_cr_left_f[6 +: 2]),
         .\r_line[0] (obs_line_f[0*LINE_W +: LINE_W]), .\r_line[1] (obs_line_f[1*LINE_W +: LINE_W]),
         .\r_line[2] (obs_line_f[2*LINE_W +: LINE_W]), .\r_line[3] (obs_line_f[3*LINE_W +: LINE_W]),
         .\r_type[0] (obs_type_f[0*3 +: 3]), .\r_type[1] (obs_type_f[1*3 +: 3]),
@@ -393,12 +494,15 @@ module formal_onyx_ccu #(
         .\r_arid[0] (obs_arid_f[0*IW +: IW]), .\r_arid[1] (obs_arid_f[1*IW +: IW]),
         .\r_arid[2] (obs_arid_f[2*IW +: IW]), .\r_arid[3] (obs_arid_f[3*IW +: IW]),
         .\r_arw_slot[0] (obs_arw_slot_f[0 +: 2]), .\r_arw_slot[1] (obs_arw_slot_f[2 +: 2]),
+        .\r_arw_slot[2] (obs_arw_slot_f[4 +: 2]),
         .\r_rpl_slot[0] (obs_rpl_slot_f[0 +: 2]), .\r_rpl_slot[1] (obs_rpl_slot_f[2 +: 2]),
+        .\r_rpl_slot[2] (obs_rpl_slot_f[4 +: 2]),
         .\w_ac_slot[0] (obs_ac_slot_f[0 +: 2]), .\w_ac_slot[1] (obs_ac_slot_f[2 +: 2]),
         .\w_sni_head[0] (obs_sni_head_f[0 +: 2]), .\w_sni_head[1] (obs_sni_head_f[2 +: 2]),
         .\r_pend_cnt[0] (obs_pend_cnt_f[0 +: 3]), .\r_pend_cnt[1] (obs_pend_cnt_f[3 +: 3]),
         .\r_sni_cnt[0] (obs_sni_cnt_f[0 +: 2]), .\r_sni_cnt[1] (obs_sni_cnt_f[2 +: 2]),
-        .\w_cand_addr[0] (obs_cand_addr_f[0 +: AW]), .\w_cand_addr[1] (obs_cand_addr_f[AW +: AW])
+        .\w_cand_addr[0] (obs_cand_addr_f[0 +: AW]), .\w_cand_addr[1] (obs_cand_addr_f[AW +: AW]),
+        .\w_cand_addr[2] (obs_cand_addr_f[2*AW +: AW])
     );
 
     // ------------------------------------------------------------------
@@ -455,12 +559,41 @@ module formal_onyx_ccu #(
     wire        mw_hs  = mem_wvalid & mem_wready;
     wire        mb_hs  = mem_bvalid & mem_bready;
     wire [1:0]  mr_slot = mem_rid[1:0];
-    wire        w_abs   = (obs_w_sel == 2'd2);
+    wire        w_abs   = (obs_w_sel == W_SEL_ABS);
+    wire        w_io    = (obs_w_sel == W_SEL_IO);
     wire        w_wdir  = obs_w_sel[0];
+
+    // the IO port's handshakes and its shareable decode (inner 01 / outer 10)
+    wire        io_ar_hs = io_arvalid & io_arready;
+    wire        io_r_hs  = io_rvalid & io_rready;
+    wire        io_aw_hs = io_awvalid & io_awready;
+    wire        io_w_hs  = io_wvalid & io_wready;
+    wire        io_b_hs  = io_bvalid & io_bready;
+    wire        io_ar_sh = io_ardomain[0] ^ io_ardomain[1];
+    wire        io_aw_sh = io_awdomain[0] ^ io_awdomain[1];
+
+    // the three requesters' R channels (bit d: 0 / 1 the caches, 2 the IO)
+    wire [2:0]  rq_rvalid = {io_rvalid, c1_rvalid, c0_rvalid};
+    wire [2:0]  rq_rready = {io_rready, c1_rready, c0_rready};
+    wire [2:0]  rq_r_hs   = rq_rvalid & rq_rready;
+    wire [8:0]  rq_rid_f  = {io_rid, c1_rid, c0_rid};
+    wire [2:0]  rq_rlast  = {io_rlast, c1_rlast, c0_rlast};
 
     // slot-field accessors
     function automatic [LINE_W-1:0] sl_line(input [SLOTS*LINE_W-1:0] f, input [1:0] s);
         sl_line = f[s*LINE_W +: LINE_W];
+    endfunction
+    function automatic [1:0] sl_dir(input [1:0] s);
+        sl_dir = obs_dir_f[s*2 +: 2];
+    endfunction
+    function automatic [1:0] sl_cnt(input [SLOTS*2-1:0] f, input [1:0] s);
+        sl_cnt = f[s*2 +: 2];
+    endfunction
+    function automatic [1:0] rq_slot(input [3*2-1:0] f, input [1:0] d);
+        rq_slot = f[d*2 +: 2];
+    endfunction
+    function automatic [2:0] rq3(input [8:0] f, input [1:0] d);
+        rq3 = f[d*3 +: 3];
     endfunction
     function automatic [2:0] sl_type(input [SLOTS*3-1:0] f, input [1:0] s);
         sl_type = f[s*3 +: 3];
@@ -499,7 +632,8 @@ module formal_onyx_ccu #(
                                   && !c0_wvalid && !c1_wvalid && !s0_crvalid && !s1_crvalid
                                   && !s0_cdvalid && !s1_cdvalid && !c0_coh_req_valid
                                   && !c1_coh_req_valid && !c0_coh_done_valid && !c1_coh_done_valid
-                                  && !mem_rvalid && !mem_bvalid);
+                                  && !mem_rvalid && !mem_bvalid
+                                  && !io_arvalid && !io_awvalid && !io_wvalid);
         end
     end
 
@@ -655,16 +789,96 @@ module formal_onyx_ccu #(
                 assume /* as_cr_pd_dt */ (!crvalid[p] || !cr_pd[p] || cr_dt[p]);
                 assume /* as_cr_mi_nodt */ (!(crvalid[p] && (sn_type[p][3:0] == ACSNOOP_MAKE_INVALID))
                     || !cr_dt[p]);
+                // one supplier per slot: no data for a slot already supplied, and
+                // not from two peers at once (the other mid-stream or in the same cycle)
+                assume /* as_one_supplier */ (!((cdvalid[p] || (crvalid[p] && cr_dt[p])) && (sn_out[p] != 2'd0)
+                                                && obs_dt[d2(obs_sni_head_f, p)]));
+                assume /* as_one_supplier_now */ (!((cdvalid[p] || (crvalid[p] && cr_dt[p])) && (sn_out[p] != 2'd0)
+                                                    && (sn_out[1 - p] != 2'd0)
+                                                    && (d2(obs_sni_head_f, p) == d2(obs_sni_head_f, 1 - p))
+                                                    && (cdvalid[1 - p] || (crvalid[1 - p] && cr_dt[1 - p])
+                                                        || (cd_cnt[1 - p] != 3'd0))));
             end
         end
     end
 
     // ------------------------------------------------------------------
-    // Memory model (A-mem): reads outstanding by ID, beats seen per ID, one
-    // write outstanding (the fabric's port runs one burst at a time)
+    // IO master model (A-io): the read in flight (its ID, length, beats
+    // seen), the write whose AW was taken (its length, W beats taken), AXI
+    // stability on AR / AW / W
+    // ------------------------------------------------------------------
+    reg        f_io_rd;          // an AR taken, RLAST not yet seen
+    reg [2:0]  f_io_rid;
+    reg [1:0]  f_io_rlen;
+    reg [1:0]  f_io_rbeats;
+    reg        f_io_wr;          // an AW taken, WLAST not yet taken
+    reg [1:0]  f_io_wlen;
+    reg [1:0]  f_io_wbeats;
+    reg        io_ar_v_d, io_ar_r_d, io_aw_v_d, io_aw_r_d, io_w_v_d, io_w_r_d, io_w_last_d;
+    reg [2:0]  io_ar_id_d, io_aw_id_d;
+    reg [AW-1:0] io_ar_addr_d, io_aw_addr_d;
+    reg [7:0]  io_ar_len_d, io_aw_len_d;
+    reg [1:0]  io_ar_dom_d, io_aw_dom_d;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            f_io_rd <= 1'b0;  f_io_rid <= 3'd0;  f_io_rlen <= 2'd0;  f_io_rbeats <= 2'd0;
+            f_io_wr <= 1'b0;  f_io_wlen <= 2'd0;  f_io_wbeats <= 2'd0;
+        end else begin
+            if (io_ar_hs) begin
+                f_io_rd <= 1'b1;  f_io_rid <= io_arid;  f_io_rlen <= io_arlen[1:0];  f_io_rbeats <= 2'd0;
+            end
+            if (io_r_hs) begin
+                f_io_rbeats <= f_io_rbeats + 2'd1;
+                if (io_rlast) f_io_rd <= 1'b0;
+            end
+            if (io_aw_hs) begin
+                f_io_wr <= 1'b1;  f_io_wlen <= io_awlen[1:0];  f_io_wbeats <= 2'd0;
+            end
+            if (io_w_hs) begin
+                f_io_wbeats <= f_io_wbeats + 2'd1;
+                if (io_wlast) f_io_wr <= 1'b0;
+            end
+        end
+        io_ar_v_d <= io_arvalid;  io_ar_r_d <= io_arready;  io_ar_id_d <= io_arid;
+        io_ar_addr_d <= io_araddr;  io_ar_len_d <= io_arlen;  io_ar_dom_d <= io_ardomain;
+        io_aw_v_d <= io_awvalid;  io_aw_r_d <= io_awready;  io_aw_id_d <= io_awid;
+        io_aw_addr_d <= io_awaddr;  io_aw_len_d <= io_awlen;  io_aw_dom_d <= io_awdomain;
+        io_w_v_d <= io_wvalid;  io_w_r_d <= io_wready;  io_w_last_d <= io_wlast;
+    end
+
+    always @(posedge clk) begin
+        if (rst_n && (f_past_valid >= 2)) begin
+            // a full-width INCR burst within one line, the kinds v1 decodes
+            as_io_ar_shape: assume (!io_arvalid
+                || ((io_arsize == 3'd2) && (io_arburst == 2'b01) && (io_arlen <= 8'd3)
+                    && ({1'b0, io_araddr[OFF_W-1:2]} + io_arlen[2:0] <= 3'd3)
+                    && (io_arsnoop == 4'h0)));
+            as_io_aw_shape: assume (!io_awvalid
+                || ((io_awsize == 3'd2) && (io_awburst == 2'b01) && (io_awlen <= 8'd3)
+                    && ({1'b0, io_awaddr[OFF_W-1:2]} + io_awlen[2:0] <= 3'd3)
+                    && (io_awsnoop <= 3'd1)));
+            // AXI stability
+            as_io_ar_stable: assume (!(io_ar_v_d && !io_ar_r_d)
+                || (io_arvalid && (io_arid == io_ar_id_d) && (io_araddr == io_ar_addr_d)
+                    && (io_arlen == io_ar_len_d) && (io_ardomain == io_ar_dom_d)));
+            as_io_aw_stable: assume (!(io_aw_v_d && !io_aw_r_d)
+                || (io_awvalid && (io_awid == io_aw_id_d) && (io_awaddr == io_aw_addr_d)
+                    && (io_awlen == io_aw_len_d) && (io_awdomain == io_aw_dom_d)));
+            as_io_w_stable: assume (!(io_w_v_d && !io_w_r_d) || (io_wvalid && (io_wlast == io_w_last_d)));
+            // W only after its AW was taken, WLAST on the AWLEN+1-th beat
+            as_io_w_after_aw: assume (!io_wvalid || f_io_wr);
+            as_io_w_last: assume (!io_wvalid || (io_wlast == (f_io_wbeats == f_io_wlen)));
+        end
+    end
+
+    // ------------------------------------------------------------------
+    // Memory model (A-mem): reads outstanding by ID, beats seen per ID and
+    // the AR's length per ID, one write outstanding (the fabric's port runs
+    // one burst at a time)
     // ------------------------------------------------------------------
     reg [3:0] mo;
     reg [7:0] mbeat;   // 2 bits per slot
+    reg [7:0] mlen;    // 2 bits per slot: the AR's length
     reg       wo;
     reg       mr_v_d, mr_r_d, mr_last_d;
     reg [2:0] mr_id_d;
@@ -672,11 +886,12 @@ module formal_onyx_ccu #(
     reg [1:0] mr_resp_d;
     always @(posedge clk) begin
         if (!rst_n) begin
-            mo <= 4'd0;  mbeat <= 8'd0;  wo <= 1'b0;
+            mo <= 4'd0;  mbeat <= 8'd0;  mlen <= 8'd0;  wo <= 1'b0;
         end else begin
             if (mar_hs) begin
                 mo[mem_arid[1:0]] <= 1'b1;
                 mbeat[mem_arid[1:0]*2 +: 2] <= 2'd0;
+                mlen[mem_arid[1:0]*2 +: 2] <= mem_arlen[1:0];
             end
             if (mr_hs) begin
                 mbeat[mr_slot*2 +: 2] <= mbeat[mr_slot*2 +: 2] + 2'd1;
@@ -692,7 +907,7 @@ module formal_onyx_ccu #(
     always @(posedge clk) begin
         if (rst_n && (f_past_valid >= 2)) begin
             as_mr_outstanding: assume (!mem_rvalid || (!mem_rid[2] && mo[mr_slot]));
-            as_mr_last: assume (!mem_rvalid || (mem_rlast == (mbeat[mr_slot*2 +: 2] == 2'd3)));
+            as_mr_last: assume (!mem_rvalid || (mem_rlast == (mbeat[mr_slot*2 +: 2] == mlen[mr_slot*2 +: 2])));
             as_mr_stable: assume (!(mr_v_d && !mr_r_d)
                 || (mem_rvalid && (mem_rid == mr_id_d) && (mem_rdata == mr_data_d)
                     && (mem_rresp == mr_resp_d) && (mem_rlast == mr_last_d)));
@@ -715,10 +930,14 @@ module formal_onyx_ccu #(
     reg        mar_v_d, mar_r_d;
     reg [2:0]  mar_id_d;
     reg [AW-1:0] mar_addr_d;
-    reg [1:0]  r_v_d, r_r_d, r_last_d;
-    reg [5:0]  r_id_d;
-    reg [63:0] r_data_d;
-    reg [3:0]  r_resp_d;
+    reg [2:0]  r_v_d, r_r_d, r_last_d;
+    reg [8:0]  r_id_d;
+    reg [95:0] r_data_d;
+    reg [5:0]  r_resp_d;
+    reg        iow_slot_vld_d;
+    reg [1:0]  iow_slot_d;
+    reg        io_aw_sh_d;
+    reg [AW-1:0] io_aw_addr_dd;
     reg [1:0]  ac_v_d, ac_r_d;
     reg [2*AW-1:0] ac_addr_d;
     reg [7:0]  ac_snoop_d;
@@ -730,15 +949,22 @@ module formal_onyx_ccu #(
         done_vld_d <= done_vld;  done_id_d <= done_id_f;
         grant_d <= dbg_grant;  grant_slot_d <= dbg_grant_slot;
         mar_v_d <= mem_arvalid;  mar_r_d <= mem_arready;  mar_id_d <= mem_arid;  mar_addr_d <= mem_araddr;
-        r_v_d <= c_rvalid;  r_r_d <= c_rready;  r_last_d <= c_rlast;
-        r_id_d <= c_rid_f;  r_data_d <= c_rdata_f;  r_resp_d <= c_rresp_f;
+        r_v_d <= rq_rvalid;  r_r_d <= rq_rready;  r_last_d <= rq_rlast;
+        r_id_d <= rq_rid_f;  r_data_d <= {io_rdata, c_rdata_f};  r_resp_d <= {io_rresp, c_rresp_f};
         ac_v_d <= acvalid;  ac_r_d <= acready;  ac_addr_d <= acaddr_f;  ac_snoop_d <= acsnoop_f;
+        iow_slot_vld_d <= obs_iow_slot_vld;  iow_slot_d <= obs_iow_slot;
+        io_aw_sh_d <= io_aw_sh;  io_aw_addr_dd <= io_awaddr;
         if (!rst_n) h_delivered <= 4'd0;
         else begin
             for (s = 0; s < SLOTS; s = s + 1) begin
                 if (dbg_grant && (dbg_grant_slot == s)) h_delivered[s] <= 1'b0;
-                else if (obs_vld[s] && obs_ar_taken[s] && c_r_hs[obs_dir[s]] && c_rlast[obs_dir[s]]
-                         && (d3(c_rid_f, obs_dir[s]) == sl_arid(obs_arid_f, s)))
+                // a read's last beat on its requester's R (a cache's or the
+                // IO's); an IO write's BRESP
+                else if (obs_vld[s] && obs_ar_taken[s] && !obs_iow[s]
+                         && rq_r_hs[sl_dir(s)] && rq_rlast[sl_dir(s)]
+                         && (rq3(rq_rid_f, sl_dir(s)) == sl_arid(obs_arid_f, s)))
+                    h_delivered[s] <= 1'b1;
+                else if (obs_vld[s] && obs_iow[s] && io_b_hs && obs_iow_slot_vld && (obs_iow_slot == s))
                     h_delivered[s] <= 1'b1;
             end
         end
@@ -747,22 +973,26 @@ module formal_onyx_ccu #(
     // violation vectors (one bit per slot / direction / peer), asserted
     // zero below so a counterexample names the offender
     reg [3:0] v_line_dup, v_grant_locked, v_release, v_rack_src, v_mo, v_free, v_wb_hold;
-    reg [1:0] v_arready, v_ar_pair, v_route_mem, v_route_rpl, v_r_stable, v_r_infl, v_r_beats;
+    reg [2:0] v_arready, v_ar_pair, v_route_mem, v_route_rpl, v_r_stable;
+    reg [1:0] v_r_infl, v_r_beats;
     reg [1:0] v_ac_legal, v_ac_stable, v_sn_count, v_cd_slot;
     reg       v_mar_legal, v_mar_stable, v_abs_legal;
     reg [3:0] v_flags;
-    reg [1:0] v_engines;
+    reg [2:0] v_engines;
+    reg [3:0] v_io;         // the IO port's own: its R, its one-at-a-time, its write handshakes, its selection
     reg [1:0] wb_sel_now;   // a WB of direction d was selected this edge
+    reg       io_sel_now;   // the IO's write was selected this edge
     always @(*) begin
         v_line_dup = 4'd0;  v_grant_locked = 4'd0;  v_release = 4'd0;  v_rack_src = 4'd0;
         v_mo = 4'd0;  v_free = 4'd0;  v_wb_hold = 4'd0;
-        v_arready = 2'd0;  v_ar_pair = 2'd0;  v_route_mem = 2'd0;  v_route_rpl = 2'd0;
-        v_r_stable = 2'd0;  v_r_infl = 2'd0;  v_r_beats = 2'd0;
+        v_arready = 3'd0;  v_ar_pair = 3'd0;  v_route_mem = 3'd0;  v_route_rpl = 3'd0;
+        v_r_stable = 3'd0;  v_r_infl = 2'd0;  v_r_beats = 2'd0;
         v_ac_legal = 2'd0;  v_ac_stable = 2'd0;  v_sn_count = 2'd0;  v_cd_slot = 2'd0;
         v_mar_legal = 1'b0;  v_mar_stable = 1'b0;  v_abs_legal = 1'b0;
-        v_flags = 4'd0;  v_engines = 2'd0;
+        v_flags = 4'd0;  v_engines = 3'd0;  v_io = 4'd0;
         wb_sel_now = {(wstate_d == W_IDLE) && (obs_wstate == W_AW) && (obs_w_sel == 2'd1),
                       (wstate_d == W_IDLE) && (obs_wstate == W_AW) && (obs_w_sel == 2'd0)};
+        io_sel_now = (wstate_d == W_IDLE) && (obs_wstate == W_AW) && (obs_w_sel == W_SEL_IO);
 
         for (s = 0; s < SLOTS; s = s + 1) begin
             // P1 the per-line rule: one valid slot per line
@@ -777,8 +1007,10 @@ module formal_onyx_ccu #(
             if (vld_d[s] && !obs_vld[s] && !rack_d[s])
                 v_release[s] = 1'b1;
             // P4 the retire bit is set only by the requester's own done pulse naming the slot's ID
+            //    (a cache's; the IO's slots carry it from the grant, never set later)
             if (!rack_d[s] && obs_rack[s] && vld_d[s]
-                && !(done_vld_d[obs_dir[s]] && (d3(done_id_d, obs_dir[s]) == sl_arid(obs_arid_f, s))))
+                && !((sl_dir(s) != IO) && done_vld_d[sl_dir(s) & 2'd1]
+                     && (d3(done_id_d, sl_dir(s) & 2'd1) == sl_arid(obs_arid_f, s))))
                 v_rack_src[s] = 1'b1;
             // P9 the memory bookkeeping matches the reads actually outstanding
             if (mo[s] != (obs_vld[s] & obs_mem_issued[s] & ~obs_mem_done[s]))
@@ -787,45 +1019,61 @@ module formal_onyx_ccu #(
             if (vld_d[s] && !obs_vld[s] && !(h_delivered[s] && !mo[s]))
                 v_free[s] = 1'b1;
             // P17 a write-back is selected only when no slot on its line lacks a verdict or
-            //     has an absorption pending (the previous cycle's table, the selected AW)
+            //     has an absorption pending (the previous cycle's table, the selected AW);
+            //     the IO's non-shareable write under the same hold (its WriteUnique: P-IO4)
             for (k = 0; k < 2; k = k + 1)
                 if (wb_sel_now[k] && vld_d[s] && (sl_line(line_d, s) == line_of(aw_addr_d[k*AW +: AW]))
                     && (!gathered_d[s] || (pd_d[s] && !abs_done_d[s])))
                     v_wb_hold[s] = 1'b1;
+            if (io_sel_now && !io_aw_sh_d && vld_d[s] && (sl_line(line_d, s) == line_of(io_aw_addr_dd))
+                && (!gathered_d[s] || (pd_d[s] && !abs_done_d[s])))
+                v_wb_hold[s] = 1'b1;
         end
 
-        for (d = 0; d < 2; d = d + 1) begin
-            // P5 arready only for a granted slot of this direction with its AR untaken
-            if (c_arready[d] && !(obs_vld[d2(obs_arw_slot_f, d)]
-                                   && (obs_dir[d2(obs_arw_slot_f, d)] == d)
-                                   && !obs_ar_taken[d2(obs_arw_slot_f, d)]))
+        for (d = 0; d < 3; d = d + 1) begin
+            // P5 arready only for a granted slot of this requester with its AR untaken
+            //    (the caches' and the IO's read)
+            if (((d < 2) ? c_arready[d] : io_arready)
+                && !(obs_vld[rq_slot(obs_arw_slot_f, d)]
+                     && (sl_dir(rq_slot(obs_arw_slot_f, d)) == d)
+                     && !obs_ar_taken[rq_slot(obs_arw_slot_f, d)]
+                     && !obs_iow[rq_slot(obs_arw_slot_f, d)]))
                 v_arready[d] = 1'b1;
-            // P6 the AR taken is the slot's line and class
-            if (c_ar_hs[d] && !((line_of(c_araddr_f[d*AW +: AW]) == sl_line(obs_line_f, d2(obs_arw_slot_f, d)))
-                                 && ((c_arlen_f[d*8 +: 8] == 8'd0) == obs_nodata[d2(obs_arw_slot_f, d)])))
-                v_ar_pair[d] = 1'b1;
-            // P10 a forwarded memory beat belongs to this direction's slot, verdict in, no DT,
+            // P6 the AR taken is the slot's line (and, a cache's, its class's length)
+            if (d < 2) begin
+                if (c_ar_hs[d] && !((line_of(c_araddr_f[d*AW +: AW]) == sl_line(obs_line_f, rq_slot(obs_arw_slot_f, d)))
+                                    && ((c_arlen_f[d*8 +: 8] == 8'd0) == obs_nodata[rq_slot(obs_arw_slot_f, d)])))
+                    v_ar_pair[d] = 1'b1;
+            end else begin
+                if (io_ar_hs && !((line_of(io_araddr) == sl_line(obs_line_f, rq_slot(obs_arw_slot_f, d)))
+                                  && !obs_nodata[rq_slot(obs_arw_slot_f, d)]))
+                    v_ar_pair[d] = 1'b1;
+            end
+            // P10 a forwarded memory beat belongs to this requester's slot, verdict in, no DT,
             //     carrying the requester's own ID; a replayed beat likewise for a DT / no-data slot
-            if (obs_mem_pres[d] && !(mem_rvalid && obs_vld[mr_slot] && (obs_dir[mr_slot] == d)
+            if (obs_mem_pres[d] && !(mem_rvalid && obs_vld[mr_slot] && (sl_dir(mr_slot) == d)
                                       && obs_gathered[mr_slot] && !obs_dt[mr_slot]
-                                      && (d3(c_rid_f, d) == sl_arid(obs_arid_f, mr_slot))))
+                                      && (rq3(rq_rid_f, d) == sl_arid(obs_arid_f, mr_slot))))
                 v_route_mem[d] = 1'b1;
-            if (obs_rpl_pres[d] && !(obs_vld[d2(obs_rpl_slot_f, d)]
-                                      && (obs_dir[d2(obs_rpl_slot_f, d)] == d)
-                                      && obs_gathered[d2(obs_rpl_slot_f, d)]
-                                      && (obs_dt[d2(obs_rpl_slot_f, d)] | obs_nodata[d2(obs_rpl_slot_f, d)])
-                                      && !obs_rpl_done[d2(obs_rpl_slot_f, d)]
-                                      && (d3(c_rid_f, d) == sl_arid(obs_arid_f, d2(obs_rpl_slot_f, d)))))
+            if (obs_rpl_pres[d] && !(obs_vld[rq_slot(obs_rpl_slot_f, d)]
+                                      && (sl_dir(rq_slot(obs_rpl_slot_f, d)) == d)
+                                      && obs_gathered[rq_slot(obs_rpl_slot_f, d)]
+                                      && (obs_dt[rq_slot(obs_rpl_slot_f, d)] | obs_nodata[rq_slot(obs_rpl_slot_f, d)])
+                                      && !obs_iow[rq_slot(obs_rpl_slot_f, d)]
+                                      && !obs_rpl_done[rq_slot(obs_rpl_slot_f, d)]
+                                      && (rq3(rq_rid_f, d) == sl_arid(obs_arid_f, rq_slot(obs_rpl_slot_f, d)))))
                 v_route_rpl[d] = 1'b1;
-            if (c_rvalid[d] != (obs_mem_pres[d] | obs_rpl_pres[d]))
+            if (rq_rvalid[d] != (obs_mem_pres[d] | obs_rpl_pres[d]))
                 v_route_mem[d] = 1'b1;
             // P11 AXI R stability
             if (r_v_d[d] && !r_r_d[d]
-                && !(c_rvalid[d] && (d3(c_rid_f, d) == d3(r_id_d, d))
-                     && (c_rdata_f[d*32 +: 32] == r_data_d[d*32 +: 32])
-                     && (c_rresp_f[d*2 +: 2] == r_resp_d[d*2 +: 2])
-                     && (c_rlast[d] == r_last_d[d])))
+                && !(rq_rvalid[d] && (rq3(rq_rid_f, d) == rq3(r_id_d, d))
+                     && (((d < 2) ? c_rdata_f[d*32 +: 32] : io_rdata) == r_data_d[d*32 +: 32])
+                     && (((d < 2) ? c_rresp_f[d*2 +: 2] : io_rresp) == r_resp_d[d*2 +: 2])
+                     && (rq_rlast[d] == r_last_d[d])))
                 v_r_stable[d] = 1'b1;
+        end
+        for (d = 0; d < 2; d = d + 1) begin
             // P12 a cache sees exactly the IDs it issued, none after their last beat
             if (c_rvalid[d] && !(f_infl[d][d3(c_rid_f, d)] && !f_last[d][d3(c_rid_f, d)]))
                 v_r_infl[d] = 1'b1;
@@ -835,12 +1083,46 @@ module formal_onyx_ccu #(
                                  : (c_rlast[d] == (f_beats[d][d3(c_rid_f, d)*2 +: 2] == 2'd3))))
                 v_r_beats[d] = 1'b1;
         end
+        // P-IO1 the IO's R: a beat only for its read in flight, with its ID, RLAST on its AR's last beat
+        if (io_rvalid && !(f_io_rd && (io_rid == f_io_rid)))
+            v_io[0] = 1'b1;
+        if (io_r_hs && (io_rlast != (f_io_rbeats == f_io_rlen)))
+            v_io[0] = 1'b1;
+        // P-IO2 one IO read and one IO write in flight: the busy bits name live slots of the IO
+        if (obs_ior_busy != ((obs_vld[0] && (sl_dir(2'd0) == IO) && !obs_iow[0])
+                             || (obs_vld[1] && (sl_dir(2'd1) == IO) && !obs_iow[1])
+                             || (obs_vld[2] && (sl_dir(2'd2) == IO) && !obs_iow[2])
+                             || (obs_vld[3] && (sl_dir(2'd3) == IO) && !obs_iow[3])))
+            v_io[1] = 1'b1;
+        if (obs_iow_slot_vld && !(obs_vld[obs_iow_slot] && (sl_dir(obs_iow_slot) == IO) && obs_iow[obs_iow_slot]))
+            v_io[1] = 1'b1;
+        if (obs_iow_slot_vld && !obs_iow_busy)
+            v_io[1] = 1'b1;
+        // P-IO3 the IO's AW is accepted only in W_AW of its own selection, its W only in W_W of
+        //       it, its B only in W_B of it with the memory's B
+        if (io_awready && !((obs_wstate == W_AW) && w_io))
+            v_io[2] = 1'b1;
+        if (io_wready && !((obs_wstate == 2'd2) && w_io))
+            v_io[2] = 1'b1;
+        if (io_bvalid && !((obs_wstate == W_B) && w_io && mem_bvalid))
+            v_io[2] = 1'b1;
+        // P-IO4 the IO's WriteUnique is selected only with its slot gathered, absorbed if dirty,
+        //       on its own line, and no cache presenting a write-back to that line; a
+        //       non-shareable write never while a WriteUnique slot is live
+        if (io_sel_now && io_aw_sh_d
+            && !(iow_slot_vld_d && gathered_d[iow_slot_d] && (!pd_d[iow_slot_d] || abs_done_d[iow_slot_d])
+                 && (sl_line(line_d, iow_slot_d) == line_of(io_aw_addr_dd))
+                 && !((aw_v_d[0] && (line_of(aw_addr_d[0 +: AW]) == sl_line(line_d, iow_slot_d)))
+                      || (aw_v_d[1] && (line_of(aw_addr_d[AW +: AW]) == sl_line(line_d, iow_slot_d))))))
+            v_io[3] = 1'b1;
+        if (io_sel_now && !io_aw_sh_d && iow_slot_vld_d)
+            v_io[3] = 1'b1;
 
         for (p = 0; p < 2; p = p + 1) begin
-            // P14 an AC names a valid slot of the OTHER direction, not yet accepted, with the
-            //     slot's line and the class's snoop
+            // P14 an AC names a valid slot of ANOTHER requester (the other cache, or the IO),
+            //     not yet accepted, with the slot's line and the class's snoop
             if (acvalid[p] && !(obs_vld[d2(obs_ac_slot_f, p)]
-                                 && (obs_dir[d2(obs_ac_slot_f, p)] == (1 - p))
+                                 && (sl_dir(d2(obs_ac_slot_f, p)) != p)
                                  && !obs_ac_all[d2(obs_ac_slot_f, p)]
                                  && (acaddr_f[p*AW +: AW] == {sl_line(obs_line_f, d2(obs_ac_slot_f, p)), 4'd0})
                                  && (acsnoop_f[p*4 +: 4] == map_snoop(sl_type(obs_type_f, d2(obs_ac_slot_f, p))))))
@@ -850,14 +1132,19 @@ module formal_onyx_ccu #(
                 && !(acvalid[p] && (acaddr_f[p*AW +: AW] == ac_addr_d[p*AW +: AW])
                      && (acsnoop_f[p*4 +: 4] == ac_snoop_d[p*4 +: 4])))
                 v_ac_stable[p] = 1'b1;
-            // P16 the snoop bookkeeping: outstanding count exact, bounded, CR/CD taken whenever one is outstanding
+            // P16 the snoop bookkeeping: outstanding count exact, bounded, CR taken whenever one is
+            //     outstanding; a CD beat taken only with one outstanding, and taken unless the other
+            //     peer's beat for the same requester's buffer is taken this cycle (the per-buffer
+            //     arbitration: two peers answering the IO's two slots share its buffer)
             if ((d2(obs_sni_cnt_f, p) != sn_out[p]) || (sn_out[p] > 2'd2)
                 || (crready[p] != (sn_out[p] != 2'd0))
-                || (cdready[p] != (cdvalid[p] && (sn_out[p] != 2'd0))))
+                || (cdready[p] && !(cdvalid[p] && (sn_out[p] != 2'd0)))
+                || (cdvalid[p] && (sn_out[p] != 2'd0) && !cdready[p]
+                    && !(cd_hs[1 - p] && (sl_dir(d2(obs_sni_head_f, 1 - p)) == sl_dir(d2(obs_sni_head_f, p))))))
                 v_sn_count[p] = 1'b1;
-            // P21 a CD beat lands in a live slot of the other direction awaiting its verdict
+            // P21 a CD beat lands in a live slot of another requester awaiting its verdict
             if (cd_hs[p] && !(obs_vld[d2(obs_sni_head_f, p)]
-                               && (obs_dir[d2(obs_sni_head_f, p)] == (1 - p))
+                               && (sl_dir(d2(obs_sni_head_f, p)) != p)
                                && !obs_gathered[d2(obs_sni_head_f, p)]))
                 v_cd_slot[p] = 1'b1;
         end
@@ -866,31 +1153,47 @@ module formal_onyx_ccu #(
         for (s = 0; s < SLOTS; s = s + 1) begin
             if (obs_vld[s] && (
                    (obs_gathered[s] && !obs_ac_all[s])
-                || (obs_ac_all[s] != (obs_ac_left[s] == 1'b0)) || (obs_gathered[s] != (obs_cr_left[s] == 1'b0))
-                || (obs_dt[s] && !obs_ac_all[s])
+                || (obs_ac_all[s] != (sl_cnt(obs_ac_left_f, s) == 2'd0)) || (obs_gathered[s] != (sl_cnt(obs_cr_left_f, s) == 2'd0))
+                || (sl_cnt(obs_ac_left_f, s) > ((sl_dir(s) == IO) ? 2'd2 : 2'd1))
+                || (sl_cnt(obs_cr_left_f, s) > ((sl_dir(s) == IO) ? 2'd2 : 2'd1))
+                || (sl_cnt(obs_cr_left_f, s) < sl_cnt(obs_ac_left_f, s))
+                // a DataTransfer needs at least one AC accepted (the IO's two peers: one may
+                // answer with data before the other has accepted its AC)
+                || (obs_dt[s] && (sl_cnt(obs_ac_left_f, s) == ((sl_dir(s) == IO) ? 2'd2 : 2'd1)))
                 || (obs_pd[s] && !obs_dt[s])
                 || (obs_mem_issued[s] && !(obs_ac_all[s] && obs_ar_taken[s] && !obs_nodata[s]))
-                || (obs_mem_done[s] && !(obs_mem_issued[s] || (obs_dt[s] && !obs_nodata[s])))
-                || (obs_rpl_done[s] && !(obs_gathered[s] && obs_ar_taken[s] && (obs_dt[s] || obs_nodata[s])))
+                // mem_done without a read: the DataTransfer verdict beat the AR (a cache's fill, or
+                // the IO's WriteUnique, whose CleanInvalid may carry a Modified line)
+                || (obs_mem_done[s] && !(obs_mem_issued[s] || obs_dt[s]))
+                || (obs_rpl_done[s] && !(obs_gathered[s] && obs_ar_taken[s] && (obs_dt[s] || obs_nodata[s]) && !obs_iow[s]))
                 || (obs_abs_issued[s] && !(obs_pd[s] && obs_gathered[s]))
                 || (obs_abs_done[s] && !obs_abs_issued[s])
-                || (obs_rack[s] && !obs_ar_taken[s])))
+                || (obs_rack[s] && !obs_ar_taken[s] && (sl_dir(s) != IO))
+                || ((sl_dir(s) == IO) && !obs_rack[s])
+                || (obs_iow[s] && !((sl_dir(s) == IO) && obs_nodata[s] && obs_ar_taken[s]))
+                || (obs_iow_done[s] && !(obs_iow[s] && obs_gathered[s]))
+                || ((sl_dir(s) == IO) && (sl_type(obs_type_f, s) != CLS_IO_RD) && (sl_type(obs_type_f, s) != CLS_IO_WR))
+                || ((sl_dir(s) == IO) && (obs_iow[s] != (sl_type(obs_type_f, s) == CLS_IO_WR)))))
                 v_flags[s] = 1'b1;
             // the harness's "requester has its last beat" is the table's delivered bit
-            if (obs_vld[s] && (h_delivered[s] != ((obs_dt[s] | obs_nodata[s]) ? obs_rpl_done[s] : obs_mem_done[s])))
+            if (obs_vld[s] && (h_delivered[s] != (obs_iow[s] ? obs_iow_done[s]
+                                                   : (obs_dt[s] | obs_nodata[s]) ? obs_rpl_done[s] : obs_mem_done[s])))
                 v_flags[s] = 1'b1;
         end
         // P23 the engines' held state names a live slot in the matching phase
-        for (d = 0; d < 2; d = d + 1) begin
-            if (obs_rpl_vld[d] && !(obs_vld[d2(obs_rpl_slot_f, d)] && (obs_dir[d2(obs_rpl_slot_f, d)] == d)
-                                     && obs_gathered[d2(obs_rpl_slot_f, d)] && obs_ar_taken[d2(obs_rpl_slot_f, d)]
-                                     && (obs_dt[d2(obs_rpl_slot_f, d)] | obs_nodata[d2(obs_rpl_slot_f, d)])
-                                     && !obs_rpl_done[d2(obs_rpl_slot_f, d)]))
+        for (d = 0; d < 3; d = d + 1) begin
+            if (obs_rpl_vld[d] && !(obs_vld[rq_slot(obs_rpl_slot_f, d)] && (sl_dir(rq_slot(obs_rpl_slot_f, d)) == d)
+                                     && obs_gathered[rq_slot(obs_rpl_slot_f, d)] && obs_ar_taken[rq_slot(obs_rpl_slot_f, d)]
+                                     && (obs_dt[rq_slot(obs_rpl_slot_f, d)] | obs_nodata[rq_slot(obs_rpl_slot_f, d)])
+                                     && !obs_iow[rq_slot(obs_rpl_slot_f, d)]
+                                     && !obs_rpl_done[rq_slot(obs_rpl_slot_f, d)]))
                 v_engines[d] = 1'b1;
-            if (obs_arw_vld[d] && !(obs_vld[d2(obs_arw_slot_f, d)] && (obs_dir[d2(obs_arw_slot_f, d)] == d)
-                                     && !obs_ar_taken[d2(obs_arw_slot_f, d)]))
+            if (obs_arw_vld[d] && !(obs_vld[rq_slot(obs_arw_slot_f, d)] && (sl_dir(rq_slot(obs_arw_slot_f, d)) == d)
+                                     && !obs_ar_taken[rq_slot(obs_arw_slot_f, d)]))
                 v_engines[d] = 1'b1;
         end
+        if ((obs_wstate != W_IDLE) && w_io && !obs_iow_busy)
+            v_engines[2] = 1'b1;
         if (obs_mar_vld && !(obs_vld[obs_mar_slot] && obs_ar_taken[obs_mar_slot] && obs_ac_all[obs_mar_slot]
                              && !obs_nodata[obs_mar_slot] && !obs_mem_issued[obs_mar_slot]))
             v_engines[0] = 1'b1;
@@ -910,8 +1213,14 @@ module formal_onyx_ccu #(
                              && !obs_mem_issued[mem_arid[1:0]]
                              && (!obs_dt[mem_arid[1:0]]
                                  || (mar_v_d && !mar_r_d))
-                             && (mem_araddr == {sl_line(obs_line_f, mem_arid[1:0]), 4'd0})
-                             && (mem_arlen == 8'd3) && !mo[mem_arid[1:0]]))
+                             // a cache's: the slot's full line; the IO's: its own AR within the slot's line
+                             && ((sl_dir(mem_arid[1:0]) == IO)
+                                 ? ((mem_araddr == obs_io_araddr) && (mem_arlen == obs_io_arlen)
+                                    && (line_of(mem_araddr) == sl_line(obs_line_f, mem_arid[1:0]))
+                                    && (mem_arlen <= 8'd3))
+                                 : ((mem_araddr == {sl_line(obs_line_f, mem_arid[1:0]), 4'd0})
+                                    && (mem_arlen == 8'd3)))
+                             && !mo[mem_arid[1:0]]))
             v_mar_legal = 1'b1;
         // P8 AXI AR stability on the memory port
         if (mar_v_d && !mar_r_d && !(mem_arvalid && (mem_arid == mar_id_d) && (mem_araddr == mar_addr_d)))
@@ -922,7 +1231,7 @@ module formal_onyx_ccu #(
                  && !obs_abs_done[obs_w_slot]
                  && (mem_awaddr == {sl_line(obs_line_f, obs_w_slot), 4'd0})
                  && (mem_awlen == 8'd3)
-                 && (mem_awid == {2'b00, obs_dir[obs_w_slot]})))
+                 && (mem_awid == {1'b0, sl_dir(obs_w_slot)})))
             v_abs_legal = 1'b1;
     end
 
@@ -940,11 +1249,12 @@ module formal_onyx_ccu #(
             ap_grant_unlocked: assert (v_grant_locked == 4'd0);
             ap_grant_one_ar:  assert (!dbg_grant || !obs_arw_vld[dbg_grant_dir]);
             ap_mo:            assert (v_mo == 4'd0);
-            ap_arready_slot:  assert (v_arready == 2'd0);
-            ap_ar_pairing:    assert (v_ar_pair == 2'd0);
+            ap_arready_slot:  assert (v_arready == 3'd0);
+            ap_ar_pairing:    assert (v_ar_pair == 3'd0);
             ap_mar_legal:     assert (!v_mar_legal);
-            ap_route_mem:     assert (v_route_mem == 2'd0);
-            ap_route_rpl:     assert (v_route_rpl == 2'd0);
+            ap_route_mem:     assert (v_route_mem == 3'd0);
+            ap_route_rpl:     assert (v_route_rpl == 3'd0);
+            ap_io_port:       assert (v_io == 4'd0);
             ap_ac_legal:      assert (v_ac_legal == 2'd0);
             ap_sn_count:      assert (v_sn_count == 2'd0);
             ap_abs_legal:     assert (!v_abs_legal);
@@ -953,9 +1263,8 @@ module formal_onyx_ccu #(
             // fabric's pending pulses plus the one granted and awaiting its AR
             ap_pend_count:    assert ((q_cnt[0] == (d3(obs_pend_cnt_f, 0) + {2'd0, obs_arw_vld[0]}))
                                       && (q_cnt[1] == (d3(obs_pend_cnt_f, 1) + {2'd0, obs_arw_vld[1]})));
-            ap_wstate_legal:  assert (!((obs_wstate != W_IDLE) && (obs_w_sel == 2'd3)));
             ap_table_flags:   assert (v_flags == 4'd0);
-            ap_engines_live:  assert (v_engines == 2'd0);
+            ap_engines_live:  assert (v_engines == 3'd0);
         end
         if (rst_n && (f_past_valid >= 3)) begin
             ap_release_after_retire: assert (v_release == 4'd0);
@@ -963,7 +1272,7 @@ module formal_onyx_ccu #(
             ap_free_complete: assert (v_free == 4'd0);
             ap_wb_select_hold: assert (v_wb_hold == 4'd0);
             ap_mar_stable:    assert (!v_mar_stable);
-            ap_r_stable:      assert (v_r_stable == 2'd0);
+            ap_r_stable:      assert (v_r_stable == 3'd0);
             ap_ac_stable:     assert (v_ac_stable == 2'd0);
         end
     end
@@ -1003,7 +1312,10 @@ module formal_onyx_ccu #(
 
     always @(posedge clk) begin
         if (rst_n && (f_past_valid >= 3)) begin
-            cp_two_dirs_live: cover (((obs_vld & obs_dir) != 4'd0) && ((obs_vld & ~obs_dir) != 4'd0));
+            cp_two_dirs_live: cover (((obs_vld[0] && (sl_dir(2'd0) == 2'd1)) || (obs_vld[1] && (sl_dir(2'd1) == 2'd1))
+                                      || (obs_vld[2] && (sl_dir(2'd2) == 2'd1)) || (obs_vld[3] && (sl_dir(2'd3) == 2'd1)))
+                                     && ((obs_vld[0] && (sl_dir(2'd0) == 2'd0)) || (obs_vld[1] && (sl_dir(2'd1) == 2'd0))
+                                         || (obs_vld[2] && (sl_dir(2'd2) == 2'd0)) || (obs_vld[3] && (sl_dir(2'd3) == 2'd0))));
             cp_three_live:    cover ((obs_vld == 4'b0111) || (obs_vld == 4'b1011)
                                      || (obs_vld == 4'b1101) || (obs_vld == 4'b1110));
             cp_conflict_regrant: cover (dbg_grant && blk_vld[dbg_grant_dir]
@@ -1027,6 +1339,15 @@ module formal_onyx_ccu #(
             cp_two_reads_out: cover ((mo == 4'b0011) || (mo == 4'b0101) || (mo == 4'b0110)
                                      || (mo == 4'b1001) || (mo == 4'b1010) || (mo == 4'b1100));
             cp_slot_freed:    cover ((vld_d & ~obs_vld) != 4'd0);
+            // the IO port (D1)
+            cp_io_rd_replay:  cover (io_r_hs && obs_rpl_pres[2] && io_rlast);
+            cp_io_rd_mem:     cover (io_r_hs && obs_mem_pres[2] && io_rlast);
+            cp_io_rd_nosnoop: cover (io_ar_hs && !io_ar_sh);
+            cp_io_wu_landed:  cover (mb_hs && w_io && obs_iow_slot_vld);
+            cp_io_wn_landed:  cover (mb_hs && w_io && !obs_iow_slot_vld);
+            cp_io_absorb:     cover (mb_hs && w_abs && (sl_dir(obs_w_slot) == IO));
+            cp_io_two_live:   cover (obs_ior_busy && obs_iow_busy);
+            cp_io_both_ac:    cover (ac_hs == 2'b11);
         end
     end
 

@@ -80,6 +80,15 @@ HCSR_ONYX_MON_CTRL = 0x38   # the onyx observer's masks: [0] enable [1] error [2
 HCSR_ONYX_MON_MASK = 0x3C   # [15:0] packet-type mask, [31:16] error-code mask
 HCSR_ONYX_MON_WIN_LOW = 0x14    # the observer's inclusive address window (CTRL[3] enables)
 HCSR_ONYX_MON_WIN_HIGH = 0x18
+# the IO doorbell (onyx TASK-001 step 7): one single-beat access on onyx's
+# ACE-Lite IO port per IO_CTRL.go; IO_STATUS[31] (absent) reads 1 without onyx
+HCSR_IO_ADDR = 0x40
+HCSR_IO_WDATA_LO = 0x44
+HCSR_IO_WDATA_HI = 0x48
+HCSR_IO_CTRL = 0x4C             # [0] go (W1) [1] write [2] shareable [15:8] wstrb
+HCSR_IO_STATUS = 0x50           # [0] busy [1] done [3:2] resp [31] absent
+HCSR_IO_RDATA_LO = 0x54
+HCSR_IO_RDATA_HI = 0x58
 ONYX_MON_CTRL_RESET = 0x007D_0007   # everything enabled, the six per-transaction classes masked, LOCK_WAIT open
 ONYX_MON_BIN = {"TXN_START": 11, "MEM_READ": 12, "GATHER_DONE": 13, "READ_WASTED": 14,
                 "ABSORB": 15, "WRITEBACK": 16, "DROP": 17}   # the ref-onyx profile's bins
@@ -459,6 +468,27 @@ async def smoke_test(dut):
         # transactions; the whole address space transmits them all.
         open_txn = ((0xFFFF & ~(1 << 0)) << 16) | 0x7
         results = {}
+        if int(os.environ.get('ONYX_WIN_DEBUG', '0')):
+            async def _win_dbg():
+                mon = dut.u_dut.gen_ref_jetpp.gen_onyx.u_onyx.u_mon
+                n = {'grant': 0, 'inwin': 0, 'fire': 0}
+                last = None
+                while True:
+                    await cocotb.triggers.RisingEdge(dut.aclk)
+                    cfg = (int(mon.cfg_addr_win_enable.value), int(mon.cfg_addr_win_low.value),
+                           int(mon.cfg_addr_win_high.value), int(mon.cfg_perf_mask.value), int(mon.cfg_port_mask.value))
+                    if cfg != last:
+                        dut._log.info(f"WINDBG cfg enable={cfg[0]} low=0x{cfg[1]:x} high=0x{cfg[2]:x} perf_mask=0x{cfg[3]:04x} port_mask={cfg[4]:03b} counts={n}")
+                        last = cfg
+                    if int(mon.evt_grant_i.value):
+                        n['grant'] += 1
+                        if int(mon.w_grant_in_win.value):
+                            n['inwin'] += 1
+                        if n['grant'] <= 3:
+                            dut._log.info(f"WINDBG grant addr=0x{int(mon.evt_grant_addr_i.value):x} port={int(mon.evt_grant_port_i.value)} inwin={int(mon.w_grant_in_win.value)} fire_txn={int(mon.c_fire[2 * 2 + 1].value)}")
+                    if int(mon.c_fire[2 * 2 + 1].value):
+                        n['fire'] += 1
+            cocotb.start_soon(_win_dbg())
         for name, lo, hi in (("upper half", 0x800, 0xFFF), ("everything", 0x0, 0xFFFF_FFFF)):
             await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_LOW, lo)
             await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_HIGH, hi)
@@ -485,6 +515,65 @@ async def smoke_test(dut):
         await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_HIGH, 0)
 
 
+    # The IO doorbell (onyx TASK-001 step 7, D1): the host's hand on onyx's
+    # ACE-Lite IO port.  Without onyx the doorbell reads absent and nothing
+    # moves; with onyx: a line of its own written and read back no-snoop and
+    # ReadOnce, then a line the caches hold -- ReadOnce (a dirty holder
+    # passes it and is absorbed), WriteUnique of a pattern (the holders
+    # invalidate), ReadOnce and ReadNoSnoop read the pattern (it is in
+    # memory and no cache kept a copy), a partial WriteUnique merges.
+    st = await tb.read32(ADDR_HARNESS_CSR + HCSR_IO_STATUS)
+    if sel < 4:
+        assert st >> 31 == 1, f"IO_STATUS must read absent without onyx: 0x{st:08x}"
+    else:
+        assert st >> 31 == 0 and st & 0x3 == 0, f"IO_STATUS at rest with onyx: 0x{st:08x}"
+        txn0 = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0)
+        supplied0 = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0 + 4)
+        a_out, p1 = 0x0002_0040, 0x0123_4567_89AB_CDEF
+        assert (await _io_access(tb, write=True, shareable=False, addr=a_out, wdata=p1))["resp"] == 0
+        assert (await _io_access(tb, write=False, shareable=False, addr=a_out))["data"] == p1, "ReadNoSnoop readback"
+        assert (await _io_access(tb, write=False, shareable=True, addr=a_out))["data"] == p1, "ReadOnce readback (no holder)"
+        a_in = 0x0000_0440
+        r = await _io_access(tb, write=False, shareable=True, addr=a_in)
+        assert r["resp"] == 0
+        dut._log.info(f"io: ReadOnce of the cached line 0x{a_in:x} = 0x{r['data']:016x}")
+        p2 = 0xFEED_FACE_0BAD_F00D
+        assert (await _io_access(tb, write=True, shareable=True, addr=a_in, wdata=p2))["resp"] == 0
+        assert (await _io_access(tb, write=False, shareable=True, addr=a_in))["data"] == p2, "ReadOnce after WriteUnique"
+        assert (await _io_access(tb, write=False, shareable=False, addr=a_in))["data"] == p2, "ReadNoSnoop after WriteUnique"
+        # a partial WriteUnique (the low word strobed): the port carries the
+        # strobes through, but the rig's memory is block RAM with write
+        # strobes disabled (USE_WSTRB 0: the caches only ever write whole
+        # beats), so only the strobed bytes are checked here; the byte merge
+        # itself is the pair rig's (onyx_pair_rig_tb scenario IoWriteUnique a)
+        p3 = 0x0000_0000_CAFE_1234
+        assert (await _io_access(tb, write=True, shareable=True, addr=a_in, wdata=p3, wstrb=0x0F))["resp"] == 0
+        got = (await _io_access(tb, write=False, shareable=True, addr=a_in))["data"]
+        assert got & 0xFFFF_FFFF == p3 & 0xFFFF_FFFF, f"ReadOnce after the partial WriteUnique: 0x{got:016x}"
+        txn1 = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0)
+        supplied1 = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0 + 4)
+        dut._log.info(f"io: shareable accesses took {txn1 - txn0} transactions, {supplied1 - supplied0} supplied by a cache")
+        assert txn1 - txn0 >= 6, f"the shareable IO accesses took no slots: {txn1 - txn0}"
+        # the caches re-read the IO's line through the injector: a read-only
+        # burst over the region still CRCs deterministically (the line they
+        # fetch is the IO's, the same each time)
+        crcs = []
+        for _ in range(2):
+            await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_SEED, 0x0BAD_CAFE)
+            await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_ADDR_BASE, base)
+            await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_ADDR_MASK, mask)
+            await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_TRANS_COUNT, count)
+            await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, 0)
+            await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, 0x01)
+            for _ in range(max_cycles):
+                if (await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)) & 0x01:
+                    break
+            lo = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_RSP_CRC_LO)
+            hi = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_RSP_CRC_HI)
+            crcs.append((hi << 32) | lo)
+            assert (await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_ERR_FLAG)) == 0, "ci0 error flag after the IO phase"
+        assert crcs[0] == crcs[1], "read-only re-run after the IO phase changed its CRC"
+
 def _onyx_profile():
     """The reference rig's ref-onyx profile (jet_board.build_ref_onyx_profile):
     the caches' core events in bins 0-10, onyx's classes (agent 0x00A3,
@@ -499,6 +588,28 @@ def _onyx_profile():
         (_key(0x00A3, 4, 4, 0x26), 16),  # WRITEBACK
         (_key(0x00A3, 4, 0, 0x09), 17),  # onyx monlite drop report
     ]
+
+
+async def _io_access(tb, *, write: bool, shareable: bool, addr: int, wdata: int = 0,
+                     wstrb: int = 0xFF, max_polls: int = 20000) -> dict:
+    """One IO doorbell access: program, go, poll done, read back."""
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_IO_ADDR, addr & 0xFFFF_FFFF)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_IO_WDATA_LO, wdata & 0xFFFF_FFFF)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_IO_WDATA_HI, (wdata >> 32) & 0xFFFF_FFFF)
+    ctrl = 0x1 | (0x2 if write else 0) | (0x4 if shareable else 0) | ((wstrb & 0xFF) << 8)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_IO_CTRL, ctrl)
+    st = 0
+    for _ in range(max_polls):
+        st = await tb.read32(ADDR_HARNESS_CSR + HCSR_IO_STATUS)
+        if st & 0x2:
+            break
+    assert st & 0x2, f"IO doorbell did not finish: IO_STATUS 0x{st:08x} (ctrl 0x{ctrl:08x} addr 0x{addr:08x})"
+    out = {"resp": (st >> 2) & 0x3}
+    if not write:
+        lo = await tb.read32(ADDR_HARNESS_CSR + HCSR_IO_RDATA_LO)
+        hi = await tb.read32(ADDR_HARNESS_CSR + HCSR_IO_RDATA_HI)
+        out["data"] = (hi << 32) | lo
+    return out
 
 
 async def _load_onyx_profile(tb):

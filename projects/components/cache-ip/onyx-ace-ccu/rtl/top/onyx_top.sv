@@ -41,7 +41,9 @@ module onyx_top
     localparam int IW     = AXI_ID_WIDTH,
     localparam int UW     = AXI_USER_WIDTH,
     localparam int SLOT_W = (SLOTS > 1) ? $clog2(SLOTS) : 1,
-    localparam int PORT_W = (N_PORTS > 1) ? $clog2(N_PORTS) : 1
+    localparam int PORT_W = (N_PORTS > 1) ? $clog2(N_PORTS) : 1,
+    localparam int N_REQ  = N_PORTS + 1,           // the caches and the IO port (D1)
+    localparam int RQ_W   = $clog2(N_REQ)
 ) (
     input  logic                        clk,
     input  logic                        rst_n,
@@ -123,6 +125,60 @@ module onyx_top
     input  logic [IW-1:0]               c_coh_done_id  [N_PORTS],
 
     // ------------------------------------------------------------------
+    // ACE-Lite IO port (D1): one non-caching master, requester N_PORTS
+    // ------------------------------------------------------------------
+    input  logic [IW-1:0]               io_arid,
+    input  logic [ADDR_WIDTH-1:0]       io_araddr,
+    input  logic [7:0]                  io_arlen,
+    input  logic [2:0]                  io_arsize,
+    input  logic [1:0]                  io_arburst,
+    input  logic                        io_arlock,
+    input  logic [3:0]                  io_arcache,
+    input  logic [2:0]                  io_arprot,
+    input  logic [3:0]                  io_arqos,
+    input  logic [3:0]                  io_arregion,
+    input  logic [UW-1:0]               io_aruser,
+    input  logic [3:0]                  io_arsnoop,
+    input  logic [1:0]                  io_ardomain,
+    input  logic [1:0]                  io_arbar,
+    input  logic                        io_arvalid,
+    output logic                        io_arready,
+    output logic [IW-1:0]               io_rid,
+    output logic [BUS_WIDTH-1:0]        io_rdata,
+    output logic [1:0]                  io_rresp,
+    output logic                        io_rlast,
+    output logic [UW-1:0]               io_ruser,
+    output logic                        io_rvalid,
+    input  logic                        io_rready,
+    input  logic [IW-1:0]               io_awid,
+    input  logic [ADDR_WIDTH-1:0]       io_awaddr,
+    input  logic [7:0]                  io_awlen,
+    input  logic [2:0]                  io_awsize,
+    input  logic [1:0]                  io_awburst,
+    input  logic                        io_awlock,
+    input  logic [3:0]                  io_awcache,
+    input  logic [2:0]                  io_awprot,
+    input  logic [3:0]                  io_awqos,
+    input  logic [3:0]                  io_awregion,
+    input  logic [UW-1:0]               io_awuser,
+    input  logic [2:0]                  io_awsnoop,
+    input  logic [1:0]                  io_awdomain,
+    input  logic [1:0]                  io_awbar,
+    input  logic                        io_awvalid,
+    output logic                        io_awready,
+    input  logic [BUS_WIDTH-1:0]        io_wdata,
+    input  logic [STRB_W-1:0]           io_wstrb,
+    input  logic                        io_wlast,
+    input  logic [UW-1:0]               io_wuser,
+    input  logic                        io_wvalid,
+    output logic                        io_wready,
+    output logic [IW-1:0]               io_bid,
+    output logic [1:0]                  io_bresp,
+    output logic [UW-1:0]               io_buser,
+    output logic                        io_bvalid,
+    input  logic                        io_bready,
+
+    // ------------------------------------------------------------------
     // Memory-side AXI4 master
     // ------------------------------------------------------------------
     output logic [IW-1:0]               mem_arid,
@@ -180,7 +236,7 @@ module onyx_top
     output logic [N_PORTS-1:0]          dbg_pend_vld,
     output logic                        dbg_abs_pend,
     output logic                        dbg_grant,
-    output logic [PORT_W-1:0]           dbg_grant_dir,
+    output logic [RQ_W-1:0]             dbg_grant_dir,      // the requester: a cache port, or N_PORTS for the IO port
     output logic [ADDR_WIDTH-1:0]       dbg_grant_addr,
     output logic [SLOT_W-1:0]           dbg_grant_slot,
 
@@ -201,7 +257,7 @@ module onyx_top
     input  logic [15:0]                 mon_cfg_pkt_mask,
     input  logic [15:0]                 mon_cfg_perf_mask,
     input  logic [15:0]                 mon_cfg_error_mask,
-    input  logic [N_PORTS-1:0]          mon_cfg_port_mask,
+    input  logic [N_REQ-1:0]            mon_cfg_port_mask,  // per requester; bit N_PORTS is the IO port
     // the content filter: an inclusive address window on the transaction
     input  logic                        mon_cfg_addr_win_enable,
     input  logic [ADDR_WIDTH-1:0]       mon_cfg_addr_win_low,
@@ -224,10 +280,10 @@ module onyx_top
     logic [N_PORTS-1:0]  evt_ac;
     logic [N_PORTS-1:0]  evt_gather, evt_gather_dt, evt_gather_pd, evt_read_wasted;
     logic [SLOT_W-1:0]   evt_gather_slot [N_PORTS];
-    logic                evt_mem_ar, evt_absorb, evt_wb;
+    logic                evt_mem_ar, evt_absorb, evt_wb, evt_wb_io;
     logic [SLOT_W-1:0]   evt_absorb_slot;
-    logic [N_PORTS-1:0]  evt_lock_wait;
-    logic [ADDR_WIDTH-1:0] evt_lock_wait_addr [N_PORTS];
+    logic [N_REQ-1:0]    evt_lock_wait;
+    logic [ADDR_WIDTH-1:0] evt_lock_wait_addr [N_REQ];
 
     onyx_ccu #(
         .N_PORTS(N_PORTS), .ADDR_WIDTH(ADDR_WIDTH), .LINE_BYTES(LINE_BYTES),
@@ -251,6 +307,19 @@ module onyx_top
         .s_cddata(s_cddata), .s_cdlast(s_cdlast), .s_cdvalid(s_cdvalid), .s_cdready(s_cdready),
         .c_coh_req_valid(c_coh_req_valid), .c_coh_req_addr(c_coh_req_addr), .c_coh_req_type(c_coh_req_type),
         .c_coh_done_valid(c_coh_done_valid), .c_coh_done_id(c_coh_done_id),
+        .io_arid(io_arid), .io_araddr(io_araddr), .io_arlen(io_arlen), .io_arsize(io_arsize),
+        .io_arburst(io_arburst), .io_arlock(io_arlock), .io_arcache(io_arcache), .io_arprot(io_arprot),
+        .io_arqos(io_arqos), .io_arregion(io_arregion), .io_aruser(io_aruser), .io_arsnoop(io_arsnoop),
+        .io_ardomain(io_ardomain), .io_arbar(io_arbar), .io_arvalid(io_arvalid), .io_arready(io_arready),
+        .io_rid(io_rid), .io_rdata(io_rdata), .io_rresp(io_rresp), .io_rlast(io_rlast), .io_ruser(io_ruser),
+        .io_rvalid(io_rvalid), .io_rready(io_rready),
+        .io_awid(io_awid), .io_awaddr(io_awaddr), .io_awlen(io_awlen), .io_awsize(io_awsize),
+        .io_awburst(io_awburst), .io_awlock(io_awlock), .io_awcache(io_awcache), .io_awprot(io_awprot),
+        .io_awqos(io_awqos), .io_awregion(io_awregion), .io_awuser(io_awuser), .io_awsnoop(io_awsnoop),
+        .io_awdomain(io_awdomain), .io_awbar(io_awbar), .io_awvalid(io_awvalid), .io_awready(io_awready),
+        .io_wdata(io_wdata), .io_wstrb(io_wstrb), .io_wlast(io_wlast), .io_wuser(io_wuser),
+        .io_wvalid(io_wvalid), .io_wready(io_wready), .io_bid(io_bid), .io_bresp(io_bresp),
+        .io_buser(io_buser), .io_bvalid(io_bvalid), .io_bready(io_bready),
         .mem_arid(mem_arid), .mem_araddr(mem_araddr), .mem_arlen(mem_arlen), .mem_arsize(mem_arsize),
         .mem_arburst(mem_arburst), .mem_arlock(mem_arlock), .mem_arcache(mem_arcache), .mem_arprot(mem_arprot),
         .mem_arqos(mem_arqos), .mem_arregion(mem_arregion), .mem_aruser(mem_aruser), .mem_arvalid(mem_arvalid),
@@ -268,14 +337,15 @@ module onyx_top
         .evt_grant(evt_grant), .evt_grant_cls(evt_grant_cls), .evt_ac(evt_ac),
         .evt_gather(evt_gather), .evt_gather_slot(evt_gather_slot), .evt_gather_dt(evt_gather_dt),
         .evt_gather_pd(evt_gather_pd), .evt_mem_ar(evt_mem_ar), .evt_read_wasted(evt_read_wasted),
-        .evt_absorb(evt_absorb), .evt_absorb_slot(evt_absorb_slot), .evt_wb(evt_wb),
+        .evt_absorb(evt_absorb), .evt_absorb_slot(evt_absorb_slot), .evt_wb(evt_wb), .evt_wb_io(evt_wb_io),
         .evt_lock_wait(evt_lock_wait), .evt_lock_wait_addr(evt_lock_wait_addr)
     );
 
-    // the write-back's port rides in the AW's low ID bits only by
+    // a cache write-back's port rides in the AW's low ID bits only by
     // convention of the caches' IDs, which the observer does not assume:
-    // v1 records the write-back without a port; the window matches the
-    // write-back on its AW address and the absorption on its slot
+    // v1 records a cache's write-back without a port (0) and the IO's
+    // write as requester N_PORTS; the window matches the write on its AW
+    // address and the absorption on its slot
     onyx_monlite #(
         .N_PORTS(N_PORTS), .SLOTS(SLOTS), .ADDR_WIDTH(ADDR_WIDTH), .USE_MONITOR(USE_MONITOR), .OUT_DEPTH(MON_OUT_DEPTH)
     ) u_mon (
@@ -288,7 +358,7 @@ module onyx_top
         .evt_mem_ar_i(evt_mem_ar), .evt_mem_ar_slot_i(mem_arid[SLOT_W-1:0]),
         .evt_read_wasted_i(evt_read_wasted),
         .evt_absorb_i(evt_absorb), .evt_absorb_slot_i(evt_absorb_slot),
-        .evt_wb_i(evt_wb), .evt_wb_port_i('0), .evt_wb_addr_i(mem_awaddr),
+        .evt_wb_i(evt_wb), .evt_wb_port_i(evt_wb_io ? RQ_W'(N_PORTS) : '0), .evt_wb_addr_i(mem_awaddr),
         .evt_lock_wait_i(evt_lock_wait), .evt_lock_wait_addr_i(evt_lock_wait_addr),
         .cfg_mon_enable(mon_cfg_enable), .cfg_perf_enable(mon_cfg_perf_enable),
         .cfg_error_enable(mon_cfg_error_enable), .cfg_pkt_mask(mon_cfg_pkt_mask),

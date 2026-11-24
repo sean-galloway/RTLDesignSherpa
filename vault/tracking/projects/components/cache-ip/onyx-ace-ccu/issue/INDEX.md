@@ -2,7 +2,7 @@
 
 # vault/tracking/projects/components/cache-ip/onyx-ace-ccu — issues
 
-**Next ID: ISSUE-002** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-003** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed: it resolves INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **ISSUE-002** ([page](open/ISSUE-002.md)) — a snarfed write-back victim still drains after passing the line dirty (jet-prime's buffer contract); an IO WriteUnique that lands before the late drain is overwritten; the onyx-side ordering is in, the cache-side cancel is jet-prime's (filed 2026-11-23)
 
 ## Active
 

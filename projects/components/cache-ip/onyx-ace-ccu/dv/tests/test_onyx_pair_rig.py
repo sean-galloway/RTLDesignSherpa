@@ -3,7 +3,9 @@ onyx pair rig test runner (onyx TASK-001 step 2)
 
 The jet-prime pair rig with onyx_ccu (N_PORTS=2) in jet_prime_pair_fabric's
 place: two jet_prime_top caches, onyx between them, one shared
-sdpram_slave_axi4_axi4 memory.  The DUT is dv/tb/onyx_pair_rig_tb.sv,
+sdpram_slave_axi4_axi4 memory, and onyx's ACE-Lite IO port (D1) driven by
+the RDS-DV ACE master BFMs as a third requester (directed IO scenarios on
+every cell; an IO loop beside the two CPU loops in the func / full soak).  The DUT is dv/tb/onyx_pair_rig_tb.sv,
 derived from jet_prime_pair_rig_tb with the fabric swapped and the
 instance name and debug taps kept, so the jet-prime pair-rig TB
 (JetPairRigTB: both CPU ports driven, the 2-cache lockstep model with the
@@ -65,6 +67,7 @@ MASK_CELLS = [
     ('_mkmem',  {'ONYX_MON_PERF_MASK': '0xF7'}),   # only MEM_READ transmitted
     ('_mkrare', {'ONYX_MON_PERF_MASK': '0x7D'}),   # the board reset: only LOCK_WAIT
     ('_pm0',    {'ONYX_MON_PORT_MASK': '0x1'}),    # port 0's events dropped at the source
+    ('_pmio',   {'ONYX_MON_PORT_MASK': '0x4'}),    # the IO port's (requester 2) events dropped at the source
     ('_off',    {'ONYX_MON_ENABLE': '0'}),         # the observer disabled: silent, nothing lost
     ('_win',    {'ONYX_MON_WIN': '0x0000:0x03FF'}),  # the address window: only the first KB's transactions
     ('_winmem', {'ONYX_MON_WIN': '0x0400:0x07FF', 'ONYX_MON_PERF_MASK': '0xF7'}),  # window + one class

@@ -241,6 +241,44 @@ class JetDriver:
     def ci_latency(self, name: str) -> dict:
         return self.bus[name].latency()
 
+    # ------------------------------------------------------------------
+    # The IO doorbell (onyx TASK-001 step 7): one single-beat access on
+    # onyx's ACE-Lite IO port.  REF_CACHE_SEL 4 / 5 only; IO_STATUS.absent
+    # reads 1 elsewhere.
+    # ------------------------------------------------------------------
+    def io_present(self) -> bool:
+        h = self.bus["harness"]
+        return h.field("IO_STATUS", "absent", h.read("IO_STATUS")) == 0
+
+    def io_access(self, *, write: bool, shareable: bool, addr: int,
+                  wdata: int = 0, wstrb: int = 0xFF, timeout: float = 5.0,
+                  sleep_fn=None) -> dict:
+        """One IO read or write; returns resp and (for a read) the 64-bit data.
+
+        shareable=True is ReadOnce / WriteUnique (the caches are snooped;
+        a dirty holder's line is absorbed first), False is ReadNoSnoop /
+        WriteNoSnoop (straight to memory)."""
+        sleep_fn = sleep_fn or time.sleep
+        h = self.bus["harness"]
+        h.write_word("IO_ADDR", addr & 0xFFFF_FFFF)
+        h.write_word("IO_WDATA_LO", wdata & 0xFFFF_FFFF)
+        h.write_word("IO_WDATA_HI", (wdata >> 32) & 0xFFFF_FFFF)
+        h.write("IO_CTRL", go=1, write=1 if write else 0,
+                shareable=1 if shareable else 0, wstrb=wstrb & 0xFF)
+        deadline = time.time() + timeout
+        while True:
+            st = h.read("IO_STATUS")
+            if h.field("IO_STATUS", "done", st):
+                break
+            if time.time() > deadline:
+                return {"ok": False, "reason": "timeout", "status": st}
+            sleep_fn(0.001)
+        resp = h.field("IO_STATUS", "resp", st)
+        out = {"ok": resp == 0, "resp": resp}
+        if not write:
+            out["data"] = (h.read("IO_RDATA_HI") << 32) | h.read("IO_RDATA_LO")
+        return out
+
 
 # ----------------------------------------------------------------------
 # Default legal-set profile
@@ -410,6 +448,71 @@ def smoke(driver: JetDriver, *, count: int = 20000, blind: bool = False,
         "bins": bins,
         "unexpected": unexpected,
     }
+
+
+def io_check(driver: JetDriver, *, sleep_fn=None, say=print) -> dict:
+    """The IO port against the caches (onyx TASK-001 step 7, D1).
+
+    Runs after smoke, with the caches warm on the 4 KB region the injectors
+    hammered.  (1) WriteNoSnoop / ReadNoSnoop / ReadOnce of a line outside
+    the region: the IO's own bytes back each way.  (2) On a line inside the
+    region: ReadOnce (whatever the caches or the memory hold -- a dirty
+    holder passes it and is absorbed), WriteUnique of a known pattern (the
+    caches invalidate), then ReadOnce AND ReadNoSnoop read the pattern: the
+    write landed in memory and no cache kept a copy.  (3) The onyx
+    counters moved by the shareable accesses.
+    """
+    if not driver.io_present():
+        say("[io] no IO port in this selection (IO_STATUS.absent): skipped")
+        return {"ok": True, "present": False}
+    sleep_fn = sleep_fn or time.sleep
+    h = driver.bus["harness"]
+    fails = []
+
+    def chk(name, got, exp):
+        ok = got == exp
+        say(f"[io] {'ok  ' if ok else 'FAIL'} {name}: got {got:#x} exp {exp:#x}" if isinstance(got, int)
+            else f"[io] {'ok  ' if ok else 'FAIL'} {name}: got {got!r} exp {exp!r}")
+        if not ok:
+            fails.append(name)
+
+    txn0 = h.read("ONYX_CNT_TXN")
+    # (1) a line of its own, outside the injectors' region
+    a_out = 0x0002_0040
+    p1 = 0x0123_4567_89AB_CDEF
+    r = driver.io_access(write=True, shareable=False, addr=a_out, wdata=p1, sleep_fn=sleep_fn)
+    chk("WriteNoSnoop resp", r.get("resp", -1), 0)
+    r = driver.io_access(write=False, shareable=False, addr=a_out, sleep_fn=sleep_fn)
+    chk("ReadNoSnoop reads it back", r.get("data", -1), p1)
+    r = driver.io_access(write=False, shareable=True, addr=a_out, sleep_fn=sleep_fn)
+    chk("ReadOnce reads it back (no holder)", r.get("data", -1), p1)
+    # (2) a line the caches hold
+    a_in = 0x0000_0440
+    r = driver.io_access(write=False, shareable=True, addr=a_in, sleep_fn=sleep_fn)
+    chk("ReadOnce of a cached line resp", r.get("resp", -1), 0)
+    before = r.get("data", -1)
+    say(f"[io] cached line {a_in:#x} read {before:#018x} through the caches")
+    p2 = 0xFEED_FACE_0BAD_F00D
+    r = driver.io_access(write=True, shareable=True, addr=a_in, wdata=p2, sleep_fn=sleep_fn)
+    chk("WriteUnique resp", r.get("resp", -1), 0)
+    r = driver.io_access(write=False, shareable=True, addr=a_in, sleep_fn=sleep_fn)
+    chk("ReadOnce after WriteUnique", r.get("data", -1), p2)
+    r = driver.io_access(write=False, shareable=False, addr=a_in, sleep_fn=sleep_fn)
+    chk("ReadNoSnoop after WriteUnique (memory has it)", r.get("data", -1), p2)
+    # a partial WriteUnique (the low word strobed): the rig's memory is block
+    # RAM with write strobes disabled (USE_WSTRB 0), so only the strobed
+    # bytes are checked; the byte merge is the pair rig's to prove
+    p3 = 0x0000_0000_CAFE_1234
+    r = driver.io_access(write=True, shareable=True, addr=a_in, wdata=p3, wstrb=0x0F, sleep_fn=sleep_fn)
+    chk("partial WriteUnique resp", r.get("resp", -1), 0)
+    r = driver.io_access(write=False, shareable=True, addr=a_in, sleep_fn=sleep_fn)
+    chk("ReadOnce after the partial write (strobed word)", r.get("data", -1) & 0xFFFF_FFFF, p3 & 0xFFFF_FFFF)
+    # (3) the shareable accesses took slots
+    txn1 = h.read("ONYX_CNT_TXN")
+    chk("onyx transactions moved by the shareable accesses (>= 6)", txn1 - txn0 >= 6, True)
+    ok = not fails
+    say(f"[io] {'PASS' if ok else 'FAIL'}: {len(fails)} failures {fails}")
+    return {"ok": ok, "present": True, "fails": fails, "txn_delta": txn1 - txn0}
 
 
 # ----------------------------------------------------------------------

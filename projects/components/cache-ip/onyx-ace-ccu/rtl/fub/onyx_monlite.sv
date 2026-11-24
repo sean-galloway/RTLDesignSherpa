@@ -22,16 +22,19 @@
 //==============================================================================
 // Description:
 //   Event classes (onyx_pkg):
-//     TXN_START    a grant: [PORT_W-1:0] port | [7:5] class | [15:8] slot
+//     TXN_START    a grant: [RQ_W-1:0] requester (a cache port; N_PORTS =
+//                  the IO port, D1) | [7:5] class | [15:8] slot
 //     GATHER_DONE  a slot's last CR: [7:0] slot | [8] DataTransfer |
 //                  [9] PassDirty | [31:16] gather latency (grant -> last CR)
 //     MEM_READ     a memory AR taken: [7:0] slot
 //     READ_WASTED  a DataTransfer verdict for a slot whose read was issued
 //                  or presented (its beats will be dropped): no payload
 //     ABSORB       an absorption's BRESP: [7:0] slot (the write side's slot)
-//     WRITEBACK    a cache write-back AW taken: [PORT_W-1:0] port
-//     LOCK_WAIT    a port's candidate waited behind a held line, emitted
-//                  on release: [PORT_W-1:0] port | [23:8] duration (cycles,
+//     WRITEBACK    a write taken on the write port other than an
+//                  absorption: [RQ_W-1:0] requester (N_PORTS = the IO
+//                  port's write; a cache's write-back carries 0 in v1)
+//     LOCK_WAIT    a requester's candidate waited behind a held line,
+//                  emitted on release: [RQ_W-1:0] requester | [23:8] duration (cycles,
 //                  saturating)
 //
 //   The elision measurement (D6): GATHER_DONE with DataTransfer counts the
@@ -72,11 +75,13 @@
 //                               cfg_core_perf_mask indexes the same codes
 //     cfg_error_mask[code[3:0]] bit set drops that Error code (bit 9 = the
 //                               drop report, AMBER_EV_DROPPED 0x09)
-//     cfg_port_mask[p]          bit set drops the events attributed to port
-//                               p: TXN_START by the requesting port,
+//     cfg_port_mask[p]          bit set drops the events attributed to
+//                               requester p (N_PORTS = the IO port):
+//                               TXN_START by the requesting port,
 //                               GATHER_DONE and READ_WASTED by the answering
-//                               port, LOCK_WAIT by the waiting port (MEM_READ,
-//                               ABSORB and WRITEBACK carry no port in v1)
+//                               port, LOCK_WAIT by the waiting requester,
+//                               WRITEBACK by its requester (MEM_READ and
+//                               ABSORB carry no port in v1)
 //   A masked event is dropped at the source: it enters no holder, counts
 //   as nothing lost, and the drop report says only what the channel lost.
 //   A masked drop report leaves the count accumulating in dropped_count.
@@ -96,7 +101,8 @@
 //
 //------------------------------------------------------------------------------
 // Parameters:
-//   N_PORTS / SLOTS: onyx_ccu's; AGENT_ID / UNIT_ID: the house monitor ids
+//   N_PORTS / SLOTS: onyx_ccu's (N_REQ = N_PORTS + 1 requesters, the IO
+//   port last); AGENT_ID / UNIT_ID: the house monitor ids
 //   (onyx_pkg defaults); DROP_CODE: the shared amber drop code; OUT_DEPTH:
 //   output queue depth, a power of two >= 2.
 //------------------------------------------------------------------------------
@@ -122,14 +128,16 @@ module onyx_monlite
     parameter bit          USE_MONITOR = 1'b1,
     parameter int          OUT_DEPTH   = 16,
     localparam int SLOT_W = (SLOTS > 1) ? $clog2(SLOTS) : 1,
-    localparam int PORT_W = (N_PORTS > 1) ? $clog2(N_PORTS) : 1
+    localparam int PORT_W = (N_PORTS > 1) ? $clog2(N_PORTS) : 1,
+    localparam int N_REQ  = N_PORTS + 1,           // the caches and the IO port
+    localparam int RQ_W   = $clog2(N_REQ)
 )(
     input  logic                        clk,
     input  logic                        rst_n,
 
     // ---- onyx_ccu event taps ----
     input  logic                        evt_grant_i,
-    input  logic [PORT_W-1:0]           evt_grant_port_i,
+    input  logic [RQ_W-1:0]             evt_grant_port_i,      // the requester (N_PORTS = the IO port)
     input  logic [SLOT_W-1:0]           evt_grant_slot_i,
     input  logic [ADDR_WIDTH-1:0]       evt_grant_addr_i,
     input  logic [2:0]                  evt_grant_cls_i,
@@ -144,10 +152,10 @@ module onyx_monlite
     input  logic                        evt_absorb_i,
     input  logic [SLOT_W-1:0]           evt_absorb_slot_i,
     input  logic                        evt_wb_i,
-    input  logic [PORT_W-1:0]           evt_wb_port_i,
+    input  logic [RQ_W-1:0]             evt_wb_port_i,
     input  logic [ADDR_WIDTH-1:0]       evt_wb_addr_i,
-    input  logic [N_PORTS-1:0]          evt_lock_wait_i,
-    input  logic [ADDR_WIDTH-1:0]       evt_lock_wait_addr_i [N_PORTS],
+    input  logic [N_REQ-1:0]            evt_lock_wait_i,       // per requester
+    input  logic [ADDR_WIDTH-1:0]       evt_lock_wait_addr_i [N_REQ],
 
     // ---- configuration: the ocelus layers (enables 1 = on; masks bit set = drop) ----
     input  logic                        cfg_mon_enable,
@@ -156,7 +164,7 @@ module onyx_monlite
     input  logic [15:0]                 cfg_pkt_mask,
     input  logic [15:0]                 cfg_perf_mask,
     input  logic [15:0]                 cfg_error_mask,
-    input  logic [N_PORTS-1:0]          cfg_port_mask,
+    input  logic [N_REQ-1:0]            cfg_port_mask,         // per requester (N_PORTS = the IO port)
     // the content filter: an inclusive address window (disabled = everything)
     input  logic                        cfg_addr_win_enable,
     input  logic [ADDR_WIDTH-1:0]       cfg_addr_win_low,
@@ -211,21 +219,21 @@ module onyx_monlite
     endfunction
 
     // ------------------------------------------------------------------
-    // Lock-wait episodes per port: duration measured, emitted on release
-    // (one port per cycle is emitted; a second release the same cycle
-    // waits one cycle in its own register -- the hold shifts the count,
-    // not the fact)
+    // Lock-wait episodes per requester: duration measured, emitted on
+    // release (one requester per cycle is emitted; a second release the
+    // same cycle waits one cycle in its own register -- the hold shifts
+    // the count, not the fact)
     // ------------------------------------------------------------------
-    logic [N_PORTS-1:0] r_lw_active;
-    logic [15:0]        r_lw_dur [N_PORTS];
-    logic [N_PORTS-1:0] r_lw_win;           // the waiting candidate was in the window at the wait's start
-    logic [N_PORTS-1:0] r_lw_pend;          // a release waiting to be emitted
-    logic [15:0]        r_lw_pend_dur [N_PORTS];
-    logic [N_PORTS-1:0] r_lw_pend_win;
-    logic [N_PORTS-1:0] w_lw_release;
+    logic [N_REQ-1:0]   r_lw_active;
+    logic [15:0]        r_lw_dur [N_REQ];
+    logic [N_REQ-1:0]   r_lw_win;           // the waiting candidate was in the window at the wait's start
+    logic [N_REQ-1:0]   r_lw_pend;          // a release waiting to be emitted
+    logic [15:0]        r_lw_pend_dur [N_REQ];
+    logic [N_REQ-1:0]   r_lw_pend_win;
+    logic [N_REQ-1:0]   w_lw_release;
     logic               w_lw_fire;
     logic               w_lw_win_out;
-    logic [PORT_W-1:0]  w_lw_port;
+    logic [RQ_W-1:0]    w_lw_port;
     logic [15:0]        w_lw_dur_out;
     always_comb begin
         w_lw_release = r_lw_active & ~evt_lock_wait_i;
@@ -233,10 +241,10 @@ module onyx_monlite
         w_lw_win_out = 1'b0;
         w_lw_port    = '0;
         w_lw_dur_out = '0;
-        for (int d = N_PORTS - 1; d >= 0; d--) begin
+        for (int d = N_REQ - 1; d >= 0; d--) begin
             if (r_lw_pend[d] || w_lw_release[d]) begin
                 w_lw_fire    = 1'b1;
-                w_lw_port    = PORT_W'(d);
+                w_lw_port    = RQ_W'(d);
                 w_lw_dur_out = r_lw_pend[d] ? r_lw_pend_dur[d] : r_lw_dur[d];
                 w_lw_win_out = r_lw_pend[d] ? r_lw_pend_win[d] : r_lw_win[d];
             end
@@ -248,12 +256,12 @@ module onyx_monlite
             r_lw_win    <= '0;
             r_lw_pend   <= '0;
             r_lw_pend_win <= '0;
-            for (int d = 0; d < N_PORTS; d++) begin
+            for (int d = 0; d < N_REQ; d++) begin
                 r_lw_dur[d]      <= '0;
                 r_lw_pend_dur[d] <= '0;
             end
         end else begin
-            for (int d = 0; d < N_PORTS; d++) begin
+            for (int d = 0; d < N_REQ; d++) begin
                 if (evt_lock_wait_i[d]) begin
                     r_lw_active[d] <= 1'b1;
                     if (!r_lw_active[d]) begin
@@ -264,11 +272,11 @@ module onyx_monlite
                     r_lw_active[d] <= 1'b0;
                 end
                 // a release not emitted this cycle (another port's was) parks
-                if (w_lw_release[d] && !(w_lw_fire && (w_lw_port == PORT_W'(d)))) begin
+                if (w_lw_release[d] && !(w_lw_fire && (w_lw_port == RQ_W'(d)))) begin
                     r_lw_pend[d]     <= 1'b1;
                     r_lw_pend_dur[d] <= r_lw_dur[d];
                     r_lw_pend_win[d] <= r_lw_win[d];
-                end else if (w_lw_fire && (w_lw_port == PORT_W'(d))) begin
+                end else if (w_lw_fire && (w_lw_port == RQ_W'(d))) begin
                     r_lw_pend[d]     <= 1'b0;
                 end
             end
@@ -325,7 +333,9 @@ module onyx_monlite
         c_port_masked[CL_MEM] = 1'b0;
         c_port_masked[CL_TXN] = cfg_port_mask[evt_grant_port_i];
         c_port_masked[CL_ABS] = 1'b0;
-        c_port_masked[CL_WB]  = 1'b0;
+        // a cache's write-back carries no port in v1 (0, unmasked); the IO's
+        // write carries its requester and the IO's mask drops it
+        c_port_masked[CL_WB]  = (evt_wb_port_i == RQ_W'(N_PORTS)) ? cfg_port_mask[N_PORTS] : 1'b0;
         c_port_masked[CL_LW]  = cfg_port_mask[w_lw_port];
         c_in_win[CL_MEM] = slot_watch(evt_mem_ar_slot_i);
         c_in_win[CL_TXN] = w_grant_in_win;

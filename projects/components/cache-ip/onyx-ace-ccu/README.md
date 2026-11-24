@@ -39,7 +39,7 @@ same-address ordering, measured on the house fabric.
 
 ## Status
 
-**Built 2026-11-21 (onyx TASK-001, steps 1, 2, 4, 6).** The PRD's D rows
+**Built 2026-11-21 (onyx TASK-001, steps 1, 2, 4, 6); the observer 2026-11-22, the IO port 2026-11-23.** The PRD's D rows
 were decided on 2026-11-20 (v0.7) and `rtl/top/onyx_ccu.sv` is the v1
 core: jet-prime's pipelined pair fabric generalized to `N_PORTS` (2 to 4)
 under those rulings -- broadcast snoop, tagged gather, per-line
@@ -60,8 +60,13 @@ class, error code, port; `ONYX_MON_CTRL` / `ONYX_MON_MASK` on the rig,
 reset to the rare class only) and the content filter, an address window
 on the transaction (`ONYX_MON_WIN_LOW` / `HIGH`), because the house MonBus
 is a low-bandwidth event channel and the integrator picks what to transmit
-(onyx ISSUE-001).
-Not yet built: the ACE-Lite IO port (D1), an `ARSNOOP` front end. Tracker:
+(onyx ISSUE-001). The ACE-Lite IO port (D1) is built (step 7, 2026-11-23):
+one non-caching master as requester `N_PORTS` -- ReadOnce / ReadNoSnoop,
+WriteUnique / WriteLineUnique / WriteNoSnoop by `AxDOMAIN` and `AxSNOOP`,
+snooping every cache (ReadOnce; CleanInvalid for the writes), one read and
+one write in flight -- driven by the RDS-DV ACE master BFMs in the pair rig
+and by a CSR doorbell (`ref_io_master`) on the reference rig.
+Not yet built: an `ARSNOOP` front end for a true ACE cache master. Tracker:
 [`vault/tracking/projects/components/cache-ip/onyx-ace-ccu/`](../../../../vault/tracking/projects/components/cache-ip/onyx-ace-ccu/INDEX.md);
 architecture: [docs/onyx_has](docs/onyx_has/onyx_has_index.md).
 

@@ -65,7 +65,8 @@
 - [Cache-Side ACE Ports](ch04_interfaces/01_cache_side_ace.md)
 - [Memory-Side AXI4 Master](ch04_interfaces/02_memory_side_axi4.md)
 - [Snoop Fanout Port](ch04_interfaces/03_snoop_fanout.md)
-- [Observation: MonBus](ch04_interfaces/04_observation_monbus.md) — D9 decided; the taps are a later TASK-001 step
+- [Observation: MonBus](ch04_interfaces/04_observation_monbus.md) — D9 built: the taps, the observer's mask layers and address window
+- [ACE-Lite IO Port](ch04_interfaces/05_io_port_ace_lite.md) — D1 built: requester N_PORTS, four kinds by domain and snoop code
 
 ### Chapter 5: Parameters
 

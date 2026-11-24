@@ -147,7 +147,7 @@ module onyx_pair_rig_tb
     input  logic [15:0]                 mon2_cfg_pkt_mask,
     input  logic [15:0]                 mon2_cfg_perf_mask,
     input  logic [15:0]                 mon2_cfg_error_mask,
-    input  logic [1:0]                  mon2_cfg_port_mask,
+    input  logic [2:0]                  mon2_cfg_port_mask,   // per requester: the two caches, bit 2 the IO port
     input  logic                        mon2_cfg_addr_win_enable,
     input  logic [ADDR_WIDTH-1:0]       mon2_cfg_addr_win_low,
     input  logic [ADDR_WIDTH-1:0]       mon2_cfg_addr_win_high,
@@ -157,7 +157,63 @@ module onyx_pair_rig_tb
     output logic [31:0]                 cnt_mem_read,
     output logic [31:0]                 cnt_read_wasted,
     output logic [31:0]                 cnt_absorb,
-    output logic [31:0]                 cnt_wb
+    output logic [31:0]                 cnt_wb,
+
+    // ------------------------------------------------------------------
+    // onyx's ACE-Lite IO port (D1), driven by the TB's ACE master BFMs
+    // (AXI4ACEMasterRead / Write, prefix io_); RRESP is zero-extended to
+    // the ACE field width the BFM binds
+    // ------------------------------------------------------------------
+    input  logic [AXI_ID_WIDTH-1:0]     io_arid,
+    input  logic [ADDR_WIDTH-1:0]       io_araddr,
+    input  logic [7:0]                  io_arlen,
+    input  logic [2:0]                  io_arsize,
+    input  logic [1:0]                  io_arburst,
+    input  logic                        io_arlock,
+    input  logic [3:0]                  io_arcache,
+    input  logic [2:0]                  io_arprot,
+    input  logic [3:0]                  io_arqos,
+    input  logic [3:0]                  io_arregion,
+    input  logic [AXI_USER_WIDTH-1:0]   io_aruser,
+    input  logic [3:0]                  io_arsnoop,
+    input  logic [1:0]                  io_ardomain,
+    input  logic [1:0]                  io_arbar,
+    input  logic                        io_arvalid,
+    output logic                        io_arready,
+    output logic [AXI_ID_WIDTH-1:0]     io_rid,
+    output logic [BUS_WIDTH-1:0]        io_rdata,
+    output logic [3:0]                  io_rresp,
+    output logic                        io_rlast,
+    output logic [AXI_USER_WIDTH-1:0]   io_ruser,
+    output logic                        io_rvalid,
+    input  logic                        io_rready,
+    input  logic [AXI_ID_WIDTH-1:0]     io_awid,
+    input  logic [ADDR_WIDTH-1:0]       io_awaddr,
+    input  logic [7:0]                  io_awlen,
+    input  logic [2:0]                  io_awsize,
+    input  logic [1:0]                  io_awburst,
+    input  logic                        io_awlock,
+    input  logic [3:0]                  io_awcache,
+    input  logic [2:0]                  io_awprot,
+    input  logic [3:0]                  io_awqos,
+    input  logic [3:0]                  io_awregion,
+    input  logic [AXI_USER_WIDTH-1:0]   io_awuser,
+    input  logic [2:0]                  io_awsnoop,
+    input  logic [1:0]                  io_awdomain,
+    input  logic [1:0]                  io_awbar,
+    input  logic                        io_awvalid,
+    output logic                        io_awready,
+    input  logic [BUS_WIDTH-1:0]        io_wdata,
+    input  logic [BUS_WIDTH/8-1:0]      io_wstrb,
+    input  logic                        io_wlast,
+    input  logic [AXI_USER_WIDTH-1:0]   io_wuser,
+    input  logic                        io_wvalid,
+    output logic                        io_wready,
+    output logic [AXI_ID_WIDTH-1:0]     io_bid,
+    output logic [1:0]                  io_bresp,
+    output logic [AXI_USER_WIDTH-1:0]   io_buser,
+    output logic                        io_bvalid,
+    input  logic                        io_bready
 );
 
     // ------------------------------------------------------------------
@@ -524,16 +580,19 @@ module onyx_pair_rig_tb
     logic [IW-1:0]            c_done_id [2];
     logic [1:0]               c_arready_v, c_rlast_v, c_rvalid_v, c_awready_v, c_wready_v, c_bvalid_v;
     logic [1:0]               s_acvalid_v, s_crready_v, s_cdready_v;
-    logic                     oc_grant_dir;
+    logic [1:0]               oc_grant_dir;      // the requester: 0 / 1 the caches, 2 the IO port
     logic [$clog2(FAB_SLOTS)-1:0] oc_grant_slot;
     logic [ADDR_WIDTH-1:0]    oc_grant_addr;
     logic [$clog2(FAB_SLOTS)-1:0] oc_evt_absorb_slot;
-    logic [ADDR_WIDTH-1:0]    oc_evt_lock_wait_addr [2];
+    logic [ADDR_WIDTH-1:0]    oc_evt_lock_wait_addr [3];
     logic [$clog2(FAB_SLOTS)-1:0] oc_evt_gather_slot [2];
-    logic                     oc_evt_grant, oc_evt_mem_ar, oc_evt_absorb, oc_evt_wb;
+    logic                     oc_evt_grant, oc_evt_mem_ar, oc_evt_absorb, oc_evt_wb, oc_evt_wb_io;
     logic [1:0]               oc_evt_gather, oc_evt_gather_dt, oc_evt_gather_pd, oc_evt_read_wasted;
     logic [2:0]               oc_evt_grant_cls;
-    logic [1:0]               oc_evt_ac, oc_evt_lock_wait;
+    logic [1:0]               oc_evt_ac;
+    logic [2:0]               oc_evt_lock_wait;
+    logic [1:0]               io_rresp_2;
+    assign io_rresp = {2'b00, io_rresp_2};
 
     assign c_arid[0] = m0_arid;         assign c_arid[1] = m1_arid;
     assign c_araddr[0] = m0_araddr;     assign c_araddr[1] = m1_araddr;
@@ -658,6 +717,19 @@ module onyx_pair_rig_tb
         .c_coh_req_type   (c_coh_type),
         .c_coh_done_valid ({done1_valid, done0_valid}),
         .c_coh_done_id    (c_done_id),
+        .io_arid(io_arid), .io_araddr(io_araddr), .io_arlen(io_arlen), .io_arsize(io_arsize),
+        .io_arburst(io_arburst), .io_arlock(io_arlock), .io_arcache(io_arcache), .io_arprot(io_arprot),
+        .io_arqos(io_arqos), .io_arregion(io_arregion), .io_aruser(io_aruser), .io_arsnoop(io_arsnoop),
+        .io_ardomain(io_ardomain), .io_arbar(io_arbar), .io_arvalid(io_arvalid), .io_arready(io_arready),
+        .io_rid(io_rid), .io_rdata(io_rdata), .io_rresp(io_rresp_2), .io_rlast(io_rlast), .io_ruser(io_ruser),
+        .io_rvalid(io_rvalid), .io_rready(io_rready),
+        .io_awid(io_awid), .io_awaddr(io_awaddr), .io_awlen(io_awlen), .io_awsize(io_awsize),
+        .io_awburst(io_awburst), .io_awlock(io_awlock), .io_awcache(io_awcache), .io_awprot(io_awprot),
+        .io_awqos(io_awqos), .io_awregion(io_awregion), .io_awuser(io_awuser), .io_awsnoop(io_awsnoop),
+        .io_awdomain(io_awdomain), .io_awbar(io_awbar), .io_awvalid(io_awvalid), .io_awready(io_awready),
+        .io_wdata(io_wdata), .io_wstrb(io_wstrb), .io_wlast(io_wlast), .io_wuser(io_wuser),
+        .io_wvalid(io_wvalid), .io_wready(io_wready), .io_bid(io_bid), .io_bresp(io_bresp),
+        .io_buser(io_buser), .io_bvalid(io_bvalid), .io_bready(io_bready),
         .mem_arid         (mem_arid),
         .mem_araddr       (mem_araddr),
         .mem_arlen        (mem_arlen),
@@ -722,6 +794,7 @@ module onyx_pair_rig_tb
         .evt_absorb       (oc_evt_absorb),
         .evt_absorb_slot  (oc_evt_absorb_slot),
         .evt_wb           (oc_evt_wb),
+        .evt_wb_io        (oc_evt_wb_io),
         .evt_lock_wait    (oc_evt_lock_wait),
         .evt_lock_wait_addr (oc_evt_lock_wait_addr)
     );
@@ -753,7 +826,7 @@ module onyx_pair_rig_tb
         .evt_absorb_i      (oc_evt_absorb),
         .evt_absorb_slot_i (oc_evt_absorb_slot),
         .evt_wb_i          (oc_evt_wb),
-        .evt_wb_port_i     ('0),
+        .evt_wb_port_i     (oc_evt_wb_io ? 2'd2 : 2'd0),
         .evt_wb_addr_i     (mem_awaddr),
         .evt_lock_wait_i   (oc_evt_lock_wait),
         .evt_lock_wait_addr_i (oc_evt_lock_wait_addr),

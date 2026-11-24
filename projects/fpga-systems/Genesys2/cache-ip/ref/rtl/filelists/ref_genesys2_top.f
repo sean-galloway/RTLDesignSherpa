@@ -29,6 +29,7 @@
 
 # the onyx coherency unit in the pair fabric's place (REF_CACHE_SEL 4 / 5; onyx TASK-001)
 -f $ONYX_ROOT/rtl/filelists/onyx_top.f
+-f $REF_FRAMEWORK_ROOT/rtl/filelists/ref_io_master.f
 
 # the MonBus chain of the pair block (SEL 3 to 5): arbiter, group, tally
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f

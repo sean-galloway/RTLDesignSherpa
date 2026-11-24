@@ -33,6 +33,17 @@ package onyx_pkg;
         ONYX_EV_LOCK_WAIT   = 8'h27    // a port's candidate waited behind a held line: episode duration (emitted on release)
     } onyx_event_t;
 
+    // ------------------------------------------------------------------
+    // The IO port's grant classes (D1).  A grant's class rides TXN_START
+    // in the l1_pkg ACE request-class code space (3 bits); the IO port has
+    // no sideband, so its two transaction kinds take the codes the caches
+    // never allocate a transaction under: 7 is unused by l1_pkg, 5 is
+    // EVICT, which allocates nothing.  The port field (N_PORTS = the IO
+    // port) disambiguates in any case.
+    // ------------------------------------------------------------------
+    localparam logic [2:0] ONYX_CLS_IO_READ  = 3'd7;   // ReadOnce (shareable) or ReadNoSnoop
+    localparam logic [2:0] ONYX_CLS_IO_WRITE = 3'd5;   // WriteUnique / WriteLineUnique (shareable)
+
     // house monitor ids: the caches use 0x00A0 (l1_monlite), 0x00A1 (the
     // transport observers) and 0x00A2 (jet's monlite); onyx is 0x00A3
     localparam logic [15:0] ONYX_AGENT_ID = 16'h00A3;

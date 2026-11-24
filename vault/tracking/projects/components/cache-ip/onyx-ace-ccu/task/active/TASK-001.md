@@ -464,3 +464,48 @@ Found and measured:
   content-filter bullet (91dab26fd) and onyx row. **Formal** on the
   regenerated flat (md5 f80fc20fc3, the two new ports): prove PASS (BMC
   depth 24, 1 h 23 min), prove_book PASS (12 min).
+- 2026-11-23 **D1, the ACE-Lite IO port (labelled "step 7" in the HAS,
+  PRD and ISSUE-002; it is the work list's step-2 item):** `onyx_ccu`
+  `io_ar* / io_r* / io_aw* / io_w* / io_b*` with `AxSNOOP / AxDOMAIN /
+  AxBAR`; the IO is requester `N_PORTS` of the table (lock, slots, snoop
+  queues, replay engines and write port shared with the caches), one read
+  and one write in flight. Four kinds by `AxDOMAIN` / `AxSNOOP`:
+  ReadOnce (AC ReadOnce to every cache; a peer's DT replayed from the IO's
+  line buffer, else the memory read per the D6 mode with the IO's AR
+  fields), ReadNoSnoop (memory, no peers), WriteUnique / WriteLineUnique
+  (AC CleanInvalid to every cache; the IO's AW held until gathered and any
+  PassDirty line absorbed, then the write port with the IO's own fields),
+  WriteNoSnoop (the write port, held like a write-back). The IO's
+  WriteUnique waits for any cache's presented write-back to its line.
+  Absorption ID `8'hA0 | N_PORTS`; WRITEBACK class / `cnt_wb` count IO
+  writes. **Found while building it:** with every cache a peer of one
+  slot, two peers accept ACs / answer CRs in the same cycle; the per-peer
+  decrement written twice to one register landed once and the first IO
+  read against two sharers hung. The slot's peer counters now step by the
+  cycle's count and the verdict ORs over the cycle's CRs. **onyx ISSUE-002
+  filed** (P3): jet-prime drains a snarfed victim after passing it dirty;
+  an IO WriteUnique that lands before that drain is overwritten. The fix
+  belongs on the cache side; the soak keeps IO writes in a region the
+  caches do not touch until it closes. **Reference rig:**
+  `ref_io_master` doorbell (harness CSR 0x040-0x058: IO_ADDR, WDATA_LO/HI,
+  IO_CTRL go/write/shareable/wstrb, IO_STATUS busy/done/resp/absent,
+  RDATA_LO/HI; `absent` = 1 without onyx), `jet/bin/seq_io.py` after the
+  smoke, regmap + `jet_board.py`. **Sim** (16:3x, after a system hang
+  killed the morning's runs): pair rig drives `io_*` with
+  `AXI4ACEMasterRead / Write` as the fabric model's third requester;
+  three directed IO scenarios per cell, an IO loop in func / full
+  (80 / 400 txns), new `_pmio` port-mask cell; onyx gate 12/12, func
+  17/17, full 51/51 from clean, 0 mismatches in all 441 reports (e.g.
+  `s128w4..m16v4_lru` full: grants [1872, 1852, 379], 245,920 checks);
+  ref gate 9/9 from clean (onyx / onyxd with the IO doorbell); lint clean
+  (`make lint REF_CACHE_SEL=3/4/5`). **Formal:** the harness restates
+  every property over three requesters with the IO free under A-io
+  (single-line full-width INCR, ARSNOOP 0, AWSNOOP 0/1, AXI stability, W
+  after AW) and adds `ap_io_port`; flat regenerated (md5 f7b5098349);
+  `cover` 27/27 reached, `prove_book` PASS (2 h 13 min, was 12 min),
+  `prove` PASS (BMC depth 24, 5 h 17 min against 6d's 1 h 23 min; a
+  first run was killed at step 21 by a system hang). The IO port
+  roughly quadruples the proof cost; the N = 3 harness will need its
+  depths re-derived rather than inherited. **Not done:** no board bitstream with the IO
+  port (HAS ch06/01 board row still `D1-BOARD-PLACEHOLDER`); the ref
+  test's `ONYX_WIN_DEBUG` hook is an env-gated debug leftover.

@@ -164,6 +164,8 @@ top_block = {
         # addr_win_enable: the content filter -- transmit only the events of
         # the transactions inside ONYX_MON_WIN_LOW..HIGH (inclusive)
         'addr_win_enable': {'default': '0x0', 'offset': '3', 'sw': 'rw', 'type': 'field'},
+        # port_mask bit p drops the events of requester p: 0 / 1 the caches,
+        # 2 the ACE-Lite IO port (onyx TASK-001 step 7); bit 3 unused at N = 2
         'port_mask': {'default': '0x0', 'offset': '7:4', 'sw': 'rw', 'type': 'field'},
         'perf_mask': {'default': '0x007D', 'offset': '31:16', 'sw': 'rw', 'type': 'field'},
     },
@@ -201,5 +203,56 @@ top_block = {
         'type': 'reg',
         'pkt_mask': {'default': '0x0000', 'offset': '15:0', 'sw': 'rw', 'type': 'field'},
         'error_mask': {'default': '0x0000', 'offset': '31:16', 'sw': 'rw', 'type': 'field'},
+    },
+    # ------------------------------------------------------------------
+    # The IO doorbell (onyx TASK-001 step 7, D1): one single-beat read or
+    # write on onyx's ACE-Lite IO port per IO_CTRL.go (REF_CACHE_SEL 4 / 5;
+    # IO_STATUS.absent reads 1 elsewhere and nothing moves).  Write IO_ADDR,
+    # IO_WDATA_LO/HI, then IO_CTRL with go=1 and the kind; poll IO_STATUS.done;
+    # read IO_RDATA_LO/HI.  shareable=1 is ReadOnce / WriteUnique (the caches
+    # are snooped), 0 is ReadNoSnoop / WriteNoSnoop (straight to memory).
+    # ------------------------------------------------------------------
+    'IO_ADDR': {
+        'address': '0x040', 'default': '0x00000000', 'name': 'IO_ADDR', 'offset': '0x040',
+        'size': 4, 'sw': 'rw', 'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+    },
+    'IO_WDATA_LO': {
+        'address': '0x044', 'default': '0x00000000', 'name': 'IO_WDATA_LO', 'offset': '0x044',
+        'size': 4, 'sw': 'rw', 'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+    },
+    'IO_WDATA_HI': {
+        'address': '0x048', 'default': '0x00000000', 'name': 'IO_WDATA_HI', 'offset': '0x048',
+        'size': 4, 'sw': 'rw', 'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'rw', 'type': 'field'},
+    },
+    'IO_CTRL': {
+        # go is write-1-pulse (reads 0); write / shareable / wstrb are levels
+        # the doorbell latches at the go
+        'address': '0x04C', 'default': '0x00000000', 'name': 'IO_CTRL', 'offset': '0x04C',
+        'size': 4, 'sw': 'rw', 'type': 'reg',
+        'go': {'default': '0x0', 'offset': '0', 'sw': 'rw', 'type': 'field'},
+        'write': {'default': '0x0', 'offset': '1', 'sw': 'rw', 'type': 'field'},
+        'shareable': {'default': '0x0', 'offset': '2', 'sw': 'rw', 'type': 'field'},
+        'wstrb': {'default': '0x0', 'offset': '15:8', 'sw': 'rw', 'type': 'field'},
+    },
+    'IO_STATUS': {
+        'address': '0x050', 'default': '0x00000000', 'name': 'IO_STATUS', 'offset': '0x050',
+        'size': 4, 'sw': 'r', 'type': 'reg',
+        'busy': {'default': '0x0', 'offset': '0', 'sw': 'r', 'type': 'field'},
+        'done': {'default': '0x0', 'offset': '1', 'sw': 'r', 'type': 'field'},
+        'resp': {'default': '0x0', 'offset': '3:2', 'sw': 'r', 'type': 'field'},
+        'absent': {'default': '0x0', 'offset': '31', 'sw': 'r', 'type': 'field'},
+    },
+    'IO_RDATA_LO': {
+        'address': '0x054', 'default': '0x00000000', 'name': 'IO_RDATA_LO', 'offset': '0x054',
+        'size': 4, 'sw': 'r', 'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'IO_RDATA_HI': {
+        'address': '0x058', 'default': '0x00000000', 'name': 'IO_RDATA_HI', 'offset': '0x058',
+        'size': 4, 'sw': 'r', 'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
     },
 }
