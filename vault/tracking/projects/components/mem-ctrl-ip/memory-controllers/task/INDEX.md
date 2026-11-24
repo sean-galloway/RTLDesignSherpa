@@ -4,8 +4,8 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
@@ -20,17 +20,15 @@
   structural cut priced in the model first; floorplanning is recorded as
   making it worse. Filed 2026-11-22 from MC-020 decision 2.
 
-- **MC-023** -- the SKU model's three open fidelity terms: the self-close's
-  record path (the "one in four" is the col_major walk's row step; the
-  `ap_close_rec` probe lands four cells and breaks the close_page mixed one),
-  the bank_interleave bl4 read chain one slot past tRC under `ap_seq` (the
-  2026-11-22 CSVs predate the finished term), the pick pipeline's
-  refresh-relaunched orbits (ISSUE-007) and the hybrid policy's mixed-cell
-  mode (ISSUE-005). Filed 2026-11-23.
-
 ## Active
 
-(none)
+- **MC-023** -- the SKU model's open fidelity terms. Item 2 DONE 2026-11-23:
+  the self-close lookahead guard was true at `ap_close_lag` 0 (a pending
+  fire is in the future), fixed; the 2026-11-22 CSVs reproduce to the cycle.
+  Open: the record path (item 1; `ap_close_rec` over-prices close_page reads
+  34 .. 50 percent on the fixed model), the refresh-relaunched orbits (3,
+  ISSUE-007), and the mixed cells' mode (4, ISSUE-005: the fixed model is
+  fast on 40 / 40 phases of both presets, the board 2 / 10 and 0 / 10).
 
 ## Deferred
 

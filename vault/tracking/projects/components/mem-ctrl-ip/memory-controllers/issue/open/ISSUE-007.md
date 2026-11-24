@@ -68,3 +68,9 @@ could pay it several times over.
 > phases. Step 3 waits on the pick probe across a slow re-launch (the record
 > names the cycles); filed into MC-023 with the model's open self-close term.
 > New tool: `mem-ctrl-ip-ddr2/bin/dram_trace_segments.py`.
+
+> 2026-11-23, later: the model GO sweep re-run on the MC-023 item 2 fix
+> (the self-close lookahead guard): still 584.6 on all 120 directions; the
+> proxy findings do not depend on the model. Next step unchanged (MC-023
+> item 3).
+

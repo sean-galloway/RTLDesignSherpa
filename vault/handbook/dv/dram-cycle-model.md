@@ -879,7 +879,21 @@ DIR_OWNS_ROWS across 40 GO phases on two presets). No value gave the wanted
 mode on every phase, and the one that closed the race cost two landed cells
 their field gain -- which a single-knob, single-phase pricing would have
 reported as a win. And: **a model CSV is dated by the controller build that
-made it**; the 2026-11-22 CSVs were written two hours before the term they
-were cited for was finished (MC-020's addendum, MC-023).
+made it** -- but a timestamp is a hypothesis about which build, not a
+finding (see below).
+
+**When a CSV and the committed model disagree, bisect the model before
+blaming the CSV (2026-11-23, MC-023 item 2).** The 2026-11-22 CSVs were
+filed as "written before the term was finished" from their mtimes. Reading
+the decode at the slot instead found a defect in the finished term: a guard
+`m_clk - fire_clk < lag * slot` meant to be off at lag 0, where `fire_clk`
+holds a FUTURE fire cycle while the self-close is pending, so the
+difference is negative and the guard fires. Fixed, the model reproduced the
+"stale" CSVs to the cycle on 120 of 120 cells; the stale story was wrong,
+and every sweep run on the defective build had to be re-run -- including a
+two-mode race the defect had manufactured on the ISSUE-005 cell. Two rules:
+a knob whose 0 means off is gated on `> 0`, never on a compare that happens
+to be false at 0; and a difference against a timestamp that can be in the
+future is signed, so check what it is while the event is pending.
 
 Related: [[measure-over-the-window]], [[arbiter-compliance-model]].

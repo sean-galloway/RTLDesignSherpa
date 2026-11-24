@@ -796,7 +796,11 @@ class GraniteSKUController : public ControllerBase {
         // misses the closed row (the decode's miss branch, LA_AP), requested at the timer for a head of the same
         // row (measured), unless ap_act_la
         const int b = bank_of(p);
-        if (m_ap_seq && m_clk - m_ap_fire_clk[b] < static_cast<Clk_t>(m_ap_close_lag) * m_slot_ticks) continue;
+        // (ap_close_lag 0 is OFF: until 2026-11-23 this compared m_clk - fire < 0, true while the self-close was still
+        // pending, so an ACT request lost its lookahead across every pending self-close -- the bank_interleave bl4
+        // read chain ran 7 MC for tRC 6, 446 for the board's 516; memory-controllers MC-023 item 2)
+        if (m_ap_seq && m_ap_close_lag > 0 &&
+            m_clk - m_ap_fire_clk[b] < static_cast<Clk_t>(m_ap_close_lag) * m_slot_ticks) continue;
         // the same_row rule (no lookahead for a head of the row the self-close closed) is the model before ap_close_rec
         const bool same_row = m_bank_ap[b] && m_bank_ap_row[b] == row_of(*h.it);
         const int la = (same_row && !m_ap_act_la && !(m_ap_seq && m_ap_close_rec)) ? 0 : m_pick_la;

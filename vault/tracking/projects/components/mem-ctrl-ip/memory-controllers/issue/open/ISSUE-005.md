@@ -114,3 +114,15 @@ whose other presets never show it.
 > 9 for a deterministic cell at that price, a recorded no-action (the shipped
 > preset is one mode on the board), or a read-priority direction register,
 > which is a design, not a knob, and is not priced.
+
+> 2026-11-23, later (MC-023 item 2): the sweep above ran on a model with a
+> defect in the self-close lookahead guard. On the fixed model the mixed
+> cell is in the read-first fast mode on 40 / 40 phases of BOTH presets
+> (`open_page` 308 / ~520, `defaults` 309 / ~565), so the model's two-mode
+> race and the slot trace were the defect's, not the RTL's; the board's race
+> (2 / 10 and 0 / 10 fast) is a slot the model lacks, MC-023 item 4. What
+> stands: hold >= 9 gives the time-share on 40 / 40 phases of both presets,
+> 55 in / 2 out at hold 12 (close_page mixed 62 / 62 against 73 / 121; the
+> other OUT, bank_interleave col_major_interleaved_bl4, is OUT at hold 8
+> too). The owner's decision is unchanged. Record section 9.
+

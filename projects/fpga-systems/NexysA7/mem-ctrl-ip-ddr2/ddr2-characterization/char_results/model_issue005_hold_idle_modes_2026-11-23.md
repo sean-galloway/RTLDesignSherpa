@@ -9,6 +9,19 @@
 > bitstream's (`sku100rpap{,w2,w3}_windows_2026-11-22` and the seven other
 > windows runs at the phase-exact counters since 2026-11-21).
 
+> **Correction, same day (memory-controllers MC-023 item 2).** Sections 2, 3,
+> 4 and 5a below were measured on a model with a defect: the self-close
+> lookahead guard compared `m_clk - fire < close_lag` with `close_lag` 0, true
+> while a self-close was still pending, so every ACT request lost its
+> lookahead across a pending self-close. Fixed in `granite_sku_controller.cpp`;
+> every sweep CSV of this record is now the fixed model's, and section 9 is
+> the re-read. What survives: the board's modes (section 1), hold >= 9 giving
+> the time-share on 40 / 40 phases of both presets, and its cost on the
+> close_page mixed cell. What does not: the model's two-mode race on
+> `open_page` and its three modes on `defaults` -- the fixed model is in the
+> fast mode on 40 / 40 phases of both -- and the section 3 slot trace, which
+> is the defective model's race, not the RTL's.
+
 ## 1. The board at the phase-exact counters: ten windows runs
 
 | preset | slow mode (wr / rd) | fast mode | runs |
@@ -184,3 +197,46 @@ register, not a knob, and is not priced here.
 - Board: `char_granite_sku100{px,pxd,pxdw2,pxdw3,rpapA,rpapAw2,rpapAw3,rpap,rpapw2,rpapw3}_windows_2026-11-2[12].csv`.
 - No RTL, model-term or formal change in this record; `char_model.py` unchanged
   (the knobs existed; `GRANITE_SKU_PARAMS` carried them).
+
+## 9. Re-read on the fixed model (MC-023 item 2)
+
+The guard fix restores the 2026-11-22 model CSVs to the cycle (the `_rpap_`
+and `_rps_` sets, 120 of 120 cells), so the MC-020 compares stand as
+written. The GO sweeps of this record, re-run (the CSVs above are these):
+
+| knob | `open_page` modes (wr / rd) x phases | `defaults` modes x phases |
+|---|---|---|
+| base (hold 8) | 308 / 517 .. 525 x40 | 309 / 560 .. 571 x38; 340 / 562 x2 |
+| hold 0 | 320 / 656 x32; 356 / 652 .. 656 x6; 401 / 266 x2 | 394 .. 400 / 266 .. 269 x40 |
+| hold 4 | 456 .. 461 / 292 x35; 483 / 289 .. 293 x5 | 319 / 632 .. 656 x34; 519 / 294 x2; 355 / 639 .. 645 x4 |
+| hold 6 | 314 .. 316 / 579 .. 600 x38; 347 / 590 x2 | 313 / 630 x22; 348 / 630 x2; 442 .. 448 / 289 x16 |
+| hold 9 / 10 / 12 / 16 | 281 / 281 x40 | 280 .. 281 / 281 x40 |
+| owns-rows off | 195 / 197 x40 | 195 / 197 x40 |
+
+So the fixed model takes the read-first fast mode on every phase of both
+presets, where the board takes it on 2 of 10 `open_page` runs and 0 of 10
+`defaults` runs. The model is now one-sided on the race the board shows,
+which makes the fidelity gap of section 6 apply to both presets: on the
+RTL the write head's miss -> PRE -> fire chain wins the slot against the
+hold-idle expiry most of the time, and on the model it never does. The
+defect had made that chain look closer to the RTL's by delaying the reads'
+re-ACT after the drain self-close, the record-path term of MC-023 item 1.
+
+The `ap_close_rec` probe (heads of the closed row requested off the
+record path) does NOT recover it on the fixed model: the mixed cells are
+unmoved (308 / 521, 309 / 562 across 40 phases), and the probe over-prices
+every close_page read side by 34 .. 50 percent (40 in / 17 out against the
+SKU board set). Its 2026-11-23 "lands all four" figures were the defective
+model's. Item 1 needs the proxy measurement MC-023 names before it is a term.
+
+Hold 12, full `all` suite on the four configs against the SKU board set:
+**55 in / 2 out** -- close_page mixed_bl8 62 / 62 against 73 / 121 (-15 on
+the union), and bank_interleave col_major_interleaved_bl4 355 / 402
+against 356 / 361, which is OUT at hold 8 as well (MC-023 item 1). The
+bank_interleave col_major_bl4 OUT of section 5 was the defect (446 / 520
+on the fixed model, the board 442 -> 516).
+
+Section 7's decision is unchanged: hold >= 9 is the only knob value that
+makes the cell one mode on every phase, at the close_page mixed cell's
+read-first shape; or a recorded no-action; or a read-priority design.
+ISSUE-007 is unchanged: 584.6 on all 120 directions of the fixed model.

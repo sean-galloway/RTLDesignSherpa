@@ -401,3 +401,17 @@ term of section 7, are memory-controllers MC-023 (filed 2026-11-23, with
 the mechanism of the "one in four": the col_major walk's row step -- the head
 after a burst's last column is of the next row, a miss from its first record,
 and the lookahead arms it).
+
+## 10. Correction to section 9 (2026-11-23, memory-controllers MC-023 item 2)
+
+Section 9's cause was wrong. The CSVs did not predate the finished term; the
+finished term carried a defect. Its lookahead guard,
+`m_clk - m_ap_fire_clk[b] < ap_close_lag * slot`, was meant to be off at
+`ap_close_lag` 0, but `m_ap_fire_clk` holds the self-close's FUTURE fire
+cycle while the close is pending, so the difference is negative and the
+compare true: every ACT request lost its lookahead across a pending
+self-close, and the bank_interleave bl4 read chain ran 7 MC where tRC
+allows 6. With the guard gated on `ap_close_lag > 0` the committed model
+reproduces all eight `_rpap_` / `_rps_` CSVs of section 6 to the cycle (120
+of 120 cells), so section 6's "the model priced 446 / 520", and the
+compares' 54 / 3 and 55 / 2, stand. The 53 / 4 of section 9 is withdrawn.
