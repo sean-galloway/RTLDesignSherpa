@@ -506,6 +506,31 @@ Found and measured:
   `prove` PASS (BMC depth 24, 5 h 17 min against 6d's 1 h 23 min; a
   first run was killed at step 21 by a system hang). The IO port
   roughly quadruples the proof cost; the N = 3 harness will need its
-  depths re-derived rather than inherited. **Not done:** no board bitstream with the IO
-  port (HAS ch06/01 board row still `D1-BOARD-PLACEHOLDER`); the ref
-  test's `ONYX_WIN_DEBUG` hook is an env-gated debug leftover.
+  depths re-derived rather than inherited. Committed 4bfcfcbe4. The
+  ref test's `ONYX_WIN_DEBUG` hook is an env-gated debug leftover.
+- 2026-11-24 **D1 on the board (bin 5):** SEL 4 and SEL 5 rebuilt at
+  4bfcfcbe4: WNS +0.002 / +0.007 ns at 100 MHz, 0 failing, the same
+  jet-prime fill-staging path as every bin (onyx not on it); SEL 4
+  29,445 LUT / 25,756 FF, SEL 5 29,357 / 25,721 (+2,117 / +2,120 LUT
+  over bin 4: the IO port and the doorbell). SEL 5's build overwrote
+  SEL 4's reports; SEL 4 was rebuilt for its area (WNS reproduced) and,
+  since the rebuilt .bit is a new file, re-run on the board: bitstreams
+  measured `ref_onyx_bringup.bit` sha256 633f8b0b59ae3948, `ref_onyxd`
+  0bd6e7d4856638c4. Each session under `board_lock.sh` end to end (program,
+  init + smoke, sweep, io). **Identity:** the all-open dual 55-cell sweep
+  with the IO idle is cycle-identical to bin 4 in 55 of 55 cells in both
+  modes -- run cycles, latency, read-data CRC, the six counters and the
+  tally bins -- 0 errors; reads wasted 8,968 over the SEL 4 grid, 0 on
+  SEL 5. **io sequence PASS on both** (WriteNoSnoop / ReadNoSnoop /
+  ReadOnce of 0x20040; ReadOnce, WriteUnique, ReadOnce and ReadNoSnoop
+  back, partial WriteUnique of 0x440). Order trap: the first session ran
+  io BEFORE the sweep and the sweep's read-data CRC then differed only
+  in cells whose read region covers 0x440 (cycles equal in 54 of 55, the
+  first cell's carried-in state); rerun sweep-first, identical. **Limit
+  of the board check:** `io_check` reads no SUPPLIED / ABSORB delta and
+  its "txn >= 6" check is a bool, so it does not show a cache held 0x440
+  when the IO arrived -- the supplier path is proven in the pair rig, not
+  on the board. Results `perf_sweep_{onyx,onyxd}_bin5_sweepfirst_dual_*`
+  (and the io-first `perf_sweep_onyx_bin5_dual_20261124T093316Z`, kept
+  as the order trap's evidence). HAS ch06/01 board row, ch06/02 bin 5
+  rows and reading.
