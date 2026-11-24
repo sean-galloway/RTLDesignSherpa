@@ -44,6 +44,18 @@ Two more defaults chosen for the same reason:
 - `discover()` raises when an area yields no sequences, rather than reporting a
   clean pass over an empty plan.
 
+## A sequence that writes memory changes what the next sweep reads
+
+A sweep compared against an earlier bin is a cycle-identity check only if the
+board starts it in the earlier bin's state. A sequence that writes memory
+before the sweep breaks that without any error. On 2026-11-24 the onyx IO
+sequence (`seq_io`, a WriteUnique to line 0x440) ran before the bin 5 sweep,
+and the sweep's read-data CRC then differed from bin 4 in every cell whose read
+region covers that line, while the cycle counts were equal everywhere but the
+first cell. Run the identity sweep straight after init + smoke, and run any
+sequence that writes memory after it. When a CRC moves while the cycles hold,
+check what the steps before the sweep wrote before suspecting the design.
+
 ## Passing state between steps
 
 A sequence's return value lands in `ctx.results[name]`; the next one reads it
