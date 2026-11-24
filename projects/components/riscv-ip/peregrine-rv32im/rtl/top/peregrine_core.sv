@@ -9,8 +9,9 @@
 //          pipeline (IF / ID / EX / MEM / WB) with machine-mode traps.
 //
 //          Stage 1 of riscv-ip/peregrine-rv32im TASK-001: the CSR file and
-//          precise traps on the cacheless build (PRD §4.3, P6, P12).  The
-//          M unit, the predictor and the caches are later stages.
+//          precise traps on the cacheless build (PRD §4.3, P6, P12).
+//          Stage 2: the M unit (PRD §4.4, P3, P8).  The predictor and the
+//          caches are later stages.
 //
 //          What is merlin's, unchanged: the pipeline registers, the
 //          forwarding unit (EX/MEM over MEM/WB, select computed in ID), the
@@ -32,12 +33,27 @@
 //          - Interrupts are sampled at the same point: a pending, enabled
 //            interrupt attaches to the valid instruction entering MEM,
 //            which traps instead of executing (precise at the oldest
-//            uncommitted instruction).
+//            uncommitted instruction).  The exception is an M instruction:
+//            it reaches MEM only with its result done, and it is not
+//            interruptible there, so the interrupt is taken on the next
+//            instruction.  Without that, an interrupt re-raised faster
+//            than the M unit's 33 cycles discards the M instruction on
+//            every pass and it never retires (a measured livelock,
+//            TASK-001 stage 2).
 //          - mret redirects to mepc from MEM, the same way.
 //          - CSR instructions read the CSR file in EX (the old value is
 //            rd's result and forwards like any ALU result) and write it in
 //            MEM.  A CSR instruction in ID waits while an older one is in
 //            ID/EX or EX/MEM, so its EX read sees every older write.
+//          - The M extension runs on one iterative unit, peregrine_mdu,
+//            started from EX.  The M instruction holds in EX until its
+//            result is ready (hold-in-EX, owner 2026-11-23): the PC, IF/ID
+//            and ID/EX hold and EX/MEM takes bubbles, so the result writes
+//            back in program order and RVFI stays exact.  The unit starts
+//            on the first EX cycle without mem_wait, when the forwarded
+//            operands are valid, and latches them: the forwarding selects
+//            go stale while the producers drain.  A MEM-stage trap or mret
+//            kills the M instruction in EX and cancels the unit.
 //
 // Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
 // Subsystem: riscv-ip/peregrine-rv32im
@@ -47,13 +63,17 @@
 //
 // Parameters:
 //   - RESET_ADDR: first fetch address.
+//   - MUL_DSP: 0 (default) iterative multiply, 33 stall cycles; 1 one
+//     registered DSP multiply, 2 stall cycles (PRD P8).  Divide is
+//     iterative either way.
 
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
 module peregrine_core #(
-    parameter logic [31:0] RESET_ADDR = 32'h0000_0000
+    parameter logic [31:0] RESET_ADDR = 32'h0000_0000,
+    parameter bit          MUL_DSP    = 1'b0
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -153,6 +173,9 @@ module peregrine_core #(
     logic        mem_redirect;
     logic [31:0] mem_redirect_pc;
 
+    // An M instruction holding in EX until its result is ready.
+    logic        ex_m_stall;
+
     assign imem_addr      = pc;
     assign imem_addr_next = w_aresetn ? pc_d : RESET_ADDR;
 
@@ -163,8 +186,8 @@ module peregrine_core #(
             pc_d = mem_redirect_pc;          // trap entry / mret (oldest wins)
         end else if (ex_flush) begin
             pc_d = ex_target;                // EX redirect (branch/jump)
-        end else if (stall_ifid) begin
-            pc_d = pc;                       // interlock
+        end else if (stall_ifid | ex_m_stall) begin
+            pc_d = pc;                       // interlock / M unit busy
         end else begin
             pc_d = pc + PC_INCR;             // sequential fetch
         end
@@ -190,7 +213,7 @@ module peregrine_core #(
     peregrine_if_id u_if_id (
         .clk   (clk),
         .rst_n (w_aresetn),
-        .stall (stall_ifid | mem_wait),
+        .stall (stall_ifid | mem_wait | ex_m_stall),
         .flush (if_id_flush_eff),
         .d_i   (if_id_d),
         .q_o   (if_id_q)
@@ -215,6 +238,7 @@ module peregrine_core #(
     logic [3:0] id_exc_cause;
     logic       id_csr_op;
     logic       id_mret;
+    logic       id_m_op;
 
     logic [31:0] id_imm;
     logic [31:0] id_rs1_data;
@@ -227,7 +251,7 @@ module peregrine_core #(
     assign id_funct3 = id_insn[14:12];
 
     rv32i_decode #(
-        .M_EXT (1'b0),
+        .M_EXT (1'b1),
         .ZICSR (1'b1)
     ) u_decode (
         .insn          (id_insn),
@@ -244,7 +268,7 @@ module peregrine_core #(
         .jalr          (id_jalr),
         .halt_cause    (id_exc_cause),
         .csr_stub      (),
-        .m_op          (),
+        .m_op          (id_m_op),
         .csr_op        (id_csr_op),
         .mret          (id_mret)
     );
@@ -302,6 +326,7 @@ module peregrine_core #(
     assign id_ex_d.exc_cause     = id_exc_cause;
     assign id_ex_d.csr_op        = id_csr_op;
     assign id_ex_d.mret          = id_mret;
+    assign id_ex_d.m_op          = id_m_op;
     assign id_ex_d.valid         = if_id_q.valid;
     assign id_ex_d.insn          = id_insn;
 
@@ -310,7 +335,7 @@ module peregrine_core #(
     peregrine_id_ex u_id_ex (
         .clk   (clk),
         .rst_n (w_aresetn),
-        .stall (mem_wait),
+        .stall (mem_wait | ex_m_stall),
         .flush (id_ex_flush_eff),
         .d_i   (id_ex_d),
         .q_o   (id_ex_q)
@@ -377,7 +402,7 @@ module peregrine_core #(
         end else if (id_ex_flush_eff) begin
             ex_fwd_a <= FWD_IDEX;
             ex_fwd_b <= FWD_IDEX;
-        end else if (!mem_wait) begin
+        end else if (!mem_wait && !ex_m_stall) begin
             ex_fwd_a <= id_fwd_a;
             ex_fwd_b <= id_fwd_b;
         end
@@ -386,9 +411,12 @@ module peregrine_core #(
     // Effective flushes.  A MEM redirect (trap or mret) kills everything
     // younger: IF/ID, ID/EX, and the instruction leaving EX.  Flushes are
     // suppressed while the memories wait so the event replays after.
+    // While an M instruction holds in EX, ID/EX holds it (the ID interlock
+    // bubble must not overwrite it) and EX/MEM takes the bubble instead.
     assign if_id_flush_eff  = ((flush_ifid | mem_redirect) & ~mem_wait);
-    assign id_ex_flush_eff  = ((flush_idex | stall_ifid | mem_redirect) & ~mem_wait);
-    assign ex_mem_flush_eff = mem_redirect & ~mem_wait;
+    assign id_ex_flush_eff  = ((flush_idex | (stall_ifid & ~ex_m_stall) | mem_redirect)
+                               & ~mem_wait);
+    assign ex_mem_flush_eff = (mem_redirect | ex_m_stall) & ~mem_wait;
 
     // -----------------------------------------------------------------
     // EX stage: ALU, branch comparator, alignment checks, CSR read
@@ -453,8 +481,47 @@ module peregrine_core #(
     assign ex_csr_ill = id_ex_q.csr_op &
                         (~ex_csr_exists | (ex_csr_wen & (ex_csr_addr[11:10] == 2'b11)));
 
+    // M unit (PRD §4.4).  It starts on the first EX cycle without mem_wait
+    // and latches the forwarded operands; RVFI reports those latched
+    // values, because the forwarding selects go stale during the hold.
+    logic        ex_m_valid;
+    logic        mdu_start;
+    logic        mdu_idle;
+    logic        mdu_done;
+    logic [31:0] mdu_result;
+    logic [31:0] ex_m_rs1;
+    logic [31:0] ex_m_rs2;
+
+    assign ex_m_valid = id_ex_q.valid & id_ex_q.m_op;
+    assign mdu_start  = ex_m_valid & mdu_idle & ~mem_wait & ~mem_redirect;
+    assign ex_m_stall = ex_m_valid & ~mdu_done;
+
+    peregrine_mdu #(
+        .MUL_DSP (MUL_DSP)
+    ) u_mdu (
+        .clk     (clk),
+        .rst_n   (w_aresetn),
+        .start   (mdu_start),
+        .cancel  (mem_redirect),
+        .consume (~mem_wait),
+        .funct3  (id_ex_q.funct3),
+        .a       (ex_rs1_fwd),
+        .b       (ex_rs2_fwd),
+        .idle    (mdu_idle),
+        .done    (mdu_done),
+        .result  (mdu_result)
+    );
+
+    always_ff @(posedge clk) begin
+        if (mdu_start) begin
+            ex_m_rs1 <= ex_rs1_fwd;
+            ex_m_rs2 <= ex_rs2_fwd;
+        end
+    end
+
     logic [31:0] alu_y;
-    assign alu_y = id_ex_q.csr_op ? ex_csr_rdata : alu_y_raw;
+    assign alu_y = id_ex_q.csr_op ? ex_csr_rdata :
+                   id_ex_q.m_op   ? mdu_result   : alu_y_raw;
 
     // Branch / JALR operands (merlin's: the MEM/WB arm is the non-load
     // writeback value).
@@ -549,11 +616,12 @@ module peregrine_core #(
     assign ex_mem_d.csr_wen     = ex_csr_wen;
     assign ex_mem_d.csr_wdata   = ex_csr_wdata;
     assign ex_mem_d.mret        = id_ex_q.mret;
+    assign ex_mem_d.m_op        = id_ex_q.m_op;
     assign ex_mem_d.valid       = id_ex_q.valid;
     assign ex_mem_d.insn        = id_ex_q.insn;
     assign ex_mem_d.imm         = id_ex_q.imm;
-    assign ex_mem_d.rs1_rdata   = ex_rs1_fwd;
-    assign ex_mem_d.rs2_rdata   = ex_rs2_fwd;
+    assign ex_mem_d.rs1_rdata   = id_ex_q.m_op ? ex_m_rs1 : ex_rs1_fwd;
+    assign ex_mem_d.rs2_rdata   = id_ex_q.m_op ? ex_m_rs2 : ex_rs2_fwd;
 
     peregrine_ex_mem u_ex_mem (
         .clk   (clk),
@@ -581,7 +649,9 @@ module peregrine_core #(
     logic [31:0] mem_trap_tval;
 
     assign mem_exc  = ex_mem_q.valid & (ex_mem_q.exc_cause != EXC_NONE);
-    assign mem_irq  = ex_mem_q.valid & csr_irq_pending;
+    // An M instruction is not interruptible (see the header): its work is
+    // done, and discarding it can starve it forever.
+    assign mem_irq  = ex_mem_q.valid & ~ex_mem_q.m_op & csr_irq_pending;
     assign mem_trap = (mem_exc | mem_irq) & ~mem_wait;
     assign mem_mret = ex_mem_q.valid & ex_mem_q.mret & ~mem_exc & ~mem_irq & ~mem_wait;
     assign mem_csr_wen = ex_mem_q.valid & ex_mem_q.csr_wen & ~mem_exc & ~mem_irq & ~mem_wait;
@@ -622,7 +692,7 @@ module peregrine_core #(
     end
 
     peregrine_csr #(
-        .M_EXT (1'b0)
+        .M_EXT (1'b1)
     ) u_csr (
         .clk          (clk),
         .rst_n        (w_aresetn),

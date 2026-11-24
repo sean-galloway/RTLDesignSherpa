@@ -148,6 +148,8 @@ class PeregrineTB:
             "insn": int(d.rvfi_insn.value),
             "trap": int(d.rvfi_trap.value),
             "trap_cause": int(d.rvfi_trap_cause.value),
+            "rs1_rdata": int(d.rvfi_rs1_rdata.value),
+            "rs2_rdata": int(d.rvfi_rs2_rdata.value),
             "rd_addr": int(d.rvfi_rd_addr.value),
             "rd_wdata": int(d.rvfi_rd_wdata.value),
             "pc_wdata": int(d.rvfi_pc_wdata.value),

@@ -18,3 +18,6 @@ $PEREGRINE_ROOT/rtl/fub/peregrine_hazard.sv
 
 # Machine-mode CSR file and trap state
 $PEREGRINE_ROOT/rtl/fub/peregrine_csr.sv
+
+# Iterative multiply/divide unit (M extension)
+-f $PEREGRINE_ROOT/rtl/filelists/fub/peregrine_mdu.f

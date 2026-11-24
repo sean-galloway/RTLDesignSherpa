@@ -7,12 +7,13 @@
 # Module: rv32_arch_test
 # Purpose: riscv-arch-test (RISC-V International's architectural test suite,
 #          3.x / RISCOF signature format) for the falcon-suite RV32I cores:
-#          builds each rv32i_m/I test twice (DUT env and the suite's spike
+#          builds each rv32i_m/<EXT> test twice (DUT env and the suite's spike
 #          reference env), runs both reference models (spike and Sail) and
 #          requires their signatures to agree for the golden signature,
 #          hands the DUT image to a core's runner, and compares the DUT's
 #          signature region word for word.  Core-independent; each core's
-#          test file supplies the load / run / read-back.
+#          test file supplies the load / run / read-back.  The extension
+#          (I, M) is a parameter; I is the default every RV32I core uses.
 #
 # Documentation: vault/handbook/dv/riscv-arch-test.md
 # Subsystem: riscv-ip/common-rv32i
@@ -37,6 +38,11 @@ inside the repo's cocotb flow:
 * the DUT signature is read from the TB memory over the same range after
   the halt, and written as ``DUT-<core>.signature`` next to the reference.
 
+A core that traps on ecall (peregrine: machine-mode traps, no halt) builds
+with ``halt="tohost"``: its DUT image IS the reference build, which ends on
+the suite env's ``tohost`` store, and ``run_tohost`` runs it to that store
+(PRD §5 of peregrine-rv32im).
+
 The vendor tree is a pinned clone (``vendor/`` is git-ignored, like
 riscv-tests and riscv-formal): ``ensure_vendor`` checks the commit and says
 how to fetch it when it is missing.  Sail is the pinned release binary in
@@ -52,12 +58,25 @@ from pathlib import Path
 VENDOR_REL = Path("vendor") / "riscv-arch-test"
 PINNED_TAG = "3.10.0"
 PINNED_COMMIT = "fc32e41d49480fd99ba0a192dfff9c3319b44873"
-SUITE_REL = Path("riscv-test-suite") / "rv32i_m" / "I" / "src"
+SUITE_REL = Path("riscv-test-suite") / "rv32i_m" / "I" / "src"   # the default extension
 REF_ENV_REL = Path("riscof-plugins") / "rv32" / "spike_simple" / "env"
 DUT_ENV = Path(__file__).resolve().parent / "dut_model"
 
-# Gate level: one ALU op, one load, one store (each a full signature).
+# Gate level per extension: I = one ALU op, one load, one store; M = one
+# multiply, one signed divide, one unsigned remainder.
 GATE_TESTS = ("add-01", "lw-align-01", "sw-align-01")
+GATE_TESTS_BY_EXT = {"I": GATE_TESTS, "M": ("mul-01", "div-01", "remu-01")}
+
+# Extension -> (-march, spike --isa).  M adds the multiply/divide opcodes the
+# M tests are built from; I stays rv32i, so an RV32I core's build is unchanged.
+EXT_ISA = {"I": ("rv32i", "rv32i"), "M": ("rv32im", "rv32im")}
+
+
+def suite_rel(ext="I"):
+    """riscv-test-suite/rv32i_m/<ext>/src under the vendor clone."""
+    if ext not in EXT_ISA:
+        raise ValueError(f"unsupported arch-test extension {ext!r}; known {sorted(EXT_ISA)}")
+    return Path("riscv-test-suite") / "rv32i_m" / ext / "src"
 
 # Every rv32i_m/I test links at 0x8000_0000 (spike plugin link.ld).
 LINK_BASE = 0x8000_0000
@@ -76,7 +95,7 @@ _SAIL_URL = ("https://github.com/riscv/sail-riscv/releases/download/"
 # alignment; with linker relaxation on, the linker shrinks that padding to a
 # 16-bit c.nop, an illegal instruction on an RV32I core (and in spike
 # --isa=rv32i, where the test then never reaches its halt).
-_CFLAGS = ("-march=rv32i", "-mabi=ilp32", "-mno-relax", "-static",
+_CFLAGS = ("-mabi=ilp32", "-mno-relax", "-static",
            "-mcmodel=medany", "-fvisibility=hidden", "-nostdlib",
            "-nostartfiles", "-DXLEN=32", "-DTEST_CASE_1=True")
 
@@ -136,9 +155,9 @@ def ensure_vendor(repo_root):
     return root
 
 
-def discover(repo_root, level, tests=None):
+def discover(repo_root, level, tests=None, ext="I"):
     """Ordered test names (``add-01`` ...) for a level; ``tests`` pins a subset."""
-    src = ensure_vendor(repo_root) / SUITE_REL
+    src = ensure_vendor(repo_root) / suite_rel(ext)
     names = sorted(p.stem for p in src.glob("*.S"))
     if not names:
         raise FileNotFoundError(f"no tests under {src}")
@@ -149,7 +168,7 @@ def discover(repo_root, level, tests=None):
             raise ValueError(f"unknown arch tests: {sorted(missing)}")
         return [n for n in names if n in wanted]
     if level == "gate":
-        return [n for n in names if n in GATE_TESTS]
+        return [n for n in names if n in GATE_TESTS_BY_EXT[ext]]
     return names
 
 
@@ -220,10 +239,11 @@ class ArchTest:
     entry: int
     begin: int                   # begin_signature (byte address, DUT image)
     end: int                     # end_signature
-    halt_pc: int                 # rvmodel_halt (the ecall the core halts on)
+    halt_pc: int                 # rvmodel_halt (the ecall the core halts on); 0 for tohost
     words: dict = field(repr=False)          # DUT image {word_address: word}
     rw_words: frozenset = field(repr=False)  # word addresses of writable segments
     ref_signature: list = field(repr=False)  # spike's words (== Sail's)
+    tohost: int = 0                          # tohost address (halt="tohost" builds)
 
     @property
     def sig_words(self):
@@ -250,31 +270,40 @@ def _run(cmd, log):
     return proc
 
 
-def _compile(repo_root, src, env_dir, out):
+def _compile(repo_root, src, env_dir, out, ext="I"):
     vendor = ensure_vendor(repo_root)
     gcc = toolchain() / "riscv-none-elf-gcc"
-    _run([gcc, *_CFLAGS, "-T", vendor / REF_ENV_REL / "link.ld",
+    _run([gcc, f"-march={EXT_ISA[ext][0]}", *_CFLAGS, "-T", vendor / REF_ENV_REL / "link.ld",
           "-I", env_dir, "-I", vendor / "riscv-test-suite" / "env",
           src, "-o", out], out.with_suffix(".cc.log"))
 
 
-def build(repo_root, name, work_dir):
+def build(repo_root, name, work_dir, ext="I", halt="ecall"):
     """Compile ``name`` for the DUT and the reference, run spike and Sail,
     and return the ArchTest.  Raises when either reference fails or the two
-    references disagree."""
+    references disagree.
+
+    ``halt="ecall"`` builds the DUT image with dut_model (ends on ECALL);
+    ``halt="tohost"`` uses the reference build itself as the DUT image (ends
+    on the tohost store), for a core whose ecall traps."""
+    if halt not in ("ecall", "tohost"):
+        raise ValueError(f"halt must be 'ecall' or 'tohost', got {halt!r}")
     vendor = ensure_vendor(repo_root)
     ensure_sail(repo_root)
     work = Path(work_dir) / name
     work.mkdir(parents=True, exist_ok=True)
-    src = vendor / SUITE_REL / f"{name}.S"
-    dut_elf = work / "dut.elf"
+    src = vendor / suite_rel(ext) / f"{name}.S"
     ref_elf = work / "ref.elf"
-    _compile(repo_root, src, DUT_ENV, dut_elf)
-    _compile(repo_root, src, vendor / REF_ENV_REL, ref_elf)
+    _compile(repo_root, src, vendor / REF_ENV_REL, ref_elf, ext)
+    if halt == "ecall":
+        dut_elf = work / "dut.elf"
+        _compile(repo_root, src, DUT_ENV, dut_elf, ext)
+    else:
+        dut_elf = ref_elf
 
     ref_sig = work / "Reference-spike.signature"
     proc = subprocess.run(
-        [spike(), "--isa=rv32i", f"+signature={ref_sig}", "+signature-granularity=4",
+        [spike(), f"--isa={EXT_ISA[ext][1]}", f"+signature={ref_sig}", "+signature-granularity=4",
          str(ref_elf)], capture_output=True, text=True, timeout=120, check=False)
     if proc.returncode != 0 or not ref_sig.exists():
         raise RuntimeError(f"{name}: spike reference failed (rc {proc.returncode}): "
@@ -291,12 +320,15 @@ def build(repo_root, name, work_dir):
                            "the golden signature is undefined")
 
     entry, symbols, segments = read_elf(dut_elf)
-    for sym in ("begin_signature", "end_signature", "rvmodel_halt"):
+    halt_sym = "rvmodel_halt" if halt == "ecall" else "tohost"
+    for sym in ("begin_signature", "end_signature", halt_sym):
         if sym not in symbols:
             raise ValueError(f"{name}: DUT ELF has no {sym}")
     test = ArchTest(name=name, work_dir=work, dut_elf=dut_elf, ref_elf=ref_elf,
                     entry=entry, begin=symbols["begin_signature"],
-                    end=symbols["end_signature"], halt_pc=symbols["rvmodel_halt"],
+                    end=symbols["end_signature"],
+                    halt_pc=symbols.get("rvmodel_halt", 0),
+                    tohost=symbols.get("tohost", 0),
                     words=image_words(segments),
                     rw_words=frozenset(image_words([s for s in segments if s[3]])),
                     ref_signature=ref_words)
@@ -329,15 +361,16 @@ def compare(test, dut_words, core):
                    f"ref {test.ref_signature[first]:08x}")
 
 
-def write_summary(work_dir, core, level, results):
+def write_summary(work_dir, core, level, results, ext="I"):
     """results: list of dicts with name, passed, detail (+ optional keys)."""
     passed = sum(r["passed"] for r in results)
-    lines = [f"riscv-arch-test {PINNED_TAG} rv32i_m/I on {core} ({level} level): "
+    lines = [f"riscv-arch-test {PINNED_TAG} rv32i_m/{ext} on {core} ({level} level): "
              f"{passed}/{len(results)}",
              f"{'test':<20} {'status':<6} detail"]
     lines += [f"{r['name']:<20} {'PASS' if r['passed'] else 'FAIL':<6} {r['detail']}"
               for r in results]
-    path = Path(work_dir) / f"arch_test_summary_{core}_{level}.txt"
+    tag = "" if ext == "I" else f"_{ext}"
+    path = Path(work_dir) / f"arch_test_summary_{core}{tag}_{level}.txt"
     path.write_text("\n".join(lines) + "\n")
     return path
 
@@ -414,5 +447,62 @@ async def run_flat(dut, tb, core, repo_root, level, work_dir, mem_words,
     dut._log.info(f"riscv-arch-test summary: {len(results) - len(failures)}/"
                   f"{len(results)} passed ({summary})"
                   + (f", failures: {failures}" if failures else ""))
+    assert not failures, f"riscv-arch-test failures on {core}: {failures}"
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Runner for a core that traps on ecall and halts on tohost (peregrine)
+# ---------------------------------------------------------------------------
+
+async def run_tohost(dut, tb, core, repo_root, level, work_dir, mem_words,
+                     max_cycles, ext="I", tests=None):
+    """Run every rv32i_m/<ext> test on a core with real traps.
+
+    The DUT image is the reference build (``halt="tohost"``).  ``tb``
+    provides assert_reset / release_reset / run_to_tohost(tohost,
+    max_cycles) (PeregrineTB) and its TB top exposes ``mem``.  Pass is a
+    tohost value of 1 AND a signature equal to spike's (== Sail's).
+    """
+    work_dir = Path(work_dir)
+    work_dir.mkdir(parents=True, exist_ok=True)
+    names = discover(repo_root, level, tests, ext)
+    dut._log.info(f"riscv-arch-test {PINNED_TAG} rv32i_m/{ext} on {core} "
+                  f"({level} level): {len(names)} tests")
+    await tb.ensure_clock()
+    mem = dut.mem
+    results = []
+    dirty = set()
+    for name in names:
+        test = build(repo_root, name, work_dir, ext=ext, halt="tohost")
+        await tb.assert_reset()
+        poke(mem, mem_words, {a: 0 for a in dirty})
+        poke(mem, mem_words, test.load_words())
+        dirty = test.dirty_words()
+        await tb.assert_reset()          # let the deposits land before release
+        await tb.release_reset()
+        res = {"name": name, "passed": False}
+        try:
+            value = await tb.run_to_tohost(test.tohost, max_cycles=max_cycles)
+        except AssertionError as exc:
+            res["detail"] = f"no tohost store: {exc}"
+            results.append(res)
+            dut._log.info(f"{name}: FAIL {res['detail']}")
+            continue
+        if value != 1:
+            res["detail"] = f"tohost=0x{value:x}, expected 1"
+        else:
+            ok, detail = compare(test, peek_signature(mem, mem_words, test), core)
+            res["passed"] = ok
+            res["detail"] = f"{detail}; {len(tb.trace)} retired"
+        results.append(res)
+        dut._log.info(f"{name}: {'PASS' if res['passed'] else 'FAIL'} {res['detail']}")
+
+    failures = [r["name"] for r in results if not r["passed"]]
+    summary = write_summary(work_dir, core, level, results, ext)
+    dut._log.info(f"riscv-arch-test summary: {len(results) - len(failures)}/"
+                  f"{len(results)} passed ({summary})"
+                  + (f", failures: {failures}" if failures else ""))
+    assert results, f"riscv-arch-test rv32i_m/{ext} on {core}: nothing ran"
     assert not failures, f"riscv-arch-test failures on {core}: {failures}"
     return results

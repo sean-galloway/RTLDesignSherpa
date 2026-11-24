@@ -1,7 +1,7 @@
 # TASK-001: peregrine RV32IM core -- RTL, DV and targeted formal per PRD 0.2
 
 **Priority:** P2
-**Status:** ACTIVE (2026-11-23; stage 1 done)
+**Status:** ACTIVE (2026-11-24; stages 1 and 2 done)
 **Owner:** TBD (owner, 2026-11-23: "accept defaults on the rest, commit and
 push", ruling PRD P5-P14)
 
@@ -16,7 +16,8 @@ before the next:
    `ZICSR` parameters, both default 0 (P11). Gate: `CACHE_EN=0`, rv32ui +
    rv32mi; kestrel, merlin and gatling full suites and the common-rv32i
    unit tests unchanged.
-2. **M unit** (P3, P8). Gate: rv32um, riscv-arch-test `rv32i_m/M`.
+2. **M unit** (P3 revised to hold-in-EX, P8). Gate: rv32um,
+   riscv-arch-test `rv32i_m/M`.
 3. **Predictor** (P2, P5). Gate: predictor stress streams, `BP_EN` A/B.
 4. **Caches and fabric.** `peregrine_icache` (P9), amber as D$, the AXI4
    arbiter and CLINT (P7), `fence.i` (P10). Gate: everything at
@@ -73,4 +74,92 @@ Owner, 2026-11-23: "continue" (after the PRD 0.2 commit).
 - **Lessons.** Handbook
   [precise-trap-checks](../../../../../../../handbook/dv/precise-trap-checks.md).
 
-Next: stage 2, the M unit.
+## Stage 2: the M unit (done 2026-11-24)
+
+Owner, 2026-11-23: "Hold in EX" (the P3 conflict: a busy scoreboard writes
+the M result back after younger instructions retire, which RVFI cannot
+report), then "yes" to build it.
+
+- **`peregrine_mdu`** (new FUB, own filelist `peregrine_mdu.f`).
+  - Busy, done and a 5-bit count, no state-encoded FSM.
+  - Radix-2 shift-add multiply and restoring divide, 32 steps after a
+    start cycle that captures the operand magnitudes.
+  - Early-out for divide by zero and -2^31 / -1.
+  - Sign fixup on the registered result: the high word of a negated
+    product is `~hi + (lo == 0)`.
+  - `MUL_DSP=1` replaces the multiply with one registered product.
+  - Stall cycles: 33 iterative, 1 early-out, 2 `MUL_DSP` multiply.
+- **`peregrine_core`.**
+  - Hold-in-EX: the PC, IF/ID and ID/EX hold, and EX/MEM takes bubbles.
+    The ID interlock bubble is masked while the M instruction holds.
+  - The unit starts on the first EX cycle without `mem_wait` and latches
+    its operands. RVFI reports the latched operands, because the
+    forwarding selects go stale during the hold.
+  - A MEM redirect cancels the unit.
+  - `rv32i_decode` `M_EXT=1`, and `misa.M` is set.
+  - **An M instruction is not interruptible in MEM**; the interrupt is
+    taken on the next instruction. The first build let an interrupt
+    discard the finished M instruction, and a timer re-raised 3 to 40
+    cycles after each acknowledge livelocked it (PRD §4.3, handbook
+    [interrupts-must-not-discard-finished-work](../../../../../../../handbook/design/interrupts-must-not-discard-finished-work.md)).
+    This is a design addition beyond the owner's ruling and is flagged
+    for review.
+- **DV.**
+  - `test_peregrine_mdu`: the unit. A 14 x 14 edge cross product of all
+    eight operations against a spec model, plus 2,000 (func) or 20,000
+    (full) seeded random operations. It checks the exact stall count of
+    each operation, the done result held until consumed, operands
+    latched at start, and a cancel at every step. Both `MUL_DSP` builds.
+  - `test_peregrine_battery`: rv32um added, on both builds. spike runs
+    every suite as `rv32im`, because misa now says M.
+  - `test_peregrine_arch`: riscv-arch-test 3.10.0 `rv32i_m/M` through
+    the shared runner, which gained `ext=` and `halt="tohost"` (the
+    reference image is the DUT image, since peregrine traps on ecall).
+  - `test_peregrine_mext`: seeded generated programs of 15 hazard shapes
+    around M instructions, checked three ways (in-program register
+    compare, an RVFI shadow regfile on every operand and M result, spike
+    lockstep), plus timer-interrupt and `mem_wait` variants.
+- **Results, from clean** (`make clean-all && make run-all-full-parallel`):
+  - peregrine 33/33 cells.
+  - rv32um 8/8 and arch-test `rv32i_m/M` 8/8 (signatures equal to
+    spike's and Sail's), on both builds.
+  - rv32ui 42/42 and rv32mi 12/16, unchanged.
+  - mext full: 2,005 M results and about 16,800 operands checked per
+    interrupt variant; about 1,100 interrupts per run, none on an M
+    instruction and about 960 on the instruction after one.
+  - kestrel 66, merlin 60, gatling 45 and common-rv32i 12, the same
+    counts as before the shared runner changed.
+- **Mutation checks** (8 mutants, each rebuilt from clean, restored and
+  byte-compared; each failure read for its reason):
+  - mul-high negation carry dropped; divide-by-zero early-out removed;
+    remainder given the quotient's sign: caught by the unit test, rv32um
+    and arch-test.
+  - Unit not cancelled by a MEM redirect: caught by the shadow check
+    (x29 read stale). This needed the ecall handler to change the
+    operand: the same instruction re-executed with the same operands
+    hides it.
+  - M instruction interruptible: the livelock, a timeout.
+  - RVFI operands not latched: caught by the shadow check.
+  - The ID interlock bubble overwriting the held M instruction: caught by
+    the load-then-M-then-branch and CSR-around shapes.
+  - No EX/MEM bubble during the hold: caught by mext and rv32um.
+- **P8 measurement** (one seed, the same 5,941-instruction mext program,
+  34 % M instructions, so a stress mix and not a benchmark): 54,419
+  cycles iterative (CPI 9.16) against 22,737 with `MUL_DSP=1` (CPI 3.83).
+- **Independent RTL review** (rds-rtl-review, 2026-11-24): no defects.
+  - Risk: the `MUL_DSP=1` product is combinational between registers
+    that sit behind muxes, so the DSP cannot absorb a pipeline register.
+    It may miss 100 MHz on xc7a100t-1. To be measured at stage 7 (P14).
+    A fix adds a stall cycle and changes P8's 2.
+  - Cancel after start is unreachable in the core today: MEM holds only
+    bubbles once the unit runs. Only the unit test covers it. It becomes
+    live if a later stage lets MEM fill during the hold.
+  - The new M muxes select on unreset payload, so 4-state simulation
+    shows X on bubbles. Every consumer is gated by valid, per the
+    pipeline-register convention.
+- **Lessons.** Handbook
+  [precise-trap-checks](../../../../../../../handbook/dv/precise-trap-checks.md)
+  (multi-cycle units section) and
+  [interrupts-must-not-discard-finished-work](../../../../../../../handbook/design/interrupts-must-not-discard-finished-work.md).
+
+Next: stage 3, the predictor.

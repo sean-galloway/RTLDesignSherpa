@@ -21,8 +21,9 @@ things are added, and each is a lesson:
 2. **Precise traps.** A machine-mode CSR file, real exception delivery
    through `mtvec`, and interrupts from a CLINT-shaped block. kestrel's and
    merlin's halt contract is retired.
-3. **The M extension.** An iterative multiply/divide unit with a busy
-   scoreboard: the structural-hazard lesson.
+3. **The M extension.** An iterative multiply/divide unit that the M
+   instruction holds in EX until it is done: the structural-hazard
+   lesson (P3, revised 2026-11-23).
 4. **The memory hierarchy.** Split blocking L1s behind AXI4 masters onto
    the repo fabric, with MonBus visibility.
 
@@ -146,23 +147,49 @@ executing ("precise at the oldest instruction", spec rung 3). An
 instruction stalled in MEM on a D$ miss cannot take an interrupt until its
 access completes, because the cache is blocking.
 
+**An M instruction is not interruptible** (added 2026-11-23, TASK-001
+stage 2). It reaches MEM only with its result done, and the interrupt is
+taken on the next instruction instead, which is still precise: the
+boundary falls between the M instruction and its successor, and `mepc` is
+the successor's PC. The first stage-2 build let the interrupt take the M
+instruction, discarding its 33 cycles of work. A timer re-raised 3 to 40
+cycles after each acknowledge then caught every M instruction before it
+retired: a livelock, measured in the directed suite. The cost is interrupt
+latency: a run of back-to-back M instructions delays an interrupt by
+about 34 cycles each.
+
 ### 4.4 M unit
 
-- One iterative unit is started from EX. The spec's lesson is a structural
-  hazard, so the unit is a single shared resource.
-- **Busy scoreboard.** While the unit is busy, any M instruction in ID
-  stalls. So does any instruction that reads the M result's rd. The rd
-  becomes ready when the result writes back through the WB arm.
-- **Latency (P8):**
-  - Divide is radix-2 restoring with an early-out for divisor 0 and
-    overflow: 32 cycles plus a setup cycle (COD §3.4).
-  - Multiply is radix-2 shift-add, 32 cycles (COD §3.3), with a `MUL_DSP=1`
-    option for a one- or two-cycle DSP multiply. The option is the
-    measured contrast, and it makes the structural hazard disappear for
+- One iterative unit, `peregrine_mdu`, is started from EX. The spec's
+  lesson is a structural hazard, so the unit is a single shared resource.
+- **Hold in EX (P3, revised 2026-11-23, Sean: "Hold in EX").** The M
+  instruction waits in EX until its result is ready. The PC, IF/ID and
+  ID/EX hold, and EX/MEM takes bubbles. The result then writes back in
+  program order, so RVFI stays exact and the riscv-formal insn checks P12
+  relies on still apply. The busy scoreboard the spec described would
+  have let independent instructions pass the divider, with the M result
+  writing back after younger instructions retired; RVFI cannot report
+  that write. That scoreboard is gyrfalcon's lesson now.
+- **Operands.** The unit starts on the first EX cycle without `mem_wait`,
+  when the forwarded operands are valid, and latches them. The
+  forwarding selects go stale while the producers drain, so RVFI reports
+  the latched operands too.
+- **Latency (P8), in stall cycles with the M instruction in EX:**
+  - Divide is radix-2 restoring (COD §3.4): a start cycle that captures
+    the operand magnitudes, then 32 steps, so **33**. Divisor 0 and the
+    signed overflow -2^31 / -1 take the early-out: **1**.
+  - Multiply is radix-2 shift-add (COD §3.3): **33**. With `MUL_DSP=1` it
+    is one registered 32x32 product: **2**. The option is the measured
+    contrast, and it makes the structural hazard nearly disappear for
     multiplies.
+  - The sign fixup is applied on the registered result, so the start
+    cycle's negate sits after the forwarding mux, at about the ALU's
+    depth.
 - **Interaction with traps.** An M instruction raises no exceptions of its
-  own. If an older instruction traps while the unit is busy, the unit is
-  cancelled.
+  own. A MEM-stage trap or `mret` cancels the unit. Under hold-in-EX this
+  can only happen in the M instruction's first EX cycle: after that, the
+  instruction in MEM is a bubble. An M instruction is not interruptible
+  (§4.3).
 
 ### 4.5 Memory hierarchy
 
@@ -289,12 +316,12 @@ the worked version, with measured miss rates replacing the assumed ones.
 |---|---|---|---|
 | P1 | Pipeline shape | **DECIDED (spec, rung 3):** merlin's pipeline extended, single issue, in order | everything |
 | P2 | Predictor kind | **DECIDED (spec open-decisions row):** 2-bit bimodal + BTB, not 1-bit and not TAGE | IF, book, drill mode |
-| P3 | M unit | **DECIDED (spec):** iterative multicycle with a busy scoreboard | EX, hazard unit |
+| P3 | M unit | **DECIDED (spec), REVISED 2026-11-23 (Sean, "Hold in EX"):** iterative multicycle, the M instruction held in EX until done (front end stalls behind it), not a busy scoreboard with late writeback: the scoreboard's late rd write is invisible to RVFI and breaks P12's insn checks. The true scoreboard is gyrfalcon's lesson | EX, hazard unit |
 | P4 | Caches | **DECIDED (spec; amber PRD v0.8, 2026-10-30, Sean):** split blocking L1s, the D$ is amber, write-back + dirty bit | memory path |
 | P5 | Predictor sizing | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** BTB 32 entries direct-mapped, BHT 256 counters indexed by PC[9:2], no RAS, `BP_EN` parameter for the predict-not-taken A/B | IF area/timing, drill |
 | P6 | CSR set | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `mstatus` (MIE, MPIE, MPP fixed at M), `mie`, `mip`, `mtvec` (direct mode only), `mepc`, `mcause`, `mscratch`, `mtval`; read-only `misa`, `mhartid`=0, `mvendorid`/`marchid`/`mimpid`/`mconfigptr`=0; PMP CSRs with zero entries (`pmpcfg0-15`, `pmpaddr0-63` read 0, writes ignored: the spec makes them WARL, so a core without PMP still accepts them; added in stage 1, 2026-11-23); no Zicntr (gatling's 2026-10-21 precedent; cycle counts come from MonBus). CSR read-after-write stalls rather than forwards | decode, trap unit, rv32mi pass set |
 | P7 | Address map and fabric | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** RAM cacheable from `RESET_ADDR` (kestrel's 0x0000_0000); CLINT at 0x0200_0000 in the SiFive layout (`msip` +0x0, `mtimecmp` +0x4000, `mtime` +0xBFF8) inside the core wrapper; 0x1000_0000 and up uncached I/O (the `tohost` mailbox and board UART); the I$, D$ and uncached masters merged by a small house AXI4 arbiter to one fabric port | TB top, hive-serv glue |
-| P8 | M-unit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** radix-2 for both (33 cycles), `MUL_DSP` parameter for a 1–2 cycle DSP multiply as the measured contrast | CPI, book chapter |
+| P8 | M-unit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** radix-2 for both (33 cycles), `MUL_DSP` parameter for a 1–2 cycle DSP multiply as the measured contrast. Built 2026-11-23: 33 stall cycles iterative, 1 on a divide early-out, 2 with `MUL_DSP=1` | CPI, book chapter |
 | P9 | I$ | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** in-core `peregrine_icache`, direct-mapped 4 KiB, 64 B lines, read-only, one AXI4 read master; marked as the slot a cache-ip I$ would replace | IF, area |
 | P10 | `fence.i` | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** D$ clean-all + I$ invalidate + pipeline flush; needs a CPU-side clean-all request on amber (filed as cache-ip/amber-mesi-l1 TASK-004) | amber, Zifencei tests |
 | P11 | Decode growth | **DECIDED 2026-11-23 (Sean: "can't it have a param so there is one common file?"):** one `rv32i_decode` with parameters `M_EXT` and `ZICSR` (real CSR ops, `mret`, and trap causes in place of halt causes), both default 0. The new outputs (`m_op`, `csr_op`, `mret`) always exist and are constant 0 when their parameter is off, so kestrel, merlin and gatling elaborate the same logic they do today; their full suites and the common-rv32i unit tests are the proof. gyrfalcon's `A_EXT` and garuda's F decode extend the same file the same way | common-rv32i decode, its testplan and unit test; the three existing cores re-run unchanged |
@@ -322,6 +349,13 @@ the worked version, with measured miss rates replacing the assumed ones.
    bring-up.
 
 ## 8. History
+
+- 2026-11-23: TASK-001 stage 2 landed (the M unit). P3 revised to
+  hold-in-EX (Sean: "Hold in EX"): the busy scoreboard's late writeback
+  could not be reported on RVFI. §4.3 gains the rule that an M
+  instruction is not interruptible, after the first build livelocked under
+  a fast timer. Gates: rv32um 8/8 and riscv-arch-test rv32i_m/M 8/8 on
+  both `MUL_DSP` builds.
 
 - 2026-11-23: TASK-001 stage 1 landed (traps, CSR file, cacheless): rv32ui
   42/42 and rv32mi 12/16 against spike, the four exclusions being the

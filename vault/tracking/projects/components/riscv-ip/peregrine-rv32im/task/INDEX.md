@@ -24,7 +24,7 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-001** — peregrine RV32IM core: RTL, DV and targeted formal per PRD 0.2 (staged: traps cacheless, M unit, predictor, caches + fabric). Stage 1 (traps, cacheless) done 2026-11-23.
+- **TASK-001** — peregrine RV32IM core: RTL, DV and targeted formal per PRD 0.2 (staged: traps cacheless, M unit, predictor, caches + fabric). Stage 1 (traps, cacheless) done 2026-11-23; stage 2 (M unit, hold-in-EX) done 2026-11-24.
 
 ## Closed
 

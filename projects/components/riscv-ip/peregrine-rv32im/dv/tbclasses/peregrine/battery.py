@@ -6,7 +6,7 @@
 #
 # Module: battery
 # Purpose: riscv-tests battery runner for peregrine_core: every image of a
-#          suite (rv32ui, rv32mi, later rv32um) runs to its tohost store,
+#          suite (rv32ui, rv32mi, rv32um) runs to its tohost store,
 #          passes on tohost == 1, and at func level is locked against
 #          spike's commit stream, traps included.
 #
@@ -51,6 +51,7 @@ SPIKE = os.environ.get("PEREGRINE_SPIKE", "/mnt/data/tools/spike/bin/spike")
 GATE_TESTS = {
     "rv32ui": ("simple", "add", "addi"),
     "rv32mi": ("csr", "scall", "illegal"),
+    "rv32um": ("mul", "div", "remu"),
 }
 
 # Tests that need hardware peregrine does not have (PRD P6): they are

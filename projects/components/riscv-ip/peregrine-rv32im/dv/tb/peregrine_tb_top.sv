@@ -36,7 +36,9 @@ module peregrine_tb_top #(
     // 64 Ki words (256 KiB) serves every directed test and the rv32ui
     // battery; the riscv-arch-test runner sets 512 Ki (2 MiB) because
     // jal-01 is a 1.7 MiB image.  Addresses alias modulo the size.
-    parameter int          MEM_WORDS  = 65536
+    parameter int          MEM_WORDS  = 65536,
+    // M unit multiply: 0 iterative, 1 one registered DSP product (PRD P8).
+    parameter bit          MUL_DSP    = 1'b0
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -132,7 +134,8 @@ module peregrine_tb_top #(
     assign dmem_rdata = dmem_rdata_q;
 
     peregrine_core #(
-        .RESET_ADDR (RESET_ADDR)
+        .RESET_ADDR (RESET_ADDR),
+        .MUL_DSP    (MUL_DSP)
     ) u_peregrine_core (
         .clk            (clk),
         .rst_n          (rst_n),

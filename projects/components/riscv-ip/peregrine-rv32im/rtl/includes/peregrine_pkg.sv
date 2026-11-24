@@ -81,8 +81,8 @@ package peregrine_pkg;
     logic        valid;
   } if_id_t;
 
-  // ID/EX boundary.  csr_op is a control field (reset/flush); mret is
-  // payload, read only under valid.
+  // ID/EX boundary.  csr_op is a control field (reset/flush); mret and
+  // m_op are payload, read only under valid.
   typedef struct packed {
     logic [31:0] pc;
     logic [31:0] rs1_data;
@@ -105,6 +105,7 @@ package peregrine_pkg;
     logic [3:0]  exc_cause;
     logic        csr_op;
     logic        mret;
+    logic        m_op;          // M extension: funct3 selects the operation
     logic        valid;
     logic [31:0] insn;
   } id_ex_t;
@@ -128,6 +129,7 @@ package peregrine_pkg;
     logic        csr_wen;
     logic [31:0] csr_wdata;
     logic        mret;
+    logic        m_op;          // payload: an M instruction is not interruptible
     logic        valid;
     logic [31:0] insn;
     logic [31:0] imm;

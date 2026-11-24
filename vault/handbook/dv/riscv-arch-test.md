@@ -24,8 +24,13 @@ references and requires them to agree.
   `rv32_arch_test.ensure_vendor` checks the commit and prints the clone
   command when the tree is missing. 3.10.0 is the last 3.x release; 4.x is
   a different framework, not a version bump.
-- **Scope:** `rv32i_m/I`, 39 tests. The M, A and F rungs add their
-  directories when they land.
+- **Scope:** `rv32i_m/I`, 39 tests, on kestrel, merlin and gatling;
+  `rv32i_m/M`, 8 tests, on peregrine (2026-11-23). The A and F rungs add
+  their directories when they land.
+  - The extension is a parameter of the runner (`ext="I"` default,
+    `ext="M"`). It picks the source directory, `-march` (`rv32i` or
+    `rv32im`) and spike's `--isa`, and the gate subset (M: mul-01,
+    div-01, remu-01). Sail's default RV32 config already has M.
 - **Harness:** `projects/components/riscv-ip/common-rv32i/dv/arch_test/`.
   `rv32_arch_test.py` builds, runs the reference and compares. `dut_model/model_test.h`
   is the DUT model: `RVMODEL_HALT` is `ecall`, which every falcon core
@@ -33,6 +38,12 @@ references and requires them to agree.
 - **Per core:** `test_<core>_arch.py` in kestrel, merlin and gatling. A
   test passes when the core halts with cause 1 at `rvmodel_halt` and every
   signature word read from the TB memory equals the reference's.
+- **A core with real traps** cannot halt on `ecall`: peregrine traps it to
+  `mtvec`. Its harness builds with `halt="tohost"` and runs `run_tohost`.
+  The DUT image is the reference build itself, which ends on the suite
+  env's `tohost` store, so the DUT and reference images are identical. A
+  test passes on a tohost value of 1 and a signature equal to the
+  reference's. `test_peregrine_arch.py` runs it on both `MUL_DSP` builds.
   - Gate runs 3 tests (add-01, lw-align-01, sw-align-01).
   - Func and full run all 39.
   - gatling runs four different tests at once, rotated so each context runs
