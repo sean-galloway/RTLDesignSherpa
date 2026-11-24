@@ -134,3 +134,9 @@ whose other presets never show it.
 > model's walk drifted because its first ACT after a REF was three slots early;
 > with the `rfc_block` term (SKU default) the model's `defaults` cell is the
 > board's 278 / 278 on 27 / 40 phases. The owner's decision above is unchanged.
+
+> 2026-11-24: the owner chose the third option, the read-priority direction
+> register -- memory-controllers MC-024 (designed, priced in the model:
+> one mode on every refresh phase, the board's fast shape as the rule). This
+> issue closes into MC-024 when it lands on the board.
+

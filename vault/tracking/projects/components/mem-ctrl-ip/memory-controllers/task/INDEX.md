@@ -1,10 +1,10 @@
 # memory-controllers — task lane
 
-**Next ID: MC-024** — never recycle a number.
+**Next ID: MC-025** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
@@ -19,6 +19,14 @@
   bank timers' CSR-derived flag (the last false-pathed 2026-11-22). A
   structural cut priced in the model first; floorplanning is recorded as
   making it worse. Filed 2026-11-22 from MC-020 decision 2.
+
+- **MC-024** -- the read-priority direction register: a runtime mode of
+  the pick core's register (no read cap, write holds of 16, a write turn
+  after 512 starved cycles). Priced in the SKU model: the mixed cell 278 /
+  278 -> 307 / 597 (+10.6 percent union), read latency halved, one mode on
+  every refresh phase; the cost is the write share under sustained reads
+  (278 -> 124). RTL designed (~40 LUT); waiting on the owner's write-floor
+  and reset-default decisions. Filed 2026-11-24 (ISSUE-005's third option).
 
 ## Active
 

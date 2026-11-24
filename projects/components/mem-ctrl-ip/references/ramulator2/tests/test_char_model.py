@@ -614,3 +614,34 @@ def test_rfc_block_is_the_sku_default_and_moves_the_first_act_after_a_refresh():
     assert cm.CONFIGS["granite_sku100"].rfc_block is True
     assert cm.CONFIGS["sku_norfcblock"].rfc_block is False
 
+
+def test_read_priority_register_makes_the_mixed_cell_one_mode_and_bounds_the_writes():
+    """MC-024 (priced 2026-11-24): the read-priority direction register (dir_mode 1) takes the board's fast shape
+    as the rule. On the mixed cell under both open-page presets it is ONE mode at two GO phases a refresh period
+    apart (the symmetric register is a race the refresh phase places, ISSUE-005), the union is above the
+    symmetric register's, the reads' mean latency halves, and no write head waits much past wr_starve."""
+    import os
+    import tempfile
+    from dataclasses import replace
+    sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=4000)
+    out = {}
+    try:
+        for cfg in ("granite_sku100", "granite_sku100_open"):
+            for mode in (0, 1):
+                for off in (0, 780):
+                    os.environ["GRANITE_GO_OFFSET"] = str(off)
+                    with tempfile.TemporaryDirectory() as t:
+                        out[(cfg, mode, off)] = cm.run_scenario(
+                            replace(cm.CONFIGS[cfg], name=f"rp{mode}o{off}", dir_mode=mode), sc, t)
+    finally:
+        os.environ.pop("GRANITE_GO_OFFSET", None)
+    for cfg in ("granite_sku100", "granite_sku100_open"):
+        rp = [out[(cfg, 1, off)] for off in (0, 780)]
+        sym = out[(cfg, 0, 0)]
+        rds = [float(r["rd_bw_mb_s"]) for r in rp]
+        assert abs(rds[0] - rds[1]) / rds[0] < 0.02, (cfg, rds)                      # one mode
+        assert min(rds) > 1.5 * float(sym["rd_bw_mb_s"]), (cfg, rds, sym["rd_bw_mb_s"])
+        assert float(rp[0]["rd_avg_latency_cyc"]) < 0.75 * float(sym["rd_avg_latency_cyc"]), cfg
+        assert all(float(r["wr_wait_max"]) < cm.CONFIGS[cfg].wr_starve + 128 for r in rp), cfg
+    assert cm.CONFIGS["granite_sku100"].dir_mode == 0 and cm.CONFIGS["sku_rdprio"].dir_mode == 1
+

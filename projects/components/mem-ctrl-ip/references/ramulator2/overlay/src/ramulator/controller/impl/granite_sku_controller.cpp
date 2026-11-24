@@ -220,6 +220,18 @@ class GraniteSKUController : public ControllerBase {
                                 //   undershoots; the mixture above is the term); 0 = off
   int m_dir_batch_max = 255;
   int m_dir_hold_idle = 8;
+  // dir_mode 1: the read-priority direction register (memory-controllers MC-024, priced here before any RTL;
+  //   char_results/model_mc024_read_priority_2026-11-24.md). A read hold has no batch cap. A write hold is capped
+  //   at wr_burst columns. The register leaves the reads for the writes when the reads drain (as the symmetric
+  //   register does) or on write STARVATION: a write head queued wr_starve slots with no write column fired
+  //   (registered, as the RTL would carry it). 0 = the symmetric register, the RTL. Priced and NOT carried: a
+  //   pool-occupancy watermark drain (the writers refill the pool as fast as it drains, so the drain ran to the
+  //   cap and the reads starved: 289 MB/s), and a read quantum under write pressure (more turnarounds, a lower
+  //   write share: 113 against 124 on mixed_rd4).
+  int m_dir_mode = 0;
+  int m_wr_starve = 512, m_wr_burst = 16;
+  bool m_press = false;       // write starvation, registered
+  int m_wr_wait = 0;          // slots a write head has been queued with no write column
   bool m_dir_owns_rows = true;
   int m_lane = 3;
   int m_lane_idle = 0;          // MC-020: 0 = the lane fires beside a main column only (the RTL); 1 = also into a main slot
@@ -376,6 +388,9 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_rfc_block, bool, "rfc_block").default_val(true);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
+    RAMULATOR_PARSE_PARAM(m_dir_mode, int, "dir_mode").default_val(0);
+    RAMULATOR_PARSE_PARAM(m_wr_starve, int, "wr_starve").default_val(512);
+    RAMULATOR_PARSE_PARAM(m_wr_burst, int, "wr_burst").default_val(16);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);
     RAMULATOR_PARSE_PARAM(m_lane, int, "lane").default_val(3);
     RAMULATOR_PARSE_PARAM(m_lane_idle, int, "lane_idle").default_val(0);
@@ -1125,6 +1140,8 @@ class GraniteSKUController : public ControllerBase {
       // the leftover fires: the pick made before the flip; the direction and its batch stand
     } else if (fired_col && fired_dir != cur) {
       dir_nxt = fired_dir == 1; batch_nxt = 1; cause = 0;
+    } else if (m_dir_mode == 1 && cur == 0 && m_press) {
+      dir_nxt = true; batch_nxt = 0; cause = 4;                     // write starvation: the writes' turn
     } else if (!col_pend[cur] && col_any[1 - cur] && !hold_idle && !(row_any[cur] || win_row_cur)) {
       dir_nxt = !m_dir; batch_nxt = 0; cause = 1;
     } else if (m_batch_done && col_any[1 - cur]) {
@@ -1200,10 +1217,24 @@ class GraniteSKUController : public ControllerBase {
     if (dmd_fire) { m_last_was_row = !fired_col; m_rotor = (fired_pair + 1) % np; }
     m_col_more[0] = fired_col && fired_dir == 0 && w_bsr;
     m_col_more[1] = fired_col && fired_dir == 1 && w_bsr;
+    if (m_dir_mode == 1) {
+      // starvation, registered from this slot's write heads and the counter
+      bool wr_queued = false;
+      for (int p = 0; p < np; p++) if (m_heads[p].vld && dir_of(p)) wr_queued = true;
+      if (fired_col && fired_dir == 1) m_wr_wait = 0;
+      else if (wr_queued) m_wr_wait++;
+      else m_wr_wait = 0;
+      m_press = m_wr_starve > 0 && m_wr_wait >= m_wr_starve;
+    }
     m_dir = dir_nxt;
     m_dir_flip = flip;
     m_batch = batch_nxt;
-    m_batch_done = m_dir_batch_max != 0 && batch_nxt >= m_dir_batch_max;
+    {
+      // the hold's cap: symmetric = the batch cap both ways; read priority = none on a read hold, wr_burst on
+      // a write hold
+      const int cap = m_dir_mode != 1 ? m_dir_batch_max : !dir_nxt ? 0 : m_wr_burst;
+      m_batch_done = cap != 0 && batch_nxt >= cap;
+    }
     bump_idle(flip || (dmd_fire && fired_dir == cur));
     // lane_idle 2: an idle main slot with a lane winner ready arms the alone-fire for the next slot
     m_lane_alone_pending = m_lane_idle == 2 && main_idle && l_ok && l_timer_ok && !l_fire;

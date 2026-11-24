@@ -222,7 +222,13 @@ PATTERNS = [
     Scenario("col_ilv_s2_bl8", "bank_step", burst_len=8, txn_count=65535, param=2),
     Scenario("col_ilv_s4_bl8", "bank_step", burst_len=8, txn_count=65535, param=4),
 ]
-SUITES = {"every": EVERY, "windows": WINDOWS, "all": EVERY + WINDOWS, "patterns": PATTERNS,
+# memory-controllers MC-024 (the read-priority direction register): one direction outlasting the other, so the
+# shorter direction's MB/s is its share while the longer one keeps the bus contended. Not a board suite.
+SUSTAINED = [
+    Scenario("mixed_rd4_bl8", "mixed", burst_len=8, txn_count=8000, threads=WINDOW_GENS, split=True, param=4),
+    Scenario("mixed_wr4_bl8", "mixed", burst_len=8, txn_count=8000, threads=WINDOW_GENS, split=True, param=-4),
+]
+SUITES = {"every": EVERY, "windows": WINDOWS, "sustained": SUSTAINED, "all": EVERY + WINDOWS, "patterns": PATTERNS,
           "everything": EVERY + WINDOWS + PATTERNS}
 
 
@@ -276,14 +282,19 @@ def injector_walks(sc: Scenario) -> Tuple[List[List[int]], List[List[int]]]:
     elif sc.family == "mixed":
         pairs = max(1, sc.threads // 2)
         layout = [(g % pairs, g // pairs) for g in range(sc.threads)]
-        def region(r: int) -> List[List[int]]:
+        # param (the sustained suite): > 0 lengthens the READ streams by that factor, < 0 the WRITE streams by
+        # its magnitude, so one direction runs on after the other's last burst and a share under sustained
+        # load shows in the shorter direction's window; 0 = equal streams (the board's cell)
+        def region(r: int, k: int) -> List[List[int]]:
             out = []
             for bank, rowgrp in layout:
                 row = rowgrp + r * REGION_ROWS
                 start = bank * GEOM.bank_stride + row * GEOM.row_stride_same_bank
-                out.append(list(_walk(start, bb, GEOM.page_bytes - 1, n)))
+                out.append(list(_walk(start, bb, GEOM.page_bytes - 1, n * k)))
             return out
-        return region(0), region(1)
+        kr = int(sc.param) if sc.param > 0 else 1
+        kw = int(-sc.param) if sc.param < 0 else 1
+        return region(0, kw), region(1, kr)
     elif sc.family == "rw_mix":
         # one stream per injector in its own bank, a row-hit walk; which bursts are writes is
         # decided below (interleave_mixed_bursts) from the same LFSR, so the walk is shared
@@ -460,6 +471,11 @@ class ModelConfig:
                                        #   counter the REF grant loads with the CSR tRFC reads zero, the first ACT at grant + 1 +
                                        #   tRFC + 2 (16 at the SKU's 13; the proxy probe 2026-11-24); False = the ACT at the
                                        #   device's tRFC with the lookahead (grant + 13), the model before MC-023 item 4
+    dir_mode: int = 0                  # GraniteSKU: 0 = the symmetric direction register (the RTL); 1 = the read-priority register
+                                       #   priced for memory-controllers MC-024 (no read cap, writes capped at wr_burst, a write
+                                       #   turn forced after wr_starve slots of a starved write head)
+    wr_starve: int = 512               # GraniteSKU dir_mode 1: write-starvation bound, MC cycles
+    wr_burst: int = 16                 # GraniteSKU dir_mode 1: write hold cap, columns
                                        #   column + tRTP / tWR) in MC cycles, the ACT at fire + t_rp_ap of the column's path (MC-020 decision 2;
                                        #   False = the CK-exact DRAM terms alone, the model before 2026-11-22)
     t_rp_ap_rd: int = 1                # GraniteSKU: TIMINGS_RP_AP.tRP_AP_RD -- the tRP the self-close reloads after an RDA, MC cycles (the host's
@@ -650,6 +666,8 @@ CONFIGS.update({c.name: c for c in [
     _sku("laneidle", "the row lane also firing into an idle main slot, live (the alone-firing lane MC-014 cut)", lane_idle=1),
     _sku("rpshared", "the auto-precharge self-close reloading the shared tRP (2 / 2): the RTL before the TIMINGS_RP_AP "
          "fields (MC-020 decision 2)", t_rp_ap_rd=2, t_rp_ap_wr=2),
+    _sku("rdprio", "the read-priority direction register (memory-controllers MC-024: no read cap, write holds of 16 "
+         "columns, a write turn after 512 starved cycles)", dir_mode=1),
     _sku("norfcblock", "the first ACT after a refresh at the device's tRFC with the lookahead, no tRFC demand block: "
          "the model before memory-controllers MC-023 item 4", rfc_block=False),
     _sku("noapseq", "the auto-precharge path at the CK-exact DRAM terms alone: the model before the sequenced self-close "
@@ -768,6 +786,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
             hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag, close_lag=cfg.close_lag,
             ap_seq=cfg.ap_seq, t_rp_ap_rd=cfg.t_rp_ap_rd, t_rp_ap_wr=cfg.t_rp_ap_wr, rfc_block=cfg.rfc_block,
+            dir_mode=cfg.dir_mode, wr_starve=cfg.wr_starve, wr_burst=cfg.wr_burst,
             **_sku_debug_params(),
         )
         sku_kw.update(_sku_param_overrides())
@@ -934,11 +953,13 @@ def run_scenario(cfg: ModelConfig, sc: Scenario, tmpdir: str) -> dict:
                            interleave_bursts(r_walks, sc.burst_len, "LD")], addr_map=am, split=sc.split)
         fe, c = run_pass(cfg, path, split=sc.split)
         row.update(_both_dirs_row(fe, c))
+        rd_bytes = sum(len(r) for r in r_walks) * sc.burst_bytes   # = per_dir_bytes unless the sustained suite's param
         notes.append(f"{sc.threads} writers + {sc.threads} readers from one GO, union "
-                     f"{_bw(2 * per_dir_bytes, fe['cycles'])} MB/s over {fe['cycles']} cycles"
-                     + ("; two independent streams (split_directions)" if sc.split else ""))
+                     f"{_bw(per_dir_bytes + rd_bytes, fe['cycles'])} MB/s over {fe['cycles']} cycles"
+                     + ("; two independent streams (split_directions)" if sc.split else "")
+                     + (f"; streams {per_dir_bytes} / {rd_bytes} bytes" if rd_bytes != per_dir_bytes else ""))
         row["wr_bw_mb_s"] = _bw(per_dir_bytes, row["wr_cycles"])
-        row["rd_bw_mb_s"] = _bw(per_dir_bytes, row["rd_cycles"])
+        row["rd_bw_mb_s"] = _bw(rd_bytes, row["rd_cycles"])
     elif sc.family == "rw_mix":
         path = os.path.join(tmpdir, f"{sc.name}.trace")
         write_trace(path, [interleave_mixed_bursts(w_walks, sc.burst_len, sc.param)], addr_map=am)
