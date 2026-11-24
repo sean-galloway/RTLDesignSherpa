@@ -1,7 +1,7 @@
 # TASK-001: peregrine RV32IM core -- RTL, DV and targeted formal per PRD 0.2
 
 **Priority:** P2
-**Status:** ACTIVE (2026-11-24; stages 1 and 2 done)
+**Status:** ACTIVE (2026-11-24; stages 1-3 done)
 **Owner:** TBD (owner, 2026-11-23: "accept defaults on the rest, commit and
 push", ruling PRD P5-P14)
 
@@ -164,4 +164,112 @@ report), then "yes" to build it.
   (multi-cycle units section) and
   [interrupts-must-not-discard-finished-work](../../../../../../../handbook/design/interrupts-must-not-discard-finished-work.md).
 
-Next: stage 3, the predictor.
+## Stage 3: the predictor (done 2026-11-24)
+
+Owner, 2026-11-24: "Push and continue".
+
+- **`peregrine_bpred`** (new FUB, own filelist).
+  - Direct-mapped BTB: 32 entries, full tag, target, unconditional bit.
+  - BHT: 256 2-bit counters indexed by PC[9:2].
+  - `BP_EN=0` instantiates nothing and never predicts taken.
+  - A non-branch that hits the BTB (a stale entry after rewritten code)
+    clears its entry.
+  - Only the BTB valid bits reset. The BTB payload and the BHT are
+    LUTRAM. Installing a conditional entry writes its counter to weakly
+    not taken (`01`) instead of stepping it, so no lookup reads a value
+    nothing wrote (see the review below).
+- **`peregrine_core`.**
+  - IF fetches the predicted PC.
+  - EX flags a mispredict (wrong direction, or a wrong target on a taken
+    guess) and redirects to the resolved next PC: 2 bubbles. A correct
+    taken guess costs 0.
+  - The predictor is written once per instruction as it leaves EX: not
+    under `mem_wait`, not during an M hold, not when a MEM redirect kills
+    it.
+  - An instruction held in EX redirects only as it leaves.
+  - The guess and the flag are reported at retire (`rvfi_bp_pred_taken`,
+    `rvfi_bp_pred_target`, `rvfi_bp_mispredict`).
+- **DV.**
+  - `test_peregrine_bpred`: the unit against an exact model, cycle by
+    cycle, over a PC pool built to alias. Both `BP_EN` builds.
+  - `test_peregrine_predictor`: the PRD §5 streams. Loops of trip count 1
+    to 4, BTB and BHT aliasing pairs (the alias property checked from the
+    linked symbols), JALR target changes, mispredicts with an ID interlock
+    on the wrong path, a stale entry on an M instruction, a branch killed
+    by a trap in EX, and the generated hazard programs.
+    - Some streams run again under random `mem_wait`.
+    - Every program runs on both builds, with the program's own result
+      check, spike lockstep, the RVFI shadow check, and a per-instruction
+      prediction check against the model under the states pipeline
+      timing allows (BHT counters as value sets, because they carry over
+      a reset).
+    - The pytest wrapper then makes the A/B comparison.
+- **Results, from clean** (`make clean-all && make run-all-full-parallel`,
+  final RTL): 42/42 cells, 0 reruns, on the failing seed base 1764875541
+  (replayed) and on a fresh one (1428106066).
+  - A/B at full: with `BP_EN=0` every taken transfer mispredicts, as on
+    merlin. With `BP_EN=1` the speedup is 1.32 / 1.18 / 1.28 / 1.35 on
+    loop trip counts 1 to 4, 1.81 on `bht_alias`, 1.33 on `jalr_targets`
+    and `btb_alias`, 1.04 on `interlock`, 1.05 on `trap_shadow`, and
+    1.005 on the generated programs. The table is
+    `logs/predictor_full/predictor_ab_full.txt`.
+  - One gate cell failed before the replay: `generated`, x26 wrong. spike
+    failed the same program, so it was a stage-2 generator bug, not the
+    core: `csr_around` let an M instruction read the register holding
+    `mie`, which the generator does not model. Fixed in
+    `mext_program.py`.
+  - No shared file changed in this stage, so kestrel, merlin and gatling
+    are untouched.
+- **Mutation checks** (9, each rebuilt from clean, restored and
+  byte-compared, each failure read for its reason; the final pass ran on
+  the final RTL and streams, all 9 caught):
+  - BHT counter moving against the outcome; stale-entry kill removed; BTB
+    tag not compared: caught by the unit test and the streams.
+  - Redirect during the M hold: wrong result on `stale_entry`.
+  - Predictor written by a trap-killed instruction: `trap_shadow`.
+    Caught by the first version (alternating direction), then **survived
+    once installs wrote `01`**: the killed copy's update lands before the
+    re-executed copy's lookup, and both counters re-converge at 00 on
+    every not-taken pass. Caught again after the stream changed to T, T,
+    N, N.
+  - Install stepping the old counter (the review finding): caught by the
+    unit test's randomized initial memory.
+  - Wrong-target guess not flagged: `jalr_targets`.
+  - Fetch ignoring the guess: wrong result.
+  - Predictor written during `mem_wait`: **survived the first pass.** The
+    only `mem_wait` run was the generated program, whose branches mostly
+    execute once. It was caught once `loop_trip3`, `interlock` and
+    `trap_shadow` also ran under `mem_wait`.
+- **Independent RTL review** (rds-rtl-review, 2026-11-24): no
+  correctness defect.
+  1. A real 4-state defect: installing a conditional entry stepped a
+     counter nothing had written (X in Icarus or Questa; Verilator's
+     2-state zeros hid it). The unit test now randomizes the initial
+     memory contents (`--x-initial unique`, `+verilator+rand+reset+2`),
+     which failed the old RTL on seeds 11, 22 and 33.
+     - Fixed: an install writes a fixed value.
+     - The first fixed value, weakly taken, passed every correctness check
+       but lost to predict-not-taken on alternating branches: `loop_trip2`
+       0.998x, `interlock` 0.982x.
+     - Weakly not taken (`01`) is a zeroed counter after one taken step
+       (the board's power-up behaviour) and wins on every stream. **A
+       policy choice: flagged for the owner.**
+  2. "A function of the retired stream" was imprecise: an instruction
+     that traps on its own exception, or is interrupted, also updated. The
+     wording was fixed in the PRD, the core header and the model, and
+     the model already replays trap beats.
+  3. The EX mispredict redirect path is longer (target add, 32-bit
+     compare, PC mux): added to P14's paths to watch at stage 7.
+  4. `ram_style` sat under an `ifdef XILINX` no flow defines; now
+     unconditional (the repo idiom).
+- **Limit of the check.** On some beats the allowed states predict
+  differently, so the check accepts either answer there: 400 of
+  `loop_trip2`'s beats and about 1,600 of `interlock`'s at full, 0 on the
+  generated programs. Pinning those down needs the lookup cycle modelled
+  exactly.
+- **Lessons.** Handbook
+  [branch-predictor-checks](../../../../../../../handbook/dv/branch-predictor-checks.md).
+
+Next: stage 4, the caches and fabric (needs cache-ip/amber-mesi-l1
+TASK-004 for `fence.i`), or stage 6 (measure amber's hit latency, P13),
+which the stage-4 design depends on.

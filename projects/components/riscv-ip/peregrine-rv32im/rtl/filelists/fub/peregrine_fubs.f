@@ -21,3 +21,6 @@ $PEREGRINE_ROOT/rtl/fub/peregrine_csr.sv
 
 # Iterative multiply/divide unit (M extension)
 -f $PEREGRINE_ROOT/rtl/filelists/fub/peregrine_mdu.f
+
+# Branch predictor (BTB + 2-bit BHT)
+-f $PEREGRINE_ROOT/rtl/filelists/fub/peregrine_bpred.f

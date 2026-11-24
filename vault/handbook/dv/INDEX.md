@@ -38,6 +38,7 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[coverage]] - Verilator, functional bar, the monbus packet-type matrix
 - [[formal]] - sv2v/SBY flow, mutation rule, vacuity traps
 - [[riscv-arch-test]] - RISC-V International's golden-signature suite on the falcon RV32I cores: RISCOF's DUT-vs-spike compare in cocotb; build with -mno-relax or a relaxed c.nop hangs the reference; images exceed the 256 KiB TB memory
+- [[branch-predictor-checks]] - a predictor changes only timing: report each guess at retire and hold it to a model under the states pipeline timing allows; unreset counters as value sets; one table region per aliasing stream; a stream per mutant the general ones miss (peregrine stage 3)
 - [[precise-trap-checks]] - proving traps and interrupts precise: count memory requests against retired accesses (a doubled store is invisible to the program), vary the interrupt delay, register the TB interrupt source, sample in ReadOnly, lockstep against spike --priv=m with read-only-zero PMP CSRs
 - [[cloud-sandbox]] - running sims off the workstation; the Verilator pin, the PyPI pin
 - [[silent-fallbacks]] - why almost every wrong DV conclusion is something that did not happen without saying so

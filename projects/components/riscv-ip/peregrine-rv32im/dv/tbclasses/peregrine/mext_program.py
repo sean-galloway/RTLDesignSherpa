@@ -225,7 +225,10 @@ class _Gen:
         # interlock fires in ID during the M instruction's first EX cycle.
         rd = self.reg()
         self.emit(f"csrr x{rd}, mie")
-        self.m_op(self.reg(exclude=(rd,)), self.reg(), self.reg())
+        # rd holds mie, a value the model does not track (0, or MTIE when
+        # the TB enables interrupts), until the andi below: keep it out of
+        # the M instruction's sources as well as its destination.
+        self.m_op(self.reg(exclude=(rd,)), self.reg(exclude=(rd,)), self.reg(exclude=(rd,)))
         self.emit(f"csrr x{rd}, mtvec")
         self.emit(f"andi x{rd}, x{rd}, 0")
         self.regs[rd] = 0

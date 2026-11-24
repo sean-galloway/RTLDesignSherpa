@@ -115,7 +115,36 @@ peregrine is meant to diff against merlin as additions only.
 - **Update at EX resolution.** The counter and the BTB entry are written
   when the branch resolves, not when it retires. An update from a branch
   that a trap later squashes is harmless, because predictor state is not
-  architectural.
+  architectural. As built (2026-11-24), the write happens once per
+  instruction as it leaves EX: not under `mem_wait`, not while an M
+  instruction holds, and not when a MEM-stage redirect kills it. Every
+  instruction that leaves EX retires, as an ordinary beat or as a trap
+  beat (its own exception, or an interrupt taken at MEM), so the
+  predictor state is a function of the retire stream including trap
+  beats. That is what lets the DV hold every prediction to a model. An
+  interrupted branch is the exception: it updated in EX with an outcome
+  its trap beat does not report, so the model check runs without
+  interrupts.
+- **As built (TASK-001 stage 3, 2026-11-24).**
+  - A non-branch that hits the BTB (a stale entry after the code was
+    rewritten) mispredicts once and clears the entry.
+  - An instruction held in EX by the M unit redirects only as it leaves:
+    a flush during the hold would kill it in ID/EX.
+  - The BTB valid bits reset. The BTB payload and the BHT are LUTRAM with
+    no reset, so BHT counters carry over a core reset. A lookup reads a
+    counter only on a hit of a conditional entry, and installing a
+    conditional entry writes its counter to weakly not taken (`01`)
+    instead of stepping it, so no prediction depends on a value nothing
+    wrote. (The first build stepped it from its old value: X in a 4-state
+    simulator. The independent review found it, and the unit test now
+    randomizes the initial memory contents.) `01` is a zeroed counter
+    after one taken step, the board's behaviour from power-up. Weakly
+    taken (`10`) was measured first and made alternating branches
+    mispredict every outcome: `loop_trip2` and `interlock` fell to 0.998x
+    and 0.982x of predict-not-taken.
+  - The prediction and the mispredict flag are reported at retire
+    (`rvfi_bp_pred_taken`, `rvfi_bp_pred_target`, `rvfi_bp_mispredict`),
+    beside `rvfi_trap_cause`.
 - **Sizes (P5):** BTB 32 entries and BHT 256 entries, both
   elaboration parameters, plus a `BP_EN=0` build that falls back to
   merlin's predict-not-taken. The predictor drill (core_drills mode 3)
@@ -320,7 +349,7 @@ the worked version, with measured miss rates replacing the assumed ones.
 | P2 | Predictor kind | **DECIDED (spec open-decisions row):** 2-bit bimodal + BTB, not 1-bit and not TAGE | IF, book, drill mode |
 | P3 | M unit | **DECIDED (spec), REVISED 2026-11-23 (Sean, "Hold in EX"):** iterative multicycle, the M instruction held in EX until done (front end stalls behind it), not a busy scoreboard with late writeback: the scoreboard's late rd write is invisible to RVFI and breaks P12's insn checks. The true scoreboard is gyrfalcon's lesson | EX, hazard unit |
 | P4 | Caches | **DECIDED (spec; amber PRD v0.8, 2026-10-30, Sean):** split blocking L1s, the D$ is amber, write-back + dirty bit | memory path |
-| P5 | Predictor sizing | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** BTB 32 entries direct-mapped, BHT 256 counters indexed by PC[9:2], no RAS, `BP_EN` parameter for the predict-not-taken A/B | IF area/timing, drill |
+| P5 | Predictor sizing | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"); built 2026-11-24:** BTB 32 entries direct-mapped, BHT 256 counters indexed by PC[9:2], no RAS, `BP_EN` parameter for the predict-not-taken A/B | IF area/timing, drill |
 | P6 | CSR set | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `mstatus` (MIE, MPIE, MPP fixed at M), `mie`, `mip`, `mtvec` (direct mode only), `mepc`, `mcause`, `mscratch`, `mtval`; read-only `misa`, `mhartid`=0, `mvendorid`/`marchid`/`mimpid`/`mconfigptr`=0; PMP CSRs with zero entries (`pmpcfg0-15`, `pmpaddr0-63` read 0, writes ignored: the spec makes them WARL, so a core without PMP still accepts them; added in stage 1, 2026-11-23); no Zicntr (gatling's 2026-10-21 precedent; cycle counts come from MonBus). CSR read-after-write stalls rather than forwards | decode, trap unit, rv32mi pass set |
 | P7 | Address map and fabric | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** RAM cacheable from `RESET_ADDR` (kestrel's 0x0000_0000); CLINT at 0x0200_0000 in the SiFive layout (`msip` +0x0, `mtimecmp` +0x4000, `mtime` +0xBFF8) inside the core wrapper; 0x1000_0000 and up uncached I/O (the `tohost` mailbox and board UART); the I$, D$ and uncached masters merged by a small house AXI4 arbiter to one fabric port | TB top, hive-serv glue |
 | P8 | M-unit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** radix-2 for both (33 cycles), `MUL_DSP` parameter for a 1–2 cycle DSP multiply as the measured contrast. Built 2026-11-23: 33 stall cycles iterative, 1 on a divide early-out, 2 with `MUL_DSP=1` | CPI, book chapter |
@@ -329,7 +358,7 @@ the worked version, with measured miss rates replacing the assumed ones.
 | P11 | Decode growth | **DECIDED 2026-11-23 (Sean: "can't it have a param so there is one common file?"):** one `rv32i_decode` with parameters `M_EXT` and `ZICSR` (real CSR ops, `mret`, and trap causes in place of halt causes), both default 0. The new outputs (`m_op`, `csr_op`, `mret`) always exist and are constant 0 when their parameter is off, so kestrel, merlin and gatling elaborate the same logic they do today; their full suites and the common-rv32i unit tests are the proof. gyrfalcon's `A_EXT` and garuda's F decode extend the same file the same way | common-rv32i decode, its testplan and unit test; the three existing cores re-run unchanged |
 | P12 | Cacheless build + formal reach | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `CACHE_EN=0` gives merlin's Harvard ports; merlin's riscv-formal insn checks run on that build (with traps off via the formal harness); interrupts checked by the directed suite where lockstep cannot align them | DV plan, formal |
 | P13 | amber hit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"): measure first.** amber's CPU-side hit latency through GAXI is not documented. If above one cycle, either peregrine accepts the memory-stall cost (and the book says so) or amber gains a pipelined hit path (a cache-ip decision, not this PRD's). Measure first | CPI model, MEM stage |
-| P14 | FPGA target | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** 100 MHz OOC on the Nexys A7 (xc7a100t-1), the riscv-ip ISSUE-001 anchor, with config CSR paths false-pathed per house rule; the predictor lookup and the trap redirect are the paths to watch | timing, book |
+| P14 | FPGA target | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** 100 MHz OOC on the Nexys A7 (xc7a100t-1), the riscv-ip ISSUE-001 anchor, with config CSR paths false-pathed per house rule; the predictor lookup and the trap redirect are the paths to watch; since stage 3 also the EX mispredict redirect (forwarded operand, target add, 32-bit compare against the predicted target, PC mux, fetch address), which the stage-3 review expects to become critical | timing, book |
 
 ## 7. Deliverables & sequencing
 
@@ -351,6 +380,11 @@ the worked version, with measured miss rates replacing the assumed ones.
    bring-up.
 
 ## 8. History
+
+- 2026-11-24: TASK-001 stage 3 landed (the predictor): BTB 32 + BHT 256 as
+  P5 sizes them, `BP_EN` A/B. The §5 stress streams run on both builds,
+  with every retired prediction held to a model; §4.2 records the as-built
+  update and recovery rules.
 
 - 2026-11-23: TASK-001 stage 2 landed (the M unit). P3 revised to
   hold-in-EX (Sean: "Hold in EX"): the busy scoreboard's late writeback

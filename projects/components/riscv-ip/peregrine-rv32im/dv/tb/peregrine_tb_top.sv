@@ -38,7 +38,9 @@ module peregrine_tb_top #(
     // jal-01 is a 1.7 MiB image.  Addresses alias modulo the size.
     parameter int          MEM_WORDS  = 65536,
     // M unit multiply: 0 iterative, 1 one registered DSP product (PRD P8).
-    parameter bit          MUL_DSP    = 1'b0
+    parameter bit          MUL_DSP    = 1'b0,
+    // Branch prediction: 1 BTB + 2-bit BHT, 0 predict not taken (PRD P5).
+    parameter bit          BP_EN      = 1'b1
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -69,6 +71,9 @@ module peregrine_tb_top #(
     output logic [31:0] rvfi_mem_rdata,
     output logic [31:0] rvfi_mem_wdata,
     output logic [31:0] rvfi_trap_cause,
+    output logic        rvfi_bp_pred_taken,
+    output logic [31:0] rvfi_bp_pred_target,
+    output logic        rvfi_bp_mispredict,
     // TB backdoor image loader: write one word per cycle while held in reset.
     input  logic        tb_mem_we,
     input  logic [31:0] tb_mem_addr,
@@ -135,7 +140,8 @@ module peregrine_tb_top #(
 
     peregrine_core #(
         .RESET_ADDR (RESET_ADDR),
-        .MUL_DSP    (MUL_DSP)
+        .MUL_DSP    (MUL_DSP),
+        .BP_EN      (BP_EN)
     ) u_peregrine_core (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -168,7 +174,10 @@ module peregrine_tb_top #(
         .rvfi_mem_wmask (rvfi_mem_wmask),
         .rvfi_mem_rdata (rvfi_mem_rdata),
         .rvfi_mem_wdata (rvfi_mem_wdata),
-        .rvfi_trap_cause(rvfi_trap_cause)
+        .rvfi_trap_cause(rvfi_trap_cause),
+        .rvfi_bp_pred_taken (rvfi_bp_pred_taken),
+        .rvfi_bp_pred_target(rvfi_bp_pred_target),
+        .rvfi_bp_mispredict (rvfi_bp_mispredict)
     );
 
 endmodule : peregrine_tb_top

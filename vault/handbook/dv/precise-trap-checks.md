@@ -156,6 +156,17 @@ results. It needs RVFI to report the operands the instruction actually
 used. peregrine latches the M operands at start, because the forwarding
 selects go stale while the M instruction holds in EX.
 
+### A generator's model must cover every value its program can read
+
+**Failure:** the stage-3 regression failed one gate cell with `tohost = 53`
+(x26 differs). spike failed the same program the same way, so the core was
+right. The `csr_around` shape read `mie` into a register the generator did
+not model, and the M instruction after it could pick that register as a
+source. The bad value then propagated to x26, which the final compare
+checks. Earlier seeds never chose that source. **Run the failing program on
+spike before suspecting the core**; then keep any register holding an
+unmodelled value out of every source until it is overwritten.
+
 ### Link generated programs with `-N` for spike
 
 Without `-N`, ld page-aligns the text segment and folds the ELF headers

@@ -10,14 +10,16 @@
 //
 //          Stage 1 of riscv-ip/peregrine-rv32im TASK-001: the CSR file and
 //          precise traps on the cacheless build (PRD §4.3, P6, P12).
-//          Stage 2: the M unit (PRD §4.4, P3, P8).  The predictor and the
-//          caches are later stages.
+//          Stage 2: the M unit (PRD §4.4, P3, P8).  Stage 3: the branch
+//          predictor (PRD §4.2, P2, P5).  The caches are a later stage.
 //
 //          What is merlin's, unchanged: the pipeline registers, the
 //          forwarding unit (EX/MEM over MEM/WB, select computed in ID), the
 //          load-use bubble, the load-to-branch interlock, branch resolution
 //          in EX with a 2-bubble flush, the WB-to-ID regfile bypass, and the
 //          registered-read memory contract with the `mem_wait` global hold.
+//          With BP_EN=0 the fetch path is merlin's exactly (predict not
+//          taken, every taken branch flushes).
 //
 //          What is new:
 //          - Traps replace the halt contract.  An exception is detected in
@@ -54,6 +56,20 @@
 //            operands are valid, and latches them: the forwarding selects
 //            go stale while the producers drain.  A MEM-stage trap or mret
 //            kills the M instruction in EX and cancels the unit.
+//          - Branch prediction (peregrine_bpred): the fetch PC looks up a
+//            BTB and a 2-bit BHT, and IF fetches the predicted next PC.
+//            The guess rides with the instruction to EX, which resolves
+//            it.  A mispredict (wrong direction, or a wrong target on a
+//            taken prediction) redirects to the resolved next PC and
+//            flushes IF/ID and ID/EX: 2 bubbles.  A correctly predicted
+//            taken branch costs 0.  The predictor is written once per
+//            resolved instruction, when it leaves EX: not under mem_wait,
+//            not while an M instruction holds, and not when a MEM redirect
+//            kills it.  Every instruction that leaves EX retires (as an
+//            ordinary or a trap beat), so the state is a function of the
+//            retire stream.
+//            An instruction held in EX (the M unit) mispredicts only when
+//            it leaves: an earlier flush would kill it in ID/EX.
 //
 // Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
 // Subsystem: riscv-ip/peregrine-rv32im
@@ -66,14 +82,20 @@
 //   - MUL_DSP: 0 (default) iterative multiply, 33 stall cycles; 1 one
 //     registered DSP multiply, 2 stall cycles (PRD P8).  Divide is
 //     iterative either way.
+//   - BP_EN: 1 (default) BTB + 2-bit BHT prediction; 0 predict not taken
+//     (merlin's fetch), the PRD P5 A/B build.
+//   - BTB_ENTRIES, BHT_ENTRIES: predictor sizes (PRD P5: 32 and 256).
 
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
 module peregrine_core #(
-    parameter logic [31:0] RESET_ADDR = 32'h0000_0000,
-    parameter bit          MUL_DSP    = 1'b0
+    parameter logic [31:0] RESET_ADDR  = 32'h0000_0000,
+    parameter bit          MUL_DSP     = 1'b0,
+    parameter bit          BP_EN       = 1'b1,
+    parameter int          BTB_ENTRIES = 32,
+    parameter int          BHT_ENTRIES = 256
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -108,7 +130,12 @@ module peregrine_core #(
     output logic [31:0] rvfi_mem_wdata,
     // Trap observation (TB and the trap directed suite): mcause of the
     // trap committed with this retire beat, valid with rvfi_trap.
-    output logic [31:0] rvfi_trap_cause
+    output logic [31:0] rvfi_trap_cause,
+    // Predictor observation, valid with rvfi_valid: the guess this
+    // instruction was fetched with, and whether EX found it wrong.
+    output logic        rvfi_bp_pred_taken,
+    output logic [31:0] rvfi_bp_pred_target,
+    output logic        rvfi_bp_mispredict
 );
 
     import rv32i_pkg::*;
@@ -161,6 +188,9 @@ module peregrine_core #(
     logic [31:0] ex_next_pc;
     logic        ex_taken;
     logic        ex_flush;
+    logic        if_pred_taken;
+    logic [31:0] if_pred_target;
+    logic        ex_mispredict;
     logic        stall_ifid;
     logic        stall_lu;
     logic        flush_ifid;
@@ -185,9 +215,11 @@ module peregrine_core #(
         end else if (mem_redirect) begin
             pc_d = mem_redirect_pc;          // trap entry / mret (oldest wins)
         end else if (ex_flush) begin
-            pc_d = ex_target;                // EX redirect (branch/jump)
+            pc_d = ex_next_pc;               // EX redirect: a mispredict
         end else if (stall_ifid | ex_m_stall) begin
             pc_d = pc;                       // interlock / M unit busy
+        end else if (if_pred_taken) begin
+            pc_d = if_pred_target;           // predicted taken
         end else begin
             pc_d = pc + PC_INCR;             // sequential fetch
         end
@@ -206,9 +238,11 @@ module peregrine_core #(
     // -----------------------------------------------------------------
     if_id_t if_id_d, if_id_q;
 
-    assign if_id_d.pc    = pc;
-    assign if_id_d.insn  = imem_rdata;
-    assign if_id_d.valid = 1'b1;
+    assign if_id_d.pc          = pc;
+    assign if_id_d.insn        = imem_rdata;
+    assign if_id_d.pred_taken  = if_pred_taken;
+    assign if_id_d.pred_target = if_pred_target;
+    assign if_id_d.valid       = 1'b1;
 
     peregrine_if_id u_if_id (
         .clk   (clk),
@@ -327,6 +361,8 @@ module peregrine_core #(
     assign id_ex_d.csr_op        = id_csr_op;
     assign id_ex_d.mret          = id_mret;
     assign id_ex_d.m_op          = id_m_op;
+    assign id_ex_d.pred_taken    = if_id_q.pred_taken;
+    assign id_ex_d.pred_target   = if_id_q.pred_target;
     assign id_ex_d.valid         = if_id_q.valid;
     assign id_ex_d.insn          = id_insn;
 
@@ -562,10 +598,45 @@ module peregrine_core #(
 
     assign ex_target = id_ex_q.jalr ? ((br_rs1 + id_ex_q.imm) & JALR_ALIGN_MASK) : alu_y_raw;
     assign ex_taken  = id_ex_q.valid & (id_ex_q.jump | id_ex_q.jalr | branch_taken);
-    assign ex_flush  = ex_taken;
     logic [31:0] ex_pc_incr;
     assign ex_pc_incr = id_ex_q.pc + PC_INCR;
     assign ex_next_pc = ex_taken ? ex_target : ex_pc_incr;
+
+    // Mispredict: the guess the instruction was fetched with disagrees
+    // with the resolved next PC -- the direction, or the target of a taken
+    // guess.  With BP_EN=0 the guess is always "not taken", so this is
+    // merlin's "every taken branch flushes".
+    assign ex_mispredict = id_ex_q.valid &
+                           ((id_ex_q.pred_taken != ex_taken) |
+                            (ex_taken & (id_ex_q.pred_target != ex_target)));
+    // An instruction held in EX redirects only as it leaves (an earlier
+    // flush would kill it in ID/EX, flush beating stall).
+    assign ex_flush  = ex_mispredict & ~ex_m_stall;
+
+    // Predictor: looked up by the fetch PC, written once per resolved
+    // instruction as it leaves EX (not under mem_wait, not while an M
+    // instruction holds, not when a MEM redirect kills it).
+    logic ex_leaves;
+    assign ex_leaves = id_ex_q.valid & ~mem_wait & ~ex_m_stall & ~mem_redirect;
+
+    peregrine_bpred #(
+        .BP_EN       (BP_EN),
+        .BTB_ENTRIES (BTB_ENTRIES),
+        .BHT_ENTRIES (BHT_ENTRIES)
+    ) u_bpred (
+        .clk            (clk),
+        .rst_n          (w_aresetn),
+        .lookup_pc      (pc),
+        .pred_taken     (if_pred_taken),
+        .pred_target    (if_pred_target),
+        .upd_valid      (ex_leaves),
+        .upd_pc         (id_ex_q.pc),
+        .upd_cond       (id_ex_q.branch),
+        .upd_uncond     (id_ex_q.jump | id_ex_q.jalr),
+        .upd_taken      (ex_taken),
+        .upd_target     (ex_target),
+        .upd_pred_taken (id_ex_q.pred_taken)
+    );
 
     // Instruction-address misalignment (IALIGN=32) on taken control flow.
     // The redirect still happens in EX; the trap at MEM one cycle later
@@ -617,6 +688,9 @@ module peregrine_core #(
     assign ex_mem_d.csr_wdata   = ex_csr_wdata;
     assign ex_mem_d.mret        = id_ex_q.mret;
     assign ex_mem_d.m_op        = id_ex_q.m_op;
+    assign ex_mem_d.bp_pred_taken  = id_ex_q.pred_taken;
+    assign ex_mem_d.bp_pred_target = id_ex_q.pred_target;
+    assign ex_mem_d.bp_mispredict  = ex_mispredict;
     assign ex_mem_d.valid       = id_ex_q.valid;
     assign ex_mem_d.insn        = id_ex_q.insn;
     assign ex_mem_d.imm         = id_ex_q.imm;
@@ -755,6 +829,9 @@ module peregrine_core #(
     assign mem_wb_d.trap      = mem_trap_any;
     assign mem_wb_d.is_mem    = ex_mem_q.dmem_req & ~mem_trap_any;
     assign mem_wb_d.exc_cause = ex_mem_q.exc_cause;
+    assign mem_wb_d.bp_pred_taken  = ex_mem_q.bp_pred_taken;
+    assign mem_wb_d.bp_pred_target = ex_mem_q.bp_pred_target;
+    assign mem_wb_d.bp_mispredict  = ex_mem_q.bp_mispredict;
     assign mem_wb_d.valid     = ex_mem_q.valid;
     assign mem_wb_d.insn      = ex_mem_q.insn;
     assign mem_wb_d.imm       = ex_mem_q.imm;
@@ -835,6 +912,9 @@ module peregrine_core #(
     assign rvfi_insn       = mem_wb_q.insn;
     assign rvfi_trap       = mem_wb_q.trap;
     assign rvfi_trap_cause = mem_wb_q.trap ? wb_trap_cause : 32'd0;
+    assign rvfi_bp_pred_taken  = mem_wb_q.bp_pred_taken;
+    assign rvfi_bp_pred_target = mem_wb_q.bp_pred_target;
+    assign rvfi_bp_mispredict  = mem_wb_q.bp_mispredict;
     assign rvfi_rs1_addr   = mem_wb_q.insn[19:15];
     assign rvfi_rs2_addr   = mem_wb_q.insn[24:20];
     assign rvfi_rs1_rdata  = mem_wb_q.rs1_rdata;

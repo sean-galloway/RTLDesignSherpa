@@ -156,6 +156,9 @@ class PeregrineTB:
             "mem_addr": int(d.rvfi_mem_addr.value),
             "mem_rmask": int(d.rvfi_mem_rmask.value),
             "mem_wmask": int(d.rvfi_mem_wmask.value),
+            "bp_pred_taken": int(d.rvfi_bp_pred_taken.value),
+            "bp_pred_target": int(d.rvfi_bp_pred_target.value),
+            "bp_mispredict": int(d.rvfi_bp_mispredict.value),
             "cycle": cycle,
         }
 

@@ -74,10 +74,13 @@ package peregrine_pkg;
   localparam logic [11:0] CSR_MHARTID    = 12'hF14;
   localparam logic [11:0] CSR_MCONFIGPTR = 12'hF15;
 
-  // IF/ID boundary.
+  // IF/ID boundary.  pred_* is the predictor's guess for this instruction
+  // (payload), checked against the resolved outcome in EX.
   typedef struct packed {
     logic [31:0] pc;
     logic [31:0] insn;
+    logic        pred_taken;
+    logic [31:0] pred_target;
     logic        valid;
   } if_id_t;
 
@@ -106,6 +109,8 @@ package peregrine_pkg;
     logic        csr_op;
     logic        mret;
     logic        m_op;          // M extension: funct3 selects the operation
+    logic        pred_taken;    // the predictor's guess (payload)
+    logic [31:0] pred_target;
     logic        valid;
     logic [31:0] insn;
   } id_ex_t;
@@ -130,6 +135,9 @@ package peregrine_pkg;
     logic [31:0] csr_wdata;
     logic        mret;
     logic        m_op;          // payload: an M instruction is not interruptible
+    logic        bp_pred_taken; // observation: the prediction and its outcome
+    logic [31:0] bp_pred_target;
+    logic        bp_mispredict;
     logic        valid;
     logic [31:0] insn;
     logic [31:0] imm;
@@ -150,6 +158,9 @@ package peregrine_pkg;
     logic        trap;
     logic        is_mem;
     logic [3:0]  exc_cause;
+    logic        bp_pred_taken; // observation, reported at retire
+    logic [31:0] bp_pred_target;
+    logic        bp_mispredict;
     logic        valid;
     logic [31:0] insn;
     logic [31:0] imm;
