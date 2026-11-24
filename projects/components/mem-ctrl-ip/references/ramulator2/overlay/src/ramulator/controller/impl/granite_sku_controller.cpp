@@ -147,7 +147,10 @@ namespace Ramulator {
 //     close-page rotation at 2.17 cycles per beat for 2.0).
 //   * Refresh: the AllBank manager demands REFab every nREFI; while it is
 //     pending nothing else fires (the demand block), the open rows close
-//     (PREab, where the RTL drains per-bank PREs) and REFab follows.
+//     (PREab, where the RTL drains per-bank PREs) and REFab follows; then
+//     (rfc_block, MC-023 item 4) the pick core's tRFC counter, loaded the
+//     slot after the grant, holds every demand request and fire until it
+//     reads zero, so the first ACT fires at grant + 1 + tRFC + 2.
 //   * Not carried (the error bars): the pop shadow (the fire reads the live
 //     head, which is the shadow's effect), the write-data fill and the sink /
 //     return-ring back-pressure, the age overlay (HAS_AGE with age_thresh 0
@@ -190,6 +193,15 @@ class GraniteSKUController : public ControllerBase {
                                 //   cycles, the ACT at fire + t_rp_ap of the column's path (MC-020 decision 2; false = the CK-exact DRAM terms alone)
   int m_t_rp_ap_rd = -1;        // the tRP the self-close reloads after an RDA, MC cycles (TIMINGS_RP_AP.tRP_AP_RD); -1 = the shared tRP (the RTL before the field)
   int m_t_rp_ap_wr = -1;        // ... after a WRA (TIMINGS_RP_AP.tRP_AP_WR); -1 = the shared tRP
+  bool m_rfc_block = true;      // the pick core's tRFC demand block (mc_bank_pick r_rfc_cnt / w_rfc_dmd_block): the
+                                //   counter loads the CSR tRFC the cycle after the REF grant and blocks every demand
+                                //   request and fire while non-zero, so the first ACT decodes at grant + 1 + tRFC and
+                                //   fires two slots later (grant + 16 at the SKU's 13). false = the model before:
+                                //   the ACT waits only for the device's tRFC, with the lookahead (grant + 13)
+                                //   (memory-controllers MC-023 item 4, the proxy probe 2026-11-24)
+  int m_t_rfc_mc = 0;           // TIMINGS tRFC in MC cycles as the host derives it (a row -> row hop of nRFC)
+  Clk_t m_rfc_free = 0;         // the first tick the tRFC counter reads zero
+  int m_cmd_refab = -1;
   bool m_ap_close_rec = false;  // PROBE, kept for the record (MC-020 decision 2, 2026-11-22): the self-close through the record's hit
                                 //   path -- the heads of the bank PRESENT when it fires take the close_lag path (as after a PRE), a head
                                 //   landing later takes the lookahead. The proxy measured fire -> ACT 4 slots on three of four same-bank
@@ -361,6 +373,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_t_rp_ap_wr, int, "t_rp_ap_wr").default_val(-1);
     RAMULATOR_PARSE_PARAM(m_ap_close_lag, int, "ap_close_lag").default_val(0);
     RAMULATOR_PARSE_PARAM(m_ap_close_rec, bool, "ap_close_rec").default_val(false);
+    RAMULATOR_PARSE_PARAM(m_rfc_block, bool, "rfc_block").default_val(true);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_owns_rows, bool, "dir_owns_rows").default_val(true);
@@ -395,6 +408,7 @@ class GraniteSKUController : public ControllerBase {
     m_cmd_act = spec.get_command_id("ACT");
     m_cmd_prepb = spec.get_command_id("PREpb");
     m_cmd_prea = spec.get_command_id("PREab");
+    m_cmd_refab = spec.get_command_id("REFab");
     m_cmd_rd = spec.get_command_id("RD");
     m_cmd_wr = spec.get_command_id("WR");
     m_cmd_rda = spec.get_command_id("RDA");
@@ -418,6 +432,7 @@ class GraniteSKUController : public ControllerBase {
     m_seq_t_ras = hop(spec.get_timing_value("nRAS"), 0);
     m_seq_t_rtp = hop(nBL + spec.get_timing_value("nRTP") - 2, row_ck);
     m_seq_t_wr = hop(spec.get_timing_value("nCWL") + nBL + spec.get_timing_value("nWR"), row_ck);
+    m_t_rfc_mc = hop(spec.get_timing_value("nRFC"), 0);
     if (m_t_rp_ap_rd < 0) m_t_rp_ap_rd = m_t_rp;
     if (m_t_rp_ap_wr < 0) m_t_rp_ap_wr = m_t_rp;
     m_nRRD = spec.get_timing_value("nRRD");
@@ -608,12 +623,15 @@ class GraniteSKUController : public ControllerBase {
             m_slot_cmds.push_back(CmdEv{CL_PRE, b, -1, false, false});
           }
         }
+        if (cand.it->command == m_cmd_refab)
+          m_rfc_free = m_clk + static_cast<Clk_t>(1 + m_t_rfc_mc) * m_slot_ticks;
         issue(cand.it, *cand.buffer);
         s_main_maint++;
         if (dbg()) std::cout << "[sku] clk " << m_clk << " maint cmd " << cand.it->command << std::endl;
       }
       fire_allowed = false;
     }
+    if (m_rfc_block && m_clk < m_rfc_free) fire_allowed = false;
     schedule_slot(fire_allowed, ref_pending);
   }
 
@@ -774,6 +792,7 @@ class GraniteSKUController : public ControllerBase {
       cls_nxt[p] = CL_NONE;
       const Head& h = m_heads[p];
       if (!h.vld) continue;
+      if (m_rfc_block && m_clk < m_rfc_free) continue;   // the tRFC demand block holds the request registers clear
       const bool d = dir_of(p);
       if (h.is_col) {
         // a hit the record does not show yet is no request at all (the ACT's hinted column fires without one)

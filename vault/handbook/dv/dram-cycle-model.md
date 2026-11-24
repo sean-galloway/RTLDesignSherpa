@@ -897,3 +897,22 @@ to be false at 0; and a difference against a timestamp that can be in the
 future is signed, so check what it is while the event is pending.
 
 Related: [[measure-over-the-window]], [[arbiter-compliance-model]].
+
+## A mode that is a draw per run is a lock; compare what the perturbation costs, by where it lands (2026-11-24, MC-023 item 4)
+
+The mixed cell's fast / slow mode on the board was a draw per run, and the
+model was fast on every GO phase although its slot-level race matched the
+RTL's exactly. The deciding variable was not the race but whether it is ever
+armed: only a refresh landing in the last columns of a read turn shifts the
+row phase off the cap. The refresh walks ~36 columns a turn; on the RTL the
+walk is stationary (the same landing columns every 16 turns, the 16-turn sum
+= 15 tREFI), so each phase always or never escapes, and in the model it
+drifted, so every phase escaped eventually. What made the difference was the
+refresh's COST by landing position (a constant +18 MC in an RTL write turn,
++20 / +15 in the model), traced to one term: the RTL's first ACT after a REF
+waits for the pick core's tRFC counter (grant + 16), where the model fired at
+the device's tRFC (grant + 13). Two methods: when a mode is a per-run draw,
+tabulate where the perturbation lands turn by turn on both sides -- a lock and
+a drift look identical in the MB/s; and probe the perturbation's episode on
+the RTL (the DRAM trace may not carry the command -- this one has no REF),
+since three slots per refresh were enough to turn a lock into a drift.

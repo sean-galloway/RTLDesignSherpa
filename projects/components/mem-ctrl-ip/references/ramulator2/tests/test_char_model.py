@@ -507,7 +507,10 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
     # the bimodal board cell is the open_page preset's (policy_mode 0, the flat close-on-drain): granite_sku100_open
     # since ISSUE-006; the board's `defaults` (the hybrid, granite_sku100) showed the slow mode on five of five runs.
     # The modes' numbers (272 / 522 on the board) are the margin counters', so the test runs them.
-    base = replace(cm.CONFIGS["granite_sku100_open"], timing_preset=MARGIN, **MARGIN_AP)
+    # rfc_block=False: the model this was measured on (MC-023 item 4, 2026-11-24). With the tRFC demand block
+    # the margin cell reads ~307 at both phases, the intermediate mode the phase-exact open_page cell shows; the
+    # close lag's two-mode claim is pinned on the model it was made with.
+    base = replace(cm.CONFIGS["granite_sku100_open"], timing_preset=MARGIN, rfc_block=False, **MARGIN_AP)
     rd = {}
     try:
         for lag in (2, 0):
@@ -518,7 +521,7 @@ def test_close_lag_gives_the_open_page_mixed_cell_its_second_mode():
                 rd[(lag, off)] = float(r["rd_bw_mb_s"])
         os.environ["GRANITE_GO_OFFSET"] = "480"
         with tempfile.TemporaryDirectory() as t:
-            hyb = float(cm.run_scenario(replace(cm.CONFIGS["granite_sku100"], name="hyb_margin",
+            hyb = float(cm.run_scenario(replace(cm.CONFIGS["granite_sku100"], name="hyb_margin", rfc_block=False,
                                                 timing_preset=MARGIN, **MARGIN_AP), sc, t)["rd_bw_mb_s"])
     finally:
         os.environ.pop("GRANITE_GO_OFFSET", None)
@@ -600,3 +603,14 @@ def test_hybrid_page_policy_issues_the_demand_pres_the_boards_defaults_do():
     # both are the same stream through the same store and pick: the policy moves the cell by a few percent at most
     for k in ("wr_bw_mb_s", "rd_bw_mb_s"):
         assert 0.9 < float(hyb[k]) / float(flat[k]) < 1.1, (k, hyb[k], flat[k])
+
+
+def test_rfc_block_is_the_sku_default_and_moves_the_first_act_after_a_refresh():
+    """MC-023 item 4 (proxy probe 2026-11-24, tREFI 779, open_page mixed): the RTL grants REF, loads its tRFC
+    counter (13 at the SKU's point) the cycle after, blocks every demand request and fire while it is non-zero, and
+    fires the first ACT at grant + 16. The model with rfc_block fires it there; without, at the device's tRFC
+    (grant + 13). The term is the SKU default and the mixed cells are the cells it moves (defaults 309 / 571 ->
+    278 / 278 at GO 0, the board's 277 / 276 on ten of ten runs)."""
+    assert cm.CONFIGS["granite_sku100"].rfc_block is True
+    assert cm.CONFIGS["sku_norfcblock"].rfc_block is False
+

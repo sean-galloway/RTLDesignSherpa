@@ -283,6 +283,9 @@ async def _pick_probe(dut, path, n_cycles=160, from_cycle=0, from_flip=0):
              # the decode's registered class per pair and the bank state it reads (memory-controllers ISSUE-004)
              "r_cls", "r_is_col", "r_shadow", "bank_row_active_i", "bank_act_ready_i", "bank_pre_ready_i",
              "rd_issue_ready_i", "wr_commit_ready_now_i",
+             # the refresh episode (memory-controllers MC-023 item 4: the REF is not in the DRAM trace)
+             "refresh_req_i", "refresh_grant_o", "r_rfc_cnt", "w_ref_safe", "w_any_active", "w_all_act_ready",
+             "r_actfire0", "w_rdret_gate", "bank_act_ready_i",
              "rd_head_i[0]", "rd_head_i[1]", "wr_head_i[0]", "wr_head_i[1]"]
     rows, started, cyc, flips, pre = [], False, 0, 0, []
     while len(rows) < n_cycles:

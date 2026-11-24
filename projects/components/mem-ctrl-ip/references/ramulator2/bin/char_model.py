@@ -456,6 +456,10 @@ class ModelConfig:
     ap_fire_stale: bool = True         # GraniteSKU: the pair of a column that fired with auto-precharge is masked the slot after its fire
                                        #   (the RTL since MC-021 step 4; False = the RTL before, whose leftover column request won the select)
     ap_seq: bool = True                # GraniteSKU: the auto-precharge self-close sequenced as the bank timer does -- fire = max(ACT + tRAS,
+    rfc_block: bool = True             # GraniteSKU: the pick core's tRFC demand block -- no demand request or fire until the
+                                       #   counter the REF grant loads with the CSR tRFC reads zero, the first ACT at grant + 1 +
+                                       #   tRFC + 2 (16 at the SKU's 13; the proxy probe 2026-11-24); False = the ACT at the
+                                       #   device's tRFC with the lookahead (grant + 13), the model before MC-023 item 4
                                        #   column + tRTP / tWR) in MC cycles, the ACT at fire + t_rp_ap of the column's path (MC-020 decision 2;
                                        #   False = the CK-exact DRAM terms alone, the model before 2026-11-22)
     t_rp_ap_rd: int = 1                # GraniteSKU: TIMINGS_RP_AP.tRP_AP_RD -- the tRP the self-close reloads after an RDA, MC cycles (the host's
@@ -646,6 +650,8 @@ CONFIGS.update({c.name: c for c in [
     _sku("laneidle", "the row lane also firing into an idle main slot, live (the alone-firing lane MC-014 cut)", lane_idle=1),
     _sku("rpshared", "the auto-precharge self-close reloading the shared tRP (2 / 2): the RTL before the TIMINGS_RP_AP "
          "fields (MC-020 decision 2)", t_rp_ap_rd=2, t_rp_ap_wr=2),
+    _sku("norfcblock", "the first ACT after a refresh at the device's tRFC with the lookahead, no tRFC demand block: "
+         "the model before memory-controllers MC-023 item 4", rfc_block=False),
     _sku("noapseq", "the auto-precharge path at the CK-exact DRAM terms alone: the model before the sequenced self-close "
          "(MC-020 decision 2)", ap_seq=False),
     _sku("margin", "the SKU's counters under the one-CK phase margin the host derived until 2026-11-22 (tRC 7, tWR 4, "
@@ -761,7 +767,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             peek_depth=cfg.peek_depth, req_bank_timing=cfg.req_bank_timing,
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
             hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag, close_lag=cfg.close_lag,
-            ap_seq=cfg.ap_seq, t_rp_ap_rd=cfg.t_rp_ap_rd, t_rp_ap_wr=cfg.t_rp_ap_wr,
+            ap_seq=cfg.ap_seq, t_rp_ap_rd=cfg.t_rp_ap_rd, t_rp_ap_wr=cfg.t_rp_ap_wr, rfc_block=cfg.rfc_block,
             **_sku_debug_params(),
         )
         sku_kw.update(_sku_param_overrides())

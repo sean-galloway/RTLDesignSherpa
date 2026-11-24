@@ -74,3 +74,6 @@ could pay it several times over.
 > proxy findings do not depend on the model. Next step unchanged (MC-023
 > item 3).
 
+> 2026-11-24: with the `rfc_block` term (MC-023 item 4) the model's
+> bank_interleave row-hit cells read 572 .. 582 by GO phase instead of 584.6
+> flat; the board's three levels (583 / 566 / 519) are still not reproduced.

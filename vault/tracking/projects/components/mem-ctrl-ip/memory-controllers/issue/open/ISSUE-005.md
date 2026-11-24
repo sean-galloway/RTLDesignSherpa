@@ -126,3 +126,11 @@ whose other presets never show it.
 > other OUT, bank_interleave col_major_interleaved_bl4, is OUT at hold 8
 > too). The owner's decision is unchanged. Record section 9.
 
+> 2026-11-24 (MC-023 item 4, `char_results/proxy_mc023_refresh_lock_2026-11-24.md`):
+> the proxy at the phase-exact default shows the race slot for slot as above
+> (`open_page` fast at tREFI 781 of five, `defaults` at 778 of five). Whether a
+> run arms it is the refresh's walk through the read turns: stationary on the
+> RTL, so a phase always or never reaches the read cap -- the per-run draw. The
+> model's walk drifted because its first ACT after a REF was three slots early;
+> with the `rfc_block` term (SKU default) the model's `defaults` cell is the
+> board's 278 / 278 on 27 / 40 phases. The owner's decision above is unchanged.

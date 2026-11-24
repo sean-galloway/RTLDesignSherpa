@@ -25,10 +25,10 @@
 - **MC-023** -- the SKU model's open fidelity terms. Item 2 DONE 2026-11-23:
   the self-close lookahead guard was true at `ap_close_lag` 0 (a pending
   fire is in the future), fixed; the 2026-11-22 CSVs reproduce to the cycle.
-  Open: the record path (item 1; `ap_close_rec` over-prices close_page reads
-  34 .. 50 percent on the fixed model), the refresh-relaunched orbits (3,
-  ISSUE-007), and the mixed cells' mode (4, ISSUE-005: the fixed model is
-  fast on 40 / 40 phases of both presets, the board 2 / 10 and 0 / 10).
+  Item 4 2026-11-24: the mixed cell's mode is the refresh walk's lock; the
+  `rfc_block` term (first ACT at REF + 16, the RTL's) is the SKU default,
+  57 in / 0 out; open_page's intermediate mode remains. Open: the record
+  path (item 1), the refresh-relaunched orbits (3, ISSUE-007).
 
 ## Deferred
 
