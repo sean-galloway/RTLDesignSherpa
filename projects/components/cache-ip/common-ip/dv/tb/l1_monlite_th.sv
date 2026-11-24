@@ -279,6 +279,7 @@ module l1_monlite_th
         .tap_hit_way         (u_frontend_th.u_control.hit_way_q),
         .tap_hit_state_before(u_frontend_th.u_control.hit_state_q),
         .tap_req_we          (u_frontend_th.u_control.req_we_q),
+        .tap_hit_again       (u_frontend_th.u_control.hit_again_q),
         .tap_miss_set        (u_frontend_th.u_control.req_set),
         .tap_miss_class      (2'(AMBER_MISS_UNKNOWN)),
         .tap_snoop_fire      (snoop_req && snoop_ready),

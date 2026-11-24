@@ -98,7 +98,10 @@ module l1_cpu_plane
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
-        .BUS_WIDTH  (BUS_WIDTH)
+        .BUS_WIDTH  (BUS_WIDTH),
+        // amber TASK-005: the 1-cycle hit's response skips the staging
+        // FIFO when it is taken in the cycle l1_control makes it
+        .RSP_BYPASS (1'b1)
     ) u_frontend (
         .clk               (clk),
         .rst_n             (rst_n),

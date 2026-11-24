@@ -40,25 +40,41 @@ The CPU-side port is two house-GAXI streams:
 
 ## Request Timing
 
-Because the cache is blocking, `cpu_req_wr_ready` is asserted only when `l1_control` is in `CTRL_IDLE` and no higher-priority snoop stall is active.
+The cache blocks on a miss but pipelines hits (amber TASK-005, the 1-cycle
+hit). `cpu_req_wr_ready` is high when `l1_control` is in `CTRL_IDLE`, or in
+`CTRL_HIT_RD` with the response FIFO empty (back to back, at most
+`HIT_RUN_MAX` = 8 in a row before one cycle with ready low, which is when a
+waiting snoop is taken). Every ready term is a register.
 
 ```
-Cycle :  0   1   2   3   4   5
-req_v :  1   0   0   0   0   0
-req_r :  1   0   0   0   0   0   <- handshake at cycle 0
-state :  L0  L1  HR  HR  RSP RSP
+Cycle :  0    1    2    3    4    5
+req_v :  A    B    C    0    W    0
+req_r :  1    1    1    1    1    0
+state :  IDL  HRD  HRD  HRD  IDL  HWR
+rsp_v :  0    A    B    C    0    W
 ```
 
-- Cycle 0: request accepted; `l1_cpu_frontend` latches it.
-- Cycle 1: `CTRL_LOOKUP` drives tag-array port A.
-- Cycle 2–3: hit service (`CTRL_HIT_RD` or `CTRL_HIT_WR`).
-- Cycle 4–5: response valid until accepted.
+- Cycle 0: request A accepted in `CTRL_IDLE`; the tag compare and the data
+  read run on A's address in this cycle.
+- Cycle 1: A's response is valid (`CTRL_HIT_RD`); B is accepted in the same
+  cycle. Read hits stream one per cycle.
+- Cycle 4–5: a write hit W is answered in cycle 5 (`CTRL_HIT_WR`), but ready
+  is low there: W's merge lands at the end of cycle 5, so the next request
+  is accepted in cycle 6. A write hit occupies the port for two cycles.
 
-On a miss, `cpu_req_wr_ready` stays low from cycle 1 through the entire miss sequence. The front end does not accept a new request until the replay completes.
+On a miss (or an S-line write, which upgrades), the accept cycle goes to
+`CTRL_LOOKUP` and `cpu_req_wr_ready` stays low through the entire miss
+sequence; the response comes from the replay's hit state.
 
 ## Response Timing
 
-`cpu_rsp_rd_valid` is asserted when `l1_control` enters the response state. The data is held stable until `cpu_rsp_rd_ready` is high. Because the response is single-beat and the front end blocks, backpressure is expected to be rare, but the handshake is still honored.
+`cpu_rsp_rd_valid` is asserted in the hit state itself, the cycle after the
+accept: `l1_cpu_frontend` (`RSP_BYPASS = 1`) presents `l1_control`'s
+response directly while its depth-2 staging FIFO is empty, and writes it
+into the FIFO only when `cpu_rsp_rd_ready` is low in that cycle. A held
+response stays byte-stable in the FIFO until taken, responses keep request
+order, and the FIFO cannot overflow (ready requires it empty while a
+response is up, and at least one free entry otherwise).
 
 ## Write-Allocate Fills
 
@@ -66,4 +82,4 @@ A write miss triggers a fill, a merge of the CPU write data with the fill data, 
 
 ---
 
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-11-24

@@ -31,7 +31,7 @@ before the next:
 - cache-ip/amber-mesi-l1 TASK-004 (CPU-side clean-all) for stage 4's
   `fence.i`. Stages 1-3 do not need it.
 - cache-ip/amber-mesi-l1 TASK-005 (pipelined hit path, P13 option (b)) for
-  stage 4's MEM stage.
+  stage 4's MEM stage. Closed 2026-11-24: a hit is 1 cycle.
 
 ## Stage 1: traps first, cacheless (done 2026-11-23)
 
@@ -303,6 +303,13 @@ Owner, 2026-11-24: "Push and continue".
   hit path: cache-ip/amber-mesi-l1 TASK-005. Its target latency is set
   together with stage 4's MEM design: 1 cycle keeps a single MEM stage, 2
   needs M1/M2 or one stall per access.
+- **Landed (2026-11-24, owner: "1-cycle").** TASK-005 closed: a read hit
+  is valid 1 cycle after the accept and the port accepts every cycle; a
+  write hit is 1 / 2. The test asserts (1,1), (1,1), (1,2). Stage 4
+  consequence: a load issues from EX and has its data in MEM; a store
+  issues from MEM (an older instruction can still trap there). Budgets
+  left at 10 ns (amber OOC, 0 ns I/O delay): +2.60 ns in front of the
+  request (peregrine's address ALU), +2.27 ns after `cpu_rsp_rd_data`.
 
 Next: stage 4, the caches and fabric, which depends on cache-ip/amber-mesi-l1
-TASK-005 (hit path) and TASK-004 (`fence.i`).
+TASK-004 (`fence.i`); TASK-005 (hit path) is done.

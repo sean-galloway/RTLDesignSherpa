@@ -168,7 +168,10 @@ module l1_cpu_frontend_th
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
-        .BUS_WIDTH  (BUS_WIDTH)
+        .BUS_WIDTH  (BUS_WIDTH),
+        // amber's pairing (l1_cpu_plane): l1_control's 1-cycle hit
+        // response needs the bypass (TASK-005)
+        .RSP_BYPASS (1'b1)
     ) u_frontend (
         .clk               (clk),
         .rst_n             (rst_n),

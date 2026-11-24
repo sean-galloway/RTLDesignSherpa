@@ -60,10 +60,10 @@ The FSM itself is one-hot encoded. Stable states are the ones that can persist b
 
 | State | Type | Meaning |
 |-------|------|---------|
-| `CTRL_IDLE` | stable | Waiting for a CPU request from `l1_cpu_frontend`. |
-| `CTRL_LOOKUP` | transient | Tag/state lookup on port A; hit/miss decision. |
-| `CTRL_HIT_RD` | transient | Read hit: fetch data from `l1_data_array` port A, return response. |
-| `CTRL_HIT_WR` | transient | Write hit: update data, promote to M, return response. |
+| `CTRL_IDLE` | stable | Waiting for a CPU request; the accept cycle classifies it (tag compare on the arriving address). |
+| `CTRL_LOOKUP` | transient | Tag/state lookup on port A for the latched request (a non-hit accept, the replay, a snoop return); hit/miss decision. |
+| `CTRL_HIT_RD` | transient | Read hit: the response is valid this cycle (port-A word read at the accept edge). May accept the next request. |
+| `CTRL_HIT_WR` | transient | Write hit: the response (the request's data) is valid this cycle; the merge and E-to-M promotion land at its end. |
 | `CTRL_MISS_VICTIM` | transient | Miss: ask `l1_repl` for victim way; read victim state. |
 | `CTRL_MISS_DRAIN` | transient | Victim is dirty: stage it in `l1_victim`, launch `l1_drain`. |
 | `CTRL_MISS_FILL` | transient | Launch `l1_fill`, wait for RLAST. |
@@ -80,18 +80,49 @@ The FSM is not a minimal two-state controller; the explicit transient states are
 
 The HAS deferred pipeline staging to the MAS. This section fixes it.
 
-### Stage 0: Request latch
+The hit path is one cycle (amber TASK-005, 2026-11-24, for peregrine's
+single MEM stage): the response is valid in the cycle after the accept.
 
-`l1_cpu_frontend` accepts a GAXI request and holds `{addr, we, be, wdata}` in a register. `l1_control` sees a single `req_valid` pulse and the latched request fields. The front end does not accept a new request until `req_ready` is returned.
+### Stage 0: Accept and classify (`CTRL_IDLE`, or `CTRL_HIT_RD`)
 
-### Stage 1: Tag lookup (`CTRL_LOOKUP`)
+`l1_cpu_frontend` passes the GAXI request through combinationally;
+`req_valid` is the handshake, and `l1_control` latches
+`{addr, we, be, wdata}` at its edge. In that same cycle `l1_control` drives
+`ctrl_tag_a_set` with the **arriving** request's set; the tag array (LUTRAM,
+asynchronous read) returns per-way `{tag, state}`, the compare runs on the
+arriving tag, and the hit way and state are registered with the request.
+With the registered data array (`DATA_SYNC_READ = 1`, the core default) the
+arriving `{set, beat}` is also presented on data port A, which reads every
+way at that edge.
 
-On the cycle after request acceptance, `l1_control` drives `ctrl_tag_a_set`; the tag array returns per-way `{tag, state}` combinationally on `ctrl_tag_a_tag_state`. The lookup also selects the victim way from `l1_repl` combinatorially so that the victim is known on the same cycle the hit/miss decision is made.
+`ctrl_req_ready` is a register function only (the state and a run
+counter): high in `CTRL_IDLE`, and in `CTRL_HIT_RD` for back-to-back
+accepts, at most `HIT_RUN_MAX` (default 8) in a row. A snoop is granted
+only in a snoop-safe state (`CTRL_IDLE` among them, never `CTRL_HIT_RD`),
+so the forced `CTRL_IDLE` cycle after a run bounds a snoop's wait. The hit
+compare drives only the next state and the registered classification;
+nothing else depends on it combinationally.
 
-### Stage 2: Hit or miss decision
+### Stage 1: Hit service, or `CTRL_LOOKUP`
 
-- **Hit:** transition to `CTRL_HIT_RD` or `CTRL_HIT_WR`. The data array address for the hit beat is presented during `CTRL_LOOKUP`; with the registered data array (`DATA_SYNC_READ = 1`, the core default) the word arrives in the hit state, one cycle after its address, which is when it is consumed. With the combinational array the same address returns the word in the lookup cycle and the hit state simply re-reads it.
-- **Miss:** transition to `CTRL_MISS_VICTIM`.
+- **Read hit:** `CTRL_HIT_RD`. The response is valid in this cycle: the
+  port-A word read at the accept edge, way-selected by the registered hit
+  way. A new request can be accepted in this cycle and is classified as in
+  `CTRL_IDLE`, so read hits stream one per cycle.
+- **Write hit on E or M:** `CTRL_HIT_WR`. The response (the request's own
+  data) is valid in this cycle; the byte merge and the E-to-M promotion land
+  at its end. Ready is low here: a read accepted in this cycle would read
+  the array at the write's edge and get the pre-write word, so a write hit
+  occupies the port for two cycles.
+- **Anything else** (a miss, an S-write upgrade): `CTRL_LOOKUP`, which
+  re-classifies from the latched request exactly as before, presents beat 0
+  for the victim gather, and goes on to `CTRL_MISS_VICTIM` or (upgrade)
+  `CTRL_MISS_FILL`. The miss path is unchanged. `CTRL_LOOKUP` is also where
+  the replay and a snoop detour (a snoop granted in the accept cycle)
+  classify.
+
+With the combinational data array (`DATA_SYNC_READ = 0`, unit benches) the
+hit state reads its own latched address in its own cycle instead.
 
 ### Stage 3: Miss handling
 
@@ -99,7 +130,7 @@ On the cycle after request acceptance, `l1_control` drives `ctrl_tag_a_set`; the
 2. `CTRL_MISS_DRAIN`: if the victim is M, launch `l1_drain` with the address from `l1_victim`; the engine reads the data beat by beat (`ctrl_victim_beat_idx` → `ctrl_victim_beat_data`). Wait for the drain-done handshake.
 3. `CTRL_MISS_FILL`: launch `l1_fill` with the missing line address. The pending-fill bypass register is loaded now.
 4. `CTRL_FILL_WRITE`: on `fill_done`, write the fill data into `l1_data_array` port A and install the tag + new state in `l1_tag_array` port A.
-5. `CTRL_REPLAY`: re-assert `req_valid` to the hit path using the original latched request; the next cycle is `CTRL_LOOKUP` again and the line is present.
+5. `CTRL_REPLAY`: re-present the original latched request; the next cycle is `CTRL_LOOKUP` again, the line is present, and the hit state answers.
 
 ### Snoop interleaving
 
@@ -162,8 +193,8 @@ the port-A schedule is address + write strobe, no read enable.
 | `ctrl_crresp` | to `l1_snoop_resp` | 5-bit CRRESP result, combinational at the grant cycle (latched by the adapter). |
 | `ctrl_cddata` / `ctrl_cdlast` / `ctrl_cdvalid` | to `l1_snoop_resp` | CD beat data/last/valid (each beat gated servable; CR is presented by the adapter after CDLAST). |
 | `ctrl_cdready` | from `l1_snoop_resp` | CD beat accepted. |
-| `ctrl_req_ready` | to `l1_cpu_frontend` | Ready for the next CPU request (IDLE, init done). |
-| `ctrl_rsp_valid` | to `l1_cpu_frontend` | Response valid (one-cycle pulse). |
+| `ctrl_req_ready` | to `l1_cpu_frontend` | Ready for the next CPU request: `CTRL_IDLE`, or `CTRL_HIT_RD` within the `HIT_RUN_MAX` run (registers only). |
+| `ctrl_rsp_valid` | to `l1_cpu_frontend` | Response valid: high exactly in `CTRL_HIT_RD` / `CTRL_HIT_WR`, one cycle per request. |
 | `ctrl_rsp_data` | to `l1_cpu_frontend` | Response read data / write echo. |
 | `ctrl_init_busy` / `ctrl_init_set` | status | Init-walk in progress / current set. |
 | `ctrl_state` | status | FSM state (pkg `ctrl_state_t` encoding, observability). |

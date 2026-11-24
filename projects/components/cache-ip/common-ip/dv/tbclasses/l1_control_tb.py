@@ -662,7 +662,23 @@ class L1ControlTB(TBBase):
             got += 1
         return self.cyc - start
 
+    def _lookup_expected(self, miss):
+        """amber TASK-005 (the 1-cycle hit): the accept cycle classifies
+        the arriving request, so a hit goes straight to HIT_RD / HIT_WR and
+        LOOKUP is entered only by a miss or an S-write upgrade -- or by a
+        hit whose accept cycle also granted a snoop (the snoop detour
+        returns to LOOKUP, sn_back_to_lookup). The accept cycle is the one
+        the last _slice() call was cut at."""
+        acc = getattr(self, '_slice_accept', None)
+        sn_at_acc = acc is not None and any(
+            c == acc and k in ('snoop_ready', 'sn_gnt')
+            for c, k, _ in self.events[
+                bisect_left(self.events, acc, key=lambda e: e[0]):
+                bisect_right(self.events, acc, key=lambda e: e[0])])
+        return miss or sn_at_acc
+
     def _slice(self, accept_cyc, rsp_cyc):
+        self._slice_accept = accept_cyc
         # events append in non-decreasing cyc order (monitor stamps one cyc
         # per negedge), so bisect the window instead of scanning -- the
         # linear scan was O(len(events)) per soak transaction
@@ -941,7 +957,8 @@ class L1ControlTB(TBBase):
                             (set_idx, model_victim_way), 'I') == 'M')
 
         # ---- FSM path vs oracle result --------------------------------
-        self._score(f"{label} LOOKUP entered", ST_LOOKUP in states, True)
+        self._score(f"{label} LOOKUP entered iff not an accept-cycle hit",
+                    ST_LOOKUP in states, self._lookup_expected(miss))
         if not miss:
             exp_hit_state = ST_HIT_WR if we else ST_HIT_RD
             self._score(f"{label} hit service state", exp_hit_state in states,

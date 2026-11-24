@@ -623,10 +623,13 @@ module l1_coh_core
         .clk                 (clk),
         .rst_n               (rst_n),
         .tap_ctrl_state      (ctrl_state),
-        .tap_hit_set         (ctrl_tag_a_set),
+        // the latched request's set: in an accept cycle port A's set is
+        // the ARRIVING request's (TASK-005), not the hit being reported
+        .tap_hit_set         (u_control.req_set),
         .tap_hit_way         (u_control.hit_way_q),
         .tap_hit_state_before(u_control.hit_state_q),
         .tap_req_we          (u_control.req_we_q),
+        .tap_hit_again       (u_control.hit_again_q),
         .tap_miss_set        (ctrl_tag_a_set),
         .tap_miss_class      (2'(AMBER_MISS_UNKNOWN)),
         .tap_snoop_fire      (ctrl_snoop_req && ctrl_snoop_ready),

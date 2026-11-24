@@ -1239,6 +1239,7 @@ module jet_coh_core
         .tap_hit_way         (r_mt_hit_way),
         .tap_hit_state_before(r_mt_hit_state_before),
         .tap_req_we          (r_mt_req_we),
+        .tap_hit_again       (1'b0),
         .tap_miss_set        (r_mt_miss_set),
         .tap_miss_class      (2'(AMBER_MISS_UNKNOWN)),
         .tap_snoop_fire      (r_mt_snoop_fire),

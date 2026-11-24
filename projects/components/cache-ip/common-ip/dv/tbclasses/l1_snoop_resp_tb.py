@@ -1010,7 +1010,8 @@ class L1SnoopRespTB(L1ControlTB):
         upgrade = res.req == 'CLEAN_UNIQUE'
         miss = res.result == 'MISS'
 
-        self._score(f"{label} LOOKUP entered", 2 in states, True)
+        self._score(f"{label} LOOKUP entered iff not an accept-cycle hit",
+                    2 in states, self._lookup_expected(miss))
         rsp_evts = [p for _, k, p in sl if k == 'rsp']
         self._score(f"{label} exactly one response", len(rsp_evts), 1)
         if we:

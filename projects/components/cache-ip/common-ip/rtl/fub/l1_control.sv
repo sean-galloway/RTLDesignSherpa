@@ -32,18 +32,37 @@
 //   an explicit illegal/multi-hot default into sticky CTRL_ERROR (reset is
 //   the only exit, MAS ch02). Per CPU request:
 //
-//     IDLE        accept the frontend-latched request (single req_valid
-//                 pulse; the front end holds the fields until the response)
-//                 -- a pending snoop has priority and detours through
-//                 CTRL_SNOOP first (one pipeline stall at the boundary)
-//     LOOKUP      combinational tag/state compare on port A; hit service or
-//                 miss classification (I-read -> READ_NOT_SHARED_DIRTY, I-write ->
-//                 READ_UNIQUE, S-write -> CLEAN_UNIQUE upgrade straight to
-//                 MISS_FILL -- an upgrade installs no data and evicts no
-//                 victim; MAS ch02_blocks/06)
-//     HIT_RD/HIT_WR  data-array port A access in the same cycle as the state
-//                 check (MAS ch02 stage 2); write hit merges via be and
-//                 promotes E->M (tag write suppressed when already M)
+//     IDLE        accept the request (req_valid, the GAXI handshake; the
+//                 front end holds the fields in the accept cycle and this
+//                 module latches them) -- a pending snoop has priority and
+//                 detours through CTRL_SNOOP first, the request then
+//                 classified in LOOKUP. The accept cycle classifies the
+//                 ARRIVING request (amber TASK-005, the 1-cycle hit): port
+//                 A's tag set is the arriving set, the tag compare runs on
+//                 the arriving tag, and the data array (DATA_SYNC_READ)
+//                 is read at the arriving {set, beat}. A read hit goes
+//                 straight to HIT_RD and an E/M write hit to HIT_WR; every
+//                 other outcome (miss, S-write upgrade) goes to LOOKUP,
+//                 which re-classifies from the latched request exactly as
+//                 before, so the miss path is unchanged
+//     LOOKUP      combinational tag/state compare on port A for the
+//                 latched request (replay, snoop return, a non-hit
+//                 accept); hit service or miss classification (I-read ->
+//                 READ_NOT_SHARED_DIRTY, I-write -> READ_UNIQUE, S-write ->
+//                 CLEAN_UNIQUE upgrade straight to MISS_FILL -- an upgrade
+//                 installs no data and evicts no victim; MAS ch02_blocks/06)
+//     HIT_RD      the response is valid in this cycle: the port-A word
+//                 (registered read at the accept edge, way-selected by
+//                 hit_way_q). A new request may be accepted here (ready
+//                 is high with no snoop window due, see HIT_RUN_MAX), and
+//                 it is classified exactly as in IDLE -- back-to-back
+//                 read hits run one per cycle
+//     HIT_WR      the response (the request's own data) is valid in this
+//                 cycle; the byte merge and the E->M promotion (tag write
+//                 suppressed when already M) land at the end of it. Ready
+//                 is low here: a read accepted in this cycle would read
+//                 the array at the write's edge and get the old word, so a
+//                 write hit occupies the port for 2 cycles
 //     MISS_VICTIM repl victim way sampled on the first cycle (repl_req is a
 //                 one-cycle pulse so RANDOM-policy state advances exactly
 //                 once per miss); dirty (Modified) victim: gather the whole
@@ -103,6 +122,13 @@
 //   ADDR_WIDTH / SETS / WAYS / LINE_BYTES / BUS_WIDTH:
 //     Description: geometry per l1_pkg defaults (HAS Table 5.0)
 //     Type: int
+//   HIT_RUN_MAX:
+//     Description: the most back-to-back requests accepted in HIT_RD
+//       before ready drops for one cycle. A snoop is only accepted in a
+//       snoop-safe state (IDLE among them, never HIT_RD), so an unbroken
+//       read-hit stream would hold off a snoop forever; the forced IDLE
+//       cycle bounds the wait to HIT_RUN_MAX + 1 cycles
+//     Type: int, >= 1. Default 8
 //
 //------------------------------------------------------------------------------
 // Notes:
@@ -156,6 +182,7 @@ module l1_control
     // beat landing at the same edge as its read is re-read before it
     // streams. Cycle behaviour is otherwise identical.
     parameter bit DATA_SYNC_READ = 1'b0,
+    parameter int HIT_RUN_MAX    = 8,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH - LINE_OFFSET_WIDTH,
@@ -277,6 +304,8 @@ module l1_control
             $error("l1_control: BUS_WIDTH must be a multiple of 8");
         if (WAYS < 2)
             $error("l1_control: WAYS must be >= 2");
+        if (HIT_RUN_MAX < 1)
+            $error("l1_control: HIT_RUN_MAX must be >= 1");
     end
 
     // ------------------------------------------------------------------
@@ -334,9 +363,13 @@ module l1_control
     // during the burst, so capture it once seen and hold until commit.
     logic fill_pass_dirty_q;
 
-    // response register (one-cycle pulse, Moore: presented in IDLE)
-    logic                   rsp_valid_q;
-    logic [BUS_WIDTH-1:0]   rsp_data_q;
+    // back-to-back accept bookkeeping (TASK-005): the run length of
+    // requests accepted in HIT_RD (the snoop window, HIT_RUN_MAX), and a
+    // flag for a HIT_RD entered from HIT_RD -- a new hit the state alone
+    // does not show (the l1_monlite hit event tap)
+    localparam int RUN_W = $clog2(HIT_RUN_MAX + 1);
+    logic [RUN_W-1:0]       hit_run_q;
+    logic                   hit_again_q;
 
     // init walk (D-3)
     logic [SET_INDEX_WIDTH-1:0] init_cnt_q;
@@ -378,6 +411,30 @@ module l1_control
     assign req_line_addr = req_addr_q[ADDR_WIDTH-1:LINE_OFFSET_WIDTH];
     assign req_line_base = {req_line_addr, {LINE_OFFSET_WIDTH{1'b0}}};
 
+    // the arriving request (accept cycle, TASK-005)
+    logic [TAG_WIDTH-1:0]        acc_tag;
+    logic [SET_INDEX_WIDTH-1:0]  acc_set;
+    logic [BEAT_INDEX_WIDTH-1:0] acc_beat;
+
+    assign acc_tag  = req_addr[ADDR_WIDTH-1 -: TAG_WIDTH];
+    assign acc_set  = req_addr[LINE_OFFSET_WIDTH +: SET_INDEX_WIDTH];
+    assign acc_beat = req_addr[LINE_OFFSET_WIDTH-1 -: BEAT_INDEX_WIDTH];
+
+    // ready (registers only: the state and the run counter) and the
+    // accept. req_valid is the front end's handshake, so it is only high
+    // while ready is; the AND keeps the classification honest against a
+    // harness that pulses req_valid on its own.
+    logic acc_ok, acc;
+    assign acc_ok = (state_q == OH_IDLE)
+                    || ((state_q == OH_HIT_RD)
+                        && (hit_run_q < RUN_W'(HIT_RUN_MAX)));
+    assign acc    = req_valid && acc_ok;
+
+    // the tag the port-A compare runs on: the arriving request's in its
+    // accept cycle, the latched one otherwise (LOOKUP)
+    logic [TAG_WIDTH-1:0] cmp_tag;
+    assign cmp_tag = acc ? acc_tag : req_tag;
+
     // ------------------------------------------------------------------
     // LOOKUP: combinational hit/miss across the ways (tag match on a
     // valid MESI state; reserved encodings never hit -- benign absorbed)
@@ -393,7 +450,7 @@ module l1_control
         for (int w = 0; w < WAYS; w++) begin
             if (!hit_any
                 && (ctrl_tag_a_tag_state[w][TAG_STATE_WIDTH-1 -: TAG_WIDTH]
-                        == req_tag)
+                        == cmp_tag)
                 && (ctrl_tag_a_tag_state[w][2:0] == AMBER_STATE_S
                     || ctrl_tag_a_tag_state[w][2:0] == AMBER_STATE_E
                     || ctrl_tag_a_tag_state[w][2:0] == AMBER_STATE_M)) begin
@@ -403,6 +460,13 @@ module l1_control
             end
         end
     end
+
+    // accept-cycle fast path: a read hit, or a write hit on an owned
+    // (E/M) line; everything else goes through LOOKUP
+    logic acc_fast_rd, acc_fast_wr;
+    assign acc_fast_rd = !req_we && hit_any;
+    assign acc_fast_wr = req_we && (hit_state == AMBER_STATE_E
+                                    || hit_state == AMBER_STATE_M);
 
     // one-hot way selects for the array write ports
     logic [WAYS-1:0] hit_way_onehot, victim_way_onehot, sn_hit_way_onehot;
@@ -733,7 +797,9 @@ module l1_control
         unique case (state_q)
             OH_IDLE: begin
                 if (snoop_gnt) state_d = OH_SNOOP;   // snoop priority
-                else if (req_valid) state_d = OH_LOOKUP;
+                else if (acc)  state_d = acc_fast_rd ? OH_HIT_RD
+                                       : acc_fast_wr ? OH_HIT_WR
+                                       :               OH_LOOKUP;
                 else           state_d = OH_IDLE;
             end
             OH_INIT: begin
@@ -753,7 +819,14 @@ module l1_control
                     state_d = OH_MISS_VICTIM;                  // miss
                 end
             end
-            OH_HIT_RD: state_d = OH_IDLE;
+            OH_HIT_RD: begin
+                // back-to-back: a request accepted here is classified as
+                // in IDLE (no snoop can be granted in HIT_RD)
+                if (acc)       state_d = acc_fast_rd ? OH_HIT_RD
+                                       : acc_fast_wr ? OH_HIT_WR
+                                       :               OH_LOOKUP;
+                else           state_d = OH_IDLE;
+            end
             OH_HIT_WR: state_d = OH_IDLE;
             OH_MISS_VICTIM: begin
                 if (kmap_replay_now) begin
@@ -813,8 +886,8 @@ module l1_control
             fill_pass_dirty_q <= 1'b0;
             drain_seen_q   <= 1'b0;
             drain_done_q   <= 1'b0;
-            rsp_valid_q    <= 1'b0;
-            rsp_data_q     <= '0;
+            hit_run_q      <= '0;
+            hit_again_q    <= 1'b0;
             init_cnt_q     <= '0;
             sn_addr_q      <= '0;
             sn_type_q      <= '0;
@@ -836,7 +909,11 @@ module l1_control
         end else begin
             state_q <= state_d;
 
-            rsp_valid_q <= 1'b0;   // one-cycle pulse; hit states re-assert
+            // run of back-to-back accepts in HIT_RD (cleared by any other
+            // cycle), and the HIT_RD-from-HIT_RD flag
+            hit_run_q   <= (state_q == OH_HIT_RD && acc)
+                           ? hit_run_q + 1'b1 : '0;
+            hit_again_q <= (state_q == OH_HIT_RD) && acc;
 
             // partner done pulses are latched cycle-exact, from any state,
             // so a CTRL_SNOOP detour can never miss them
@@ -887,15 +964,22 @@ module l1_control
                 end
             end
 
+            // the accept (IDLE or HIT_RD): latch the request and its
+            // accept-cycle classification (LOOKUP re-classifies a non-hit).
+            // IDLE latches on req_valid even under a snoop grant (the
+            // request is then classified in LOOKUP after the snoop).
+            if (((state_q == OH_IDLE) && req_valid) || acc) begin
+                req_addr_q  <= req_addr;
+                req_we_q    <= req_we;
+                req_be_q    <= req_be;
+                req_wdata_q <= req_wdata;
+                hit_way_q   <= hit_way;
+                hit_state_q <= hit_state;
+            end
+
             unique case (state_q)
-                OH_IDLE: begin
-                    if (req_valid) begin
-                        req_addr_q  <= req_addr;
-                        req_we_q    <= req_we;
-                        req_be_q    <= req_be;
-                        req_wdata_q <= req_wdata;
-                    end
-                end
+                OH_IDLE: ;   // the accept is latched above
+                OH_HIT_RD: ;
                 OH_INIT: begin
                     if (!init_last) init_cnt_q <= init_cnt_q + 1'b1;
                 end
@@ -911,14 +995,6 @@ module l1_control
                         req_class_q <= req_we_q ? AMBER_ACE_READ_UNIQUE
                                                 : AMBER_ACE_READ_NOT_SHARED_DIRTY;
                     end
-                end
-                OH_HIT_RD: begin
-                    rsp_valid_q <= 1'b1;
-                    rsp_data_q  <= ctrl_data_a_rdata;
-                end
-                OH_HIT_WR: begin
-                    rsp_valid_q <= 1'b1;
-                    rsp_data_q  <= req_wdata_q;
                 end
                 OH_MISS_VICTIM: begin
                     if (mv_cnt_q == '0) begin
@@ -985,15 +1061,20 @@ module l1_control
     // Outputs
     // ------------------------------------------------------------------
     always_comb begin
-        // tag array port A
-        ctrl_tag_a_set           = req_set;
+        // tag array port A: the arriving request's set in its accept
+        // cycle (classified there), the latched set otherwise
+        ctrl_tag_a_set           = acc ? acc_set : req_set;
         ctrl_tag_a_wr_en         = 1'b0;
         ctrl_tag_a_wr_way_onehot = '0;
         ctrl_tag_a_wr_set        = req_set;
         ctrl_tag_a_wr_tag_state  = '0;
 
-        // data array port A
-        ctrl_data_a_addr = {req_set, req_beat};
+        // data array port A. Registered read: the arriving request's word
+        // is read at its accept edge and consumed in HIT_RD the next
+        // cycle. Combinational read: HIT_RD reads its own latched address
+        // in its own cycle, so an accept there must not move the port.
+        ctrl_data_a_addr = (DATA_SYNC_READ && acc) ? {acc_set, acc_beat}
+                                                   : {req_set, req_beat};
         ctrl_data_a_way  = hit_way_q;
         ctrl_data_a_wr_en         = 1'b0;
         ctrl_data_a_wr_way_onehot = hit_way_onehot;
@@ -1134,9 +1215,14 @@ module l1_control
     end
 
     // request/response + init status
-    assign ctrl_req_ready = (state_q == OH_IDLE);
-    assign ctrl_rsp_valid = rsp_valid_q;
-    assign ctrl_rsp_data  = rsp_data_q;
+    // ready: registers only (the state and the run counter). The response
+    // is valid IN the hit state (TASK-005; it was registered a cycle later
+    // before): HIT_RD's word comes straight off port A (registered read,
+    // way-selected by hit_way_q), HIT_WR echoes the request's data.
+    assign ctrl_req_ready = acc_ok;
+    assign ctrl_rsp_valid = (state_q == OH_HIT_RD) || (state_q == OH_HIT_WR);
+    assign ctrl_rsp_data  = (state_q == OH_HIT_WR) ? req_wdata_q
+                                                   : ctrl_data_a_rdata;
     assign ctrl_init_busy = (state_q == OH_INIT);
     assign ctrl_init_set  = init_cnt_q;
 

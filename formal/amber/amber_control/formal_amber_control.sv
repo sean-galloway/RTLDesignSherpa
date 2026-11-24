@@ -396,6 +396,31 @@ module formal_amber_control (
                                        && (obs_req_set == poison_set));
     end
 
+    // ------------------------------------------------------------------
+    // Proof (2), amber TASK-005: the accept-cycle classification. Every
+    // cycle of a hit service, the tag model holds the latched request's
+    // tag at the latched hit way in the latched hit state, and that state
+    // is valid (S/E/M) -- owned (E/M) for a write hit. Nothing writes the
+    // tag array in IDLE or HIT_RD, so the accept-cycle read and the
+    // service see the same entry; a hit classified off the wrong set,
+    // tag or way fails here.
+    // ------------------------------------------------------------------
+    localparam [3:0] W_CS_HIT_RD = 4'd3;
+    localparam [3:0] W_CS_HIT_WR = 4'd4;
+    wire [TAG_STATE_WIDTH-1:0] w_hit_entry =
+        tag_model[obs_hit_way_q*SETS + obs_req_set];
+    always @(posedge clk) begin
+        if (rst_n) begin
+            ap_hit_matches_tags: assert (!((ctrl_state == W_CS_HIT_RD)
+                                           || (ctrl_state == W_CS_HIT_WR))
+                || ((w_hit_entry[TAG_STATE_WIDTH-1 -: TAG_WIDTH] == obs_req_tag)
+                    && (w_hit_entry[2:0] == obs_hit_state_q)
+                    && (obs_hit_state_q != W_ST_I)));
+            ap_hit_wr_owned: assert (!(ctrl_state == W_CS_HIT_WR)
+                || (obs_hit_state_q == 3'b010) || (obs_hit_state_q == 3'b011));
+        end
+    end
+
     amber_control_props props (
         .clk                      (clk),
         .rst_n                    (rst_n),
@@ -495,8 +520,10 @@ endmodule
 //   - A-cdready: stalled at most 1 cycle (fair manager);
 //   - A-snoop (fair arbitration): a grant may follow a previous grant only
 //     after >= 6 cycles, and at most 2 grants per accepted CPU request;
-//   - A-cpu (fair arbitration): req_valid only raises at IDLE (the blocking
-//     frontend's contract) and only one request is outstanding.
+//   - A-cpu (fair arbitration): req_valid only raises at IDLE or HIT_RD
+//     (the back-to-back accept, amber TASK-005) and only one request is
+//     outstanding -- the next may be presented in the previous one's
+//     response cycle.
 //
 // The bounded-liveness assertions are the contrapositive of deadlock/
 // livelock: under these fair constraints no state residence and no whole
@@ -808,8 +835,15 @@ module amber_control_props (
         if (rst_n) begin
             as_sn_spacing: assume (!snoop_req || (f_sn_gap >= 6));
             as_sn_per_txn: assume (!ctrl_snoop_ready || (f_sn_per_txn < 2));
-            as_req_at_idle: assume (!req_valid || (ctrl_state == CS_IDLE));
-            as_single_outstanding: assume (!req_valid || !f_req_pending);
+            // amber TASK-005: a request is presented where control can take
+            // it -- IDLE, or HIT_RD (the back-to-back accept) -- and the
+            // only overlap allowed is the in-flight request's response
+            // cycle (ctrl_rsp_valid), i.e. one request outstanding at a
+            // time with zero dead cycles between them
+            as_req_at_idle: assume (!req_valid || (ctrl_state == CS_IDLE)
+                                    || (ctrl_state == 4'd3));
+            as_single_outstanding: assume (!req_valid || !f_req_pending
+                                           || ctrl_rsp_valid);
         end
     end
 
@@ -979,6 +1013,27 @@ module amber_control_props (
     always @(posedge clk) begin
         if (rst_n)
             cp_hits: cover ((ctrl_state == CS_HIT_RD) || (ctrl_state == CS_HIT_WR));
+    end
+
+    // amber TASK-005: a request accepted in HIT_RD (back to back), and the
+    // response valid in the hit state itself
+    always @(posedge clk) begin
+        if (rst_n) begin
+            cp_hit_b2b: cover ((ctrl_state == CS_HIT_RD) && req_valid
+                               && ctrl_req_ready);
+            cp_hit_wr_rsp: cover ((ctrl_state == CS_HIT_WR) && ctrl_rsp_valid);
+        end
+    end
+
+    // S10 (amber TASK-005) the response is valid exactly in the hit
+    // states, and ready is only ever high in IDLE or HIT_RD
+    always @(posedge clk) begin
+        if (rst_n) begin
+            ap_rsp_in_hit: assert (ctrl_rsp_valid
+                == ((ctrl_state == CS_HIT_RD) || (ctrl_state == CS_HIT_WR)));
+            ap_ready_states: assert (!ctrl_req_ready || (ctrl_state == CS_IDLE)
+                                     || (ctrl_state == CS_HIT_RD));
+        end
     end
 
 endmodule

@@ -33,7 +33,7 @@
 
 ### Purpose
 
-`l1_cpu_frontend` is the GAXI slave that accepts CPU requests and returns responses. Because the cache is blocking, it latches one request at a time and does not accept a new request until `l1_control` returns `req_ready`.
+`l1_cpu_frontend` is the GAXI slave that accepts CPU requests and returns responses. It passes the request to `l1_control` in the handshake cycle (control latches it) and does not accept a new request until `l1_control` returns `req_ready`.
 
 ### Request payload
 
@@ -62,7 +62,9 @@ Packed as `{rdata[BUS_WIDTH-1:0]}`.
 | `cpu_rsp_rd_ready` | input | CPU accepts response. |
 | `cpu_rsp_rd_data` | output | Response payload. |
 
-`cpu_req_wr_ready` is asserted only when `l1_control` is in `CTRL_IDLE` and no snoop priority stall is active. Once a request is accepted, the front end latches it and holds it until `l1_control` returns the response.
+`cpu_req_wr_ready` is `ctrl_req_ready` (`CTRL_IDLE`, or `CTRL_HIT_RD` within the back-to-back run) AND room in the depth-2 response FIFO: while `l1_control`'s response is up the FIFO must be empty (that response and the new request's may both need an entry), otherwise one free entry.
+
+`RSP_BYPASS` (amber sets 1 in `l1_cpu_plane`; jet and jet-prime keep the default 0): the response is presented in the cycle `l1_control` makes it -- `cpu_rsp_rd_valid` is the FIFO's not-empty OR `ctrl_rsp_valid`, the payload the FIFO head when it holds anything, else `ctrl_rsp_data` -- and goes into the FIFO only if not taken that cycle. With 0 every response passes through the FIFO, a cycle later, as before.
 
 ### Replay path
 
@@ -80,7 +82,7 @@ On a miss, `l1_control` re-drives the original latched request into its own hit 
 
 | Event | Emit point | Payload highlights |
 |-------|------------|--------------------|
-| hit | `CTRL_HIT_RD` / `CTRL_HIT_WR` | set, way, old/new state |
+| hit | `CTRL_HIT_RD` / `CTRL_HIT_WR` entry, or a `CTRL_HIT_RD` entered from `CTRL_HIT_RD` (`tap_hit_again`, a back-to-back hit) | set (the latched request's), way, old/new state |
 | miss | `CTRL_MISS_VICTIM` | set, way, miss class |
 | snoop | snoop accepted | snoop type, hit/miss, response class |
 | eviction | `CTRL_MISS_VICTIM` dirty victim | clean/dirty, set, way |

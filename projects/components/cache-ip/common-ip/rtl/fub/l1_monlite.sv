@@ -161,6 +161,10 @@ module l1_monlite
     input  logic [WAY_INDEX_WIDTH-1:0]  tap_hit_way,
     input  logic [2:0]                  tap_hit_state_before,
     input  logic                        tap_req_we,
+    // a HIT_RD entered from HIT_RD (a back-to-back hit, amber TASK-005):
+    // the state alone does not show the new hit. Tie 0 where the control
+    // never chains hits.
+    input  logic                        tap_hit_again,
 
     // miss context: set valid from accept through the transaction; the
     // victim way/state arrive registered -- sampled at the deferred cycle
@@ -233,7 +237,8 @@ module l1_monlite
     wire in_miss_drain = (tap_ctrl_state == AMBER_CTRL_MISS_DRAIN);
     wire in_fill_write = (tap_ctrl_state == AMBER_CTRL_FILL_WRITE);
 
-    wire w_hit_rd_fire  = in_hit_rd  && (state_q != AMBER_CTRL_HIT_RD);
+    wire w_hit_rd_fire  = in_hit_rd  && ((state_q != AMBER_CTRL_HIT_RD)
+                                         || tap_hit_again);
     wire w_hit_wr_fire  = in_hit_wr  && (state_q != AMBER_CTRL_HIT_WR);
     wire w_miss_victim_entry = in_miss_victim
                                && (state_q != AMBER_CTRL_MISS_VICTIM);

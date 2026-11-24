@@ -11,23 +11,21 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-005** — pipelined hit path on the CPU port, for peregrine's MEM stage (riscv-ip/peregrine-rv32im PRD P13, option (b) chosen 2026-11-24; a hit measured 4 cycles).
 - **TASK-004** — CPU-side clean-all request, for peregrine's `fence.i` (riscv-ip/peregrine-rv32im PRD P10).
 
 ## Active
 
-(none)
-
 ## Closed
 
+- **TASK-005** — pipelined hit path on the CPU port, for peregrine's MEM stage (PRD P13 option (b)). Closed 2026-11-24: read hit 1 cycle / issue every cycle, write hit 1 / 2 (was 4 / 3); HIT_RUN_MAX=8 bounds snoop wait to 9; common-ip FULL 255/255, amber FULL 121/121, formal cover/live/safety PASS, OOC WNS +0.342 ns.
 - **TASK-003** — Genesys2 Vivado build of the post-restructure amber hierarchy. Closed 2026-11-01: bitstream green, WNS +0.083 ns, 0/404,557 failing endpoints, undriven-net warnings pre-existing; on-board run available on demand.
 - **TASK-002** — restructure amber RTL into planes (mem-ctrl doctrine): CPU / coherence-core / fabric planes, ACE isolated as a swappable fabric plane so a CHI plane can replace it later.  Closed 2026-11-01: planes landed, fabric contract doc + CHI stub in place; full regression is the restructure plan's Task 6.
 - **TASK-001** — amber_pair_harness on `monbus_axil4_group_1wr` (the

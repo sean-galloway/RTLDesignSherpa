@@ -633,7 +633,12 @@ class L1MonliteTB(L1CpuFrontendTB):
             await self._txn(self._compose_addr(0x50 + w, 30), 0,
                                label=f'dc{w}')
         # the saturating count must be non-zero while stalled (sample it;
-        # exactly which events dropped is timing-dependent)
+        # exactly which events dropped is timing-dependent). Settle first,
+        # bus still stalled: since the 1-cycle hit (amber TASK-005) the
+        # response leaves in the HIT cycle itself, so the last
+        # transaction's HIT event is counted (dropped) after _txn returns.
+        for _ in range(4):
+            await self._negedge_settled()
         d_val = int(self.dut.monbus_dropped.value)
         self._score('drop: count accumulated under stall', d_val > 0, True)
         # release the bus: the DROPPED report must be the next packet, and

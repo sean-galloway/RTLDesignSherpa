@@ -128,6 +128,8 @@ class L1CpuFrontendTB(TBBase):
         self.last_accept = None
         self.cyc = 0
         self.stub_victim_way = 0
+        # l1_control's HIT_RUN_MAX (the harness leaves the default)
+        self.HIT_RUN_MAX = 8
 
         # response bookkeeping: slave callback appends here
         self.rsp_log = []
@@ -214,6 +216,7 @@ class L1CpuFrontendTB(TBBase):
         soak_delay = FlexRandomizer(
             {'valid_delay': ([(0, 0), (1, 3), (4, 10)], [6, 3, 1])})
         master_rand = soak_delay if self.TEST_LEVEL == 'full' else zero_delay
+        self._master_rand = master_rand
 
         self.master = GAXIMaster(
             dut=d, title='cpu_req', prefix='',
@@ -235,6 +238,7 @@ class L1CpuFrontendTB(TBBase):
             timeout_cycles=self.RSP_TIMEOUT_CYCLES,
             mode='skid', bus_name='cpu_rsp_rd', pkt_prefix='',
             multi_sig=False, randomizer=rsp_rand, log=self.log)
+        self._slave_rand = rsp_rand
         self.slave.add_callback(self._on_rsp)
         # auto-accept by default; the directed backpressure scenarios drop
         # the policy to 'stall' and accept explicitly
@@ -551,7 +555,11 @@ class L1CpuFrontendTB(TBBase):
                 addr, we, be=(1 << self.STRB_W) - 1 if we else None,
                 wdata=0xA5 << (self.DATA_WIDTH - 8) if we else None,
                 label=f'hit{i}')
-            sl = self._slice(accept_cyc, rsp_cyc)
+            # rsp_cyc is the response BFM callback's stamp, one cycle
+            # before the pin-level handshake; since the 1-cycle hit (amber
+            # TASK-005) the hit state IS the response cycle, so the window
+            # runs to the handshake itself
+            sl = self._slice(accept_cyc, rsp_cyc + 1)
             n_fe = len([1 for _, k, _ in sl if k == 'fe_req'])
             self._score(f"hit{i} exactly one fe_req pulse", n_fe, 1)
             states = [p for _, k, p in sl if k == 'state']
@@ -782,8 +790,10 @@ class L1CpuFrontendTB(TBBase):
 
     async def _s_ready_only_idle(self):
         """EVERY-CYCLE invariant during a busy phase: cpu_req_wr_ready
-        implies CTRL_IDLE + control ready; during a miss sequence ready
-        stays low cycle after cycle (blocking contract, MAS ch02/09)."""
+        implies control ready in CTRL_IDLE, or in CTRL_HIT_RD with the
+        response FIFO empty (the back-to-back accept, amber TASK-005);
+        during a miss sequence ready stays low cycle after cycle
+        (blocking contract, MAS ch02/09)."""
         self._scenario('ReadyOnlyIdle')
         d = self.dut
         # start a miss transaction and sample every cycle until response
@@ -799,9 +809,13 @@ class L1CpuFrontendTB(TBBase):
             ready = int(d.cpu_req_wr_ready.value)
             state = int(d.ctrl_state.value)
             if ready:
-                self._score('roi: ready implies IDLE', state, ST_IDLE)
+                self._score('roi: ready implies IDLE or HIT_RD',
+                            state in (ST_IDLE, ST_HIT_RD), True)
                 self._score('roi: ready implies control ready',
                             int(d.ctrl_req_ready.value), 1)
+                if state == ST_HIT_RD:
+                    self._score('roi: HIT_RD ready implies the FIFO empty',
+                                int(d.u_frontend.stage_rd_valid.value), 0)
             else:
                 if state != ST_IDLE:
                     low_while_busy += 1
@@ -812,6 +826,87 @@ class L1CpuFrontendTB(TBBase):
         self._score('roi: busy phase sampled', samples > 4, True)
         self._score('roi: ready low through non-IDLE',
                     low_while_busy > 0, True)
+
+    async def _s_back_to_back_hits(self):
+        """amber TASK-005, the 1-cycle hit. A burst of read hits is
+        accepted one per cycle -- a run of HIT_RUN_MAX + 1 accepts, then
+        one cycle with ready low (the snoop window), then the next run --
+        and every response is handed over exactly one cycle after its
+        accept, in order, with the right data. A write hit answers in one
+        cycle but holds the port for two: the read behind it is accepted
+        two cycles after it and returns the written bytes."""
+        self._scenario('BackToBackHits')
+        # the timing claims need a CPU that streams: no valid gaps, no
+        # response backpressure (the soak profiles are restored after)
+        self.master.set_randomizer(FlexRandomizer({'valid_delay': ([(0, 0)], [1])}))
+        self.slave.set_randomizer(FlexRandomizer({'ready_delay': ([(0, 0)], [1])}))
+        full_be = (1 << self.STRB_W) - 1
+        base = self._compose_addr(0xB0, 9)
+        await self._txn(base, 0, label='b2b_warm')         # fill the line (S)
+        # own it (S-write upgrade -> M), so the measured write is a true
+        # write hit rather than an upgrade
+        await self._txn(base + self.STRB_W, 1, label='b2b_own')
+        n = 2 * (self.HIT_RUN_MAX + 1) + 1
+        addrs = [base + (i % self.FILL_BEATS) * self.STRB_W for i in range(n)]
+        n_acc0 = len([1 for _, k, _ in self.events if k == 'accept'])
+        n_rsp0 = len([1 for _, k, _ in self.events if k == 'rsp'])
+        await self.master.send_burst([
+            self.master.create_packet(data=self._pack_req(a, 0, full_be, 0))
+            for a in addrs])
+        for _ in range(self.RSP_TIMEOUT_CYCLES):
+            if len([1 for _, k, _ in self.events if k == 'rsp']) >= n_rsp0 + n:
+                break
+            await self._negedge_settled()
+        accs = [c for c, k, _ in self.events if k == 'accept'][n_acc0:]
+        rsps = [(c, p) for c, k, p in self.events if k == 'rsp'][n_rsp0:]
+        self._score('b2b: accepts', len(accs), n)
+        self._score('b2b: responses', len(rsps), n)
+        gaps = [b - a for a, b in zip(accs, accs[1:])]
+        run = self.HIT_RUN_MAX + 1
+        exp_gaps = [2 if (i + 1) % run == 0 else 1 for i in range(n - 1)]
+        self._score('b2b: one accept per cycle, a gap every run', gaps,
+                    exp_gaps)
+        for i, ((rc, rd), ac, a) in enumerate(zip(rsps, accs, addrs)):
+            self._score(f'b2b{i}: response the cycle after its accept',
+                        rc - ac, 1)
+            line = self._line_of(a)
+            beat = (a >> (self.STRB_W.bit_length() - 1)) & (self.FILL_BEATS - 1)
+            self._score(f'b2b{i}: data', rd,
+                        self._beat_of_line(self._mem_line(line), beat))
+        self.txns += n
+
+        # write hit then a read of the same word, back to back
+        wdata = random.getrandbits(self.DATA_WIDTH)
+        n_acc0 = len([1 for _, k, _ in self.events if k == 'accept'])
+        n_rsp0 = len([1 for _, k, _ in self.events if k == 'rsp'])
+        await self.master.send_burst([
+            self.master.create_packet(data=self._pack_req(base, 1, full_be, wdata)),
+            self.master.create_packet(data=self._pack_req(base, 0, full_be, 0))])
+        for _ in range(self.RSP_TIMEOUT_CYCLES):
+            if len([1 for _, k, _ in self.events if k == 'rsp']) >= n_rsp0 + 2:
+                break
+            await self._negedge_settled()
+        accs = [c for c, k, _ in self.events if k == 'accept'][n_acc0:]
+        rsps = [(c, p) for c, k, p in self.events if k == 'rsp'][n_rsp0:]
+        self._score('b2b wr: two accepts', len(accs), 2)
+        self._score('b2b wr: two responses', len(rsps), 2)
+        if len(accs) == 2 and len(rsps) == 2:
+            self._score('b2b wr: write answered in 1 cycle',
+                        rsps[0][0] - accs[0], 1)
+            self._score('b2b wr: write holds the port 2 cycles',
+                        accs[1] - accs[0], 2)
+            self._score('b2b wr: read after write in 1 cycle',
+                        rsps[1][0] - accs[1], 1)
+            self._score('b2b wr: read returns the written word', rsps[1][1],
+                        wdata)
+        lo = ((base >> (self.STRB_W.bit_length() - 1)) & (self.FILL_BEATS - 1)) \
+            * self.STRB_W
+        ml = self._mem_line(self._line_of(base))
+        for i in range(self.STRB_W):
+            ml[lo + i] = (wdata >> (8 * i)) & 0xFF
+        self.txns += 2
+        self.master.set_randomizer(self._master_rand)
+        self.slave.set_randomizer(self._slave_rand)
 
     async def _s_full_soak(self):
         """Randomized soak: random addresses (mixed hits/misses/upgrades),
@@ -869,6 +964,7 @@ class L1CpuFrontendTB(TBBase):
             await self._s_miss_sequence()
             await self._s_upgrade_visible_once()
             await self._s_ready_only_idle()
+            await self._s_back_to_back_hits()
         elif self.TEST_LEVEL == 'func':
             await self._s_hit_sequence()
             await self._s_miss_sequence()
@@ -878,6 +974,7 @@ class L1CpuFrontendTB(TBBase):
             await self._s_snoop_detour()
             await self._s_replay_single_transaction()
             await self._s_ready_only_idle()
+            await self._s_back_to_back_hits()
         else:
             await self._s_hit_sequence()
             await self._s_miss_sequence()
@@ -887,6 +984,7 @@ class L1CpuFrontendTB(TBBase):
             await self._s_snoop_detour()
             await self._s_replay_single_transaction()
             await self._s_ready_only_idle()
+            await self._s_back_to_back_hits()
             await self._s_full_soak()
         # global handshake balance
         n_acc = len([1 for _, k, _ in self.events if k == 'accept'])

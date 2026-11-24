@@ -1004,7 +1004,14 @@ class L1CoreTB(TBBase):
             if lat0 is None:
                 lat0 = lat
             self._score(f"lat{i}: hit latency constant", lat, lat0)
-        self._score("hit latency bounded", 2 <= lat0 <= 12, True)
+        self.log.info(f"first-hit latency: hit {lat0} cycles, cold miss "
+                      f"{miss_lat} (accept to the response callback)")
+        # amber TASK-005, the 1-cycle hit: the response is valid the cycle
+        # after the accept. Counted here from the accept sample to the
+        # response BFM callback's cycle stamp, which reads one less than
+        # the pin-level count (peregrine's test_peregrine_amber_latency
+        # reads 1 at the pins), so the contract reads 0 here.
+        self._score("hit latency is the 1-cycle contract", lat0, 0)
         self._score("cold access slower than a hit", miss_lat >= lat0 + 5,
                     True)
         self._scenario('FirstHitLatency')
@@ -1171,6 +1178,20 @@ class L1CoreTB(TBBase):
     # ------------------------------------------------------------------
     # MonBus tally cross-check + congestion
     # ------------------------------------------------------------------
+    async def _monbus_drain(self, idle_cycles=8, limit=256):
+        """Wait until the MonBus output has been idle for idle_cycles
+        consecutive cycles (bounded by limit): every event fired so far has
+        been counted."""
+        d = self.dut
+        idle = 0
+        for _ in range(limit):
+            await self._negedge_settled()
+            idle = 0 if int(d.mon_valid.value) else idle + 1
+            if idle >= idle_cycles:
+                return
+        self._score("monbus drained before the tally", idle >= idle_cycles,
+                    True)
+
     def _check_tally(self):
         for ev in EV_NAMES:
             if ev == EV_DROPPED:
@@ -1240,7 +1261,11 @@ class L1CoreTB(TBBase):
             await self._random_lockstep(self.FULL_TXN[self.TEST_LEVEL])
             self._scenario('RandomOracleLockstep')
 
-        # cross-checks on everything observed so far
+        # cross-checks on everything observed so far. Let the observer
+        # drain first: since the 1-cycle hit (amber TASK-005) the response
+        # leaves in the HIT cycle itself, so the last transaction's HIT
+        # packet is still in l1_monlite's queue when _txn_end returns.
+        await self._monbus_drain()
         self._check_tally()
         self._check_coh_req()
         self._scenario('MonliteTallyCrossCheck')

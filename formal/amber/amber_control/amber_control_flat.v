@@ -294,15 +294,17 @@ module l1_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:271:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:298:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:273:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:300:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:275:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:302:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:277:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:304:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:279:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:306:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
+		if (8 < 1)
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:308:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 8 must be >= 1");
 	end
 	localparam signed [31:0] CTRL_BITS = 12;
 	localparam [11:0] OH_IDLE = 12'b000000000001;
@@ -338,8 +340,9 @@ module l1_control (
 	reg drain_seen_q;
 	reg drain_done_q;
 	reg fill_pass_dirty_q;
-	reg rsp_valid_q;
-	reg [64 - 1:0] rsp_data_q;
+	localparam signed [31:0] RUN_W = $clog2(8 + 1);
+	reg [RUN_W - 1:0] hit_run_q;
+	reg hit_again_q;
 	reg [SET_INDEX_WIDTH - 1:0] init_cnt_q;
 	reg [32 - 1:0] sn_addr_q;
 	reg [2:0] sn_type_q;
@@ -368,6 +371,22 @@ module l1_control (
 	assign req_beat = req_addr_q[LINE_OFFSET_WIDTH - 1-:BEAT_INDEX_WIDTH];
 	assign req_line_addr = req_addr_q[32 - 1:LINE_OFFSET_WIDTH];
 	assign req_line_base = {req_line_addr, {LINE_OFFSET_WIDTH {1'b0}}};
+	wire [TAG_WIDTH - 1:0] acc_tag;
+	wire [SET_INDEX_WIDTH - 1:0] acc_set;
+	wire [BEAT_INDEX_WIDTH - 1:0] acc_beat;
+	assign acc_tag = req_addr[32 - 1-:TAG_WIDTH];
+	assign acc_set = req_addr[LINE_OFFSET_WIDTH+:SET_INDEX_WIDTH];
+	assign acc_beat = req_addr[LINE_OFFSET_WIDTH - 1-:BEAT_INDEX_WIDTH];
+	wire acc_ok;
+	wire acc;
+	function automatic signed [RUN_W - 1:0] sv2v_cast_B50F1_signed;
+		input reg signed [RUN_W - 1:0] inp;
+		sv2v_cast_B50F1_signed = inp;
+	endfunction
+	assign acc_ok = (state_q == OH_IDLE) || ((state_q == OH_HIT_RD) && (hit_run_q < sv2v_cast_B50F1_signed(8)));
+	assign acc = req_valid && acc_ok;
+	wire [TAG_WIDTH - 1:0] cmp_tag;
+	assign cmp_tag = (acc ? acc_tag : req_tag);
 	reg hit_any;
 	reg [WAY_INDEX_WIDTH - 1:0] hit_way;
 	reg [2:0] hit_state;
@@ -384,13 +403,17 @@ module l1_control (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] w;
 			for (w = 0; w < 2; w = w + 1)
-				if ((!hit_any && (ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + (TAG_STATE_WIDTH - 1)-:TAG_WIDTH] == req_tag)) && (((ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + 2-:3] == 3'b001) || (ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + 2-:3] == 3'b010)) || (ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + 2-:3] == 3'b011))) begin
+				if ((!hit_any && (ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + (TAG_STATE_WIDTH - 1)-:TAG_WIDTH] == cmp_tag)) && (((ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + 2-:3] == 3'b001) || (ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + 2-:3] == 3'b010)) || (ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + 2-:3] == 3'b011))) begin
 					hit_any = 1'b1;
 					hit_way = sv2v_cast_1803D_signed(w);
 					hit_state = ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + 2-:3];
 				end
 		end
 	end
+	wire acc_fast_rd;
+	wire acc_fast_wr;
+	assign acc_fast_rd = !req_we && hit_any;
+	assign acc_fast_wr = req_we && ((hit_state == 3'b010) || (hit_state == 3'b011));
 	reg [2 - 1:0] hit_way_onehot;
 	reg [2 - 1:0] victim_way_onehot;
 	reg [2 - 1:0] sn_hit_way_onehot;
@@ -659,8 +682,8 @@ module l1_control (
 			OH_IDLE:
 				if (snoop_gnt)
 					state_d = OH_SNOOP;
-				else if (req_valid)
-					state_d = OH_LOOKUP;
+				else if (acc)
+					state_d = (acc_fast_rd ? OH_HIT_RD : (acc_fast_wr ? OH_HIT_WR : OH_LOOKUP));
 				else
 					state_d = OH_IDLE;
 			OH_INIT:
@@ -677,7 +700,11 @@ module l1_control (
 					state_d = OH_MISS_FILL;
 				else
 					state_d = OH_MISS_VICTIM;
-			OH_HIT_RD: state_d = OH_IDLE;
+			OH_HIT_RD:
+				if (acc)
+					state_d = (acc_fast_rd ? OH_HIT_RD : (acc_fast_wr ? OH_HIT_WR : OH_LOOKUP));
+				else
+					state_d = OH_IDLE;
 			OH_HIT_WR: state_d = OH_IDLE;
 			OH_MISS_VICTIM:
 				if (kmap_replay_now)
@@ -734,8 +761,8 @@ module l1_control (
 			fill_pass_dirty_q <= 1'b0;
 			drain_seen_q <= 1'b0;
 			drain_done_q <= 1'b0;
-			rsp_valid_q <= 1'b0;
-			rsp_data_q <= 1'sb0;
+			hit_run_q <= 1'sb0;
+			hit_again_q <= 1'b0;
 			init_cnt_q <= 1'sb0;
 			sn_addr_q <= 1'sb0;
 			sn_type_q <= 1'sb0;
@@ -757,7 +784,8 @@ module l1_control (
 		end
 		else begin
 			state_q <= state_d;
-			rsp_valid_q <= 1'b0;
+			hit_run_q <= ((state_q == 12'b000000001000) && acc ? hit_run_q + 1'b1 : {RUN_W {1'sb0}});
+			hit_again_q <= (state_q == OH_HIT_RD) && acc;
 			if (ctrl_fill_done)
 				fill_done_q <= 1'b1;
 			if (ctrl_drain_done)
@@ -793,15 +821,20 @@ module l1_control (
 					pend_state_q <= 3'b001;
 				end
 			end
+			if (((state_q == OH_IDLE) && req_valid) || acc) begin
+				req_addr_q <= req_addr;
+				req_we_q <= req_we;
+				req_be_q <= req_be;
+				req_wdata_q <= req_wdata;
+				hit_way_q <= hit_way;
+				hit_state_q <= hit_state;
+			end
 			(* full_case, parallel_case *)
 			case (state_q)
 				OH_IDLE:
-					if (req_valid) begin
-						req_addr_q <= req_addr;
-						req_we_q <= req_we;
-						req_be_q <= req_be;
-						req_wdata_q <= req_wdata;
-					end
+					;
+				OH_HIT_RD:
+					;
 				OH_INIT:
 					if (!init_last)
 						init_cnt_q <= init_cnt_q + 1'b1;
@@ -815,14 +848,6 @@ module l1_control (
 					end
 					else if (!hit_any)
 						req_class_q <= (req_we_q ? 3'b001 : 3'b110);
-				end
-				OH_HIT_RD: begin
-					rsp_valid_q <= 1'b1;
-					rsp_data_q <= ctrl_data_a_rdata;
-				end
-				OH_HIT_WR: begin
-					rsp_valid_q <= 1'b1;
-					rsp_data_q <= req_wdata_q;
 				end
 				OH_MISS_VICTIM:
 					if (mv_cnt_q == {(BEAT_INDEX_WIDTH >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - BEAT_INDEX_WIDTH) {1'sb0}}) begin
@@ -864,12 +889,12 @@ module l1_control (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		ctrl_tag_a_set = req_set;
+		ctrl_tag_a_set = (acc ? acc_set : req_set);
 		ctrl_tag_a_wr_en = 1'b0;
 		ctrl_tag_a_wr_way_onehot = 1'sb0;
 		ctrl_tag_a_wr_set = req_set;
 		ctrl_tag_a_wr_tag_state = 1'sb0;
-		ctrl_data_a_addr = {req_set, req_beat};
+		ctrl_data_a_addr = (1 && acc ? {acc_set, acc_beat} : {req_set, req_beat});
 		ctrl_data_a_way = hit_way_q;
 		ctrl_data_a_wr_en = 1'b0;
 		ctrl_data_a_wr_way_onehot = hit_way_onehot;
@@ -961,9 +986,9 @@ module l1_control (
 				;
 		endcase
 	end
-	assign ctrl_req_ready = state_q == OH_IDLE;
-	assign ctrl_rsp_valid = rsp_valid_q;
-	assign ctrl_rsp_data = rsp_data_q;
+	assign ctrl_req_ready = acc_ok;
+	assign ctrl_rsp_valid = (state_q == OH_HIT_RD) || (state_q == OH_HIT_WR);
+	assign ctrl_rsp_data = (state_q == 12'b000000010000 ? req_wdata_q : ctrl_data_a_rdata);
 	assign ctrl_init_busy = state_q == OH_INIT;
 	assign ctrl_init_set = init_cnt_q;
 	assign ctrl_req_class = req_class_q;

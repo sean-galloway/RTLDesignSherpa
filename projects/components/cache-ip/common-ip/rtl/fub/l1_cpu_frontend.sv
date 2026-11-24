@@ -48,6 +48,15 @@
 //     accepted with wr_ready high (>= 1 free entry), and the blocking
 //     pipeline produces at most one response per accepted request.
 //
+//   RSP_BYPASS=1 (amber TASK-005, the 1-cycle hit): the response is
+//     presented the cycle control produces it -- cpu_rsp_rd_valid is the
+//     FIFO's not-empty OR ctrl_rsp_valid, the payload the FIFO head when
+//     it holds anything, else ctrl_rsp_data -- and is written into the
+//     FIFO only when it is not taken in that cycle, so order is kept.
+//     Ready while control's response is up (back-to-back accept in
+//     HIT_RD) needs the FIFO EMPTY: the current response may still go in,
+//     and the new request's response needs the second entry. Every ready
+//     term stays a register (the FIFO count, control's state).
 //   A miss (fill + DECISION D-4 replay) is a single GAXI transaction: the
 //     replay re-drives control's own latched request internally; the
 //     frontend sees one request, one response.
@@ -65,6 +74,12 @@
 //   ADDR_WIDTH / SETS / WAYS / LINE_BYTES / BUS_WIDTH:
 //     Description: geometry per l1_pkg defaults (HAS Table 5.0)
 //     Type: int
+//   RSP_BYPASS:
+//     Description: 1 = present the response in the cycle control makes it
+//       (FIFO bypass, see above); 0 = through the staging FIFO only (a
+//       cycle later). Default 0 (jet, jet-prime); amber's l1_cpu_plane
+//       sets 1
+//     Type: bit
 //
 //------------------------------------------------------------------------------
 // Notes:
@@ -94,6 +109,7 @@ module l1_cpu_frontend
     parameter int WAYS       = AMBER_WAYS,
     parameter int LINE_BYTES = AMBER_LINE_BYTES,
     parameter int BUS_WIDTH  = AMBER_BUS_WIDTH,
+    parameter bit RSP_BYPASS = 1'b0,
     localparam int STRB_W     = BUS_WIDTH / 8,
     localparam int CPU_REQ_W  = ADDR_WIDTH + 1 + STRB_W + BUS_WIDTH,
     localparam int CPU_RSP_W  = BUS_WIDTH
@@ -140,6 +156,13 @@ module l1_cpu_frontend
     logic                 stage_wr_ready;
     logic                 stage_rd_valid;
     logic [BUS_WIDTH-1:0] stage_rd_data;
+    logic                 stage_wr_valid;
+
+    // RSP_BYPASS: a response taken in the cycle it is made (FIFO empty,
+    // the CPU ready) never enters the FIFO
+    assign stage_wr_valid = RSP_BYPASS
+                            ? (ctrl_rsp_valid && !(!stage_rd_valid && cpu_rsp_rd_ready))
+                            : ctrl_rsp_valid;
 
     gaxi_fifo_sync #(
         .DATA_WIDTH (BUS_WIDTH),
@@ -147,7 +170,7 @@ module l1_cpu_frontend
     ) u_rsp_stage (
         .axi_aclk    (clk),
         .axi_aresetn (rst_n),
-        .wr_valid    (ctrl_rsp_valid),
+        .wr_valid    (stage_wr_valid),
         .wr_ready    (stage_wr_ready),
         .wr_data     (ctrl_rsp_data),
         .rd_ready    (cpu_rsp_rd_ready),
@@ -162,7 +185,11 @@ module l1_cpu_frontend
     // Ready only in CTRL_IDLE (ctrl_req_ready) with room for this
     // request's response in the staging queue (MAS ch02/09: the front end
     // does not accept a new request until it can complete the old one).
-    assign cpu_req_wr_ready = ctrl_req_ready && stage_wr_ready;
+    // RSP_BYPASS: while control's response is up, the FIFO must be empty
+    // (room for that response AND the new request's).
+    assign cpu_req_wr_ready = ctrl_req_ready
+                              && ((RSP_BYPASS && ctrl_rsp_valid) ? !stage_rd_valid
+                                                                 : stage_wr_ready);
 
     // The control-side accept: a single-cycle pulse in the GAXI handshake
     // cycle; control latches the fields there and holds them internally
@@ -177,7 +204,8 @@ module l1_cpu_frontend
     // Response channel: the FIFO read port, held stable by the parked
     // read pointer while cpu_rsp_rd_ready is low
     // ------------------------------------------------------------------
-    assign cpu_rsp_rd_valid = stage_rd_valid;
-    assign cpu_rsp_rd_data  = stage_rd_data;
+    assign cpu_rsp_rd_valid = stage_rd_valid || (RSP_BYPASS && ctrl_rsp_valid);
+    assign cpu_rsp_rd_data  = (RSP_BYPASS && !stage_rd_valid) ? ctrl_rsp_data
+                                                              : stage_rd_data;
 
 endmodule : l1_cpu_frontend

@@ -19,8 +19,9 @@
 // fill done after start / one pulse / within 12 cycles / after all 8
 // in-order beats, drain done after start / one pulse / within 6 cycles,
 // cdready stall <= 1, snoop grant spacing >= 6, at most 2 snoop grants
-// per accepted CPU request, req_valid only at IDLE, one outstanding
-// request. The 12-cycle fill window is the structural minimum + margin
+// per accepted CPU request, req_valid only at IDLE or HIT_RD (amber
+// TASK-005, the back-to-back accept), one outstanding request (the next
+// may be presented in the previous one's response cycle). The 12-cycle fill window is the structural minimum + margin
 // (8 in-order beats => earliest done start+9); a smaller window makes the
 // assumption set unsatisfiable and vacates the proof (caught by cover).
 
@@ -307,8 +308,15 @@ module formal_amber_control_live (
         if (rst_n) begin
             as_sn_spacing: assume (!snoop_req || (f_sn_gap >= 6));
             as_sn_per_txn: assume (!ctrl_snoop_ready || (f_sn_per_txn < 2));
-            as_req_at_idle: assume (!req_valid || (ctrl_state == CS_IDLE));
-            as_single_outstanding: assume (!req_valid || !f_req_pending);
+            // amber TASK-005: a request is presented where control can take
+            // it -- IDLE, or HIT_RD (the back-to-back accept) -- and the
+            // only overlap allowed is the in-flight request's response
+            // cycle (ctrl_rsp_valid), i.e. one request outstanding at a
+            // time with zero dead cycles between them
+            as_req_at_idle: assume (!req_valid || (ctrl_state == CS_IDLE)
+                                    || (ctrl_state == 4'd3));
+            as_single_outstanding: assume (!req_valid || !f_req_pending
+                                           || ctrl_rsp_valid);
         end
     end
 
@@ -334,8 +342,20 @@ module formal_amber_control_live (
         end
     end
 
+    // amber TASK-005: an unbroken HIT_RD run (back-to-back hits) ends
+    // within HIT_RUN_MAX + 1 = 9 cycles, so a snoop always finds an IDLE
+    // cycle (snoop-safe) in bounded time
+    reg [4:0] f_hitrd_res;
+    always @(posedge clk) begin
+        if (!rst_n) f_hitrd_res <= 0;
+        else if (ctrl_state == 4'd3) f_hitrd_res <= f_hitrd_res + 1;
+        else f_hitrd_res <= 0;
+    end
+
     always @(posedge clk) begin
         if (rst_n) begin
+            ap_hit_run_bounded: assert (f_hitrd_res < 10);
+            cp_hit_run_max: cover (f_hitrd_res == 9);
             ap_fill_bounded: assert (f_fill_res < 16);
             ap_drain_bounded: assert (f_drain_res < 8);
             ap_victim_bounded: assert (f_victim_res < 12);

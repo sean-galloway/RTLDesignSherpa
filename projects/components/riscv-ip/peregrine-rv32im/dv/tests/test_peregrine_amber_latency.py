@@ -56,16 +56,20 @@ AMBER_FL = "projects/components/cache-ip/amber-mesi-l1/rtl/filelists"
 HARNESS = "projects/components/cache-ip/amber-mesi-l1/dv/tb/amber_pair_rig_tb.sv"
 GEOM = dict(sets=128, ways=4, line_bytes=64, bus_width=64)   # l1_pkg default
 
-# PRD P13, as measured 2026-11-24 (latency, occupancy) in cycles, see the
-# module docstring.  The accept cycle is IDLE; then LOOKUP (tag read), HIT_RD
-# or HIT_WR (data read / merge), IDLE with ready high (occupancy 3), and the
-# response leaves the 2-deep staging FIFO a cycle later (latency 4).  Misses
-# and the S->M upgrade are reported, not asserted: they depend on the rig's
-# fabric and bench memory, not on amber alone.
+# PRD P13, as measured (latency, occupancy) in cycles, see the module
+# docstring.  Before amber TASK-005 (2026-11-24): 4 / 3 for every hit (IDLE
+# accept, LOOKUP, HIT_*, IDLE, then the staging FIFO).  After it (the 1-cycle
+# hit): the accept cycle classifies the arriving request and reads the data
+# array, the response is valid in HIT_RD / HIT_WR the next cycle and skips
+# the FIFO, so latency 1; a read hit can be followed by an accept in that
+# same cycle (occupancy 1), a write hit holds the port a second cycle while
+# its merge lands (occupancy 2).  Misses and the S->M upgrade are reported,
+# not asserted: they depend on the rig's fabric and bench memory, not on
+# amber alone.
 EXPECT = {
-    "read_hit": (4, 3),
-    "read_hit_m": (4, 3),
-    "write_hit": (4, 3),
+    "read_hit": (1, 1),
+    "read_hit_m": (1, 1),
+    "write_hit": (1, 2),
 }
 
 
