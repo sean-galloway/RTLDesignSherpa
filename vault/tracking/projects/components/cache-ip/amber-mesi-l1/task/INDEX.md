@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/amber-mesi-l1 — tasks
 
-**Next ID: TASK-005** — never recycle a number, even when its item closed.
+**Next ID: TASK-006** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -11,7 +11,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -19,6 +19,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Open
 
+- **TASK-005** — pipelined hit path on the CPU port, for peregrine's MEM stage (riscv-ip/peregrine-rv32im PRD P13, option (b) chosen 2026-11-24; a hit measured 4 cycles).
 - **TASK-004** — CPU-side clean-all request, for peregrine's `fence.i` (riscv-ip/peregrine-rv32im PRD P10).
 
 ## Active

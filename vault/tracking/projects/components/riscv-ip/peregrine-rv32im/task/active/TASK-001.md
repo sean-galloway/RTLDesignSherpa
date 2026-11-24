@@ -1,7 +1,7 @@
 # TASK-001: peregrine RV32IM core -- RTL, DV and targeted formal per PRD 0.2
 
 **Priority:** P2
-**Status:** ACTIVE (2026-11-24; stages 1-3 done)
+**Status:** ACTIVE (2026-11-24; stages 1-3 and 6 done)
 **Owner:** TBD (owner, 2026-11-23: "accept defaults on the rest, commit and
 push", ruling PRD P5-P14)
 
@@ -30,6 +30,8 @@ before the next:
 
 - cache-ip/amber-mesi-l1 TASK-004 (CPU-side clean-all) for stage 4's
   `fence.i`. Stages 1-3 do not need it.
+- cache-ip/amber-mesi-l1 TASK-005 (pipelined hit path, P13 option (b)) for
+  stage 4's MEM stage.
 
 ## Stage 1: traps first, cacheless (done 2026-11-23)
 
@@ -270,6 +272,37 @@ Owner, 2026-11-24: "Push and continue".
 - **Lessons.** Handbook
   [branch-predictor-checks](../../../../../../../handbook/dv/branch-predictor-checks.md).
 
-Next: stage 4, the caches and fabric (needs cache-ip/amber-mesi-l1
-TASK-004 for `fence.i`), or stage 6 (measure amber's hit latency, P13),
-which the stage-4 design depends on.
+## Stage 6: amber's hit latency, P13 (measured 2026-11-24)
+
+- **Test.** `dv/tests/test_peregrine_amber_latency.py` runs amber's own
+  pair rig (two ambers, the fabric, the bench AXI4 memory) at the l1_pkg
+  default geometry (128 sets, 4 ways, 64 B lines, 64-bit bus). Every
+  request goes through the rig's transaction path, so its model still
+  checks the data. A pin monitor samples cache 0's CPU port mid-cycle.
+  The first version sampled after the rising edge and saw no handshake
+  at all, because by then the BFM had already moved valid.
+- **Result (cycles from the accept):**
+
+  | Access | Response valid | Port ready again |
+  |---|---|---|
+  | Read hit (S or M) | 4 | 3 |
+  | Write hit (M) | 4 | 3 |
+  | Write to an S line (CLEAN_UNIQUE upgrade) | 18 | 17 |
+  | Read miss, write miss (bench memory) | 29 | 28 |
+
+  The hit path is IDLE (accept), LOOKUP (tag read), HIT_RD or HIT_WR,
+  IDLE with ready high, and then the response leaves the 2-deep staging
+  FIFO. `l1_control` sends E and M writes down the same HIT_WR path. The
+  rig's fabric answers a read miss shared, so no silent E-to-M write was
+  timed here. The test asserts the hit numbers; the miss and upgrade
+  numbers depend on the rig's fabric and memory, so it only reports them.
+- **What it means (PRD §4.8).** A blocking MEM stage pays about 3 cycles
+  per D$ access over a 1-cycle hit: about 1.1 CPI at 0.36 accesses per
+  instruction, more than the whole miss term.
+- **Decided (2026-11-24, owner: "b, please").** amber gains a pipelined
+  hit path: cache-ip/amber-mesi-l1 TASK-005. Its target latency is set
+  together with stage 4's MEM design: 1 cycle keeps a single MEM stage, 2
+  needs M1/M2 or one stall per access.
+
+Next: stage 4, the caches and fabric, which depends on cache-ip/amber-mesi-l1
+TASK-005 (hit path) and TASK-004 (`fence.i`).

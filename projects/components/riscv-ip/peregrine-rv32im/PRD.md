@@ -295,6 +295,13 @@ the worked version, with measured miss rates replacing the assumed ones.
   - At those rates, the caches alone roughly double merlin's CPI.
 - If amber's hit latency exceeds one cycle (P13), every hit adds to the
   memory-stall term. That is the largest unknown in this model.
+  **Measured (2026-11-24): 4 cycles.** With a blocking MEM stage that
+  waits for the response, each D$ access holds MEM about 3 cycles longer
+  than a 1-cycle hit would. At 0.36 accesses per instruction that adds
+  about **1.1 cycles per instruction for hits alone**, more than the miss
+  term above (1.03). The measured miss is 29 cycles on the rig's bench
+  memory, against the 30 assumed. P13 chose a pipelined hit path in amber
+  (cache-ip/amber-mesi-l1 TASK-005), so this term is the pre-change figure.
 
 ## 5. Verification
 
@@ -357,7 +364,7 @@ the worked version, with measured miss rates replacing the assumed ones.
 | P10 | `fence.i` | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** D$ clean-all + I$ invalidate + pipeline flush; needs a CPU-side clean-all request on amber (filed as cache-ip/amber-mesi-l1 TASK-004) | amber, Zifencei tests |
 | P11 | Decode growth | **DECIDED 2026-11-23 (Sean: "can't it have a param so there is one common file?"):** one `rv32i_decode` with parameters `M_EXT` and `ZICSR` (real CSR ops, `mret`, and trap causes in place of halt causes), both default 0. The new outputs (`m_op`, `csr_op`, `mret`) always exist and are constant 0 when their parameter is off, so kestrel, merlin and gatling elaborate the same logic they do today; their full suites and the common-rv32i unit tests are the proof. gyrfalcon's `A_EXT` and garuda's F decode extend the same file the same way | common-rv32i decode, its testplan and unit test; the three existing cores re-run unchanged |
 | P12 | Cacheless build + formal reach | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `CACHE_EN=0` gives merlin's Harvard ports; merlin's riscv-formal insn checks run on that build (with traps off via the formal harness); interrupts checked by the directed suite where lockstep cannot align them | DV plan, formal |
-| P13 | amber hit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"): measure first.** amber's CPU-side hit latency through GAXI is not documented. If above one cycle, either peregrine accepts the memory-stall cost (and the book says so) or amber gains a pipelined hit path (a cache-ip decision, not this PRD's). Measure first | CPI model, MEM stage |
+| P13 | amber hit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"): measure first.** **MEASURED 2026-11-24 (TASK-001 stage 6): 4 cycles.** At amber's CPU GAXI port (pair rig, l1_pkg default geometry), a read or write hit's response is valid 4 cycles after the accept, and the port accepts again after 3: IDLE (accept), LOOKUP (tag read), HIT_RD/HIT_WR, IDLE, then the 2-deep response staging FIFO. A miss on the bench memory is 29. **Option (b) CHOSEN 2026-11-24 (Sean, "b, please"): amber gains a pipelined hit path**, filed as cache-ip/amber-mesi-l1 TASK-005; the target latency (1 cycle keeps a single MEM stage, 2 needs M1/M2 or one stall per access) is set there together with stage 4. The rejected option was peregrine accepting the stall. Gate: `dv/tests/test_peregrine_amber_latency.py` asserts the hit numbers | CPI model, MEM stage |
 | P14 | FPGA target | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** 100 MHz OOC on the Nexys A7 (xc7a100t-1), the riscv-ip ISSUE-001 anchor, with config CSR paths false-pathed per house rule; the predictor lookup and the trap redirect are the paths to watch; since stage 3 also the EX mispredict redirect (forwarded operand, target add, 32-bit compare against the predicted target, PC mux, fetch address), which the stage-3 review expects to become critical | timing, book |
 
 ## 7. Deliverables & sequencing
@@ -381,6 +388,10 @@ the worked version, with measured miss rates replacing the assumed ones.
 
 ## 8. History
 
+- 2026-11-24: TASK-001 stage 6 (P13) measured amber's hit latency: 4
+  cycles from accept to response, the port free again after 3; a miss 29
+  on the bench memory. The owner chose P13 option (b): amber gains a
+  pipelined hit path (cache-ip/amber-mesi-l1 TASK-005).
 - 2026-11-24: TASK-001 stage 3 landed (the predictor): BTB 32 + BHT 256 as
   P5 sizes them, `BP_EN` A/B. The §5 stress streams run on both builds,
   with every retired prediction held to a model; §4.2 records the as-built
