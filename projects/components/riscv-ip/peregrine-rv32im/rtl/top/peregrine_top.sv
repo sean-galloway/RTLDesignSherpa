@@ -37,16 +37,29 @@
 //          One access is in flight at a time (amber is blocking; the
 //          uncached port is single-transaction).
 //
-//          D$ slot: the cacheable window goes to the D$ port.  Until amber
-//          is wired (needs cache-ip/amber-mesi-l1 TASK-004 for fence.i)
-//          the D$ is a STUB that routes the cacheable window through the
-//          uncached port; arbiter port 1 (the D$ AXI master) is idle.  See
-//          "TODO(TASK-004)" below for the interface amber takes.
+//          D$: amber (cache-ip/amber-mesi-l1 amber_top, MAINT_EN=1) on the
+//          cacheable window, its AXI4 master on arbiter port 1.  The CPU
+//          word is 32 bits and amber's beat is BUS_WIDTH = AXI_DW (64): no
+//          width converter; a request carries the word in its lane
+//          (be = wstrb << 4*lane, wdata replicated) and the response lane
+//          is selected by the accepted address's lane bit, registered at
+//          the accept.  amber's ACE snoop port is tied idle: one core, no
+//          other cache, so no snoop ever arrives (amber MAS ch03/04).
+//          amber installs every read fill Shared (its AXI4 plane sees no
+//          IsShared), so the first store to a line a load brought in pays a
+//          CleanUnique upgrade: a 1-beat AR the memory answers.  Correct on
+//          any AXI4 memory; a cost recorded in TASK-001.
+//
+//          D$ clean (amber TASK-004): one engine issues amber's clean-all
+//          ({maint=1, we=0}) when no access is in flight, and waits for its
+//          response, which amber gives after the last WriteClean's B.  Two
+//          sources: fence.i, and the dc_clean_req port (a TB/debug hook:
+//          the arch-test signature is read from memory, so the TB cleans
+//          first).  The core is held while either source is pending.
 //
 //          fence.i (PRD P10): while the core holds fence.i in MEM
-//          (fencei_req) the wrapper (1) cleans the D$ (TODO(TASK-004): the
-//          stub has no dirty state, so it is done at once), (2) invalidates
-//          the I$, then releases the hold; the core redirects to pc + 4.
+//          (fencei_req) the wrapper (1) cleans the D$, (2) invalidates the
+//          I$, then releases the hold; the core redirects to pc + 4.
 //
 // Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
 // Subsystem: riscv-ip/peregrine-rv32im
@@ -57,20 +70,23 @@
 // Parameters:
 //   - RESET_ADDR, MUL_DSP, BP_EN, BTB_ENTRIES, BHT_ENTRIES: peregrine_core's.
 //   - ICACHE_BYTES, ICACHE_LINE: I$ geometry (PRD P9: 4096, 64).
-//   - AXI_DW: fabric data width (64, amber's BUS_WIDTH default).
+//   - AXI_DW: fabric data width, and amber's BUS_WIDTH (64, its default;
+//     32 also legal: one lane).
+//   - DC_SETS, DC_WAYS, DC_LINE: amber geometry (l1_pkg default 128 / 4 /
+//     64 = 32 KiB, the geometry PRD P13 was measured at).
 //   - AXI_IW: per-master id width; the fabric id is AXI_IW + 2.
 //   - MTIME_DIV: CLINT clocks per mtime tick.
 //
 // Notes:
 //   - tb_irq_software / tb_irq_timer are a TB hook (see the ports); a
-//     system ties them to 0.
+//     system ties them to 0.  dc_clean_req likewise (tie 0 for no use).
 //   - dobs_* observe the D side at the handshake (one beat per accepted
 //     load or store), for the TB: the tohost detector and the
 //     memory-side-effect count.
 //
 // Related Modules:
 //   - peregrine_core, peregrine_icache, peregrine_clint, peregrine_uc_axi,
-//     peregrine_axi4_arb
+//     peregrine_axi4_arb, amber_top (cache-ip/amber-mesi-l1)
 
 `timescale 1ns / 1ps
 
@@ -87,6 +103,9 @@ module peregrine_top #(
     parameter int          AXI_DW       = 64,
     parameter int          AXI_IW       = 4,
     parameter int          MTIME_DIV    = 1,
+    parameter int          DC_SETS      = 128,
+    parameter int          DC_WAYS      = 4,
+    parameter int          DC_LINE      = 64,
     localparam int         FIW          = AXI_IW + 2,
     localparam int         STRBW        = AXI_DW / 8
 ) (
@@ -97,6 +116,11 @@ module peregrine_top #(
     // TB-driven interrupt suite runs on the cached build.  Tie to 0.
     input  logic                tb_irq_software,
     input  logic                tb_irq_timer,
+    // D$ clean hook (TB / debug): hold high to clean amber; dc_clean_done
+    // is high from the clean's completion until dc_clean_req drops.  The
+    // core is held while it is pending.  Tie to 0.
+    input  logic                dc_clean_req,
+    output logic                dc_clean_done,
 
     // Fabric AXI4 master
     output logic [FIW-1:0]      m_axi_arid,
@@ -171,7 +195,7 @@ module peregrine_top #(
 
     localparam int NM       = 3;
     localparam int M_IC     = 0;     // arbiter port: I$ refill
-    localparam int M_DC     = 1;     // arbiter port: D$ (amber), idle while stubbed
+    localparam int M_DC     = 1;     // arbiter port: D$ (amber)
     localparam int M_UC     = 2;     // arbiter port: uncached
 
     localparam logic [15:0] CLINT_HI = 16'h0200;
@@ -321,20 +345,21 @@ module peregrine_top #(
     // -----------------------------------------------------------------
     // fence.i sequence: D$ clean, then I$ invalidate, then release
     // -----------------------------------------------------------------
-    // TODO(TASK-004): with amber, the clean is amber's CPU-side clean-all
-    // request (an op on the GAXI request; amber answers after the last
-    // write-back's B).  The stub has no dirty line, so its clean is done
-    // the cycle it is asked for.
+    // The clean is amber's clean-all (TASK-004), issued by the clean engine
+    // below; w_cl_done pulses on its response.
     logic r_fi_clean_done;
     logic r_fi_done;
     logic w_fi_busy;
-    logic w_dc_clean_req;
-    logic w_dc_clean_done;
+    logic w_fi_clean_want;
+    logic r_ext_done;
+    logic w_ext_busy;
+    logic w_cl_done;
 
-    assign w_dc_clean_req  = w_fencei_req & ~r_fi_clean_done;
-    assign w_dc_clean_done = w_dc_clean_req;                 // stub
+    assign w_fi_clean_want = w_fencei_req & ~r_fi_clean_done;
     assign w_ic_inv_req    = w_fencei_req & r_fi_clean_done & ~r_fi_done;
     assign w_fi_busy       = w_fencei_req & ~r_fi_done;
+    assign w_ext_busy      = dc_clean_req & ~r_ext_done;
+    assign dc_clean_done   = dc_clean_req & r_ext_done;
 
     // -----------------------------------------------------------------
     // D side: decode, request, hold, response capture
@@ -349,7 +374,7 @@ module peregrine_top #(
 
     // Holds that do not depend on the D side's ready (all from flops).
     logic w_other_hold;
-    assign w_other_hold = w_ic_stall | w_fi_busy;
+    assign w_other_hold = w_ic_stall | w_fi_busy | w_ext_busy;
 
     logic        r_outstanding;   // an accepted access whose response is due
     logic        r_have;          // a response captured while the core held
@@ -376,9 +401,7 @@ module peregrine_top #(
     tgt_e r_tgt;
     tgt_e w_tgt;
 
-    // TODO(TASK-004): T_DC routes to amber's CPU GAXI port.  Until then the
-    // RAM window goes through the uncached port (T_UC).
-    assign w_tgt = w_to_clint ? T_CLINT : T_UC;
+    assign w_tgt = w_to_clint ? T_CLINT : (w_to_io ? T_UC : T_DC);
 
     // CLINT
     logic        w_clint_req;
@@ -454,38 +477,160 @@ module peregrine_top #(
         .m_axi_bready  (s_bready[M_UC])
     );
 
-    // TODO(TASK-004): the D$ (amber_top) on arbiter port M_DC.  amber's
-    // m_axi read and write masters connect here; its snoop port is tied
-    // idle (one core, PRD §4.5).  Until then the port is idle.
-    assign s_arid[M_DC*AXI_IW +: AXI_IW]  = '0;
-    assign s_araddr[M_DC*32 +: 32]        = '0;
-    assign s_arlen[M_DC*8 +: 8]           = '0;
-    assign s_arsize[M_DC*3 +: 3]          = '0;
-    assign s_arburst[M_DC*2 +: 2]         = '0;
-    assign s_arvalid[M_DC]                = 1'b0;
-    assign s_rready[M_DC]                 = 1'b1;
-    assign s_awid[M_DC*AXI_IW +: AXI_IW]  = '0;
-    assign s_awaddr[M_DC*32 +: 32]        = '0;
-    assign s_awlen[M_DC*8 +: 8]           = '0;
-    assign s_awsize[M_DC*3 +: 3]          = '0;
-    assign s_awburst[M_DC*2 +: 2]         = '0;
-    assign s_awvalid[M_DC]                = 1'b0;
-    assign s_wdata[M_DC*AXI_DW +: AXI_DW] = '0;
-    assign s_wstrb[M_DC*STRBW +: STRBW]   = '0;
-    assign s_wlast[M_DC]                  = 1'b0;
-    assign s_wvalid[M_DC]                 = 1'b0;
-    assign s_bready[M_DC]                 = 1'b1;
+    // -----------------------------------------------------------------
+    // D$: amber
+    // -----------------------------------------------------------------
+    localparam int DC_REQ_W = 1 + 32 + 1 + STRBW + AXI_DW;   // MAINT_EN=1
+    localparam int LANES    = AXI_DW / 32;
+    localparam int LANE_W   = (LANES > 1) ? $clog2(LANES) : 1;
+
+    logic                 w_dc_req_valid;
+    logic                 w_dc_req_ready;
+    logic [DC_REQ_W-1:0]  w_dc_req_data;
+    logic                 w_dc_rsp_valid_raw;
+    logic [AXI_DW-1:0]    w_dc_rsp_data;
+    logic                 w_dc_rsp_valid;
+    logic [31:0]          w_dc_rsp_word;
+
+    // Clean engine: issue when wanted and nothing is in flight; done on
+    // amber's response to it.  (amber is blocking, so it could not accept
+    // the clean before answering an access in flight anyway; the
+    // ~r_outstanding term keeps the engine correct without relying on it.)
+    logic r_cl_wait;
+    logic w_cl_want;
+    logic w_cl_valid;
+    assign w_cl_want  = w_fi_clean_want | w_ext_busy;
+    assign w_cl_valid = w_cl_want & ~r_cl_wait & ~r_outstanding;
+    assign w_cl_done  = r_cl_wait & w_dc_rsp_valid_raw;
+
+    // Lane placement of the 32-bit word on amber's beat.
+    logic [LANE_W-1:0]    w_lane;
+    logic [LANE_W-1:0]    r_lane;
+    logic [STRBW-1:0]     w_dc_be;
+    logic [AXI_DW-1:0]    w_dc_wdata;
+    if (LANES > 1) begin : g_lanes
+        assign w_lane = w_daddr[2 +: LANE_W];
+    end else begin : g_one_lane
+        assign w_lane = '0;
+    end
+    assign w_dc_be    = STRBW'(w_dwstrb) << (4 * w_lane);
+    assign w_dc_wdata = {LANES{w_dwdata}};
+    assign w_dc_rsp_word = w_dc_rsp_data[32 * r_lane +: 32];
+
+    // The clean and a data access never coincide: the clean's sources hold
+    // the core (w_other_hold), so w_dvalid is low while w_cl_valid is up.
+    assign w_dc_req_valid = w_cl_valid | (w_dvalid & (w_tgt == T_DC));
+    assign w_dc_req_data  = w_cl_valid
+        ? {1'b1, 32'd0, 1'b0, {STRBW{1'b0}}, {AXI_DW{1'b0}}}
+        : {1'b0, w_daddr, (|w_dwstrb), w_dc_be, w_dc_wdata};
+    // amber's response to the clean needs no masking here: the clean is
+    // issued only with nothing outstanding, and a response counts (capture,
+    // r_outstanding, mem_wait) only while r_outstanding is set.
+    assign w_dc_rsp_valid = w_dc_rsp_valid_raw;
+
+    amber_top #(
+        .ADDR_WIDTH     (32),
+        .SETS           (DC_SETS),
+        .WAYS           (DC_WAYS),
+        .LINE_BYTES     (DC_LINE),
+        .BUS_WIDTH      (AXI_DW),
+        .AXI_ID_WIDTH   (AXI_IW),
+        .AXI_USER_WIDTH (1),
+        .USE_MONITOR    (1'b0),
+        .MAINT_EN       (1'b1)
+    ) u_dcache (
+        .aclk             (clk),
+        .aresetn          (w_aresetn),
+        .cpu_req_wr_valid (w_dc_req_valid),
+        .cpu_req_wr_ready (w_dc_req_ready),
+        .cpu_req_wr_data  (w_dc_req_data),
+        .cpu_rsp_rd_valid (w_dc_rsp_valid_raw),
+        .cpu_rsp_rd_ready (1'b1),
+        .cpu_rsp_rd_data  (w_dc_rsp_data),
+        .m_axi_arid       (s_arid[M_DC*AXI_IW +: AXI_IW]),
+        .m_axi_araddr     (s_araddr[M_DC*32 +: 32]),
+        .m_axi_arlen      (s_arlen[M_DC*8 +: 8]),
+        .m_axi_arsize     (s_arsize[M_DC*3 +: 3]),
+        .m_axi_arburst    (s_arburst[M_DC*2 +: 2]),
+        .m_axi_arlock     (),
+        .m_axi_arcache    (),
+        .m_axi_arprot     (),
+        .m_axi_arqos      (),
+        .m_axi_arregion   (),
+        .m_axi_aruser     (),
+        .m_axi_arvalid    (s_arvalid[M_DC]),
+        .m_axi_arready    (s_arready[M_DC]),
+        .m_axi_rid        (s_rid[M_DC*AXI_IW +: AXI_IW]),
+        .m_axi_rdata      (s_rdata[M_DC*AXI_DW +: AXI_DW]),
+        .m_axi_rresp      (s_rresp[M_DC*2 +: 2]),
+        .m_axi_rlast      (s_rlast[M_DC]),
+        .m_axi_ruser      (1'b0),
+        .m_axi_rvalid     (s_rvalid[M_DC]),
+        .m_axi_rready     (s_rready[M_DC]),
+        .m_axi_awid       (s_awid[M_DC*AXI_IW +: AXI_IW]),
+        .m_axi_awaddr     (s_awaddr[M_DC*32 +: 32]),
+        .m_axi_awlen      (s_awlen[M_DC*8 +: 8]),
+        .m_axi_awsize     (s_awsize[M_DC*3 +: 3]),
+        .m_axi_awburst    (s_awburst[M_DC*2 +: 2]),
+        .m_axi_awlock     (),
+        .m_axi_awcache    (),
+        .m_axi_awprot     (),
+        .m_axi_awqos      (),
+        .m_axi_awregion   (),
+        .m_axi_awuser     (),
+        .m_axi_awvalid    (s_awvalid[M_DC]),
+        .m_axi_awready    (s_awready[M_DC]),
+        .m_axi_wdata      (s_wdata[M_DC*AXI_DW +: AXI_DW]),
+        .m_axi_wstrb      (s_wstrb[M_DC*STRBW +: STRBW]),
+        .m_axi_wlast      (s_wlast[M_DC]),
+        .m_axi_wuser      (),
+        .m_axi_wvalid     (s_wvalid[M_DC]),
+        .m_axi_wready     (s_wready[M_DC]),
+        .m_axi_bid        (s_bid[M_DC*AXI_IW +: AXI_IW]),
+        .m_axi_bresp      (s_bresp[M_DC*2 +: 2]),
+        .m_axi_buser      (1'b0),
+        .m_axi_bvalid     (s_bvalid[M_DC]),
+        .m_axi_bready     (s_bready[M_DC]),
+        // ACE snoop: one core, no snoop ever arrives
+        .m_axi_acaddr     (32'd0),
+        .m_axi_acsnoop    (4'd0),
+        .m_axi_acprot     (3'd0),
+        .m_axi_acvalid    (1'b0),
+        .m_axi_acready    (),
+        .m_axi_crresp     (),
+        .m_axi_crvalid    (),
+        .m_axi_crready    (1'b1),
+        .m_axi_cddata     (),
+        .m_axi_cdlast     (),
+        .m_axi_cdvalid    (),
+        .m_axi_cdready    (1'b1),
+        .coh_req_valid    (),
+        .coh_req_addr     (),
+        .coh_req_type     (),
+        .i_mon_time       (64'd0),
+        .mon_valid        (),
+        .mon_ready        (1'b1),
+        .mon_packet       (),
+        .mon_timestamp    (),
+        .init_busy        (),
+        .ctrl_state       ()
+    );
 
     // Ready and response, by target
     always_comb begin
         unique case (w_tgt)
             T_CLINT: w_dready = 1'b1;
+            T_DC:    w_dready = w_dc_req_ready;
             default: w_dready = w_uc_req_ready;
         endcase
         unique case (r_tgt)
             T_CLINT: begin
                 w_rsp_valid = w_clint_rsp_valid;
                 w_rsp_rdata = w_clint_rsp_rdata;
+            end
+            T_DC: begin
+                w_rsp_valid = w_dc_rsp_valid;
+                w_rsp_rdata = w_dc_rsp_word;
             end
             default: begin
                 w_rsp_valid = w_uc_rsp_valid;
@@ -502,12 +647,16 @@ module peregrine_top #(
             r_tgt           <= T_CLINT;
             r_fi_clean_done <= 1'b0;
             r_fi_done       <= 1'b0;
+            r_ext_done      <= 1'b0;
+            r_cl_wait       <= 1'b0;
+            r_lane          <= '0;
         end else begin
             // One access in flight: set on accept, cleared by its response
             // (a new accept in the response's cycle keeps it set).
             if (w_dhs) begin
                 r_outstanding <= 1'b1;
                 r_tgt         <= w_tgt;
+                r_lane        <= w_lane;
             end else if (w_rsp_valid) begin
                 r_outstanding <= 1'b0;
             end
@@ -524,8 +673,21 @@ module peregrine_top #(
                 r_fi_clean_done <= 1'b0;
                 r_fi_done       <= 1'b0;
             end else begin
-                if (w_dc_clean_done) r_fi_clean_done <= 1'b1;
-                if (w_ic_inv_ack)    r_fi_done       <= 1'b1;
+                if (w_cl_done && w_fencei_req) r_fi_clean_done <= 1'b1;
+                if (w_ic_inv_ack)               r_fi_done       <= 1'b1;
+            end
+            // The clean engine: one clean-all in flight.  A clean finishing
+            // satisfies every source pending at the time (the core has been
+            // held since each one rose, so nothing was stored after it).
+            if (w_cl_valid && w_dc_req_ready) begin
+                r_cl_wait <= 1'b1;
+            end else if (w_cl_done) begin
+                r_cl_wait <= 1'b0;
+            end
+            if (!dc_clean_req) begin
+                r_ext_done <= 1'b0;
+            end else if (w_cl_done) begin
+                r_ext_done <= 1'b1;
             end
         end
     )
@@ -616,6 +778,7 @@ module peregrine_top #(
     );
 
     logic w_unused;
-    assign w_unused = &{1'b0, w_to_ram, w_dc_clean_req};
+    // The I$ never writes, so its B channel is unused.
+    assign w_unused = &{1'b0, w_to_ram, s_bid[M_IC*AXI_IW +: AXI_IW], s_bresp[M_IC*2 +: 2]};
 
 endmodule : peregrine_top

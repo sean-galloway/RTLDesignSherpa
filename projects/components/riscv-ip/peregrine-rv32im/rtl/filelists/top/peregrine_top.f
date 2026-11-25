@@ -7,4 +7,7 @@
 -f $PEREGRINE_ROOT/rtl/filelists/fub/peregrine_uc_axi.f
 -f $PEREGRINE_ROOT/rtl/filelists/fub/peregrine_axi4_arb.f
 
+# D$: amber (cache-ip/amber-mesi-l1), its own complete closure
+-f $AMBER_ROOT/rtl/filelists/amber_top.f
+
 $PEREGRINE_ROOT/rtl/top/peregrine_top.sv

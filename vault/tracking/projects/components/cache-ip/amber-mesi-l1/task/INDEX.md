@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/amber-mesi-l1 — tasks
 
-**Next ID: TASK-006** — never recycle a number, even when its item closed.
+**Next ID: TASK-007** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -11,20 +11,22 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+- **TASK-006** — install a read fill as E when the response says the line is not shared (IsShared = 0); today every fill is S and a load-then-store line pays an upgrade (riscv-ip/peregrine-rv32im TASK-001 stage 4).
+
 ## Active
 
-- **TASK-004** — CPU-side clean-all request, for peregrine's `fence.i` (riscv-ip/peregrine-rv32im PRD P10; started 2026-11-24).
 
 ## Closed
 
+- **TASK-004** — CPU-side clean-all request, for peregrine's `fence.i` (riscv-ip/peregrine-rv32im PRD P10). Closed 2026-11-24: `MAINT_EN=1` maint op, WriteClean walk, response after the last B (da9e8df71); peregrine `fence_i` and `Zifencei` pass at `CACHE_EN=1`.
 - **TASK-005** — pipelined hit path on the CPU port, for peregrine's MEM stage (PRD P13 option (b)). Closed 2026-11-24: read hit 1 cycle / issue every cycle, write hit 1 / 2 (was 4 / 3); HIT_RUN_MAX=8 bounds snoop wait to 9; common-ip FULL 255/255, amber FULL 121/121, formal cover/live/safety PASS, OOC WNS +0.342 ns.
 - **TASK-003** — Genesys2 Vivado build of the post-restructure amber hierarchy. Closed 2026-11-01: bitstream green, WNS +0.083 ns, 0/404,557 failing endpoints, undriven-net warnings pre-existing; on-board run available on demand.
 - **TASK-002** — restructure amber RTL into planes (mem-ctrl doctrine): CPU / coherence-core / fabric planes, ACE isolated as a swappable fabric plane so a CHI plane can replace it later.  Closed 2026-11-01: planes landed, fabric contract doc + CHI stub in place; full regression is the restructure plan's Task 6.

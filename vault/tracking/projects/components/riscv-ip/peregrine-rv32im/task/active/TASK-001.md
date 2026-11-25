@@ -311,7 +311,7 @@ Owner, 2026-11-24: "Push and continue".
   left at 10 ns (amber OOC, 0 ns I/O delay): +2.60 ns in front of the
   request (peregrine's address ALU), +2.27 ns after `cpu_rsp_rd_data`.
 
-## Stage 4: caches and fabric (in progress 2026-11-24)
+## Stage 4: caches and fabric (done 2026-11-24)
 
 Owner, 2026-11-24: "start amber TASK-004, then stage 4". amber TASK-004
 (the CPU-side clean-all) runs in parallel in cache-ip; this pass builds
@@ -356,12 +356,11 @@ everything in stage 4 that does not need it, with the D$ slot stubbed.
   today. Issuing from EX would buy nothing and put peregrine's ALU in
   front of amber's tag LUTRAM and compare (the +2.60 ns budget). The
   request address is a flop.
-- **Address map (P7), one deviation.** CLINT 0x0200_0000-0x0200_FFFF;
-  uncached I/O 0x1000_0000-0x1FFF_FFFF; everything else RAM (cacheable).
-  The PRD says "0x1000_0000 and up" for I/O; bounded here because the
-  riscv-tests and arch-test images link at 0x8000_0000 (battery
-  `LINK_BASE`) and must be cacheable. **For the owner:** amend P7 or move
-  the images.
+- **Address map (P7).** CLINT 0x0200_0000-0x0200_FFFF; uncached I/O
+  0x1000_0000-0x1FFF_FFFF; everything else RAM (cacheable). The window is
+  bounded because the riscv-tests and arch-test images link at
+  0x8000_0000 (battery `LINK_BASE`) and must be cacheable; the owner
+  amended P7 to match (2026-11-24, "Amend P7").
 - **Stubbed until amber (marked `TODO(TASK-004)` in `peregrine_top`).**
   - The D$: the cacheable window goes through the uncached port; arbiter
     port 1 is idle. amber's `m_axi` read/write masters go on port 1, its
@@ -446,6 +445,107 @@ everything in stage 4 that does not need it, with the D$ slot stubbed.
   `test_peregrine_sys` now put the level in the work directory (mext and
   arch already did); the FULL rerun above is clean.
 
-Next: wire amber into the D$ slot when cache-ip/amber-mesi-l1 TASK-004
-lands (the clean-all op), then the stage-4 gate at `CACHE_EN=1` with amber:
-the batteries, `Zifencei` in arch-test, the interrupt suite.
+### Part 2: amber as the D$ (2026-11-24)
+
+amber TASK-004 (da9e8df71) and part 1 (f0f49a62c) committed; this pass
+replaces the stub.
+
+- **amber in `peregrine_top`.** `amber_top` with `MAINT_EN=1`, l1_pkg
+  default geometry 128 sets x 4 ways x 64 B = 32 KiB (the geometry P13
+  was measured at; new parameters `DC_SETS` / `DC_WAYS` / `DC_LINE`),
+  `BUS_WIDTH = AXI_DW` = 64, so no width converter: the 32-bit word rides
+  its lane (`be = wstrb << 4*lane`, `wdata` replicated) and the response
+  lane is selected by the address bit registered at the accept. Its AXI4
+  master is arbiter port 1; the ACE snoop port is tied idle (one core);
+  `USE_MONITOR=0`; `cpu_rsp_rd_ready` = 1 (the wrapper captures a
+  response that arrives while the core holds).
+- **Clean engine.** One clean-all ({maint=1, we=0}) in flight, issued only
+  with no access outstanding, done on amber's response (after the last
+  WriteClean's B). Sources: fence.i (then the I$ invalidate, then the
+  release, as part 1 built), and a new `dc_clean_req` / `dc_clean_done`
+  hook (TB / debug; tie 0), which `peregrine_sys_tb_top` exposes as
+  `tb_dc_clean_*`. The core is held while either is pending.
+- **amber installs every read fill Shared** (its AXI4 plane sees no
+  IsShared), so the first store to a line a load brought in pays a
+  CleanUnique upgrade, a 1-beat AR the memory answers. Correct on any AXI4
+  memory; a performance cost of the single-core system. An "install E when
+  the system has no other cache" option would be an amber change (not
+  made; cache-ip scope). **Filed** (owner 2026-11-25, "File an amber
+  task"): cache-ip/amber-mesi-l1 TASK-006, install E on IsShared = 0.
+- **Tests added.**
+  - `smc_basic.s` (`test_peregrine_sys` smc): code written with stores
+    (dirty in amber) runs only after fence.i: new code across three
+    lines; rewriting code the I$ holds; a store that upgrades a line a
+    load brought in; data of every size across a clean; WAYS + 2 dirty
+    lines in one set (evictions, then a clean).
+  - `io_basic.s` (io): the uncached window on both lanes at every size;
+    the window bypasses amber (an aliased RAM store sits dirty in amber
+    while the I/O load sees the old memory word until fence.i); an
+    uncached load whose response lands while an I$ refill holds the core.
+  - `irq_lock.s` (irq_lock) with an aimed interrupt source: the timer is
+    raised in the sample where a D request is valid and not ready, so the
+    interrupt is pending in the cycle that request's hold drops. With
+    amber a request waits on ready only behind a write hit (amber accepts
+    a miss at once and the core waits on the response, not on ready), so
+    the program pairs a write hit with a load of the same word.
+  - riscv-arch-test `Zifencei` (Fencei) added to the shared
+    `common-rv32i/dv/arch_test/rv32_arch_test.py` (additive: `EXT_ISA` and
+    the gate list); `test_peregrine_arch` gains cached cells (M, Zifencei
+    on `peregrine_sys_tb_top`; `ArchSysTB` cleans amber after the tohost
+    store, before reading the signature from memory).
+- **Cacheless fence.i redirects (owner 2026-11-25, "Give it the
+  redirect").** As the stage-3 no-op, instructions already in the pipeline
+  behind a fence.i ran stale at `CACHE_EN=0`: Fencei failed 2 of 6
+  signature words on `peregrine_tb_top` (measured 2026-11-24). Now fence.i
+  commits in MEM and redirects to pc + 4 in both builds (`fencei_req`
+  stays 0 at `CACHE_EN=0`, there is nothing to clean), and the cacheless
+  Zifencei arch cell is in. `bpred_model` counts fence.i as a redirect
+  (the next instruction is fetched after it resolves).
+- **Mutation pass, rerun with amber (18 mutants).** 17 caught. Part 1's
+  survivor is now caught: *interrupt lock removed* gives 161 dropped
+  requests on irq_lock (aiming at the store handshake instead caught none,
+  measured). Two part-1 mutants that had been caught survived the first
+  run with amber, because their path left rv32ui: *uncached store strobes
+  on lane 0* and *no response capture while held* (cacheable RAM no
+  longer goes through the uncached port, and amber's response data stays
+  stable while the core holds); io_basic catches both. New D$ mutants:
+  clean stubbed out (smc, Zifencei, rv32ui `fence_i`), response lane not
+  selected, store strobes not shifted (rv32ui) caught. Survives, as an
+  equivalent: *clean issued while an access is in flight* (amber is
+  blocking; it cannot accept the clean before answering). A sixth, *the
+  clean's response taken as a data response*, was equivalent by
+  construction (a response counts only with `r_outstanding` set), so the
+  mask was removed from the RTL instead.
+- **Results (clean-all, 0 reruns).** FUNC 57/57, seed base 1677929868;
+  FULL 85/85, seed base 3310830104. Includes the cacheless suite
+  unchanged, `test_peregrine_amber_latency`, rv32ui (with `fence_i`) /
+  rv32um / rv32mi in spike lockstep with the stall soak on the cached
+  build, irq_basic, clint_basic, smc, io, irq_lock, and cached arch-test
+  M 8/8 and Zifencei 1/1 at full. The first FUNC run (seed base
+  3333699153) failed only the cacheless Zifencei cells, above.
+- **OOC timing (P14 measurement, not a gate; xc7a100t-1, 10 ns,
+  `peregrine_top`, scratchpad builds).** WNS -9.277 ns (3 builds: -8.5 to
+  -9.3), TNS -7011 ns over 3,755 endpoints; 5,137 LUT / 2,894 FF / 9
+  RAMB36 / 922 LUTRAM. The failing families, worst first:
+  - amber response -> core: amber's LRU / victim / data-way select ->
+    `cpu_rsp_rd_data` -> WB load align -> WB->EX forward -> branch
+    compare -> mispredict -> `pc` and the I$ RAM address: -8.9 ns, 24
+    levels. The 1-cycle hit leaves the response late in the cycle, and
+    peregrine forwards it into EX's branch resolve in the same cycle.
+  - core -> amber: PC -> I$ tag LUTRAM -> hit -> `w_other_hold` ->
+    the D request valid -> amber's accept-cycle classify -> its data RAM
+    address: -8.1 ns, 22 levels (part 1's run had the same path from
+    `mie` through the interrupt decision into the request valid).
+  - inside the core: PC -> I$ hit -> `mem_wait` -> pipeline enables
+    (MDU accumulator, mepc / mscratch, regfile write): -4.6 ns.
+  - fetch: I$ tag -> hit -> stall -> `pc_d` -> I$ data RAM address:
+    -3.3 ns, 12 levels.
+  Structural, for stage 7: the hold (`mem_wait`) and the D request valid
+  are combinational from the I$ hit and the interrupt decision, and
+  amber's response is consumed by a same-cycle forward. Registering the
+  load response in WB (one more load-use cycle), or a 2-cycle hit, and
+  making the D request valid and the hold come from flops, are the
+  candidate fixes.
+
+Next: stage 5 (targeted formal; riscv-formal on `CACHE_EN=0`) and stage 7
+(timing at 100 MHz, from the measurement above).

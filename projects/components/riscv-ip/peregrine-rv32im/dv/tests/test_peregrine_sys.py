@@ -5,14 +5,14 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: test_peregrine_sys
-# Purpose: The cached peregrine (peregrine_top: I$, CLINT, uncached port,
-#          AXI4 arbiter; the D$ still a stub through the uncached port) on
-#          a behavioral AXI4 memory (peregrine_sys_tb_top).  TASK-001 stage
-#          4.  Runs the riscv-tests batteries (rv32ui includes fence_i),
-#          the pin-driven interrupt suite (irq_basic.s, interrupts landing
-#          on loads and stores under the D-side handshake), and the CLINT
-#          / fence.i directed program (clint_basic.s), each with and
-#          without random memory stalls.
+# Purpose: The cached peregrine (peregrine_top: I$, amber D$, CLINT,
+#          uncached port, AXI4 arbiter) on a behavioral AXI4 memory
+#          (peregrine_sys_tb_top).  TASK-001 stage 4.  Runs the riscv-tests
+#          batteries (rv32ui includes fence_i), the pin-driven interrupt
+#          suite (irq_basic.s, interrupts landing on loads and stores under
+#          the D-side handshake), the CLINT / fence.i directed program
+#          (clint_basic.s) and self-modifying code through the write-back
+#          D$ (smc_basic.s), each with and without random memory stalls.
 #
 # Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
 # Subsystem: riscv-ip/peregrine-rv32im
@@ -24,9 +24,9 @@
 
 Levels:
   gate -- rv32ui simple/add/lw/sw/fence_i, rv32um mul/div, rv32mi csr/scall,
-          irq_basic and clint_basic without stalls
+          irq_basic, clint_basic and smc_basic without stalls
   func -- every rv32ui / rv32um / rv32mi image with spike lockstep; the
-          interrupt and CLINT programs also under random memory stalls
+          interrupt, CLINT and SMC programs also under random memory stalls
   full -- func, with the stall soak repeated on more images
 """
 
@@ -135,6 +135,9 @@ def _build(src: Path, work: Path) -> Path:
     return elf
 
 
+_LAST_SOURCES: list = []      # the interrupt sources of the last _program run
+
+
 async def _program(dut, name, irq_source_cls=None):
     level = os.environ.get("TEST_LEVEL", "gate")
     work = Path(os.path.dirname(os.environ.get("LOG_PATH", "."))) / f"sys_{name}_{level}"
@@ -150,8 +153,10 @@ async def _program(dut, name, irq_source_cls=None):
         variants.append((f"random memory stalls {STALL_PERCENT}% (seed {seed})",
                          lambda d, c: rng.randrange(100) < STALL_PERCENT))
     results = []
+    _LAST_SOURCES.clear()
     for label, stall in variants:
         source = irq_source_cls(symbols, rng) if irq_source_cls else None
+        _LAST_SOURCES.append(source)
         await tb.assert_reset()
         await tb.backdoor_load(elf_image(elf))
         await tb.release_reset()
@@ -199,13 +204,43 @@ async def cocotb_test_peregrine_sys_clint(dut):
 
 class _IrqPins:
     """irq_basic.s's TB interrupt source (the stage-1 suite's), on the
-    cached build: the TB pins are ORed into the CLINT's."""
+    cached build: the TB pins are ORed into the CLINT's.
+
+    Aimed at waiting D requests: once the program's auto timer is due, the
+    raise is held back until a sample in which a D request is valid and not
+    ready (with amber: the load right behind a write hit, which waits out
+    the hit's second cycle).  The pin then rises from the next falling
+    edge, so the interrupt is pending in the cycle that request's hold
+    drops: exactly the cycle the core's interrupt lock covers (measured:
+    removing the lock gives 161 dropped requests on irq_lock.s; aiming at
+    the store handshake instead caught none).  If no request waits within
+    WAIT_AIM_LIMIT cycles the raise goes ahead anyway.
+    """
+
+    WAIT_AIM_LIMIT = 400
 
     def __init__(self, symbols, rng):
         from test_peregrine_irq import IrqSource
-        self._src = IrqSource(symbols["irq_ctrl"], rng)
+        self._ctrl = symbols["irq_ctrl"]
+        self._src = IrqSource(self._ctrl, rng)
+        self._waited = 0
+        self._deadline = None
+        self.aimed = 0
 
     def __call__(self, dut, cycle, trace):
+        top = dut.u_top
+        waiting = int(top.w_dvalid.value) and not int(top.w_dready.value)
+        self._waited = self._waited + 1 if waiting else 0
+        due = self._src.raise_mti_at
+        if due is not None and cycle >= due:
+            if self._deadline is None:
+                self._deadline = cycle + self.WAIT_AIM_LIMIT
+            aim = self._waited >= 1
+            if aim or cycle >= self._deadline:
+                self.aimed += int(aim)
+                self._deadline = None
+            else:
+                self._src.raise_mti_at = cycle + 1
         return self._src(dut, cycle, trace)
 
 
@@ -222,11 +257,63 @@ async def cocotb_test_peregrine_sys_irq(dut):
                 assert any(nb["pc"] == b["pc"] and not nb["trap"] for nb in trace[k + 1:]), \
                     f"{label}: interrupted pc 0x{b['pc']:x} never re-executed"
         assert len(irq_beats) >= 8, f"{label}: only {len(irq_beats)} interrupts taken"
+    dut._log.info("interrupts raised on a waiting D request, per variant: "
+                  f"{[src.aimed for src in _LAST_SOURCES]}")
+
+
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_peregrine_sys_irq_lock(dut):
+    """irq_lock.s: timer interrupts aimed at loads and stores whose amber
+    request is waiting (cold misses): the request must not drop (the
+    D-side contract monitor) and the instruction must re-execute."""
+    for label, trace in await _program(dut, "irq_lock", _IrqPins):
+        irq_beats = [b for b in trace if b["trap"] and (b["trap_cause"] >> 31)]
+        on_mem = [b for b in irq_beats if b["insn"] & 0x5F == 0x03]
+        dut._log.info(f"{label}: interrupts {len(irq_beats)}, on a load/store {len(on_mem)}")
+        for k, b in enumerate(trace):
+            if b["trap"] and (b["trap_cause"] >> 31):
+                assert any(nb["pc"] == b["pc"] and not nb["trap"] for nb in trace[k + 1:]), \
+                    f"{label}: interrupted pc 0x{b['pc']:x} never re-executed"
+        # With the lock, an interrupt pending as a waiting load's hold drops
+        # is taken on the instruction after it, so on_mem is expected to be
+        # small; the checks are the contract monitor and the aimed count.
+    aimed = [src.aimed for src in _LAST_SOURCES]
+    dut._log.info(f"interrupts raised on a waiting D request, per variant: {aimed}")
+    assert all(a >= 4 for a in aimed), \
+        f"only {aimed} interrupts landed on a waiting D request; the lock is not exercised"
+
+
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_peregrine_sys_smc(dut):
+    """smc_basic.s: code written with stores (dirty in amber) becomes
+    fetchable only through fence.i's D$ clean + I$ invalidate; data
+    survives a clean; dirty evictions in one set then a clean."""
+    for label, trace in await _program(dut, "smc_basic"):
+        fencei = [b for b in trace if (b["insn"] & 0x707F) == 0x100F]
+        assert len(fencei) == 5, f"{label}: {len(fencei)} fence.i retired, want 5"
+        assert not any(b["trap"] for b in trace), f"{label}: a trap was taken"
+        # The routine in codebuf ran four times (tests 1, 2 twice, 3).
+        rets = [b for b in trace if b["insn"] == 0x00008067]
+        assert len(rets) == 4, f"{label}: the patched routine returned {len(rets)} times"
+
+
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_peregrine_sys_io(dut):
+    """io_basic.s: the uncached I/O window -- both lanes, every size, the
+    D$ bypassed, and a response that arrives while an I$ refill holds the
+    core."""
+    for label, trace in await _program(dut, "io_basic"):
+        assert not any(b["trap"] for b in trace), f"{label}: a trap was taken"
+        io = [b for b in trace if (b["mem_rmask"] or b["mem_wmask"])
+              and (b["mem_addr"] >> 28) == 0x1]
+        # 12 in test 1, 3 in test 2, 3 in test 3
+        assert len(io) == 18, f"{label}: {len(io)} I/O-window accesses retired, want 18"
 
 
 CASES = ["cocotb_test_peregrine_sys_rv32ui", "cocotb_test_peregrine_sys_rv32um",
          "cocotb_test_peregrine_sys_rv32mi", "cocotb_test_peregrine_sys_clint",
-         "cocotb_test_peregrine_sys_irq"]
+         "cocotb_test_peregrine_sys_irq", "cocotb_test_peregrine_sys_smc",
+         "cocotb_test_peregrine_sys_io", "cocotb_test_peregrine_sys_irq_lock"]
 
 
 @pytest.mark.parametrize("test_level, description",

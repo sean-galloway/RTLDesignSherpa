@@ -63,13 +63,17 @@ REF_ENV_REL = Path("riscof-plugins") / "rv32" / "spike_simple" / "env"
 DUT_ENV = Path(__file__).resolve().parent / "dut_model"
 
 # Gate level per extension: I = one ALU op, one load, one store; M = one
-# multiply, one signed divide, one unsigned remainder.
+# multiply, one signed divide, one unsigned remainder; Zifencei has one test.
 GATE_TESTS = ("add-01", "lw-align-01", "sw-align-01")
-GATE_TESTS_BY_EXT = {"I": GATE_TESTS, "M": ("mul-01", "div-01", "remu-01")}
+GATE_TESTS_BY_EXT = {"I": GATE_TESTS, "M": ("mul-01", "div-01", "remu-01"),
+                     "Zifencei": ("Fencei",)}
 
 # Extension -> (-march, spike --isa).  M adds the multiply/divide opcodes the
 # M tests are built from; I stays rv32i, so an RV32I core's build is unchanged.
-EXT_ISA = {"I": ("rv32i", "rv32i"), "M": ("rv32im", "rv32im")}
+# Zifencei (Fencei.S, self-modifying code) adds fence.i (peregrine TASK-001
+# stage 4, whose split I$ / write-back D$ it exercises).
+EXT_ISA = {"I": ("rv32i", "rv32i"), "M": ("rv32im", "rv32im"),
+           "Zifencei": ("rv32i_zifencei", "rv32i_zifencei")}
 
 
 def suite_rel(ext="I"):

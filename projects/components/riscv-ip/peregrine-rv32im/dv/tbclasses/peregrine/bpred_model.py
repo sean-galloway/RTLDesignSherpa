@@ -33,7 +33,7 @@ retired instruction was predicted from is one of a small set:
   while that instruction left EX (an interlock or the M unit);
 * the update from the instruction immediately older is never visible --
   unless that instruction redirected the fetch (a mispredict, a trap, an
-  mret), in which case this instruction was fetched after it resolved.
+  mret, a fence.i), in which case this instruction was fetched after it resolved.
 
 The check accepts a prediction that equals the model's under any state in
 that set, and fails on anything else.  It also checks each beat's
@@ -236,5 +236,6 @@ def check_trace(trace: list, bp_en: bool, btb_entries: int = 32,
             history.pop(0)
         insn = beat["insn"]
         is_mret = insn == 0x3020_0073
-        redirected = bool(beat["bp_mispredict"]) or trap or is_mret
+        is_fencei = (insn & 0x707F) == 0x100F
+        redirected = bool(beat["bp_mispredict"]) or trap or is_mret or is_fencei
     return v

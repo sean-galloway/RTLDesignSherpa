@@ -1,7 +1,7 @@
 # TASK-004: CPU-side clean-all request for peregrine's fence.i
 
 **Priority:** P3
-**Status:** active (2026-11-24; owner: "start amber TASK-004, then stage 4")
+**Status:** closed (2026-11-24): clean-all landed (da9e8df71); peregrine `fence_i` and `Zifencei` pass at `CACHE_EN=1`
 **Owner:** TBD (filed from riscv-ip/peregrine-rv32im PRD 0.2 P10, ruled
 2026-11-23 by the owner: "accept defaults on the rest")
 
@@ -141,5 +141,18 @@ tied-0 `req_maint`).
 
 Safety BMC (depth 48): PASS, launched 2026-11-24 18:07, done 19:03
 (56 min wall, boolector, no trace).
-Open: peregrine's `fence_i` / `Zifencei` at `CACHE_EN=1` (stage 4) closes
-the last "Done when" line.
+## Closed (2026-11-24)
+
+The last "Done when" line holds: peregrine TASK-001 stage 4 wired amber
+(`MAINT_EN=1`) as its D$, fence.i issues the clean-all before the I$
+invalidate, and at `CACHE_EN=1` rv32ui `fence_i` passes in spike lockstep
+and riscv-arch-test `Zifencei` (Fencei) passes its signature, which the TB
+reads from memory after a clean-all through peregrine_top's hook. Both at
+gate, func and full (peregrine FUNC 57/57 seed base 1677929868, FULL 85/85
+seed base 3310830104, 0 reruns); peregrine's `smc_basic.s` adds
+self-modifying code through dirty amber lines. A mutant with the clean
+stubbed out fails smc_basic, Fencei and rv32ui `fence_i`.
+
+Seen from peregrine, not changed here: amber installs every read fill
+Shared (the AXI4 plane has no IsShared), so in a one-cache system each
+first store to a loaded line pays a CleanUnique upgrade.

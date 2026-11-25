@@ -19,6 +19,8 @@
 //            here too; tie them 0 to test the CLINT alone.
 //          - tb_mem_* is the same reset-time backdoor loader; the
 //            +imem / +dmem plusargs load the same array.
+//          - tb_dc_clean_req / _done clean the D$ (amber) so results the
+//            TB reads from mem (an arch-test signature) are in memory.
 //
 //          Memory model: one word array, aliased modulo MEM_WORDS; reads
 //          serve INCR bursts beat by beat, writes apply strobes per beat.
@@ -77,6 +79,10 @@ module peregrine_sys_tb_top #(
     input  logic        tb_mem_we,
     input  logic [31:0] tb_mem_addr,
     input  logic [31:0] tb_mem_wdata,
+    // D$ clean hook (peregrine_top dc_clean_req / dc_clean_done): the TB
+    // cleans amber before reading results from memory.
+    input  logic        tb_dc_clean_req,
+    output logic        tb_dc_clean_done,
     // Fabric observation for the TB (I$ refills, uncached accesses)
     output logic        fab_ar_hs,
     output logic [31:0] fab_araddr,
@@ -123,6 +129,8 @@ module peregrine_sys_tb_top #(
         .irq_external        (irq_external),
         .tb_irq_software     (irq_software),
         .tb_irq_timer        (irq_timer),
+        .dc_clean_req        (tb_dc_clean_req),
+        .dc_clean_done       (tb_dc_clean_done),
         .m_axi_arid          (arid),
         .m_axi_araddr        (araddr),
         .m_axi_arlen         (arlen),

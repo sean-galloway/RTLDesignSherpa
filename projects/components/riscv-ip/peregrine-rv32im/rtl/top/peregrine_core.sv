@@ -86,8 +86,11 @@
 //   - BP_EN: 1 (default) BTB + 2-bit BHT prediction; 0 predict not taken
 //     (merlin's fetch), the PRD P5 A/B build.
 //   - BTB_ENTRIES, BHT_ENTRIES: predictor sizes (PRD P5: 32 and 256).
-//   - CACHE_EN: 0 (default) the cacheless build (PRD P12): fence.i is a
-//     no-op and the core is exactly the stage-3 core.  1 the cached build
+//   - CACHE_EN: 0 (default) the cacheless build (PRD P12): fence.i commits
+//     in MEM and redirects to pc + 4, flushing the younger instructions
+//     fetched before it (owner 2026-11-25, so the cacheless build passes
+//     Zifencei too); there is no cache to clean and fencei_req stays 0.
+//     Otherwise the core is the stage-3 core.  1 the cached build
 //     inside peregrine_top (TASK-001 stage 4):
 //     - fence.i in MEM raises fencei_req and waits (the wrapper holds
 //       mem_wait) while the wrapper cleans the D$ and invalidates the I$;
@@ -756,13 +759,14 @@ module peregrine_core #(
     assign mem_mret = ex_mem_q.valid & ex_mem_q.mret & ~mem_exc & ~mem_irq & ~mem_wait;
     assign mem_csr_wen = ex_mem_q.valid & ex_mem_q.csr_wen & ~mem_exc & ~mem_irq & ~mem_wait;
 
-    // fence.i (CACHE_EN): held in MEM by the wrapper until the D$ clean and
-    // the I$ invalidate are done, then a redirect to the next instruction.
-    assign mem_fencei_pend = CACHE_EN & ex_mem_q.valid & ~mem_exc & ~mem_irq &
+    // fence.i: a redirect to the next instruction, flushing what was fetched
+    // before it.  CACHE_EN: held in MEM by the wrapper (fencei_req) until the
+    // D$ clean and the I$ invalidate are done.
+    assign mem_fencei_pend = ex_mem_q.valid & ~mem_exc & ~mem_irq &
                              (ex_mem_q.insn[6:0] == 7'b0001111) &
                              (ex_mem_q.insn[14:12] == 3'b001);
     assign mem_fencei      = mem_fencei_pend & ~mem_wait;
-    assign fencei_req      = mem_fencei_pend;
+    assign fencei_req      = CACHE_EN & mem_fencei_pend;
 
     if (CACHE_EN) begin : g_irq_lock
         `ALWAYS_FF_RST(clk, w_aresetn,

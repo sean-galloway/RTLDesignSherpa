@@ -35,6 +35,10 @@ valid with the same address, strobes and data until the handshake.  The
 uncached port latches a request only at the handshake, so a dropped or
 changed request is invisible in the program results; this monitor is what
 sees it (the core's interrupt lock exists for exactly this rule).
+
+``dc_clean`` drives peregrine_top's D$ clean hook: amber writes every dirty
+line back, so a result the TB reads from the memory array (an arch-test
+signature) is there.  ``ArchSysTB`` cleans after every tohost store.
 """
 
 import cocotb
@@ -52,6 +56,19 @@ class PeregrineSysTB(PeregrineTB):
         self.dport_violations: list = []
         self.dport_waits = 0
         self._dport_started = False
+        dut.tb_dc_clean_req.value = 0
+
+    async def dc_clean(self, max_cycles: int = 200_000) -> int:
+        """Clean amber through the hook; return the cycles it took."""
+        d = self.dut
+        d.tb_dc_clean_req.value = 1
+        for cycle in range(1, max_cycles + 1):
+            await FallingEdge(d.clk)
+            if int(d.tb_dc_clean_done.value):
+                d.tb_dc_clean_req.value = 0
+                await FallingEdge(d.clk)
+                return cycle
+        raise AssertionError(f"D$ clean not done after {max_cycles} cycles")
 
     def start_dport_monitor(self) -> None:
         if not self._dport_started:
@@ -115,3 +132,16 @@ class PeregrineSysTB(PeregrineTB):
             return False
         self.tohost_writes.append(value)
         return True
+
+
+class ArchSysTB(PeregrineSysTB):
+    """PeregrineSysTB for riscv-arch-test: the signature is read from the
+    memory array after the tohost store, so clean the D$ first."""
+
+    async def run_to_tohost(self, tohost: int, max_cycles: int = 100_000,
+                            irq_driver=None, mem_wait_driver=None) -> int:
+        value = await super().run_to_tohost(tohost, max_cycles=max_cycles,
+                                            irq_driver=irq_driver,
+                                            mem_wait_driver=mem_wait_driver)
+        self.clean_cycles = await self.dc_clean()
+        return value
