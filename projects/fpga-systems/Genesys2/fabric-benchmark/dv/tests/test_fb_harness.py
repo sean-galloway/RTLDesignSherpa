@@ -118,6 +118,15 @@ def test_fb_harness(request, leg, test_level):
         'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        # The STREAM runner's completion poll is HOST WALL-CLOCK (120 s, sized
+        # for the board). In sim the full chain's 64 KB workloads (162k
+        # cycles, w1_f2 and w4) take ~120 s of simulator wall time, so they
+        # passed or "timed out" by machine load: 2026-11-24, pulp and xbar
+        # failed with every byte moved and the channels going idle seconds
+        # after the poll gave up, then passed on rerun. Size the wall budgets
+        # for the simulator, as the STREAM mon tests do.
+        'CHAR_POLL_TIMEOUT_S': os.environ.get('CHAR_POLL_TIMEOUT_S', '900'),
+        'TB_MAX_DURATION_MIN': os.environ.get('TB_MAX_DURATION_MIN', '120'),
     }
     for k in ('FB_RUNS', 'FB_CHAINS', 'FB_W3', 'FB_LAT'):
         if os.environ.get(k) is not None:

@@ -137,8 +137,24 @@ walk, the gap cell) do not move.
 
 granite 29 passed; framework 228 passed; pumice 117 + 525 passed; scoria's
 failures are its known stale unit TBs (`bank_timer`, `cmd_arbiter`,
-`scheduler_plane`), none in a connected char macro. fabric-benchmark 16
-passed with 3 reruns (`fb_harness[pulp-full]` once, `[xbar-full]` twice). Each
-rerun used the same seed, so the simulation was identical; the failure reason
-was overwritten by the rerun. A no-rerun repeat of `test_fb_harness` is
-running to record it; this record is amended with the result.
+`scheduler_plane`), none in a connected char macro.
+
+fabric-benchmark passed 16 / 16 only after 3 reruns (`fb_harness[pulp-full]`
+once, `[xbar-full]` twice). A no-rerun repeat failed both legs again on
+`k3_2ch_4desc_64KB w4`: every byte moved (2048 AW / B / AR, 32,768 beats each
+way), "the run timer never stopped". The cause is the harness, not MC-025:
+
+- The STREAM runner's completion poll (`characterization.py`,
+  `CHAR_POLL_TIMEOUT_S`, default 120 s) is host wall-clock, sized for the
+  board. The full chain's two 64 KB workloads (162k cycles) take about 120 s
+  of simulator wall time, so each run passes or times out depending on
+  machine load. In the failing run the poll gave up at 120.0 s and the
+  snapshot a few seconds later showed every channel idle.
+- A three-tree bisect of that one chain (pulp, seed 20698, run concurrently):
+  the working tree and HEAD~1 (no MC-025) passed, HEAD failed. A superset
+  tree passing where its subset fails is a timing draw, not a code
+  difference; the same seed also gave cycle counts differing by a few
+  cycles between trees.
+- Fix: `test_fb_harness` now sets `CHAR_POLL_TIMEOUT_S` 900 and
+  `TB_MAX_DURATION_MIN` 120 for the simulation, as the STREAM monitor tests
+  already do. The board budget is unchanged.

@@ -402,6 +402,19 @@ when the previous identical run reported none has a scheduling explanation
 available before it has a code explanation; check the load average the run
 executed under before believing a timeout.
 
+Then find the wall-clock limit and size it; do not accept the rerun.
+2026-11-24 (memory-controllers MC-025): `fb_harness[pulp-full]` and
+`[xbar-full]` passed only on rerun. With reruns off they failed on the 64 KB
+chain with every byte moved: the STREAM runner's completion poll
+(`CHAR_POLL_TIMEOUT_S`) is 120 s of HOST wall-clock, sized for the board,
+and those workloads take about that long in the simulator, so the result was
+machine load. A bisect of it split pass / fail across three trees with no
+regard to the change under test (a superset tree passed where its subset
+failed). That is the signature: **when a bisect contradicts itself, look for
+a wall-clock budget before a code difference.** Every host-side
+wall-clock timeout a sim inherits from a board flow needs a sim value set by
+the test, as `test_stream_mon_perf` and now `test_fb_harness` do.
+
 Related: [[seeds-and-determinism]] (a rerun that changes seeds is not a
 reproduction), [[bfm-usage]], [[coverage]].
 
