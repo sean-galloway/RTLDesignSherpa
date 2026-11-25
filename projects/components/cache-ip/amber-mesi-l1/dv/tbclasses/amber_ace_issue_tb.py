@@ -29,6 +29,7 @@ ARSNOOP_READ_NOT_SHARED_DIRTY = 0x3
 ARSNOOP_READ_UNIQUE = 0x7
 ARSNOOP_CLEAN_UNIQUE = 0xB
 ARSNOOP_MAKE_UNIQUE = 0xC
+AWSNOOP_WRITE_CLEAN = 0x2   # amber TASK-004 clean-all
 AWSNOOP_WRITE_BACK = 0x3
 AWSNOOP_EVICT = 0x5
 
@@ -40,6 +41,7 @@ ACE_MAKE_UNIQUE = 3
 ACE_WRITE_BACK = 4
 ACE_EVICT = 5
 ACE_READ_NOT_SHARED_DIRTY = 6
+ACE_WRITE_CLEAN = 7
 
 # the block's default AW-only AWID (parameter AWONLY_ID)
 AWONLY_ID = 0x01
@@ -219,27 +221,28 @@ class AmberAceIssueTB(TBBase):
     # ------------------------------------------------------------------
     # WriteBack row: engine AW passes through with awsnoop = WriteBack
     # ------------------------------------------------------------------
-    async def _writeback_row(self):
+    async def _writeback_row(self, name='WriteBack', req_type=ACE_WRITE_BACK,
+                             exp_snoop=AWSNOOP_WRITE_BACK, addr=0x0004_C000):
+        """A drain launch (WriteBack, or amber TASK-004's WriteClean): the
+        engine carries the AW; the module stamps the latched class."""
         d = self.dut
-        name = 'WriteBack'
-        addr = 0x0004_C000
         # the event fires (dirty eviction launch) but the drain engine
         # carries the AW: the module stamps WriteBack, no AW originates
         d.ace_wr_addr.value = addr
         d.ace_wr_len.value = 7
-        d.ace_wr_type.value = ACE_WRITE_BACK
+        d.ace_wr_type.value = req_type
         d.ace_wr_req.value = 1
         await self._negedge_settled()
         d.ace_wr_req.value = 0
         await self._negedge_settled()
-        self._score(f"{name}: no AW originates for WriteBack",
+        self._score(f"{name}: no AW originates for a drain launch",
                     int(d.fub_awvalid.value), 0)
         d.eng_awaddr.value = addr
         d.eng_awlen.value = 7
         d.eng_awvalid.value = 1
         await self._negedge_settled()
         self._score(f"{name}: awsnoop", int(d.fub_awsnoop.value),
-                    AWSNOOP_WRITE_BACK)
+                    exp_snoop)
         self._score(f"{name}: awaddr passthrough",
                     int(d.fub_awaddr.value), addr)
         self._score(f"{name}: awid passthrough", int(d.fub_awid.value),
@@ -287,6 +290,12 @@ class AmberAceIssueTB(TBBase):
         await self._read_row('MakeUnique', ACE_MAKE_UNIQUE,
                              ARSNOOP_MAKE_UNIQUE)
         await self._writeback_row()
+        # amber TASK-004: a WriteClean drain, then a WriteBack again (the
+        # latched class must return to WriteBack)
+        await self._writeback_row('WriteClean', ACE_WRITE_CLEAN,
+                                  AWSNOOP_WRITE_CLEAN, addr=0x0004_D000)
+        await self._writeback_row('WriteBackAfterClean', ACE_WRITE_BACK,
+                                  AWSNOOP_WRITE_BACK, addr=0x0004_E000)
         await self._awonly_row('Evict', ACE_EVICT, AWSNOOP_EVICT)
         return self.mismatches == 0
 

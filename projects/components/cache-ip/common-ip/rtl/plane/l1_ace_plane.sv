@@ -376,8 +376,12 @@ module l1_ace_plane
         .ace_rd_type   (coh_req_type),
         .ace_rd_addr   (coh_req_addr),
         .ace_rd_len    (8'(FILL_BEATS - 1)),
+        // Evict originates an AW-only transaction; WriteBack / WriteClean
+        // (the drain launch) only set the drain engine's AWSNOOP class
         .ace_wr_req    (coh_req_valid
-                        && (coh_req_type == 3'(AMBER_ACE_EVICT))),
+                        && (coh_req_type == 3'(AMBER_ACE_EVICT)
+                            || coh_req_type == 3'(AMBER_ACE_WRITE_BACK)
+                            || coh_req_type == 3'(AMBER_ACE_WRITE_CLEAN))),
         .ace_wr_type   (coh_req_type),
         .ace_wr_addr   (coh_req_addr),
         .ace_wr_len    (8'(FILL_BEATS - 1)),

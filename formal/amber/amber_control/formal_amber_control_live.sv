@@ -38,6 +38,7 @@ module formal_amber_control_live (
     input  logic [31:0] req_addr,
     input  logic        req_we,
     input  logic [7:0]  req_be,
+    input  logic        req_maint,     // amber TASK-004 clean-all (free)
 
     // snoop responder (free environment)
     input  logic        snoop_req,
@@ -78,6 +79,7 @@ module formal_amber_control_live (
         .req_we                  (req_we),
         .req_be                  (req_be),
         .req_wdata               (64'd0),
+        .req_maint               (req_maint),
         .ctrl_req_ready          (ctrl_req_ready),
         .ctrl_rsp_valid          (ctrl_rsp_valid),
         .ctrl_rsp_data           (),
@@ -120,6 +122,7 @@ module formal_amber_control_live (
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (ctrl_drain_start),
         .ctrl_drain_done         (drain_done),
+        .ctrl_drain_clean        (),
         .ctrl_snoop_req          (snoop_req),
         .ctrl_snoop_ready        (ctrl_snoop_ready),
         .ctrl_snoop_type         (snoop_type),
@@ -221,7 +224,8 @@ module formal_amber_control_live (
                 f_drain_wait <= f_drain_wait + 4'd1;
             end
             if (drain_done) f_drain_done_seen <= 1'b1;
-            if (ctrl_state == 4'd8) begin
+            // FILL_WRITE (a miss) or CLEAN_COMMIT (a clean-all line)
+            if (ctrl_state == 4'd8 || ctrl_state == 4'd14) begin
                 f_drain_start_seen <= 1'b0; f_drain_done_seen <= 1'b0;
                 f_drain_wait <= 4'd0;
             end
@@ -363,6 +367,46 @@ module formal_amber_control_live (
         end
     end
 
+    // amber TASK-004: the clean-all walk's states. With free tags the
+    // number of Modified lines is unbounded, so the walk's length is not a
+    // liveness claim here (the safety wrapper's tag model carries the
+    // termination argument); what IS bounded is every residence: a scan
+    // run moves the cursor one set per cycle (<= SETS cycles), the gather
+    // is FILL_BEATS + 1, the commit and the response one cycle each -- so
+    // the walk never sticks, and a snoop finds the scan's yield point
+    // within one line.
+    reg [4:0] f_scan_res, f_gather_res;
+    reg       f_req_maint_q;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            f_scan_res <= 0; f_gather_res <= 0; f_req_maint_q <= 1'b0;
+        end else begin
+            if (ctrl_state == 4'd12) f_scan_res <= f_scan_res + 1;
+            else f_scan_res <= 0;
+            if (ctrl_state == 4'd13) f_gather_res <= f_gather_res + 1;
+            else f_gather_res <= 0;
+            if (f_req_accept) f_req_maint_q <= req_maint;
+        end
+    end
+
+    reg f_prev_commit;
+    always @(posedge clk) begin
+        if (!rst_n) f_prev_commit <= 1'b0;
+        else f_prev_commit <= (ctrl_state == 4'd14) || (ctrl_state == 4'd15);
+    end
+
+    always @(posedge clk) begin
+        if (rst_n) begin
+            ap_clean_scan_bounded: assert (f_scan_res < 17);
+            ap_clean_gather_bounded: assert (f_gather_res < 10);
+            // commit and response are single-cycle states
+            ap_clean_single: assert (!(f_prev_commit
+                && ((ctrl_state == 4'd14) || (ctrl_state == 4'd15))));
+            cp_clean_scan_long: cover (f_scan_res == 16);
+            cp_clean_done: cover ((ctrl_state == 4'd15) && f_req_maint_q);
+        end
+    end
+
     // whole-request bound: accept -> response never exceeds the budget
     // (lookup + victim gather + fair drain + fair fill (12-cycle window) +
     // 2 bounded snoop detours; honest worst ~95, ~9% margin). Bounds are
@@ -378,7 +422,10 @@ module formal_amber_control_live (
 
     always @(posedge clk) begin
         if (rst_n)
-            ap_txn_bounded: assert (!f_req_pending || (f_txn_timer < 104));
+            // a clean-all request is exempt (see above: its length is the
+            // number of Modified lines, unbounded with free tags)
+            ap_txn_bounded: assert (!f_req_pending || f_req_maint_q
+                                    || (f_txn_timer < 104));
     end
 
     // ------------------------------------------------------------------

@@ -86,7 +86,10 @@ from projects.components.cache_ip.common_ip.dv.tbclasses.l1_core_tb import (
 # ctrl_state_t codes (l1_pkg)
 ST_IDLE, ST_INIT, ST_LOOKUP, ST_HIT_RD, ST_HIT_WR, ST_MISS_VICTIM, \
     ST_MISS_DRAIN, ST_MISS_FILL, ST_FILL_WRITE, ST_REPLAY, ST_SNOOP, \
-    ST_ERROR = range(0xC)
+    ST_ERROR, ST_CLEAN_SCAN, ST_CLEAN_GATHER, ST_CLEAN_COMMIT, \
+    ST_CLEAN_RSP = range(0x10)
+ST_CLEAN_STATES = (ST_CLEAN_SCAN, ST_CLEAN_GATHER, ST_CLEAN_COMMIT,
+                   ST_CLEAN_RSP)
 
 # MonBus event codes (l1_pkg.amber_event_t)
 EV_HIT, EV_MISS, EV_SNOOP, EV_EVICT, EV_TRANSITION, \
@@ -103,6 +106,7 @@ ACE_READ_SHARED, ACE_READ_UNIQUE, ACE_CLEAN_UNIQUE = 0, 1, 2
 ACE_MAKE_UNIQUE = 3
 ACE_WRITE_BACK = 4
 ACE_READ_NOT_SHARED_DIRTY = 6
+ACE_WRITE_CLEAN = 7      # amber TASK-004: the clean-all write-back
 
 # fabric ACSNOOP encodings (IHI0022 4-bit, framework SnoopType)
 FAB_SNOOP_RS = 0x1   # SnoopType.READ_SHARED
@@ -248,7 +252,11 @@ class AmberPairRigTB(TBBase):
         self.OFFSET_BITS = (self.LINE_BYTES - 1).bit_length()
         self.SET_MASK = self.SETS - 1
         self.LINE_MASK = (1 << (self.ADDR_WIDTH - self.OFFSET_BITS)) - 1
-        self.CPU_REQ_W = self.ADDR_WIDTH + 1 + self.STRB_W + self.BUS_WIDTH
+        # amber TASK-004: the rig harness builds the clean-all packing
+        # ({maint, addr, we, be, wdata}) unless MAINT_EN=0 is passed
+        self.MAINT_EN = int(os.environ.get('MAINT_EN', '1'))
+        self.CPU_REQ_W = self.MAINT_EN + self.ADDR_WIDTH + 1 + self.STRB_W \
+            + self.BUS_WIDTH
 
         self.SPAN = min(max(self.SETS * 16, 32 << self.SET_BITS, 64), 4096)
         assert self.SPAN >= (self.WAYS + 10) * self.SETS
@@ -297,6 +305,7 @@ class AmberPairRigTB(TBBase):
 
         # directed-scenario tag allocator (tags map inside the pre-filled span)
         self._tag_next = 0
+        self._ctag_next = {}
 
         self.log.info(f"AmberPairRigTB sets={self.SETS} ways={self.WAYS} "
                       f"line={self.LINE_BYTES} bus={self.BUS_WIDTH} "
@@ -336,6 +345,15 @@ class AmberPairRigTB(TBBase):
             raise RuntimeError("directed scenario tag budget exhausted")
         return self._tag_next
 
+    def _ctag(self, set_idx):
+        """Clean-all scenario tags: per set, from the top half of the tag
+        budget, so they never meet _dtag's (low, global) allocations."""
+        nxt = self._ctag_next.get(set_idx, (self.MAX_TAG + 1) // 2)
+        if nxt > self.MAX_TAG:
+            raise RuntimeError(f"clean scenario tag budget exhausted (set {set_idx})")
+        self._ctag_next[set_idx] = nxt + 1
+        return nxt
+
     def _default_line(self, line):
         return bytearray(((line + 0x11 * i) & 0xFF)
                          for i in range(self.LINE_BYTES))
@@ -347,8 +365,11 @@ class AmberPairRigTB(TBBase):
         lo = beat * self.STRB_W
         return int.from_bytes(bytes(line_data[lo:lo + self.STRB_W]), 'little')
 
-    def _pack_req(self, addr, we, be, wdata):
-        return ((addr & ((1 << self.ADDR_WIDTH) - 1))
+    def _pack_req(self, addr, we, be, wdata, maint=0):
+        assert self.MAINT_EN or not maint, "clean-all needs MAINT_EN=1"
+        return ((maint & 1) << (self.ADDR_WIDTH + 1 + self.STRB_W
+                                + self.BUS_WIDTH)) \
+            | ((addr & ((1 << self.ADDR_WIDTH) - 1))
                 << (1 + self.STRB_W + self.BUS_WIDTH)) \
             | ((we & 1) << (self.STRB_W + self.BUS_WIDTH)) \
             | ((be & ((1 << self.STRB_W) - 1)) << self.BUS_WIDTH) \
@@ -532,6 +553,18 @@ class AmberPairRigTB(TBBase):
         cm = self.caches[c]
         cm.coh_req_pulses.append((self.cyc, addr, req_type))
         line = self._line_of(addr)
+        if req_type == ACE_WRITE_CLEAN:
+            # clean-all write-back: the line stays installed; memory takes
+            # the cache's current copy (launch-time view, as WRITE_BACK)
+            txn = cm.cur_txn
+            if txn is None or not txn.get('clean'):
+                self._score(f"cache{c}: WRITE_CLEAN outside a clean-all",
+                            None, 'clean txn')
+                return
+            self.mem[line] = bytearray(cm.cache_data[line])
+            txn['cleaned'].append(line)
+            self.events.append((self.cyc, 'wb', c, line))
+            return
         if req_type == ACE_WRITE_BACK:
             # dirty victim draining: the write-back carries the staged
             # victim content to the shared memory (model: launch-time view;
@@ -609,7 +642,7 @@ class AmberPairRigTB(TBBase):
                 live = [e for e in self.ft_queue[c]]
                 raw_v = int(self._amber(c).coh_req_valid.value)
                 raw_t = int(self._amber(c).coh_req_type.value)
-                if raw_v and raw_t != ACE_WRITE_BACK:
+                if raw_v and raw_t not in (ACE_WRITE_BACK, ACE_WRITE_CLEAN):
                     live.append({'line': self._line_of(
                         int(self._amber(c).coh_req_addr.value))})
                 head = min(live, key=lambda e: e.get('set_cyc', self.cyc),
@@ -734,6 +767,9 @@ class AmberPairRigTB(TBBase):
         txn = cm.cur_txn
         if txn is None:
             return
+        if txn.get('clean'):
+            self._on_clean_state(c, st, txn)
+            return
         line = txn['line']
         a = self._amber(c)
         if st == ST_MISS_VICTIM and not txn['victim_done']:
@@ -761,6 +797,45 @@ class AmberPairRigTB(TBBase):
                 cm.repl.hit(txn['set_idx'], way)
         elif st == ST_HIT_WR:
             self._model_merge(c, txn)
+
+    def _on_clean_state(self, c, st, txn):
+        """The clean-all walk (amber TASK-004). The model predicts the
+        walk order -- cursor set ascending, the lowest Modified way of the
+        set first -- and scores the DUT's staged line against it; the
+        commit turns the line M -> E unless a snoop during the drain moved
+        it (the snoop hook already wrote that state)."""
+        cm = self.caches[c]
+        ctrl = self._amber(c).u_coh.u_control
+        if st == ST_CLEAN_GATHER:
+            set_idx = (int(ctrl.req_addr_q.value) >> self.OFFSET_BITS) \
+                & self.SET_MASK
+            way = int(ctrl.victim_way_q.value)
+            exp = None
+            for s in range(txn['cursor'], self.SETS):
+                ws = [w for w in range(self.WAYS)
+                      if cm.slot_state.get((s, w), 'I') == 'M']
+                if ws:
+                    exp = (s, ws[0])
+                    break
+            self._score(f"{txn['label']}: walk order (set, way)",
+                        (set_idx, way), exp)
+            txn['cursor'] = set_idx
+            txn['cur'] = (set_idx, way, cm.tags.get((set_idx, way)))
+            cm.tally[EV_DRAIN_END] += 1      # the drain's end packet
+        elif st == ST_MISS_DRAIN:
+            cm.tally[EV_DRAIN_START] += 1
+        elif st == ST_CLEAN_COMMIT:
+            set_idx, way, line = txn['cur']
+            if cm.slot_state.get((set_idx, way)) == 'M' \
+                    and cm.tags.get((set_idx, way)) == line:
+                cm.slot_state[(set_idx, way)] = 'E'
+                cm.tally[EV_TRANSITION] += 1
+            else:
+                txn['snooped'].append(line)
+            txn['cur'] = None
+        elif st == ST_CLEAN_RSP:
+            left = [k for k, v in cm.slot_state.items() if v == 'M']
+            self._score(f"{txn['label']}: no Modified line left", left, [])
 
     def _model_merge(self, c, txn):
         cm = self.caches[c]
@@ -939,6 +1014,16 @@ class AmberPairRigTB(TBBase):
                     self.mem[line] = bytearray(exp_line)
                     self.stats['absorbs'] += 1
 
+        if cm.cur_txn is not None and cm.cur_txn.get('clean'):
+            # a snoop granted inside the clean-all walk (its yield points:
+            # CLEAN_SCAN, and MISS_DRAIN while the WriteClean is in flight)
+            cm.cur_txn.setdefault('snoop_states', []).append(
+                int(a.ctrl_state.value))
+            cur = cm.cur_txn.get('cur')
+            if cur is not None and cur[2] == line \
+                    and int(a.ctrl_state.value) == ST_MISS_DRAIN:
+                self.stats['clean_line_snoops'] = \
+                    self.stats.get('clean_line_snoops', 0) + 1
         cm.grant_log.append({'cyc': self.cyc, 'line': line, 'name': name,
                              'state': st, 'exp_crresp': res.crresp})
         cm.tally[EV_SNOOP] += 1
@@ -956,7 +1041,7 @@ class AmberPairRigTB(TBBase):
         # beat-less-fill no-data answer (BUG-002 path) applies no snoop
         # effect to the pending fill, so it can never kill the pass.
         txn = cm.cur_txn
-        if not pf_pre_ar and txn is not None and line == txn['line'] \
+        if not pf_pre_ar and txn is not None and line == txn.get('line') \
                 and st in ('IS', 'IM', 'SM', 'IS_I'):
             if (st == 'SM' and res.next_state == 'IM') \
                     or (st in ('IS', 'IM') and res.pending == 'I') \
@@ -1073,6 +1158,74 @@ class AmberPairRigTB(TBBase):
             wdata = random.getrandbits(self.BUS_WIDTH) if we else 0
         txn = await self._txn_begin(c, addr, we, be, wdata, label)
         return await self._txn_end(c, txn)
+
+    async def _txn_clean(self, c, label=''):
+        """One clean-all request (amber TASK-004) on cache c: every
+        Modified line written back (WRITE_CLEAN), left valid and clean.
+        The response echoes wdata (driven 0)."""
+        cm = self.caches[c]
+        txn = {'clean': True, 'label': label, 'we': 0, 'cursor': 0,
+               'cur': None, 'cleaned': [], 'snooped': [],
+               'm_before': sorted(cm.tags[k] for k, v in cm.slot_state.items()
+                                  if v == 'M')}
+        cm.cur_txn = txn
+        txn['n_rsp'] = len(self.rsp_log[c])
+        pkt = self.masters[c].create_packet(
+            data=self._pack_req(0, 0, 0, 0, maint=1))
+        await self.masters[c].send(pkt)
+        for _ in range(self.RSP_TIMEOUT_CYCLES * 4):
+            if len(self.rsp_log[c]) >= txn['n_rsp'] + 1:
+                break
+            await self._negedge_settled()
+        else:
+            raise RuntimeError(f"{label}: clean-all response timeout; "
+                               f"cache{c} state="
+                               f"{int(self._amber(c).ctrl_state.value):#x}")
+        txn['rsp_data'] = self.rsp_log[c][txn['n_rsp']][1]
+        self.stats['cleans'] = self.stats.get('cleans', 0) + 1
+        self._tag_parity(c, label)
+        self._score(f"{label}: rsp data echoes wdata", txn['rsp_data'], 0)
+        # each write-back is of a line Modified at the start, once (a
+        # snoop granted at a scan point can downgrade a line before the
+        # walk reaches it -- the PassDirty absorption then wrote memory --
+        # so the cleaned set is a subset; the no-M-left check at the
+        # response covers completeness)
+        self._score(f"{label}: no line written back twice",
+                    len(set(txn['cleaned'])), len(txn['cleaned']))
+        self._score(f"{label}: write-backs are of Modified lines",
+                    sorted(set(txn['cleaned']) - set(txn['m_before'])), [])
+        cm.txns += 1
+        cm.cur_txn = None
+        return txn
+
+    def _tag_parity(self, c, label):
+        """Every (set, way) of cache c's DUT tag array against the model
+        (tag compared only for a valid slot)."""
+        cm = self.caches[c]
+        bad = []
+        for s in range(self.SETS):
+            for w in range(self.WAYS):
+                dtag, dst = self._dut_slot_state(c, s, w)
+                mst = cm.slot_state.get((s, w), 'I')
+                mline = cm.tags.get((s, w))
+                if dst != mst or (mst != 'I' and mline is not None
+                                  and dtag != (mline >> self.SET_BITS)):
+                    bad.append((s, w, dst, mst))
+        self._score(f"{label}: cache{c} tag array == model", bad[:4], [])
+
+    def _dut_slot_state(self, c, set_idx, way):
+        ts = int(self._amber(c).u_coh.u_tag.g_way[way].mem[set_idx].value)
+        return ts >> 3, self._decode3(ts & 7)
+
+    def _mem_backdoor_line(self, line):
+        mem_words = self.dut.u_mem.u_core.r_mem
+        word_shift = self.STRB_W.bit_length() - 1
+        base_word = self._base_of(line) >> word_shift
+        got = bytearray()
+        for b in range(self.FILL_BEATS):
+            got += int(mem_words[base_word + b].value).to_bytes(
+                self.STRB_W, 'little')
+        return bytes(got)
 
     # ------------------------------------------------------------------
     # directed scenarios
@@ -1300,6 +1453,145 @@ class AmberPairRigTB(TBBase):
                     2)
         self._scenario('SimultaneousSameLineMisses')
 
+    async def _s_clean_all(self):
+        """(f) amber TASK-004 clean-all: Modified lines across sets and
+        ways are written back and stay valid and clean; memory matches;
+        the lines then hit; a repeat clean writes back only what was
+        dirtied since; the peer's dirty lines are untouched."""
+        cm0, cm1 = self.caches
+        sets = sorted({6 % self.SETS, 7 % self.SETS, self.SETS - 1})
+        lines = []
+        for s_i, sset in enumerate(sets):
+            nways = (self.WAYS, 2, 1)[s_i]
+            for w in range(nways):
+                a = self._compose_addr(self._ctag(sset), sset,
+                                       beat=w % self.FILL_BEATS)
+                await self._txn(0, a, 1, label=f'f_w{sset}_{w}')
+                lines.append(a)
+        # a clean (S) line beside them (the last set has a free way at
+        # every geometry), and two dirty lines in the peer
+        ra = self._compose_addr(self._ctag(sets[2]), sets[2])
+        await self._txn(0, ra, 0, label='f_rd')
+        peer = [self._compose_addr(self._ctag(sets[1]), sets[1])
+                for _ in range(2)]
+        for i, a in enumerate(peer):
+            await self._txn(1, a, 1, label=f'f_peer{i}')
+
+        m_before = sorted(cm0.tags[k] for k, v in cm0.slot_state.items()
+                          if v == 'M')
+        self._score("f: dirty lines present", len(m_before) >= len(lines),
+                    True)
+        txn = await self._txn_clean(0, 'f_clean')
+        self._score("f: every Modified line written back once",
+                    sorted(txn['cleaned']), m_before)
+        for line in m_before:
+            set_idx = cm0.set_of(line)
+            way = cm0.hit_way(set_idx, line)
+            self._score(f"f: line {line:#x} still valid in the model",
+                        way is not None, True)
+            if way is None:
+                continue
+            self._score(f"f: line {line:#x} DUT tag E",
+                        self._dut_slot_state(0, set_idx, way),
+                        (line >> self.SET_BITS, 'E'))
+            self._score(f"f: line {line:#x} memory == cache",
+                        self._mem_backdoor_line(line),
+                        bytes(cm0.cache_data[line]))
+        for a in peer:
+            line = self._line_of(a)
+            self._score(f"f: peer line {line:#x} still M",
+                        cm1.installed_state(line), 'M')
+        # the cleaned lines hit (no fill), reads and a write
+        fills = cm0.tally[EV_FILL_START]
+        for i, a in enumerate(lines):
+            t = await self._txn(0, a, 0, label=f'f_hit{i}')
+            self._score(f"f_hit{i}: a hit", t['hit'], True)
+        self._score("f: cleaned lines hit without a fill",
+                    cm0.tally[EV_FILL_START], fills)
+        # dirty one line again (E -> M write hit); the next clean writes
+        # back exactly that line; a third finds nothing
+        await self._txn(0, lines[1], 1, label='f_redirty')
+        self._score("f: cleaned line write-hits without a fill",
+                    cm0.tally[EV_FILL_START], fills)
+        txn = await self._txn_clean(0, 'f_clean2')
+        self._score("f: second clean writes back the re-dirtied line",
+                    txn['cleaned'], [self._line_of(lines[1])])
+        txn = await self._txn_clean(0, 'f_clean3')
+        self._score("f: third clean writes nothing back", txn['cleaned'], [])
+        self._scenario('CleanAll')
+
+    async def _s_clean_with_snoops(self):
+        """(g) clean-all while the peer reads and writes the same dirty
+        lines: snoops are granted mid-walk (at the scan point and during a
+        WriteClean's drain), every response and the final memory audit
+        are scored, and nothing is left Modified."""
+        n_snoops = 0
+        states = []
+        base_set = 8 % self.SETS
+        for rnd, delay in enumerate((0, 12, 40, 90)):
+            addrs = []
+            for i in range(6):
+                sset = (base_set + 2 * rnd + (i % 3)) % self.SETS
+                a = self._compose_addr(self._ctag(sset), sset,
+                                       beat=i % self.FILL_BEATS)
+                await self._txn(0, a, 1, label=f'g{rnd}_w{i}')
+                addrs.append(a)
+            clean = cocotb.start_soon(self._txn_clean(0, f'g{rnd}_clean'))
+            for _ in range(delay):
+                await self._negedge_settled()
+            rng = random.Random(self.SEED + rnd)
+            i = 0
+            while not clean.done() and i < 10:
+                a = rng.choice(addrs)
+                we = 1 if rng.random() < 0.4 else 0
+                await self._txn(1, a, we, label=f'g{rnd}_p{i}')
+                i += 1
+            txn = await clean
+            n_snoops += len(txn.get('snoop_states', []))
+            states.extend(txn.get('snoop_states', []))
+        # targeted: the peer hits the very line the walk is gathering, so
+        # its snoop is granted while that line's WriteClean is in flight
+        # (the installed line must take the downgrade; the commit must
+        # leave it)
+        n_target = 0
+        for rnd in range(3):
+            addrs = []
+            sset = (base_set + 9 + rnd) % self.SETS
+            for i in range(min(self.WAYS, 3)):
+                a = self._compose_addr(self._ctag(sset), sset)
+                await self._txn(0, a, 1, label=f'gt{rnd}_w{i}')
+                addrs.append(a)
+            clean = cocotb.start_soon(self._txn_clean(0, f'gt{rnd}_clean'))
+            ctrl = self._amber(0).u_coh.u_control
+            seen = 0
+            while not clean.done():
+                await self._negedge_settled()
+                if int(self._amber(0).ctrl_state.value) != ST_CLEAN_GATHER:
+                    continue
+                seen += 1
+                if seen > 1 + rnd:
+                    continue
+                set_idx = (int(ctrl.req_addr_q.value) >> self.OFFSET_BITS) \
+                    & self.SET_MASK
+                tag = int(ctrl.victim_tag_q.value)
+                a = self._compose_addr(tag, set_idx)
+                we = 1 if (seen + rnd) % 2 else 0
+                await self._txn(1, a, we, label=f'gt{rnd}_p{seen}')
+                n_target += 1
+            await clean
+        self._score("g: a snoop granted on the line whose WriteClean is "
+                    "in flight", self.stats.get('clean_line_snoops', 0) > 0,
+                    True)
+        self.log.info(f"g: {n_target} targeted peer requests, "
+                      f"{self.stats.get('clean_line_snoops', 0)} snoops on "
+                      f"the line mid-WriteClean")
+        self.log.info(f"g: {n_snoops} snoops granted inside clean-all walks, "
+                      f"at ctrl_state {sorted(set(states))} "
+                      f"(0xC scan, 0x6 drain)")
+        self._score("g: snoops granted inside a clean-all walk",
+                    n_snoops > 0, True)
+        self._scenario('CleanAllWithSnoops')
+
     async def _dual_txn(self, addr, w0, w1, label=''):
         """Present both CPUs the same request simultaneously; return the
         two completed transactions (any serialized order)."""
@@ -1329,6 +1621,11 @@ class AmberPairRigTB(TBBase):
 
     async def _cpu_loop(self, c, n, rng):
         for i in range(n):
+            if self.MAINT_EN and rng.random() < 0.02:
+                # amber TASK-004: an occasional clean-all amid the peer's
+                # traffic (snoops arrive mid-walk)
+                await self._txn_clean(c, label=f'r{c}_{i}_clean')
+                continue
             addr = self._rand_addr(rng)
             we = 1 if rng.random() < 0.5 else 0
             be = rng.randrange(1, 1 << self.STRB_W) if we \
@@ -1426,6 +1723,9 @@ class AmberPairRigTB(TBBase):
         await self._s_dirty_eviction_writeback()
         await self._s_e_downgrade_read_shared()
         await self._s_simultaneous_misses()
+        if self.MAINT_EN:
+            await self._s_clean_all()
+            await self._s_clean_with_snoops()
 
         if self.TEST_LEVEL in ('func', 'full'):
             await self._random_lockstep(self.FULL_TXN[self.TEST_LEVEL])

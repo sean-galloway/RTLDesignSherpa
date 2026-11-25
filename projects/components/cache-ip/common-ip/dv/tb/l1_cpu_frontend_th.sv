@@ -162,6 +162,7 @@ module l1_cpu_frontend_th
     logic                      fe_req_we;
     logic [STRB_W-1:0]         fe_req_be;
     logic [BUS_WIDTH-1:0]      fe_req_wdata;
+    logic                     fe_req_maint;   // MAINT_EN = 0: tied 0 (TASK-004)
 
     l1_cpu_frontend #(
         .ADDR_WIDTH (ADDR_WIDTH),
@@ -186,6 +187,7 @@ module l1_cpu_frontend_th
         .req_we            (fe_req_we),
         .req_be            (fe_req_be),
         .req_wdata         (fe_req_wdata),
+        .req_maint         (fe_req_maint),
         .ctrl_req_ready    (fe_req_ready),
         .ctrl_rsp_valid    (fe_rsp_valid),
         .ctrl_rsp_data     (fe_rsp_data)
@@ -234,6 +236,7 @@ module l1_cpu_frontend_th
         .req_we                  (fe_req_we),
         .req_be                  (fe_req_be),
         .req_wdata               (fe_req_wdata),
+        .req_maint               (fe_req_maint),
         .ctrl_req_ready          (fe_req_ready),
         .ctrl_rsp_valid          (fe_rsp_valid),
         .ctrl_rsp_data           (fe_rsp_data),
@@ -276,6 +279,7 @@ module l1_cpu_frontend_th
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (drain_start),
         .ctrl_drain_done         (drain_done),
+        .ctrl_drain_clean        (),
         .ctrl_snoop_req          (snoop_req),
         .ctrl_snoop_ready        (snoop_ready),
         .ctrl_snoop_safe         (ctrl_snoop_safe_nc),

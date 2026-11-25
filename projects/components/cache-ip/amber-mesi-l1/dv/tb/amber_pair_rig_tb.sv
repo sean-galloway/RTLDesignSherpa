@@ -74,10 +74,14 @@ module amber_pair_rig_tb
     parameter int AXI_USER_WIDTH = 1,
     parameter bit USE_MONITOR    = 1'b1,
     parameter int MEM_DEPTH      = 16384,
+    // amber TASK-004: the rig runs the clean-all request packing
+    // ({maint, addr, we, be, wdata}); every non-clean request carries 0
+    parameter bit MAINT_EN       = 1'b1,
     localparam int STRB_W       = BUS_WIDTH / 8,
     localparam int IW           = AXI_ID_WIDTH,
     localparam int UW           = AXI_USER_WIDTH,
-    localparam int CPU_REQ_W    = ADDR_WIDTH + 1 + STRB_W + BUS_WIDTH,
+    localparam int CPU_REQ_W    = int'(MAINT_EN) + ADDR_WIDTH + 1 + STRB_W
+                                  + BUS_WIDTH,
     localparam int CPU_RSP_W    = BUS_WIDTH
 )(
     input  logic                        clk,
@@ -208,7 +212,8 @@ module amber_pair_rig_tb
         .REPL_POLICY    (REPL_POLICY),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
-        .USE_MONITOR    (USE_MONITOR)
+        .USE_MONITOR    (USE_MONITOR),
+        .MAINT_EN       (MAINT_EN)
     ) u_amber0 (
         .aclk            (clk),
         .aresetn         (rst_n),
@@ -295,7 +300,8 @@ module amber_pair_rig_tb
         .REPL_POLICY    (REPL_POLICY),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
-        .USE_MONITOR    (USE_MONITOR)
+        .USE_MONITOR    (USE_MONITOR),
+        .MAINT_EN       (MAINT_EN)
     ) u_amber1 (
         .aclk            (clk),
         .aresetn         (rst_n),

@@ -139,6 +139,9 @@ module l1_coh_core
     input  logic                        fe_req_we,
     input  logic [STRB_W-1:0]           fe_req_be,
     input  logic [BUS_WIDTH-1:0]        fe_req_wdata,
+    // clean-all request (amber TASK-004); 0 from a CPU plane built
+    // without MAINT_EN
+    input  logic                        fe_req_maint,
     output logic                        ctrl_req_ready,
     output logic                        ctrl_rsp_valid,
     output logic [BUS_WIDTH-1:0]        ctrl_rsp_data,
@@ -300,6 +303,7 @@ module l1_coh_core
 
     logic                                  ctrl_drain_start;
     logic                                  ctrl_drain_done;
+    logic                                  ctrl_drain_clean;
 
     l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
@@ -317,6 +321,7 @@ module l1_coh_core
         .req_we                  (fe_req_we),
         .req_be                  (fe_req_be),
         .req_wdata               (fe_req_wdata),
+        .req_maint               (fe_req_maint),
         .ctrl_req_ready          (ctrl_req_ready),
         .ctrl_rsp_valid          (ctrl_rsp_valid),
         .ctrl_rsp_data           (ctrl_rsp_data),
@@ -360,6 +365,7 @@ module l1_coh_core
         .ctrl_fill_beat_idx      (ctrl_fill_beat_idx),
         .ctrl_drain_start        (ctrl_drain_start),
         .ctrl_drain_done         (ctrl_drain_done),
+        .ctrl_drain_clean        (ctrl_drain_clean),
         .ctrl_snoop_req          (ctrl_snoop_req),
         .ctrl_snoop_ready        (ctrl_snoop_ready),
         .ctrl_snoop_safe         (ctrl_snoop_safe),
@@ -568,13 +574,16 @@ module l1_coh_core
     // ------------------------------------------------------------------
     // Pair-rig coherence sideband (DECISION D-8): one pulse per coherence
     // request -- fill launches and dirty write-back launches. Clean
-    // evictions are silent. Pure observation output.
+    // evictions are silent. Pure observation output. A clean-all
+    // write-back (TASK-004) is WRITE_CLEAN: the line stays installed.
     // ------------------------------------------------------------------
     assign coh_req_valid = ctrl_fill_start | ctrl_drain_start;
     assign coh_req_addr  = ctrl_drain_start ? ctrl_victim_addr_in
                                             : ctrl_fill_addr;
-    assign coh_req_type  = ctrl_drain_start ? 3'(AMBER_ACE_WRITE_BACK)
-                                            : ctrl_req_class;
+    assign coh_req_type  = ctrl_drain_start
+                           ? (ctrl_drain_clean ? 3'(AMBER_ACE_WRITE_CLEAN)
+                                               : 3'(AMBER_ACE_WRITE_BACK))
+                           : ctrl_req_class;
 
     // ------------------------------------------------------------------
     // MonBus observer (MAS ch04). Payload taps of control-internal
@@ -607,6 +616,8 @@ module l1_coh_core
             AMBER_CTRL_FILL_WRITE:
                 tap_state_old = u_control.upgr_q ? u_control.hit_state_q
                                                  : AMBER_STATE_I;
+            AMBER_CTRL_CLEAN_COMMIT:     // the clean-all M -> E
+                tap_state_old = AMBER_STATE_M;
             default:
                 tap_state_old = AMBER_STATE_I;
         endcase
@@ -636,7 +647,8 @@ module l1_coh_core
         .tap_snoop_type      (ctrl_snoop_type),
         .tap_snoop_hit       (u_control.sn_hit_any),
         .tap_snoop_resp      (ctrl_crresp),
-        .tap_victim_load     (ctrl_victim_load),
+        // a clean-all write-back keeps its line: not an EVICT
+        .tap_victim_load     (ctrl_victim_load && !ctrl_drain_clean),
         .tap_victim_addr     (ctrl_victim_addr_in),
         .tap_victim_way      (u_control.victim_way_q),
         .tap_victim_state    (u_control.mv_victim_state),

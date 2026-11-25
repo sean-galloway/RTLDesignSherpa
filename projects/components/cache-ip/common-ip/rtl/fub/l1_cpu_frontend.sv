@@ -65,6 +65,11 @@
 //     CPU_REQ_W = ADDR_WIDTH + 1 + BUS_WIDTH/8 + BUS_WIDTH
 //     cpu_req_wr_data = {addr[ADDR_WIDTH-1:0], we, be[STRB_W-1:0],
 //                        wdata[BUS_WIDTH-1:0]}      (addr at the MSBs)
+//     MAINT_EN = 1 (amber TASK-004) adds one bit above addr:
+//     CPU_REQ_W = 1 + ADDR_WIDTH + 1 + BUS_WIDTH/8 + BUS_WIDTH
+//     cpu_req_wr_data = {maint, addr, we, be, wdata}; maint = 1 with
+//     we = 0 is the clean-all request (addr, be, wdata ignored; the
+//     response echoes wdata). maint = 1 with we = 1 is reserved.
 //     CPU_RSP_W = BUS_WIDTH
 //     cpu_rsp_rd_data = {rdata[BUS_WIDTH-1:0]}
 //
@@ -79,6 +84,11 @@
 //       (FIFO bypass, see above); 0 = through the staging FIFO only (a
 //       cycle later). Default 0 (jet, jet-prime); amber's l1_cpu_plane
 //       sets 1
+//     Type: bit
+//   MAINT_EN:
+//     Description: 1 = the request carries the maintenance bit (above,
+//       amber TASK-004); 0 = the classic packing, req_maint is 0. Default
+//       0 (jet, jet-prime, l1_core); amber's tops set 1
 //     Type: bit
 //
 //------------------------------------------------------------------------------
@@ -110,8 +120,10 @@ module l1_cpu_frontend
     parameter int LINE_BYTES = AMBER_LINE_BYTES,
     parameter int BUS_WIDTH  = AMBER_BUS_WIDTH,
     parameter bit RSP_BYPASS = 1'b0,
+    parameter bit MAINT_EN   = 1'b0,
     localparam int STRB_W     = BUS_WIDTH / 8,
-    localparam int CPU_REQ_W  = ADDR_WIDTH + 1 + STRB_W + BUS_WIDTH,
+    localparam int CPU_REQ_W  = int'(MAINT_EN) + ADDR_WIDTH + 1 + STRB_W
+                                + BUS_WIDTH,
     localparam int CPU_RSP_W  = BUS_WIDTH
 )(
     input  logic                     clk,
@@ -133,6 +145,7 @@ module l1_cpu_frontend
     output logic                     req_we,
     output logic [STRB_W-1:0]        req_be,
     output logic [BUS_WIDTH-1:0]     req_wdata,
+    output logic                     req_maint,
     input  logic                     ctrl_req_ready,
     input  logic                     ctrl_rsp_valid,
     input  logic [BUS_WIDTH-1:0]     ctrl_rsp_data
@@ -195,7 +208,8 @@ module l1_cpu_frontend
     // cycle; control latches the fields there and holds them internally
     // until the response.
     assign req_valid = cpu_req_wr_valid && cpu_req_wr_ready;
-    assign req_addr  = cpu_req_wr_data[CPU_REQ_W-1 -: ADDR_WIDTH];
+    assign req_addr  = cpu_req_wr_data[CPU_REQ_W-1-int'(MAINT_EN) -: ADDR_WIDTH];
+    assign req_maint = MAINT_EN && cpu_req_wr_data[CPU_REQ_W-1];
     assign req_we    = cpu_req_wr_data[BUS_WIDTH + STRB_W];
     assign req_be    = cpu_req_wr_data[BUS_WIDTH + STRB_W - 1 : BUS_WIDTH];
     assign req_wdata = cpu_req_wr_data[BUS_WIDTH-1:0];

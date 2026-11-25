@@ -62,9 +62,14 @@
 //     ReadUnique         arsnoop[3:0] = 4'h7
 //     CleanUnique        arsnoop[3:0] = 4'hB
 //     MakeUnique         arsnoop[3:0] = 4'hC
+//     WriteClean         awsnoop[2:0] = 3'h2   (amber TASK-004 clean-all)
 //     WriteBack          awsnoop[2:0] = 3'h3
 //     Evict              awsnoop[2:0] = 3'h5
-//   All read classes ride the AR channel; only WriteBack and Evict use AW.
+//   All read classes ride the AR channel; WriteBack, WriteClean and Evict
+//   use AW. The drain engine carries both WriteBack (an eviction) and
+//   WriteClean (the clean-all walk, line kept): the class of the drain
+//   launch (ace_wr_req with WRITE_BACK / WRITE_CLEAN, the cycle before the
+//   engine raises AW) is latched and stamps the engine's AWSNOOP.
 //   RACK/WACK are auto-pulsed by the wrapper transports, not here.
 //
 //------------------------------------------------------------------------------
@@ -219,6 +224,7 @@ module l1_ace_issue
     localparam logic [3:0] ARSNOOP_READ_UNIQUE          = 4'h7;
     localparam logic [3:0] ARSNOOP_CLEAN_UNIQUE         = 4'hB;
     localparam logic [3:0] ARSNOOP_MAKE_UNIQUE          = 4'hC;
+    localparam logic [2:0] AWSNOOP_WRITE_CLEAN          = 3'h2;
     localparam logic [2:0] AWSNOOP_WRITE_BACK           = 3'h3;
     localparam logic [2:0] AWSNOOP_EVICT                = 3'h5;
 
@@ -332,11 +338,27 @@ module l1_ace_issue
     assign fub_awregion = eng_awvalid ? eng_awregion : 4'b0;
     assign fub_awuser   = eng_awvalid ? eng_awuser  : '0;
 
+    // the drain engine's class: WriteClean for a clean-all write-back,
+    // WriteBack for a dirty eviction (latched at the drain launch; the
+    // engine raises AW a cycle later and holds the line through B, and
+    // the blocking control launches one drain at a time)
+    logic wr_clean_q;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            wr_clean_q <= 1'b0;
+        end else if (ace_wr_req && ace_wr_type == 3'(AMBER_ACE_WRITE_CLEAN)) begin
+            wr_clean_q <= 1'b1;
+        end else if (ace_wr_req && ace_wr_type == 3'(AMBER_ACE_WRITE_BACK)) begin
+            wr_clean_q <= 1'b0;
+        end
+    )
+
     always_comb begin
         if (eng_awvalid) begin
-            // the drain engine only ever carries dirty victims (Table
-            // 2.8.1: dirty eviction -> WriteBack)
-            fub_awsnoop = AWSNOOP_WRITE_BACK;
+            // the drain engine only ever carries dirty lines (Table
+            // 2.8.1: dirty eviction -> WriteBack; clean-all -> WriteClean)
+            fub_awsnoop = wr_clean_q ? AWSNOOP_WRITE_CLEAN : AWSNOOP_WRITE_BACK;
         end else begin
             // only Evict uses the AW-only generator
             fub_awsnoop = AWSNOOP_EVICT;

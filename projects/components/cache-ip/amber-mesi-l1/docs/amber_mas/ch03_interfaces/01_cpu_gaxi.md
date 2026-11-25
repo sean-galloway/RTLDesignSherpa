@@ -31,7 +31,7 @@ The CPU-side port is two house-GAXI streams:
 |---|---|---|---|
 | `cpu_req_wr_valid` | in | 1 | request valid |
 | `cpu_req_wr_ready` | out | 1 | request accepted |
-| `cpu_req_wr_data` | in | `CPU_REQ_W` | packed {addr, we, be, wdata} |
+| `cpu_req_wr_data` | in | `CPU_REQ_W` | packed {[maint,] addr, we, be, wdata} |
 | `cpu_rsp_rd_valid` | out | 1 | response valid |
 | `cpu_rsp_rd_ready` | in | 1 | response accepted |
 | `cpu_rsp_rd_data` | out | `CPU_RSP_W` | packed {rdata} |
@@ -75,6 +75,35 @@ into the FIFO only when `cpu_rsp_rd_ready` is low in that cycle. A held
 response stays byte-stable in the FIFO until taken, responses keep request
 order, and the FIFO cannot overflow (ready requires it empty while a
 response is up, and at least one free entry otherwise).
+
+## Clean-All Request (amber TASK-004)
+
+With `MAINT_EN = 1` on `amber_top` / `amber_ace_top` (default 0, the
+classic packing above), the request carries one more bit above `addr`:
+
+```
+CPU_REQ_W = 1 + ADDR_WIDTH + 1 + BUS_WIDTH/8 + BUS_WIDTH
+cpu_req_wr_data = {maint, addr, we, be, wdata}
+```
+
+| `maint` | `we` | Request |
+|---|---|---|
+| 0 | 0 / 1 | Ordinary read / write, as above. |
+| 1 | 0 | **Clean-all**: write back every Modified line (WriteClean), leave each valid and clean (E). `addr`, `be` are ignored; drive `wdata` = 0. |
+| 1 | 1 | Reserved (handled as a clean-all today; do not rely on it). |
+
+: Table 3.1.2: request op encoding
+
+The clean-all is one GAXI transaction: one accept, one response. The
+response (`rdata` = the request's `wdata`, so 0) is valid only after the
+last write-back's B response, so when the CPU sees it, memory holds every
+line that was dirty. Ready stays low for the whole walk. Snoops are served
+during it (at each set the walk scans, and while each write-back is in
+flight). Latency is about one cycle per set plus, per dirty line, the
+`FILL_BEATS`-cycle gather and the write-back's round trip.
+
+peregrine uses it for `fence.i` (PRD P10): clean the D$, then invalidate
+its own I$ and refetch. A clean-all does not invalidate anything.
 
 ## Write-Allocate Fills
 

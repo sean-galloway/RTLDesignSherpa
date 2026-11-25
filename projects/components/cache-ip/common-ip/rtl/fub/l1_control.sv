@@ -116,6 +116,30 @@
 //   every set, one set per cycle (the all-ones way select writes all ways
 //   at once); ctrl_req_ready stays low until the walk completes.
 //
+//   Clean-all (amber TASK-004, peregrine's fence.i; MAS ch02_blocks/01):
+//   a request with req_maint set (we = 0) writes every Modified line back
+//   and leaves it valid and clean. LOOKUP sends it to the walk; the walk
+//   cursor is req_addr_q's set field (set 0 first):
+//     CLEAN_SCAN   port-A tag read of the cursor set; a snoop has
+//                  priority (the walk's snoop-safe point, once per set and
+//                  once per cleaned line). The first Modified way is
+//                  latched as the victim and gathered; a set with no M way
+//                  advances the cursor; the last set with no M way ends
+//                  the walk
+//     CLEAN_GATHER the MISS_VICTIM gather (FILL_BEATS port-A reads into
+//                  victim_line_mem), then victim_load
+//     MISS_DRAIN   the ordinary drain: drain_start, wait drain_done (the B
+//                  response); ctrl_drain_clean marks it WriteClean. The
+//                  victim-buffer snoop bypass is OFF for a clean drain:
+//                  the line is still installed (M), so a snoop resolves on
+//                  the port-B tag and its downgrade is written there
+//     CLEAN_COMMIT the B has arrived: the victim way goes M -> E unless a
+//                  snoop during the drain already moved it (S / I); back to
+//                  CLEAN_SCAN on the same set (its next M way, if any)
+//     CLEAN_RSP    the response (req_wdata_q echoed), then IDLE
+//   Every cleaned line leaves M and nothing creates M during the walk (no
+//   CPU request is accepted, a snoop never installs M), so the walk ends.
+//
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
@@ -204,6 +228,10 @@ module l1_control
     input  logic                        req_we,
     input  logic [STRB_W-1:0]           req_be,
     input  logic [BUS_WIDTH-1:0]        req_wdata,
+    // clean-all request (TASK-004): with req_we = 0, write back every
+    // Modified line and respond when the last B is in. Tie 0 where the
+    // cache has no maintenance op (every harness but amber's planes).
+    input  logic                        req_maint,
     output logic                        ctrl_req_ready,
     output logic                        ctrl_rsp_valid,
     output logic [BUS_WIDTH-1:0]        ctrl_rsp_data,
@@ -269,6 +297,9 @@ module l1_control
     input  logic [BEAT_INDEX_WIDTH-1:0] ctrl_fill_beat_idx,
     output logic                        ctrl_drain_start,
     input  logic                        ctrl_drain_done,
+    // the drain in flight is a clean-all write-back (WriteClean, line
+    // kept), not an eviction (WriteBack); stable from drain_start to done
+    output logic                        ctrl_drain_clean,
 
     // snoop responder interface (l1_snoop_resp core-facing contract:
     // req held until ready; CRRESP latched at the grant; CD beats on
@@ -312,20 +343,24 @@ module l1_control
     // One-hot FSM: bit index == pkg ctrl_state_t code; multi-hot or
     // unmapped encodings decode to sticky CTRL_ERROR.
     // ------------------------------------------------------------------
-    localparam int CTRL_BITS = 12;
+    localparam int CTRL_BITS = 16;
 
-    localparam logic [CTRL_BITS-1:0] OH_IDLE        = 12'b0000_0000_0001;
-    localparam logic [CTRL_BITS-1:0] OH_INIT        = 12'b0000_0000_0010;
-    localparam logic [CTRL_BITS-1:0] OH_LOOKUP      = 12'b0000_0000_0100;
-    localparam logic [CTRL_BITS-1:0] OH_HIT_RD      = 12'b0000_0000_1000;
-    localparam logic [CTRL_BITS-1:0] OH_HIT_WR      = 12'b0000_0001_0000;
-    localparam logic [CTRL_BITS-1:0] OH_MISS_VICTIM = 12'b0000_0010_0000;
-    localparam logic [CTRL_BITS-1:0] OH_MISS_DRAIN  = 12'b0000_0100_0000;
-    localparam logic [CTRL_BITS-1:0] OH_MISS_FILL   = 12'b0000_1000_0000;
-    localparam logic [CTRL_BITS-1:0] OH_FILL_WRITE  = 12'b0001_0000_0000;
-    localparam logic [CTRL_BITS-1:0] OH_REPLAY      = 12'b0010_0000_0000;
-    localparam logic [CTRL_BITS-1:0] OH_SNOOP       = 12'b0100_0000_0000;
-    localparam logic [CTRL_BITS-1:0] OH_ERROR       = 12'b1000_0000_0000;
+    localparam logic [CTRL_BITS-1:0] OH_IDLE         = 16'h0001;
+    localparam logic [CTRL_BITS-1:0] OH_INIT         = 16'h0002;
+    localparam logic [CTRL_BITS-1:0] OH_LOOKUP       = 16'h0004;
+    localparam logic [CTRL_BITS-1:0] OH_HIT_RD       = 16'h0008;
+    localparam logic [CTRL_BITS-1:0] OH_HIT_WR       = 16'h0010;
+    localparam logic [CTRL_BITS-1:0] OH_MISS_VICTIM  = 16'h0020;
+    localparam logic [CTRL_BITS-1:0] OH_MISS_DRAIN   = 16'h0040;
+    localparam logic [CTRL_BITS-1:0] OH_MISS_FILL    = 16'h0080;
+    localparam logic [CTRL_BITS-1:0] OH_FILL_WRITE   = 16'h0100;
+    localparam logic [CTRL_BITS-1:0] OH_REPLAY       = 16'h0200;
+    localparam logic [CTRL_BITS-1:0] OH_SNOOP        = 16'h0400;
+    localparam logic [CTRL_BITS-1:0] OH_ERROR        = 16'h0800;
+    localparam logic [CTRL_BITS-1:0] OH_CLEAN_SCAN   = 16'h1000;
+    localparam logic [CTRL_BITS-1:0] OH_CLEAN_GATHER = 16'h2000;
+    localparam logic [CTRL_BITS-1:0] OH_CLEAN_COMMIT = 16'h4000;
+    localparam logic [CTRL_BITS-1:0] OH_CLEAN_RSP    = 16'h8000;
 
     logic [CTRL_BITS-1:0] state_q, state_d;
 
@@ -335,6 +370,7 @@ module l1_control
     logic                   req_we_q;
     logic [STRB_W-1:0]      req_be_q;
     logic [BUS_WIDTH-1:0]   req_wdata_q;
+    logic                   req_maint_q;     // clean-all in progress
 
     // LOOKUP results / miss classification
     logic [WAY_INDEX_WIDTH-1:0] hit_way_q;
@@ -464,9 +500,10 @@ module l1_control
     // accept-cycle fast path: a read hit, or a write hit on an owned
     // (E/M) line; everything else goes through LOOKUP
     logic acc_fast_rd, acc_fast_wr;
-    assign acc_fast_rd = !req_we && hit_any;
-    assign acc_fast_wr = req_we && (hit_state == AMBER_STATE_E
-                                    || hit_state == AMBER_STATE_M);
+    assign acc_fast_rd = !req_maint && !req_we && hit_any;
+    assign acc_fast_wr = !req_maint && req_we
+                         && (hit_state == AMBER_STATE_E
+                             || hit_state == AMBER_STATE_M);
 
     // one-hot way selects for the array write ports
     logic [WAYS-1:0] hit_way_onehot, victim_way_onehot, sn_hit_way_onehot;
@@ -663,8 +700,14 @@ module l1_control
     // are state-gated to MISS_FILL, exclusive with the valid window).
     // The buffer only ever holds a dirty victim, so the reference state
     // is M with CD sourced from victim_data.
+    //
+    // A clean-all drain (req_maint_q) keeps the line installed at M in the
+    // tag and data arrays, so the buffer is NOT the owner there: the snoop
+    // resolves on the port-B tag hit (same M row, same data -- the array
+    // is unchanged during the walk) and its downgrade is written to the
+    // installed line, which CLEAN_COMMIT then leaves alone.
     logic victim_match;
-    assign victim_match = victim_valid
+    assign victim_match = victim_valid && !req_maint_q
                           && (w_sn_line_addr
                               == victim_buf_addr[ADDR_WIDTH-1:LINE_OFFSET_WIDTH]);
 
@@ -692,20 +735,23 @@ module l1_control
     // the first cycle cannot grant (the bypass arms at the cycle's edge)
     // and an upgrade grants against the installed S entry.
     // ------------------------------------------------------------------
-    logic sn_idle_ok, sn_fill_ok, sn_drain_ok, snoop_gnt;
+    logic sn_idle_ok, sn_fill_ok, sn_drain_ok, sn_clean_ok, snoop_gnt;
 
     assign sn_idle_ok  = (state_q == OH_IDLE);
     assign sn_fill_ok  = (state_q == OH_MISS_FILL) && (upgr_q || pf_active);
     assign sn_drain_ok = (state_q == OH_MISS_DRAIN);
+    // the clean-all walk's snoop-safe point (no fill, no bypass)
+    assign sn_clean_ok = (state_q == OH_CLEAN_SCAN);
     assign snoop_gnt   = ctrl_snoop_req && (sn_idle_ok || sn_fill_ok
-                                            || sn_drain_ok);
+                                            || sn_drain_ok || sn_clean_ok);
 
     assign ctrl_snoop_ready = snoop_gnt;
     // snoop-safe: the states in which a newly accepted AC can be granted
     // immediately (no skid-delayed state change that could arm a same-line
     // bypass before the grant). Independent of ctrl_snoop_req to avoid a
     // combinational loop with the snoop responder.
-    assign ctrl_snoop_safe  = sn_idle_ok || sn_fill_ok || sn_drain_ok;
+    assign ctrl_snoop_safe  = sn_idle_ok || sn_fill_ok || sn_drain_ok
+                              || sn_clean_ok;
     assign ctrl_tag_b_req   = snoop_gnt || (state_q == OH_SNOOP);
     assign ctrl_tag_b_set   = (state_q == OH_SNOOP) ? sn_set_q
                                                     : sn_set_grant;
@@ -790,6 +836,34 @@ module l1_control
     wire init_last = (init_cnt_q == SET_INDEX_WIDTH'(SETS - 1));
 
     // ------------------------------------------------------------------
+    // Clean-all walk (TASK-004): the first Modified way of the cursor set
+    // (port A reads req_set), the last-set flag, and the commit check
+    // (the victim way still holds the cleaned line at M -- a snoop
+    // granted during the drain may have moved it)
+    // ------------------------------------------------------------------
+    logic                       cl_m_any;
+    logic [WAY_INDEX_WIDTH-1:0] cl_m_way;
+    logic [TAG_WIDTH-1:0]       cl_m_tag;
+
+    always_comb begin
+        cl_m_any = 1'b0;
+        cl_m_way = '0;
+        cl_m_tag = '0;
+        for (int w = 0; w < WAYS; w++) begin
+            if (!cl_m_any
+                && ctrl_tag_a_tag_state[w][2:0] == AMBER_STATE_M) begin
+                cl_m_any = 1'b1;
+                cl_m_way = WAY_INDEX_WIDTH'(w);
+                cl_m_tag = ctrl_tag_a_tag_state[w][TAG_STATE_WIDTH-1 -: TAG_WIDTH];
+            end
+        end
+    end
+
+    wire cl_last = (req_set == SET_INDEX_WIDTH'(SETS - 1));
+    wire cl_commit_m = (ctrl_tag_a_tag_state[32'(victim_way_q)]
+                        == {victim_tag_q, AMBER_STATE_M});
+
+    // ------------------------------------------------------------------
     // Next-state logic
     // ------------------------------------------------------------------
     always_comb begin
@@ -807,7 +881,9 @@ module l1_control
                 else           state_d = OH_INIT;
             end
             OH_LOOKUP: begin
-                if (!req_we_q && hit_any) begin
+                if (req_maint_q) begin
+                    state_d = OH_CLEAN_SCAN;                   // clean-all
+                end else if (!req_we_q && hit_any) begin
                     state_d = OH_HIT_RD;                       // read hit
                 end else if (req_we_q
                              && (hit_state == AMBER_STATE_E
@@ -841,7 +917,8 @@ module l1_control
             end
             OH_MISS_DRAIN: begin
                 if (snoop_gnt) state_d = OH_SNOOP;
-                else if (drain_seen_q && drain_done_q) state_d = OH_MISS_FILL;
+                else if (drain_seen_q && drain_done_q)
+                    state_d = req_maint_q ? OH_CLEAN_COMMIT : OH_MISS_FILL;
                 else                               state_d = OH_MISS_DRAIN;
             end
             OH_MISS_FILL: begin
@@ -858,6 +935,20 @@ module l1_control
                     state_d = OH_SNOOP;
                 end
             end
+            OH_CLEAN_SCAN: begin
+                if (snoop_gnt)     state_d = OH_SNOOP;         // yield
+                else if (cl_m_any) state_d = OH_CLEAN_GATHER;
+                else if (cl_last)  state_d = OH_CLEAN_RSP;
+                else               state_d = OH_CLEAN_SCAN;    // next set
+            end
+            OH_CLEAN_GATHER: begin
+                if (mv_cnt_q == (BEAT_INDEX_WIDTH+1)'(FILL_BEATS))
+                    state_d = OH_MISS_DRAIN;                   // staged
+                else
+                    state_d = OH_CLEAN_GATHER;
+            end
+            OH_CLEAN_COMMIT: state_d = OH_CLEAN_SCAN;          // same set
+            OH_CLEAN_RSP:    state_d = OH_IDLE;
             OH_ERROR: state_d = OH_ERROR;                      // sticky
             default:  state_d = OH_ERROR;
         endcase
@@ -873,6 +964,7 @@ module l1_control
             req_we_q       <= 1'b0;
             req_be_q       <= '0;
             req_wdata_q    <= '0;
+            req_maint_q    <= 1'b0;
             hit_way_q      <= '0;
             hit_state_q    <= AMBER_STATE_I;
             req_class_q    <= AMBER_ACE_READ_SHARED;
@@ -973,6 +1065,7 @@ module l1_control
                 req_we_q    <= req_we;
                 req_be_q    <= req_be;
                 req_wdata_q <= req_wdata;
+                req_maint_q <= req_maint;
                 hit_way_q   <= hit_way;
                 hit_state_q <= hit_state;
             end
@@ -987,6 +1080,9 @@ module l1_control
                     hit_way_q   <= hit_way;
                     hit_state_q <= hit_state;
                     upgr_q      <= 1'b0;
+                    // clean-all: the walk cursor is req_addr_q's set field
+                    // (beat and offset 0), starting at set 0
+                    if (req_maint_q) req_addr_q <= '0;
                     if (req_we_q && hit_state == AMBER_STATE_S) begin
                         req_class_q <= AMBER_ACE_CLEAN_UNIQUE;  // upgrade
                         upgr_q      <= 1'b1;
@@ -1023,6 +1119,29 @@ module l1_control
                 OH_MISS_DRAIN: begin
                     drain_seen_q <= 1'b1;
                 end
+                OH_CLEAN_SCAN: begin
+                    if (!snoop_gnt) begin
+                        if (cl_m_any) begin
+                            victim_way_q   <= cl_m_way;
+                            victim_tag_q   <= cl_m_tag;
+                            victim_state_q <= AMBER_STATE_M;
+                            mv_cnt_q       <= '0;
+                        end else if (!cl_last) begin
+                            req_addr_q[LINE_OFFSET_WIDTH +: SET_INDEX_WIDTH]
+                                <= req_set + 1'b1;
+                        end
+                    end
+                end
+                OH_CLEAN_GATHER: begin
+                    if (mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS))
+                        mv_cnt_q <= mv_cnt_q + 1'b1;
+                    else
+                        mv_cnt_q <= '0;
+                end
+                OH_CLEAN_COMMIT: begin
+                    drain_seen_q <= 1'b0;
+                    drain_done_q <= 1'b0;
+                end
                 OH_FILL_WRITE: begin
                     mv_cnt_q     <= '0;
                     fill_seen_q  <= 1'b0;
@@ -1051,7 +1170,7 @@ module l1_control
     // the store is one word per beat and maps to distributed RAM.
     // ------------------------------------------------------------------
     always_ff @(posedge clk) begin
-        if (state_q == OH_MISS_VICTIM
+        if ((state_q == OH_MISS_VICTIM || state_q == OH_CLEAN_GATHER)
             && mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS)) begin
             victim_line_mem[mv_cnt_q[BEAT_INDEX_WIDTH-1:0]] <= ctrl_data_a_rdata;
         end
@@ -1176,6 +1295,25 @@ module l1_control
                     ctrl_data_a_addr = {req_set,
                                         BEAT_INDEX_WIDTH'(mv_cnt_q + 1'b1)};
             end
+            OH_CLEAN_GATHER: begin
+                // the MISS_VICTIM gather on the latched M way (the way was
+                // latched in CLEAN_SCAN; beat 0's address was presented
+                // there -- req_beat is 0 on the walk cursor)
+                ctrl_data_a_way = victim_way_q;
+                if (mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS))
+                    ctrl_data_a_addr = {req_set,
+                        DATA_SYNC_READ ? BEAT_INDEX_WIDTH'(mv_cnt_q + 1'b1)
+                                       : mv_cnt_q[BEAT_INDEX_WIDTH-1:0]};
+                else
+                    ctrl_victim_load = 1'b1;
+            end
+            OH_CLEAN_COMMIT: begin
+                // the WriteClean's B is in: M -> E, unless a snoop during
+                // the drain already moved the line
+                ctrl_tag_a_wr_en         = cl_commit_m;
+                ctrl_tag_a_wr_way_onehot = victim_way_onehot;
+                ctrl_tag_a_wr_tag_state  = {victim_tag_q, AMBER_STATE_E};
+            end
             OH_MISS_FILL: begin
                 ctrl_fill_start = !fill_seen_q;
             end
@@ -1220,9 +1358,12 @@ module l1_control
     // before): HIT_RD's word comes straight off port A (registered read,
     // way-selected by hit_way_q), HIT_WR echoes the request's data.
     assign ctrl_req_ready = acc_ok;
-    assign ctrl_rsp_valid = (state_q == OH_HIT_RD) || (state_q == OH_HIT_WR);
-    assign ctrl_rsp_data  = (state_q == OH_HIT_WR) ? req_wdata_q
-                                                   : ctrl_data_a_rdata;
+    assign ctrl_rsp_valid = (state_q == OH_HIT_RD) || (state_q == OH_HIT_WR)
+                            || (state_q == OH_CLEAN_RSP);
+    // a clean-all response echoes the request's wdata (the CPU drives 0)
+    assign ctrl_rsp_data  = (state_q == OH_HIT_WR || state_q == OH_CLEAN_RSP)
+                            ? req_wdata_q : ctrl_data_a_rdata;
+    assign ctrl_drain_clean = req_maint_q;
     assign ctrl_init_busy = (state_q == OH_INIT);
     assign ctrl_init_set  = init_cnt_q;
 
@@ -1244,6 +1385,10 @@ module l1_control
             OH_REPLAY:      ctrl_state = 4'(AMBER_CTRL_REPLAY);
             OH_SNOOP:       ctrl_state = 4'(AMBER_CTRL_SNOOP);
             OH_ERROR:       ctrl_state = 4'(AMBER_CTRL_ERROR);
+            OH_CLEAN_SCAN:  ctrl_state = 4'(AMBER_CTRL_CLEAN_SCAN);
+            OH_CLEAN_GATHER:ctrl_state = 4'(AMBER_CTRL_CLEAN_GATHER);
+            OH_CLEAN_COMMIT:ctrl_state = 4'(AMBER_CTRL_CLEAN_COMMIT);
+            OH_CLEAN_RSP:   ctrl_state = 4'(AMBER_CTRL_CLEAN_RSP);
             default:        ctrl_state = 4'(AMBER_CTRL_ERROR);
         endcase
     end

@@ -68,6 +68,14 @@ naturally in-order and carries no ID tags. Write-allocate fills are
 read-modify-write sequences inside `l1_control`; the GAXI slave itself
 sees only single-beat reads and writes.
 
+**Clean-all (amber TASK-004, for peregrine's `fence.i`).** Built with
+`MAINT_EN = 1`, the request carries a `maint` bit above `addr`
+(`{maint, addr, we, be, wdata}`, `CPU_REQ_W` one wider). `maint = 1`,
+`we = 0` writes back every Modified line and leaves it valid and clean;
+the single response comes after the last write-back's B. The MAS fixes
+the encoding (ch03/01 Table 3.1.2) and the walk (ch02/01). `MAINT_EN = 0`
+(the default) keeps the packing above.
+
 ## No register block
 
 amber is a parameter-only IP. There is no APB CSR or register block. All visibility — configuration, event counting, and debug — comes through the MonBus observation fabric (`l1_monlite`). This is a deliberate decision, not an omission, and it keeps the CPU-side port the only software-visible surface.

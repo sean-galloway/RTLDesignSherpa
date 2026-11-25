@@ -493,9 +493,11 @@ module onyx_ccu
             || (req_type == 3'(AMBER_ACE_MAKE_UNIQUE));
     endfunction
 
-    // a sideband pulse that allocates a transaction (not a WB, not an evict)
+    // a sideband pulse that allocates a transaction (not a WB, not a
+    // WriteClean -- amber TASK-004's clean-all write-back -- not an evict)
     function automatic logic is_coh_req(input logic [2:0] req_type);
         return (req_type != 3'(AMBER_ACE_WRITE_BACK))
+            && (req_type != 3'(AMBER_ACE_WRITE_CLEAN))
             && (req_type != 3'(AMBER_ACE_EVICT));
     endfunction
 

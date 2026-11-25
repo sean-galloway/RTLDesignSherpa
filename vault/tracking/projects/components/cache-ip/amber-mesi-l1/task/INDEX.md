@@ -11,17 +11,17 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-004** — CPU-side clean-all request, for peregrine's `fence.i` (riscv-ip/peregrine-rv32im PRD P10).
-
 ## Active
+
+- **TASK-004** — CPU-side clean-all request, for peregrine's `fence.i` (riscv-ip/peregrine-rv32im PRD P10; started 2026-11-24).
 
 ## Closed
 

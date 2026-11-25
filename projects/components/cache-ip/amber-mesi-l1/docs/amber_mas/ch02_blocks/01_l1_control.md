@@ -71,6 +71,10 @@ The FSM itself is one-hot encoded. Stable states are the ones that can persist b
 | `CTRL_REPLAY` | transient | Re-present original request from front-end latch; it now hits. |
 | `CTRL_SNOOP` | transient | Service a snoop on port B (can preempt / interleave with miss states). |
 | `CTRL_ERROR` | stable | Sticky fatal error; cleared only by reset. |
+| `CTRL_CLEAN_SCAN` | transient | Clean-all walk: read the cursor set's tags; yield to a snoop; pick the first M way, or move to the next set. |
+| `CTRL_CLEAN_GATHER` | transient | Clean-all walk: gather the M line into `victim_line_mem` (the `CTRL_MISS_VICTIM` gather). |
+| `CTRL_CLEAN_COMMIT` | transient | Clean-all walk: the WriteClean's B is in; the line goes M to E unless a snoop moved it. |
+| `CTRL_CLEAN_RSP` | transient | Clean-all walk done: the response is valid this cycle. |
 
 The FSM is not a minimal two-state controller; the explicit transient states are the formal proof surface. Each state asserts exactly the control signals that are legal for that state, and illegal states default to `CTRL_ERROR`.
 
@@ -132,13 +136,70 @@ hit state reads its own latched address in its own cycle instead.
 4. `CTRL_FILL_WRITE`: on `fill_done`, write the fill data into `l1_data_array` port A and install the tag + new state in `l1_tag_array` port A.
 5. `CTRL_REPLAY`: re-present the original latched request; the next cycle is `CTRL_LOOKUP` again, the line is present, and the hit state answers.
 
+### Clean-all walk (amber TASK-004, peregrine's `fence.i`)
+
+A request with the maintenance bit set (`req_maint`, the GAXI request's
+MSB when the CPU plane is built with `MAINT_EN = 1`; see ch03/01) writes
+back every Modified line and leaves it valid and clean (M to E). It never
+takes the accept-cycle fast path; `CTRL_LOOKUP` sends it to the walk. The
+walk's cursor is the latched request address's set field, cleared to set 0.
+
+1. `CTRL_CLEAN_SCAN`: port A reads the cursor set. A pending snoop is
+   granted first: this is the walk's snoop-safe point, reached once per set
+   and once after every cleaned line. Otherwise the first M way is latched
+   as the victim (way, tag) and the walk gathers it; a set with no M way
+   advances the cursor; the last set with no M way ends the walk.
+2. `CTRL_CLEAN_GATHER`: the same gather as `CTRL_MISS_VICTIM`
+   (`FILL_BEATS` port-A reads into `victim_line_mem`, beat k+1 presented
+   while beat k is written under `DATA_SYNC_READ`), then `ctrl_victim_load`.
+   No replacement request: the way is the scan's, not a victim choice.
+3. `CTRL_MISS_DRAIN`: the ordinary drain, unchanged except that
+   `ctrl_drain_clean` is high, so the coherence sideband reports
+   `WRITE_CLEAN` and the ACE plane stamps AWSNOOP WriteClean (a dirty
+   eviction stays WriteBack). Snoops are granted here as on the miss path.
+4. `CTRL_CLEAN_COMMIT`: the B response is in. If the victim way still holds
+   the line at M, it is rewritten at E; if a snoop during the drain already
+   moved it (S or I), the commit leaves it. Back to `CTRL_CLEAN_SCAN` on
+   the same set, which picks its next M way if any.
+5. `CTRL_CLEAN_RSP`: the response (the request's `wdata` echoed; the CPU
+   drives 0) is valid in this cycle, after the last line's B.
+
+**Decision: a separate sequencer that reuses the miss path's gather and
+drain, not the snoop `CLEAN_SHARED` path.** The snoop path answers on port
+B and writes no memory; a clean-all needs a memory write per M line and its
+B before the response, which is exactly the victim gather + `l1_drain` +
+`drain_done` sequence. Only the scan (which line) and the commit (what the
+line becomes) are new.
+
+**The line stays installed during its write-back.** For an eviction the
+victim buffer owns the line until the B (the snoop bypass answers at M from
+`victim_line_mem`). A clean-all line is still installed at M, so that bypass
+is off for a clean drain (`victim_match` is gated by `req_maint_q`): a snoop
+resolves on the port-B tag hit, reads the unchanged data array, and writes
+its downgrade to the installed line, which the commit then respects.
+
+**Termination.** No CPU request is accepted during the walk and a snoop
+never installs M, so the set of Modified lines only shrinks; every commit
+leaves its way non-M, and the cursor only moves up. The safety proof checks
+those clauses on the exact tag model (`ap_clean_no_new_m`,
+`ap_clean_commit`, `ap_clean_gather_m`), and that the response comes with
+no M line left (`ap_clean_rsp_no_m`) and no drain outstanding
+(`ap_clean_rsp_after_b`); the liveness proof bounds every residence of the
+walk's states.
+
+**Cost.** One cycle per set scanned plus, per M line, the gather
+(`FILL_BEATS` + 1 cycles), the drain (AW, W beats, B: fabric dependent) and
+the commit. At the default 128 sets with no dirty line a clean-all is
+about 130 cycles.
+
 ### Snoop interleaving
 
 `l1_control` resolves CPU-vs-snoop contention with snoop priority. A pending snoop can cause the CPU pipeline to stall for one cycle at safe boundaries (after a tag-array access completes, never mid-burst). The snoop path uses `tag_b_*` and `data_b_*` ports exclusively; it never needs port A except when a snoop triggers an invalidation or downgrade, which is applied on the next available port-A cycle.
 
 Landed behavior (Task 4): the grant is restricted to safe waiting states —
 `CTRL_IDLE`, `CTRL_MISS_FILL` (once the bypass is armed, or while an
-upgrade waits on its acknowledge), and `CTRL_MISS_DRAIN` — so the pipeline
+upgrade waits on its acknowledge), `CTRL_MISS_DRAIN`, and the clean-all
+walk's `CTRL_CLEAN_SCAN` (TASK-004) — so the pipeline
 stalls exactly one cycle at the boundary plus the CD transfer time. The
 response reference state resolves as: pending-fill bypass match (answered
 at the post-fill `pf_state`, CD beats sourced from the fill way and gated
@@ -183,6 +244,8 @@ the port-A schedule is address + write strobe, no read enable.
 | `ctrl_fill_beat_valid` / `ctrl_fill_beat_idx` | from `l1_fill` | Received-beat strobe + index; feeds the bypass `pf_data_valid` (MAS ch02/06). |
 | `ctrl_drain_start` | to `l1_drain` | Launch a drain from `l1_victim`. |
 | `ctrl_drain_done` | from `l1_drain` | Drain completed (B handshake). |
+| `ctrl_drain_clean` | to `l1_coh_core` | The drain in flight is a clean-all write-back (WriteClean, line kept), not an eviction (WriteBack). |
+| `req_maint` | from `l1_cpu_frontend` | Clean-all request (with the accept); 0 where the plane has no `MAINT_EN`. |
 | `ctrl_tag_b_req` | to `l1_tag_array` (via core mux) | Port-B ownership: high in the snoop grant cycle and throughout `CTRL_SNOOP`. |
 | `ctrl_tag_b_set` | to `l1_tag_array` | Port-B lookup set (snoop set). |
 | `ctrl_tag_b_tag_state` | from `l1_tag_array` | Per-way `{tag, state}` snoop lookup result (combinational). |
@@ -194,7 +257,7 @@ the port-A schedule is address + write strobe, no read enable.
 | `ctrl_cddata` / `ctrl_cdlast` / `ctrl_cdvalid` | to `l1_snoop_resp` | CD beat data/last/valid (each beat gated servable; CR is presented by the adapter after CDLAST). |
 | `ctrl_cdready` | from `l1_snoop_resp` | CD beat accepted. |
 | `ctrl_req_ready` | to `l1_cpu_frontend` | Ready for the next CPU request: `CTRL_IDLE`, or `CTRL_HIT_RD` within the `HIT_RUN_MAX` run (registers only). |
-| `ctrl_rsp_valid` | to `l1_cpu_frontend` | Response valid: high exactly in `CTRL_HIT_RD` / `CTRL_HIT_WR`, one cycle per request. |
+| `ctrl_rsp_valid` | to `l1_cpu_frontend` | Response valid: high exactly in `CTRL_HIT_RD` / `CTRL_HIT_WR` / `CTRL_CLEAN_RSP`, one cycle per request. |
 | `ctrl_rsp_data` | to `l1_cpu_frontend` | Response read data / write echo. |
 | `ctrl_init_busy` / `ctrl_init_set` | status | Init-walk in progress / current set. |
 | `ctrl_state` | status | FSM state (pkg `ctrl_state_t` encoding, observability). |

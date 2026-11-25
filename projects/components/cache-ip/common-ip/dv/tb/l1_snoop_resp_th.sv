@@ -247,6 +247,7 @@ module l1_snoop_resp_th
         .req_we                  (req_we),
         .req_be                  (req_be),
         .req_wdata               (req_wdata),
+        .req_maint               (1'b0),   // no clean-all here (TASK-004)
         .ctrl_req_ready          (ctrl_req_ready),
         .ctrl_rsp_valid          (ctrl_rsp_valid),
         .ctrl_rsp_data           (ctrl_rsp_data),
@@ -289,6 +290,7 @@ module l1_snoop_resp_th
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (drain_start),
         .ctrl_drain_done         (drain_done),
+        .ctrl_drain_clean        (),
         .ctrl_snoop_req          (snoop_req_int),
         .ctrl_snoop_ready        (snoop_ready_int),
         .ctrl_snoop_safe         (ctrl_snoop_safe_int),

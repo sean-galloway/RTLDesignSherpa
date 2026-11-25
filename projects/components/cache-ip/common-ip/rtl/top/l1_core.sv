@@ -213,6 +213,7 @@ module l1_core
     logic                     fe_req_we;
     logic [STRB_W-1:0]        fe_req_be;
     logic [BUS_WIDTH-1:0]     fe_req_wdata;
+    logic                    fe_req_maint;
     logic                     ctrl_req_ready;
     logic                     ctrl_rsp_valid;
     logic [BUS_WIDTH-1:0]     ctrl_rsp_data;
@@ -269,6 +270,7 @@ module l1_core
         .fe_req_we         (fe_req_we),
         .fe_req_be         (fe_req_be),
         .fe_req_wdata      (fe_req_wdata),
+        .fe_req_maint      (fe_req_maint),
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
         .ctrl_rsp_data     (ctrl_rsp_data)
@@ -296,6 +298,7 @@ module l1_core
         .fe_req_we         (fe_req_we),
         .fe_req_be         (fe_req_be),
         .fe_req_wdata      (fe_req_wdata),
+        .fe_req_maint      (fe_req_maint),
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
         .ctrl_rsp_data     (ctrl_rsp_data),

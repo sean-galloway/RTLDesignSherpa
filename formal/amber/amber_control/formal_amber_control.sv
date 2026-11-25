@@ -40,6 +40,7 @@ module formal_amber_control (
     input  logic        req_we,
     input  logic [7:0]  req_be,
     input  logic [63:0] req_wdata,
+    input  logic        req_maint,     // amber TASK-004 clean-all (free)
 
     // snoop responder (free environment; l1_snoop_resp contract)
     input  logic        snoop_req,
@@ -156,7 +157,8 @@ module formal_amber_control (
         end
     endgenerate
 
-    logic [11:0]       obs_state_q;
+    logic [15:0]       obs_state_q;
+    logic              obs_req_maint_q;
     logic [4-1:0]      obs_req_set;
     logic [22-1:0]     obs_req_tag;
     logic obs_req_we_q;
@@ -203,7 +205,7 @@ module formal_amber_control (
     logic obs_pend_vld_q;
     logic [2:0]        obs_pend_state_q;
     logic [2:0]        obs_install_state_eff;
-    logic [11:0]       obs_sn_return_q;
+    logic [15:0]       obs_sn_return_q;
     logic obs_fill_seen_q;
     logic obs_fill_done_q;
     logic obs_drain_seen_q;
@@ -222,6 +224,7 @@ module formal_amber_control (
         .req_addr                (req_addr),
         .req_we                  (req_we),
         .req_be                  (req_be),
+        .req_maint               (req_maint),
         .req_wdata               (64'd0), // tied: ap_hit_wr checks the merge payload against the latched request, which is tied the same way; no property claims data values
         .ctrl_req_ready          (ctrl_req_ready),
         .ctrl_rsp_valid          (ctrl_rsp_valid),
@@ -265,6 +268,7 @@ module formal_amber_control (
         .ctrl_fill_beat_idx      (fill_beat_idx),
         .ctrl_drain_start        (ctrl_drain_start),
         .ctrl_drain_done         (drain_done),
+        .ctrl_drain_clean        (),
         .ctrl_snoop_req          (snoop_req),
         .ctrl_snoop_ready        (ctrl_snoop_ready),
         .ctrl_snoop_type         (snoop_type),
@@ -278,6 +282,7 @@ module formal_amber_control (
         .ctrl_init_set           (ctrl_init_set),
         .ctrl_state              (ctrl_state),
         .state_q                  (obs_state_q),
+        .req_maint_q              (obs_req_maint_q),
         .req_set                  (obs_req_set),
         .req_tag                  (obs_req_tag),
         .req_we_q                 (obs_req_we_q),
@@ -421,6 +426,62 @@ module formal_amber_control (
         end
     end
 
+    // ------------------------------------------------------------------
+    // Proof (3), amber TASK-004: the clean-all walk on the exact tag
+    // model. Termination is the conjunction of: nothing writes M while the
+    // walk runs (ap_clean_no_new_m), every commit leaves the cleaned way
+    // non-M (ap_clean_commit), the gather only ever stages an M line
+    // (ap_clean_gather_m) and the per-state residence bounds of the
+    // liveness wrapper; the walk's completeness claim is
+    // ap_clean_rsp_no_m -- when it responds, no line is Modified.
+    // ------------------------------------------------------------------
+    localparam [3:0] W_CS_CLEAN_GATHER = 4'd13;
+    localparam [3:0] W_CS_CLEAN_COMMIT = 4'd14;
+    localparam [3:0] W_CS_CLEAN_RSP    = 4'd15;
+    localparam [2:0] W_ST_E = 3'b010;
+    localparam [2:0] W_ST_M = 3'b011;
+
+    wire [TAG_STATE_WIDTH-1:0] w_cl_entry =
+        tag_model[obs_victim_way_q*SETS + obs_req_set];
+    reg f_any_m;
+    integer ci;
+    always @(*) begin
+        f_any_m = 1'b0;
+        for (ci = 0; ci < SETS*WAYS; ci = ci+1)
+            if (tag_model[ci][2:0] == W_ST_M) f_any_m = 1'b1;
+    end
+
+    always @(posedge clk) begin
+        if (rst_n) begin
+            ap_clean_gather_m: assert (!(ctrl_state == W_CS_CLEAN_GATHER)
+                || (w_cl_entry == {obs_victim_tag_q, W_ST_M}));
+            ap_clean_commit: assert (!(ctrl_state == W_CS_CLEAN_COMMIT)
+                || ((ctrl_tag_a_wr_en == (w_cl_entry == {obs_victim_tag_q, W_ST_M}))
+                    && (!ctrl_tag_a_wr_en
+                        || ((ctrl_tag_a_wr_set == obs_req_set)
+                            && (ctrl_tag_a_wr_way_onehot == obs_victim_way_onehot)
+                            && (ctrl_tag_a_wr_tag_state == {obs_victim_tag_q, W_ST_E})))));
+            ap_clean_no_new_m: assert (!(obs_req_maint_q && ctrl_tag_a_wr_en)
+                || (ctrl_tag_a_wr_tag_state[2:0] != W_ST_M));
+            ap_clean_rsp_no_m: assert (!(ctrl_state == W_CS_CLEAN_RSP) || !f_any_m);
+            ap_clean_no_buffer: assert (!(obs_req_maint_q && obs_victim_match));
+        end
+    end
+
+    // the walk really cleans a line and then completes
+    reg f_cl_wrote;
+    always @(posedge clk) begin
+        if (!rst_n) f_cl_wrote <= 1'b0;
+        else if (ctrl_state == W_CS_CLEAN_COMMIT && ctrl_tag_a_wr_en) f_cl_wrote <= 1'b1;
+        else if (ctrl_state == W_CS_CLEAN_RSP) f_cl_wrote <= 1'b0;
+    end
+    always @(posedge clk) begin
+        if (rst_n) begin
+            cp_clean_commit_wr: cover (ctrl_state == W_CS_CLEAN_COMMIT && ctrl_tag_a_wr_en);
+            cp_clean_rsp_after_wr: cover (ctrl_state == W_CS_CLEAN_RSP && f_cl_wrote);
+        end
+    end
+
     amber_control_props props (
         .clk                      (clk),
         .rst_n                    (rst_n),
@@ -520,6 +581,8 @@ endmodule
 //   - A-cdready: stalled at most 1 cycle (fair manager);
 //   - A-snoop (fair arbitration): a grant may follow a previous grant only
 //     after >= 6 cycles, and at most 2 grants per accepted CPU request;
+//   - A-drain is re-armed by FILL_WRITE (a miss) or CLEAN_COMMIT (a
+//     clean-all line, amber TASK-004);
 //   - A-cpu (fair arbitration): req_valid only raises at IDLE or HIT_RD
 //     (the back-to-back accept, amber TASK-005) and only one request is
 //     outstanding -- the next may be presented in the previous one's
@@ -534,7 +597,7 @@ module amber_control_props (
     input  logic        clk,
     input  logic        rst_n,
     input  logic [3:0]  ctrl_state,
-    input  logic [11:0] state_q,
+    input  logic [15:0] state_q,
     input  logic        req_valid,
     input  logic        ctrl_req_ready,
     input  logic        ctrl_rsp_valid,
@@ -607,7 +670,7 @@ module amber_control_props (
     input  logic        pend_vld_q,
     input  logic [2:0]  pend_state_q,
     input  logic [2:0]  install_state_eff,
-    input  logic [11:0] sn_return_q,
+    input  logic [15:0] sn_return_q,
     input  logic        fill_seen_q,
     input  logic        fill_done_q,
     input  logic        drain_seen_q,
@@ -648,7 +711,11 @@ module amber_control_props (
     localparam [2:0] ST_E = 3'b010;
     localparam [2:0] ST_M = 3'b011;
 
-    localparam [11:0] OH_MISS_DRAIN = 12'b0000_0100_0000;
+    localparam [15:0] OH_MISS_DRAIN = 16'h0040;
+    localparam [15:0] OH_CLEAN_SCAN = 16'h1000;
+    localparam [3:0]  CS_CLEAN_SCAN   = 4'd12;
+    localparam [3:0]  CS_CLEAN_COMMIT = 4'd14;
+    localparam [3:0]  CS_CLEAN_RSP    = 4'd15;
 
     // ------------------------------------------------------------------
     // Independent spec copy of the HAS Table 3.0 CRRESP decode. l1_pkg
@@ -773,7 +840,8 @@ module amber_control_props (
                 f_drain_wait <= f_drain_wait + 4'd1;
             end
             if (ctrl_drain_done) f_drain_done_seen <= 1'b1;
-            if (ctrl_state == CS_FILL_WRITE) begin
+            // FILL_WRITE retires a miss's drain, CLEAN_COMMIT a clean-all's
+            if (ctrl_state == CS_FILL_WRITE || ctrl_state == CS_CLEAN_COMMIT) begin
                 f_drain_start_seen <= 1'b0; f_drain_done_seen <= 1'b0;
                 f_drain_wait <= 4'd0;
             end
@@ -860,10 +928,10 @@ module amber_control_props (
     // step failing on ap_fsm_onehot -- it is the closing lemma).
     always @(posedge clk) begin
         if (rst_n) begin
-            ap_fsm_onehot: assert ((state_q != 12'd0)
-                                   && ((state_q & (state_q - 12'd1)) == 12'd0));
-            ap_sn_return_onehot: assert ((sn_return_q != 12'd0)
-                                         && ((sn_return_q & (sn_return_q - 12'd1)) == 12'd0));
+            ap_fsm_onehot: assert ((state_q != 16'd0)
+                                   && ((state_q & (state_q - 16'd1)) == 16'd0));
+            ap_sn_return_onehot: assert ((sn_return_q != 16'd0)
+                                         && ((sn_return_q & (sn_return_q - 16'd1)) == 16'd0));
             ap_never_error: assert (ctrl_state != CS_ERROR);
         end
     end
@@ -983,6 +1051,13 @@ module amber_control_props (
             cp_pend_commit: cover (ctrl_state == CS_FILL_WRITE && pend_vld_q);
     end
 
+    // amber TASK-004: a snoop granted at the walk's yield point
+    always @(posedge clk) begin
+        if (rst_n)
+            cp_clean_snoop: cover (ctrl_state == CS_SNOOP
+                                   && (sn_return_q == OH_CLEAN_SCAN));
+    end
+
     // a snoop detour taken out of the drain wait, returning to it
     always @(posedge clk) begin
         if (rst_n)
@@ -1030,7 +1105,12 @@ module amber_control_props (
     always @(posedge clk) begin
         if (rst_n) begin
             ap_rsp_in_hit: assert (ctrl_rsp_valid
-                == ((ctrl_state == CS_HIT_RD) || (ctrl_state == CS_HIT_WR)));
+                == ((ctrl_state == CS_HIT_RD) || (ctrl_state == CS_HIT_WR)
+                    || (ctrl_state == CS_CLEAN_RSP)));
+            // amber TASK-004: the clean-all response only after the last
+            // write-back's B (every started drain retired by its commit)
+            ap_clean_rsp_after_b: assert (!(ctrl_state == CS_CLEAN_RSP)
+                || !f_drain_start_seen);
             ap_ready_states: assert (!ctrl_req_ready || (ctrl_state == CS_IDLE)
                                      || (ctrl_state == CS_HIT_RD));
         end

@@ -39,6 +39,7 @@
 | write to Invalid line (whole line) | `MakeUnique` | `fub_axi_arsnoop[3:0]` = `MakeUnique` encoding (0xC) — AR channel, issue #106 |
 | dirty eviction | `WriteBack` | `fub_axi_awsnoop[2:0]` = `WriteBack` encoding |
 | clean eviction | `Evict` | `fub_axi_awsnoop[2:0]` = `Evict` encoding |
+| clean-all write-back (amber TASK-004) | `WriteClean` | `fub_axi_awsnoop[2:0]` = `WriteClean` encoding (0x2) |
 
 : Table 4.2: Cache events to ACE transactions (post-#106, commit 2594d73bb)
 

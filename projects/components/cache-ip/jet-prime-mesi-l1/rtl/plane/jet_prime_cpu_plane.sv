@@ -216,6 +216,7 @@ module jet_prime_cpu_plane
         .req_we            (fe_req_we),
         .req_be            (fe_req_be),
         .req_wdata         (fe_req_wdata),
+        .req_maint         (),   // MAINT_EN = 0: no clean-all op (amber TASK-004)
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (rsp_valid & rsp_room),
         .ctrl_rsp_data     (rsp_data)

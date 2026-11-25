@@ -91,10 +91,15 @@ module amber_ace_top
     parameter int AXI_ID_WIDTH   = 8,
     parameter int AXI_USER_WIDTH = 1,
     parameter bit USE_MONITOR    = 1'b1,
+    // amber TASK-004: 1 = the CPU request carries the clean-all bit above
+    // addr ({maint, addr, we, be, wdata}; peregrine's fence.i). Default 0
+    // keeps the classic packing for every existing consumer.
+    parameter bit MAINT_EN       = 1'b0,
     localparam int STRB_W       = BUS_WIDTH / 8,
     localparam int IW           = AXI_ID_WIDTH,
     localparam int UW           = AXI_USER_WIDTH,
-    localparam int CPU_REQ_W    = ADDR_WIDTH + 1 + STRB_W + BUS_WIDTH,
+    localparam int CPU_REQ_W    = int'(MAINT_EN) + ADDR_WIDTH + 1 + STRB_W
+                                  + BUS_WIDTH,
     localparam int CPU_RSP_W    = BUS_WIDTH
 )(
     input  logic                        aclk,
@@ -249,6 +254,7 @@ module amber_ace_top
     logic                     fe_req_we;
     logic [STRB_W-1:0]        fe_req_be;
     logic [BUS_WIDTH-1:0]     fe_req_wdata;
+    logic                    fe_req_maint;
     logic                     ctrl_req_ready;
     logic                     ctrl_rsp_valid;
     logic [BUS_WIDTH-1:0]     ctrl_rsp_data;
@@ -343,7 +349,8 @@ module amber_ace_top
         .SETS       (SETS),
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
-        .BUS_WIDTH  (BUS_WIDTH)
+        .BUS_WIDTH  (BUS_WIDTH),
+        .MAINT_EN   (MAINT_EN)
     ) u_cpu (
         .clk               (aclk),
         .rst_n             (w_aresetn),
@@ -358,6 +365,7 @@ module amber_ace_top
         .fe_req_we         (fe_req_we),
         .fe_req_be         (fe_req_be),
         .fe_req_wdata      (fe_req_wdata),
+        .fe_req_maint      (fe_req_maint),
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
         .ctrl_rsp_data     (ctrl_rsp_data)
@@ -388,6 +396,7 @@ module amber_ace_top
         .fe_req_we         (fe_req_we),
         .fe_req_be         (fe_req_be),
         .fe_req_wdata      (fe_req_wdata),
+        .fe_req_maint      (fe_req_maint),
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
         .ctrl_rsp_data     (ctrl_rsp_data),

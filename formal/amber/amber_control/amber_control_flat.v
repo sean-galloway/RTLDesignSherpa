@@ -155,6 +155,7 @@ module l1_control (
 	req_we,
 	req_be,
 	req_wdata,
+	req_maint,
 	ctrl_req_ready,
 	ctrl_rsp_valid,
 	ctrl_rsp_data,
@@ -198,6 +199,7 @@ module l1_control (
 	ctrl_fill_beat_idx,
 	ctrl_drain_start,
 	ctrl_drain_done,
+	ctrl_drain_clean,
 	ctrl_snoop_req,
 	ctrl_snoop_ready,
 	ctrl_snoop_safe,
@@ -235,6 +237,7 @@ module l1_control (
 	input wire req_we;
 	input wire [STRB_W - 1:0] req_be;
 	input wire [64 - 1:0] req_wdata;
+	input wire req_maint;
 	output wire ctrl_req_ready;
 	output wire ctrl_rsp_valid;
 	output wire [64 - 1:0] ctrl_rsp_data;
@@ -278,6 +281,7 @@ module l1_control (
 	input wire [BEAT_INDEX_WIDTH - 1:0] ctrl_fill_beat_idx;
 	output reg ctrl_drain_start;
 	input wire ctrl_drain_done;
+	output wire ctrl_drain_clean;
 	input wire ctrl_snoop_req;
 	output wire ctrl_snoop_ready;
 	output wire ctrl_snoop_safe;
@@ -294,37 +298,42 @@ module l1_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:298:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:329:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:300:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:331:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:302:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:333:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:304:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:335:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:306:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:337:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
 		if (8 < 1)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:308:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 8 must be >= 1");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:339:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 8 must be >= 1");
 	end
-	localparam signed [31:0] CTRL_BITS = 12;
-	localparam [11:0] OH_IDLE = 12'b000000000001;
-	localparam [11:0] OH_INIT = 12'b000000000010;
-	localparam [11:0] OH_LOOKUP = 12'b000000000100;
-	localparam [11:0] OH_HIT_RD = 12'b000000001000;
-	localparam [11:0] OH_HIT_WR = 12'b000000010000;
-	localparam [11:0] OH_MISS_VICTIM = 12'b000000100000;
-	localparam [11:0] OH_MISS_DRAIN = 12'b000001000000;
-	localparam [11:0] OH_MISS_FILL = 12'b000010000000;
-	localparam [11:0] OH_FILL_WRITE = 12'b000100000000;
-	localparam [11:0] OH_REPLAY = 12'b001000000000;
-	localparam [11:0] OH_SNOOP = 12'b010000000000;
-	localparam [11:0] OH_ERROR = 12'b100000000000;
-	reg [11:0] state_q;
-	reg [11:0] state_d;
+	localparam signed [31:0] CTRL_BITS = 16;
+	localparam [15:0] OH_IDLE = 16'h0001;
+	localparam [15:0] OH_INIT = 16'h0002;
+	localparam [15:0] OH_LOOKUP = 16'h0004;
+	localparam [15:0] OH_HIT_RD = 16'h0008;
+	localparam [15:0] OH_HIT_WR = 16'h0010;
+	localparam [15:0] OH_MISS_VICTIM = 16'h0020;
+	localparam [15:0] OH_MISS_DRAIN = 16'h0040;
+	localparam [15:0] OH_MISS_FILL = 16'h0080;
+	localparam [15:0] OH_FILL_WRITE = 16'h0100;
+	localparam [15:0] OH_REPLAY = 16'h0200;
+	localparam [15:0] OH_SNOOP = 16'h0400;
+	localparam [15:0] OH_ERROR = 16'h0800;
+	localparam [15:0] OH_CLEAN_SCAN = 16'h1000;
+	localparam [15:0] OH_CLEAN_GATHER = 16'h2000;
+	localparam [15:0] OH_CLEAN_COMMIT = 16'h4000;
+	localparam [15:0] OH_CLEAN_RSP = 16'h8000;
+	reg [15:0] state_q;
+	reg [15:0] state_d;
 	reg [32 - 1:0] req_addr_q;
 	reg req_we_q;
 	reg [STRB_W - 1:0] req_be_q;
 	reg [64 - 1:0] req_wdata_q;
+	reg req_maint_q;
 	reg [WAY_INDEX_WIDTH - 1:0] hit_way_q;
 	reg [2:0] hit_state_q;
 	reg [2:0] req_class_q;
@@ -347,7 +356,7 @@ module l1_control (
 	reg [32 - 1:0] sn_addr_q;
 	reg [2:0] sn_type_q;
 	reg [BEAT_INDEX_WIDTH - 1:0] sn_beat_q;
-	reg [11:0] sn_return_q;
+	reg [15:0] sn_return_q;
 	reg sn_back_to_lookup_q;
 	reg sn_pf_q;
 	reg sn_hit_any_q;
@@ -412,8 +421,8 @@ module l1_control (
 	end
 	wire acc_fast_rd;
 	wire acc_fast_wr;
-	assign acc_fast_rd = !req_we && hit_any;
-	assign acc_fast_wr = req_we && ((hit_state == 3'b010) || (hit_state == 3'b011));
+	assign acc_fast_rd = (!req_maint && !req_we) && hit_any;
+	assign acc_fast_wr = (!req_maint && req_we) && ((hit_state == 3'b010) || (hit_state == 3'b011));
 	reg [2 - 1:0] hit_way_onehot;
 	reg [2 - 1:0] victim_way_onehot;
 	reg [2 - 1:0] sn_hit_way_onehot;
@@ -437,7 +446,7 @@ module l1_control (
 	assign sn_set_grant = ctrl_snoop_addr[LINE_OFFSET_WIDTH+:SET_INDEX_WIDTH];
 	assign sn_tag_grant = ctrl_snoop_addr[32 - 1-:TAG_WIDTH];
 	assign sn_set_q = sn_addr_q[LINE_OFFSET_WIDTH+:SET_INDEX_WIDTH];
-	assign w_sn_line_addr = (state_q == 12'b010000000000 ? sn_addr_q[32 - 1:LINE_OFFSET_WIDTH] : ctrl_snoop_addr[32 - 1:LINE_OFFSET_WIDTH]);
+	assign w_sn_line_addr = (state_q == 16'h0400 ? sn_addr_q[32 - 1:LINE_OFFSET_WIDTH] : ctrl_snoop_addr[32 - 1:LINE_OFFSET_WIDTH]);
 	wire pf_active;
 	wire [LINE_ADDR_WIDTH - 1:0] pf_addr;
 	wire [2:0] pf_state;
@@ -523,7 +532,7 @@ module l1_control (
 	wire sn_stale_gnt;
 	assign sn_stale_gnt = (((((state_q == OH_MISS_FILL) && !upgr_q) && sn_hit_any) && (sn_set_grant == req_set)) && (sn_hit_way == victim_way_q)) && (sn_hit_tag == victim_tag_q);
 	wire victim_match;
-	assign victim_match = victim_valid && (w_sn_line_addr == victim_buf_addr[32 - 1:LINE_OFFSET_WIDTH]);
+	assign victim_match = (victim_valid && !req_maint_q) && (w_sn_line_addr == victim_buf_addr[32 - 1:LINE_OFFSET_WIDTH]);
 	wire sn_upgr_line_gnt;
 	assign sn_upgr_line_gnt = (((state_q == OH_MISS_FILL) && upgr_q) && sn_hit_any) && ({sn_hit_tag, sn_set_grant} == req_line_addr);
 	wire [2:0] sn_ref_grant;
@@ -531,15 +540,17 @@ module l1_control (
 	wire sn_idle_ok;
 	wire sn_fill_ok;
 	wire sn_drain_ok;
+	wire sn_clean_ok;
 	wire snoop_gnt;
 	assign sn_idle_ok = state_q == OH_IDLE;
 	assign sn_fill_ok = (state_q == OH_MISS_FILL) && (upgr_q || pf_active);
 	assign sn_drain_ok = state_q == OH_MISS_DRAIN;
-	assign snoop_gnt = ctrl_snoop_req && ((sn_idle_ok || sn_fill_ok) || sn_drain_ok);
+	assign sn_clean_ok = state_q == OH_CLEAN_SCAN;
+	assign snoop_gnt = ctrl_snoop_req && (((sn_idle_ok || sn_fill_ok) || sn_drain_ok) || sn_clean_ok);
 	assign ctrl_snoop_ready = snoop_gnt;
-	assign ctrl_snoop_safe = (sn_idle_ok || sn_fill_ok) || sn_drain_ok;
+	assign ctrl_snoop_safe = ((sn_idle_ok || sn_fill_ok) || sn_drain_ok) || sn_clean_ok;
 	assign ctrl_tag_b_req = snoop_gnt || (state_q == OH_SNOOP);
-	assign ctrl_tag_b_set = (state_q == 12'b010000000000 ? sn_set_q : sn_set_grant);
+	assign ctrl_tag_b_set = (state_q == 16'h0400 ? sn_set_q : sn_set_grant);
 	wire [2:0] mv_victim_state;
 	wire bypass_match;
 	wire kmap_victim_dirty;
@@ -669,6 +680,27 @@ module l1_control (
 		sv2v_cast_CC260_signed = inp;
 	endfunction
 	wire init_last = init_cnt_q == sv2v_cast_CC260_signed(16 - 1);
+	reg cl_m_any;
+	reg [WAY_INDEX_WIDTH - 1:0] cl_m_way;
+	reg [TAG_WIDTH - 1:0] cl_m_tag;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		cl_m_any = 1'b0;
+		cl_m_way = 1'sb0;
+		cl_m_tag = 1'sb0;
+		begin : sv2v_autoblock_4
+			reg signed [31:0] w;
+			for (w = 0; w < 2; w = w + 1)
+				if (!cl_m_any && (ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + 2-:3] == 3'b011)) begin
+					cl_m_any = 1'b1;
+					cl_m_way = sv2v_cast_1803D_signed(w);
+					cl_m_tag = ctrl_tag_a_tag_state[(w * TAG_STATE_WIDTH) + (TAG_STATE_WIDTH - 1)-:TAG_WIDTH];
+				end
+		end
+	end
+	wire cl_last = req_set == sv2v_cast_CC260_signed(16 - 1);
+	wire cl_commit_m = ctrl_tag_a_tag_state[sv2v_cast_32(victim_way_q) * TAG_STATE_WIDTH+:TAG_STATE_WIDTH] == {victim_tag_q, 3'b011};
 	function automatic signed [((BEAT_INDEX_WIDTH + 0) >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - (BEAT_INDEX_WIDTH + 0)) - 1:0] sv2v_cast_DE5CF_signed;
 		input reg signed [((BEAT_INDEX_WIDTH + 0) >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - (BEAT_INDEX_WIDTH + 0)) - 1:0] inp;
 		sv2v_cast_DE5CF_signed = inp;
@@ -692,7 +724,9 @@ module l1_control (
 				else
 					state_d = OH_INIT;
 			OH_LOOKUP:
-				if (!req_we_q && hit_any)
+				if (req_maint_q)
+					state_d = OH_CLEAN_SCAN;
+				else if (!req_we_q && hit_any)
 					state_d = OH_HIT_RD;
 				else if (req_we_q && ((hit_state == 3'b010) || (hit_state == 3'b011)))
 					state_d = OH_HIT_WR;
@@ -719,7 +753,7 @@ module l1_control (
 				if (snoop_gnt)
 					state_d = OH_SNOOP;
 				else if (drain_seen_q && drain_done_q)
-					state_d = OH_MISS_FILL;
+					state_d = (req_maint_q ? OH_CLEAN_COMMIT : OH_MISS_FILL);
 				else
 					state_d = OH_MISS_DRAIN;
 			OH_MISS_FILL:
@@ -736,6 +770,22 @@ module l1_control (
 					state_d = (sn_back_to_lookup_q ? OH_LOOKUP : sn_return_q);
 				else
 					state_d = OH_SNOOP;
+			OH_CLEAN_SCAN:
+				if (snoop_gnt)
+					state_d = OH_SNOOP;
+				else if (cl_m_any)
+					state_d = OH_CLEAN_GATHER;
+				else if (cl_last)
+					state_d = OH_CLEAN_RSP;
+				else
+					state_d = OH_CLEAN_SCAN;
+			OH_CLEAN_GATHER:
+				if (mv_cnt_q == sv2v_cast_DE5CF_signed(FILL_BEATS))
+					state_d = OH_MISS_DRAIN;
+				else
+					state_d = OH_CLEAN_GATHER;
+			OH_CLEAN_COMMIT: state_d = OH_CLEAN_SCAN;
+			OH_CLEAN_RSP: state_d = OH_IDLE;
 			OH_ERROR: state_d = OH_ERROR;
 			default: state_d = OH_ERROR;
 		endcase
@@ -748,6 +798,7 @@ module l1_control (
 			req_we_q <= 1'b0;
 			req_be_q <= 1'sb0;
 			req_wdata_q <= 1'sb0;
+			req_maint_q <= 1'b0;
 			hit_way_q <= 1'sb0;
 			hit_state_q <= 3'b000;
 			req_class_q <= 3'b000;
@@ -784,7 +835,7 @@ module l1_control (
 		end
 		else begin
 			state_q <= state_d;
-			hit_run_q <= ((state_q == 12'b000000001000) && acc ? hit_run_q + 1'b1 : {RUN_W {1'sb0}});
+			hit_run_q <= ((state_q == 16'h0008) && acc ? hit_run_q + 1'b1 : {RUN_W {1'sb0}});
 			hit_again_q <= (state_q == OH_HIT_RD) && acc;
 			if (ctrl_fill_done)
 				fill_done_q <= 1'b1;
@@ -826,6 +877,7 @@ module l1_control (
 				req_we_q <= req_we;
 				req_be_q <= req_be;
 				req_wdata_q <= req_wdata;
+				req_maint_q <= req_maint;
 				hit_way_q <= hit_way;
 				hit_state_q <= hit_state;
 			end
@@ -842,6 +894,8 @@ module l1_control (
 					hit_way_q <= hit_way;
 					hit_state_q <= hit_state;
 					upgr_q <= 1'b0;
+					if (req_maint_q)
+						req_addr_q <= 1'sb0;
 					if (req_we_q && (hit_state == 3'b001)) begin
 						req_class_q <= 3'b010;
 						upgr_q <= 1'b1;
@@ -866,6 +920,26 @@ module l1_control (
 						fill_pass_dirty_q <= 1'b1;
 				end
 				OH_MISS_DRAIN: drain_seen_q <= 1'b1;
+				OH_CLEAN_SCAN:
+					if (!snoop_gnt) begin
+						if (cl_m_any) begin
+							victim_way_q <= cl_m_way;
+							victim_tag_q <= cl_m_tag;
+							victim_state_q <= 3'b011;
+							mv_cnt_q <= 1'sb0;
+						end
+						else if (!cl_last)
+							req_addr_q[LINE_OFFSET_WIDTH+:SET_INDEX_WIDTH] <= req_set + 1'b1;
+					end
+				OH_CLEAN_GATHER:
+					if (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS))
+						mv_cnt_q <= mv_cnt_q + 1'b1;
+					else
+						mv_cnt_q <= 1'sb0;
+				OH_CLEAN_COMMIT: begin
+					drain_seen_q <= 1'b0;
+					drain_done_q <= 1'b0;
+				end
 				OH_FILL_WRITE: begin
 					mv_cnt_q <= 1'sb0;
 					fill_seen_q <= 1'b0;
@@ -880,7 +954,7 @@ module l1_control (
 			endcase
 		end
 	always @(posedge clk)
-		if ((state_q == OH_MISS_VICTIM) && (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)))
+		if (((state_q == OH_MISS_VICTIM) || (state_q == OH_CLEAN_GATHER)) && (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)))
 			victim_line_mem[mv_cnt_q[BEAT_INDEX_WIDTH - 1:0]] <= ctrl_data_a_rdata;
 	function automatic [BEAT_INDEX_WIDTH - 1:0] sv2v_cast_9FF7F;
 		input reg [BEAT_INDEX_WIDTH - 1:0] inp;
@@ -919,7 +993,7 @@ module l1_control (
 		ctrl_fill_start = 1'b0;
 		ctrl_fill_addr = req_line_base;
 		ctrl_drain_start = 1'b0;
-		ctrl_crresp = l1_pkg_amber_snoop_crresp((state_q == 12'b010000000000 ? sn_ref_q : sn_ref_grant), (state_q == 12'b010000000000 ? sn_type_q : ctrl_snoop_type));
+		ctrl_crresp = l1_pkg_amber_snoop_crresp((state_q == 16'h0400 ? sn_ref_q : sn_ref_grant), (state_q == 16'h0400 ? sn_type_q : ctrl_snoop_type));
 		ctrl_cddata = (sn_victim_q ? victim_sn_word : ctrl_data_b_rdata);
 		ctrl_cdlast = 1'b0;
 		ctrl_cdvalid = 1'b0;
@@ -957,6 +1031,18 @@ module l1_control (
 				if (1 && (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)))
 					ctrl_data_a_addr = {req_set, sv2v_cast_9FF7F(mv_cnt_q + 1'b1)};
 			end
+			OH_CLEAN_GATHER: begin
+				ctrl_data_a_way = victim_way_q;
+				if (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS))
+					ctrl_data_a_addr = {req_set, (1 ? sv2v_cast_9FF7F(mv_cnt_q + 1'b1) : mv_cnt_q[BEAT_INDEX_WIDTH - 1:0])};
+				else
+					ctrl_victim_load = 1'b1;
+			end
+			OH_CLEAN_COMMIT: begin
+				ctrl_tag_a_wr_en = cl_commit_m;
+				ctrl_tag_a_wr_way_onehot = victim_way_onehot;
+				ctrl_tag_a_wr_tag_state = {victim_tag_q, 3'b010};
+			end
 			OH_MISS_FILL: ctrl_fill_start = !fill_seen_q;
 			OH_MISS_DRAIN: ctrl_drain_start = !drain_seen_q;
 			OH_FILL_WRITE: begin
@@ -987,8 +1073,9 @@ module l1_control (
 		endcase
 	end
 	assign ctrl_req_ready = acc_ok;
-	assign ctrl_rsp_valid = (state_q == OH_HIT_RD) || (state_q == OH_HIT_WR);
-	assign ctrl_rsp_data = (state_q == 12'b000000010000 ? req_wdata_q : ctrl_data_a_rdata);
+	assign ctrl_rsp_valid = ((state_q == OH_HIT_RD) || (state_q == OH_HIT_WR)) || (state_q == OH_CLEAN_RSP);
+	assign ctrl_rsp_data = ((state_q == 16'h0010) || (state_q == 16'h8000) ? req_wdata_q : ctrl_data_a_rdata);
+	assign ctrl_drain_clean = req_maint_q;
 	assign ctrl_init_busy = state_q == OH_INIT;
 	assign ctrl_init_set = init_cnt_q;
 	assign ctrl_req_class = req_class_q;
@@ -1009,6 +1096,10 @@ module l1_control (
 			OH_REPLAY: ctrl_state = 4'h9;
 			OH_SNOOP: ctrl_state = 4'ha;
 			OH_ERROR: ctrl_state = 4'hb;
+			OH_CLEAN_SCAN: ctrl_state = 4'hc;
+			OH_CLEAN_GATHER: ctrl_state = 4'hd;
+			OH_CLEAN_COMMIT: ctrl_state = 4'he;
+			OH_CLEAN_RSP: ctrl_state = 4'hf;
 			default: ctrl_state = 4'hb;
 		endcase
 	end

@@ -59,15 +59,19 @@ module l1_cpu_plane
     parameter int WAYS       = AMBER_WAYS,
     parameter int LINE_BYTES = AMBER_LINE_BYTES,
     parameter int BUS_WIDTH  = AMBER_BUS_WIDTH,
+    // amber TASK-004: the request's clean-all bit (l1_cpu_frontend
+    // MAINT_EN); amber_top / amber_ace_top set 1, l1_core keeps 0
+    parameter bit MAINT_EN   = 1'b0,
     localparam int STRB_W    = BUS_WIDTH / 8,
-    localparam int CPU_REQ_W = ADDR_WIDTH + 1 + STRB_W + BUS_WIDTH,
+    localparam int CPU_REQ_W = int'(MAINT_EN) + ADDR_WIDTH + 1 + STRB_W
+                               + BUS_WIDTH,
     localparam int CPU_RSP_W = BUS_WIDTH
 )(
     input  logic                        clk,
     input  logic                        rst_n,
 
     // ------------------------------------------------------------------
-    // CPU GAXI slave (MAS ch03/01; packed {addr, we, be, wdata} /
+    // CPU GAXI slave (MAS ch03/01; packed {[maint,] addr, we, be, wdata} /
     // {rdata})
     // ------------------------------------------------------------------
     input  logic                        cpu_req_wr_valid,
@@ -85,6 +89,7 @@ module l1_cpu_plane
     output logic                        fe_req_we,
     output logic [STRB_W-1:0]           fe_req_be,
     output logic [BUS_WIDTH-1:0]        fe_req_wdata,
+    output logic                        fe_req_maint,
     input  logic                        ctrl_req_ready,
     input  logic                        ctrl_rsp_valid,
     input  logic [BUS_WIDTH-1:0]        ctrl_rsp_data
@@ -101,7 +106,8 @@ module l1_cpu_plane
         .BUS_WIDTH  (BUS_WIDTH),
         // amber TASK-005: the 1-cycle hit's response skips the staging
         // FIFO when it is taken in the cycle l1_control makes it
-        .RSP_BYPASS (1'b1)
+        .RSP_BYPASS (1'b1),
+        .MAINT_EN   (MAINT_EN)
     ) u_frontend (
         .clk               (clk),
         .rst_n             (rst_n),
@@ -116,6 +122,7 @@ module l1_cpu_plane
         .req_we            (fe_req_we),
         .req_be            (fe_req_be),
         .req_wdata         (fe_req_wdata),
+        .req_maint         (fe_req_maint),
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
         .ctrl_rsp_data     (ctrl_rsp_data)

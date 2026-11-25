@@ -378,7 +378,9 @@ module amber_pair_fabric
     // ------------------------------------------------------------------
     // Request sideband pulse latches: the pending registers ARE the
     // per-direction request queue (one outstanding per blocking cache).
-    // WRITE_BACK pulses are not coherence requests.
+    // WRITE_BACK and WRITE_CLEAN (the clean-all write-back, amber
+    // TASK-004) pulses are not coherence requests: both are write-port
+    // pass-throughs.
     // ------------------------------------------------------------------
     // Per-direction pending-request FIFO. An upgrade completes at the
     // cache without waiting for the fabric (the D-8 sideband is an
@@ -401,9 +403,11 @@ module amber_pair_fabric
 
     wire [1:0] coh_pulse_vld;
     assign coh_pulse_vld[0] = c0_coh_req_valid
-        && (c0_coh_req_type != 3'(AMBER_ACE_WRITE_BACK));
+        && (c0_coh_req_type != 3'(AMBER_ACE_WRITE_BACK))
+        && (c0_coh_req_type != 3'(AMBER_ACE_WRITE_CLEAN));
     assign coh_pulse_vld[1] = c1_coh_req_valid
-        && (c1_coh_req_type != 3'(AMBER_ACE_WRITE_BACK));
+        && (c1_coh_req_type != 3'(AMBER_ACE_WRITE_BACK))
+        && (c1_coh_req_type != 3'(AMBER_ACE_WRITE_CLEAN));
 
     // ------------------------------------------------------------------
     // Grant selection: fair round-robin over pending, buffer-free requests

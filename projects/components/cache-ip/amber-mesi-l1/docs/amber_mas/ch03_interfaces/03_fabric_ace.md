@@ -48,8 +48,9 @@ Every amber transaction is coherent and the onyx rig has one shareability domain
 |---|---|---|
 | dirty eviction | `WriteBack` | `WriteBack` encoding |
 | clean eviction | `Evict` | `Evict` encoding |
+| clean-all write-back (TASK-004; line kept, M to E) | `WriteClean` | `WriteClean` encoding (0x2) |
 
-`WACK` is auto-pulsed one cycle after the B handshake (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). Since issue #106 (commit `2594d73bb`), `CleanUnique` and `MakeUnique` are **AR-channel** transactions with the spec encodings (0xB/0xC) — they share the read transport and carry no W data. `WriteBack` is an AW+W burst with the dirty victim data; `Evict` is AW-only with no W data.
+`WACK` is auto-pulsed one cycle after the B handshake (deprecated per ruling 2026-10-11 (Sean); removal tracked as amber A5). Since issue #106 (commit `2594d73bb`), `CleanUnique` and `MakeUnique` are **AR-channel** transactions with the spec encodings (0xB/0xC) — they share the read transport and carry no W data. `WriteBack` is an AW+W burst with the dirty victim data; `Evict` is AW-only with no W data. `WriteClean` (the clean-all walk, ch02/01) is the same AW+W burst from the same drain engine; `amber_ace_issue` latches the drain launch's class (`WRITE_BACK` / `WRITE_CLEAN` on the coherence sideband) and stamps AWSNOOP from it. The cache keeps the line, so it answers snoops to it from the installed state until the B.
 
 ## Timing Example: ReadNotSharedDirty Fill
 

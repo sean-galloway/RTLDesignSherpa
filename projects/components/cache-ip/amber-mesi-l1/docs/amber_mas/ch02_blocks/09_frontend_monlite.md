@@ -66,6 +66,10 @@ Packed as `{rdata[BUS_WIDTH-1:0]}`.
 
 `RSP_BYPASS` (amber sets 1 in `l1_cpu_plane`; jet and jet-prime keep the default 0): the response is presented in the cycle `l1_control` makes it -- `cpu_rsp_rd_valid` is the FIFO's not-empty OR `ctrl_rsp_valid`, the payload the FIFO head when it holds anything, else `ctrl_rsp_data` -- and goes into the FIFO only if not taken that cycle. With 0 every response passes through the FIFO, a cycle later, as before.
 
+`MAINT_EN` (amber TASK-004; default 0 everywhere, set by `amber_top` / `amber_ace_top`'s `MAINT_EN` parameter): the request word carries the clean-all bit above `addr`, `{maint, addr, we, be, wdata}`, and the frontend passes it to `l1_control` as `req_maint`. With 0 the packing is the classic one and `req_maint` is 0 (ch03/01 Table 3.1.2).
+
+The observer reports a clean-all write-back as DRAIN_START / DRAIN_END and its M-to-E commit as a TRANSITION (cause 7, other); it is not an EVICT (`l1_coh_core` gates the victim-load tap with `ctrl_drain_clean`).
+
 ### Replay path
 
 On a miss, `l1_control` re-drives the original latched request into its own hit logic in `CTRL_REPLAY`. The front end does not see a new GAXI transaction; the response is generated from the same latched request.

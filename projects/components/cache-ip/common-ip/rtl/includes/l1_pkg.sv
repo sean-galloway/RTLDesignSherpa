@@ -105,8 +105,10 @@ package l1_pkg;
     // between CPU requests; transient states exist only while a miss,
     // fill, drain, or snoop is in progress, mirroring the gem5 Ruby
     // MESI_Two_Level-L1cache.sm philosophy that every in-flight condition
-    // is an explicit enumerated state. Codes 12-15 are reserved; the RTL
-    // FSM decodes them to CTRL_ERROR (MAS ch02 illegal-state default).
+    // is an explicit enumerated state. Codes 12-15 are the CPU-side
+    // clean-all walk (amber TASK-004, peregrine's fence.i); l1_control
+    // decodes a multi-hot or unmapped one-hot to CTRL_ERROR (MAS ch02
+    // illegal-state default). jet / jet-prime never enter 12-15.
     // ------------------------------------------------------------------
     typedef enum logic [3:0] {
         AMBER_CTRL_IDLE        = 4'h0,   // waiting for a CPU request
@@ -120,7 +122,11 @@ package l1_pkg;
         AMBER_CTRL_FILL_WRITE  = 4'h8,   // commit fill data + tag/state
         AMBER_CTRL_REPLAY      = 4'h9,   // re-present latched request
         AMBER_CTRL_SNOOP       = 4'hA,   // service snoop on port B
-        AMBER_CTRL_ERROR       = 4'hB    // sticky fatal, reset-cleared
+        AMBER_CTRL_ERROR       = 4'hB,   // sticky fatal, reset-cleared
+        AMBER_CTRL_CLEAN_SCAN  = 4'hC,   // clean-all: scan one set for M
+        AMBER_CTRL_CLEAN_GATHER= 4'hD,   // clean-all: gather the M line
+        AMBER_CTRL_CLEAN_COMMIT= 4'hE,   // clean-all: B received, M -> E
+        AMBER_CTRL_CLEAN_RSP   = 4'hF    // clean-all: walk done, respond
     } ctrl_state_t;
 
     // ------------------------------------------------------------------
@@ -149,6 +155,8 @@ package l1_pkg;
     // ride the read (AR) channel; WriteBack/Evict ride the write (AW) channel.
     // The Task 2 FSM oracle emits the first three as its miss-request
     // classes; WriteBack/Evict come from the victim path (Task 5/12).
+    // WriteClean (amber TASK-004) is the clean-all walk's write-back: AW
+    // channel, AWSNOOP WriteClean, the line stays valid (M -> E).
     // ------------------------------------------------------------------
     typedef enum logic [2:0] {
         AMBER_ACE_READ_SHARED          = 3'b000,   // reserved legacy code
@@ -157,7 +165,8 @@ package l1_pkg;
         AMBER_ACE_MAKE_UNIQUE          = 3'b011,   // whole-line write, no fetch
         AMBER_ACE_WRITE_BACK           = 3'b100,   // dirty eviction with data
         AMBER_ACE_EVICT                = 3'b101,   // clean eviction, no data
-        AMBER_ACE_READ_NOT_SHARED_DIRTY= 3'b110    // read miss, shared intent (IHI0022 D3)
+        AMBER_ACE_READ_NOT_SHARED_DIRTY= 3'b110,   // read miss, shared intent (IHI0022 D3)
+        AMBER_ACE_WRITE_CLEAN          = 3'b111    // clean-all write-back, line kept (TASK-004)
     } amber_ace_req_t;
 
     // ------------------------------------------------------------------
