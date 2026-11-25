@@ -420,7 +420,7 @@ module onyx_ccu (
 	endfunction
 	function automatic is_coh_req;
 		input reg [2:0] req_type;
-		is_coh_req = (req_type != 3'b100) && (req_type != 3'b101);
+		is_coh_req = ((req_type != 3'b100) && (req_type != 3'b111)) && (req_type != 3'b101);
 	endfunction
 	function automatic [LINE_W - 1:0] line_of;
 		input reg [8 - 1:0] addr;

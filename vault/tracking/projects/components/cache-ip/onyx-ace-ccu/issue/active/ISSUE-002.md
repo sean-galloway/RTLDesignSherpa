@@ -1,7 +1,7 @@
 # ISSUE-002: a snarfed write-back victim still drains after passing the line dirty; an IO WriteUnique that lands before it is overwritten
 
 **Priority:** P3
-**Status:** ACTIVE 2026-11-24 -- resolved on both sides and sim-verified; the proofs on the regenerated flats are running
+**Status:** ACTIVE 2026-11-24 -- resolved on both sides and sim-verified; onyx `prove` (depth 24) and `prove_book` PASS, jet-prime control liveness PASS; the jet-prime control safety prove is still running
 **Owner:** TBD
 **Filed:** 2026-11-23 (onyx TASK-001 step 7)
 

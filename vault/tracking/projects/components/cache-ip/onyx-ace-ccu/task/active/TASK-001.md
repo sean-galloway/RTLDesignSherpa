@@ -562,3 +562,12 @@ Found and measured:
   regenerated (onyx md5 9dc5d1a2d7); proofs running. Why the suites missed
   it: jet-prime BUG-002 and the handbook escape analysis. jet carries the
   same rule (jet BUG-005, deferred: jet is frozen).
+- 2026-11-25 **ISSUE-002 proofs:** onyx `prove` PASS (depth 24, 29 h 29
+  min) and `prove_book` PASS on flat md5 9dc5d1a2d7; jet-prime control
+  liveness PASS on the narrowed fix (e6957a314). amber TASK-004
+  (da9e8df71) changed `onyx_ccu.sv` after the run (`is_coh_req` excludes
+  WriteClean, `3'b111`) without regenerating the flat; the harness's
+  `as_req_type` admits only RNSD / RU / CU / WB, so the changed term is
+  unreachable there and the result carries over. Flat regenerated for it.
+  Open: no onyx proof or sim drives WriteClean -- the harness needs it in
+  `as_req_type` with its write-back obligations.
