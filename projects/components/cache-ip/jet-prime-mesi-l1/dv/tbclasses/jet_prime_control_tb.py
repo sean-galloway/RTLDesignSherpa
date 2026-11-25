@@ -208,6 +208,13 @@ class JetControlTB(TBBase):
         self.lru = LruModel(self.SETS, self.WAYS)
         self.entries = []        # MSHR mirror, alloc order
         self.wb_expect = deque()  # (line, full-line int) capture order
+        # drain progress (jet-prime BUG-002, the control liveness find):
+        # the line of the snoop this TB has in flight (presented .. its
+        # trailing effect cycles), and the run of cycles an eligible head
+        # waited for its drain start with no snoop on its own line
+        self._sn_active_line = None
+        self._drain_lag = 0
+        self._drain_lag_max = 0
         self.deposits = {}       # tag -> response data (outstanding)
         # tags released straight off the deposit (jet_prime_rsp_seq head-deposit
         # bypass, TASK-003 step 3): the release watcher sees the release in
@@ -649,6 +656,7 @@ class JetControlTB(TBBase):
                 countdown -= 1
             self._drain_cd = countdown
             await self._settle()
+            self._drain_progress_watch(countdown)
             if int(d.drain_done_i.value):
                 # the done lands on the posedge ending this cycle; retire
                 # the expected head to the memory model
@@ -674,6 +682,38 @@ class JetControlTB(TBBase):
                 self._score("drain: addr held",
                             int(d.wb_drain_addr_o.value),
                             self.wb_expect[0][0] << self.OFFSET_BITS)
+
+    DRAIN_LAG_MAX = 2   # cycles: the done-to-busy-clear turnaround
+
+    def _drain_progress_watch(self, countdown):
+        """A drain may wait only for a snoop on its own line (jet-prime
+        BUG-002: a snoop between its grant and its effect on the head entry
+        must not see the head's drain start -- and nothing else may hold
+        it).  Judged from the TB's own records: the head is wb_expect[0],
+        the snooped line is the one _snoop presented.  The first fix held
+        every drain start through any WB-sourced snoop; a snarf granted in
+        its entry's BRESP cycle then held the NEXT entry's drain through
+        the whole service, and the control liveness proof failed its
+        24-cycle drain bound (ap_drain_progress).  The suites had no check
+        on drain-start latency at all."""
+        d = self.dut
+        if int(d.rst_n.value) == 0 or not self.wb_expect:
+            self._drain_lag = 0
+            return
+        eligible = (int(d.wb_drain_valid_o.value)
+                    and countdown < 0
+                    and not int(d.drain_done_i.value)
+                    and self._sn_active_line != self.wb_expect[0][0])
+        if eligible and not int(d.drain_start_o.value):
+            self._drain_lag += 1
+            self._drain_lag_max = max(self._drain_lag_max, self._drain_lag)
+            if self._drain_lag == self.DRAIN_LAG_MAX + 1:
+                self._score(f"drain: head 0x{self.wb_expect[0][0]:x} start "
+                            f"not held off-line (snoop on "
+                            f"{self._sn_active_line})",
+                            self._drain_lag, self.DRAIN_LAG_MAX)
+        else:
+            self._drain_lag = 0
 
     async def _release_watch(self):
         """GAXI response channel: every release must match the outstanding
@@ -991,6 +1031,7 @@ class JetControlTB(TBBase):
         # the transport raises want with the AC and holds it until the
         # grant (the ACVALID rule); req is presented only in a safe cycle
         d.sn_want_i.value = 1
+        self._sn_active_line = line & self.LINE_MASK
         for _ in range(max_wait * 4):
             await self._drive_pt()
             if sync_drain_cd and not present_next:
@@ -1068,6 +1109,7 @@ class JetControlTB(TBBase):
                 self._score(f"{label} cd[{i}]", got, exp_cd[i])
         else:
             self._score(f"{label} no CD beats", len(beats), 0)
+        self._sn_active_line = None
         return {'crresp': crresp, 'beats': beats, 'wb_eff': wb_eff,
                 'bresp': bresp}
 
@@ -2399,6 +2441,63 @@ class JetControlTB(TBBase):
         self.scenarios['snoop_snarf_bresp_race'] = True
         await self._reset_pipeline()
 
+    async def _scen_drain_not_held_off_head(self):
+        """drain_not_held_off_head (jet-prime BUG-002, the liveness find):
+        two dirty victims, A at the head and B behind it.  A snoop to A is
+        granted in A's BRESP cycle, so A retires at the grant and B becomes
+        the head while the snoop's CD stream is still running.  The snoop
+        is on A's line, not B's: B's drain must start at once, before the
+        service ends.  The first fix held it to the end of the service."""
+        r0 = self.release_count
+        d = self.dut
+        saved_drain = self.drain_latency
+        self.drain_latency = 40
+        victims = []
+        for s, tbase in ((20, 0x600), (21, 0x620)):
+            for w in range(self.WAYS):
+                await self._install_line(((tbase + w) << self.SET_BITS) | s,
+                                         'M')
+            victims.append(((tbase + self.WAYS - 1) << self.SET_BITS) | s)
+        va = victims[0]
+        va_data = bytes(self.array_data[(20, self.WAYS - 1)])
+        for s, tag in ((20, 0x610), (21, 0x630)):
+            r = await self._req(self._compose_addr(tag, s), 0, 0xFF, 0,
+                                label=f'offhead:miss{s}')
+            self._score(f"offhead: victim dirty (set {s})",
+                        r['victim_dirty'], True)
+        # both captures complete; A drains (latency 40), B waits behind it
+        for _ in range(self.REQ_TIMEOUT * 4):
+            await self._drive_pt()
+            await self._settle()
+            if (not int(d.cap_busy_o.value) and len(self.wb_expect) == 2
+                    and int(d.wb_full_o.value)):
+                break
+        else:
+            raise RuntimeError("offhead: both captures never completed")
+        self._score("offhead: A is the head", self.wb_expect[0][0], va)
+        n_start0 = sum(1 for e in self.events if e[1] == 'drain_start')
+        exp_cd = [self._beat_of(va_data, b) for b in range(self.FILL_BEATS)]
+        res = await self._snoop(va, SN_CLEAN_SHARED, 'offhead:snarf_a',
+                                ref='M', deliver=True, exp_cd=exp_cd,
+                                sync_drain_cd=True)
+        self._score("offhead: grant landed in A's BRESP cycle",
+                    res['bresp'], 1)
+        n_start = sum(1 for e in self.events if e[1] == 'drain_start')
+        self._score("offhead: B's drain started during the snoop on A",
+                    n_start - n_start0, 1)
+        for e in self.entries[-2:]:
+            await self._await_commit(e, label='offhead:commit')
+        for _ in range(self.REQ_TIMEOUT * 4):
+            await self._drive_pt()
+            await self._settle()
+            if len(self.wb_expect) == 0 and not int(d.wb_full_o.value):
+                break
+        self._score("offhead: both victims drained", len(self.wb_expect), 0)
+        await self._wait_releases(r0, 2)
+        self.drain_latency = saved_drain
+        self.scenarios['drain_not_held_off_head'] = True
+        await self._reset_pipeline()
+
     async def _scen_snoop_priority(self):
         """snoop_priority (J6): a snoop presented with a CPU request
         pending is served first -- the lookup stage holds the CPU request
@@ -2794,6 +2893,7 @@ class JetControlTB(TBBase):
         await self._scen_snoop_pre_ar_per_entry()
         await self._scen_fill_concurrent_ooo()
         await self._scen_snoop_snarf_bresp_race()
+        await self._scen_drain_not_held_off_head()
         await self._scen_snoop_priority()
         await self._scen_anti_livelock_window()
         await self._scen_snoop_never_waits_on_wb_full()
@@ -2840,6 +2940,9 @@ class JetControlTB(TBBase):
         self._score("final: no outstanding deposits",
                     len(self.deposits), 0)
         self._score("final: WB empty", len(self.wb_expect), 0)
+        self.log.info(f"drain progress: longest off-line wait "
+                      f"{self._drain_lag_max} cycles (max "
+                      f"{self.DRAIN_LAG_MAX})")
         self._score("final: no uncommitted entries",
                     sum(1 for e in self.entries if not e['committed']), 0)
         return self.mismatches == 0

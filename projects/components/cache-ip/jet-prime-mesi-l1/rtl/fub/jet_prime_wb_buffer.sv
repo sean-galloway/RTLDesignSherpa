@@ -94,8 +94,9 @@
 //     stall until the BRESP, but jet_prime_control no longer answers a
 //     snoop from it (a second snoop sees the Invalid row, never the stale
 //     bytes).  jet_prime_control holds drain_start while a WB-sourced snoop
-//     is in service, so a drain never starts between the grant and the
-//     effect.
+//     on the head entry (sn_head_o) is in service, so the head's drain
+//     never starts between the grant and the effect; a snoop on any other
+//     entry leaves the head's drain alone (the drain-progress bound).
 //     (Before onyx ISSUE-002 / jet-prime BUG-002 the effect was recorded and
 //     never read, and every snarfed victim drained: a drain landing after the
 //     new owner's own write-back overwrote it.)
@@ -164,6 +165,7 @@ module jet_prime_wb_buffer
     input  logic [LINE_W-1:0]        sn_line_i,
     output logic                     sn_hit_o,
     output logic                     sn_passed_o,
+    output logic                     sn_head_o,
     output logic [SLOT_W-1:0]        sn_match_idx_o,
     input  logic                     sn_lock_i,
     input  logic [SLOT_W-1:0]        sn_rd_slot_i,
@@ -283,6 +285,8 @@ module jet_prime_wb_buffer
 
     assign sn_hit_o         = w_sn_match;
     assign sn_passed_o      = w_sn_match & r_passed[w_sn_match_idx];
+    // the matched entry is the head (the one a drain start would take)
+    assign sn_head_o        = w_sn_match & (w_sn_match_idx == w_head_idx);
     assign sn_match_idx_o   = w_sn_match_idx;
     assign sn_rd_data_o     = r_data[{sn_rd_slot_i, sn_rd_beat_i}];
     assign sn_bresp_cycle_o = w_sn_match & drain_done_i

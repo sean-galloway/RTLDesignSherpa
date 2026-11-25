@@ -82,8 +82,15 @@ Three parts, one per place the old line could get back to memory:
 
 A drain must not start between a snoop's grant and its effect, or a passed
 line would drain after all: `jet_prime_control` holds `drain_start` while a
-WB-sourced snoop is granted or in service (bounded by the service, at most
-FILL_BEATS + 2 CD handshakes).
+WB-sourced snoop on the head entry (`sn_head_o`) is granted or in service,
+bounded by the service (at most FILL_BEATS + 2 CD handshakes), after which
+the head has ended. Only the head: the first version held every drain start
+during any WB-sourced snoop, and the control liveness proof failed its
+24-cycle drain bound (`ap_drain_progress`, step 62). A snoop granted in its
+entry's BRESP cycle retires that entry at once, and the next head's drain
+waited out the rest of a service that was not on its line. `sn_head_o` is
+live through the service, so an entry that becomes the head mid-service is
+held from that cycle.
 
 ## Cost
 
@@ -97,10 +104,10 @@ head's drain in flight, and two bits per manager port.
 | Layer | What | Result |
 |---|---|---|
 | WB buffer unit | the entry ends (both effects), a passed-on entry behind the head is skipped without a drain, the draining head is passed and still drains, the random phase with drain starts and effects | gate / func / full PASS |
-| Control unit | the BRESP-cycle snarf; a second snoop to a passed entry answers the Invalid row with no effect | PASS |
+| Control unit | the BRESP-cycle snarf; a second snoop to a passed entry answers the Invalid row with no effect; a drain-progress watcher (an eligible drain waits at most 2 cycles unless a snoop is on its own line) and a snarf in the head's BRESP cycle with a second victim behind it | PASS; the first version's hold restored fails all three passes |
 | Pair rig | the hot-set phase (both CPUs, 70 % writes, `WAYS + 3` tags in two sets) after the uniform soak; a write-back order check at the cache ports, independent of the fabric | full 155/155 from clean; every full cell ends 5-31 entries and drains 16-75 passed entries per cache |
 | Mutations | M1, the fabric's order hold removed: seed 116 of 24 fails, the order check first; M2, entries never ended: 26 of 26 pair-rig cells fail | both caught |
-| Formal | control: `ap_wb_no_drain_in_svc`, `ap_wb_ended_never_drains` (covers `cp_wb_ended` step 42, `cp_wb_passed_snoop` step 44); pair fabric and onyx: `ap_wb_order` (cover `cp_wb_order_wait` step 4) | covers reached; proofs running on the regenerated flats |
+| Formal | control: `ap_wb_no_drain_in_svc`, `ap_wb_ended_never_drains` (covers `cp_wb_ended` step 42, `cp_wb_passed_snoop` step 44); pair fabric and onyx: `ap_wb_order` (cover `cp_wb_order_wait` step 4) | covers reached; control liveness prove PASS (depth 112), pair fabric prove + prove_book PASS, onyx prove_book PASS; control safety and onyx prove running |
 
 ## Why the suites missed it
 

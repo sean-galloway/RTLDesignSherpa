@@ -378,6 +378,7 @@ module jet_prime_wb_buffer (
 	sn_line_i,
 	sn_hit_o,
 	sn_passed_o,
+	sn_head_o,
 	sn_match_idx_o,
 	sn_lock_i,
 	sn_rd_slot_i,
@@ -422,6 +423,7 @@ module jet_prime_wb_buffer (
 	input wire [LINE_W - 1:0] sn_line_i;
 	output wire sn_hit_o;
 	output wire sn_passed_o;
+	output wire sn_head_o;
 	output wire [SLOT_W - 1:0] sn_match_idx_o;
 	input wire sn_lock_i;
 	input wire [SLOT_W - 1:0] sn_rd_slot_i;
@@ -431,16 +433,16 @@ module jet_prime_wb_buffer (
 	input wire [1:0] sn_eff_i;
 	output reg [OCC_W - 1:0] wb_occupancy_o;
 	initial if ((LINE_W + OFFSET_W) != ADDR_WIDTH)
-		$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:184:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_W + $clog2(LINE_BYTES) must equal ADDR_WIDTH");
+		$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:186:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_W + $clog2(LINE_BYTES) must equal ADDR_WIDTH");
 	initial begin
 		if ((VICTIM_DEPTH < 1) || (VICTIM_DEPTH > 4))
-			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:194:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: VICTIM_DEPTH must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:196:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: VICTIM_DEPTH must be in 1..4 (J5)");
 		if ((LINE_BYTES & (LINE_BYTES - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:196:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_BYTES must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:198:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_BYTES must be a power of two");
 		if ((BUS_WIDTH % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:198:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: BUS_WIDTH must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:200:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: BUS_WIDTH must be a multiple of 8");
 		if (FILL_BEATS < 2)
-			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:200:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_BYTES / BUS_WIDTH*8 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_wb_buffer.sv:202:13 - jet_prime_wb_buffer.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_wb_buffer: LINE_BYTES / BUS_WIDTH*8 must be >= 2");
 	end
 	reg [VICTIM_DEPTH - 1:0] r_valid;
 	reg [VICTIM_DEPTH - 1:0] r_allocated;
@@ -502,6 +504,7 @@ module jet_prime_wb_buffer (
 	end
 	assign sn_hit_o = w_sn_match;
 	assign sn_passed_o = w_sn_match & r_passed[w_sn_match_idx];
+	assign sn_head_o = w_sn_match & (w_sn_match_idx == w_head_idx);
 	assign sn_match_idx_o = w_sn_match_idx;
 	assign sn_rd_data_o = r_data[{sn_rd_slot_i, sn_rd_beat_i}];
 	assign sn_bresp_cycle_o = (w_sn_match & drain_done_i) & (w_sn_match_idx == w_head_idx);
@@ -773,6 +776,7 @@ module jet_prime_control (
 	wb_sn_line_o,
 	wb_sn_hit_i,
 	wb_sn_passed_i,
+	wb_sn_head_i,
 	wb_sn_eff_o,
 	wb_sn_match_idx_i,
 	wb_sn_lock_o,
@@ -936,6 +940,7 @@ module jet_prime_control (
 	output wire [LINE_W - 1:0] wb_sn_line_o;
 	input wire wb_sn_hit_i;
 	input wire wb_sn_passed_i;
+	input wire wb_sn_head_i;
 	output wire [1:0] wb_sn_eff_o;
 	input wire [WB_W - 1:0] wb_sn_match_idx_i;
 	output wire wb_sn_lock_o;
@@ -989,19 +994,19 @@ module jet_prime_control (
 	output wire ctrl_error_o;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:501:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:503:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:503:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:505:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:505:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:507:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:507:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:509:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:509:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:511:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be >= 2");
 		if ((2 < 2) || (2 > 16))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:511:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:513:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 2..16 (J1)");
 		if ((2 < 1) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:513:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_control.sv:515:13 - jet_prime_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_control: 2 must be in 1..4 (J5)");
 	end
 	localparam [2:0] STALL_NONE = 3'd0;
 	localparam [2:0] STALL_MSHR_FULL = 3'd1;
@@ -1763,7 +1768,7 @@ module jet_prime_control (
 	assign wb_cap_line_o = (w_cap_active ? r_cap_line : {w_victim_tag, w_req_set});
 	assign wb_cap_beat_o = (0 ? r_cap_d1 : w_cap_adr);
 	assign wb_cap_beat_data_o = dat_b_rdata_i;
-	assign w_sn_wb_live = (w_sn_gnt & w_src_wb) | ((r_sn_state != SN_IDLE) & (r_sn_src == SRC_WB));
+	assign w_sn_wb_live = wb_sn_head_i & ((w_sn_gnt & w_src_wb) | ((r_sn_state != SN_IDLE) & (r_sn_src == SRC_WB)));
 	assign drain_start_o = (wb_drain_valid_i & ~r_drain_busy) & ~w_sn_wb_live;
 	function automatic signed [SET_W - 1:0] sv2v_cast_DCA8A_signed;
 		input reg signed [SET_W - 1:0] inp;

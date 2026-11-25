@@ -308,6 +308,7 @@ module jet_prime_control_th
     logic                       wb_drain_valid;
     logic                       wb_sn_hit;
     logic                       wb_sn_passed;
+    logic                       wb_sn_head;
     logic [$clog2(VICTIM_DEPTH) > 0 ? $clog2(VICTIM_DEPTH)-1 : 0:0] wb_sn_match_idx;
     logic                       ctrl_wb_sn_lock;
     logic [$clog2(VICTIM_DEPTH) > 0 ? $clog2(VICTIM_DEPTH)-1 : 0:0] ctrl_wb_sn_rd_slot;
@@ -444,6 +445,7 @@ module jet_prime_control_th
         .wb_sn_line_o            (ctrl_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
         .wb_sn_passed_i          (wb_sn_passed),
+        .wb_sn_head_i            (wb_sn_head),
         .wb_sn_eff_o             (ctrl_wb_sn_eff),
         .wb_sn_match_idx_i       (wb_sn_match_idx),
         .wb_sn_lock_o            (ctrl_wb_sn_lock),
@@ -591,6 +593,7 @@ module jet_prime_control_th
         .sn_line_i       (ctrl_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
         .sn_passed_o     (wb_sn_passed),
+        .sn_head_o       (wb_sn_head),
         .sn_match_idx_o  (wb_sn_match_idx),
         .sn_lock_i       (ctrl_wb_sn_lock),
         .sn_rd_slot_i    (ctrl_wb_sn_rd_slot),

@@ -263,6 +263,7 @@ module formal_jet_prime_control (
     logic        wb_drain_valid;
     logic        wb_sn_hit;
     logic        wb_sn_passed;
+    logic        wb_sn_head;
     logic        wb_sn_match_idx;
     logic        wb_sn_lock;
     logic        wb_sn_rd_slot;
@@ -399,6 +400,7 @@ module formal_jet_prime_control (
         .wb_sn_line_o            (dut_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
         .wb_sn_passed_i          (wb_sn_passed),
+        .wb_sn_head_i            (wb_sn_head),
         .wb_sn_eff_o             (dut_wb_sn_eff),
         .wb_sn_match_idx_i       (wb_sn_match_idx),
         .wb_sn_lock_o            (wb_sn_lock),
@@ -564,6 +566,7 @@ module formal_jet_prime_control (
         .sn_line_i       (dut_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
         .sn_passed_o     (wb_sn_passed),
+        .sn_head_o       (wb_sn_head),
         .sn_match_idx_o  (wb_sn_match_idx),
         .sn_lock_i       (wb_sn_lock),
         .sn_rd_slot_i    (wb_sn_rd_slot),
@@ -1056,10 +1059,11 @@ module formal_jet_prime_control (
             ap_cmt_legal:   assert (obs_cmt_state <= 4'd8);
             ap_sn_legal:    assert (obs_sn_state != 2'd3);
             ap_no_error:    assert (!dut_ctrl_error);
-            // jet-prime BUG-002: no drain starts while a snoop is served
-            // from the WB buffer (the effect must not cross a drain
-            // start), and an entry passed on before its drain never drains
-            ap_wb_no_drain_in_svc: assert (!(dut_drain_start
+            // jet-prime BUG-002: the head's drain does not start while a
+            // snoop on the head is served from the WB buffer (the effect
+            // must not cross its drain start), and an entry passed on
+            // before its drain never drains
+            ap_wb_no_drain_in_svc: assert (!(dut_drain_start && wb_sn_head
                                              && (w_sn_gnt && obs_src_wb
                                                  || (obs_sn_state != SN_IDLE)
                                                     && (obs_sn_src == SRC_WB))));

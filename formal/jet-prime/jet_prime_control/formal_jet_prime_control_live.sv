@@ -237,6 +237,7 @@ module formal_jet_prime_control_live (
     logic        wb_drain_valid;
     logic        wb_sn_hit;
     logic        wb_sn_passed;
+    logic        wb_sn_head;
     logic        wb_sn_match_idx;
     logic        wb_sn_lock;
     logic        wb_sn_rd_slot;
@@ -349,6 +350,7 @@ module formal_jet_prime_control_live (
         .wb_sn_line_o            (dut_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
         .wb_sn_passed_i          (wb_sn_passed),
+        .wb_sn_head_i            (wb_sn_head),
         .wb_sn_eff_o             (dut_wb_sn_eff),
         .wb_sn_match_idx_i       (wb_sn_match_idx),
         .wb_sn_lock_o            (wb_sn_lock),
@@ -514,6 +516,7 @@ module formal_jet_prime_control_live (
         .sn_line_i       (dut_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
         .sn_passed_o     (wb_sn_passed),
+        .sn_head_o       (wb_sn_head),
         .sn_match_idx_o  (wb_sn_match_idx),
         .sn_lock_i       (wb_sn_lock),
         .sn_rd_slot_i    (wb_sn_rd_slot),

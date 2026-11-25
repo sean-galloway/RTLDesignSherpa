@@ -62,7 +62,8 @@ on, landed after the new owner's write-back). Both sides are now fixed:
   passes on before its drain starts ends: out of the snarf CAM, retired
   without a drain. One whose drain had started cannot withdraw its AW: it
   drains, and answers no further snoop (`sn_passed_o`). `jet_prime_control`
-  holds drain starts during a WB-sourced snoop service. So the "victim whose
+  holds the head's drain start while a WB-sourced snoop on the head is in
+  service. So the "victim whose
   AW is presented only after the IO's write has landed" above can no longer
   exist.
 - **The manager side (onyx).** The IO rule above stays (the IO's WriteUnique

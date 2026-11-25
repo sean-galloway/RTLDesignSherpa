@@ -408,6 +408,8 @@ module jet_prime_control
     // the matched entry passed the line on with its drain already started:
     // it answers no snoop (the own-lookup drain-race stall still sees it)
     input  logic                        wb_sn_passed_i,
+    // the matched entry is the WB head (a drain start would take it)
+    input  logic                        wb_sn_head_i,
     output logic [1:0]                  wb_sn_eff_o,
     // snarf stream: the CAM's slot is latched at the grant; the CD beats
     // are read from the WB store by beat (slot, beat) while wb_sn_lock_o
@@ -1888,14 +1890,21 @@ module jet_prime_control
 
     // Drain arbiter: present drain_start when the head is valid and
     // no drain is outstanding (l1_drain samples victim_valid in D_IDLE),
-    // and no snoop is being served from the WB buffer.  A WB-sourced
-    // snoop ends its entry at SN_EFFECT (the line is passed on, the entry
-    // retires undrained), unless that entry's drain has started -- so a
-    // drain must not start between the grant and the effect, or a passed
-    // line would drain after all (jet-prime BUG-002).  Bounded by the
-    // service (<= FILL_BEATS + 2 CD handshakes).
-    assign w_sn_wb_live  = (w_sn_gnt & w_src_wb)
-                           | ((r_sn_state != SN_IDLE) & (r_sn_src == SRC_WB));
+    // and the head entry is not under a WB-sourced snoop.  Such a snoop
+    // ends its entry at SN_EFFECT (the line is passed on, the entry
+    // retires undrained), unless that entry's drain has started -- so the
+    // head's drain must not start between the grant and the effect, or a
+    // passed line would drain after all (jet-prime BUG-002).  Only the
+    // head: a snoop on another entry cannot race the head's drain, and
+    // holding the head for it let back-to-back snoops starve the drain
+    // (ap_drain_progress, 2026-11-24).  wb_sn_head_i is live: the snoop
+    // line drives the CAM through the service, so an entry that becomes
+    // the head mid-service (the old head's BRESP) is held from that cycle.
+    // Bounded by the service (<= FILL_BEATS + 2 CD handshakes), after
+    // which the head has ended.
+    assign w_sn_wb_live  = wb_sn_head_i
+                           & ((w_sn_gnt & w_src_wb)
+                              | ((r_sn_state != SN_IDLE) & (r_sn_src == SRC_WB)));
     assign drain_start_o = wb_drain_valid_i & ~r_drain_busy & ~w_sn_wb_live;
 
     // ------------------------------------------------------------------

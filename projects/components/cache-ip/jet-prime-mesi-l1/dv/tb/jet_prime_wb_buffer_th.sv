@@ -58,6 +58,7 @@ module jet_prime_wb_buffer_th
     input  logic [LINE_W-1:0]        sn_line_i,
     output logic                     sn_hit_o,
     output logic                     sn_passed_o,
+    output logic                     sn_head_o,
     output logic [SLOT_W-1:0]        sn_match_idx_o,
     input  logic                     sn_lock_i,
     input  logic [SLOT_W-1:0]        sn_rd_slot_i,
