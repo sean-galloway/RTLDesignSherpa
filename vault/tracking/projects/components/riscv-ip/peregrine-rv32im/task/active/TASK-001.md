@@ -254,8 +254,9 @@ Owner, 2026-11-24: "Push and continue".
        but lost to predict-not-taken on alternating branches: `loop_trip2`
        0.998x, `interlock` 0.982x.
      - Weakly not taken (`01`) is a zeroed counter after one taken step
-       (the board's power-up behaviour) and wins on every stream. **A
-       policy choice: flagged for the owner.**
+       (the board's power-up behaviour) and wins on every stream. A
+       policy choice, flagged for the owner; **approved 2026-11-25
+       (owner: "Keep 01").**
   2. "A function of the retired stream" was imprecise: an instruction
      that traps on its own exception, or is interrupted, also updated. The
      wording was fixed in the PRD, the core header and the model, and
@@ -550,7 +551,7 @@ replaces the stub.
 Next: stage 5 (targeted formal; riscv-formal on `CACHE_EN=0`) and stage 7
 (timing at 100 MHz, from the measurement above).
 
-## Stage 7: timing, P14 (in progress 2026-11-25)
+## Stage 7: timing, P14 (done 2026-11-25)
 
 Owner, 2026-11-25: "Commit, then start stage 7". Phase 1 removes paths
 that are not architectural, with no cycle-count change; phase 2 measures
@@ -686,3 +687,11 @@ while an access is in flight) survives, the stage-4 equivalent.
 **Regression:** peregrine FULL, clean-all, 0 reruns, 88/88, seed base
 2050116747. kestrel / merlin / gatling: no file changed.
 
+**Target (owner, 2026-11-25): 18.5 ns, 54.1 MHz** ("54.1 MHz / 18.5 ns").
+It closed in both multiplier builds (`MUL_DSP=0` +0.100, `MUL_DSP=1`
++0.342) with 0.2 ns of uncertainty; 17.0 ns was rejected because 17.5 ns
+failed, so the edge is inside the placement noise. peregrine has no
+PeakRDL config CSRs, so there are no config false paths to add. PRD P14
+records the period. amber's limiting paths are filed as
+cache-ip/amber-mesi-l1 TASK-007 (open, not scheduled). Stage 7 is done;
+stage 5 (formal) is what remains of this task.

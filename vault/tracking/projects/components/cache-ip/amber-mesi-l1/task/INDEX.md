@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/amber-mesi-l1 — tasks
 
-**Next ID: TASK-007** — never recycle a number, even when its item closed.
+**Next ID: TASK-008** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -11,7 +11,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 ## Open
 
 - **TASK-006** — install a read fill as E when the response says the line is not shared (IsShared = 0); today every fill is S and a load-then-store line pays an upgrade (riscv-ip/peregrine-rv32im TASK-001 stage 4).
+- **TASK-007** — close amber's CPU-side paths on Artix-7: `amber_top` alone misses 10 ns by 4.05 ns on xc7a100t-1 and limits peregrine to 18.5 ns; measured paths recorded, not scheduled (riscv-ip/peregrine-rv32im TASK-001 stage 7).
 
 ## Active
 
