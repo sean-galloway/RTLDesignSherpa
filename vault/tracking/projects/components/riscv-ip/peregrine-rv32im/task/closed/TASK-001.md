@@ -1,7 +1,7 @@
 # TASK-001: peregrine RV32IM core -- RTL, DV and targeted formal per PRD 0.2
 
 **Priority:** P2
-**Status:** ACTIVE (2026-11-24; stages 1-3 and 6 done)
+**Status:** CLOSED 2026-11-25 (stages 1-7 done)
 **Owner:** TBD (owner, 2026-11-23: "accept defaults on the rest, commit and
 push", ruling PRD P5-P14)
 
@@ -695,3 +695,182 @@ PeakRDL config CSRs, so there are no config false paths to add. PRD P14
 records the period. amber's limiting paths are filed as
 cache-ip/amber-mesi-l1 TASK-007 (open, not scheduled). Stage 7 is done;
 stage 5 (formal) is what remains of this task.
+
+## Stage 5: targeted formal, P12 (done 2026-11-25)
+
+Owner, 2026-11-25: "start stage 5". Four SymbiYosys units under
+`formal/peregrine/`, all BMC (not induction), all on sv2v flats that are
+rebuilt every run and not committed (riscv-formal's precedent). Tool:
+oss-cad-suite yosys 0.62+95, `smtbmc bitwuzla`.
+
+**Owner decisions (2026-11-25), on the two places full scope was not
+tractable:**
+1. riscv-formal divide/remainder insn checks run at depth 15, the
+   early-out path only (owner: "Depth 15, documented").
+2. The M-unit reference proof (PRD §5 third property) is the bounded
+   operand domain plus the simulation arithmetic (owner: "Bounded proof +
+   sim").
+
+### riscv-formal on `CACHE_EN=0` (`formal/peregrine/riscv-formal`)
+
+Shaped like merlin's. `formal_peregrine.sv` wraps `peregrine_core`
+(CACHE_EN=0, BP_EN=1 at P5 sizes); imem/dmem data free; `mem_wait` free,
+at most two consecutive wait cycles (merlin's bound, keeps liveness
+meaningful); interrupt lines tied low (rvfi_intr is not reported; the
+directed suite owns interrupts, P12). Traps are NOT excluded: ecall,
+ebreak, illegal, misaligned target/access trap to mtvec and retire as trap
+beats, which pc_fwd / pc_bwd / reg check like any other. The BTB and BHT
+start with whatever the solver picks, so every check also says the
+predictor never changes an architectural result. Unused rs1/rs2 are
+masked by a positive opcode list. Two suites: `checks.cfg` (MUL_DSP=0) and
+`checks_dsp.cfg` (MUL_DSP=1, `PEREGRINE_MUL_DSP`).
+
+- **M extension under `RISCV_FORMAL_ALTOPS`.** The solver cannot prove a
+  32-step shift-add against a 32-bit `*`, so `peregrine_mdu` gains an
+  `ifdef RISCV_FORMAL_ALTOPS` result path (riscv-formal's stand-in
+  `(rs1 +/- rs2) ^ constant`, picorv32's convention), defined only at sv2v
+  time by this unit's Makefile. Control and timing are unchanged. The
+  default build is untouched (lint clean; FULL below).
+- **Checks:** 45 insn (the rv32im list) + reg, pc_fwd, pc_bwd, causal,
+  liveness, unique, ill = 52 per suite. No CSR checks: the core has no
+  `rvfi_csr_*` ports (adding them is an RTL change), and CSR behaviour is
+  spike lockstep's (rv32mi) plus core_props below.
+- **Depths** (measured): insn 15; iterative multiply insn 45 (a 33-cycle
+  multiply cannot retire before cycle 41-42: depth 40 is PREUNSAT, a
+  mutant fails at 42); reg 16 (4 s at 12, 56 s at 16, over 15 min at 20;
+  merlin runs 10); pc_fwd / pc_bwd / causal 20; liveness trigger 10, check
+  60 (past a 33-cycle M hold); unique 10 / 30; ill 15. riscv-formal makes
+  an unreachable insn check an ERROR (PREUNSAT), so no insn check passes
+  vacuously.
+- **Divide/remainder at depth 15 (owner decision 1).** At 45 the four
+  divide checks were unsolved after 50 min wall (30+ min on step 45 alone):
+  the divide early-out (by zero, -2^31 / -1) lets ~40 cycles of arbitrary
+  history precede the checked divide, which is the reg-at-depth-40 problem.
+  At 15 each passes in 17-20 s and checks the early-out path; a mutated
+  ALTOPS divide constant fails at 15 in 5 s. **Gap, recorded:** no insn
+  check retires a full 32-step divide. That path is covered by the
+  multiply insn checks at 45, which share its busy / count / done /
+  consume control; by the bounded mdu_ref proof (its arithmetic); and by
+  simulation (rv32um, arch-test M).
+- **Results:** `checks` 52/52 PASS (209 s wall, -j48), `checks_dsp` 52/52
+  PASS (184 s). causal can only fail with more than one retire channel; it
+  runs because it is cheap.
+- **Mutants** (on a copy of the flat, scratchpad): caught -- regfile write
+  by a bubble (reg), branch/JAL target compare ignored (pc_fwd), trap
+  redirect to mtvec+4 (pc_fwd), M operand reported unlatched (insn_mul),
+  M result consumed under wait (reg), EX/MEM forward arm swapped (reg),
+  rvfi_valid not gated by mem_wait (pc_fwd), order not counting trap beats
+  (unique), a divide that never finishes (liveness), ALTOPS mul constant
+  (insn_mul). Not caught, both explained: regfile write gate without
+  `~mem_wait` (equivalent: the held write is overwritten in the retire
+  cycle before any consumer samples, all of which wait for `~mem_wait`);
+  JALR guess check without the `+1` term (architecturally invisible: a
+  spurious mispredict redirects to the correct target) -- caught by
+  core_props' mispredict-flag property. pc_bwd also passes the target
+  mutant (pc_fwd catches it).
+
+### Targeted properties (PRD §5)
+
+The PRD names three: exception precision, mispredict recovery, M results
+equal to a reference function. Mispredict recovery's RVFI half (no
+wrong-path instruction retires) is riscv-formal's pc_fwd / pc_bwd above,
+with the predictor live and unconstrained; the rest is below.
+
+**`formal/peregrine/core_props`** -- `peregrine_core_props.svh` spliced
+into `peregrine_core` (FLAT_SPLICE; no RTL assertions). CACHE_EN=0,
+BP_EN=1 at BTB 4 / BHT 8, every input free including the three interrupt
+lines and `mem_wait`. 22 asserts:
+- the predictor training rule (stage 3), which riscv-formal cannot see:
+  a shadow queue of updates (`ex_leaves`) against retires -- one update
+  per retire, same PC, in order, at most two past EX; for a non-trapping
+  branch/JAL/JALR the recorded outcome is the architectural one; the
+  retire-time mispredict flag is "guess != outcome";
+- commit precision (exception precision, and the memory half of wrong-path
+  recovery): every data write, CSR write and trap entry in MEM is followed
+  by the retire of the instruction that made it (non-trapping store with
+  the same address/strobes/data; CSR instruction naming that CSR; trap
+  beat from that PC), and every such retire made exactly one; every
+  regfile write is the retiring instruction's rd write.
+- Results: cover 11/11 by step 13 (6 s); prove depth 20 PASS, 430 s. Depth
+  is a time budget (step 21 alone took over 9 min, 22 over 20): deepest
+  cover + 7.
+- Mutants, 10/10 caught: predictor written under mem_wait, under an M
+  hold, for an instruction killed in EX; mispredict flag without the
+  target term; JALR `+1` dropped; CSR write and store not gated by an
+  interrupt in MEM; regfile write for a trap beat; EX not flushed by a MEM
+  trap.
+
+**`formal/peregrine/top_props`** -- `peregrine_top_props.svh` spliced into
+`peregrine_top`, plus the fetch property in the harness. amber's filelist
+is excluded (FLAT_EXCLUDE) and the harness supplies an `amber_top` stub with
+amber's CPU-port contract: blocking, ready free, each accept answered at
+least a cycle later, and a FREE response beat on every cycle (so a held
+response cannot hide a late read -- the stage-7 S2/S3 lesson, by
+construction). The fabric slave takes one read and one write at a time,
+INCR bursts with correct RID/RLAST. Interrupts free; I$ 64 B / 16 B lines,
+BTB 2 / BHT 2 (every cover in by step 21; at 32 B lines it was 28, and the
+cost doubles per step).
+- D side: a shadow queue of accepts (`w_dhs`): every memory retire was
+  accepted exactly once, same address and direction, and a load retires
+  with the word its target answered (amber's beat lane-selected here from
+  the accepted address, not through the wrapper's mux).
+- Fetch: anyconst address X holds anyconst word V in the fabric ROM; every
+  retire from X carries V.
+- Results: cover 9/9 by step 21 (21 s); prove depth 28 PASS, 1531 s.
+- Mutants, 8/8 caught: S2 (MEM's early response not handed to WB) and S3
+  (captured as WB's) -- the two stage-7 simulation survivors -- D3 (lane
+  not selected), an access re-issued after an accept under a hold, I$
+  replay reading the next PC, read registers ignoring the hold, replay
+  read not enabled, tag compare dropped.
+
+**`formal/peregrine/mdu_ref`** -- `peregrine_mdu` standalone against the
+M-extension reference (spec values, divide by zero and -2^31 / -1
+included), one BMC task per operation, depth 40 (results at step 35).
+- **Bounded operand domain (owner decision 2).** Full width is not
+  tractable: all eight operations sat on step 35 (the first step a
+  result exists) for 7.5 min with no result, and a full-width mul run
+  then sat on step 35 for 59 min before it was stopped.
+  With `FSMALL` each operand's upper 24 bits are one of 0x000000,
+  0xFFFFFF, 0x800000, 0x7FFFFF and its low byte is free (2^10 values per
+  operand): small positive and negative values, values near +/-2^31 and
+  2^32, and the divide corners. All 32 steps, every sign case, the
+  high-word select, the negate-with-carry and both early-outs are reached.
+  Full-width arithmetic stays simulation's (test_peregrine_mdu, rv32um,
+  arch-test M). Not tried: a width-parameterised MDU (an RTL change) or
+  step-invariant k-induction.
+- Results (bounded, depth 40): divu 957 s, div 1176 s, rem 1231 s,
+  remu 1559 s, mul 2592 s, mulhu 2952 s, all PASS. **mulh and mulhsu did
+  not finish in the 50-min cap** (mulh reached step 38, mulhsu step 37;
+  steps below that passed, but no result is possible before 35, so these
+  two are BMC through step 37 only, i.e. their results are proved for
+  starts up to two cycles after the earliest; recorded as a known limit of
+  decision 2). Covers: a
+  full 32-step result at step 35 (mul and div), an early-out at step 3.
+- Mutants: 5 caught (negate carry, divide-by-zero result, overflow
+  remainder, mulhsu sign of rs2, quotient bit); 1 equivalent (restoring
+  test on borrow bit 32 instead of 33: the two are always equal, as the
+  RTL comment says).
+
+### Gates and files
+
+- peregrine FULL, clean-all, 0 reruns: 88/88, seed base 489778646 (after
+  the ALTOPS edit).
+- The only RTL edit is the `ifdef RISCV_FORMAL_ALTOPS` block in
+  `peregrine_mdu.sv`; nothing shared was edited. `formal/checks` and
+  `formal/insns` are rebuilt by every riscv-formal Makefile the same way:
+  do not run two cores' suites at once. Rerun after this unit's suites:
+  merlin 42/42 (4 s), kestrel 42/42 (2 s), gatling 42/42 (793 s, most of
+  it gatling's own reg check).
+- Not wired into `formal/Makefile` / README / FORMAL_TODO: kestrel, merlin
+  and gatling are not either.
+
+## Closed (2026-11-25)
+
+All seven stages are done and gated: stages 1-4 and 6-7 pushed through
+10d03bb67, stage 5 in 2d5757c2d. Carried out of this task, not part of it:
+- the P14 clock is 18.5 ns (54.1 MHz); amber's limiting paths are
+  cache-ip/amber-mesi-l1 TASK-007 (open);
+- the fill-as-E upgrade cost is cache-ip/amber-mesi-l1 TASK-006 (open);
+- M instructions are not interruptible: riscv-ip/peregrine-rv32im
+  ISSUE-001 (open);
+- the documentation and book deliverables are not filed yet.

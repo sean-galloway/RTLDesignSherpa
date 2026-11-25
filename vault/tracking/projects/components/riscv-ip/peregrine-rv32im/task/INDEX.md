@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,8 +24,8 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-001** — peregrine RV32IM core: RTL, DV and targeted formal per PRD 0.2 (staged: traps cacheless, M unit, predictor, caches + fabric). Stage 1 (traps, cacheless) done 2026-11-23; stage 2 (M unit, hold-in-EX) done 2026-11-24; stage 3 (predictor) done 2026-11-24; stage 6 (amber hit latency, P13) measured 2026-11-24: 4 cycles; P13 option (b) chosen, amber pipelined hit path filed as cache-ip/amber-mesi-l1 TASK-005.
+(none)
 
 ## Closed
 
-(none)
+- **TASK-001** — peregrine RV32IM core: RTL, DV and targeted formal per PRD 0.2. Closed 2026-11-25: all seven stages done; amber is the D$, 18.5 ns (54.1 MHz) on xc7a100t-1, riscv-formal 52/52 on both `MUL_DSP` builds, targeted core/top properties, a bounded M-unit reference proof.
