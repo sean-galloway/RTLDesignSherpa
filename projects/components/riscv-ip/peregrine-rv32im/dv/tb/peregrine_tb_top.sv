@@ -154,6 +154,8 @@ module peregrine_tb_top #(
         .dmem_rdata     (dmem_rdata),
         .dmem_wstrb     (dmem_wstrb),
         .dmem_wdata     (dmem_wdata),
+        .dmem_req_pre   (),
+        .fencei_req     (),
         .irq_software   (irq_software),
         .irq_timer      (irq_timer),
         .irq_external   (irq_external),

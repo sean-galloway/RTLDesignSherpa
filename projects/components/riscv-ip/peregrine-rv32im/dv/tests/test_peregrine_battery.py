@@ -51,8 +51,11 @@ async def _battery(dut, suite):
     repo_root = os.environ.get("REPO_ROOT", str(Path(__file__).resolve().parents[6]))
     level = os.environ.get("TEST_LEVEL", "func")
     dsp = "_dsp" if os.environ.get("MUL_DSP", "0") == "1" else ""
+    # Per level: the gate/func/full cells of one suite run in parallel and
+    # would otherwise overwrite each other's spike logs (measured: a FULL
+    # run's rv32um div failed lockstep on a log the func cell rewrote).
     work_dir = os.path.join(os.path.dirname(os.environ.get("LOG_PATH", ".")),
-                            f"{suite}{dsp}_battery")
+                            f"{suite}{dsp}_battery_{level}")
     tb = PeregrineTB(dut, reset_addr=LINK_BASE)
     await tb.ensure_clock()
     await Battery(tb, repo_root, suite, SUITES[suite], level, work_dir).run()

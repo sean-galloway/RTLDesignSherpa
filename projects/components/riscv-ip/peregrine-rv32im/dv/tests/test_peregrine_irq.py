@@ -107,7 +107,8 @@ class IrqSource:
 async def cocotb_test_peregrine_irq(dut):
     """irq_basic.s: masking, priority, precise interrupts under load."""
     level = os.environ.get("TEST_LEVEL", "gate")
-    work_dir = Path(os.path.dirname(os.environ.get("LOG_PATH", "."))) / "irq"
+    # Per level: parallel cells must not assemble into the same files.
+    work_dir = Path(os.path.dirname(os.environ.get("LOG_PATH", "."))) / f"irq_{level}"
     elf = build_elf(work_dir)
     _, symbols = read_elf32(elf)
 

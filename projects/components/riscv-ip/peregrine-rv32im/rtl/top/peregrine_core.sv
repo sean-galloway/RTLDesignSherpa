@@ -11,7 +11,8 @@
 //          Stage 1 of riscv-ip/peregrine-rv32im TASK-001: the CSR file and
 //          precise traps on the cacheless build (PRD §4.3, P6, P12).
 //          Stage 2: the M unit (PRD §4.4, P3, P8).  Stage 3: the branch
-//          predictor (PRD §4.2, P2, P5).  The caches are a later stage.
+//          predictor (PRD §4.2, P2, P5).  Stage 4: CACHE_EN, fence.i and
+//          the D-side request contract for peregrine_top (PRD §4.5).
 //
 //          What is merlin's, unchanged: the pipeline registers, the
 //          forwarding unit (EX/MEM over MEM/WB, select computed in ID), the
@@ -85,6 +86,20 @@
 //   - BP_EN: 1 (default) BTB + 2-bit BHT prediction; 0 predict not taken
 //     (merlin's fetch), the PRD P5 A/B build.
 //   - BTB_ENTRIES, BHT_ENTRIES: predictor sizes (PRD P5: 32 and 256).
+//   - CACHE_EN: 0 (default) the cacheless build (PRD P12): fence.i is a
+//     no-op and the core is exactly the stage-3 core.  1 the cached build
+//     inside peregrine_top (TASK-001 stage 4):
+//     - fence.i in MEM raises fencei_req and waits (the wrapper holds
+//       mem_wait) while the wrapper cleans the D$ and invalidates the I$;
+//       then it commits like an ordinary instruction and redirects to
+//       pc + 4, flushing everything younger (it was fetched before the
+//       invalidate);
+//     - a load, store or fence.i that has presented its request to the
+//       memory side while mem_wait held is not interruptible on the cycle
+//       mem_wait drops (the interrupt goes to the next instruction).  The
+//       D-side request (dmem_req_pre) therefore never drops before its
+//       handshake, which the GAXI / AXI contract behind the wrapper
+//       requires.
 
 `timescale 1ns / 1ps
 
@@ -95,7 +110,8 @@ module peregrine_core #(
     parameter bit          MUL_DSP     = 1'b0,
     parameter bit          BP_EN       = 1'b1,
     parameter int          BTB_ENTRIES = 32,
-    parameter int          BHT_ENTRIES = 256
+    parameter int          BHT_ENTRIES = 256,
+    parameter bit          CACHE_EN    = 1'b0
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -108,6 +124,9 @@ module peregrine_core #(
     input  logic [31:0] dmem_rdata,
     output logic [3:0]  dmem_wstrb,
     output logic [31:0] dmem_wdata,
+    // CACHE_EN=1 only (peregrine_top); 0 when CACHE_EN=0.
+    output logic        dmem_req_pre,   // the MEM access, before the mem_wait gate
+    output logic        fencei_req,     // fence.i in MEM: clean D$, invalidate I$
     input  logic        irq_software,
     input  logic        irq_timer,
     input  logic        irq_external,
@@ -725,13 +744,41 @@ module peregrine_core #(
     assign mem_exc  = ex_mem_q.valid & (ex_mem_q.exc_cause != EXC_NONE);
     // An M instruction is not interruptible (see the header): its work is
     // done, and discarding it can starve it forever.
-    assign mem_irq  = ex_mem_q.valid & ~ex_mem_q.m_op & csr_irq_pending;
+    // CACHE_EN: not on the cycle after a hold in which this instruction
+    // presented a memory request (see the header).
+    logic        r_mem_irq_lock;
+    logic        mem_fencei_pend;
+    logic        mem_fencei;
+    logic        mem_ls_ok;
+
+    assign mem_irq  = ex_mem_q.valid & ~ex_mem_q.m_op & csr_irq_pending & ~r_mem_irq_lock;
     assign mem_trap = (mem_exc | mem_irq) & ~mem_wait;
     assign mem_mret = ex_mem_q.valid & ex_mem_q.mret & ~mem_exc & ~mem_irq & ~mem_wait;
     assign mem_csr_wen = ex_mem_q.valid & ex_mem_q.csr_wen & ~mem_exc & ~mem_irq & ~mem_wait;
 
-    assign mem_redirect    = mem_trap | mem_mret;
-    assign mem_redirect_pc = mem_trap ? csr_mtvec : csr_mepc;
+    // fence.i (CACHE_EN): held in MEM by the wrapper until the D$ clean and
+    // the I$ invalidate are done, then a redirect to the next instruction.
+    assign mem_fencei_pend = CACHE_EN & ex_mem_q.valid & ~mem_exc & ~mem_irq &
+                             (ex_mem_q.insn[6:0] == 7'b0001111) &
+                             (ex_mem_q.insn[14:12] == 3'b001);
+    assign mem_fencei      = mem_fencei_pend & ~mem_wait;
+    assign fencei_req      = mem_fencei_pend;
+
+    if (CACHE_EN) begin : g_irq_lock
+        `ALWAYS_FF_RST(clk, w_aresetn,
+            if (`RST_ASSERTED(w_aresetn)) begin
+                r_mem_irq_lock <= 1'b0;
+            end else begin
+                r_mem_irq_lock <= mem_wait & (r_mem_irq_lock | mem_ls_ok | mem_fencei_pend);
+            end
+        )
+    end else begin : g_no_irq_lock
+        assign r_mem_irq_lock = 1'b0;
+    end
+
+    assign mem_redirect    = mem_trap | mem_mret | mem_fencei;
+    assign mem_redirect_pc = mem_trap ? csr_mtvec :
+                             mem_mret ? csr_mepc  : ex_mem_q.next_pc;
 
     // mcause and mtval.  An interrupt wins: the instruction never executed.
     always_comb begin
@@ -793,7 +840,6 @@ module peregrine_core #(
     // Data access: only for an instruction that commits here.
     logic [1:0]  mem_ls_offset;
     logic [3:0]  mem_ls_size_mask;
-    logic        mem_ls_ok;
 
     assign mem_ls_offset = ex_mem_q.alu_y[1:0];
 
@@ -807,6 +853,7 @@ module peregrine_core #(
 
     assign mem_ls_ok  = ex_mem_q.dmem_req & ex_mem_q.valid & ~mem_exc & ~mem_irq;
     assign dmem_req   = mem_ls_ok & ~mem_wait;
+    assign dmem_req_pre = CACHE_EN & mem_ls_ok;
     assign dmem_addr  = {ex_mem_q.alu_y[31:2], 2'b00};
     assign dmem_wdata = ex_mem_q.store_data << {mem_ls_offset, 3'b000};
     assign dmem_wstrb = (ex_mem_q.dmem_we & mem_ls_ok) ? (mem_ls_size_mask << mem_ls_offset)

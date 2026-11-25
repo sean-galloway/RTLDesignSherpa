@@ -8,3 +8,4 @@
 -f $PEREGRINE_ROOT/rtl/filelists/peregrine_pkg.f
 -f $PEREGRINE_ROOT/rtl/filelists/fub/peregrine_fubs.f
 -f $PEREGRINE_ROOT/rtl/filelists/top/peregrine_core.f
+-f $PEREGRINE_ROOT/rtl/filelists/top/peregrine_top.f

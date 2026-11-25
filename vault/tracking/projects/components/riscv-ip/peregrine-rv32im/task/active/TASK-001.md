@@ -311,5 +311,141 @@ Owner, 2026-11-24: "Push and continue".
   left at 10 ns (amber OOC, 0 ns I/O delay): +2.60 ns in front of the
   request (peregrine's address ALU), +2.27 ns after `cpu_rsp_rd_data`.
 
-Next: stage 4, the caches and fabric, which depends on cache-ip/amber-mesi-l1
-TASK-004 (`fence.i`); TASK-005 (hit path) is done.
+## Stage 4: caches and fabric (in progress 2026-11-24)
+
+Owner, 2026-11-24: "start amber TASK-004, then stage 4". amber TASK-004
+(the CPU-side clean-all) runs in parallel in cache-ip; this pass builds
+everything in stage 4 that does not need it, with the D$ slot stubbed.
+
+- **Blocks (all new, peregrine `rtl/`, each with a `.f`):**
+  - `peregrine_icache` (P9): direct-mapped 4 KiB, 64 B lines, read-only,
+    one AXI4 read master (whole-line INCR burst, one replay cycle), an
+    invalidate-all (`inv_req` / `inv_ack`, taken between refills). The
+    hit test runs on the registered PC (valid flops, tag LUTRAM); the
+    data RAM is sync-read at `imem_addr_next`. Nothing to reuse in the
+    tree: no other core here has an I$.
+  - `peregrine_axi4_arb` (P7): 3 masters (I$, D$, uncached) onto one
+    fabric port. AR and AW each use `arbiter_round_robin` (rtl/common) in
+    ACK mode; R and B route by an id prefix (fabric id = {master, id});
+    W follows AW by serializing writes (an AW grant blocks the next one
+    until wlast), so no W-order FIFO. No N:1 AXI4 merge exists in rtl/amba
+    (only the vendored pulp `axi_mux`).
+  - `peregrine_clint` (P7): msip / mtimecmp / mtime at the SiFive offsets,
+    1-cycle register port, `MTIME_DIV`, registered `irq_timer`.
+  - `peregrine_uc_axi`: one 32-bit load or store at a time as a
+    single-beat AXI4 transaction; stores wait for B (not posted).
+  - `peregrine_top`: the cached build: core at `CACHE_EN=1`, the I$ on
+    the fetch path, the D-side decode and handshake, the CLINT, the
+    uncached port, the arbiter.
+- **Core (`peregrine_core`, new parameter `CACHE_EN`, default 0).** At 0
+  the core is the stage-3 core: fence.i is a no-op, the two new outputs
+  (`dmem_req_pre`, `fencei_req`) are 0, the interrupt lock is a constant
+  0. The cacheless suite (`peregrine_tb_top`) is unchanged and green. At 1:
+  - fence.i raises `fencei_req` in MEM and waits under the wrapper's
+    `mem_wait` while the wrapper cleans the D$ and invalidates the I$;
+    then it commits and redirects to pc + 4, flushing everything younger.
+  - a load, store or fence.i that presented its request during a hold is
+    not interruptible on the cycle the hold drops, so the D-side request
+    never falls before its handshake (the GAXI rule amber's port needs).
+- **D-side shape: loads stay in MEM (revises the stage-6 note above).**
+  The stage-6 note said a load issues from EX with its data in MEM. Built
+  instead: every load and store issues in MEM from the EX/MEM register and
+  takes its data in WB, the stage-1 registered-read contract unchanged.
+  amber's 1-cycle hit fits it exactly (accepted in MEM, the response
+  valid in WB), with no added stall and the same load-use bubble as
+  today. Issuing from EX would buy nothing and put peregrine's ALU in
+  front of amber's tag LUTRAM and compare (the +2.60 ns budget). The
+  request address is a flop.
+- **Address map (P7), one deviation.** CLINT 0x0200_0000-0x0200_FFFF;
+  uncached I/O 0x1000_0000-0x1FFF_FFFF; everything else RAM (cacheable).
+  The PRD says "0x1000_0000 and up" for I/O; bounded here because the
+  riscv-tests and arch-test images link at 0x8000_0000 (battery
+  `LINK_BASE`) and must be cacheable. **For the owner:** amend P7 or move
+  the images.
+- **Stubbed until amber (marked `TODO(TASK-004)` in `peregrine_top`).**
+  - The D$: the cacheable window goes through the uncached port; arbiter
+    port 1 is idle. amber's `m_axi` read/write masters go on port 1, its
+    snoop port tied idle, its CPU GAXI port on the D-side handshake
+    (valid/ready request, response the next cycle on a hit).
+  - The fence.i D$ clean: done the cycle it is asked (the stub has no
+    dirty line). Expected from TASK-004: a clean-all op on amber's GAXI
+    request, answered after the last write-back's B; the wrapper
+    sequence is already clean, then invalidate, then release.
+- **Test hook.** `peregrine_top` has `tb_irq_software` / `tb_irq_timer`,
+  ORed into the CLINT's; systems tie them 0. It lets the stage-1
+  pin-driven interrupt suite run on the cached build.
+- **Tests (Pattern B, gate/func/full).**
+  - `test_peregrine_icache`: directed phases with exact refill counts
+    (cold sweep 64, warm 0, conflict 16 of 16, invalidate 64 again, an
+    invalidate raised mid-refill acked only after it), then a random
+    stream on a slow memory; every fetched word checked against the AXI4
+    slave BFM's MemoryModel. The first monitor sampled after the rising
+    edge and counted 0 refills while every word checked; it now samples
+    mid-cycle.
+  - `test_peregrine_axi4_arb` (harness `peregrine_axi4_arb_th`): three
+    house AXI4 masters, one house AXI4 slave; at func a slow fabric with
+    out-of-order, beat-interleaved R. Every read checked against its
+    master's model; a monitor checks R/B routing by id and W order.
+  - `test_peregrine_clint`: against a cycle model, `MTIME_DIV` 1 and 3.
+  - `test_peregrine_sys` (`peregrine_sys_tb_top`: `peregrine_top` on a
+    behavioral AXI4 memory, the same port list as `peregrine_tb_top`):
+    rv32ui (with `fence_i`), rv32um, rv32mi with spike lockstep at func;
+    a 15% random memory-stall soak; `irq_basic.s` (pin-driven) and the new
+    `clint_basic.s` (CLINT timer and software interrupts, mip.MTIP, and
+    fence.i over a store to .text). `PeregrineSysTB` stops on the tohost
+    store's retire (the cacheless TB's fixed 4-cycle window counted one
+    extra loop store on the cached build) and checks the D-side request
+    contract.
+  - **Known gap:** with the stub D$, the D-side request never waits (the
+    uncached port is always idle when the wrapper presents one), so the
+    contract monitor saw 0 waiting cycles and the interrupt lock is not
+    exercised. Both become live with amber (write hits hold ready one
+    cycle, misses many).
+- **Timing paths created (stage 7 to measure):**
+  - fetch: PC flop -> I$ tag LUTRAM -> compare -> `stall` -> `mem_wait` ->
+    the core's `pc_d` mux -> the I$ data RAM read address. The longest new
+    path; the RAM address mux is also fed by the EX redirect and the
+    predictor.
+  - D side: EX/MEM `alu_y` (a flop) -> decode -> amber's tag LUTRAM and
+    compare (amber's +2.60 ns input budget is for this, and the address
+    no longer comes through the ALU).
+  - D ready (amber `cpu_req_wr_ready`, registers only) -> `mem_wait` ->
+    every pipeline enable, and the `pc_d` mux into the I$ RAM address.
+  - response data (amber RAM out -> `cpu_rsp_rd_data`, +2.27 ns) -> the
+    wrapper's capture mux -> WB load align -> the regfile write and the
+    WB->EX forward.
+- **Mutation pass (14 mutants).** 13 caught after one round of test
+  fixes; the first round left four alive, three of them test gaps:
+  - *no replay cycle after a refill*: only a word on a line's LAST beat
+    needs the replay, and every directed refill started at beat 0. Added
+    the "last-beat miss" phase.
+  - *no response capture while the core holds*: hidden because the
+    uncached port held `rsp_rdata` until its next response. amber's
+    response data does not hold, so the port now drives 0 outside the
+    `rsp_valid` cycle (registered, no path cost); rv32ui `lw`/`sw` then
+    catch it.
+  - *fence.i does not redirect*: both fence.i tests ran the patched code
+    behind a jump, fetched after the invalidate anyway. `clint_basic.s`
+    test 6 patches the instruction right after fence.i.
+  - *interrupt lock removed*: survives, as expected (the known gap above:
+    the stub D$ never makes a request wait).
+  Caught as written: invalidate not clearing valid, tag not compared, AW
+  granted while W is owed, R to master 0, B routed by grant, timer `>`,
+  mtime write vs tick, store strobes on lane 0, request accepted while
+  held, fence.i skipping the invalidate.
+- **Results (2026-11-24, clean-all, 0 reruns).** Area FUNC 47/47 twice,
+  seed bases 4106925726 and 1943782932 (the second after the test fixes):
+  the cacheless suite unchanged, plus icache, axi4_arb, clint x2, sys x5,
+  each at gate and func. Area FULL 70/70, seed base 2540653139.
+  The first FULL run (seed base 146514292) failed one cacheless cell, battery
+  rv32um `div` at full: "lockstep: no spike commit at the ELF entry". Not
+  the RTL: the battery's work directory was per suite, not per level, so
+  the func and full cells (running in parallel) wrote the same
+  `spike_rv32um_div.log` and the full cell parsed the func cell's
+  half-written log. `test_peregrine_battery`, `test_peregrine_irq` and
+  `test_peregrine_sys` now put the level in the work directory (mext and
+  arch already did); the FULL rerun above is clean.
+
+Next: wire amber into the D$ slot when cache-ip/amber-mesi-l1 TASK-004
+lands (the clean-all op), then the stage-4 gate at `CACHE_EN=1` with amber:
+the batteries, `Zifencei` in arch-test, the interrupt suite.
