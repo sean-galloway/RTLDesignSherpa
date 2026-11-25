@@ -228,7 +228,47 @@ module peregrine_mdu #(
     assign w_word  = r_sel_hi ? r_acc[63:32] : r_acc[31:0];
     // Negating the 64-bit product: the high word gets the low word's carry.
     assign w_carry = (~r_is_div & r_sel_hi) ? (r_acc[31:0] == 32'd0) : 1'b1;
+`ifdef RISCV_FORMAL_ALTOPS
+    // riscv-formal's alternative M operations (formal/peregrine/riscv-formal,
+    // TASK-001 stage 5): the solver cannot prove a 32-step shift-add or
+    // shift-subtract against a 32-bit `*` or `/`, so under this define the
+    // unit returns riscv-formal's stand-in function of the same operands
+    // instead -- (rs1 +/- rs2) ^ a per-operation constant, the values in
+    // vendor/riscv-formal/insns/insn_<op>.v.  The control (start, the step
+    // count, the early-out, cancel, done, consume) is unchanged, so the
+    // proofs still see the real hold-in-EX timing.  The real arithmetic is
+    // verified in simulation (test_peregrine_mdu, rv32um, arch-test M).
+    // Never defined in a simulation or synthesis build.
+    logic [31:0] r_alt_a;
+    logic [31:0] r_alt_b;
+    logic [2:0]  r_alt_f3;
+    logic [31:0] w_alt;
+
+    always_ff @(posedge clk) begin
+        if (~r_busy & ~r_done) begin
+            r_alt_a  <= a;
+            r_alt_b  <= b;
+            r_alt_f3 <= funct3;
+        end
+    end
+
+    always_comb begin
+        unique case (r_alt_f3)
+            3'b000:  w_alt = (r_alt_a + r_alt_b) ^ 32'h5876_063e;   // mul
+            3'b001:  w_alt = (r_alt_a + r_alt_b) ^ 32'hf658_3fb7;   // mulh
+            3'b010:  w_alt = (r_alt_a - r_alt_b) ^ 32'hecfb_e137;   // mulhsu
+            3'b011:  w_alt = (r_alt_a + r_alt_b) ^ 32'h949c_e5e8;   // mulhu
+            3'b100:  w_alt = (r_alt_a - r_alt_b) ^ 32'h7f85_29ec;   // div
+            3'b101:  w_alt = (r_alt_a - r_alt_b) ^ 32'h10e8_fd70;   // divu
+            3'b110:  w_alt = (r_alt_a - r_alt_b) ^ 32'h8da6_8fa5;   // rem
+            default: w_alt = (r_alt_a - r_alt_b) ^ 32'h3138_d0e1;   // remu
+        endcase
+    end
+
+    assign result  = w_alt;
+`else
     assign result  = r_neg ? (~w_word + {31'd0, w_carry}) : w_word;
+`endif
 
     assign idle = ~r_busy & ~r_done;
     assign done = r_done;

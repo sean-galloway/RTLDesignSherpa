@@ -1,0 +1,9 @@
+# Generated riscv-formal task dirs — regenerate with `make checks` in this
+# directory.  genchecks.py owns checks/ (it rmtrees and rewrites it), so
+# nothing inside is committed.  The sv2v flat is built here, OUTSIDE checks/
+# (a flat inside it was deleted by genchecks before sby ran), and is not
+# committed either: `make checks` rebuilds it every run.
+/checks/
+/checks_dsp/
+/*_flat.v
+/.flat_build/

@@ -1,0 +1,25 @@
+# peregrine_top properties (TASK-001 stage 5): the D-side wrapper contract
+# (spliced) and the fetch property (harness).  BMC (not induction) to the
+# depth below; cover reaches every event the properties are about.  See
+# TASK-001 stage 5 for the depth and the mutation results.
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 28
+cover: mode cover
+cover: depth 28
+
+[engines]
+smtbmc bitwuzla
+
+[script]
+read_verilog -formal peregrine_top_props_flat.v
+read -formal -sv formal_peregrine_top.sv
+prep -flatten -nordff -top formal_peregrine_top
+
+[files]
+formal_peregrine_top.sv
+peregrine_top_props_flat.v

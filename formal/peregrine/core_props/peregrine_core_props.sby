@@ -1,0 +1,25 @@
+# peregrine_core spliced properties (TASK-001 stage 5): the predictor
+# training rule.  BMC (not induction) to the depth below; cover reaches every
+# event the rule is about.  See TASK-001 stage 5 for the depth and the
+# mutation results.
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 20
+
+[engines]
+smtbmc bitwuzla
+
+[script]
+read_verilog -formal peregrine_core_props_flat.v
+read -formal -sv formal_peregrine_core.sv
+prep -flatten -nordff -top formal_peregrine_core
+
+[files]
+formal_peregrine_core.sv
+peregrine_core_props_flat.v

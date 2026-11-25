@@ -1,0 +1,50 @@
+# peregrine_mdu against the M-extension reference (TASK-001 stage 5).
+# One BMC task per operation (funct3 fixed), on the FSMALL operand domain
+# (see the harness: the full-width proof is not tractable); the depth
+# covers reset, start, 32 steps and done.  See TASK-001 stage 5 for the depths, run times and
+# mutation results.
+[tasks]
+mul
+mulh
+mulhsu
+mulhu
+div
+divu
+rem
+remu
+cover
+cover_mul
+
+[options]
+mul: mode bmc
+mulh: mode bmc
+mulhsu: mode bmc
+mulhu: mode bmc
+div: mode bmc
+divu: mode bmc
+rem: mode bmc
+remu: mode bmc
+cover: mode cover
+cover_mul: mode cover
+depth 40
+
+[engines]
+smtbmc bitwuzla
+
+[script]
+read_verilog -formal peregrine_mdu_flat.v
+mul: read -formal -sv -DFSMALL -DFOP=3'b000 formal_peregrine_mdu.sv
+mulh: read -formal -sv -DFSMALL -DFOP=3'b001 formal_peregrine_mdu.sv
+mulhsu: read -formal -sv -DFSMALL -DFOP=3'b010 formal_peregrine_mdu.sv
+mulhu: read -formal -sv -DFSMALL -DFOP=3'b011 formal_peregrine_mdu.sv
+div: read -formal -sv -DFSMALL -DFOP=3'b100 formal_peregrine_mdu.sv
+divu: read -formal -sv -DFSMALL -DFOP=3'b101 formal_peregrine_mdu.sv
+rem: read -formal -sv -DFSMALL -DFOP=3'b110 formal_peregrine_mdu.sv
+remu: read -formal -sv -DFSMALL -DFOP=3'b111 formal_peregrine_mdu.sv
+cover: read -formal -sv -DFSMALL -DFOP=3'b100 formal_peregrine_mdu.sv
+cover_mul: read -formal -sv -DFSMALL -DFOP=3'b000 formal_peregrine_mdu.sv
+prep -flatten -nordff -top formal_peregrine_mdu
+
+[files]
+formal_peregrine_mdu.sv
+peregrine_mdu_flat.v

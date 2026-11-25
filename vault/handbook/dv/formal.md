@@ -751,3 +751,32 @@ chains them), or give each its own directory copy as the mutants have; the
 `-f` flag only clears the task's workdir, not the shared database.
 
 Case: onyx TASK-001 step 4 (`formal/onyx/onyx_ccu`).
+
+## Three traps from peregrine's formal (riscv-ip peregrine-rv32im TASK-001 stage 5, 2026-11-25)
+
+- **sv2v folds an `else` around labelled immediate asserts.** An
+  `if (c) begin p1: assert(...); end else begin p2: assert(...); end`
+  came out of sv2v with the `else` body merged into the first branch, so
+  `p2` was checked under `c`. Write two separate `if`s (`if (c)` and
+  `if (!c)`), and mutate each property to see it fail on its own.
+- **An iterative divider's early-out makes deep riscv-formal insn checks
+  intractable.** A 33-cycle multiply checked at depth 45 passed in about
+  50 s, but `insn_div` / `divu` / `rem` / `remu` at 45 were still on the
+  last step after 30+ minutes: the early-out lets about 40 cycles of
+  arbitrary history come before the checked divide, and the solver
+  explores all of it. peregrine runs them at depth 15 (the early-out path
+  only, owner decision) and covers the 32-step path through the multiply
+  checks that share its control, a bounded-operand reference proof
+  (`formal/peregrine/mdu_ref`) and simulation. A full-width shift-add
+  reference proof is out of reach too: it sat 59 minutes on the first
+  step a result exists. Bound the operands (fixed upper bits, free low
+  byte) and keep every step, sign case and early-out.
+- **A free response beat in a stub exposes "data read after valid" bugs
+  by construction.** peregrine's stage-7 bug that read amber's response a
+  cycle late passed every simulation, because amber holds its last word.
+  The formal stub for amber drives an unconstrained response beat on
+  every cycle, valid or not, so a late read sees arbitrary data and
+  fails at once (`formal/peregrine/top_props`, mutants S2, S3). In
+  simulation the same idea is a TB-only scrambler (`RSP_SCRAMBLE` in
+  `peregrine_sys_tb_top`). A model that is kinder than the spec hides
+  exactly the bugs the spec allows.

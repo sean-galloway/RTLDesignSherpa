@@ -1,0 +1,5 @@
+# The flat is rebuilt by every prove/cover run (FORCE in the Makefile);
+# sby task directories are outputs.
+/*_flat.v
+/.flat_build/
+/*_ref_*/

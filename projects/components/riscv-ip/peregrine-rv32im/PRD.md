@@ -337,10 +337,22 @@ the worked version, with measured miss rates replacing the assumed ones.
   - exception precision: no memory, regfile or CSR write by an
     instruction younger than a trapping one;
   - mispredict recovery: no instruction from the wrong path retires;
-  - M-unit results equal to a reference function.
+  - M-unit results equal to a reference function. As built (owner,
+    2026-11-25, "Bounded proof + sim"): a full-width proof of the 32-step
+    shift-add / shift-subtract against `*`, `/` and `%` is not tractable,
+    so the proof restricts each operand's upper 24 bits to 0x000000,
+    0xFFFFFF, 0x800000 or 0x7FFFFF with the low byte free (every step,
+    sign case, high-word select and early-out is still reached), and the
+    full-width arithmetic is simulation's (rv32um, arch-test M, the unit
+    test).
 
   Each property is mutation-checked. On `CACHE_EN=0`, merlin's
-  riscv-formal insn checks also run (P12).
+  riscv-formal insn checks also run (P12), with the M extension under
+  riscv-formal's ALTOPS stand-ins; the divide and remainder insn checks
+  reach only the early-out path (depth 15, owner 2026-11-25, "Depth 15,
+  documented"), and the full divide path is covered by the multiply
+  checks that share its control, by the bounded reference proof and by
+  simulation. TASK-001 stage 5 has the depths and results.
 - **Arch-test gate on the D$.** amber's own grids verify amber. peregrine
   verifies the integration: fill, eviction and `fence.i` under the
   batteries.
@@ -388,6 +400,11 @@ the worked version, with measured miss rates replacing the assumed ones.
 
 ## 8. History
 
+- 2026-11-25: TASK-001 stage 5 (targeted formal) done: riscv-formal 52/52
+  on `CACHE_EN=0` on both `MUL_DSP` builds, plus the predictor training
+  rule, commit precision, D-side and fetch integrity on `peregrine_top`,
+  and the M unit against a reference. §5 records the two owner scope
+  decisions (bounded M reference, divide insn checks at depth 15).
 - 2026-11-25: P14 amended (owner): the 100 MHz target is lowered rather
   than giving amber a 2-cycle hit or dropping the load forward. Stage 7
   phase 1 (no cycle-count change) took `peregrine_top` from -9.3 to -5.0 ns
