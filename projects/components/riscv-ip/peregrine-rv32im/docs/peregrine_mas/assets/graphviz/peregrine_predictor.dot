@@ -1,0 +1,46 @@
+// peregrine_predictor - MAS Figure 4.1 (peregrine_bpred in peregrine_core).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// The instruction and its guess flow DOWN the center: looked up in IF,
+// carried through IF/ID and ID/EX (ID adds the branch target and its
+// compare), resolved in EX. The update leaves EX downward into the two
+// tables at the bottom; the lookup's table reads climb back up (green).
+// The EX redirect to the PC mux is sideband (dashed). The boundary bar is
+// EX/MEM, which carries the prediction to RVFI.
+// Source of truth: rtl/top/peregrine_core.sv, rtl/fub/peregrine_bpred.sv.
+digraph peregrine_predictor {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="1.3", ranksep="0.6", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c,
+           label=<<B>Branch prediction: look up in IF, resolve in EX, write once as the instruction leaves EX (BP_EN=1)</B>>];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.14,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    pc      [group=C, label="PC register and next-PC mux\nperegrine_core\nfetches the guessed target next cycle", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.4];
+    lookup  [group=C, label="Lookup (combinational)\nperegrine_bpred - u_bpred\nhit = valid and tag match;\ntaken = uncond or counter[1]", width=4.4];
+    pipe    [group=C, label="IF/ID, then ID/EX\nperegrine_if_id, peregrine_id_ex\nguess rides with the instruction;\nID adds br_target, br_tgt_hit, jalr_x", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.4];
+    resolve [group=C, label="Resolve (combinational)\nperegrine_core\nex_taken, target check (no adder for JALR),\nex_mispredict; redirect if not held", width=4.4];
+    upd     [group=C, label="Update rule (combinational)\nperegrine_bpred - u_bpred\ninstall 01 / step / clear stale entry;\nenabled by ex_leaves", width=4.4];
+    btb     [label="BTB\n32 x {tag, target, uncond}\nLUTRAM + valid flops", shape=cylinder, fillcolor="#E8DFF5"];
+    bht     [label="BHT\n256 x 2-bit counter\nLUTRAM, no reset", shape=cylinder, fillcolor="#E8DFF5"];
+
+    bar     [label="EX/MEM (flopped): bp_pred_taken, bp_pred_target, bp_mispredict -> rvfi_bp_* at retire",
+             style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=9.0, height=0.5, fontsize=11];
+
+    pc      -> lookup  [xlabel="lookup PC", penwidth=1.8];
+    lookup  -> pipe    [xlabel="guess:\ntaken, target", penwidth=1.8];
+    pipe    -> resolve [xlabel="guess +\noperands", penwidth=1.8];
+    resolve -> upd     [xlabel="pc, outcome,\ntarget, guess"];
+    upd     -> btb     [xlabel="entry write /\nvalid clear"];
+    upd     -> bht     [xlabel="counter\nwrite"];
+    resolve -> bar     [xlabel="prediction\nobservation", penwidth=1.8];
+
+    lookup  -> btb     [dir=back, color="#1A7A1A", xlabel="entry"];
+    lookup  -> bht     [dir=back, color="#1A7A1A", xlabel="counter\n(conditional hit)"];
+
+    lookup  -> pc      [style=dashed, color="#777777", xlabel="taken:\nnext PC = target"];
+    pc      -> resolve [dir=back, style=dashed, color="#777777", xlabel="EX\nredirect"];
+
+    { rank=same; btb; bht; }
+    btb -> bar [style=invis]; bht -> bar [style=invis];
+}

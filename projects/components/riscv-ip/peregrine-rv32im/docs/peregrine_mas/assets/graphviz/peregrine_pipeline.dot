@@ -1,0 +1,73 @@
+// peregrine_pipeline - MAS Figure 1.1 (peregrine_core).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// The instruction flows DOWN the center column, stage by stage, through
+// the four pipeline registers. The memory ports are the boundary bar:
+// the fetch address leaves on the left lane and the instruction climbs
+// back into IF/ID; the data access leaves from MEM and the load word
+// climbs back into WB (green). Results forwarded back to EX and the
+// register write climb the right side (green). Redirects to the PC are
+// sideband on the left (dashed): the EX mispredict and the MEM commit.
+// Source of truth: rtl/top/peregrine_core.sv.
+digraph peregrine_pipeline {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="1.3", ranksep="0.6", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c,
+           label=<<B>peregrine_core - five stages, one instruction per stage, mem_wait holds every register</B>>];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.14,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    bp    [label="Branch predictor\nperegrine_bpred - u_bpred\nBTB 32 + BHT 256 (LUTRAM)", shape=cylinder, fillcolor="#E8DFF5"];
+    pc    [group=C, label="IF: PC register and next-PC mux\nperegrine_core\nMEM redirect > EX redirect > hold > guess > PC + 4", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.6];
+    ifid  [group=C, label="IF/ID\nperegrine_if_id - u_if_id\n{pc, insn, guess}", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.6];
+    id    [group=C, label="ID: decode, immediate, interlocks,\nforward selects, branch target + compare\nrv32i_decode, rv32i_imm_gen, peregrine_hazard", width=4.6];
+    rf    [label="Register file\nkestrel_regfile - u_regfile\n2 reads, 1 write, WB bypass", shape=cylinder, fillcolor="#E8DFF5"];
+    idex  [group=C, label="ID/EX\nperegrine_id_ex - u_id_ex", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.6];
+    ex    [group=C, label="EX: forward mux, ALU, branch resolve,\nmispredict, alignment checks\nrv32i_alu - u_alu", width=4.6];
+    mdu   [label="M unit\nperegrine_mdu - u_mdu\nholds the instruction in EX", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    csr   [label="CSR file\nperegrine_csr - u_csr\nread in EX, write in MEM", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    exmem [group=C, label="EX/MEM\nperegrine_ex_mem - u_ex_mem", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.6];
+    mem   [group=C, label="MEM: the commit point\ntrap, mret, fence.i, CSR write;\nthe data access is issued", width=4.6];
+    memwb [group=C, label="MEM/WB\nperegrine_mem_wb - u_mem_wb", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.6];
+    wb    [group=C, label="WB: load align, writeback mux,\nRVFI retire", width=4.6];
+
+    bar   [label="Data port (registered-read contract):  dmem_req, dmem_addr, dmem_wstrb, dmem_wdata -> dmem_rdata in the next cycle (WB)   |   mem_wait in (holds every register)",
+           style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=10.0, height=0.5, fontsize=11];
+
+    // ---- the instruction, top-down (center column, group C) ----
+    pc    -> ifid  [xlabel="pc, guess", penwidth=1.8];
+    ifid  -> id    [penwidth=1.8, xlabel="instruction"];
+    id    -> idex  [penwidth=1.8, xlabel="control,\noperands"];
+    idex  -> ex    [penwidth=1.8, xlabel="to EX"];
+    ex    -> exmem [penwidth=1.8, xlabel="result,\nnext pc"];
+    exmem -> mem   [penwidth=1.8, xlabel="to MEM"];
+    mem   -> memwb [penwidth=1.8, xlabel="commit\nrecord"];
+    memwb -> wb    [penwidth=1.8, xlabel="to WB"];
+
+    // ---- side units, one rank below the stage that uses them ----
+    bp    -> pc    [xlabel="guess"];
+    id    -> rf    [xlabel="rs1, rs2\nread"];
+    ex    -> mdu   [xlabel="M start,\noperands"];
+    ex    -> csr   [xlabel="CSR\nread"];
+
+    // ---- fetch: the instruction port, an interface of its own ----
+    imem  [label="Instruction port\nimem_addr_next -> imem_rdata\n(registered read; the I$ in peregrine_top)", style="rounded,filled", fillcolor="#E2EFDA"];
+    pc    -> imem  [xlabel="next PC"];
+    imem  -> ifid  [color="#1A7A1A", xlabel="instruction\nword"];
+
+    // ---- data: from MEM down, load word back up into WB ----
+    mem   -> bar   [xlabel="load / store"];
+    wb    -> bar   [dir=back, color="#1A7A1A", xlabel="load word"];
+
+    // ---- results climbing back ----
+    rf    -> wb    [dir=back, color="#1A7A1A", xlabel="register\nwrite"];
+
+    // ---- redirects (sideband) ----
+    pc    -> ex    [dir=back, style=dashed, color="#777777", xlabel="EX redirect\n(mispredict)"];
+    pc    -> mem   [dir=back, style=dashed, color="#777777", xlabel="MEM redirect\n(trap, mret,\nfence.i)"];
+
+    { rank=same; bp; pc; }
+    { rank=same; idex; rf; }
+    { rank=same; mdu; exmem; csr; }
+    mdu -> exmem [style=invis]; exmem -> csr [style=invis];
+}

@@ -1,0 +1,70 @@
+// peregrine_system_context - HAS Figure 2.1 (peregrine_top, the cached build).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Requests go DOWN: fetch on the left lane (core -> I$ -> arbiter), loads
+// and stores in the center (core -> D-side decode and hold -> one of three
+// targets). The arbiter is the many-to-one pick onto the single AXI4
+// fabric port, the boundary bar. Returns climb back UP in green: R and B
+// routed by id to the master that issued them, the load word to the
+// core's WB stage, the instruction word to IF. Interrupts, the hold and
+// the fence.i maintenance are sideband (dashed).
+// Source of truth: rtl/top/peregrine_top.sv.
+digraph peregrine_system_context {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="1.25", ranksep="1.0", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c,
+           label=<<B>peregrine_top - the cached build: one core, split L1s, one AXI4 fabric port (single clock)</B>>];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.14,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    irq   [label="External interrupt\nirq_external (comb)", style="rounded,filled", fillcolor="#E2EFDA"];
+    core  [label="Five-stage RV32IM core\nperegrine_core - u_core (CACHE_EN=1)\nIF / ID / EX / MEM / WB", shape=box, peripheries=2, fillcolor="#D6E4F0", width=13.5];
+    rvfi  [label="RVFI retire + observation\nrvfi_*, dobs_* (flopped)", style="rounded,filled", fillcolor="#E2EFDA"];
+
+    ic    [label="Instruction cache\nperegrine_icache - u_icache\n4 KiB direct-mapped, 64 B lines,\nread-only, refill sequencer", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.2];
+    dside [label="D-side decode, hold and capture\nperegrine_top\naddress map; one access in flight;\nresponse held while the core waits", shape=box, peripheries=2, fillcolor="#D6E4F0", width=9.0];
+
+    dc    [label="Data cache\namber_top - u_dcache\n32 KiB 4-way write-back,\nMAINT_EN=1 (clean-all)", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    clint [label="Core-local interruptor\nperegrine_clint - u_clint\nmsip, mtimecmp, mtime", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    uc    [label="Uncached port\nperegrine_uc_axi - u_uc\none single-beat transaction", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+
+    arb   [label="AXI4 arbiter\nperegrine_axi4_arb - u_arb", shape=invtrapezium, fillcolor="#FFF2CC", width=9.0, height=0.55];
+
+    bar   [label="AXI4 fabric master port (m_axi_*, id = {master, id})  -  flopped grant, single clock",
+           style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=12.0, height=0.5, fontsize=11];
+
+    // ---- requests, top-down ----
+    core  -> ic    [dir=back, color="#1A7A1A", xlabel="instruction\nword"];
+    core  -> ic    [xlabel="PC", penwidth=1.8];
+    core  -> dside [xlabel="load / store\n(from MEM)", penwidth=1.8];
+    dside -> dc    [xlabel="RAM:\nrequest"];
+    dside -> uc    [xlabel="I/O:\nrequest"];
+    dside -> clint [xlabel="CLINT:\nrequest"];
+    ic    -> arb   [xlabel="refill\nAR burst"];
+    dc    -> arb   [xlabel="fill, write-back\nAR, AW + W"];
+    uc    -> arb   [xlabel="single beat\nAR or AW + W"];
+    arb   -> bar   [xlabel="winner\n(AR, AW picked\nindependently)", penwidth=1.8];
+
+    // ---- returns, climbing (drawn down with dir=back) ----
+    core  -> rvfi  [xlabel="retire record"];
+    core  -> dside [dir=back, color="#1A7A1A", xlabel="   load word\n   (WB)"];
+    dside -> dc    [dir=back, color="#1A7A1A", xlabel="response"];
+    dside -> uc    [dir=back, color="#1A7A1A", xlabel="response"];
+    dside -> clint [dir=back, color="#1A7A1A", xlabel="response"];
+    ic    -> arb   [dir=back, color="#1A7A1A", xlabel="R"];
+    dc    -> arb   [dir=back, color="#1A7A1A", xlabel="R, B"];
+    uc    -> arb   [dir=back, color="#1A7A1A", xlabel="R, B"];
+    arb   -> bar   [dir=back, color="#1A7A1A", xlabel="R, B\n(routed by\nid prefix)"];
+
+    // ---- sideband ----
+    irq   -> core  [style=dashed, color="#777777", xlabel="MEI"];
+    clint -> core  [style=dashed, color="#777777", xlabel="MSI, MTI"];
+    core  -> dside [style=dashed, color="#777777", dir=back, xlabel="mem_wait\n(hold)"];
+    core  -> dside [style=dashed, color="#777777", xlabel="fence.i"];
+
+    { rank=same; irq; core; rvfi; }
+    { rank=same; ic; dside; }
+    { rank=same; dc; uc; clint; }
+    dc -> uc [style=invis]; uc -> clint [style=invis];
+    ic -> dside [style=invis];
+}

@@ -1,0 +1,49 @@
+// peregrine_traps - MAS Figure 4.2 (trap detection and commit in peregrine_core).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// The instruction and its exception code flow DOWN the center: decode's
+// cause in ID, EX's causes added in EX, one cause carried to MEM. The
+// interrupt decision joins at MEM as sideband. MEM commits at most one
+// event; its effects (CSR trap entry, the redirect, the flush) fan out
+// below it, and the trap beat crosses the bar into WB and RVFI.
+// Source of truth: rtl/top/peregrine_core.sv, rtl/fub/peregrine_csr.sv.
+digraph peregrine_traps {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.8", ranksep="0.6", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c,
+           label=<<B>Precise traps: causes ride with the instruction; MEM commits one event per cycle (not under mem_wait)</B>>];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.14,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    id    [group=C, label="ID: exceptions from decode\nrv32i_decode - u_decode\nillegal, ecall, ebreak", width=4.6];
+    idex  [group=C, label="ID/EX\nperegrine_id_ex - u_id_ex\nexc_cause is a control field", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.6];
+    ex    [group=C, label="EX: exceptions from execute\nperegrine_core\nCSR illegal, misaligned target, misaligned access;\none cause kept, decode's first", width=4.6];
+    exmem [group=C, label="EX/MEM\nperegrine_ex_mem - u_ex_mem\nexc_cause, m_op", shape=box, peripheries=2, fillcolor="#D6E4F0", width=4.6];
+    pins  [label="Interrupt pins\nirq_software, irq_timer, irq_external (level)", style="rounded,filled", fillcolor="#E2EFDA"];
+    irq   [label="Interrupt decision\nperegrine_csr - u_csr\nmie and mip and mstatus.MIE;\nMEI > MSI > MTI", width=3.2];
+    mem   [group=C, label="MEM commit\nperegrine_core\ntrap if an exception rides, or an interrupt attaches\n(not to an M instruction; not as a presented access's hold drops);\nno access, no CSR write, no rd write", width=6.2];
+    csr   [label="Trap entry\nperegrine_csr - u_csr\nmepc, mcause, mtval;\nMPIE = MIE, MIE = 0", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    pc    [label="Next-PC mux\nperegrine_core\nfetch mtvec next cycle", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    fl    [label="Flush\nperegrine_core\nIF/ID, ID/EX, and the instruction\nleaving EX (3 bubbles)"];
+
+    bar   [group=C, label="MEM/WB (flopped): the trap beat -> rvfi_trap, rvfi_trap_cause, rvfi_pc_wdata = mtvec",
+           style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=10.0, height=0.5, fontsize=11];
+
+    id    -> idex  [xlabel="instruction +\nexc_cause", penwidth=1.8];
+    idex  -> ex    [xlabel="instruction +\nexc_cause", penwidth=1.8];
+    ex    -> exmem [xlabel="instruction +\none cause", penwidth=1.8];
+    exmem -> mem   [xlabel="instruction +\ncause", penwidth=1.8];
+    mem   -> bar   [xlabel="trap beat\n(rd_wen = 0)", penwidth=1.8, minlen=2];
+
+    pins  -> irq   [style=dashed, color="#777777", xlabel="mip"];
+    irq   -> mem   [style=dashed, color="#777777", xlabel="interrupt\npending,\ncause"];
+    mem   -> csr   [xlabel="trap_take,\ncause, epc, tval"];
+    mem   -> pc    [style=dashed, color="#777777", xlabel="redirect"];
+    mem   -> fl    [style=dashed, color="#777777", xlabel="flush"];
+
+    { rank=same; pins; idex; }
+    { rank=same; irq; exmem; }
+    { rank=same; pc; fl; csr; }
+    pc -> fl [style=invis]; fl -> csr [style=invis];
+    csr -> bar [style=invis]; pc -> bar [style=invis]; fl -> bar [style=invis];
+}

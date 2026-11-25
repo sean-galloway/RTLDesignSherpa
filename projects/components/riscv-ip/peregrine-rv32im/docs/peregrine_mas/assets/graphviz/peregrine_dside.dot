@@ -1,0 +1,56 @@
+// peregrine_dside - MAS Figure 4.3 (the D-side wrapper in peregrine_top).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// The access flows DOWN the left/center: from the core's MEM stage through
+// the request logic to one of three targets at the bar. The response
+// climbs back UP the right side (green): selected by target and lane,
+// captured if the core is held, and given to the core's WB stage. The
+// hold (mem_wait) and the target's ready are sideband (dashed).
+// Source of truth: rtl/top/peregrine_top.sv.
+digraph peregrine_dside {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="1.0", ranksep="0.7", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c,
+           label=<<B>D side of peregrine_top: one access in flight, request held until accepted, response kept until WB retires</B>>];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.14,0.07"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    mem   [label="Core MEM stage\nperegrine_core\ndmem_req_pre, dmem_addr, wstrb, wdata\n(from the EX/MEM flops)", style="rounded,filled", fillcolor="#E2EFDA"];
+    wb    [label="Core WB stage\nperegrine_core\ndmem_rdata: load align, forward", style="rounded,filled", fillcolor="#E2EFDA"];
+
+    req   [label="Request (combinational)\nperegrine_top\naddress decode; valid = req_pre and not already\naccepted, no clean, and nothing outstanding\n(or its response arriving)"];
+    hold  [label="Hold (combinational)\nperegrine_top\nmem_wait = I$ stall, fence.i, clean,\nMEM's access not accepted, or a response due"];
+    track [label="In-flight state\nperegrine_top\nr_outstanding, r_tgt, r_lane, r_mem_done", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+
+    rsel  [label="Response select (combinational)\nperegrine_top\nby r_tgt (the access in flight);\namber lane by r_lane"];
+    cap   [label="Response capture\nperegrine_top\nr_mem_have / r_mem_data: MEM's early response;\nr_have / r_have_data: WB's, under a hold", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    wmux  [label="WB data select (combinational)\nperegrine_top\ncaptured word if r_have, else the arriving word"];
+
+    bar   [label="Targets (flopped responses):   amber_top - u_dcache (GAXI, 1-cycle hit)   |   peregrine_clint - u_clint (next cycle)   |   peregrine_uc_axi - u_uc (AXI4 round trip)",
+           style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=13.0, height=0.5, fontsize=11];
+
+    // ---- request, top-down ----
+    mem   -> req   [xlabel="access\n(stays until\naccepted)", penwidth=1.8];
+    req   -> track [xlabel="handshake:\ntarget, lane"];
+    track -> bar   [style=invis];
+    req   -> bar   [xlabel="request\n{addr, we, be, wdata}", penwidth=1.8, minlen=3];
+
+    // ---- response, climbing ----
+    wb    -> wmux  [dir=back, color="#1A7A1A", xlabel="load word"];
+    wmux  -> cap   [dir=back, color="#1A7A1A", xlabel="captured\nword"];
+    cap   -> rsel  [dir=back, color="#1A7A1A", xlabel="word under\na hold"];
+    wmux  -> rsel  [dir=back, color="#1A7A1A", xlabel="arriving\nword"];
+    rsel  -> bar   [dir=back, color="#1A7A1A", xlabel="rsp valid,\nrsp data"];
+
+    // ---- sideband ----
+    bar   -> hold  [style=dashed, color="#777777", xlabel="ready"];
+    track -> hold  [style=dashed, color="#777777", xlabel="outstanding"];
+    hold  -> mem   [style=dashed, color="#777777", xlabel="mem_wait"];
+
+    { rank=same; mem; wb; }
+    { rank=same; req; wmux; }
+    { rank=same; track; cap; }
+    { rank=same; hold; rsel; }
+    { rank=same; rsel; }
+    track -> cap [style=invis];
+}
