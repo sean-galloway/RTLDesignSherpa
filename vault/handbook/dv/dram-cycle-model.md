@@ -962,4 +962,6 @@ columns** (their denominator comes from meters the host freezes, so they
 jitter on cycle-identical runs). This works only because no refresh state
 outlives the reload: granite ties postpone and pull-in off. A controller with
 refresh credits has to clear those too
-(`char_results/board_mc025_ref_align_sku100_2026-11-24.md`).
+(`char_results/board_mc025_ref_align_sku100_2026-11-24.md`). One residual:
+a one-cycle draw on one row in 263 survives alignment (memory-controllers
+ISSUE-008), so repeat a lone one-cycle difference before believing it.

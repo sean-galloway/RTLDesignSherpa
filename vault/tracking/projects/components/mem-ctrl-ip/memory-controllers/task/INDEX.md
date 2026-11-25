@@ -4,21 +4,13 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 21 | done (kept for history) |
+| [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
-
-- **MC-022** -- the granite fire cone has no margin at 100 MHz: the
-  decision-2 RTL lands at -0.052 / -0.054 ns under the 0.2 ns budget on two
-  placements (the RTL before it +0.014 / +0.080; the XDC's recorded band
-  +0.003 .. -0.159), on the pick select, the store's fire -> pop and the
-  bank timers' CSR-derived flag (the last false-pathed 2026-11-22). A
-  structural cut priced in the model first; floorplanning is recorded as
-  making it worse. Filed 2026-11-22 from MC-020 decision 2.
 
 ## Active
 
@@ -51,6 +43,14 @@
   Dropped: no timing gain, 277 LUT against a measured loss.
 
 ## Closed
+
+- **MC-022** -- the granite fire cone had no margin at 100 MHz. Closed
+  2026-11-25 by two exact restructurings of `mc_bank_pick` (`rr_onehot` in
+  parallel; the winner's index and hint-class check per source), proven
+  against the unchanged golden copy: the sys100 SKU closes at +0.039 /
+  +0.136 ns on two placements (MC-025 RTL: -0.255 / +0.001), and the board
+  reads MC-025's aligned cycles (`board_mc022_pick_cone_sku100_2026-11-25.md`).
+  [closed/MC-022.md](closed/MC-022.md).
 
 - **MC-025** -- refresh alignment in the char harness: `chargen_regs.REF_ALIGN`
   makes every launch reload the controller's tREFI countdown a set offset

@@ -2,7 +2,7 @@
 
 # memory-controllers — issues
 
-**Next ID: ISSUE-008** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-009** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed, spanning more than one
 controller (the shared `common-ip` RTL, or pumice and granite together). It
@@ -15,13 +15,18 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 2 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **ISSUE-008** -- a rare one-cycle draw survives refresh alignment: one
+  board row in 263 differed by a cycle at the same `REF_ALIGN` offset
+  (`defaults row_major_bl4`, 269,754 vs 269,753). Filed 2026-11-25 from
+  MC-022's board check. [open/ISSUE-008.md](open/ISSUE-008.md).
 
 - **ISSUE-007** -- the `bank_interleave` row-hit cells at the phase-exact
   counters sit at the 583 MB/s ceiling with a per-pass draw a step below it

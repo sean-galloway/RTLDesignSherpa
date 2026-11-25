@@ -418,13 +418,45 @@ module mc_bank_pick
     logic [RFC_W-1:0] r_rfc_cnt, r_zqcs_cnt;
     // The round-robin pick of one request set as a one-hot: the age
     // tie-break, then the lowest bit at or above the rotor, else the lowest.
+    //
+    // MC-022: written as four lowest-set-bit isolations in parallel (aged and
+    // at/above the rotor, aged, at/above the rotor, any) and a 4:1 select on
+    // two any-flags. The same function as the serial form it replaced
+    // (a = aged-filter(s); f = rotor-filter(a); f & (~f + 1)), which chained a
+    // 16-wide OR, a mux, another 16-wide OR, a mux and the +1 carry chain on
+    // the pick cone (CARRY4 x2 of the 13 levels on the sys100 worst path).
+    // Each isolation here is "bit i set and no lower bit set": LUTs only.
+    // The formal golden copy keeps the serial form; equiv / equiv_n4 / dual
+    // prove the two identical.
+    function automatic logic [NPAIR-1:0] lsb_onehot(input logic [NPAIR-1:0] v);
+        logic [NPAIR-1:0] o;
+        for (int i = 0; i < NPAIR; i++) begin
+            o[i] = v[i];
+            for (int j = 0; j < i; j++) o[i] = o[i] & ~v[j];
+        end
+        return o;
+    endfunction
+    // the age tie-break alone: the aged members of a set, if it has any
+    function automatic logic [NPAIR-1:0] age_refine(input logic [NPAIR-1:0] s,
+                                                    input logic [NPAIR-1:0] aged);
+        return (|(s & aged)) ? (s & aged) : s;
+    endfunction
+    // a one-hot's index (an OR of the set bit's index; 0 for an empty vector)
+    function automatic logic [PAIRW-1:0] oh_enc(input logic [NPAIR-1:0] oh);
+        logic [PAIRW-1:0] e;
+        e = '0;
+        for (int i = 0; i < NPAIR; i++) if (oh[i]) e |= PAIRW'(i);
+        return e;
+    endfunction
     function automatic logic [NPAIR-1:0] rr_onehot(input logic [NPAIR-1:0] s,
                                                    input logic [NPAIR-1:0] aged,
                                                    input logic [NPAIR-1:0] below);
-        logic [NPAIR-1:0] a, f;
-        a = (|(s & aged)) ? (s & aged) : s;
-        f = (|(a & ~below)) ? (a & ~below) : a;
-        return f & (~f + NPAIR'(1));
+        logic [NPAIR-1:0] sa, sau, su;
+        sa  = s & aged;
+        sau = sa & ~below;
+        su  = s & ~below;
+        if (|sa) return (|sau) ? lsb_onehot(sau) : lsb_onehot(sa);
+        else     return (|su)  ? lsb_onehot(su)  : lsb_onehot(s);
     endfunction
     function automatic logic [RFC_W-1:0] sat_rfc(input logic [15:0] t);
         if (RFC_W >= 16)      return RFC_W'(t);
@@ -639,7 +671,8 @@ module mc_bank_pick
     logic         w_other_req;               // some pair other than the winner is requesting
 
     logic [NPAIR-1:0] w_req_ok, w_req_col, w_req_col_dir, w_req_row, w_req_aged;
-    logic [NPAIR-1:0] w_sel, w_sel_above, w_below_mask, w_hint_vec;
+    logic [NPAIR-1:0] w_sel, w_below_mask, w_hint_vec;
+    logic             w_sel_is_hint;
     logic [NPAIR-1:0] w_pick_onehot;
     // which source the class select took, resolved in parallel with the
     // per-source one-hots (see the pick below)
@@ -940,17 +973,24 @@ module mc_bank_pick
         // percent at 8 threads, the mixed family halved). A hint is a single
         // pair, so this either keeps it or leaves it alone. With the ages
         // compiled out (HAS_AGE 0) r_aged is all-zero and this is a no-op.
-        if (|(w_sel & w_req_aged))             w_sel = w_sel & w_req_aged;
-
-        // round-robin: lowest index at or above the (effective) rotor, else lowest overall
-        w_sel_above = w_sel & ~w_below_mask;
+        //
+        // round-robin: lowest index at or above the (effective) rotor, else
+        // lowest overall -- after the age tie-break above, which is exactly
+        // what rr_onehot gives each request set, so the winner's INDEX is the
+        // encode of the selected source's one-hot (MC-022). Until 2026-11-25
+        // it was re-derived serially from w_sel: the age refine, the rotor
+        // filter and a 16-to-4 priority encode behind the class select, on
+        // the r_is_col -> r_win_pair / r_win_cls paths of the sys100 build.
+        // A hint is a single pair, so its index is r_hint_pair; an empty
+        // select encodes 0, as the priority encode did.
         w_pick_vld  = |w_sel;
-        w_pick_pair = '0;
-        if (|w_sel_above) begin
-            for (int p = NPAIR-1; p >= 0; p--) if (w_sel_above[p]) w_pick_pair = PAIRW'(p);
-        end else begin
-            for (int p = NPAIR-1; p >= 0; p--) if (w_sel[p])       w_pick_pair = PAIRW'(p);
-        end
+        case (w_sel_src)
+            SRC_HINT: w_pick_pair = r_hint_pair;
+            SRC_CDIR: w_pick_pair = oh_enc(w_oh_cdir);
+            SRC_COL:  w_pick_pair = oh_enc(w_oh_col);
+            SRC_ROW:  w_pick_pair = oh_enc(w_oh_row);
+            default:  w_pick_pair = '0;
+        endcase
         // the same pick as a one-hot, for the stale mask (per-source, above)
         case (w_sel_src)
             SRC_HINT: w_pick_onehot = w_hint_vec;
@@ -979,7 +1019,19 @@ module mc_bank_pick
             default:  w_pick_cls = CL_COL;
         endcase
         if (!w_pick_vld) w_pick_cls = r_cls[0];
-        if (w_hint_ok && (w_sel == w_hint_vec)) w_pick_cls = r_hint_cls;
+        // "the age-refined set is exactly the hinted pair", per source and in
+        // parallel with the select (MC-022: the 16-bit compare on the selected
+        // set was the last carry chain on the r_is_col -> r_win_cls path). A
+        // hint source is the hinted pair by definition; SRC_NONE is empty and
+        // the hint vector never is.
+        case (w_sel_src)
+            SRC_HINT: w_sel_is_hint = 1'b1;
+            SRC_CDIR: w_sel_is_hint = (age_refine(w_req_col_dir,  w_req_aged) == w_hint_vec);
+            SRC_COL:  w_sel_is_hint = (age_refine(w_req_col,      w_req_aged) == w_hint_vec);
+            SRC_ROW:  w_sel_is_hint = (age_refine(w_req_row_pref, w_req_aged) == w_hint_vec);
+            default:  w_sel_is_hint = 1'b0;
+        endcase
+        if (w_hint_ok && w_sel_is_hint) w_pick_cls = r_hint_cls;
 
         // ---- short-hop speculation on the held winner (registers only) ----
         // the candidate's flags, not the head record's: in a one-column-per-
@@ -1090,8 +1142,9 @@ module mc_bank_pick
                 w2_act_set[p] = w2_cand[p] && (r_cls[p] == CL_ACT);
                 w2_pre_set[p] = w2_cand[p] && (r_cls[p] == CL_PRE);
             end
+            // (the age tie-break is rr_onehot's own first step; a second
+            // copy here was idempotent and sat in series on the cone, MC-022)
             w2_sel  = (|w2_act_set) ? w2_act_set : w2_pre_set;
-            if (|(w2_sel & w_req_aged)) w2_sel = w2_sel & w_req_aged;
             w2_pick_onehot = rr_onehot(w2_sel, w_req_aged, w_below_mask);
             w2_load        = w_dual && (|w2_sel);
             w2_pick_pair   = '0;

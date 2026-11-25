@@ -93,6 +93,11 @@ Compare runs on `wr_cycles` / `rd_cycles`. The `util` columns divide by a
 denominator taken from perf meters that the host freezes, so they jitter in
 the fourth decimal even on cycle-identical runs.
 
+> 2026-11-25 (MC-022): a rare one-cycle draw survives alignment. One row in
+> 263 across the aligned runs so far wrote a cycle longer (`defaults
+> row_major_bl4`, 269,754 vs 269,753). Filed as ISSUE-008; until it is found,
+> treat a lone one-cycle difference on one row as noise and repeat it.
+
 ## 6. Offset sweeps: the spread, now on demand
 
 `windows` at offsets 0 .. 700 (`sku100mc025a{0..700}_windows`), mixed_bl8 wr / rd:
