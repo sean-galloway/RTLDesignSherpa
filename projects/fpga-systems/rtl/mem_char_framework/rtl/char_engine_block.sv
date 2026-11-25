@@ -137,6 +137,12 @@ module char_engine_block
     output logic gen_any_error,
     output logic gen_crc_match,
 
+    //---- Refresh alignment (MC-025): to the controller's refi_reload_i ----
+    // One mc_clk pulse REF_ALIGN.offset cycles after each launch when
+    // REF_ALIGN.en is set; 0 otherwise. Leave unconnected (`.refi_reload_o()`)
+    // where the controller has no reload input.
+    output logic refi_reload_o,
+
     //---- Reader debug stream (RD_DBG_FIFO_DEPTH > 0) ----------------------
     output logic          rd_dbg_valid,
     input  logic          rd_dbg_ready,
@@ -524,6 +530,40 @@ module char_engine_block
 
     assign gen_wr_started = |w_wr_go;
     assign gen_rd_started = |w_rd_go;
+
+    // Refresh alignment (memory-controllers MC-025). A launch (any GO bit,
+    // the same pulse that starts the generators, already in mc_clk) loads the
+    // offset; the reload fires the cycle the count reaches zero. A launch
+    // while a count is pending restarts it. Registered out, so the controller
+    // sees the pulse at a fixed launch + offset + 1.
+    logic        w_launch;
+    logic        r_ra_busy;
+    logic [15:0] r_ra_cnt;
+    logic        r_refi_reload;
+    assign w_launch = |w_wr_go || |w_rd_go;
+
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n,
+        if (`RST_ASSERTED(mc_rst_n)) begin
+            r_ra_busy     <= 1'b0;
+            r_ra_cnt      <= '0;
+            r_refi_reload <= 1'b0;
+        end else begin
+            r_refi_reload <= 1'b0;
+            if (w_launch && cg_out.REF_ALIGN.en.value) begin
+                r_ra_busy <= (cg_out.REF_ALIGN.offset.value != 16'd0);
+                r_ra_cnt  <= cg_out.REF_ALIGN.offset.value - 16'd1;
+                if (cg_out.REF_ALIGN.offset.value == 16'd0) r_refi_reload <= 1'b1;
+            end else if (r_ra_busy) begin
+                if (r_ra_cnt == 16'd0) begin
+                    r_ra_busy     <= 1'b0;
+                    r_refi_reload <= 1'b1;
+                end else begin
+                    r_ra_cnt <= r_ra_cnt - 16'd1;
+                end
+            end
+        end
+    )
+    assign refi_reload_o = r_refi_reload;
 
     // Nothing launched is not "done" -- it is "not started". Reporting done
     // before a run begins would let the harness close its measurement window

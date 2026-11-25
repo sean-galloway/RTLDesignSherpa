@@ -2389,6 +2389,13 @@ def run_matrix(drv: DDR2CharDriver, *, configs=None, level: str = "medium",
 
     cfgs = resolve_configs(configs if configs is not None else [CLOSE_PAGE])
     suite = build_suite(level, txn_scale=txn_scale, families=families)
+    # Refresh alignment (MC-025): TEST_REF_ALIGN=<offset> reloads the
+    # controller's tREFI countdown that many cycles after every launch, so
+    # passes compare at one refresh phase. Written only when set: an
+    # unconditional write would itself move GO on every unaligned run.
+    ref_align = os.environ.get("TEST_REF_ALIGN")
+    if ref_align is not None and ref_align != "":
+        drv.set_ref_align(int(ref_align, 0))
     # Profile-level Scenario override. The suite builds with library defaults
     # (max_outstanding=0, i.e. whatever the engine comes up with), which is
     # right for a bandwidth matrix and WRONG for anything measuring the

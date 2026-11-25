@@ -1,11 +1,11 @@
 # memory-controllers — task lane
 
-**Next ID: MC-025** — never recycle a number.
+**Next ID: MC-026** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
+| [active/](active/) | 2 | in progress right now |
 | [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
@@ -21,6 +21,14 @@
   making it worse. Filed 2026-11-22 from MC-020 decision 2.
 
 ## Active
+
+- **MC-025** -- refresh alignment in the char harness: `chargen_regs.REF_ALIGN`
+  makes every launch reload the controller's tREFI countdown a set offset
+  later (`granite_top_geared.refi_reload_i`, tied 0 in a product), so board
+  A/Bs compare at one refresh phase and the offset sweeps it. Filed
+  2026-11-24 from the owner's question after MC-024. Built; board runs at one
+  offset repeat to the cycle (`board_mc025_ref_align_sku100_2026-11-24.md`).
+  Open: the cause of the `fb_harness` reruns.
 
 - **MC-023** -- the SKU model's open fidelity terms. Item 2 DONE 2026-11-23:
   the self-close lookahead guard was true at `ap_close_lag` 0 (a pending

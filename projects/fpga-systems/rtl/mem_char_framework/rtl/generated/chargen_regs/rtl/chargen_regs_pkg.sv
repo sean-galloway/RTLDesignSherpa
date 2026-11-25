@@ -5,7 +5,7 @@ package chargen_regs_pkg;
 
     localparam CHARGEN_REGS_DATA_WIDTH = 32;
     localparam CHARGEN_REGS_MIN_ADDR_WIDTH = 11;
-    localparam CHARGEN_REGS_SIZE = 'h618;
+    localparam CHARGEN_REGS_SIZE = 'h61c;
 
     typedef struct {
         logic next;
@@ -378,8 +378,22 @@ package chargen_regs_pkg;
     } chargen_regs__GO__out_t;
 
     typedef struct {
+        logic value;
+    } chargen_regs__REF_ALIGN__en__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } chargen_regs__REF_ALIGN__offset__out_t;
+
+    typedef struct {
+        chargen_regs__REF_ALIGN__en__out_t en;
+        chargen_regs__REF_ALIGN__offset__out_t offset;
+    } chargen_regs__REF_ALIGN__out_t;
+
+    typedef struct {
         chargen_regs__wr_gen_t__out_t WR_GEN[8];
         chargen_regs__rd_gen_t__out_t RD_GEN[8];
         chargen_regs__GO__out_t GO;
+        chargen_regs__REF_ALIGN__out_t REF_ALIGN;
     } chargen_regs__out_t;
 endpackage

@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x618
+- Size: 0x61C
 
 <p>Per-bank AXI4 write/read pattern-generator config, staged then launched together</p>
 
@@ -35,6 +35,7 @@ Don't override. Generated from: $root
 | 0x608|  ERRORS  |  — |
 | 0x610|GEN_CONFIG|  — |
 | 0x614| BLOCK_ID |  — |
+| 0x618| REF_ALIGN|  — |
 
 ## WR_GEN register file
 
@@ -3786,3 +3787,24 @@ Don't override. Generated from: $root
 |Bits|Identifier|Access|   Reset  |Name|
 |----|----------|------|----------|----|
 |31:0|    id    |   r  |0x4347454E|  — |
+
+### REF_ALIGN register
+
+- Absolute Address: 0x618
+- Base Offset: 0x618
+- Size: 0x4
+
+<p>Refresh alignment: reload the controller's tREFI countdown OFFSET mc_clk cycles after each launch</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+|  0  |    en    |  rw  | 0x0 |  — |
+|31:16|  offset  |  rw  | 0x0 |  — |
+
+#### en field
+
+<p>1 = pulse the reload on every launch</p>
+
+#### offset field
+
+<p>cycles from launch to the reload</p>

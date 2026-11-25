@@ -88,6 +88,8 @@ class McOcelusTB:
                   "dfi_init_complete_i", "m_axil_mon_awready", "m_axil_mon_wready",
                   "m_axil_mon_bvalid", "m_axil_mon_bresp"):
             getattr(d, s).value = 0
+        if hasattr(d, "refi_reload_i"):   # granite_top_geared's test input (MC-025); pumice has none
+            d.refi_reload_i.value = 0
         await self.assert_reset()
         await ClockCycles(d.aclk, 10)
         await self.deassert_reset()

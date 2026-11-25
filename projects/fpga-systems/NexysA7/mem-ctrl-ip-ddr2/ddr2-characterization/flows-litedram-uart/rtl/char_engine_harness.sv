@@ -712,6 +712,7 @@ module char_engine_harness
         .gen_rd_done    (w_rd_done),
         .gen_any_error  (w_gen_any_error),
         .gen_crc_match  (w_gen_crc_match),
+        .refi_reload_o  (),                // MC-025 refresh alignment: no reload input on this controller
 
         .rd_dbg_valid   (w_rd_dbg_valid),
         .rd_dbg_ready   (1'b1),

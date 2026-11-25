@@ -1162,6 +1162,7 @@ module fb_harness #(
         .s_chargen_apb_PSLVERR(chargen_apb_PSLVERR),
         .gen_wr_started (), .gen_rd_started (), .gen_wr_done (), .gen_rd_done (),
         .gen_any_error  (), .gen_crc_match  (),
+        .refi_reload_o  (),
         .rd_dbg_valid   (), .rd_dbg_ready (1'b1), .rd_dbg_actual (),
         .rd_dbg_expected(), .rd_dbg_mismatch(),
         .perf_clear     (obs_meter_clear),

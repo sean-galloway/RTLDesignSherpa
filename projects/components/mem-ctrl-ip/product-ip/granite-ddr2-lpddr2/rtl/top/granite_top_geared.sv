@@ -127,6 +127,13 @@ module granite_top_geared
 
     output logic                    init_done_o,
 
+    // ---- test: refresh alignment (memory-controllers MC-025) ----
+    // One-cycle pulse, synchronous to aclk: reloads the tREFI countdown with
+    // the programmed tREFI, so the char harness can start refresh a fixed
+    // number of cycles after a run's launch. Tie 0 in a product; with it 0
+    // the controller is unchanged.
+    input  logic                    refi_reload_i,
+
     // ---- Ocelus packet writer (HAS_MON; idle when 0) ----
     output logic           mon_irq_o,          // one pulse per error record landed
     output logic           m_axil_mon_awvalid,
@@ -545,7 +552,7 @@ module granite_top_geared
         .t_rtw_i            (w_t_rtw_eff),
         .t_ccd_i            (hwif_out.TIMINGS_RRD_FAW_WTR_CCD.tCCD.value),
         .t_refi_i           (hwif_out.TIMINGS_RFC_REFI.tREFI.value),
-        .refi_reload_i      (1'b0),
+        .refi_reload_i      (refi_reload_i),
         .t_rfc_i            (hwif_out.TIMINGS_RFC_REFI.tRFC.value),
         .refresh_burst_i    (hwif_out.PHY_TIMING.refresh_burst.value),
         // Granite_core already ties ref_postpone/pull-in/mode internally.

@@ -329,4 +329,20 @@ addrmap chargen_regs {
 
     reg { desc = "Block identity (ASCII CGEN)";
         field { sw = r; hw = w; } id[31:0] = 0x4347454E; } BLOCK_ID @ 0x614;
+
+    //=========================================================================
+    // Refresh alignment (memory-controllers MC-025). The controller's tREFI
+    // countdown free-runs from init, so a run's GO lands at an arbitrary
+    // refresh phase and a pass-to-pass A/B carries that draw (ISSUE-005 /
+    // ISSUE-007). Armed, every launch (any GO bit) reloads the controller's
+    // countdown `offset` cycles later, so refresh sits at the same cycle
+    // relative to the first transaction on every run, and `offset` sweeps the
+    // phase on purpose. Off by default; a controller that does not take the
+    // pulse (only granite does) ignores it.
+    //=========================================================================
+    reg {
+        desc = "Refresh alignment: reload the controller's tREFI countdown OFFSET mc_clk cycles after each launch";
+        field { sw = rw; hw = r; desc = "1 = pulse the reload on every launch"; } en[0:0] = 0;
+        field { sw = rw; hw = r; desc = "cycles from launch to the reload"; } offset[31:16] = 0;
+    } REF_ALIGN @ 0x618;
 };

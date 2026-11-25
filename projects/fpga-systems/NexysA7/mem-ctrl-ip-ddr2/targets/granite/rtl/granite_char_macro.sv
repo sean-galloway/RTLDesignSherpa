@@ -230,6 +230,8 @@ module granite_char_macro
     logic [PIW-1:0] rd_rid;     logic [DW-1:0] rd_rdata;
     logic [1:0]    rd_rresp;   logic          rd_rlast, rd_rvalid, rd_rready;
 
+    logic w_refi_reload;   // char_engine_block -> granite_top_geared (MC-025 refresh alignment)
+
     char_engine_block #(
         .AXI_ADDR_WIDTH     (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH     (AXI_DATA_WIDTH),
@@ -270,6 +272,7 @@ module granite_char_macro
         .gen_rd_done    (gen_rd_done),
         .gen_any_error  (gen_any_error),
         .gen_crc_match  (gen_crc_match),
+        .refi_reload_o  (w_refi_reload),   // MC-025: REF_ALIGN, launch-aligned tREFI reload
 
         .rd_dbg_valid   (rd_dbg_valid),
         .rd_dbg_ready   (rd_dbg_ready),
@@ -455,6 +458,7 @@ module granite_char_macro
         .s_cpuif_wr_ack        (ctrl_cpuif_wr_ack),
         .s_cpuif_wr_err        (ctrl_cpuif_wr_err),
         .init_done_o           (),
+        .refi_reload_i         (w_refi_reload),
         // Ocelus packet writer -> the write-ack sink below (HAS_MON = 1)
         .mon_irq_o          (),
         .m_axil_mon_awvalid (w_mon_awvalid),

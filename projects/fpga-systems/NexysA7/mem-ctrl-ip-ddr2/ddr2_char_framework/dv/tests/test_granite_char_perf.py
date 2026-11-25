@@ -53,7 +53,8 @@ pick core's direction batch cap, board 255 = GRANITE_DIR_BATCH_MAX; its own
 sim_build tag suffix, as TEST_NUM_ENTRIES now has), PERF_DIR_FLIPS (a path:
 every direction flip of the pick core with its cause and the batch it ended,
 the hold lengths per direction, PERF_DIR_FLIPS_CYCLES deep -- the MC-017
-probe).
+probe), TEST_REF_ALIGN (an offset: the harness reloads the tREFI countdown that
+many cycles after every launch, memory-controllers MC-025; unset = off, no write).
 """
 
 import dataclasses
@@ -186,6 +187,33 @@ def _slot_occupancy(log, bin_cycles=1024):
             "bins_ge_0p95": sum(1 for o in occ if o >= 0.95),
             "mean_occ_busy_bins": round(sum(busy) / len(busy), 4) if busy else 0.0,
             "top8": [round(o, 4) for o in occ[:8]]}
+
+
+async def _ref_align_probe(dut, events):
+    """TEST_REF_ALIGN (memory-controllers MC-025): per launch (any GO bit in
+    the chargen block), the cycles to the harness's tREFI reload pulse and the
+    controller's countdown the cycle after it. Checked at the end of the test:
+    every launch gets one reload at offset + 1 and the counter holds tREFI."""
+    try:
+        mac = dut.u_dut.u_dut
+        eng = mac.u_engines
+        rl = mac.w_refi_reload
+        rc = mac.u_ctrl.u_core.u_sched_plane.g_refresh.u_refresh.r_refi_cnt
+    except AttributeError as e:
+        dut._log.info("TEST_REF_ALIGN: probe absent (%r)", e)
+        return
+    cyc, last_launch, pending = 0, None, None
+    while True:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        cyc += 1
+        if pending is not None:
+            events.append({"launch": last_launch, "dist": pending, "cnt_after": int(rc.value)})
+            pending = None
+        if int(rl.value) and last_launch is not None:
+            pending = cyc - last_launch   # the counter reads its reload one cycle on
+        if int(eng.w_launch.value):
+            last_launch = cyc
 
 
 async def _dir_flips_probe(dut, path, n_cycles=400000):
@@ -990,6 +1018,12 @@ async def cocotb_test_granite_perf(dut):
             phase_exact=os.environ.get("TEST_PHASE_EXACT", "1") != "0")
         out["phase_exact"] = int(os.environ.get("TEST_PHASE_EXACT", "1") != "0")
         drv.set_refresh_interval(t_refi)
+        # TEST_REF_ALIGN=<offset>: the harness reloads the controller's tREFI countdown that many
+        # cycles after every launch (memory-controllers MC-025), so the refresh phase at GO is fixed.
+        ref_align = os.environ.get("TEST_REF_ALIGN", "")
+        if ref_align:
+            drv.set_ref_align(int(ref_align, 0))
+            out["ref_align"] = int(ref_align, 0)
         for fam_key in fam_names:
             out["families"][fam_key] = measure_family(fam_key)
         if diag:
@@ -1062,6 +1096,9 @@ async def cocotb_test_granite_perf(dut):
     if os.environ.get("PERF_W_HOPS"):
         cocotb.start_soon(_w_hops_probe(dut, os.environ["PERF_W_HOPS"],
                                         int(os.environ.get("PERF_W_HOPS_CYCLES", "12000"))))
+    ref_align_events = []
+    if os.environ.get("TEST_REF_ALIGN", ""):
+        cocotb.start_soon(_ref_align_probe(dut, ref_align_events))
     if os.environ.get("PERF_DIR_FLIPS"):
         cocotb.start_soon(_dir_flips_probe(dut, os.environ["PERF_DIR_FLIPS"],
                                            int(os.environ.get("PERF_DIR_FLIPS_CYCLES", "400000"))))
@@ -1097,6 +1134,16 @@ async def cocotb_test_granite_perf(dut):
                       fk, f["mismatched"], f["wr_cycles"], f["wr_bw_mb_s"],
                       f["wr_util"], f["rd_cycles"], f["rd_bw_mb_s"],
                       f["rd_util"], (f">={gate}" if gate else "-"))
+
+    # TEST_REF_ALIGN: the reload lands at launch + offset + 1 on every launch, and the
+    # controller's countdown holds the programmed tREFI the cycle after (MC-025).
+    if os.environ.get("TEST_REF_ALIGN", ""):
+        off = int(os.environ["TEST_REF_ALIGN"], 0)
+        dut._log.info("TEST_REF_ALIGN %d: %d reloads %s", off, len(ref_align_events), ref_align_events[:6])
+        assert ref_align_events, "TEST_REF_ALIGN set but no reload pulse was seen"
+        for ev in ref_align_events:
+            assert ev["dist"] == off + 1, f"reload {ev['dist']} cycles after launch, expected {off + 1}: {ev}"
+            assert ev["cnt_after"] == t_refi, f"tREFI countdown {ev['cnt_after']} after the reload, expected {t_refi}: {ev}"
 
     # Integrity must hold for the perf number to be trustworthy.
     for fk in fam_names:
@@ -1199,6 +1246,7 @@ def _run_granite_perf(request, over=None):
         "TEST_WR_BURST": _g("TEST_WR_BURST", ""),
         "TEST_ADDR_SCHEME": _g("TEST_ADDR_SCHEME", ""),
         "TEST_TREFI": _g("TEST_TREFI", "585"),
+        "TEST_REF_ALIGN": _g("TEST_REF_ALIGN", ""),
         "TEST_TXN": _g("TEST_TXN", "256"),
         "TEST_GAP": _g("TEST_GAP", "0"),
         "TEST_BURST_LEN": _g("TEST_BURST_LEN", "8"),

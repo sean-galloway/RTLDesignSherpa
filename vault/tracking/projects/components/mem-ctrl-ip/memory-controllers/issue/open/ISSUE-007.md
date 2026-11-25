@@ -77,3 +77,13 @@ could pay it several times over.
 > 2026-11-24: with the `rfc_block` term (MC-023 item 4) the model's
 > bank_interleave row-hit cells read 572 .. 582 by GO phase instead of 584.6
 > flat; the board's three levels (583 / 566 / 519) are still not reproduced.
+
+> 2026-11-24, MC-025: with the tREFI countdown reloaded at a set offset
+> after each launch, the board's levels are no longer a draw. At one offset
+> `every` repeats to the cycle; across offsets 0 .. 700 the three levels
+> (583 / 566 / ~518) each appear, set per cell by the offset
+> (`char_results/board_mc025_ref_align_sku100_2026-11-24.md`, section 6).
+> This confirms on the board what the proxy showed: the level is the refresh
+> phase at launch. The model question (the 566 and ~518 orbits) is unchanged,
+> but a board point can now be pinned to a phase and compared with the model
+> at the same phase.

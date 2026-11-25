@@ -106,6 +106,7 @@ module chargen_regs (
         logic ERRORS;
         logic GEN_CONFIG;
         logic BLOCK_ID;
+        logic REF_ALIGN;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -154,6 +155,7 @@ module chargen_regs (
         decoded_reg_strb.ERRORS = cpuif_req_masked & (cpuif_addr == 11'h608);
         decoded_reg_strb.GEN_CONFIG = cpuif_req_masked & (cpuif_addr == 11'h610);
         decoded_reg_strb.BLOCK_ID = cpuif_req_masked & (cpuif_addr == 11'h614);
+        decoded_reg_strb.REF_ALIGN = cpuif_req_masked & (cpuif_addr == 11'h618);
     end
 
     // Pass down signals to next stage
@@ -484,6 +486,16 @@ module chargen_regs (
                 logic load_next;
             } rd_go7;
         } GO;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } en;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } offset;
+        } REF_ALIGN;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -740,6 +752,14 @@ module chargen_regs (
                 logic value;
             } rd_go7;
         } GO;
+        struct {
+            struct {
+                logic value;
+            } en;
+            struct {
+                logic [15:0] value;
+            } offset;
+        } REF_ALIGN;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -2313,6 +2333,52 @@ module chargen_regs (
         end
     end
     assign hwif_out.GO.rd_go7.value = field_storage.GO.rd_go7.value;
+    // Field: chargen_regs.REF_ALIGN.en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_ALIGN.en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_ALIGN && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_ALIGN.en.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.REF_ALIGN.en.next = next_c;
+        field_combo.REF_ALIGN.en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_ALIGN.en.value <= 1'h0;
+        end else begin
+            if(field_combo.REF_ALIGN.en.load_next) begin
+                field_storage.REF_ALIGN.en.value <= field_combo.REF_ALIGN.en.next;
+            end
+        end
+    end
+    assign hwif_out.REF_ALIGN.en.value = field_storage.REF_ALIGN.en.value;
+    // Field: chargen_regs.REF_ALIGN.offset
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_ALIGN.offset.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_ALIGN && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_ALIGN.offset.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.REF_ALIGN.offset.next = next_c;
+        field_combo.REF_ALIGN.offset.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_ALIGN.offset.value <= 16'h0;
+        end else begin
+            if(field_combo.REF_ALIGN.offset.load_next) begin
+                field_storage.REF_ALIGN.offset.value <= field_combo.REF_ALIGN.offset.next;
+            end
+        end
+    end
+    assign hwif_out.REF_ALIGN.offset.value = field_storage.REF_ALIGN.offset.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2330,7 +2396,7 @@ module chargen_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[252];
+    logic [31:0] readback_array[253];
     for(genvar i0=0; i0<8; i0++) begin
         assign readback_array[i0 * 14 + 0][31:0] = (decoded_reg_strb.WR_GEN[i0].START_ADDR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].START_ADDR.addr.value : '0;
         assign readback_array[i0 * 14 + 1][23:0] = (decoded_reg_strb.WR_GEN[i0].STRIDE_0 && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].STRIDE_0.stride.value : '0;
@@ -2419,6 +2485,9 @@ module chargen_regs (
     assign readback_array[250][23:16] = (decoded_reg_strb.GEN_CONFIG && !decoded_req_is_wr) ? hwif_in.GEN_CONFIG.num_banks.next : '0;
     assign readback_array[250][31:24] = '0;
     assign readback_array[251][31:0] = (decoded_reg_strb.BLOCK_ID && !decoded_req_is_wr) ? hwif_in.BLOCK_ID.id.next : '0;
+    assign readback_array[252][0:0] = (decoded_reg_strb.REF_ALIGN && !decoded_req_is_wr) ? field_storage.REF_ALIGN.en.value : '0;
+    assign readback_array[252][15:1] = '0;
+    assign readback_array[252][31:16] = (decoded_reg_strb.REF_ALIGN && !decoded_req_is_wr) ? field_storage.REF_ALIGN.offset.value : '0;
 
     // Reduce the array
     always_comb begin
@@ -2426,7 +2495,7 @@ module chargen_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<252; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<253; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

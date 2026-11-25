@@ -443,6 +443,7 @@ module scoria_char_macro
         .gen_rd_done    (gen_rd_done),
         .gen_any_error  (gen_any_error),
         .gen_crc_match  (gen_crc_match),
+        .refi_reload_o  (),                // MC-025 refresh alignment: no reload input on this controller
 
         .rd_dbg_valid   (rd_dbg_valid),
         .rd_dbg_ready   (rd_dbg_ready),

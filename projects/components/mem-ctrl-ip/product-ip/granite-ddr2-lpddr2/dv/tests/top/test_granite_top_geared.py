@@ -77,6 +77,7 @@ async def cocotb_test_granite_top_geared(dut):
     cocotb.start_soon(Clock(dut.dfi_clk, _DFI_NS, units='ns').start())
 
     dut.s_cpuif_req.value = 0
+    dut.refi_reload_i.value = 0
     dut.s_cpuif_req_is_wr.value = 0
     dut.s_cpuif_addr.value = 0
     dut.s_cpuif_wr_data.value = 0

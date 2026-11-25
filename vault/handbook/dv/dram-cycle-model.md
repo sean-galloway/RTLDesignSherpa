@@ -947,3 +947,19 @@ the cell's mode is a draw on that phase (ISSUE-005). On a cell with
 refresh-placed modes, an A/B is only an A/B if both arms make the same
 register writes; to show "mode 0 is today's register", run the reset, not a
 written zero, or compare across a refresh-phase sweep rather than one phase.
+
+## Pin the refresh phase in hardware before a board A/B (2026-11-24, MC-025)
+
+The board's run-to-run spread on granite (the mixed cell's modes, the
+bank_interleave levels) was the tREFI countdown's phase at GO, which the
+host cannot control over UART. `chargen_regs.REF_ALIGN` makes every launch
+reload the countdown `offset` cycles later (`granite_top_geared.refi_reload_i`).
+At one offset, `windows` x3 and `every` x2 were identical in wr / rd cycle
+counts on every row; unaligned repeats differed on every row. **Run both
+arms of a board A/B at the same `TEST_REF_ALIGN`, and sweep the offsets to
+see the change across refresh placement; compare cycle counts, not the util
+columns** (their denominator comes from meters the host freezes, so they
+jitter on cycle-identical runs). This works only because no refresh state
+outlives the reload: granite ties postpone and pull-in off. A controller with
+refresh credits has to clear those too
+(`char_results/board_mc025_ref_align_sku100_2026-11-24.md`).

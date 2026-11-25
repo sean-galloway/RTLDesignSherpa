@@ -997,6 +997,21 @@ class DDR2CharDriver:
         # events.
         self.chargen.write("GO", **fields)
 
+    def set_ref_align(self, offset: Optional[int]) -> None:
+        """Refresh alignment (memory-controllers MC-025, chargen REF_ALIGN).
+
+        offset = N: every launch reloads the controller's tREFI countdown N
+        mc_clk cycles later, so refresh lands at the same cycle relative to
+        the first transaction on every run (granite only; other controllers
+        leave the pulse unconnected). None: alignment off.
+        """
+        if offset is None:
+            self.chargen.write("REF_ALIGN", en=0, offset=0)
+            return
+        if not 0 <= offset <= 0xFFFF:
+            raise ValueError(f"REF_ALIGN offset {offset} outside 0..65535")
+        self.chargen.write("REF_ALIGN", en=1, offset=offset)
+
     def start_wr(self, mask: int = 0x01) -> None:
         self.go(wr_mask=mask)
 
