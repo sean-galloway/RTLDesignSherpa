@@ -121,6 +121,7 @@ module peregrine_core #(
     input  logic        mem_wait,       // 1: memories not ready -- hold all state
     output logic [31:0] imem_addr,
     output logic [31:0] imem_addr_next, // PC after this edge (registered-read fetch)
+    output logic [31:0] imem_addr_next_nw, // the same, as if mem_wait were low
     input  logic [31:0] imem_rdata,
     output logic        dmem_req,
     output logic [31:0] dmem_addr,
@@ -206,6 +207,7 @@ module peregrine_core #(
     // -----------------------------------------------------------------
     logic [31:0] pc;
     logic [31:0] pc_d;
+    logic [31:0] pc_d_nw;     // pc_d as if mem_wait were low
     logic [31:0] ex_target;
     logic [31:0] ex_next_pc;
     logic        ex_taken;
@@ -223,29 +225,33 @@ module peregrine_core #(
 
     // MEM-stage redirect (trap entry or mret), declared here for the PC mux.
     logic        mem_redirect;
+    logic        mem_redirect_nw;   // mem_redirect before its ~mem_wait gate
     logic [31:0] mem_redirect_pc;
 
     // An M instruction holding in EX until its result is ready.
     logic        ex_m_stall;
 
     assign imem_addr      = pc;
-    assign imem_addr_next = w_aresetn ? pc_d : RESET_ADDR;
+    assign imem_addr_next    = w_aresetn ? pc_d    : RESET_ADDR;
+    assign imem_addr_next_nw = w_aresetn ? pc_d_nw : RESET_ADDR;
 
+    // The next PC without the hold, so a fetch memory can take mem_wait as
+    // its read enable instead of through the address (TASK-001 stage 7):
+    // mem_wait is the late signal, and the hold arm is the only use of it.
     always_comb begin
-        if (mem_wait) begin
-            pc_d = pc;                       // hold while memories wait
-        end else if (mem_redirect) begin
-            pc_d = mem_redirect_pc;          // trap entry / mret (oldest wins)
+        if (mem_redirect_nw) begin
+            pc_d_nw = mem_redirect_pc;       // trap entry / mret (oldest wins)
         end else if (ex_flush) begin
-            pc_d = ex_next_pc;               // EX redirect: a mispredict
+            pc_d_nw = ex_next_pc;            // EX redirect: a mispredict
         end else if (stall_ifid | ex_m_stall) begin
-            pc_d = pc;                       // interlock / M unit busy
+            pc_d_nw = pc;                    // interlock / M unit busy
         end else if (if_pred_taken) begin
-            pc_d = if_pred_target;           // predicted taken
+            pc_d_nw = if_pred_target;        // predicted taken
         end else begin
-            pc_d = pc + PC_INCR;             // sequential fetch
+            pc_d_nw = pc + PC_INCR;          // sequential fetch
         end
     end
+    assign pc_d = mem_wait ? pc : pc_d_nw;   // hold while memories wait
 
     `ALWAYS_FF_RST(clk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) begin
@@ -385,6 +391,14 @@ module peregrine_core #(
     assign id_ex_d.m_op          = id_m_op;
     assign id_ex_d.pred_taken    = if_id_q.pred_taken;
     assign id_ex_d.pred_target   = if_id_q.pred_target;
+    // A branch or JAL target does not depend on a register: compute it and
+    // its compare against the guess here, so EX's mispredict test does not
+    // sit behind the forwarding mux and the ALU (TASK-001 stage 7).
+    logic [31:0] id_br_target;
+    assign id_br_target          = if_id_q.pc + id_imm;
+    assign id_ex_d.br_target     = id_br_target;
+    assign id_ex_d.br_tgt_hit    = (if_id_q.pred_target == id_br_target);
+    assign id_ex_d.jalr_x        = if_id_q.pred_target - id_imm;
     assign id_ex_d.valid         = if_id_q.valid;
     assign id_ex_d.insn          = id_insn;
 
@@ -471,10 +485,10 @@ module peregrine_core #(
     // suppressed while the memories wait so the event replays after.
     // While an M instruction holds in EX, ID/EX holds it (the ID interlock
     // bubble must not overwrite it) and EX/MEM takes the bubble instead.
-    assign if_id_flush_eff  = ((flush_ifid | mem_redirect) & ~mem_wait);
-    assign id_ex_flush_eff  = ((flush_idex | (stall_ifid & ~ex_m_stall) | mem_redirect)
+    assign if_id_flush_eff  = ((flush_ifid | mem_redirect_nw) & ~mem_wait);
+    assign id_ex_flush_eff  = ((flush_idex | (stall_ifid & ~ex_m_stall) | mem_redirect_nw)
                                & ~mem_wait);
-    assign ex_mem_flush_eff = (mem_redirect | ex_m_stall) & ~mem_wait;
+    assign ex_mem_flush_eff = (mem_redirect_nw | ex_m_stall) & ~mem_wait;
 
     // -----------------------------------------------------------------
     // EX stage: ALU, branch comparator, alignment checks, CSR read
@@ -551,7 +565,7 @@ module peregrine_core #(
     logic [31:0] ex_m_rs2;
 
     assign ex_m_valid = id_ex_q.valid & id_ex_q.m_op;
-    assign mdu_start  = ex_m_valid & mdu_idle & ~mem_wait & ~mem_redirect;
+    assign mdu_start  = ex_m_valid & mdu_idle & ~mem_wait & ~mem_redirect_nw;
     assign ex_m_stall = ex_m_valid & ~mdu_done;
 
     peregrine_mdu #(
@@ -618,7 +632,21 @@ module peregrine_core #(
 
     assign branch_taken = id_ex_q.branch & branch_cond;
 
-    assign ex_target = id_ex_q.jalr ? ((br_rs1 + id_ex_q.imm) & JALR_ALIGN_MASK) : alu_y_raw;
+    // JALR's target needs rs1; a branch's or JAL's comes from ID (pc + imm,
+    // what the ALU computes for them).
+    logic [31:0] ex_jalr_target;
+    logic        ex_tgt_miss;
+    assign ex_jalr_target = (br_rs1 + id_ex_q.imm) & JALR_ALIGN_MASK;
+    assign ex_target   = id_ex_q.jalr ? ex_jalr_target : id_ex_q.br_target;
+    // A JALR guess is checked without the target adder: a taken guess is
+    // word aligned (the BTB stores PC[31:2]), so (rs1 + imm) & ~1 equals it
+    // exactly when rs1 is pred_target - imm or one more (jalr_x, from ID).
+    // A not-taken guess mispredicts on its direction alone.
+    logic [31:0] ex_jalr_x1;
+    logic        ex_jalr_hit;
+    assign ex_jalr_x1  = id_ex_q.jalr_x + 32'd1;
+    assign ex_jalr_hit = (br_rs1 == id_ex_q.jalr_x) | (br_rs1 == ex_jalr_x1);
+    assign ex_tgt_miss = id_ex_q.jalr ? ~ex_jalr_hit : ~id_ex_q.br_tgt_hit;
     assign ex_taken  = id_ex_q.valid & (id_ex_q.jump | id_ex_q.jalr | branch_taken);
     logic [31:0] ex_pc_incr;
     assign ex_pc_incr = id_ex_q.pc + PC_INCR;
@@ -630,7 +658,7 @@ module peregrine_core #(
     // merlin's "every taken branch flushes".
     assign ex_mispredict = id_ex_q.valid &
                            ((id_ex_q.pred_taken != ex_taken) |
-                            (ex_taken & (id_ex_q.pred_target != ex_target)));
+                            (ex_taken & ex_tgt_miss));
     // An instruction held in EX redirects only as it leaves (an earlier
     // flush would kill it in ID/EX, flush beating stall).
     assign ex_flush  = ex_mispredict & ~ex_m_stall;
@@ -639,7 +667,7 @@ module peregrine_core #(
     // instruction as it leaves EX (not under mem_wait, not while an M
     // instruction holds, not when a MEM redirect kills it).
     logic ex_leaves;
-    assign ex_leaves = id_ex_q.valid & ~mem_wait & ~ex_m_stall & ~mem_redirect;
+    assign ex_leaves = id_ex_q.valid & ~mem_wait & ~ex_m_stall & ~mem_redirect_nw;
 
     peregrine_bpred #(
         .BP_EN       (BP_EN),
@@ -781,8 +809,17 @@ module peregrine_core #(
     end
 
     assign mem_redirect    = mem_trap | mem_mret | mem_fencei;
-    assign mem_redirect_pc = mem_trap ? csr_mtvec :
-                             mem_mret ? csr_mepc  : ex_mem_q.next_pc;
+    // The same decision without the ~mem_wait term, for the consumers that
+    // gate on mem_wait themselves (the PC mux, the flushes, the M-unit
+    // start, the predictor write): mem_wait then feeds them once, not
+    // through the redirect as well (TASK-001 stage 7).  Same function.
+    logic mem_trap_nw;
+    logic mem_mret_nw;
+    assign mem_trap_nw     = mem_exc | mem_irq;
+    assign mem_mret_nw     = ex_mem_q.valid & ex_mem_q.mret & ~mem_exc & ~mem_irq;
+    assign mem_redirect_nw = mem_trap_nw | mem_mret_nw | mem_fencei_pend;
+    assign mem_redirect_pc = mem_trap_nw ? csr_mtvec :
+                             mem_mret_nw ? csr_mepc  : ex_mem_q.next_pc;
 
     // mcause and mtval.  An interrupt wins: the instruction never executed.
     always_comb begin

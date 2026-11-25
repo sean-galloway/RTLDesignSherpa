@@ -111,6 +111,10 @@ package peregrine_pkg;
     logic        m_op;          // M extension: funct3 selects the operation
     logic        pred_taken;    // the predictor's guess (payload)
     logic [31:0] pred_target;
+    logic [31:0] br_target;     // pc + imm: a branch / JAL target, from ID
+    logic        br_tgt_hit;    // pred_target == br_target (TASK-001 stage 7)
+    logic [31:0] jalr_x;        // pred_target - imm: a JALR guess is right iff
+                                // rs1 is jalr_x or jalr_x + 1 (stage 7)
     logic        valid;
     logic [31:0] insn;
   } id_ex_t;

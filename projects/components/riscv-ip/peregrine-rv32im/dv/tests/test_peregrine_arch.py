@@ -136,7 +136,10 @@ def test_peregrine_arch(request, test_level, description, cache_en, ext, mul_dsp
             **level_env(test_level),
         },
         parameters={"RESET_ADDR": str(LINK_BASE), "MEM_WORDS": str(MEM_WORDS),
-                    "MUL_DSP": str(mul_dsp)},
+                    "MUL_DSP": str(mul_dsp),
+                    # cached build only: amber's held response word is noise
+                    # outside its valid (TASK-001 stage 7)
+                    **({"RSP_SCRAMBLE": "1"} if cache_en else {})},
         waves=bool(int(os.environ.get("WAVES", "0"))),
         keep_files=True,
         compile_args=["--timescale", "1ns/1ps",

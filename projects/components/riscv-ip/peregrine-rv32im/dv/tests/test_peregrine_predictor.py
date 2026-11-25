@@ -130,6 +130,23 @@ def _check_stale_entry(trace: list, site_br: int) -> None:
         f"stale entry: predictions {[(b['bp_pred_taken'], b['bp_mispredict']) for b in beats]}"
 
 
+def _check_stale_target(trace: list, site_br: int) -> None:
+    """The rewritten JAL was fetched once with a taken guess at the old
+    target, mispredicted on the target alone, and the pass after it hit."""
+    beats = [b for b in trace if b["pc"] == site_br]
+    assert len(beats) == 3, f"tsite_br retired {len(beats)} times, expected 3"
+    got = [(b["bp_pred_taken"], b["bp_mispredict"]) for b in beats]
+    assert got[1:] == [(1, 1), (1, 0)], f"stale target: predictions {got}"
+
+
+def _check_jalr_odd(trace: list, site: int) -> None:
+    """Once its BTB entry is in, the odd-sum JALR is never mispredicted."""
+    beats = [b for b in trace if b["pc"] == site]
+    late = [b["bp_mispredict"] for b in beats[2:]]
+    assert len(beats) > 2 and not any(late), \
+        f"jalr_odd: {sum(late)} mispredicts after warm-up of {len(beats)} calls"
+
+
 @cocotb.test(timeout_time=3000, timeout_unit="sec")
 async def cocotb_test_peregrine_predictor(dut):
     """Predictor streams + generated programs on one BP_EN build."""
@@ -150,6 +167,10 @@ async def cocotb_test_peregrine_predictor(dut):
         results.append(await _run_program(dut, tb, elf, s.name, bp_en, work_dir))
         if s.name == "stale_entry" and bp_en:
             _check_stale_entry(tb.trace, read_elf32(elf)[1]["site_br"])
+        if s.name == "stale_target" and bp_en:
+            _check_stale_target(tb.trace, read_elf32(elf)[1]["tsite_br"])
+        if s.name == "jalr_odd" and bp_en:
+            _check_jalr_odd(tb.trace, read_elf32(elf)[1]["jalr_odd_site"])
         # mem_wait on streams that re-execute branches whose counters are
         # still moving: a predictor written more than once per instruction
         # while the pipeline is held shows up only there (a mem_wait run of

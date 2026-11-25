@@ -346,7 +346,10 @@ def test_peregrine_sys(request, cocotb_testcase, test_level, description):
             "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{name}.xml"),
             **level_env(test_level),
         },
-        parameters={"RESET_ADDR": str(LINK_BASE), "MEM_WORDS": str(1 << 18)},
+        # RSP_SCRAMBLE: amber's held response word is noise outside its
+        # valid cycle, so a wrapper reading it late fails (TASK-001 stage 7).
+        parameters={"RESET_ADDR": str(LINK_BASE), "MEM_WORDS": str(1 << 18),
+                    "RSP_SCRAMBLE": "1"},
         waves=bool(int(os.environ.get("WAVES", "0"))),
         keep_files=True,
         compile_args=["--trace", "--trace-structs", "--timescale", "1ns/1ps",

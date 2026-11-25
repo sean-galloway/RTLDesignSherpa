@@ -196,8 +196,12 @@ module peregrine_mdu #(
 
     assign w_dsp_product = 64'(r_opnd) * 64'(r_acc[31:0]);
 
+    // The payload loads on every idle cycle, not only on start (TASK-001
+    // stage 7): the start condition is late (it waits for mem_wait), and an
+    // idle unit's payload is never read -- the result is taken only under
+    // done.  The start cycle loads exactly what it did.
     always_ff @(posedge clk) begin
-        if (w_start) begin
+        if (~r_busy & ~r_done) begin
             r_is_div <= w_is_div;
             r_sel_hi <= w_sel_hi;
             r_neg    <= w_early ? 1'b0 : w_neg;

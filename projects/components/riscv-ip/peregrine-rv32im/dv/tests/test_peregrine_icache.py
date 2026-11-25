@@ -59,9 +59,10 @@ async def cocotb_test_peregrine_icache(dut):
 
     sweep = list(range(4, SIZE, 4))          # pc starts at 0
 
-    async def phase(name, stream, want_ars, inv_at=(), inv_when_busy=False):
+    async def phase(name, stream, want_ars, inv_at=(), inv_when_busy=False, hold_pct=0):
         before = tb.ars
-        await tb.fetch(stream, inv_at=inv_at, inv_when_busy=inv_when_busy)
+        await tb.fetch(stream, inv_at=inv_at, inv_when_busy=inv_when_busy,
+                       hold_pct=hold_pct)
         got = tb.ars - before
         dut._log.info(f"{name}: {len(stream)} fetches, {got} refills")
         assert got == want_ars, f"{name}: {got} refills, expected {want_ars}"
@@ -83,6 +84,17 @@ async def cocotb_test_peregrine_icache(dut):
     await phase("inv in refill", [3 * SIZE, 3 * SIZE + 4], 2, inv_at=(1,),
                 inv_when_busy=True)
     assert tb.inv_acks == 2
+    # Holds from elsewhere (the D side) on 30% of cycles: the read registers
+    # keep the PC's word under a hold the cache did not cause, through
+    # misses, replays and hits (TASK-001 stage 7: mem_wait is their enable).
+    tb.set_profile("fast")
+    # The previous phase leaves the PC at 3*SIZE+4: the invalidate is taken
+    # before the PC moves, so that line refills once more (the plain
+    # "invalidate" phase starts from PC 0, inside the sweep).
+    await phase("held sweep", [0] + sweep, SIZE // LINE + 1, inv_at=(0,), hold_pct=30)
+    assert tb.inv_acks == 3
+    await phase("held last-beat", [7 * SIZE + i * LINE + LINE - 4 for i in range(8)], 8,
+                hold_pct=30)
 
     if level != "gate":
         n = 3000 if level == "func" else 20000
@@ -94,8 +106,8 @@ async def cocotb_test_peregrine_icache(dut):
             if rng.random() < 0.003:
                 inv_at.append(i)
         before = tb.ars
-        await tb.fetch(stream, inv_at=inv_at)
-        dut._log.info(f"random: {n} fetches, {tb.ars - before} refills, "
+        await tb.fetch(stream, inv_at=inv_at, hold_pct=20)
+        dut._log.info(f"random: {n} fetches (20% outside holds), {tb.ars - before} refills, "
                       f"{len(inv_at)} invalidates, seed {seed}")
     dut._log.info(f"checked {tb.checked} fetched words against memory")
 

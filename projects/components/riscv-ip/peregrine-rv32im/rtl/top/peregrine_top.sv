@@ -28,12 +28,18 @@
 //          hit (amber TASK-005) fits it with no added stall: the request is
 //          accepted in MEM, the response is valid in the next cycle, which
 //          is WB.  The wrapper:
-//          - presents the request (valid) when MEM has one, no other hold
-//            is active, and the previous response is in or arriving;
+//          - presents the request (valid) when MEM has one not yet
+//            accepted, no fence.i / clean hold is active, and the previous
+//            response is in or arriving.  An I$ stall does not gate it
+//            (TASK-001 stage 7): the I$ hit is late, and amber's accept-
+//            cycle lookup sits behind the valid.  So an access can be
+//            accepted while the core is held for the I$; r_mem_done then
+//            marks MEM's access as done until MEM moves on;
 //          - holds the core while MEM has a request not yet accepted, and
-//            while WB waits for its response;
-//          - captures a response that arrives while the core is held, and
-//            gives it to WB until WB retires.
+//            while an accepted access waits for its response;
+//          - captures a response that arrives while the core is held: WB's
+//            in r_have (given to WB until WB retires), MEM's in r_mem_have
+//            (moved to r_have when MEM moves to WB).
 //          One access is in flight at a time (amber is blocking; the
 //          uncached port is single-transaction).
 //
@@ -206,7 +212,7 @@ module peregrine_top #(
     // -----------------------------------------------------------------
     logic        w_mem_wait;
     logic [31:0] w_imem_addr;
-    logic [31:0] w_imem_addr_next;
+    logic [31:0] w_imem_addr_next_nw;
     logic [31:0] w_imem_rdata;
     logic        w_dreq_pre;
     logic [31:0] w_daddr;
@@ -229,7 +235,8 @@ module peregrine_top #(
         .rst_n               (rst_n),
         .mem_wait            (w_mem_wait),
         .imem_addr           (w_imem_addr),
-        .imem_addr_next      (w_imem_addr_next),
+        .imem_addr_next      (),
+        .imem_addr_next_nw   (w_imem_addr_next_nw),
         .imem_rdata          (w_imem_rdata),
         .dmem_req            (),
         .dmem_addr           (w_daddr),
@@ -309,7 +316,8 @@ module peregrine_top #(
         .clk             (clk),
         .rst_n           (w_aresetn),
         .fetch_addr      (w_imem_addr),
-        .fetch_addr_next (w_imem_addr_next),
+        .fetch_addr_next_nw (w_imem_addr_next_nw),
+        .hold            (w_mem_wait),
         .fetch_rdata     (w_imem_rdata),
         .stall           (w_ic_stall),
         .inv_req         (w_ic_inv_req),
@@ -377,21 +385,27 @@ module peregrine_top #(
     assign w_other_hold = w_ic_stall | w_fi_busy | w_ext_busy;
 
     logic        r_outstanding;   // an accepted access whose response is due
-    logic        r_have;          // a response captured while the core held
+    logic        r_have;          // WB's response, captured while the core held
     logic [31:0] r_have_data;
+    logic        r_mem_done;      // MEM's access accepted while the core held
+    logic        r_mem_have;      // MEM's response, captured while the core held
+    logic [31:0] r_mem_data;
     logic        w_rsp_valid;
     logic [31:0] w_rsp_rdata;
     logic        w_dvalid;
     logic        w_dready;
     logic        w_dhs;
 
-    assign w_dvalid = w_dreq_pre & ~w_other_hold & (~r_outstanding | w_rsp_valid);
+    assign w_dvalid = w_dreq_pre & ~r_mem_done & ~w_fi_busy & ~w_ext_busy &
+                      (~r_outstanding | w_rsp_valid);
     assign w_dhs    = w_dvalid & w_dready;
 
-    // The core holds while MEM's access is not accepted, while WB waits for
-    // its response, and for the I$ and fence.i.
+    // The core holds while MEM's access is not accepted, while an accepted
+    // access waits for its response, and for the I$ and fence.i.  After an
+    // accept under a hold, the outstanding access is MEM's (r_mem_done):
+    // the previous one's response was in or arriving at the accept.
     assign w_mem_wait = w_other_hold |
-                        (w_dreq_pre & ~w_dhs) |
+                        (w_dreq_pre & ~r_mem_done & ~w_dhs) |
                         (r_outstanding & ~w_rsp_valid);
 
     assign w_drdata = r_have ? r_have_data : w_rsp_rdata;
@@ -644,6 +658,9 @@ module peregrine_top #(
             r_outstanding   <= 1'b0;
             r_have          <= 1'b0;
             r_have_data     <= '0;
+            r_mem_done      <= 1'b0;
+            r_mem_have      <= 1'b0;
+            r_mem_data      <= '0;
             r_tgt           <= T_CLINT;
             r_fi_clean_done <= 1'b0;
             r_fi_done       <= 1'b0;
@@ -660,13 +677,34 @@ module peregrine_top #(
             end else if (w_rsp_valid) begin
                 r_outstanding <= 1'b0;
             end
-            // A response that arrives while the core holds waits here for
-            // WB; WB retires on the first cycle without a hold.
-            if (w_rsp_valid && r_outstanding && w_mem_wait) begin
-                r_have      <= 1'b1;
-                r_have_data <= w_rsp_rdata;
-            end else if (!w_mem_wait) begin
-                r_have      <= 1'b0;
+            // Responses.  WB retires and MEM moves to WB on the first cycle
+            // without a hold.  WB's response that arrives under a hold waits
+            // in r_have; MEM's (an access accepted under a hold) waits in
+            // r_mem_have and becomes WB's when MEM moves.  One access is in
+            // flight, so a response is MEM's exactly when r_mem_done.
+            if (!w_mem_wait) begin
+                r_mem_done <= 1'b0;
+                r_mem_have <= 1'b0;
+                if (r_mem_have) begin
+                    r_have      <= 1'b1;
+                    r_have_data <= r_mem_data;
+                end else if (w_rsp_valid && r_outstanding && r_mem_done) begin
+                    r_have      <= 1'b1;
+                    r_have_data <= w_rsp_rdata;
+                end else begin
+                    r_have      <= 1'b0;
+                end
+            end else begin
+                if (w_dhs) begin
+                    r_mem_done <= 1'b1;
+                end
+                if (w_rsp_valid && r_outstanding && r_mem_done) begin
+                    r_mem_have <= 1'b1;
+                    r_mem_data <= w_rsp_rdata;
+                end else if (w_rsp_valid && r_outstanding) begin
+                    r_have      <= 1'b1;
+                    r_have_data <= w_rsp_rdata;
+                end
             end
             // fence.i progress, cleared when the core commits it.
             if (!w_fencei_req || !w_mem_wait) begin

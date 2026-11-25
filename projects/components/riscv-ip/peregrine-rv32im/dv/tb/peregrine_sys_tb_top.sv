@@ -28,6 +28,21 @@
 //          peregrine_top issues one at a time per channel).  Behavioral,
 //          not synthesizable.
 //
+//          RSP_SCRAMBLE=1 (TASK-001 stage 7): amber's response data
+//          (u_top.w_dc_rsp_data, its cpu_rsp_rd_data) is forced to an LFSR
+//          value on every cycle its response valid is low.  amber keeps its
+//          last response on cpu_rsp_rd_data, so a wrapper that reads the
+//          data outside its valid cycle (instead of the copy it captured)
+//          passes by luck without this.  The force is on amber's whole beat,
+//          upstream of peregrine_top's lane select, so every wrapper stage
+//          stays the RTL under test; in the valid cycle it passes amber's
+//          own value, re-derived from its frontend's response mux
+//          (l1_cpu_frontend, RSP_BYPASS=1: the staged beat if one is
+//          staged, else the bypassed one) because the port net itself is
+//          the forced one.  The uncached port and the CLINT already drive 0
+//          outside their valid.  A TB force, not RTL: peregrine_top and
+//          amber are unchanged.
+//
 // Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
 // Subsystem: riscv-ip/peregrine-rv32im
 //
@@ -43,7 +58,8 @@ module peregrine_sys_tb_top #(
     parameter int          MEM_WORDS  = 65536,
     parameter bit          MUL_DSP    = 1'b0,
     parameter bit          BP_EN      = 1'b1,
-    parameter int          MTIME_DIV  = 1
+    parameter int          MTIME_DIV  = 1,
+    parameter bit          RSP_SCRAMBLE = 1'b0
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -272,6 +288,21 @@ module peregrine_sys_tb_top #(
         end
         if (tb_mem_we) begin
             mem[widx(tb_mem_addr)] = tb_mem_wdata;
+        end
+    end
+
+    // D$ response scrambler (see the header).
+    if (RSP_SCRAMBLE) begin : g_rsp_scramble
+        logic [31:0] r_scr;
+        always_ff @(posedge clk) begin
+            if (!rst_n) r_scr <= 32'hACE1_5EED;
+            else        r_scr <= {r_scr[30:0], r_scr[31] ^ r_scr[21] ^ r_scr[1] ^ r_scr[0]};
+        end
+        initial begin
+            force u_top.w_dc_rsp_data = !u_top.w_dc_rsp_valid_raw ? {2{r_scr}} :
+                u_top.u_dcache.u_cpu.u_frontend.stage_rd_valid
+                    ? u_top.u_dcache.u_cpu.u_frontend.stage_rd_data
+                    : u_top.u_dcache.u_cpu.u_frontend.ctrl_rsp_data;
         end
     end
 

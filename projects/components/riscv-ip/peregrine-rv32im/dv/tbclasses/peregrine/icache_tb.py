@@ -15,9 +15,11 @@
 
 """peregrine_icache unit TB.
 
-The fetch side is driven exactly as peregrine_core drives it: a registered
-PC (fetch_addr) and the PC after this edge (fetch_addr_next), which equals
-the PC while the cache stalls.  The refill master is answered by the house
+The fetch side is driven exactly as peregrine_core and peregrine_top drive
+it: a registered PC (fetch_addr), the next PC as if the core were not held
+(fetch_addr_next_nw), and the hold (the core's mem_wait): the cache's own
+stall, ORed with random holds from elsewhere (the D side) when a phase asks
+for them.  The PC advances only on a cycle without a hold.  The refill master is answered by the house
 AXI4 slave-read BFM over a MemoryModel, so every refill reads the model.
 
 Checks, every cycle:
@@ -83,7 +85,8 @@ class IcacheTB:
     async def setup_clocks_and_reset(self) -> None:
         cocotb.start_soon(Clock(self.dut.clk, 10, unit="ns").start())
         self.dut.fetch_addr.value = 0
-        self.dut.fetch_addr_next.value = 0
+        self.dut.fetch_addr_next_nw.value = 0
+        self.dut.hold.value = 0
         self.dut.inv_req.value = 0
         await self.assert_reset()
         for _ in range(5):
@@ -119,9 +122,11 @@ class IcacheTB:
                 assert int(d.m_axi_arburst.value) == 1, "AR is not INCR"
 
     async def fetch(self, stream, inv_at=(), inv_when_busy=False,
-                    max_cycles=200_000) -> None:
+                    hold_pct=0, max_cycles=400_000) -> None:
         """Fetch every address of ``stream`` in order, as the core would:
-        the PC advances only on a cycle the cache does not stall.
+        the PC advances only on a cycle without a hold.  The hold is the
+        cache's stall, or (``hold_pct`` percent of cycles) a hold from
+        elsewhere, which the cache must ride out with its output kept.
 
         inv_req is held from fetch index k (k in ``inv_at``) until acked;
         with ``inv_when_busy`` it is raised only once a refill is in flight
@@ -135,6 +140,7 @@ class IcacheTB:
         for _ in range(max_cycles):
             await FallingEdge(d.clk)
             d.fetch_addr.value = self.pc
+            d.fetch_addr_next_nw.value = self.pc if nxt is None else nxt
             busy = int(d.m_axi_arvalid.value) or int(d.m_axi_rready.value)
             seen_busy = seen_busy or bool(busy)
             d.inv_req.value = int(k in inv_set and (seen_busy or not inv_when_busy))
@@ -149,15 +155,14 @@ class IcacheTB:
             if int(d.inv_ack.value):
                 self.inv_acks += 1
                 inv_set.discard(k)
-            advance = not stall
-            if advance:
+            hold = stall or (hold_pct and self.rng.randrange(100) < hold_pct)
+            d.hold.value = int(bool(hold))
+            if not hold:
                 if nxt is None:
-                    d.fetch_addr_next.value = self.pc
                     d.inv_req.value = 0
                     return
                 self.pc = nxt
                 nxt = next(it, None)
                 k += 1
                 seen_busy = False
-            d.fetch_addr_next.value = self.pc
         raise AssertionError("fetch did not finish")

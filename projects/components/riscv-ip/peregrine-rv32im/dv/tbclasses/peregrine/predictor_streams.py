@@ -306,11 +306,72 @@ def trap_shadow(reps: int) -> Stream:
                   notes="a branch killed in EX by an older trap, then re-executed")
 
 
+def stale_target() -> Stream:
+    """A taken JAL installs a BTB entry, then the program rewrites it into a
+    JAL with a different target (with fence.i): the next pass is fetched
+    with the stale target, so the guess is taken but wrong.  A branch or
+    JAL target is fixed by its PC, so only rewritten code exercises the
+    target half of the mispredict test for them (TASK-001 stage 7 computes
+    it in ID)."""
+    body = """\
+    li s1, 3
+3:  jal ra, tsite
+    la t0, tsite_br
+    la t3, tpatch_src
+    lw t2, 0(t3)
+    sw t2, 0(t0)
+    fence.i
+    nop
+    nop
+    nop
+    addi s1, s1, -1
+    bnez s1, 3b
+    j check
+tsite:
+tsite_br:
+    j 4f
+    addi s0, s0, 100
+4:  addi s0, s0, 1
+    ret
+tnew:
+    addi s0, s0, 10
+    ret
+tpatch_src:
+    .word 0x0100006f    # jal x0, +16: tsite_br -> tnew (4 instructions on)
+"""
+    # Pass 1 jumps to 4 (+1); passes 2 and 3 jump to tnew (+10 each).
+    return Stream("stale_target", body, 21,
+                  notes="pass 2: taken guess, stale target (rewritten JAL)")
+
+
+def jalr_odd(reps: int) -> Stream:
+    """A JALR whose rs1 + imm is odd: the target clears bit 0, so the
+    guess (word aligned) matches rs1 + imm - 1.  Once the BTB holds it,
+    every pass must predict it right (TASK-001 stage 7 checks a JALR guess
+    as rs1 == pred_target - imm or one more)."""
+    body = f"""\
+    la a1, fodd
+    addi a1, a1, -1
+    li s1, {reps}
+3:
+jalr_odd_site:
+    jalr ra, 2(a1)
+    addi s1, s1, -1
+    bnez s1, 3b
+    j check
+fodd:
+    addi s0, s0, 1
+    ret
+"""
+    return Stream("jalr_odd", body, reps, notes="rs1 + imm odd, target bit 0 cleared")
+
+
 def streams(level: str) -> list:
     reps = {"gate": 8, "func": 40, "full": 200}[level]
     return ([loop_trip(n, reps) for n in (1, 2, 3, 4)] +
             [btb_alias(reps), bht_alias(reps), jalr_targets(reps),
-             interlock(2 * reps), stale_entry(), trap_shadow(2 * reps)])
+             interlock(2 * reps), stale_entry(), trap_shadow(2 * reps),
+             stale_target(), jalr_odd(reps)])
 
 
 def check_alias(kind: str, a: int, b: int) -> None:

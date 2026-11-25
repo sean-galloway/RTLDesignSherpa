@@ -11,16 +11,25 @@
 //          coherence and no snoop port.
 //
 //          Fetch contract (the core's registered-read imem contract):
-//          - fetch_addr_next is the PC after this edge; the data RAM is read
-//            there, so fetch_rdata is the word at fetch_addr (the PC) in the
-//            next cycle.
+//          - The PC after this edge is fetch_addr_next_nw, or fetch_addr
+//            when hold is high; fetch_rdata is the word at fetch_addr (the
+//            PC) in the next cycle.
 //          - stall is high whenever fetch_rdata is not the word at
 //            fetch_addr: a miss, a refill, the replay cycle after a refill,
-//            and an invalidate.  The core holds (its mem_wait), so
-//            fetch_addr_next equals fetch_addr while stalled and the RAM
-//            re-reads the same word.
-//          - Hit test on the registered PC: valid bit (flops) and the tag
-//            (distributed RAM, read asynchronously) of the PC's set.
+//            and an invalidate.  The core holds (its mem_wait, the hold
+//            input) while stalled.
+//          - Hit test on the registered PC: its set's valid bit (flops)
+//            and a tag read one edge earlier with the data (TASK-001 stage
+//            7), so the hit is a compare of two flops and the tag RAM's
+//            read is off the stall -> mem_wait -> pipeline-enable path.
+//          - Read timing (TASK-001 stage 7): the data, word-select and tag
+//            registers read at fetch_addr_next_nw (the next PC as if the
+//            core were not held) with hold (the core's mem_wait) as their
+//            enable: a held core keeps the PC, and the registers keep the
+//            PC's word.  The one exception is a refill, which writes under
+//            a held output: the replay cycle reads at fetch_addr (the PC)
+//            unconditionally.  mem_wait thus reaches the RAMs only as an
+//            enable, not through the address.
 //
 //          Miss: one INCR burst of the whole line from its first beat
 //          (LINE_BYTES / (AXI_DW/8) beats, no critical-word-first), each
@@ -72,7 +81,8 @@ module peregrine_icache #(
     input  logic                rst_n,
     // Fetch side
     input  logic [31:0]         fetch_addr,       // the PC (registered in the core)
-    input  logic [31:0]         fetch_addr_next,  // the PC after this edge
+    input  logic [31:0]         fetch_addr_next_nw, // the next PC if not held
+    input  logic                hold,             // the core holds (mem_wait)
     output logic [31:0]         fetch_rdata,
     output logic                stall,
     // Invalidate (fence.i)
@@ -124,6 +134,8 @@ module peregrine_icache #(
     } state_e;
 
     state_e r_state, w_state_d;
+    logic   w_replay;
+    assign  w_replay = (r_state == S_REPLAY);
 
     // -----------------------------------------------------------------
     // Storage
@@ -141,10 +153,14 @@ module peregrine_icache #(
     logic [IDX_W-1:0] w_idx;
     logic [TAG_W-1:0] w_tag;
     logic             w_hit;
+    logic [31:0]      w_rd_pc;        // the read address of the read registers
+    logic             w_rd_en;        // their enable
+    logic [IDX_W-1:0] w_idx_next;
+    logic [TAG_W-1:0] r_tag_q;        // r_tag[PC's set], read with the data
 
-    assign w_idx = fetch_addr[OFF_W +: IDX_W];
-    assign w_tag = fetch_addr[31 -: TAG_W];
-    assign w_hit = (r_state == S_IDLE) & r_valid[w_idx] & (r_tag[w_idx] == w_tag);
+    assign w_idx      = fetch_addr[OFF_W +: IDX_W];
+    assign w_tag      = fetch_addr[31 -: TAG_W];
+    assign w_hit      = (r_state == S_IDLE) & r_valid[w_idx] & (r_tag_q == w_tag);
 
     logic w_inv_take;
     logic w_miss_start;
@@ -201,9 +217,19 @@ module peregrine_icache #(
     )
 
     // The tag is written with the last beat, together with its valid bit.
+    // Its read (with the data's, below) happens only while the core is not
+    // held, or in the replay cycle, after the write: never in the last
+    // beat's cycle, when the core is held for the refill.
+    assign w_rd_pc    = w_replay ? fetch_addr : fetch_addr_next_nw;
+    assign w_rd_en    = ~hold | w_replay;
+    assign w_idx_next = w_rd_pc[OFF_W +: IDX_W];
+
     always_ff @(posedge clk) begin
         if (w_beat && m_axi_rlast) begin
             r_tag[r_fill_idx] <= r_fill_tag;
+        end
+        if (w_rd_en) begin
+            r_tag_q <= r_tag[w_idx_next];
         end
     end
 
@@ -217,22 +243,25 @@ module peregrine_icache #(
 
     assign w_wr_addr = {r_fill_idx, r_fill_beat};
     if (BEATS > 1) begin : g_rd_beats
-        assign w_rd_addr = {fetch_addr_next[OFF_W +: IDX_W],
-                            fetch_addr_next[BOFF_W +: BEAT_W]};
+        assign w_rd_addr = {w_rd_pc[OFF_W +: IDX_W], w_rd_pc[BOFF_W +: BEAT_W]};
     end else begin : g_rd_one
-        assign w_rd_addr = {fetch_addr_next[OFF_W +: IDX_W], 1'b0};
+        assign w_rd_addr = {w_rd_pc[OFF_W +: IDX_W], 1'b0};
     end
 
     always_ff @(posedge clk) begin
         if (w_beat) begin
             r_data[w_wr_addr] <= m_axi_rdata;
         end
-        r_rd_beat <= r_data[w_rd_addr];
+        if (w_rd_en) begin
+            r_rd_beat <= r_data[w_rd_addr];
+        end
     end
 
     if (WORDS_BEAT > 1) begin : g_wsel
         always_ff @(posedge clk) begin
-            r_rd_wsel <= fetch_addr_next[2 +: WSEL_W];
+            if (w_rd_en) begin
+                r_rd_wsel <= w_rd_pc[2 +: WSEL_W];
+            end
         end
         assign fetch_rdata = r_rd_beat[r_rd_wsel * 32 +: 32];
     end else begin : g_nowsel
@@ -254,6 +283,7 @@ module peregrine_icache #(
     // Unused: the id (one outstanding burst), the response code (see the
     // header), the PC's low bits.
     logic w_unused;
-    assign w_unused = &{1'b0, m_axi_rid, m_axi_rresp, fetch_addr[1:0], r_rd_wsel};
+    assign w_unused = &{1'b0, m_axi_rid, m_axi_rresp, fetch_addr[1:0], r_rd_wsel,
+                        w_rd_pc[1:0]};
 
 endmodule : peregrine_icache

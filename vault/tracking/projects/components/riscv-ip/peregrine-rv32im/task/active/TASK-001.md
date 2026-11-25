@@ -549,3 +549,140 @@ replaces the stub.
 
 Next: stage 5 (targeted formal; riscv-formal on `CACHE_EN=0`) and stage 7
 (timing at 100 MHz, from the measurement above).
+
+## Stage 7: timing, P14 (in progress 2026-11-25)
+
+Owner, 2026-11-25: "Commit, then start stage 7". Phase 1 removes paths
+that are not architectural, with no cycle-count change; phase 2 measures
+the options for the D$ response path and leaves the choice to the owner.
+All builds: `peregrine_top` out of context, xc7a100t-1, 10 ns, from a
+snapshot of the tree (scratchpad), no I/O delays. Single builds move a
+core path by up to 1.5 ns while amber's paths dominate placement, so each
+step is judged by its own path group, not by WNS alone.
+
+**Reference: amber on this part.** `amber_top` alone (`MAINT_EN=1`, no
+monitor) at 10 ns on xc7a100t-1: WNS -4.046 ns, its own control state into
+its data RAM's B address (on xc7k325t-2 the same build had +0.357). Inside
+`peregrine_top`, with the snoop port tied idle: amber-internal -4.3 to
+-4.9 ns; amber's accept-cycle cone (request valid -> tag LUTRAM address
+mux -> compare -> `state_d` -> data RAM address) is about 11.7 ns by
+itself; its response data (`cpu_rsp_rd_data`, way select behind the LRU /
+victim state) arrives 10.4-11.1 ns after the edge. None of these can be
+closed from the peregrine side.
+
+**Phase 1 steps** (CPI harness: 6 self-checking kernels plus the rv32ui and
+rv32um images on `peregrine_sys_tb_top`, cycles compared to HEAD 8658fea13
+per program):
+
+| step | change | WNS | groups moved | cycles |
+|---|---|---|---|---|
+| base | stage 4 as committed | -9.277 | | |
+| 1 | I$ tag read registered at the next PC with the data, write-first | -9.949 | the tag LUTRAM off the hit compare | identical |
+| 2 | D request no longer gated by the I$ stall: an access may be accepted while the core is held (`r_mem_done`); a response for MEM's access waits in `r_mem_have` and moves to WB with it | -9.974 | I$ -> D$ gone (was -8.2); I$ -> core -4.6 -> -2.7 | 17 fewer in 4 rv32ui images (30 accepts under a hold) |
+| 3 | branch / JAL target and its compare against the guess computed in ID (`br_target`, `br_tgt_hit`); `mem_redirect_nw` (the MEM redirect without its `~mem_wait`) for the PC mux, flushes, M-unit start and predictor write | -5.036 | load data no longer reaches the PC: D$ -> core -8.4 -> -4.6 (now ends at EX/MEM) | identical |
+| 4 | I$ read registers take `mem_wait` as their enable and read at `imem_addr_next_nw` (the next PC without the hold); the replay cycle reads at the PC; valid read straight from flops | -5.055 | D$ -> I$ -3.3 -> +0.28, I$ -> I$ -1.3 -> +0.44 | identical |
+| 5 | JALR guess checked without the target adder (`rs1 == pred_target - imm` or `+ 1`, `jalr_x` from ID); M-unit payload loads on every idle cycle | -5.017 | the M-unit start path gone; core groups within noise | identical |
+
+After step 5, with amber's paths relaxed to two cycles (a measurement
+constraint standing in for a 2-cycle amber), the core-only groups are
+core -> core -0.72, core -> I$ -0.97, I$ -> core -0.15 ns: the core itself
+is about 1 ns short, through `mem_wait` (I$ hit, D handshake, interrupt
+decision) and its fanout to the pipeline enables and CSR write enables.
+
+**Phase 2: the D$ response options** (built on step 5; CPI from the same
+harness; kernels without `mm`, whose iterative multiply dominates it):
+
+| option | what | D$ data path | D$ -> core group | CPI kernels | CPI rv32ui |
+|---|---|---|---|---|---|
+| none (step 5) | load data forwarded WB -> EX the cycle it arrives | -5.017 (into EX/MEM) | -5.017 | 1.343 | 1.989 |
+| (a1) | response registered in `peregrine_top`, every load one more cycle | -0.230 (at the register) | -1.409 (ready -> `mem_wait`) | 1.487 (+10.7%) | 2.017 (+1.4%) |
+| (a1s) | every response registered (loads and stores) | as (a1) | | 1.515 (+12.8%) | 2.024 (+1.7%) |
+| (c) | no WB -> EX forward of a load: ID waits while it needs a load still in MEM, and reads it through the WB -> ID bypass | -1.761 (regfile write) | -1.761 | 1.429 (+6.4%) | 1.998 (+0.4%) |
+| (a) proper | response registered and only load-use pays (a sixth stage for loads) | about (a1) | | as (c), +6.4% (same stalls by construction) | as (c) |
+| (b) | amber 2-cycle hit (cache-ip change, not built) | see below | | about (a1) to (a1s), +10.7 to +12.8% | +1.4 to +1.7% |
+
+Per kernel, (c) against none: `sum` +15.9%, `list` +11.7%, `sort` +0.4%,
+`memcpy` +13.3%, `crc` +1.6%. (a1) and (c) cost the same where every load
+is used by the next one or two instructions.
+
+(a1) and (c) both stay negative because amber's response arrives about
+11 ns after the edge: registering it at once (a1) misses at the wrapper
+flop, writing the regfile (c) misses at its write port. (b) is what removes
+it. What amber would need, from the jet-prime precedent (delta 04, TASK-002,
+a 2-cycle hit at 100 MHz on Kintex): capture the request in the accept
+cycle and classify a cycle later from the registered tag read (no
+`state_d` behind the arriving valid), read every way's data at the arriving
+`{set, beat}` keyed off the valid alone, and register the selected word
+(or the RAM output) before `cpu_rsp_rd_data`. That also takes amber's
+accept-cycle cone (core -> D$, -4.1 to -4.8) and its internal state ->
+data-RAM path (-4.0 standalone) toward closure; neither is peregrine's.
+
+**Verification of phase 1** (none committed yet):
+- Tests changed: the I$ unit TB drives the new fetch contract
+  (`fetch_addr_next_nw` + `hold`) and adds holds the cache did not cause
+  (30% in two directed phases, 20% in the random phase); the predictor
+  test adds `stale_target` (a rewritten JAL fetched with a taken guess at
+  the old target) and `jalr_odd` (a JALR whose rs1 + imm is odd), each with
+  a per-beat check. `peregrine_tb_top` ties the new `imem_addr_next_nw`.
+- Mutation (`mutate7.py`, scratchpad: the stage-4 set re-anchored plus 10
+  stage-7 mutants): 25 of 27 caught. Stage-7 mutants caught: MEM's access
+  re-issued after an accept under a hold; I$ read registers ignore the
+  hold; replay reads the next PC; replay read not enabled; branch / JAL
+  target compare from ID ignored and JALR `jalr_x + 1` dropped (both only
+  after the two new streams; they survived the first pass); M-unit payload
+  reloads while its result waits; ungated redirect drops fence.i. D2
+  (clean issued while an access is in flight) survives as at stage 4, an
+  equivalent. S2 *MEM's early response not handed to WB* and S3 *MEM's
+  early response captured as WB's* survived that pass; closed below.
+
+**Decision (owner, 2026-11-25): keep amber's 1-cycle hit and the CPI;
+lower the clock target instead.** Options (b) and (c) are not built. The
+phase-1 changes stay.
+
+**S2 / S3 closed.** Measured first, on the CPI harness: all 30 early
+responses (an access accepted while the core was held) were amber's, 10 of
+them loads, and in all 10 amber still drove the captured word on the cycle
+WB read it -- amber keeps its last response on `cpu_rsp_rd_data`, so a
+wrapper reading it late passes by luck. The uncached port and the CLINT
+already drive 0 outside their valid. Fix, TB only: `peregrine_sys_tb_top`
+parameter `RSP_SCRAMBLE` (default 0) forces amber's response beat
+(`u_top.w_dc_rsp_data`) to an LFSR value whenever its valid is low, and
+passes amber's own value in the valid cycle (re-derived from
+`l1_cpu_frontend`'s response mux, since the port net is the forced one).
+The force sits upstream of peregrine_top's lane select: a first version
+that forced the selected word replaced the lane mux and let *response lane
+not selected* (D3) survive. On: `test_peregrine_sys` and the cached
+`test_peregrine_arch` cells. With it the held word matches at WB's read 0
+of 10 times, all 57 CPI programs pass, cycle counts identical. No RTL or
+cache-ip change.
+
+**Clock reached** (step 5, `MUL_DSP=0`, OOC xc7a100t-1,
+`set_clock_uncertainty -setup 0.2`; Vivado reports 0.235 ns total):
+
+| period (ns) | MHz | WNS | WHS | worst |
+|---|---|---|---|---|
+| 15.5 | 64.5 | -0.684 | | CLINT `msip` -> amber data RAM address |
+| 16.0 | 62.5 | -0.607 | | `mie` -> amber data RAM address |
+| 16.67 | 60.0 | -0.043 | | amber state -> its data RAM address |
+| **17.0** | **58.8** | **+0.331** | +0.086 | amber state -> its data RAM address |
+| 17.5 | 57.1 | -0.051 | +0.043 | amber state -> its data RAM address |
+| 18.5 | 54.1 | +0.100 | +0.043 | amber state -> its data RAM address |
+| 18.5, `MUL_DSP=1` | 54.1 | +0.342 | | |
+
+Highest closing: 17.0 ns (58.8 MHz), 5,064 LUT / 3,004 FF / 9 RAMB36 /
+922 LUTRAM. Top path groups there: amber internal (state -> data RAM B
+address, 20 levels) +0.331; core -> amber (`mie` -> interrupt decision ->
+request valid -> amber accept-cycle lookup -> data RAM address) +0.495;
+amber -> core (response -> load align -> forward -> ALU -> EX/MEM) +0.637.
+Every peregrine-only group has 3.5 ns or more. The sweep is not monotonic
+(17.5 fails by 0.051 where 17.0 passes by 0.331): placement noise near the
+edge is above the 0.2 ns budget, and all three binding groups are amber's
+paths or pass through amber. 18.5 ns closes with and without `MUL_DSP`.
+
+**Mutation, final** (`mutate7.py`, all 27, `RSP_SCRAMBLE` on): 26 caught;
+S2 and S3 caught by rv32ui (gate and func), D3 by rv32ui. D2 (clean issued
+while an access is in flight) survives, the stage-4 equivalent.
+
+**Regression:** peregrine FULL, clean-all, 0 reruns, 88/88, seed base
+2050116747. kestrel / merlin / gatling: no file changed.
+
