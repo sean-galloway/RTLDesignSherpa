@@ -5,16 +5,14 @@
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 22 | done (kept for history) |
+| [active/](active/) | 1 | in progress right now |
+| [closed/](closed/) | 23 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
-| [deferred/](deferred/) | 2 | parked pending a named condition |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
 ## Active
-
-## Deferred
 
 - **MC-023** -- the SKU model's open fidelity terms. Item 2 DONE 2026-11-23:
   the self-close lookahead guard was true at `ap_close_lag` 0 (a pending
@@ -23,14 +21,9 @@
   `rfc_block` term (first ACT at REF + 16, the RTL's) is the SKU default,
   57 in / 0 out; open_page's intermediate mode remains. Open: the record
   path (item 1), the refresh-relaunched orbits (3, ISSUE-007).
-  DEFERRED 2026-11-25 (owner): the controller is done; the model is not
-  trusted on the close-page read sides, the bank_interleave row-hit levels or
-  open_page's mixed cell until it resumes. [deferred/MC-023.md](deferred/MC-023.md).
+  Un-deferred 2026-11-25 (owner: "finish 23").
 
-- **MC-009** -- pumice arbiter: steps (a) and (c) done (the STAGE-1b
-  selection out of the classify cone; build-time pick modes). Step (b), hit /
-  sibling flags in the CAM, parked until the research configuration has to
-  close 75 MHz on the board. Deferred 2026-11-08.
+## Deferred
 
 ## Dropped
 
@@ -46,6 +39,13 @@
   Dropped: no timing gain, 277 LUT against a measured loss.
 
 ## Closed
+
+- **MC-009** -- pumice arbiter: steps (a) and (c) done (the STAGE-1b
+  selection out of the classify cone; build-time pick modes). Step (b), hit /
+  sibling flags in the CAM, parked until the research configuration has to
+  close 75 MHz on the board. Deferred 2026-11-08.
+  CLOSED 2026-11-25 (owner: complete for now); step (b) refiles only if the
+  research configuration must close. [closed/MC-009.md](closed/MC-009.md).
 
 - **MC-022** -- the granite fire cone had no margin at 100 MHz. Closed
   2026-11-25 by two exact restructurings of `mc_bank_pick` (`rr_onehot` in
