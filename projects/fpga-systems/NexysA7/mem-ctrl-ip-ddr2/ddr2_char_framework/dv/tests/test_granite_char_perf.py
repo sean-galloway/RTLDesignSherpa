@@ -1272,7 +1272,11 @@ def _run_granite_perf(request, over=None):
               "UART_BAUD": str(clk_hz // CLKS_PER_BIT),
               "ROW_WIDTH": str(ROW_W),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT_BYTES * 8),
-              "STORE_MERGE_EN": _g("TEST_STORE_MERGE_EN", "1"),
+              # the FIFO-store combiner: OFF on the FPGA SKU (granite_char_macro, owner 2026-11-08), so off here;
+              # until 2026-11-25 this defaulted to 1, the research build, and every proxy record ran with it on
+              # (memory-controllers MC-023: defaults' mixed cell fast on 5 of 8 REF_ALIGN offsets with it, 2 without).
+              # TEST_STORE_MERGE_EN=1 measures the research configuration and its wr_held contract check.
+              "STORE_MERGE_EN": _g("TEST_STORE_MERGE_EN", "0"),
               "AXI_DATA_WIDTH": _g("TEST_AXI_DATA_WIDTH", "64"),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEVICE_BYTES * 8),
               "DFI_RATE": str(DFI_RATE),

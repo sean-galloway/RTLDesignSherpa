@@ -635,6 +635,26 @@ def test_ap_row_lag_puts_the_same_row_act_at_the_self_close_plus_four():
     assert abs(ratio - 9 / 8) < 0.02, (old["rd_bw_mb_s"], now["rd_bw_mb_s"])      # 9 MC a chain against 8
     assert abs(float(old["wr_bw_mb_s"]) / float(now["wr_bw_mb_s"]) - 1) < 0.005, (old["wr_bw_mb_s"], now["wr_bw_mb_s"])
 
+def test_behind_lag_with_the_refresh_drain_holds_the_hybrid_mixed_cell_in_the_slow_mode(monkeypatch):
+    """MC-023 item 4 (proxy 2026-11-25, `defaults` mixed_bl8, the SKU build at REF_ALIGN 0): the RTL holds the
+    symmetric register's slow mode, every direction run exactly 256 columns. With the RTL's refresh drain alone the
+    model leaves it: on the first burst after a refresh the column ahead of a just-landed entry auto-precharged (the
+    model saw the entry behind the head the slot it landed; the store's behind_empty counts it a slot later), the
+    reopened bank's next ACT came early, and a later refresh landed on a batch cap. At the GO phase aligned to the
+    proxy's refreshes, behind_lag 1 keeps the slow mode (280 / 280); the drain alone reads well above it."""
+    import tempfile
+    from dataclasses import replace
+    assert cm.CONFIGS["granite_sku100"].behind_lag == 0
+    sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=4000)
+    monkeypatch.setenv("GRANITE_GO_OFFSET", "1554")
+    with tempfile.TemporaryDirectory() as t:
+        both = cm.run_scenario(replace(cm.CONFIGS["sku_refdrainpb"], name="sku_refdrainbehind", behind_lag=1), sc, t)
+        drain = cm.run_scenario(cm.CONFIGS["sku_refdrainpb"], sc, t)
+    wr, rd = float(both["wr_bw_mb_s"]), float(both["rd_bw_mb_s"])
+    assert abs(wr - 280) < 3 and abs(rd - 280) < 3, (wr, rd)
+    assert float(drain["rd_bw_mb_s"]) > 330, drain["rd_bw_mb_s"]
+
+
 def test_read_priority_register_makes_the_mixed_cell_one_mode_and_bounds_the_writes():
     """MC-024 (priced 2026-11-24): the read-priority direction register (dir_mode 1) takes the board's fast shape
     as the rule. On the mixed cell under both open-page presets it is ONE mode at two GO phases a refresh period

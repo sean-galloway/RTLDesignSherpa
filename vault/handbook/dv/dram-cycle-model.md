@@ -990,3 +990,31 @@ PRE per two slots, proxy-measured) can still move a preset out of its board
 mode: then another term was compensating, and making the RTL's term the
 default waits until that one is found
 (`char_results/model_mc023_ap_row_lag_refresh_drain_2026-11-25.md`).
+
+## Model what the record can see, not what the queue holds (2026-11-25, MC-023 item 4)
+
+The hybrid's mixed cell held the RTL's slow mode in the model only after one
+slot of visibility: the store counts a pushed entry the next cycle, but the
+head record's `behind_empty` / `behind_same_row` see it a cycle after that.
+The model read the entry behind the head the slot it landed, so on the first
+burst after a refresh a column auto-precharged that the RTL left open (a
+"conflict" the RTL could not see yet). One cycle on one refresh shape changed
+the refresh's cost at that landing phase, the refresh walk drifted, and every
+~42k cycles a refresh landed on the batch cap and moved the turn phase for
+good. **When two traces agree on queue depths and disagree on a decision,
+probe the record the decision reads.** The pick probe (`PERF_PICK_PROBE_FLIP`
+= the flip count to the window; absolute cycles move between runs) decodes
+the head records' `behind_empty` bit directly
+(`char_results/model_mc023_hybrid_behind_lag_2026-11-25.md`).
+
+## Check the proxy is the SKU before trusting a mode proportion (2026-11-25, MC-023)
+
+`test_granite_char_perf` built the research combiner (`STORE_MERGE_EN` 1) by
+default for weeks after the SKU turned it off; `defaults`' mixed cell was fast
+on 5 of 8 aligned offsets with it and 2 without. A proxy default that differs
+from the board build moves race cells without moving any rate cell, so it
+hides. **Before comparing a race cell's mode share, diff the proxy's
+parameters against the bitstream's** (`granite_char_top.sv` defines,
+`granite_char_macro` defaults) and the host's programmed CSRs against the
+proxy's (the board's read-path pair needs `TEST_STRICT_READ_TIMING=1` to
+decode in the sim PHY).

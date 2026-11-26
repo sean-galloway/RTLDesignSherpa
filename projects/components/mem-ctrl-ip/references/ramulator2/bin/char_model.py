@@ -473,7 +473,10 @@ class ModelConfig:
                                        #   row image, a lost slot after each, the REF once the image shows every bank closed (proxy
                                        #   2026-11-25); off by default: it puts open_page's mixed cell in the board's two modes but
                                        #   takes defaults' out of its one (MC-023 item 4, the hybrid's gap still open)
-    ap_row_lag: int = 2                # GraniteSKU: a head of the row the self-close closed decodes no ACT before fire + 2, its ACT
+    behind_lag: int = 0                # GraniteSKU: slots after a beat lands before the head record sees it behind the head (the
+                                       #   store's behind_empty counts schedulable entries: pushed t, counted t + 1, behind t + 2 on the
+                                       #   proxy, 2026-11-25); with ref_drain_pb it puts defaults' mixed cell in the RTL's two modes
+    ap_row_lag: int = 2               # GraniteSKU: a head of the row the self-close closed decodes no ACT before fire + 2, its ACT
                                        #   at fire + 4 as the proxy measures (MC-023 item 1); 0 = the model before (fire + 3)
     rfc_block: bool = True             # GraniteSKU: the pick core's tRFC demand block -- no demand request or fire until the
                                        #   counter the REF grant loads with the CSR tRFC reads zero, the first ACT at grant + 1 +
@@ -800,7 +803,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
             hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag, close_lag=cfg.close_lag,
             ap_seq=cfg.ap_seq, t_rp_ap_rd=cfg.t_rp_ap_rd, t_rp_ap_wr=cfg.t_rp_ap_wr, rfc_block=cfg.rfc_block,
-            ap_row_lag=cfg.ap_row_lag, ref_drain_pb=cfg.ref_drain_pb,
+            ap_row_lag=cfg.ap_row_lag, ref_drain_pb=cfg.ref_drain_pb, behind_lag=cfg.behind_lag,
             dir_mode=cfg.dir_mode, wr_starve=cfg.wr_starve, wr_burst=cfg.wr_burst,
             **_sku_debug_params(),
         )

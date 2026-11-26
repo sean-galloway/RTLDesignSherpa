@@ -157,6 +157,10 @@ namespace Ramulator {
 //   * The same-row ACT after a self-close (ap_row_lag, MC-023 item 1): a head
 //     of the closed row decodes no ACT before fire + 2 (the row image clears
 //     the slot after the fire, then the record re-classifies it): fire -> ACT 4.
+//   * The entry behind a head (behind_lag, MC-023 item 4, off by default): the
+//     store's behind_empty / behind_same_row count schedulable entries, one
+//     slot after the landing; at 1, with ref_drain_pb, the hybrid's mixed cell
+//     holds the RTL's modes (the post-refresh column the RTL leaves open).
 //   * Not carried (the error bars): the pop shadow (the fire reads the live
 //     head, which is the shadow's effect), the write-data fill and the sink /
 //     return-ring back-pressure, the age overlay (HAS_AGE with age_thresh 0
@@ -175,6 +179,9 @@ class GraniteSKUController : public ControllerBase {
                                 //   the pop, bank-cap room cap_gate_lag slots after; measured on the proxy, pool path fire -> landing 3 (2 + 1), cap
                                 //   path 2 (1 + 1), and the one slot between them is what let the model's reads take the bus back from a write
                                 //   turn whose first ACT came one slot late (close_page mixed_bl8: the model held to the 255 cap, the RTL turns at 16)
+  int m_behind_lag = 0;         // MC-023 item 4: slots after a beat LANDS before the head record sees it behind the head (behind_empty /
+                                //   behind_same_row count only schedulable entries; the proxy, 2026-11-25: pushed at t, in r_rq_cnt at t + 1,
+                                //   behind the head at t + 2, so one slot past the landing). 0 = seen the slot it lands (the model before)
   int m_pool_gate_lag = 2;      // slots after a pop before the freed pool slot is offered to the host (the pool valid clears two registers later)
   int m_cap_gate_lag = 1;       // slots after a pop before the bank queue count the cap reads shows it
   bool m_req_bank_timing = true;  // a request needs the BANK's timers only; rank-level terms gate the fire (the RTL decode)
@@ -390,6 +397,7 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_bank_cap_mixed, int, "bank_cap_mixed").default_val(6);
     RAMULATOR_PARSE_PARAM(m_cap_per_beat, bool, "cap_per_beat").default_val(true);
     RAMULATOR_PARSE_PARAM(m_admit_lag, int, "admit_lag").default_val(1);
+    RAMULATOR_PARSE_PARAM(m_behind_lag, int, "behind_lag").default_val(0);
     RAMULATOR_PARSE_PARAM(m_pool_gate_lag, int, "pool_gate_lag").default_val(2);
     RAMULATOR_PARSE_PARAM(m_cap_gate_lag, int, "cap_gate_lag").default_val(1);
     RAMULATOR_PARSE_PARAM(m_req_bank_timing, bool, "req_bank_timing").default_val(true);
@@ -436,6 +444,7 @@ class GraniteSKUController : public ControllerBase {
     if (m_tr_init < 0 || m_tr_init > 255) throw std::runtime_error("GraniteSKU: tr_init is 0..255");
     if (m_dir_batch_max < 0 || m_dir_batch_max > 255) throw std::runtime_error("GraniteSKU: dir_batch_max is 0..255");
     if (m_admit_lag < 0) throw std::runtime_error("GraniteSKU: admit_lag must be >= 0");
+    if (m_behind_lag < 0) throw std::runtime_error("GraniteSKU: behind_lag must be >= 0");
     if (m_pool_gate_lag < 0 || m_cap_gate_lag < 0) throw std::runtime_error("GraniteSKU: pool_gate_lag / cap_gate_lag must be >= 0");
     if (m_pick_la < 0) throw std::runtime_error("GraniteSKU: pick_la must be >= 0");
     if (m_rank_ok_lag < 0) throw std::runtime_error("GraniteSKU: rank_ok_lag must be >= 0");
@@ -766,8 +775,12 @@ class GraniteSKUController : public ControllerBase {
           h.it = it;
           h.buf = &buf;
         } else if (depth[bank] == 1) {
-          h.behind_vld = true;
-          h.behind_same_row = row_of(*it) == row_of(*h.it);
+          // the entry behind counts once it is schedulable (behind_lag slots after it lands); a later one landed later
+          const Clk_t seen = it->arrive + static_cast<Clk_t>(m_admit_lag + m_behind_lag) * m_slot_ticks;
+          if (m_behind_lag == 0 || m_clk >= seen) {
+            h.behind_vld = true;
+            h.behind_same_row = row_of(*it) == row_of(*h.it);
+          }
         }
         depth[bank]++;
       }

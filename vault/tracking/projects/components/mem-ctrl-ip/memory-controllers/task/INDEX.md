@@ -25,6 +25,10 @@
   2026-11-25: item 1 DONE (`ap_row_lag`, the same-row ACT at fire + 4:
   close_page reads within 4 percent, 57 in / 0 out); item 4's refresh drain
   `ref_drain_pb` measured and kept a knob (open_page right, defaults wrong).
+  2026-11-25 later: `behind_lag` (the head record sees an entry a slot after
+  it lands) + the drain put `defaults`' mixed cell in the RTL's two modes and
+  proportion; both knobs until item 3 (the drain moves four bank_interleave
+  write sides to ~518). The proxy's combiner default fixed to the SKU's 0.
 
 ## Deferred
 
