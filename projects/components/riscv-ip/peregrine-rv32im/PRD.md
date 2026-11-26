@@ -25,7 +25,8 @@ things are added, and each is a lesson:
    instruction holds in EX until it is done: the structural-hazard
    lesson (P3, revised 2026-11-23).
 4. **The memory hierarchy.** Split blocking L1s behind AXI4 masters onto
-   the repo fabric, with MonBus visibility.
+   the repo fabric. MonBus visibility is not built yet (§4.6, amended
+  2026-11-25).
 
 Two later consumers depend on what peregrine chooses:
 - **gyrfalcon** reuses peregrine's predictor, trap machinery, L1s and AXI
@@ -47,7 +48,10 @@ Two later consumers depend on what peregrine chooses:
   §2.2.1 for why).
 - **No full riscv-formal through the predictor and the traps.** Spec rung
   3 rules it disproportionate. Targeted formal replaces it, and P12 keeps
-  the insn checks reachable on a cacheless build.
+  the insn checks reachable on a cacheless build. As built (TASK-001
+  stage 5) the insn checks did run with the predictor and the trap logic
+  live, interrupts tied low; the non-goal is the full proof, not the
+  checks.
 - **No non-blocking caches.** An in-order single-issue core has at most
   one memory access in flight, so jet's lockup-freedom would be invisible
   (amber PRD v0.8).
@@ -77,8 +81,10 @@ Two later consumers depend on what peregrine chooses:
   (P9).
 - **Traps.** These are the exceptions the spec names: illegal
   instruction, `ecall`, `ebreak`, and misaligned fetch, load and store.
-  Load and store access faults (AXI SLVERR and DECERR) are added
-  (P7). Interrupts are machine software, machine timer and machine
+  Load and store access faults (AXI SLVERR and DECERR) are **not
+  built**: bus error responses are ignored (amended 2026-11-25, owner:
+  "amend the prd for now"; error handling is riscv-ip/peregrine-rv32im
+  TASK-005). Interrupts are machine software, machine timer and machine
   external.
 
 ## 4. Microarchitecture
@@ -89,8 +95,8 @@ merlin's five stages, with the additions marked:
 
 ```
   IF : PC select (+ BTB/BHT lookup, predicted next PC); I$ access
-  ID : decode, regfile read, imm_gen (+ CSR read, M-op issue check)
-  EX : ALU, branch resolve (+ mispredict detect, M unit start)
+  ID : decode, regfile read, imm_gen (+ CSR read-after-write stall, M-op issue check)
+  EX : ALU, branch resolve (+ CSR read, mispredict detect, M unit start)
   MEM: D$ access (+ trap commit point, CSR write)
   WB : regfile write, RVFI retire
 ```
@@ -162,11 +168,12 @@ in-order case):
   and IF/ID/EX are flushed.
 - The instruction in WB is older, so it retires. Nothing younger has
   touched memory, the regfile or a CSR.
-- A load or store access fault arrives from the D$ in MEM, at the same
-  point, so it is precise as well.
+- A load or store access fault would arrive from the D$ in MEM, at the
+  same point, so it would be precise as well. Not built (§3, TASK-005).
 - CSR writes happen in MEM, so a CSR write never lands under an older
-  trap. A CSR read in ID that follows a CSR write still in EX or MEM
-  stalls until the write lands. The alternative is forwarding CSRs, and
+  trap. CSRs are read in EX (the CSR file's old value rides to WB); a
+  CSR instruction in ID behind an older CSR instruction still in EX or MEM
+  stalls until that write lands. The alternative is forwarding CSRs, and
   P6 decides.
 - `mret` redirects at MEM in the same way.
 
@@ -265,21 +272,28 @@ alternatives are tracked in riscv-ip/peregrine-rv32im ISSUE-001.
   - D$ read and write (amber's);
   - the uncached path.
 - The path through the fabric to one memory port is P7.
-- Observation uses `axi4_monlite` wrappers (spec dependencies; amber D8),
-  never the heavyweight `_mon`.
-- Core-side MonBus events: a mispredict, a trap (with its cause), and
-  M-unit busy cycles. The perf model below needs these counts.
+- **Not built (amended 2026-11-25, owner: "amend the prd for now"):**
+  peregrine has no MonBus port and runs amber with `USE_MONITOR=0`. The
+  intent stays: `axi4_monlite` wrappers (spec dependencies; amber D8),
+  never the heavyweight `_mon`, and core-side MonBus events for a
+  mispredict, a trap (with its cause) and M-unit busy cycles. Until then
+  the counts the perf model needs come from the RVFI retire stream
+  (`rvfi_bp_mispredict`, `rvfi_trap_cause`) in simulation.
 
 ### 4.7 RVFI / retire
 
-RVFI is driven at WB, in order, as in merlin. `rvfi_trap`, `rvfi_intr`
-and the CSR fields for `mepc`, `mcause` and `mtvec` are added, so the
-trap directed suite and the targeted formal can check trap entry against
-the retire stream.
+RVFI is driven at WB, in order, as in merlin. As built (amended
+2026-11-25, owner: "amend the prd for now"), peregrine adds `rvfi_trap`,
+`rvfi_trap_cause` and the predictor fields `rvfi_bp_pred_taken`,
+`rvfi_bp_pred_target` and `rvfi_bp_mispredict`. There is no `rvfi_intr`
+and no `rvfi_csr_*`: trap entry is checked against `rvfi_trap_cause` and
+the TB's shadow CSR model, and riscv-formal runs without its CSR checks
+(TASK-001 stage 5).
 
 ### 4.8 Performance model (COD gap G3)
 
-These are predictions for MonBus to confirm or break. The book carries
+These are predictions for MonBus to confirm or break (until MonBus is
+built, §4.6, the RVFI retire stream in simulation). The book carries
 the worked version, with measured miss rates replacing the assumed ones.
 
 - CPI = 1 + (load-use bubbles + load-to-branch bubbles)/insn
@@ -400,6 +414,12 @@ the worked version, with measured miss rates replacing the assumed ones.
 
 ## 8. History
 
+- 2026-11-25: PRD amended to the RTL as built (owner: "amend the prd for
+  now; add a task for the future for error handling"), from the
+  mismatches TASK-002's books found: no load/store access faults (§3,
+  §4.3; future work is TASK-005), no MonBus (§1, §4.6), RVFI without
+  `rvfi_intr` / `rvfi_csr_*` (§4.7), CSRs read in EX (§4.1, §4.3), and the
+  §2 riscv-formal note.
 - 2026-11-25: TASK-001 stage 5 (targeted formal) done: riscv-formal 52/52
   on `CACHE_EN=0` on both `MUL_DSP` builds, plus the predictor training
   rule, commit precision, D-side and fetch integrity on `peregrine_top`,

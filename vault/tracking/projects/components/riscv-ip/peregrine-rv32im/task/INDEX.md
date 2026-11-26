@@ -2,7 +2,7 @@
 
 # vault/tracking/projects/components/riscv-ip/peregrine-rv32im — tasks
 
-**Next ID: TASK-005** — never recycle a number, even when its item closed.
+**Next ID: TASK-006** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -22,6 +22,7 @@ by construction rather than by discipline.
 
 - **TASK-003** — the peregrine book (*speculation and traps*) and predictor drill mode 3 (PRD §7 item 5); after TASK-002.
 - **TASK-004** — hive-serv HIVE-C `CORE_FLAVOR=peregrine` swap, peregrine's system bring-up (PRD §7 item 6, hive-serv PRD §10.3).
+- **TASK-005** — bus error handling: load/store access faults on AXI SLVERR/DECERR from the uncached port and amber (PRD §3/§4.3, amended to not built 2026-11-25); not scheduled.
 
 ## Active
 

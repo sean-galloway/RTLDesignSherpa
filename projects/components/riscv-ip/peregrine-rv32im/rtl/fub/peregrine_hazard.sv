@@ -6,7 +6,7 @@
 //
 // Module: peregrine_hazard
 // Purpose: Forwarding and interlock unit for the peregrine 5-stage pipelined
-//          RV32I core.  Compares the two source register addresses currently
+//          RV32IM core.  Compares the two source register addresses currently
 //          in ID against the destination addresses pending in EX/MEM and
 //          MEM/WB, selects the newest producer for each read port, and raises
 //          a load-use stall when the instruction in EX is a load whose
@@ -28,8 +28,8 @@
 //     disables both forwarding matches and load-use detection.
 //   - The load-use check takes no rd write enable: idex_is_load already
 //     carries the ID/EX valid bit, and every RV32I load writes rd, so a
-//     write enable could not change the stall (the port was removed,
-//     peregrine-rv32im TASK-002).
+//     write enable could not change the stall (the port was removed in
+//     merlin, merlin-rv32i TASK-002, before peregrine copied it).
 //   - ex_flush is broadcast to flush_ifid and flush_idex; the core is
 //     responsible for making flush win over stall.
 //

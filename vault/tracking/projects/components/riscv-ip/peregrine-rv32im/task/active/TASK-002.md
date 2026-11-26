@@ -22,7 +22,7 @@ block diagrams follow the house style; no emoji.
   stage-7 hold and early-response rules, the P14 clock).
 - The riscv-ip README row points at them.
 
-## Built (2026-11-25, not committed yet)
+## Built (2026-11-25, committed 3aa81b0e0)
 
 Both books under `projects/components/riscv-ip/peregrine-rv32im/docs/`, at
 rev 0.1, one DOCX/PDF pair each.
@@ -103,3 +103,11 @@ Checks:
    - `peregrine_hazard` says "RV32I core" and credits a port removal to
      "peregrine-rv32im TASK-002", which is this documentation task. The
      removal predates it.
+
+**Resolved 2026-11-25** (owner: "amend the prd for now; add a task for
+the future for error handling"): the PRD is amended to the RTL for every
+mismatch above: access faults not built (§3, §4.3), MonBus not built
+(§1, §4.6), RVFI fields as built (§4.7), CSR read in EX (§4.1, §4.3),
+the §2 riscv-formal note. Error handling is TASK-005 (open). The three
+stale RTL header comments (`peregrine_top`, `peregrine_uc_axi`,
+`peregrine_hazard`) are corrected, comments only.

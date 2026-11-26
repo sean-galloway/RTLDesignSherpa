@@ -8,9 +8,9 @@
 // Purpose: peregrine's uncached data port (PRD P7, §4.5): one 32-bit load
 //          or store at a time, as a single-beat AXI4 transaction on the
 //          fabric's data width.  It serves the uncached I/O window (the
-//          tohost mailbox, the board UART) and, until amber is wired in
-//          (cache-ip/amber-mesi-l1 TASK-004 / peregrine TASK-001 stage 4),
-//          the cacheable RAM window as well.
+//          tohost mailbox, the board UART); the cacheable window goes to amber
+//          (TASK-001 stage 4).  In the cacheless build (CACHE_EN=0) the
+//          TBs drive the Harvard ports directly.
 //
 //          Request: req_valid / req_ready, ready only when idle, so the
 //          port holds exactly one transaction.  Response: rsp_valid is a

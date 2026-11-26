@@ -15,9 +15,9 @@
 //            0x0200_0000 - 0x0200_FFFF  CLINT (msip, mtimecmp, mtime)
 //            0x1000_0000 - 0x1FFF_FFFF  uncached I/O (tohost, board UART)
 //            everything else            RAM, cacheable
-//          The I/O window is bounded at 0x1FFF_FFFF (the PRD says "0x1000_0000
-//          and up"): the riscv-tests and arch-test images link at
-//          0x8000_0000 and must stay cacheable.  Recorded in TASK-001.
+//          The I/O window is bounded at 0x1FFF_FFFF (P7 as amended
+//          2026-11-24): the riscv-tests and arch-test images link at
+//          0x8000_0000 and must stay cacheable.
 //
 //          Fetch: every fetch goes through peregrine_icache.  A miss holds
 //          the whole core (mem_wait) until the line is in.
