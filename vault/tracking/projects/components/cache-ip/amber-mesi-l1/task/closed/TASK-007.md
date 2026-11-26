@@ -1,7 +1,7 @@
 # TASK-007: close amber's CPU-side paths on Artix-7 (xc7a100t-1)
 
 **Priority:** P4
-**Status:** open (filed 2026-11-25; owner: "File an amber task"), not scheduled
+**Status:** closed 2026-11-26 (owner: "go ahead, fix the amber state path"; filed 2026-11-25)
 **Owner:** TBD (filed from riscv-ip/peregrine-rv32im TASK-001 stage 7)
 
 ## Why
@@ -52,7 +52,7 @@ misses: -0.777 at 13.333 ns, -0.975 at 13.0 ns. The limiter is the snoop
 side, which `peregrine_top` does not have: control state -> ready / grant ->
 `l1_snoop_resp` (in `u_fab`) -> the snoop address -> port-B tag LUTRAM ->
 compare -> stale / CRRESP -> the snoop FSM (19 levels). The same shape as
-the port-A fix: the address should not depend on the grant. Open here.
+the port-A fix: the address should not depend on the grant.
 
 ## What (a direction, not decided)
 
@@ -76,3 +76,33 @@ peregrine TASK-001 stage 7) and needs the owner.
   or the owner has accepted the change.
 - amber FULL, common-ip FULL, jet / jet-prime / onyx gates and amber's
   formal are green; peregrine FULL is green and its OOC is re-measured.
+
+## Result (2026-11-26)
+
+Target 13.333 ns (75 MHz, the owner's floor). Two more changes, after the
+three above:
+
+- `l1_snoop_resp` `ADDR_AT_IDLE` (default 0; `SNOOP_ADDR_AT_IDLE = 1` on
+  the planes from `amber_top` / `amber_ace_top` only): the AC address and
+  type go to control for every `SR_IDLE` cycle, so the address mux selects
+  on `r_state`, not on the accept (which depends on control's
+  `ctrl_snoop_safe`). jet / jet-prime keep 0: their controllers read the
+  snoop address through the service. `-0.777 -> -0.384`.
+- `l1_control`: the stale-victim and upgrade-line checks compare
+  `sn_tag_grant` (the snoop's tag) instead of `sn_hit_tag` (the hit way's).
+  Exact: a way hits only when its tag equals `sn_tag_grant`, and both
+  checks are ANDed with `sn_hit_any`. The compare no longer waits for the
+  lookup and the hit-way mux. `-0.384 -> +0.560`.
+
+`amber_top` (`MAINT_EN=1`, `USE_MONITOR=0`, 0.2 ns uncertainty in):
++0.560 at 13.333 ns, +0.100 at 13.0 ns. `peregrine_top` (`MUL_DSP=1`, the
+thinnest build) re-measured on this RTL: +0.070 at 13.333 ns.
+
+Verified: amber FULL 121/121, common-ip FULL 255/255, peregrine FULL 88/88
+(TASK-005 latency test: read hit 1 / 1, write hit 1 / 2), jet / jet-prime /
+onyx gates 19 / 21 / 12, no reruns; amber control formal (prove, live,
+cover) and amber snoop_resp formal (prove, cover, now with
+`ADDR_AT_IDLE=1`) PASS. A first amber FULL lost one test to a g++
+segfault, the same crash address four times, while another session ran
+amber FULL in the same build directories; the test passed alone, and
+the rerun of the whole suite with no other session running passed.

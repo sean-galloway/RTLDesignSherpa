@@ -478,7 +478,11 @@ module amber_top
         .BUS_WIDTH      (BUS_WIDTH),
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_USER_WIDTH (AXI_USER_WIDTH),
-        .USE_MONITOR    (USE_MONITOR)
+        .USE_MONITOR    (USE_MONITOR),
+        // l1_control reads the snoop address only at the grant, so the
+        // responder may present it throughout SR_IDLE (75 MHz, amber
+        // TASK-007)
+        .SNOOP_ADDR_AT_IDLE (1'b1)
     ) u_fab (
         .aclk              (aclk),
         .aresetn           (w_aresetn),

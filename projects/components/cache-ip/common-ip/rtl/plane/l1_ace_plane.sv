@@ -75,6 +75,9 @@ module l1_ace_plane
     // 16'h00A0 by default; the jet tops pass 16'h00A1 (their historical
     // stream id, jet_ace_top.sv pre-restructure).
     parameter logic [15:0] AGENT_ID = 16'h00A0,
+    // l1_snoop_resp ADDR_AT_IDLE: 1 only for amber's l1_control (see
+    // l1_snoop_resp); the jet tops keep the default 0
+    parameter bit SNOOP_ADDR_AT_IDLE = 1'b0,
     localparam int STRB_W        = BUS_WIDTH / 8,
     localparam int IW            = AXI_ID_WIDTH,
     localparam int UW            = AXI_USER_WIDTH,
@@ -263,9 +266,10 @@ module l1_ace_plane
     // ACE snoop responder
     // ------------------------------------------------------------------
     l1_snoop_resp #(
-        .ADDR_WIDTH (ADDR_WIDTH),
-        .DATA_WIDTH (BUS_WIDTH),
-        .LINE_BYTES (LINE_BYTES)
+        .ADDR_WIDTH   (ADDR_WIDTH),
+        .DATA_WIDTH   (BUS_WIDTH),
+        .LINE_BYTES   (LINE_BYTES),
+        .ADDR_AT_IDLE (SNOOP_ADDR_AT_IDLE)
     ) u_snoop (
         .aclk           (aclk),
         .aresetn        (aresetn),

@@ -12,6 +12,7 @@ module gaxi_skid_buffer (
 );
 	parameter signed [31:0] DATA_WIDTH = 32;
 	parameter signed [31:0] DEPTH = 2;
+	parameter [0:0] DATA_RST = 1'b0;
 	parameter signed [31:0] DW = DATA_WIDTH;
 	input wire axi_aclk;
 	input wire axi_aresetn;
@@ -32,7 +33,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:129:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -63,10 +64,34 @@ module gaxi_skid_buffer (
 			genvar _gv_gi_1;
 			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
 				localparam gi = _gv_gi_1;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_data[gi] <= 1'sb0;
-					else
+				if (DATA_RST) begin : g_rst
+					always @(posedge axi_aclk or negedge axi_aresetn)
+						if (!axi_aresetn)
+							r_data[gi] <= 1'sb0;
+						else
+							(* full_case, parallel_case *)
+							case ({w_wr_xfer, w_rd_xfer})
+								2'b10:
+									if (r_data_count == gi[3:0])
+										r_data[gi] <= wr_data;
+								2'b01:
+									if (gi < (DEPTH - 1))
+										r_data[gi] <= r_data[gi + 1];
+									else
+										r_data[gi] <= 1'sb0;
+								2'b11:
+									if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+										r_data[gi] <= wr_data;
+									else if (gi < (DEPTH - 1))
+										r_data[gi] <= r_data[gi + 1];
+									else
+										r_data[gi] <= 1'sb0;
+								default:
+									;
+							endcase
+				end
+				else begin : g_norst
+					always @(posedge axi_aclk)
 						(* full_case, parallel_case *)
 						case ({w_wr_xfer, w_rd_xfer})
 							2'b10:
@@ -75,18 +100,15 @@ module gaxi_skid_buffer (
 							2'b01:
 								if (gi < (DEPTH - 1))
 									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
 							2'b11:
 								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
 									r_data[gi] <= wr_data;
 								else if (gi < (DEPTH - 1))
 									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
 							default:
 								;
 						endcase
+				end
 			end
 			always @(posedge axi_aclk or negedge axi_aresetn)
 				if (!axi_aresetn)
@@ -366,9 +388,10 @@ module l1_snoop_resp (
 	reg [32 - 1:0] r_snoop_addr;
 	reg [2:0] r_snoop_type;
 	wire w_ac_accept = (fub_acvalid && (r_state == 2'd0)) && ctrl_snoop_safe;
+	wire w_ac_present = (1 ? r_state == 2'd0 : w_ac_accept);
 	assign ctrl_snoop_req = w_ac_accept;
-	assign ctrl_snoop_addr = (w_ac_accept ? fub_acaddr : r_snoop_addr);
-	assign ctrl_snoop_type = (w_ac_accept ? w_snoop_type : r_snoop_type);
+	assign ctrl_snoop_addr = (w_ac_present ? fub_acaddr : r_snoop_addr);
+	assign ctrl_snoop_type = (w_ac_present ? w_snoop_type : r_snoop_type);
 	assign fub_acready = (r_state == 2'd0) && ctrl_snoop_safe;
 	assign fub_crresp = r_crresp;
 	assign fub_crvalid = r_state == 2'd3;

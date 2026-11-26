@@ -230,6 +230,19 @@ An invalidating/downgrading snoop on the pending line is remembered
 on an installed line it is written on port A inside the service. CR
 presentation after CDLAST is `l1_snoop_resp`'s contract, not control's.
 
+**Grant-cycle timing (amber TASK-007, 75 MHz).** CRRESP is combinational
+in the grant cycle, so its cone is the whole snoop resolution: the snoop
+address, the port-B tag LUTRAM, the per-way compare, the stale-victim and
+upgrade-line checks, the reference-state mux. Two choices keep it inside
+13.333 ns on xc7a100t-1. `l1_snoop_resp` presents the AC address for all of
+`SR_IDLE` (`ADDR_AT_IDLE = 1`, set by the amber tops), so the address does
+not wait on the accept, which waits on this module's `ctrl_snoop_safe`.
+And the stale-victim and upgrade-line checks compare the snoop's own tag
+(`sn_tag_grant`) with the victim / request tag, not the hit way's tag: a
+way hits only when its tag equals the snoop's, so the two are equal
+whenever the check can be true, and the compare runs alongside the tag
+lookup instead of after the hit-way mux.
+
 ---
 
 ## Key Control Signals

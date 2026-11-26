@@ -537,11 +537,11 @@ module l1_control (
 	wire sn_pf_gnt_match;
 	assign sn_pf_gnt_match = (pf_match && (state_q == OH_MISS_FILL)) && (!0 || ctrl_fill_inflight);
 	wire sn_stale_gnt;
-	assign sn_stale_gnt = (((((state_q == OH_MISS_FILL) && !upgr_q) && sn_hit_any) && (sn_set_grant == req_set)) && (sn_hit_way == victim_way_q)) && (sn_hit_tag == victim_tag_q);
+	assign sn_stale_gnt = (((((state_q == OH_MISS_FILL) && !upgr_q) && sn_hit_any) && (sn_set_grant == req_set)) && (sn_hit_way == victim_way_q)) && (sn_tag_grant == victim_tag_q);
 	wire victim_match;
 	assign victim_match = (victim_valid && !req_maint_q) && (w_sn_line_addr == victim_buf_addr[32 - 1:LINE_OFFSET_WIDTH]);
 	wire sn_upgr_line_gnt;
-	assign sn_upgr_line_gnt = (((state_q == OH_MISS_FILL) && upgr_q) && sn_hit_any) && ({sn_hit_tag, sn_set_grant} == req_line_addr);
+	assign sn_upgr_line_gnt = (((state_q == OH_MISS_FILL) && upgr_q) && sn_hit_any) && ({sn_tag_grant, sn_set_grant} == req_line_addr);
 	wire [2:0] sn_ref_grant;
 	assign sn_ref_grant = (sn_pf_gnt_match ? pf_state : (sn_stale_gnt ? 3'b000 : (victim_match ? 3'b011 : (sn_hit_any ? sn_hit_state : 3'b000))));
 	wire sn_idle_ok;

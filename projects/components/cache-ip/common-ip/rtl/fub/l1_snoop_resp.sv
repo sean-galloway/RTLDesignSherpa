@@ -57,6 +57,10 @@
 //     beat width and LINE_BYTES fixes the beat count the control side
 //     supplies (this module forwards control's cdlast; it does not count
 //     beats itself -- MAS ch02_blocks/07).
+//   ADDR_AT_IDLE: 0 (default) presents the AC address/type to control in
+//     the accept cycle only; 1 presents them for every SR_IDLE cycle, so
+//     the address mux selects on r_state rather than on the accept (amber;
+//     legal only for a controller that reads them under ctrl_snoop_req).
 //
 //------------------------------------------------------------------------------
 // Related Modules:
@@ -78,7 +82,18 @@ module l1_snoop_resp
 #(
     parameter int ADDR_WIDTH = AMBER_ADDR_WIDTH,
     parameter int DATA_WIDTH = AMBER_BUS_WIDTH,
-    parameter int LINE_BYTES = AMBER_LINE_BYTES
+    parameter int LINE_BYTES = AMBER_LINE_BYTES,
+    // ADDR_AT_IDLE (amber, peregrine TASK-006 / amber TASK-007, 75 MHz):
+    // 0 presents the AC address to the controller only in the accept
+    // cycle (r_snoop_addr otherwise, the classic contract every jet-family
+    // controller is built against). 1 presents the transport's AC address
+    // throughout SR_IDLE, so the address mux selects on r_state instead of
+    // on the accept -- the accept depends on ctrl_snoop_safe, a function
+    // of the controller's state, and selecting on it put that whole loop
+    // in front of the port-B tag LUTRAM address. Only for a controller
+    // that reads the snoop address only under ctrl_snoop_req (l1_control
+    // does: it latches sn_addr_q at the grant and serves from that).
+    parameter bit ADDR_AT_IDLE = 1'b0
 )(
     input  logic                    aclk,
     input  logic                    aresetn,
@@ -207,9 +222,11 @@ module l1_snoop_resp
     // combinational loop.
     wire w_ac_accept = fub_acvalid && (r_state == SR_IDLE) && ctrl_snoop_safe;
 
+    wire w_ac_present = ADDR_AT_IDLE ? (r_state == SR_IDLE) : w_ac_accept;
+
     assign ctrl_snoop_req  = w_ac_accept;
-    assign ctrl_snoop_addr = w_ac_accept ? fub_acaddr   : r_snoop_addr;
-    assign ctrl_snoop_type = w_ac_accept ? w_snoop_type : r_snoop_type;
+    assign ctrl_snoop_addr = w_ac_present ? fub_acaddr   : r_snoop_addr;
+    assign ctrl_snoop_type = w_ac_present ? w_snoop_type : r_snoop_type;
 
     // FUB-side drives (combinational on state; the transport skids absorb
     // the protocol timing)

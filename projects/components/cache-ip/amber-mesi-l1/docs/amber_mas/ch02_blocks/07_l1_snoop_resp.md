@@ -75,6 +75,25 @@ The core-facing side is a bus-agnostic handshake:
 | `ctrl_cdvalid` | input from `l1_control` | CD beat valid. |
 | `ctrl_cdready` | output to `l1_control` | Adapter ready for CD beat. |
 
+`ctrl_snoop_addr` and `ctrl_snoop_type` carry the latched snoop
+(`r_snoop_addr`, `r_snoop_type`) outside `SR_IDLE`. In `SR_IDLE` the
+parameter `ADDR_AT_IDLE` chooses what they carry:
+
+| `ADDR_AT_IDLE` | In `SR_IDLE` | Used by |
+|----------------|--------------|---------|
+| 0 (default) | the AC channel in the accept cycle only, the latched snoop otherwise | jet, jet-prime (their controllers read the snoop address through the service) |
+| 1 | the AC channel for every `SR_IDLE` cycle | amber (`SNOOP_ADDR_AT_IDLE = 1` on `l1_axi4_plane` / `l1_ace_plane`) |
+
+The grant is atomic: `l1_control` answers CRRESP combinationally in the
+accept cycle, from a port-B tag lookup of the snoop address. With 0 the
+address mux selects on the accept, which depends on `ctrl_snoop_safe`, a
+function of the controller's state, so the controller's state reached
+the tag LUTRAM address through this module and back. With 1 the select is
+the adapter's own state register (amber TASK-007, 75 MHz). It is legal only
+for a controller that reads the snoop address under `ctrl_snoop_req`
+alone; `l1_control` latches it at the grant (`sn_addr_q`) and serves from
+the latch.
+
 ---
 
 ## Adapter State Machine

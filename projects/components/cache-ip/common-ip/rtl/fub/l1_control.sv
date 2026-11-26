@@ -705,12 +705,19 @@ module l1_control
     // same-way+tag hit in any other set is an ordinary installed hit (the
     // Task 7 closed loop caught the missing set term as a false stale on a
     // cross-set collision).
+    //
+    // The tag term compares the SNOOP's tag, not the hit way's: a way hits
+    // only when its tag equals sn_tag_grant, so under sn_hit_any the two
+    // are equal and the term is exact. Taken from the address it runs in
+    // parallel with the port-B lookup instead of after the hit-way tag mux
+    // (amber TASK-007: that serial compare-after-compare was the 75 MHz
+    // limiter of amber_top's grant-cycle CRRESP).
     logic sn_stale_gnt;
     assign sn_stale_gnt = (state_q == OH_MISS_FILL) && !upgr_q
                           && sn_hit_any
                           && (sn_set_grant == req_set)
                           && (sn_hit_way == victim_way_q)
-                          && (sn_hit_tag == victim_tag_q);
+                          && (sn_tag_grant == victim_tag_q);
 
     // victim-buffer match (MAS ch02/05 bypass): while the drain is
     // outstanding the buffer owns the line (SINK_WB_ACK; gem5
@@ -741,7 +748,8 @@ module l1_control
     logic sn_upgr_line_gnt;
     assign sn_upgr_line_gnt = (state_q == OH_MISS_FILL) && upgr_q
                               && sn_hit_any
-                              && ({sn_hit_tag, sn_set_grant} == req_line_addr);
+                              && ({sn_tag_grant, sn_set_grant} == req_line_addr);
+    // (sn_tag_grant == sn_hit_tag under sn_hit_any, as in sn_stale_gnt)
 
     // grant-cycle reference state (CRRESP is combinational at the grant)
     logic [2:0] sn_ref_grant;
