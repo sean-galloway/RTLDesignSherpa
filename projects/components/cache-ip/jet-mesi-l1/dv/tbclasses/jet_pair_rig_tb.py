@@ -183,6 +183,13 @@ class Side:
         self.wb = {}             # line -> capture-time content snapshot
         self.wb_order = deque()  # WB drain order (oldest first)
         self.draining = None
+        # WB entries that passed their line on with the drain already
+        # started (jet BUG-005): they drain, keep the own-lookup
+        # stall, and answer no further snoop.  An entry snooped before its
+        # drain started is simply gone (no drain).
+        self.wb_passed = set()
+        self.passed_drains = 0
+        self.ended = 0
         self.committing = None
         self.promo = None        # pending E->M promotion tag write
         # victim-way parity model per policy (update-at-alloc for all;
@@ -218,6 +225,8 @@ class JetPairRigTB(TBBase):
     def __init__(self, dut, **kwargs):
         super().__init__(dut)
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        _dl = os.environ.get('DBG_LINE')
+        self.DBG_LINE = int(_dl, 0) if _dl else None
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         random.seed(self.SEED)
 
@@ -254,11 +263,12 @@ class JetPairRigTB(TBBase):
         # PEND_DEPTH FIFO
         self.ft_queue = [[], []]
         self.cur_ft = None       # in-flight fabric transaction (serial)
+        self._aw_since = [0, 0]  # cycles each cache's AW has been presented
         self.stats = {
             'grants': [0, 0], 'kills': 0, 'kill_pred_ok': 0,
             'kill_pred_bad': 0, 'dt_forwards': 0, 'pass_throughs': 0,
             'absorbs': 0, 'mem_ar': 0, 'wb_bursts': 0, 'upgrades': 0,
-            'first_grant': [],
+            'first_grant': [], 'wb_same_line': 0,
         }
 
         # observation
@@ -292,6 +302,10 @@ class JetPairRigTB(TBBase):
     # ------------------------------------------------------------------
     # helpers
     # ------------------------------------------------------------------
+    def _dbg(self, line, msg):
+        if self.DBG_LINE is not None and line == self.DBG_LINE:
+            self.log.info(f"DBG cyc={self.cyc} line={line:#x}: {msg}")
+
     def _score(self, what, got, exp):
         self.checks += 1
         if got != exp:
@@ -524,12 +538,37 @@ class JetPairRigTB(TBBase):
     # same-cycle snoop grant -- the alloc-first rule; the snoop resolution
     # sees the AR state BEFORE this cycle's handshake -- the pre-AR rule).
     # ------------------------------------------------------------------
+    def _check_wb_order(self):
+        """Two write-backs to one line are taken in presentation order
+        (jet BUG-005: a drain whose snoop passed the line on after
+        its AW went out must land before the new owner's write-back).
+        Scored at the cache ports, independent of the fabric."""
+        d = self.dut
+        v = [int(d.m0_awvalid.value), int(d.m1_awvalid.value)]
+        r = [int(d.m0_awready.value), int(d.m1_awready.value)]
+        same = (v[0] and v[1]
+                and self._line_of(int(d.m0_awaddr.value))
+                == self._line_of(int(d.m1_awaddr.value)))
+        if same and self._aw_since[0] == 0 or same and self._aw_since[1] == 0:
+            self.stats['wb_same_line'] += 1
+        for c in range(2):
+            if v[c] and r[c] and same:
+                self._score(f"write-back order: cache{c}'s AW to line "
+                            f"{self._line_of(int(getattr(d, f'm{c}_awaddr').value)):#x} "
+                            f"taken while cache{1 - c}'s, presented earlier, "
+                            f"waits", self._aw_since[1 - c] > self._aw_since[c],
+                            False)
+        for c in range(2):
+            self._aw_since[c] = self._aw_since[c] + 1 if (v[c] and not r[c]) \
+                else 0
+
     async def _monitor(self):
         d = self.dut
         while True:
             await FallingEdge(d.clk)
             await Timer(100, units='ps')
             self.cyc += 1
+            self._check_wb_order()
 
             fab_state = int(d.u_fabric.dbg_state.value)
             if fab_state != self._prev_fab_state:
@@ -653,6 +692,11 @@ class JetPairRigTB(TBBase):
         # tag tracking can run one cycle ahead of the array.
         snap = self._tag_snapshot_from_rtl(uc, set_idx)
         rsp = {'line': line, 'we': we, 'exp': None, 'ready': False}
+        self._dbg(line, f"accept c{c} we={we} beat={beat} be={be:#x} "
+                  f"wdata={wdata:#x} hit={int(uc.lkup_hit_o.value)} "
+                  f"upg={int(uc.lkup_upgrade_o.value)} "
+                  f"merge={int(uc.lkup_merge_o.value)} "
+                  f"alloc={int(uc.lkup_miss_alloc_o.value)}")
         side.rspq.append(rsp)
         side.txns += 1
 
@@ -734,8 +778,12 @@ class JetPairRigTB(TBBase):
         if vline is not None and vstate != 'I' and vline != line:
             self._score(f"alloc{c} wb_valid line={line:#x}", wb_valid,
                         1 if vstate == 'M' else 0)
+            self._dbg(vline, f"evict c{c} state={vstate} (alloc of "
+                      f"{line:#x})")
             if vstate == 'M':
                 side.wb[vline] = self._way_content(side, set_idx, way, vline)
+                self._dbg(vline, f"wb capture c{c} "
+                          f"{bytes(side.wb[vline]).hex()}")
                 side.wb_order.append(vline)
             side.cache_data.pop((set_idx, way), None)
 
@@ -768,13 +816,23 @@ class JetPairRigTB(TBBase):
 
         cd = None
         pre_ar = False
-        if line in side.wb:
-            # WB snarf: the buffer owns the line until the WB ack --
-            # answered at M (SINK_WB_ACK) from the capture snapshot
+        if line in side.wb and line not in side.wb_passed:
+            # WB snarf: answered at M from the capture snapshot.  Every
+            # snoop changes a Modified line, so the entry passes the line
+            # on (DT + PassDirty, or MakeInvalid): it ends here -- unless
+            # its drain has started, when it drains (the AW cannot be
+            # withdrawn) and answers no further snoop (jet BUG-005)
             res = oracle_step('M', name)
             side.wb_grants += 1
             if (res.crresp >> CRRESP_DT) & 1:
                 cd = side.wb[line]
+            if side.draining == line:
+                side.wb_passed.add(line)
+            else:
+                del side.wb[line]
+                side.wb_order.remove(line)
+                side.ended += 1
+                self._dbg(line, f"wb entry ended c{c} (no drain)")
         elif line in side.entries:
             e = side.entries[line]
             if not e['ar']:
@@ -810,7 +868,10 @@ class JetPairRigTB(TBBase):
                 res = res._replace(crresp=crresp)
                 if (crresp >> CRRESP_DT) & 1:
                     cd = e['src']
-        elif side.upgr['valid'] and line == side.upgr['line']:
+        elif (side.upgr['valid'] and line == side.upgr['line']
+              and not side.upgr['killed']):
+            # (a killed upgrade's line was invalidated by the snoop
+            # that killed it: a later snoop resolves on the array, I)
             # the in-flight upgrade's line: legitimately resident S until
             # the CU commit lands; the effect writes the tag (array hit)
             res = oracle_step('S', name)
@@ -836,6 +897,9 @@ class JetPairRigTB(TBBase):
                     'line': line, 'set': set_idx, 'way': way,
                     'next': res.next_state})
 
+        self._dbg(line, f"snoop grant c{c} {name} wb={line in side.wb} "
+                  f"crresp got={got_crresp:#x} exp={res.crresp:#x} "
+                  f"cd={bytes(cd).hex() if cd is not None else None}")
         self._score(f"snoop{c} {name} line={line:#x} crresp (grant)",
                     got_crresp, res.crresp)
 
@@ -1068,6 +1132,8 @@ class JetPairRigTB(TBBase):
             return
         side.draining = side.wb_order[0]
         line = side.draining
+        # an entry that passed its line on before its drain started never
+        # drains (the model removed it at the snoop)
         self._score(f"drain{c} addr is the oldest WB line",
                     int(a.u_coh.u_wb.drain_addr_o.value), self._base_of(line))
         # the write-back carries the capture-time snapshot to the shared
@@ -1075,6 +1141,7 @@ class JetPairRigTB(TBBase):
         # before the BRESP, and no pass-through read of the line can
         # interpose -- the RAW guard and the WB snarf cover both sides)
         self.mem[line] = bytearray(side.wb[line])
+        self._dbg(line, f"drain start c{c} {bytes(side.wb[line]).hex()}")
         self.stats['wb_bursts'] += 1
         self.events.append((self.cyc, 'wb', c, line))
 
@@ -1093,8 +1160,12 @@ class JetPairRigTB(TBBase):
         for b in range(self.FILL_BEATS):
             got += int(mem_words[base_word + b].value).to_bytes(
                 self.STRB_W, 'little')
+        self._dbg(line, f"drain done c{c} mem={bytes(got).hex()}")
         self._score(f"drain{c} payload line={line:#x}", bytes(got),
                     bytes(side.wb[line]))
+        if line in side.wb_passed:
+            side.passed_drains += 1
+            side.wb_passed.discard(line)
         del side.wb[line]
         side.wb_order.popleft()
         side.draining = None
@@ -1790,7 +1861,8 @@ class JetPairRigTB(TBBase):
         beat = rng.randrange(self.FILL_BEATS)
         return self._base_of(line) + beat * self.STRB_W
 
-    async def _cpu_loop(self, c, n, rng):
+    async def _cpu_loop(self, c, n, rng, addr_fn=None, wr_frac=0.5):
+        addr_fn = addr_fn or self._rand_addr
         i = 0
         while i < n:
             # occasionally pipeline a short burst (jet's in-cache
@@ -1798,8 +1870,8 @@ class JetPairRigTB(TBBase):
             burst = 1 + (rng.randrange(3) if rng.random() < 0.3 else 0)
             ns = []
             for _ in range(min(burst, n - i)):
-                addr = self._rand_addr(rng)
-                we = 1 if rng.random() < 0.5 else 0
+                addr = addr_fn(rng)
+                we = 1 if rng.random() < wr_frac else 0
                 be = rng.randrange(1, 1 << self.STRB_W) if we \
                     else (1 << self.STRB_W) - 1
                 wdata = rng.getrandbits(self.BUS_WIDTH) if we else 0
@@ -1811,6 +1883,37 @@ class JetPairRigTB(TBBase):
                 await self._await_rsp(c, m, f'r{c}')
             for _ in range(rng.randrange(2)):
                 await self._negedge_settled()
+
+    def _hot_lines(self):
+        """A few lines of two sets, more tags than ways: every miss there
+        evicts, mostly a dirty line.  The tags sit just under the top of
+        the span (the directed scenarios allocate from the bottom; the top
+        tag row is onyx's IO region)."""
+        sets = [3 % self.SETS, 9 % self.SETS]
+        tags = list(range(self.MAX_TAG - self.WAYS - 3, self.MAX_TAG))
+        return [self._line_of(self._compose_addr(t, st))
+                for st in sets for t in tags]
+
+    def _hot_addr_fn(self, lines):
+        def hot(rng):
+            return (self._base_of(rng.choice(lines))
+                    + rng.randrange(self.FILL_BEATS) * self.STRB_W)
+        return hot
+
+    async def _hot_set_contention(self, n):
+        """Both CPUs on the hot lines, mostly writes: the WB buffers stay
+        full and the peer's misses snoop lines sitting in them.  The
+        uniform soak (SPAN lines) reaches a WB snarf a handful of times
+        per cell; this is the stimulus the WB-ownership rule needs
+        (jet BUG-005: a stale drain landing after the new owner's
+        write-back)."""
+        hot = self._hot_addr_fn(self._hot_lines())
+        rng0 = random.Random(((self.SEED << 1) | 0) ^ 0x5EED)
+        rng1 = random.Random(((self.SEED << 1) | 1) ^ 0x5EED)
+        t0 = cocotb.start_soon(self._cpu_loop(0, n, rng0, hot, 0.7))
+        t1 = cocotb.start_soon(self._cpu_loop(1, n, rng1, hot, 0.7))
+        await t0
+        await t1
 
     async def _random_lockstep(self, n):
         rng0 = random.Random((self.SEED << 1) | 0)
@@ -1895,6 +1998,8 @@ class JetPairRigTB(TBBase):
         if self.TEST_LEVEL in ('func', 'full'):
             await self._random_lockstep(self.FULL_TXN[self.TEST_LEVEL])
             self._scenario('RandomDualCpuLockstep')
+            await self._hot_set_contention(self.FULL_TXN[self.TEST_LEVEL])
+            self._scenario('HotSetContention')
             if self.USE_MONITOR == 0:
                 self._scenario('MonbusPresentVsAbsent')
 
@@ -1913,6 +2018,8 @@ class JetPairRigTB(TBBase):
             'pre_ar_answers': [s.pre_ar_answers for s in self.sides],
             'pend_installs': [s.pend_installs for s in self.sides],
             'kill_count': [s.kill_count for s in self.sides],
+            'wb_ended': [s.ended for s in self.sides],
+            'wb_passed_drains': [s.passed_drains for s in self.sides],
             'stats': self.stats,
             'scenarios': self.scenarios,
         }

@@ -47,7 +47,11 @@ amber's (Pattern-B cocotb GATE/FUNC/FULL grids, per amber D9):
    `pair_ships_in_the_night` WB-snarf corner and, since jet BUG-004, the
    `DeepPipelinedMisses` scenario: eight back-to-back true misses per CPU
    before any response is awaited, the posture a blocking driver can never
-   reach and the one that deadlocked the fabric's safe-peer wait).
+   reach and the one that deadlocked the fabric's safe-peer wait). Since
+   jet BUG-005, a `HotSetContention` phase after the uniform soak (both
+   CPUs, 70 % writes, `WAYS + 3` tags in two sets: the WB buffers stay
+   full and the peer's misses snoop lines sitting in them) and a
+   write-back order check at the cache ports, independent of the fabric.
 
 ## The BUG-001/002 lesson, applied at the start
 

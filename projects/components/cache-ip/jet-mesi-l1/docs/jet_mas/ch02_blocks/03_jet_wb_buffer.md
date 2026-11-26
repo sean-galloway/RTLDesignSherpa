@@ -50,18 +50,43 @@ they were evicted for.
    AW/W beats out, BRESP back. Per Chinnakonda §10.10.1 the **address is
    held until BRESP** (a fabric read to the same line must not issue while
    the write is outstanding); the data beats may leave as accepted.
-3. **Retire.** On BRESP the entry frees.
+3. **Retire.** On BRESP the entry frees. An entry a snoop ended (below)
+   retires without a drain when it reaches the head.
 
 ## Snoop service (snarf, §10.8.1)
 
 A snoop matching `line` in a valid WB entry is served from the entry's
-data with amber's SINK_WB_ACK semantics: CR/CD from the buffer, and the
-entry's post-snoop state effect recorded so the drain writes back the
-correct thing (an invalidated snarfed victim still drains — the fabric
-already took the data; the drain completes the memory update). This closes
-the ships-in-the-night corner (§10.12.2): a pre-BRESP WriteBack plus a
-clean-invalidating snoop to the same line is answered from the buffer,
-never "not present".
+data with amber's SINK_WB_ACK semantics: CR/CD from the buffer at
+Modified. This closes the ships-in-the-night corner (§10.12.2): a
+pre-BRESP WriteBack plus a clean-invalidating snoop to the same line is
+answered from the buffer, never "not present".
+
+**A line passed on is not written back (jet BUG-005, 2026-11-25).** Every
+snoop that changes a Modified line passes it on: DataTransfer + PassDirty
+(ReadShared, ReadOnce, ReadUnique, CleanShared, CleanInvalid) or
+MakeInvalid. ACE's rule is the master's: a line passed on dirty is no
+longer the master's to write back. So the snoop's effect (`sn_eff_i` not
+NONE) ends the entry: it leaves the snarf CAM at once (`r_valid` low, the
+own-lookup drain-race stall ends with it) and the head retires it undrained
+(`r_dead`). The one exception is the head whose drain has already started
+(`drain_start_i` seen, no BRESP): its AW may be presented and cannot be
+withdrawn, so it drains, and it is marked passed (`sn_passed_o`) -- still
+in the CAM for the own-lookup stall, but `jet_control` no longer answers a
+snoop from it, so a second snoop sees the Invalid row, never the stale
+bytes. `jet_control` holds `drain_start` while a WB-sourced snoop on the
+head entry (`sn_head_o`) is granted or in service, so the head's drain
+cannot start between the grant and the effect; and `jet_pair_fabric`
+forwards two write-backs to one line in presentation order, so the passed
+head's drain lands before the new owner's write-back.
+
+Until 2026-11-25 this section said "the entry's post-snoop state effect
+recorded so the drain writes back the correct thing (an invalidated snarfed
+victim still drains -- the fabric already took the data; the drain
+completes the memory update)". The RTL recorded the effect (`r_eff`) and
+never read it, and every snarfed victim drained: if the new owner wrote the
+line and its write-back landed first, the old drain overwrote it.
+jet-prime's pair rig reproduced it (jet-prime BUG-002); the fix is ported
+here as it landed there ([jet-prime delta 05](../../../../jet-prime-mesi-l1/docs/delta/05_wb_ownership.md)).
 
 **How the stream reads the entry (FPGA review 2026-11-07).** The CAM's
 matched slot (`sn_match_idx_o`) is latched by `jet_control` at the grant;
@@ -82,10 +107,11 @@ read interface forces a flop array: read payload by beat".
 | Port group | Shape | Notes |
 |---|---|---|
 | capture `cap_i / cap_beat_i / cap_beat_data_i` → `cap_gnt_o / cap_slot_o` | one beat per cycle into `r_data[{open_slot, beats_rcvd}]` | the only write port |
-| drain `drain_valid_o / drain_addr_o`, `drain_beat_idx_i` → `drain_beat_data_o`, `drain_done_i` | head slot; `l1_drain` presents its W beat index and takes the word the same cycle | the l1_victim-shaped head, now beat-serial |
-| snarf `sn_line_i` → `sn_hit_o / sn_match_idx_o`; `sn_lock_i / sn_rd_slot_i / sn_rd_beat_i` → `sn_rd_data_o`; `sn_bresp_cycle_o`, `sn_eff_i` | CAM on `line`, then a beat read of the matched slot | the lock pins the slot against reuse |
+| drain `drain_valid_o / drain_addr_o`, `drain_beat_idx_i` → `drain_beat_data_o`, `drain_start_i`, `drain_done_i` | head slot; `l1_drain` presents its W beat index and takes the word the same cycle | the l1_victim-shaped head, now beat-serial |
+| snarf `sn_line_i` → `sn_hit_o / sn_passed_o / sn_head_o / sn_match_idx_o`; `sn_lock_i / sn_rd_slot_i / sn_rd_beat_i` → `sn_rd_data_o`; `sn_bresp_cycle_o`, `sn_eff_i` | CAM on `line`, then a beat read of the matched slot | the lock pins the slot against reuse |
 
-`r_valid`, `r_allocated`, `r_line`, `r_beats_rcvd`, `r_eff` and the pointers are
+`r_valid`, `r_allocated`, `r_line`, `r_beats_rcvd`, `r_dead`, `r_passed`,
+`r_head_draining` and the pointers are
 reset; `r_data` is not — every word is qualified by its slot's valid bit.
 
 ## Congestion rule (J6)

@@ -87,7 +87,10 @@
 //   (per-direction pending-absorption address registers) -- the memory
 //   image of such a line is stale until the absorption lands. A write-back
 //   matching a pending absorption orders behind it (the write-back carries
-//   strictly newer bytes).
+//   strictly newer bytes). Two write-backs to one line are forwarded in
+//   the order they were presented (jet BUG-005: a victim whose drain had
+//   started when a snoop passed its line on still drains, and must land
+//   before the new owner's write-back of the line).
 //
 //   Fairness / liveness: round-robin at the coherence grant and at the
 //   memory write port; one memory read in flight at a time (both caches
@@ -853,11 +856,46 @@ module jet_pair_fabric
     // ------------------------------------------------------------------
     // Write port arbitration: {cache0 wb, cache1 wb, absorb0, absorb1},
     // fair round-robin; a write-back to a line with a pending absorption
-    // holds (the absorption is older and must land first)
+    // holds (the absorption is older and must land first), and two
+    // write-backs to one line go in the order they were presented.
     // ------------------------------------------------------------------
+    // Presentation order (jet BUG-005, ported from jet-prime BUG-002): a
+    // cache whose victim drain had started when a snoop passed the line
+    // dirty still drains it (its AW is presented and cannot be withdrawn).
+    // That AW holds above until the absorption lands; once released it must
+    // not lose the round-robin to the NEW owner's later write-back of the
+    // same line, or the stale bytes land last.  A write-back presented
+    // while the other cache already presents one to the same line yields
+    // until that one is taken; the one burst in flight then orders the two
+    // in memory.  (Two first presented in the same cycle cannot be a
+    // stale/new pair: the new owner's write-back follows its own fill,
+    // which follows the snoop that the stale AW predates.)
+    localparam int WB_OFFSET_W = $clog2(LINE_BYTES);
+    logic [1:0] aw_pres_q;     // presented last cycle and not taken
+    logic [1:0] aw_yield_q;    // presented after the other's, same line
+    logic       aw_same_line;
+    logic [1:0] aw_younger;
+    assign aw_same_line = c_awvalid[0] && c_awvalid[1]
+        && (c_awaddr[0][ADDR_WIDTH-1:WB_OFFSET_W]
+            == c_awaddr[1][ADDR_WIDTH-1:WB_OFFSET_W]);
+    assign aw_younger[0] = aw_same_line
+                           && (aw_yield_q[0] || (aw_pres_q[1] && !aw_pres_q[0]));
+    assign aw_younger[1] = aw_same_line
+                           && (aw_yield_q[1] || (aw_pres_q[0] && !aw_pres_q[1]));
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            aw_pres_q  <= '0;
+            aw_yield_q <= '0;
+        end else begin
+            aw_pres_q  <= c_awvalid & ~{c1_awready, c0_awready};
+            aw_yield_q <= aw_younger;
+        end
+    end
+
     logic [1:0] wb_blocked;
-    assign wb_blocked[0] = c0_awvalid && abs_match(c0_awaddr);
-    assign wb_blocked[1] = c1_awvalid && abs_match(c1_awaddr);
+    assign wb_blocked[0] = c0_awvalid && (abs_match(c0_awaddr) || aw_younger[0]);
+    assign wb_blocked[1] = c1_awvalid && (abs_match(c1_awaddr) || aw_younger[1]);
 
     logic [3:0] w_cand;
     assign w_cand = {abs_req_q[1], abs_req_q[0],

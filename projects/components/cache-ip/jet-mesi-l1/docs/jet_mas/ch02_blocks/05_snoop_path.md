@@ -37,7 +37,7 @@ answers.
 
 | Match | Answer | State effect |
 |---|---|---|
-| WB entry (draining victim) | snarf: CR/CD from the buffer, amber's SINK_WB_ACK semantics | recorded on the WB entry (drain still completes) |
+| WB entry (captured victim, not passed on) | snarf: CR/CD from the buffer at M, amber's SINK_WB_ACK semantics | the entry ends (out of the CAM, retired undrained); a head whose drain had started drains and answers no further snoop (jet BUG-005, [ch02/03](03_jet_wb_buffer.md)) |
 | MSHR entry (pending fill, AR accepted) | the post-fill state, per amber's pending-fill bypass generalized per entry; CD beats only for beats the fill has landed (PF_GUARD: `beats_rcvd`) | recorded in `pend_eff`, applied at commit (amber's `pending` semantics) |
 | MSHR entry (pending fill, **pre-AR**, Task 9) | the **Invalid row** — no data, and **no effect** (the amber BUG-002 analog) | none |
 | Tag array | amber's Table 3.0 decode, unchanged | tag downgrade/invalidate on port B, as amber |

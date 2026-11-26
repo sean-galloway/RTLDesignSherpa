@@ -124,6 +124,7 @@ module formal_jet_control (
     localparam [1:0] SN_IDLE = 2'd0;
     localparam [1:0] SN_DATA = 2'd1;
     localparam [1:0] SRC_MSHR = 2'd2;
+    localparam [1:0] SRC_WB   = 2'd1;
     // stall sub-reasons (jet_control localparams)
     localparam [2:0] STALL_MSHR_FULL   = 3'd1;
     localparam [2:0] STALL_WB          = 3'd2;
@@ -245,10 +246,13 @@ module formal_jet_control (
     logic        mshr_ev_retire_idx;
 
     logic        wb_cap_gnt;
+    logic [31:0] wb_drain_addr;
     logic        wb_cap_slot;
     logic        wb_full;
     logic        wb_drain_valid;
     logic        wb_sn_hit;
+    logic        wb_sn_passed;
+    logic        wb_sn_head;
     logic        wb_sn_match_idx;
     logic        wb_sn_lock;
     logic        wb_sn_rd_slot;
@@ -381,6 +385,8 @@ module formal_jet_control (
         .wb_full_i               (wb_full),
         .wb_sn_line_o            (dut_wb_sn_line),
         .wb_sn_hit_i             (wb_sn_hit),
+        .wb_sn_passed_i          (wb_sn_passed),
+        .wb_sn_head_i            (wb_sn_head),
         .wb_sn_eff_o             (dut_wb_sn_eff),
         .wb_sn_match_idx_i       (wb_sn_match_idx),
         .wb_sn_lock_o            (wb_sn_lock),
@@ -532,12 +538,15 @@ module formal_jet_control (
         .cap_slot_o      (wb_cap_slot),
         .wb_full_o       (wb_full),
         .drain_valid_o   (wb_drain_valid),
-        .drain_addr_o    (),
+        .drain_addr_o    (wb_drain_addr),
         .drain_beat_idx_i (3'd0),
         .drain_beat_data_o(),
+        .drain_start_i   (dut_drain_start),
         .drain_done_i    (drain_done),
         .sn_line_i       (dut_wb_sn_line),
         .sn_hit_o        (wb_sn_hit),
+        .sn_passed_o     (wb_sn_passed),
+        .sn_head_o       (wb_sn_head),
         .sn_match_idx_o  (wb_sn_match_idx),
         .sn_lock_i       (wb_sn_lock),
         .sn_rd_slot_i    (wb_sn_rd_slot),
@@ -811,9 +820,9 @@ module formal_jet_control (
         (sh_vld[0] && (sh_cset[0] == f_sn_set) && (sh_cway[0] == f_tway))
         || (sh_vld[1] && (sh_cset[1] == f_sn_set) && (sh_cway[1] == f_tway));
 
-    wire f_xsrc_wb    = wb_sn_hit;
-    wire f_xsrc_mshr  = ~wb_sn_hit & mshr_sn_match & ~obs_mshr_pre_ar;
-    wire f_xsrc_array = ~wb_sn_hit & ~f_xsrc_mshr & f_thit & ~f_tclaimed
+    wire f_xsrc_wb    = wb_sn_hit & ~wb_sn_passed;
+    wire f_xsrc_mshr  = ~f_xsrc_wb & mshr_sn_match & ~obs_mshr_pre_ar;
+    wire f_xsrc_array = ~f_xsrc_wb & ~f_xsrc_mshr & f_thit & ~f_tclaimed
                         & ~obs_mshr_pre_ar;
     wire [2:0] f_xref = f_xsrc_wb    ? ST_M
                         : f_xsrc_mshr  ? (mshr_sn_install ? ST_M : ST_S)
@@ -856,6 +865,35 @@ module formal_jet_control (
             sh_gnt_type <= sn_type;
             sh_gnt_idx  <= mshr_sn_match_idx;
             sh_gnt_mshr <= f_xsrc_mshr;
+        end
+    end
+
+    // ------------------------------------------------------------------
+    // WB ownership shadow (jet BUG-005): a WB entry that a snoop
+    // passed on before its drain started must never drain -- the manager
+    // has the line, and a drain landing after the new owner's write-back
+    // overwrites it.  f_end_line records such a line from the effect
+    // cycle until a NEW victim of that line is captured (a refetched,
+    // re-dirtied line drains legitimately).
+    // ------------------------------------------------------------------
+    reg        f_end_vld;
+    reg [25:0] f_end_line;
+    reg [25:0] f_drain_line;
+    wire       f_eff_on_wb = (dut_wb_sn_eff != 2'd0) & wb_sn_hit;
+    wire       f_eff_draining = r_drain_busy_sh & (f_drain_line == dut_wb_sn_line);
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            f_end_vld    <= 1'b0;
+            f_end_line   <= 26'd0;
+            f_drain_line <= 26'd0;
+        end else begin
+            if (dut_drain_start) f_drain_line <= wb_drain_addr[31:6];
+            if (f_eff_on_wb && !f_eff_draining) begin
+                f_end_vld  <= 1'b1;
+                f_end_line <= dut_wb_sn_line;
+            end else if (dut_wb_cap && (dut_wb_cap_line == f_end_line)) begin
+                f_end_vld  <= 1'b0;
+            end
         end
     end
 
@@ -945,6 +983,16 @@ module formal_jet_control (
             ap_cmt_legal:   assert (obs_cmt_state <= 4'd8);
             ap_sn_legal:    assert (obs_sn_state != 2'd3);
             ap_no_error:    assert (!dut_ctrl_error);
+            // jet BUG-005: the head's drain does not start while a
+            // snoop on the head is served from the WB buffer (the effect
+            // must not cross its drain start), and an entry passed on
+            // before its drain never drains
+            ap_wb_no_drain_in_svc: assert (!(dut_drain_start && wb_sn_head
+                                             && (w_sn_gnt && obs_src_wb
+                                                 || (obs_sn_state != SN_IDLE)
+                                                    && (obs_sn_src == SRC_WB))));
+            ap_wb_ended_never_drains: assert (!(dut_drain_start && f_end_vld
+                                                && (wb_drain_addr[31:6] == f_end_line)));
         end
     end
 
@@ -977,6 +1025,10 @@ module formal_jet_control (
             // the three answer sources at the grant, plus the pre-AR
             // suppression and both PF_GUARD flavors
             cp_src_wb:     cover (w_sn_gnt && obs_src_wb);
+            // BUG-005: an entry ended by a snoop, and a snoop meeting a
+            // passed (draining) entry
+            cp_wb_ended:   cover (f_eff_on_wb && !f_eff_draining);
+            cp_wb_passed_snoop: cover (w_sn_gnt && wb_sn_hit && wb_sn_passed);
             cp_src_mshr:   cover (w_sn_gnt && obs_src_mshr);
             cp_src_array:  cover (w_sn_gnt && obs_src_array);
             cp_pre_ar:     cover (w_sn_gnt && mshr_sn_match

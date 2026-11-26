@@ -13,10 +13,10 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 1 | parked pending a named condition |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
@@ -24,7 +24,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Active
 
-(none)
+- **BUG-005** ([page](active/BUG-005.md)) — a write-back victim passed on by a snoop still drains (jet carries jet-prime BUG-002: stale bytes can land after the new owner's write-back). Deferred 2026-11-24 while jet was frozen; fixed 2026-11-25 at the owner's request (jet-prime's fix ported, jet full 149/149); proofs running.
 
 ## Closed
 
@@ -35,4 +35,4 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Deferred
 
-- **BUG-005** ([page](deferred/BUG-005.md)) — a write-back victim passed on by a snoop still drains (jet carries jet-prime BUG-002: stale bytes can land after the new owner's write-back). Not reproduced on jet's serial fabric (hot-set run 26/26). Deferred 2026-11-24: jet is frozen as the measured baseline.
+(none)

@@ -13,7 +13,9 @@ jet-prime is jet (RTL, DV, formal) copied at commit 2be919254 with the
 `jet_prime_` prefix. It reuses the shared core at `cache-ip/common-ip` (l1_*)
 unchanged, exactly as jet does; work on the shared core files in the
 amber-mesi-l1 or common-ip lanes, not here. jet's own lanes stay closed: jet
-is the baseline the comparison report measured, and nothing in it moves.
+is the baseline the comparison report measured, and nothing in it moves --
+one exception, jet BUG-005 (jet-prime BUG-002 ported, at the owner's
+request 2026-11-25; no measured path changes).
 
 ## Lanes
 

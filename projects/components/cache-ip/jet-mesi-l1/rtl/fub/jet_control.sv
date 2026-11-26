@@ -367,6 +367,11 @@ module jet_control
     input  logic                        wb_full_i,
     output logic [LINE_W-1:0]           wb_sn_line_o,
     input  logic                        wb_sn_hit_i,
+    // the matched entry passed the line on with its drain already started:
+    // it answers no snoop (the own-lookup drain-race stall still sees it)
+    input  logic                        wb_sn_passed_i,
+    // the matched entry is the WB head (a drain start would take it)
+    input  logic                        wb_sn_head_i,
     output logic [1:0]                  wb_sn_eff_o,
     // snarf stream: the CAM's slot is latched at the grant; the CD beats
     // are read from the WB store by beat (slot, beat) while wb_sn_lock_o
@@ -873,6 +878,7 @@ module jet_control
     logic [2:0]         w_sn_tstate;
     logic               w_sn_tclaimed;
     logic               w_src_wb;
+    logic               w_sn_wb_live;   // a WB-sourced snoop granted / in service
     logic               w_src_mshr;
     logic               w_src_array;
     logic [1:0]         w_sn_src;
@@ -942,7 +948,7 @@ module jet_control
     // the match order: the WB buffer owns a draining line (SINK_WB_ACK --
     // that data exists NOW), then the pending fill (the post-fill state --
     // the fill's answer would otherwise be a promise), then the arrays
-    assign w_src_wb    = wb_sn_hit_i;
+    assign w_src_wb    = wb_sn_hit_i & ~wb_sn_passed_i;
     // Pre-AR rule (Task 9; the amber BUG-002 analog): a snoop matching an
     // MSHR entry whose fill AR has not been accepted yet is answered at
     // the Invalid row with no data and NO effect -- on the pair rig the
@@ -1089,12 +1095,14 @@ module jet_control
                                     != JET_PEND_INVALIDATE_I);
     assign mshr_sn_eff_idx_o   = r_sn_idx;
     assign mshr_sn_eff_value_o = w_sn_eff_new;
-    // The WB effect may arrive after a mid-service BRESP retired the
-    // snarfed entry (the grant can land in the entry's BRESP cycle; the
-    // effect slot follows the CD stream).  jet_wb_buffer records only on
-    // a CURRENT CAM match of the snoop line, so the effect of a retired
-    // entry is dropped -- semantically moot: the drain completed, memory
-    // holds the data, the fabric took its answer.  Misapplication to a
+    // The WB effect ends the snarfed entry (jet_wb_buffer: out of
+    // the CAM, retired undrained) unless its drain had already started.
+    // It may arrive after a mid-service BRESP retired the entry (the
+    // grant can land in the entry's BRESP cycle; the effect slot follows
+    // the CD stream); the buffer acts only on a CURRENT CAM match of the
+    // snoop line, so the effect of a retired entry is dropped -- the
+    // drain completed and the manager orders it before the new owner's
+    // write-back.  Misapplication to a
     // reused slot is impossible: CPU accepts (hence new captures) are
     // suppressed for the whole service, and a line occupies at most one
     // WB slot at a time (the lookup drain-race stall).
@@ -1683,8 +1691,25 @@ module jet_control
     assign wb_cap_beat_data_o = dat_b_rdata_i;
 
     // Drain arbiter: present drain_start when the head is valid and
-    // no drain is outstanding (l1_drain samples victim_valid in D_IDLE).
-    assign drain_start_o = wb_drain_valid_i & ~r_drain_busy;
+    // no drain is outstanding (l1_drain samples victim_valid in D_IDLE),
+    // and the head entry is not under a WB-sourced snoop.  Such a snoop
+    // ends its entry at SN_EFFECT (the line is passed on, the entry
+    // retires undrained), unless that entry's drain has started -- so the
+    // head's drain must not start between the grant and the effect, or a
+    // passed line would drain after all (jet BUG-005).  Only the
+    // head: a snoop on another entry cannot race the head's drain, and
+    // holding every drain start for it fails the drain-progress bound
+    // (jet-prime's first fix: a snoop granted in its entry's BRESP cycle
+    // retires that entry, and the next head waited out the service).
+    // wb_sn_head_i is live: the snoop
+    // line drives the CAM through the service, so an entry that becomes
+    // the head mid-service (the old head's BRESP) is held from that cycle.
+    // Bounded by the service (<= FILL_BEATS + 2 CD handshakes), after
+    // which the head has ended.
+    assign w_sn_wb_live  = wb_sn_head_i
+                           & ((w_sn_gnt & w_src_wb)
+                              | ((r_sn_state != SN_IDLE) & (r_sn_src == SRC_WB)));
+    assign drain_start_o = wb_drain_valid_i & ~r_drain_busy & ~w_sn_wb_live;
 
     // ------------------------------------------------------------------
     // Sequential state

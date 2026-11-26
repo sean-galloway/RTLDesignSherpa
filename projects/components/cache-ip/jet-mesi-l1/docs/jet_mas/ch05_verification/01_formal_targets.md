@@ -55,9 +55,18 @@ exactly there.
 - No two valid MSHR entries share a line (merge, never duplicate fetch).
 - No two in-flight misses in one set claim the same victim way (set
   oversubscription).
+- Write-back ownership (jet BUG-005, 2026-11-25): the head's drain does
+  not start while a snoop on the head is served from the WB buffer
+  (`ap_wb_no_drain_in_svc`), and an entry a snoop passed on before its
+  drain started never drains (`ap_wb_ended_never_drains`); covers
+  `cp_wb_ended` and `cp_wb_passed_snoop`.
 
 ## What is deliberately not proven here
 
 Full-cache proofs at 128-set/4-way (amber D9 scopes formal to the tiny
 geometry; the FULL soak grid covers the large geometry dynamically), and
-the fabric side (the pair fabric is amber's, already proven).
+the fabric side (the pair fabric is amber's, already proven). jet's
+fabric has one rule amber's lacks: two write-backs to one line in
+presentation order (jet BUG-005). It is checked in simulation only, at the
+cache ports (the pair rig's `_check_wb_order`); jet has no fabric proof
+(jet-prime's `ap_wb_order` covers the same rule on its pipelined fabric).

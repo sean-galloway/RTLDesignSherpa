@@ -76,9 +76,28 @@
 //     between beats (port sharing) without aborting the capture.
 //   - An entry is visible to the drain and to snarf only after all beats have
 //     been captured (r_valid).
-//   - sn_eff_i is recorded on the matching entry exactly once and only when a
-//     non-NONE effect is presented; an invalidated snarfed victim still drains
-//     to completion (fabric already took the data).
+//   - A snoop effect (sn_eff_i != NONE) on a matching entry ENDS the entry:
+//     an entry is a Modified line, and every snoop that changes a Modified
+//     line passes it on -- DataTransfer + PassDirty (ReadShared, ReadOnce,
+//     ReadUnique, CleanShared, CleanInvalid: the manager now owns the dirty
+//     data) or MakeInvalid (the requester overwrites the whole line).  ACE's
+//     rule is the master's: a line passed dirty is not written back.  The
+//     entry leaves the snarf CAM at once and is retired without a drain when
+//     it reaches the head.  The one exception is an entry whose drain has
+//     already started (the head, drain_start_i seen, no BRESP yet): its AW
+//     may already be presented, and an AXI AW cannot be withdrawn, so it
+//     drains and the manager orders it before any later write-back to the
+//     line.  That entry is marked passed (sn_passed_o): it still matches
+//     the CAM, so the cache's own refetch of the line keeps its drain-race
+//     stall until the BRESP, but jet_control no longer answers a
+//     snoop from it (a second snoop sees the Invalid row, never the stale
+//     bytes).  jet_control holds drain_start while a WB-sourced snoop
+//     on the head entry (sn_head_o) is in service, so the head's drain
+//     never starts between the grant and the effect; a snoop on any other
+//     entry leaves the head's drain alone (the drain-progress bound).
+//     (Before jet BUG-005 -- jet-prime BUG-002, onyx ISSUE-002 -- the effect was recorded and
+//     never read, and every snarfed victim drained: a drain landing after the
+//     new owner's own write-back overwrote it.)
 //
 //------------------------------------------------------------------------------
 // Related Modules:
@@ -132,6 +151,7 @@ module jet_wb_buffer
     output logic [ADDR_WIDTH-1:0]    drain_addr_o,
     input  logic [BEAT_W-1:0]        drain_beat_idx_i,
     output logic [BUS_WIDTH-1:0]     drain_beat_data_o,
+    input  logic                     drain_start_i,
     input  logic                     drain_done_i,
 
     // Snarf: snoop service from the WB buffer.  The CAM reports the hit
@@ -142,6 +162,8 @@ module jet_wb_buffer
     // the slot until the stream has read its last beat.
     input  logic [LINE_W-1:0]        sn_line_i,
     output logic                     sn_hit_o,
+    output logic                     sn_passed_o,
+    output logic                     sn_head_o,
     output logic [SLOT_W-1:0]        sn_match_idx_o,
     input  logic                     sn_lock_i,
     input  logic [SLOT_W-1:0]        sn_rd_slot_i,
@@ -198,7 +220,13 @@ module jet_wb_buffer
     // a directive.)
     logic [BUS_WIDTH-1:0]          r_data      [(2**SLOT_W) * FILL_BEATS];
     logic [BEAT_W-1:0]             r_beats_rcvd[VICTIM_DEPTH];
-    logic [1:0]                    r_eff       [VICTIM_DEPTH];
+    // passed on by a snoop: out of the CAM, retired at the head undrained
+    logic [VICTIM_DEPTH-1:0]       r_dead;
+    // passed on by a snoop with the drain already started: drains, stays
+    // in the CAM for the own-lookup stall, answers no further snoop
+    logic [VICTIM_DEPTH-1:0]       r_passed;
+    // the head's drain has started (drain_start_i seen, BRESP not yet)
+    logic                          r_head_draining;
 
     // ------------------------------------------------------------------
     // FIFO pointers and state
@@ -226,8 +254,10 @@ module jet_wb_buffer
     // Drain head (combinational): l1_victim shape
     // ------------------------------------------------------------------
     logic [SLOT_W-1:0] w_head_idx;
+    logic              w_head_drain_live;
 
     assign w_head_idx   = r_head;
+    assign w_head_drain_live = r_head_draining | drain_start_i;
     assign drain_valid_o = r_valid[w_head_idx];
     assign drain_addr_o  = ADDR_WIDTH'({r_line[w_head_idx], {OFFSET_W{1'b0}}});
     assign drain_beat_data_o = r_data[{w_head_idx, drain_beat_idx_i}];
@@ -252,6 +282,9 @@ module jet_wb_buffer
     end
 
     assign sn_hit_o         = w_sn_match;
+    assign sn_passed_o      = w_sn_match & r_passed[w_sn_match_idx];
+    // the matched entry is the head (the one a drain start would take)
+    assign sn_head_o        = w_sn_match & (w_sn_match_idx == w_head_idx);
     assign sn_match_idx_o   = w_sn_match_idx;
     assign sn_rd_data_o     = r_data[{sn_rd_slot_i, sn_rd_beat_i}];
     assign sn_bresp_cycle_o = w_sn_match & drain_done_i
@@ -278,10 +311,12 @@ module jet_wb_buffer
             r_tail       <= '0;
             r_open       <= 1'b0;
             r_open_slot  <= '0;
+            r_dead       <= '0;
+            r_passed     <= '0;
+            r_head_draining <= 1'b0;
             for (int s = 0; s < VICTIM_DEPTH; s++) begin
                 r_line[s]       <= '0;
                 r_beats_rcvd[s] <= '0;
-                r_eff[s]        <= '0;
             end
         end else begin
             // Capture allocation: cap_i opens the slot at the tail and
@@ -294,7 +329,8 @@ module jet_wb_buffer
                 r_valid[r_tail]         <= 1'b0;
                 r_line[r_tail]          <= cap_line_i;
                 r_beats_rcvd[r_tail]    <= '0;
-                r_eff[r_tail]           <= JET_PEND_NONE;
+                r_dead[r_tail]          <= 1'b0;
+                r_passed[r_tail]        <= 1'b0;
                 r_tail                  <= SLOT_W'((int'(r_tail) + 1) % VICTIM_DEPTH);
             end
 
@@ -312,17 +348,34 @@ module jet_wb_buffer
                 end
             end
 
-            // Snoop effect recording on the matching entry, gated so a
-            // non-matching cycle or JET_PEND_NONE does not clobber a pending
-            // effect already stored.
+            // Snoop effect on the matching entry: the line has been passed
+            // on, so the entry ends here -- unless it is the head with its
+            // drain already started (the AW cannot be withdrawn).  A retired
+            // entry (the BRESP-cycle corner) no longer matches: nothing to do.
             if (w_sn_match && (sn_eff_i != JET_PEND_NONE)) begin
-                r_eff[w_sn_match_idx] <= sn_eff_i;
+                if (w_head_drain_live && (w_sn_match_idx == w_head_idx)) begin
+                    r_passed[w_sn_match_idx] <= 1'b1;
+                end else begin
+                    r_valid[w_sn_match_idx] <= 1'b0;
+                    r_dead[w_sn_match_idx]  <= 1'b1;
+                end
             end
 
-            // BRESP retire: free the head entry and advance.
-            if (drain_done_i && r_allocated[w_head_idx]) begin
+            // the head's drain in flight: set at the start, cleared at BRESP
+            if (drain_start_i) begin
+                r_head_draining <= 1'b1;
+            end else if (drain_done_i) begin
+                r_head_draining <= 1'b0;
+            end
+
+            // BRESP retire, or an ended entry reaching the head (never
+            // started, so never drained): free the head entry and advance.
+            // Exclusive: an ended head never starts a drain (r_valid low).
+            if ((drain_done_i || r_dead[w_head_idx]) && r_allocated[w_head_idx]) begin
                 r_valid[w_head_idx]     <= 1'b0;
                 r_allocated[w_head_idx] <= 1'b0;
+                r_dead[w_head_idx]      <= 1'b0;
+                r_passed[w_head_idx]    <= 1'b0;
                 r_head <= SLOT_W'((int'(r_head) + 1) % VICTIM_DEPTH);
             end
         end

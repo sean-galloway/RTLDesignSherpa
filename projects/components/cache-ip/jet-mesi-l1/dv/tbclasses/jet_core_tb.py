@@ -128,6 +128,7 @@ SN_IDLE, SN_DATA, SN_EFFECT = 0, 1, 2
 AMBER_STATE_I, AMBER_STATE_S, AMBER_STATE_E, AMBER_STATE_M = 0, 1, 2, 3
 AMBER_CTRL_ERROR = 0xB
 CRRESP_DT = 0
+CRRESP_PD = 2
 CRRESP_NO_DT_MASK = 0b11000   # PF_GUARD: keep IS|WU, drop DT/PD/Err
 
 # oracle snoop name -> framework ACE snoop type (IHI0022 ACSNOOP encodings)
@@ -193,6 +194,10 @@ class JetCoreTB(L1ControlTB):
                      'killed': False}
         self.wb = {}               # line -> content bytes (capture snapshot)
         self.wb_order = deque()    # WB drain order (oldest first)
+        # entries that passed their line on with the drain started (they
+        # drain, answer no further snoop -- jet BUG-005)
+        self.wb_passed = set()
+        self.wb_ended = 0
         # opt-in event trace (JET_TRACE=1): the last events before a data
         # mismatch, dumped once by _trace_dump
         self._trace_on = bool(int(os.environ.get('JET_TRACE', '0')))
@@ -739,6 +744,7 @@ class JetCoreTB(L1ControlTB):
                                 self._mem_line(line),
                                 self.wb.get(line, b''))
                     self.wb.pop(line, None)
+                    self.wb_passed.discard(line)
                     self.wb_order.popleft()
                     self.draining = None
 
@@ -1014,13 +1020,27 @@ class JetCoreTB(L1ControlTB):
         got_crresp = int(uc.sn_crresp_o.value)
 
         cd = None
-        if line in self.wb:
-            # WB snarf: the buffer owns the line until the WB ack --
-            # answered at M (SINK_WB_ACK), drain still completes
+        if line in self.wb and line not in self.wb_passed:
+            # WB snarf: answered at M from the capture snapshot.  Every
+            # snoop changes a Modified line, so the entry passes the line
+            # on and ends -- unless its drain has started, when it drains
+            # (the AW cannot be withdrawn) and answers no further snoop
+            # (jet BUG-005).  The TB stands in for the manager: a
+            # PassDirty line is absorbed into memory here, as a fabric
+            # does, so a later refetch reads it
             res = oracle_step('M', name)
             self.wb_grants += 1
             if (res.crresp >> CRRESP_DT) & 1:
                 cd = self.wb[line]
+                if (res.crresp >> CRRESP_PD) & 1:
+                    self.memory_model.write(self._base_of(line),
+                                            bytearray(cd))
+            if self.draining == line:
+                self.wb_passed.add(line)
+            else:
+                del self.wb[line]
+                self.wb_order.remove(line)
+                self.wb_ended += 1
         elif line in self.entries:
             e = self.entries[line]
             if not e['ar']:
@@ -1054,7 +1074,10 @@ class JetCoreTB(L1ControlTB):
                 if (crresp >> CRRESP_DT) & 1:
                     # the fill data (merges land at the commit, after)
                     cd = self._mem_line(line)
-        elif self.upgr['valid'] and line == self.upgr['line']:
+        elif (self.upgr['valid'] and line == self.upgr['line']
+              and not self.upgr['killed']):
+            # (a killed upgrade's line was invalidated by the snoop
+            # that killed it: a later snoop resolves on the array, I)
             # the in-flight upgrade's line: legitimately resident S until
             # the CU commit lands; the effect writes the tag (array hit)
             res = oracle_step('S', name)
@@ -1584,6 +1607,7 @@ class JetCoreTB(L1ControlTB):
                      'killed': False}
         self.wb = {}
         self.wb_order = deque()
+        self.wb_passed = set()
         self.draining = None
         self.committing = None
         self.pending_slot = None
