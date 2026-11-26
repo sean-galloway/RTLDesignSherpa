@@ -58,12 +58,13 @@ amber's (Pattern-B cocotb GATE/FUNC/FULL grids, per amber D9):
    owner's write-back of the same line wait at once, the case random
    traffic on the serial fabric never reaches. Since jet BUG-006 (the
    write port's arbiter is `arbiter_round_robin` in grant/ACK mode), a
-   rig-wide check that every burst's granted candidate is still eligible
-   when the burst starts, and the directed `WbGrantVsAbsorbKick` scenario:
+   rig-wide check that no write-back's burst starts with an absorption of
+   its line already pending, and the directed `WbGrantVsAbsorbKick` scenario:
    a second valve on the memory's B channel (`tb_b_hold`) holds a burst in
    W_B and releases it in exactly the cycle a snoop kicks an absorption of
    a line whose write-back waits, so the arbiter's re-grant lands in the
-   kick cycle (the case `block_arb` exists for).
+   kick cycle (the case the write-back's `abs_kick_match` request term
+   exists for).
 
 ## The BUG-001/002 lesson, applied at the start
 

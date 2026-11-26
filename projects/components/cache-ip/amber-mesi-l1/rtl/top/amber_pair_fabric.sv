@@ -80,8 +80,8 @@
 //   strictly newer bytes).
 //
 //   Fairness / liveness: round-robin at the coherence grant and at the
-//   memory write port (rtl/common arbiter_round_robin in grant/ACK mode,
-//   the grant held for the whole burst -- amber BUG-005); one memory read in flight at a time (both caches
+//   memory write port (rtl/common arbiter_round_robin in req/grant/ACK
+//   mode, the grant held for the whole burst -- amber BUG-005); one memory read in flight at a time (both caches
 //   issue ID 0, so the R channel is demuxed by ownership, never
 //   interleaved); one write burst in flight at a time (B routed by owner).
 //
@@ -793,9 +793,21 @@ module amber_pair_fabric
     // fair round-robin; a write-back to a line with a pending absorption
     // holds (the absorption is older and must land first)
     // ------------------------------------------------------------------
+    // Absorption kick: the snoop's CR is accepted with DT + PassDirty, and
+    // abs_pend for grant_addr_q is set on this edge.  The write port's
+    // arbiter registers its grant from THIS cycle's requests, so a
+    // write-back to that line drops its request now rather than a cycle
+    // late, when abs_match would catch it (amber BUG-005).
+    wire w_abs_kick = snoop_cr_accept && !no_data_txn_q
+                      && crresp_w[1'(1 - grant_q)][AMBER_CRRESP_DT]
+                      && crresp_w[1'(1 - grant_q)][AMBER_CRRESP_PD];
+    function automatic logic abs_kick_match(input logic [ADDR_WIDTH-1:0] addr);
+        return w_abs_kick && (grant_addr_q == addr);   // abs_pend_addr_q's source
+    endfunction
+
     logic [1:0] wb_blocked;
-    assign wb_blocked[0] = c0_awvalid && abs_match(c0_awaddr);
-    assign wb_blocked[1] = c1_awvalid && abs_match(c1_awaddr);
+    assign wb_blocked[0] = c0_awvalid && (abs_match(c0_awaddr) || abs_kick_match(c0_awaddr));
+    assign wb_blocked[1] = c1_awvalid && (abs_match(c1_awaddr) || abs_kick_match(c1_awaddr));
 
     logic [3:0] w_cand;
     assign w_cand = {abs_req_q[1], abs_req_q[0],
@@ -812,15 +824,12 @@ module amber_pair_fabric
     // the LAST match of a scan that ended at the previous winner: the
     // winner kept top priority instead of rotating.
     //
-    // block_arb: the grant registers a request sampled a cycle earlier,
-    // and the one way a candidate can stop being eligible is a write-back
-    // whose line gets an absorption kicked in that cycle (abs_match rises
-    // on the next edge).  No grant forms in a kick cycle; the next cycle's
-    // requests see abs_pend.  Absorption requests and AWVALIDs are
-    // otherwise stable until served.
-    wire w_abs_kick = snoop_cr_accept && !no_data_txn_q
-                      && crresp_w[1'(1 - grant_q)][AMBER_CRRESP_DT]
-                      && crresp_w[1'(1 - grant_q)][AMBER_CRRESP_PD];
+    // The arbiter is used as intended: request / grant / ACK, block_arb
+    // tied off (it is a test hook).  A request it sees is still valid when
+    // its grant appears: absorption requests and AWVALIDs drop only when
+    // served, and a write-back about to be blocked by an absorption of its
+    // line kicked this cycle has already dropped its request
+    // (abs_kick_match, above).
 
     logic       w_gnt_valid;
     logic [3:0] w_gnt;
@@ -835,7 +844,7 @@ module amber_pair_fabric
     ) u_w_arb (
         .clk          (clk),
         .rst_n        (rst_n),
-        .block_arb    (w_abs_kick),
+        .block_arb    (1'b0),          // test hook only
         .request      (w_cand),
         .grant_ack    (w_gnt_ack),
         .grant_valid  (w_gnt_valid),

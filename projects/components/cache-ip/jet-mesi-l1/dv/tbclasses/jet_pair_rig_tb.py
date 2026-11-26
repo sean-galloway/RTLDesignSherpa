@@ -63,8 +63,8 @@ What this suite pins (the pair-rig contract on jets):
       (jet BUG-005).
   (k) WbGrantVsAbsorbKick -- the write port's re-grant (a held burst's
       ACK, timed by the rig's tb_b_hold valve) lands in the cycle a snoop
-      kicks an absorption of a line whose write-back waits: no grant may
-      form there (block_arb, jet BUG-006).
+      kicks an absorption of a line whose write-back waits: that
+      write-back's request has already dropped (abs_kick_match, jet BUG-006).
 
 Levels (TEST_LEVEL):
   gate  -- InitWalk + directed (a)-(f) + (i) + (j) + (k)
@@ -573,18 +573,26 @@ class JetPairRigTB(TBBase):
                 else 0
 
     def _check_w_grant(self):
-        """The write port's arbiter registers its grant a cycle after the
-        request (jet BUG-006): the burst it starts must still be eligible
-        in W_IDLE -- a write-back blocked meanwhile by a just-kicked
-        absorption of its line would land before that absorption.
-        block_arb in the kick cycle is what makes this hold."""
+        """The write port's arbiter registers its grant from the previous
+        cycle's requests (jet BUG-006).  A write-back's request drops in
+        the cycle an absorption of its line is kicked (abs_kick_match), so
+        a granted write-back never starts its burst with an absorption of
+        its line already pending -- the absorption lands first.  (A kick
+        in the burst's own decision cycle is not covered, as before the
+        arbiter change: abs_pend is not yet set when the burst is chosen.)"""
         f = self.dut.u_fabric
         if int(f.wstate_q.value) == 0 and int(f.u_w_arb.grant_valid.value):
             gid = int(f.u_w_arb.grant_id.value)
             self.stats['w_grants'] += 1
-            self._score(f"write port: granted candidate {gid} still eligible "
-                        f"at the burst start",
-                        (int(f.w_cand.value) >> gid) & 1, 1)
+            if gid < 2:
+                addr = int(getattr(self.dut, f'm{gid}_awaddr').value)
+                pend = int(f.abs_pend_vld_q.value)
+                hit = any(((pend >> i) & 1)
+                          and int(f.abs_pend_addr_q[i].value) == addr
+                          for i in (0, 1))
+                self._score(f"write port: cache{gid}'s write-back granted with "
+                            f"an absorption of its line already pending",
+                            hit, False)
 
     async def _monitor(self):
         d = self.dut
@@ -2074,12 +2082,12 @@ class JetPairRigTB(TBBase):
         self._scenario('WbSameLineOrder')
 
     async def _s_wb_grant_vs_absorb_kick(self):
-        """(k) jet BUG-006: no write-port grant forms in an absorption-kick
-        cycle (block_arb).  The arbiter registers its grant a cycle after
-        the request, so a grant formed in the cycle the snoop's CR kicks
-        an absorption of line X would hand the port to a write-back of X
-        that abs_match blocks from the next edge on -- the write-back
-        would land ahead of the absorption the fabric orders first.
+        """(k) jet BUG-006: a write-back's request drops in the cycle an
+        absorption of its line is kicked (abs_kick_match).  The arbiter
+        registers its grant from that cycle's requests, so without it the
+        port would go to a write-back of X that abs_match blocks from the
+        next edge on -- the write-back would land ahead of the absorption
+        the fabric orders first.
 
         The cache o's victim X waits at its port behind cache n's W burst,
         held in W_B by the B valve (tb_b_hold); cache n's write miss
