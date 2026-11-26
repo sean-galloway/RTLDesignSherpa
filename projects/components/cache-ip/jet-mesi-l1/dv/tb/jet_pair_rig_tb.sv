@@ -88,6 +88,13 @@ module jet_pair_rig_tb
     input  logic                        clk,
     input  logic                        rst_n,
 
+    // TB valve on the shared memory's AW channel (jet BUG-005 scenario
+    // (j)): while high the memory takes no write address, so the fabric's
+    // write port sits in W_AW with the burst it picked and every other
+    // write-back waits at its cache port. A slow memory, nothing more:
+    // the fabric's view is a legal AXI slave holding AWREADY low.
+    input  logic                        tb_aw_hold,
+
     // ------------------------------------------------------------------
     // CPU GAXI slave ports, one per cache (TB GAXI BFM pairs attach here)
     // ------------------------------------------------------------------
@@ -420,6 +427,8 @@ module jet_pair_rig_tb
     logic [3:0]               mem_awregion;
     logic [UW-1:0]            mem_awuser;
     logic                     mem_awvalid, mem_awready;
+    logic                     mem_awready_raw;     // the sdpram's AWREADY
+    assign mem_awready = mem_awready_raw & ~tb_aw_hold;
     logic [BUS_WIDTH-1:0]     mem_wdata;
     logic [STRB_W-1:0]        mem_wstrb;
     logic                     mem_wlast;
@@ -640,8 +649,8 @@ module jet_pair_rig_tb
         .s_axi_awqos      (mem_awqos),
         .s_axi_awregion   (mem_awregion),
         .s_axi_awuser     (mem_awuser),
-        .s_axi_awvalid    (mem_awvalid),
-        .s_axi_awready    (mem_awready),
+        .s_axi_awvalid    (mem_awvalid & ~tb_aw_hold),
+        .s_axi_awready    (mem_awready_raw),
         .s_axi_wdata      (mem_wdata),
         .s_axi_wstrb      (mem_wstrb),
         .s_axi_wlast      (mem_wlast),

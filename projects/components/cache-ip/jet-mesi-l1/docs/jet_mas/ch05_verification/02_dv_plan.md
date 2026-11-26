@@ -50,8 +50,13 @@ amber's (Pattern-B cocotb GATE/FUNC/FULL grids, per amber D9):
    reach and the one that deadlocked the fabric's safe-peer wait). Since
    jet BUG-005, a `HotSetContention` phase after the uniform soak (both
    CPUs, 70 % writes, `WAYS + 3` tags in two sets: the WB buffers stay
-   full and the peer's misses snoop lines sitting in them) and a
-   write-back order check at the cache ports, independent of the fabric.
+   full and the peer's misses snoop lines sitting in them), a
+   write-back order check at the cache ports, independent of the fabric,
+   and the directed `WbSameLineOrder` scenario: a TB-only valve on the
+   shared memory's AW channel (`tb_aw_hold` on the rig top) holds the
+   write port on a third burst so a passed-on write-back and the new
+   owner's write-back of the same line wait at once, the case random
+   traffic on the serial fabric never reaches.
 
 ## The BUG-001/002 lesson, applied at the start
 
