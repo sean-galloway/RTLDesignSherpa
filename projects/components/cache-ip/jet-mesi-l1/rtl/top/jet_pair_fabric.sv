@@ -93,7 +93,8 @@
 //   before the new owner's write-back of the line).
 //
 //   Fairness / liveness: round-robin at the coherence grant and at the
-//   memory write port; one memory read in flight at a time (both caches
+//   memory write port (rtl/common arbiter_round_robin in grant/ACK mode,
+//   the grant held for the whole burst -- jet BUG-006); one memory read in flight at a time (both caches
 //   issue ID 0, so the R channel is demuxed by ownership, never
 //   interleaved); one write burst in flight at a time (B routed by owner).
 //
@@ -532,7 +533,7 @@ module jet_pair_fabric
 
     // ------------------------------------------------------------------
     // Write port: write-back pass-through + PassDirty absorption, one
-    // burst in flight system-wide, fair round-robin
+    // burst in flight system-wide, fair round-robin (u_w_arb below)
     // ------------------------------------------------------------------
     localparam logic [2:0] W_IDLE = 3'd0;
     localparam logic [2:0] W_AW   = 3'd1;
@@ -540,9 +541,6 @@ module jet_pair_fabric
     localparam logic [2:0] W_B    = 3'd3;
 
     logic [2:0]                 wstate_q;
-    logic [1:0]                 w_owner_q;
-    logic                       w_is_abs_q;
-    logic [1:0]                 w_rr_q;
     logic [BEAT_INDEX_WIDTH-1:0] w_beat_q;
 
     // ------------------------------------------------------------------
@@ -902,65 +900,97 @@ module jet_pair_fabric
                      (c1_awvalid && !wb_blocked[1]),
                      (c0_awvalid && !wb_blocked[0])};
 
-    logic [1:0] w_sel;
-    always_comb begin
-        w_sel = w_rr_q;
-        for (int k = 0; k < 4; k++) begin
-            if (w_cand[(32'(w_rr_q) + k) % 4])
-                w_sel = 2'((32'(w_rr_q) + k) % 4);
-        end
-    end
-    wire        w_valid   = |w_cand;
-    wire        w_is_abs  = (w_sel >= 2'd2);
-    wire [1:0]  w_dir     = w_is_abs ? (w_sel - 2'd2) : w_sel;
+    // The arbiter (jet BUG-006): arbiter_round_robin in grant/ACK mode.
+    // The grant is registered and HELD until the burst's BRESP acks it, so
+    // the held grant is the burst's owner: the write FSM leaves W_IDLE on
+    // a valid grant and acks it on the cycle it leaves W_B; the arbiter
+    // rotates only on that ACK (the next grant forms on the ACK edge when
+    // another candidate is waiting, so back-to-back bursts keep the old
+    // one-idle-cycle spacing).  The hand-written scan this replaces kept
+    // the LAST match of a scan that ended at the previous winner: the
+    // winner kept top priority instead of rotating.
+    //
+    // block_arb: the grant registers a request sampled a cycle earlier,
+    // and the one way a candidate can stop being eligible is a write-back
+    // whose line gets an absorption kicked in that cycle (abs_match rises
+    // on the next edge).  No grant forms in a kick cycle; the next cycle's
+    // requests see abs_pend.  Absorption requests and AWVALIDs are
+    // otherwise stable until served (aw_younger can only turn on for the
+    // later-presented write-back, which was not requesting).
+    wire w_abs_kick = snoop_cr_accept && !no_data_txn_q
+                      && crresp_w[1'(1 - grant_q)][AMBER_CRRESP_DT]
+                      && crresp_w[1'(1 - grant_q)][AMBER_CRRESP_PD];
 
-    // registered owner for the burst in flight
-    wire        cur_is_abs = (wstate_q == W_IDLE) ? w_is_abs : w_is_abs_q;
-    wire [1:0]  cur_dir    = (wstate_q == W_IDLE) ? w_dir : w_owner_q;
+    logic       w_gnt_valid;
+    logic [3:0] w_gnt;
+    logic [1:0] w_gnt_id;
+    logic [3:0] w_gnt_ack;
+    wire        w_burst_done = (wstate_q == W_B) && mem_bvalid;
+    assign      w_gnt_ack    = w_burst_done ? w_gnt : 4'b0000;
 
-    assign mem_awid     = cur_is_abs ? IW'(8'hA0 | 8'(cur_dir))
-                                     : c_awid[1'(cur_dir)];
-    assign mem_awaddr   = cur_is_abs ? abs_pend_addr_q[1'(cur_dir)]
-                                     : c_awaddr[1'(cur_dir)];
-    assign mem_awlen    = cur_is_abs ? 8'(FILL_BEATS - 1) : c_awlen[1'(cur_dir)];
-    assign mem_awsize   = cur_is_abs ? 3'($clog2(STRB_W)) : c_awsize[1'(cur_dir)];
-    assign mem_awburst  = cur_is_abs ? 2'b01 : c_awburst[1'(cur_dir)];
-    assign mem_awlock   = cur_is_abs ? 1'b0 : c_awlock[1'(cur_dir)];
-    assign mem_awcache  = cur_is_abs ? 4'b0000 : c_awcache[1'(cur_dir)];
-    assign mem_awprot   = cur_is_abs ? 3'b000 : c_awprot[1'(cur_dir)];
-    assign mem_awqos    = cur_is_abs ? 4'b0000 : c_awqos[1'(cur_dir)];
-    assign mem_awregion = cur_is_abs ? 4'b0000 : c_awregion[1'(cur_dir)];
-    assign mem_awuser   = cur_is_abs ? '0 : c_awuser[1'(cur_dir)];
+    arbiter_round_robin #(
+        .CLIENTS      (4),
+        .WAIT_GNT_ACK (1)
+    ) u_w_arb (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .block_arb    (w_abs_kick),
+        .request      (w_cand),
+        .grant_ack    (w_gnt_ack),
+        .grant_valid  (w_gnt_valid),
+        .grant        (w_gnt),
+        .grant_id     (w_gnt_id),
+        .last_grant   ()
+    );
+
+    // the burst's owner, from the held grant: {absorb1, absorb0, cache1
+    // wb, cache0 wb}
+    wire        w_wr_is_abs = w_gnt_id[1];
+    wire [1:0]  w_wr_owner  = {1'b0, w_gnt_id[0]};
+
+    assign mem_awid     = w_wr_is_abs ? IW'(8'hA0 | 8'(w_wr_owner))
+                                     : c_awid[1'(w_wr_owner)];
+    assign mem_awaddr   = w_wr_is_abs ? abs_pend_addr_q[1'(w_wr_owner)]
+                                     : c_awaddr[1'(w_wr_owner)];
+    assign mem_awlen    = w_wr_is_abs ? 8'(FILL_BEATS - 1) : c_awlen[1'(w_wr_owner)];
+    assign mem_awsize   = w_wr_is_abs ? 3'($clog2(STRB_W)) : c_awsize[1'(w_wr_owner)];
+    assign mem_awburst  = w_wr_is_abs ? 2'b01 : c_awburst[1'(w_wr_owner)];
+    assign mem_awlock   = w_wr_is_abs ? 1'b0 : c_awlock[1'(w_wr_owner)];
+    assign mem_awcache  = w_wr_is_abs ? 4'b0000 : c_awcache[1'(w_wr_owner)];
+    assign mem_awprot   = w_wr_is_abs ? 3'b000 : c_awprot[1'(w_wr_owner)];
+    assign mem_awqos    = w_wr_is_abs ? 4'b0000 : c_awqos[1'(w_wr_owner)];
+    assign mem_awregion = w_wr_is_abs ? 4'b0000 : c_awregion[1'(w_wr_owner)];
+    assign mem_awuser   = w_wr_is_abs ? '0 : c_awuser[1'(w_wr_owner)];
     assign mem_awvalid  = (wstate_q == W_AW);
 
     logic [BUS_WIDTH-1:0] w_data;
     logic [STRB_W-1:0]    w_strb;
     logic                 w_last;
-    assign w_data = cur_is_abs
-        ? line_buf_q[1'(cur_dir)][32'(w_beat_q) * BUS_WIDTH +: BUS_WIDTH]
-        : c_wdata[1'(cur_dir)];
-    assign w_strb = cur_is_abs ? {STRB_W{1'b1}} : c_wstrb[1'(cur_dir)];
-    assign w_last = cur_is_abs
+    assign w_data = w_wr_is_abs
+        ? line_buf_q[1'(w_wr_owner)][32'(w_beat_q) * BUS_WIDTH +: BUS_WIDTH]
+        : c_wdata[1'(w_wr_owner)];
+    assign w_strb = w_wr_is_abs ? {STRB_W{1'b1}} : c_wstrb[1'(w_wr_owner)];
+    assign w_last = w_wr_is_abs
         ? (w_beat_q == BEAT_INDEX_WIDTH'(FILL_BEATS - 1))
-        : c_wlast[1'(cur_dir)];
+        : c_wlast[1'(w_wr_owner)];
     assign mem_wdata = w_data;
     assign mem_wstrb = w_strb;
     assign mem_wlast = w_last;
     assign mem_wuser = '0;
     assign mem_wvalid = (wstate_q == W_W);
 
-    assign c0_awready = (wstate_q == W_AW) && !cur_is_abs
-                        && (cur_dir == 2'd0) && mem_awready;
-    assign c1_awready = (wstate_q == W_AW) && !cur_is_abs
-                        && (cur_dir == 2'd1) && mem_awready;
-    assign c0_wready  = (wstate_q == W_W) && !cur_is_abs && (cur_dir == 2'd0)
+    assign c0_awready = (wstate_q == W_AW) && !w_wr_is_abs
+                        && (w_wr_owner == 2'd0) && mem_awready;
+    assign c1_awready = (wstate_q == W_AW) && !w_wr_is_abs
+                        && (w_wr_owner == 2'd1) && mem_awready;
+    assign c0_wready  = (wstate_q == W_W) && !w_wr_is_abs && (w_wr_owner == 2'd0)
                         && mem_wready;
-    assign c1_wready  = (wstate_q == W_W) && !cur_is_abs && (cur_dir == 2'd1)
+    assign c1_wready  = (wstate_q == W_W) && !w_wr_is_abs && (w_wr_owner == 2'd1)
                         && mem_wready;
 
-    assign c0_bvalid = (wstate_q == W_B) && !cur_is_abs && (cur_dir == 2'd0)
+    assign c0_bvalid = (wstate_q == W_B) && !w_wr_is_abs && (w_wr_owner == 2'd0)
                        && mem_bvalid;
-    assign c1_bvalid = (wstate_q == W_B) && !cur_is_abs && (cur_dir == 2'd1)
+    assign c1_bvalid = (wstate_q == W_B) && !w_wr_is_abs && (w_wr_owner == 2'd1)
                        && mem_bvalid;
     assign c0_bid    = mem_bid;
     assign c1_bid    = mem_bid;
@@ -969,7 +999,7 @@ module jet_pair_fabric
     assign c0_buser  = mem_buser;
     assign c1_buser  = mem_buser;
     assign mem_bready = (wstate_q == W_B)
-                        && (cur_is_abs || c_bready[1'(cur_dir)]);
+                        && (w_wr_is_abs || c_bready[1'(w_wr_owner)]);
 
     // ------------------------------------------------------------------
     // Coherence FSM (owns: pend/buf/abs bookkeeping, snoop and AR/R flow)
@@ -1050,8 +1080,8 @@ module jet_pair_fabric
             end
 
             // absorption completion (observed from the write FSM)
-            if ((wstate_q == W_B) && w_is_abs_q && mem_bvalid) begin
-                abs_pend_vld_q[1'(w_owner_q)] <= 1'b0;
+            if ((wstate_q == W_B) && w_wr_is_abs && mem_bvalid) begin
+                abs_pend_vld_q[1'(w_wr_owner)] <= 1'b0;
             end
 
             // drain guard: arm at transaction completion, drop once the
@@ -1090,13 +1120,13 @@ module jet_pair_fabric
             if ((state_q == F_DONE) && buf_vld_q[grant_q]
                 && !abs_pend_vld_q[1'(grant_q)]) begin
                 buf_vld_q[grant_q] <= 1'b0;
-            end else if ((wstate_q == W_B) && w_is_abs_q && mem_bvalid
-                         && buf_vld_q[1'(w_owner_q)]
+            end else if ((wstate_q == W_B) && w_wr_is_abs && mem_bvalid
+                         && buf_vld_q[1'(w_wr_owner)]
                          && !(state_q == F_REPLAY_R
-                              && 2'(grant_q) == w_owner_q)
+                              && 2'(grant_q) == w_wr_owner)
                          && !(state_q == F_REPLAY_AR
-                              && 2'(grant_q) == w_owner_q)) begin
-                buf_vld_q[1'(w_owner_q)] <= 1'b0;
+                              && 2'(grant_q) == w_wr_owner)) begin
+                buf_vld_q[1'(w_wr_owner)] <= 1'b0;
             end
 
             unique case (state_q)
@@ -1214,8 +1244,8 @@ module jet_pair_fabric
             endcase
 
             // absorption request consumed by the write port
-            if ((wstate_q == W_AW) && w_is_abs_q && mem_awready) begin
-                abs_req_q[1'(w_owner_q)] <= 1'b0;
+            if ((wstate_q == W_AW) && w_wr_is_abs && mem_awready) begin
+                abs_req_q[1'(w_wr_owner)] <= 1'b0;
             end
         end
     end
@@ -1226,17 +1256,11 @@ module jet_pair_fabric
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             wstate_q   <= W_IDLE;
-            w_owner_q  <= '0;
-            w_is_abs_q <= 1'b0;
-            w_rr_q     <= '0;
             w_beat_q   <= '0;
         end else begin
             unique case (wstate_q)
                 W_IDLE: begin
-                    if (w_valid) begin
-                        w_owner_q  <= w_dir;
-                        w_is_abs_q <= w_is_abs;
-                        w_rr_q     <= 2'((32'(w_sel) + 1) % 4);
+                    if (w_gnt_valid) begin
                         w_beat_q   <= '0;
                         wstate_q   <= W_AW;
                     end
@@ -1256,7 +1280,7 @@ module jet_pair_fabric
                     end
                 end
                 W_B: begin
-                    if (mem_bvalid) begin
+                    if (w_burst_done) begin   // acks the grant (u_w_arb)
                         wstate_q <= W_IDLE;
                     end
                 end

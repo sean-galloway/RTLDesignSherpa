@@ -3,11 +3,14 @@
 #
 # The minimal 2-master snoopy manager for the plain-AXI4 jet pair rig
 # (DECISION D-8 consumer; the spec's "amber_pair_fabric hosts two jets"
-# deliverable, jet-named). Self-contained RTL: no foreign module deps,
-# only the shared package.
+# deliverable, jet-named). Deps: the shared package and rtl/common's
+# arbiter_round_robin.
 
 # Shared cache-ip package (l1_pkg: geometry + ACE request classes)
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_pkg.f
+
+# The write-port arbiter (jet BUG-006)
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
 
 # The fabric
 $JET_ROOT/rtl/top/jet_pair_fabric.sv

@@ -94,6 +94,10 @@ module jet_pair_rig_tb
     // write-back waits at its cache port. A slow memory, nothing more:
     // the fabric's view is a legal AXI slave holding AWREADY low.
     input  logic                        tb_aw_hold,
+    // The same on the B channel (jet BUG-006 scenario (k)): while high the
+    // memory's BVALID is hidden from the fabric (and its BREADY from the
+    // memory), so a burst sits in W_B until the TB picks its ACK cycle.
+    input  logic                        tb_b_hold,
 
     // ------------------------------------------------------------------
     // CPU GAXI slave ports, one per cache (TB GAXI BFM pairs attach here)
@@ -438,6 +442,8 @@ module jet_pair_rig_tb
     logic [1:0]               mem_bresp;
     logic [UW-1:0]            mem_buser;
     logic                     mem_bvalid, mem_bready;
+    logic                     mem_bvalid_raw;      // the sdpram's BVALID
+    assign mem_bvalid = mem_bvalid_raw & ~tb_b_hold;
 
     jet_pair_fabric #(
         .ADDR_WIDTH     (ADDR_WIDTH),
@@ -660,8 +666,8 @@ module jet_pair_rig_tb
         .s_axi_bid        (mem_bid),
         .s_axi_bresp      (mem_bresp),
         .s_axi_buser      (mem_buser),
-        .s_axi_bvalid     (mem_bvalid),
-        .s_axi_bready     (mem_bready),
+        .s_axi_bvalid     (mem_bvalid_raw),
+        .s_axi_bready     (mem_bready & ~tb_b_hold),
         .s_axi_arid       (mem_arid),
         .s_axi_araddr     (mem_araddr),
         .s_axi_arlen      (mem_arlen),

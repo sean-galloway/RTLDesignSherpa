@@ -12,15 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 4 | done (kept for history) |
+| [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-005** ([page](open/BUG-005.md)) — amber_pair_fabric's write-port arbiter: the last winner keeps top priority (same code as jet BUG-006). P2. Filed 2026-11-26.
+(none)
 
 ## Active
 
@@ -54,3 +54,4 @@ by construction rather than by discipline.
   CRRESP stays at the post-fill row); pinned by PendArmedDowngradeRO
   (directed, RED pre-fix), the oracle row IM+SNOOP_READ_ONCE+in_pending=S,
   and the formal ap_pend_chain property. Closed 2026-10-29.
+- **BUG-005** ([page](closed/BUG-005.md)) — amber_pair_fabric's write-port arbiter: the last winner kept top priority (same code as jet BUG-006). P2. Filed 2026-11-26. Fixed 2026-11-26 with jet BUG-006 (arbiter_round_robin, ACK mode, block_arb); amber full 121/121; closed.

@@ -61,9 +61,13 @@ What this suite pins (the pair-rig contract on jets):
       write-back of the same line wait at once (the rig's tb_aw_hold valve
       holds the memory's AW channel) and are taken in presentation order
       (jet BUG-005).
+  (k) WbGrantVsAbsorbKick -- the write port's re-grant (a held burst's
+      ACK, timed by the rig's tb_b_hold valve) lands in the cycle a snoop
+      kicks an absorption of a line whose write-back waits: no grant may
+      form there (block_arb, jet BUG-006).
 
 Levels (TEST_LEVEL):
-  gate  -- InitWalk + directed (a)-(f) + (i) + (j)
+  gate  -- InitWalk + directed (a)-(f) + (i) + (j) + (k)
   func  -- + RandomDualCpuLockstep (g)
   full  -- + dual-CPU soak
 
@@ -272,7 +276,7 @@ class JetPairRigTB(TBBase):
             'grants': [0, 0], 'kills': 0, 'kill_pred_ok': 0,
             'kill_pred_bad': 0, 'dt_forwards': 0, 'pass_throughs': 0,
             'absorbs': 0, 'mem_ar': 0, 'wb_bursts': 0, 'upgrades': 0,
-            'first_grant': [], 'wb_same_line': 0,
+            'first_grant': [], 'wb_same_line': 0, 'w_grants': 0,
         }
 
         # observation
@@ -519,6 +523,7 @@ class JetPairRigTB(TBBase):
         d.mon0_ready.value = 1
         d.mon1_ready.value = 1
         d.tb_aw_hold.value = 0
+        d.tb_b_hold.value = 0
 
         await self.assert_reset()
         cocotb.start_soon(self._monitor())
@@ -567,6 +572,20 @@ class JetPairRigTB(TBBase):
             self._aw_since[c] = self._aw_since[c] + 1 if (v[c] and not r[c]) \
                 else 0
 
+    def _check_w_grant(self):
+        """The write port's arbiter registers its grant a cycle after the
+        request (jet BUG-006): the burst it starts must still be eligible
+        in W_IDLE -- a write-back blocked meanwhile by a just-kicked
+        absorption of its line would land before that absorption.
+        block_arb in the kick cycle is what makes this hold."""
+        f = self.dut.u_fabric
+        if int(f.wstate_q.value) == 0 and int(f.u_w_arb.grant_valid.value):
+            gid = int(f.u_w_arb.grant_id.value)
+            self.stats['w_grants'] += 1
+            self._score(f"write port: granted candidate {gid} still eligible "
+                        f"at the burst start",
+                        (int(f.w_cand.value) >> gid) & 1, 1)
+
     async def _monitor(self):
         d = self.dut
         while True:
@@ -574,6 +593,7 @@ class JetPairRigTB(TBBase):
             await Timer(100, units='ps')
             self.cyc += 1
             self._check_wb_order()
+            self._check_w_grant()
 
             fab_state = int(d.u_fabric.dbg_state.value)
             if fab_state != self._prev_fab_state:
@@ -1875,8 +1895,8 @@ class JetPairRigTB(TBBase):
 
     def _fab_w(self):
         f = self.dut.u_fabric
-        return (int(f.wstate_q.value), int(f.w_is_abs_q.value),
-                int(f.w_owner_q.value))
+        gid = int(f.u_w_arb.grant_id.value)   # the held grant owns the burst
+        return (int(f.wstate_q.value), gid >> 1, gid & 1)
 
     def _aw_line(self, c):
         d = self.dut
@@ -1905,35 +1925,43 @@ class JetPairRigTB(TBBase):
 
     async def _s_wb_same_line_order(self):
         """(j) jet BUG-005 part 3: two write-backs to one line taken in
-        presentation order.  cache0's victim X is draining (AW presented,
-        not taken) when cache1's write miss snoops it: the WB entry passes
-        X dirty and still drains.  cache1 then evicts X and presents its
-        own write-back while cache0's waits.  On jet's serial fabric this
-        never happens by itself -- the requester's buffer stays busy until
-        the absorption of X lands, and then cache0's AW is taken at the
-        next idle -- so the memory's AW valve holds the write port on a
-        third burst throughout:
+        presentation order.  The old owner's (cache o) victim X is
+        draining (AW presented, not taken) when the new owner's (cache n)
+        write miss snoops it: the WB entry passes X dirty and still drains.
+        Cache n then evicts X and presents its own write-back while cache
+        o's waits.  On jet's serial fabric this never happens by itself --
+        the requester's buffer stays busy until the absorption of X lands,
+        and then cache o's AW is taken at the next idle -- so the memory's
+        AW valve holds the write port on a third burst throughout:
 
-          1. cache1's dirty W drains and sticks in W_AW;
-          2. cache0 evicts X (AW waits behind W);
-          3. cache1 writes X (snoop passes X from cache0's WB, abs1 X);
-          4. cache0 reads Z, dirty in cache1 (abs0 Z);
-          5. W, then abs1 X go through; abs0 Z wins the next idle over
-             cache0's now-unblocked X and sticks (the arbiter gives the
-             last winner top priority: 3, then 2 over 0);
-          6. cache1 evicts X: both AWs to X wait at once;
-          7. the valve opens.  The last winner (abs0, index 2) puts cache1
-             (1) ahead of cache0 (0): without the order hold cache1's new
-             bytes land first and cache0's stale ones overwrite them.
+          1. cache n's dirty W drains and sticks in W_AW;
+          2. cache o evicts X (AW waits behind W);
+          3. cache n writes X (snoop passes X from cache o's WB: abs_n X);
+          4. cache o reads Z, dirty in cache n (abs_o Z);
+          5. W, then abs_n X go through; abs_o Z is granted on abs_n X's
+             ACK (cache o's AW is still blocked by abs_match in that
+             cycle) and sticks;
+          6. cache n evicts X: both AWs to X wait at once;
+          7. the valve opens.
 
-        Checked: both AWs presented together, cache0's taken first, memory
-        holds cache1's line (and the port-level order check and the memory
+        Roles (jet BUG-006): o = 1, n = 0.  The write port's round-robin
+        (arbiter_round_robin over {cache0 wb, cache1 wb, abs0, abs1})
+        rotates past the last winner, abs_o = abs1 (index 3), so cache0
+        (index 0) is next: without the order hold the NEW write-back lands
+        first and the stale one overwrites it.  (With o = 0 the rotation
+        alone would put the old owner first and the hold would go
+        unexercised.)
+
+        Checked: both AWs presented together, cache o's taken first, memory
+        holds cache n's line (and the port-level order check and the memory
         audit see it independently)."""
         d = self.dut
+        o, n = 1, 0
         Wn = self.WAYS
         base = self._tag_next + 1
         assert base + 2 * Wn <= self.MAX_TAG - 1, "scenario (j) tag budget"
         self._tag_next = base + 2 * Wn
+        self._wb_tag_base = base     # (k) reuses the block in its own sets
         e_tags = list(range(base + 1, base + 1 + Wn))
         f_tags = list(range(base + 1 + Wn, base + 1 + 2 * Wn))
         # sets clear of the hot sets (3, 9); the same tag numbers are
@@ -1945,10 +1973,10 @@ class JetPairRigTB(TBBase):
         lx = self._line_of(ax)
         full = (1 << self.STRB_W) - 1
         mask = (1 << self.BUS_WIDTH) - 1
-        s0, s1 = self.sides
+        so, sn = self.sides[o], self.sides[n]
 
         def _quiet():
-            return (not s0.wb and not s1.wb and self._fab_w()[0] == 0
+            return (not so.wb and not sn.wb and self._fab_w()[0] == 0
                     and int(d.u_fabric.abs_pend_vld_q.value) == 0)
 
         # 0. both caches' sets clean (leftover dirty lines drain now)
@@ -1956,64 +1984,65 @@ class JetPairRigTB(TBBase):
             for t in e_tags:
                 await self._txn(c, self._compose_addr(t, sx), 0, label='j_ex')
         for t in e_tags:
-            await self._txn(0, self._compose_addr(t, sz), 0, label='j_ez')
-            await self._txn(1, self._compose_addr(t, sw), 0, label='j_ew')
-        await self._txn(0, ax, 1, be=full, wdata=0xA0A0_0000_0000_000A & mask,
-                        label='j_x0')
-        await self._txn(1, az, 1, be=full, wdata=0xB0B0_0000_0000_000B & mask,
-                        label='j_z1')
-        await self._txn(1, aw, 1, be=full, wdata=0xC0C0_0000_0000_000C & mask,
-                        label='j_w1')
+            await self._txn(o, self._compose_addr(t, sz), 0, label='j_ez')
+            await self._txn(n, self._compose_addr(t, sw), 0, label='j_ew')
+        await self._txn(o, ax, 1, be=full, wdata=0xA0A0_0000_0000_000A & mask,
+                        label='j_xo')
+        await self._txn(n, az, 1, be=full, wdata=0xB0B0_0000_0000_000B & mask,
+                        label='j_zn')
+        await self._txn(n, aw, 1, be=full, wdata=0xC0C0_0000_0000_000C & mask,
+                        label='j_wn')
         if not await self._wait_until(_quiet, "j: quiet before the valve"):
             return
-        self._score("j: cache0 X M", self._installed_state(s0, lx), 'M')
+        self._score(f"j: cache{o} X M", self._installed_state(so, lx), 'M')
 
         d.tb_aw_hold.value = 1
         try:
-            # 1. cache1 evicts W; its burst sticks in W_AW
+            # 1. cache n evicts W; its burst sticks in W_AW
             for t in f_tags:
-                await self._txn(1, self._compose_addr(t, sw), 0, label='j_fw')
+                await self._txn(n, self._compose_addr(t, sw), 0, label='j_fw')
             if not await self._wait_until(
-                    lambda: self._fab_w() == (self.W_AW, 0, 1),
-                    "j: cache1's W write-back holds the write port"):
+                    lambda: self._fab_w() == (self.W_AW, 0, n),
+                    f"j: cache{n}'s W write-back holds the write port"):
                 return
-            # 2. cache0 evicts X; its AW waits
+            # 2. cache o evicts X; its AW waits
             for t in f_tags:
-                await self._txn(0, self._compose_addr(t, sx), 0, label='j_fx0')
-            if not await self._wait_until(lambda: self._aw_line(0) == lx,
-                                          "j: cache0's AW to X presented"):
+                await self._txn(o, self._compose_addr(t, sx), 0, label='j_fxo')
+            if not await self._wait_until(lambda: self._aw_line(o) == lx,
+                                          f"j: cache{o}'s AW to X presented"):
                 return
-            self._score("j: cache0's X drain started", s0.draining, lx)
-            # 3. cache1 writes X: the snoop passes X from cache0's WB
-            await self._txn(1, ax + self.STRB_W, 1, be=full,
-                            wdata=0x1111_2222_3333_4444 & mask, label='j_x1')
-            self._score("j: cache1 X M", self._installed_state(s1, lx), 'M')
-            self._score("j: cache0's X entry passed", lx in s0.wb_passed, True)
-            # 4. cache0 reads Z: absorption from the cache0 direction
-            await self._txn(0, az, 0, label='j_z0')
+            self._score(f"j: cache{o}'s X drain started", so.draining, lx)
+            # 3. cache n writes X: the snoop passes X from cache o's WB
+            await self._txn(n, ax + self.STRB_W, 1, be=full,
+                            wdata=0x1111_2222_3333_4444 & mask, label='j_xn')
+            self._score(f"j: cache{n} X M", self._installed_state(sn, lx), 'M')
+            self._score(f"j: cache{o}'s X entry passed", lx in so.wb_passed,
+                        True)
+            # 4. cache o reads Z: absorption from the cache o direction
+            await self._txn(o, az, 0, label='j_zo')
             if not await self._wait_until(
                     lambda: int(d.u_fabric.abs_pend_vld_q.value) == 0b11,
                     "j: both absorptions pending"):
                 return
-            # 5. W and abs1 X through; abs0 Z then holds the port
+            # 5. W and abs_n X through; abs_o Z then holds the port
             if not await self._pass_aw(2):
                 return
             if not await self._wait_until(
-                    lambda: self._fab_w() == (self.W_AW, 1, 0),
-                    "j: abs0 Z holds the write port"):
+                    lambda: self._fab_w() == (self.W_AW, 1, o),
+                    f"j: abs{o} Z holds the write port"):
                 return
-            self._score("j: cache0's AW to X still waiting",
-                        self._aw_line(0), lx)
-            # 6. cache1 evicts X
+            self._score(f"j: cache{o}'s AW to X still waiting",
+                        self._aw_line(o), lx)
+            # 6. cache n evicts X
             same0 = self.stats['wb_same_line']
             for t in f_tags:
-                await self._txn(1, self._compose_addr(t, sx), 0, label='j_fx1')
-            if not await self._wait_until(lambda: self._aw_line(1) == lx,
-                                          "j: cache1's AW to X presented"):
+                await self._txn(n, self._compose_addr(t, sx), 0, label='j_fxn')
+            if not await self._wait_until(lambda: self._aw_line(n) == lx,
+                                          f"j: cache{n}'s AW to X presented"):
                 return
             self._score("j: both write-backs to X wait at once",
-                        (self._aw_line(0), self._aw_line(1)), (lx, lx))
-            exp = bytes(s1.wb[lx])
+                        (self._aw_line(o), self._aw_line(n)), (lx, lx))
+            exp = bytes(sn.wb[lx])
         finally:
             d.tb_aw_hold.value = 0
 
@@ -2028,8 +2057,8 @@ class JetPairRigTB(TBBase):
                     order.append(c)
             if len(order) == 2:
                 break
-        self._score("j: cache0's (older) write-back to X taken first",
-                    order, [0, 1])
+        self._score(f"j: cache{o}'s (older) write-back to X taken first",
+                    order, [o, n])
         if not await self._wait_until(_quiet, "j: both write-backs done"):
             return
         self._score("j: the order check saw the pair",
@@ -2040,9 +2069,116 @@ class JetPairRigTB(TBBase):
         for b in range(self.FILL_BEATS):
             got += int(mem_words[base_word + b].value).to_bytes(
                 self.STRB_W, 'little')
-        self._score("j: memory holds cache1's line, not cache0's stale one",
-                    bytes(got), exp)
+        self._score(f"j: memory holds cache{n}'s line, not cache{o}'s "
+                    f"stale one", bytes(got), exp)
         self._scenario('WbSameLineOrder')
+
+    async def _s_wb_grant_vs_absorb_kick(self):
+        """(k) jet BUG-006: no write-port grant forms in an absorption-kick
+        cycle (block_arb).  The arbiter registers its grant a cycle after
+        the request, so a grant formed in the cycle the snoop's CR kicks
+        an absorption of line X would hand the port to a write-back of X
+        that abs_match blocks from the next edge on -- the write-back
+        would land ahead of the absorption the fabric orders first.
+
+        The cache o's victim X waits at its port behind cache n's W burst,
+        held in W_B by the B valve (tb_b_hold); cache n's write miss
+        snoops X out of cache o's WB (passed, absorption abs_n X); the
+        valve opens in exactly the kick cycle, so the W burst's ACK -- the
+        arbiter's re-grant point -- coincides with the kick.  Checked: the
+        rig-wide grant-eligibility check (_check_w_grant), and the
+        absorption's AW is taken before cache o's write-back of X."""
+        d = self.dut
+        f = d.u_fabric
+        o, n = 0, 1
+        Wn = self.WAYS
+        # (j)'s tag block: the same tag numbers are fresh lines in sets
+        # 13 / 14, which nothing else touches
+        base = self._wb_tag_base
+        e_tags = list(range(base + 1, base + 1 + Wn))
+        f_tags = list(range(base + 1 + Wn, base + 1 + 2 * Wn))
+        sx, sw = (13 % self.SETS, 14 % self.SETS)
+        ax = self._compose_addr(base, sx)
+        aw = self._compose_addr(base, sw)
+        lx = self._line_of(ax)
+        full = (1 << self.STRB_W) - 1
+        mask = (1 << self.BUS_WIDTH) - 1
+        so, sn = self.sides[o], self.sides[n]
+
+        def _quiet():
+            return (not so.wb and not sn.wb and self._fab_w()[0] == 0
+                    and int(f.abs_pend_vld_q.value) == 0)
+
+        for c in (0, 1):
+            for t in e_tags:
+                await self._txn(c, self._compose_addr(t, sx), 0, label='k_ex')
+        for t in e_tags:
+            await self._txn(n, self._compose_addr(t, sw), 0, label='k_ew')
+        await self._txn(o, ax, 1, be=full, wdata=0xD0D0_0000_0000_000D & mask,
+                        label='k_xo')
+        await self._txn(n, aw, 1, be=full, wdata=0xE0E0_0000_0000_000E & mask,
+                        label='k_wn')
+        if not await self._wait_until(_quiet, "k: quiet before the valve"):
+            return
+
+        mem_aw = []     # (is_abs, owner, line) per memory AW handshake
+
+        async def _watch_aw():
+            while True:
+                await self._negedge_settled()
+                if int(d.mem_awvalid.value) and int(d.mem_awready.value):
+                    w = self._fab_w()
+                    mem_aw.append((w[1], w[2],
+                                   self._line_of(int(d.mem_awaddr.value))))
+
+        kicked = []
+
+        async def _open_on_kick():
+            while True:
+                await self._negedge_settled()
+                if int(f.w_abs_kick.value):
+                    d.tb_b_hold.value = 0
+                    kicked.append(self.cyc)
+                    return
+
+        watcher = cocotb.start_soon(_watch_aw())
+        d.tb_b_hold.value = 1
+        opener = None
+        try:
+            # cache n evicts W: AW and W beats go, the B sits
+            for t in f_tags:
+                await self._txn(n, self._compose_addr(t, sw), 0, label='k_fw')
+            if not await self._wait_until(
+                    lambda: self._fab_w() == (3, 0, n),
+                    f"k: cache{n}'s W burst held in W_B"):
+                return
+            # cache o evicts X: its AW waits behind the held burst
+            for t in f_tags:
+                await self._txn(o, self._compose_addr(t, sx), 0, label='k_fxo')
+            if not await self._wait_until(lambda: self._aw_line(o) == lx,
+                                          f"k: cache{o}'s AW to X presented"):
+                return
+            # cache n writes X; the B valve opens in the kick cycle
+            opener = cocotb.start_soon(_open_on_kick())
+            await self._txn(n, ax + self.STRB_W, 1, be=full,
+                            wdata=0x5555_6666_7777_8888 & mask, label='k_xn')
+            self._score(f"k: cache{o}'s X entry passed", lx in so.wb_passed,
+                        True)
+            if not await self._wait_until(lambda: bool(kicked),
+                                          "k: absorption kick seen"):
+                return
+        finally:
+            d.tb_b_hold.value = 0
+            if opener is not None and not kicked:
+                opener.kill()
+        if not await self._wait_until(_quiet, "k: all write bursts done"):
+            watcher.kill()
+            return
+        watcher.kill()
+        on_x = [(a, c) for (a, c, ln) in mem_aw if ln == lx]
+        self._score(f"k: abs{n} X lands before cache{o}'s write-back of X",
+                    on_x[:2], [(1, n), (0, o)])
+        self._scenario('WbGrantVsAbsorbKick')
 
     def _rand_addr(self, rng):
         line = rng.randrange(self.SPAN)
@@ -2183,6 +2319,7 @@ class JetPairRigTB(TBBase):
         await self._s_ships_in_the_night()
         await self._s_deep_pipelined_misses()
         await self._s_wb_same_line_order()
+        await self._s_wb_grant_vs_absorb_kick()
 
         if self.TEST_LEVEL in ('func', 'full'):
             await self._random_lockstep(self.FULL_TXN[self.TEST_LEVEL])

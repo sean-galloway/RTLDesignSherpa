@@ -56,7 +56,14 @@ amber's (Pattern-B cocotb GATE/FUNC/FULL grids, per amber D9):
    shared memory's AW channel (`tb_aw_hold` on the rig top) holds the
    write port on a third burst so a passed-on write-back and the new
    owner's write-back of the same line wait at once, the case random
-   traffic on the serial fabric never reaches.
+   traffic on the serial fabric never reaches. Since jet BUG-006 (the
+   write port's arbiter is `arbiter_round_robin` in grant/ACK mode), a
+   rig-wide check that every burst's granted candidate is still eligible
+   when the burst starts, and the directed `WbGrantVsAbsorbKick` scenario:
+   a second valve on the memory's B channel (`tb_b_hold`) holds a burst in
+   W_B and releases it in exactly the cycle a snoop kicks an absorption of
+   a line whose write-back waits, so the arbiter's re-grant lands in the
+   kick cycle (the case `block_arb` exists for).
 
 ## The BUG-001/002 lesson, applied at the start
 
