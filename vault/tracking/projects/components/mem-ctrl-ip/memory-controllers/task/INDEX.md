@@ -5,14 +5,16 @@
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
+| [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 22 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
-| [deferred/](deferred/) | 1 | parked pending a named condition |
+| [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Open
 
 ## Active
+
+## Deferred
 
 - **MC-023** -- the SKU model's open fidelity terms. Item 2 DONE 2026-11-23:
   the self-close lookahead guard was true at `ap_close_lag` 0 (a pending
@@ -21,8 +23,9 @@
   `rfc_block` term (first ACT at REF + 16, the RTL's) is the SKU default,
   57 in / 0 out; open_page's intermediate mode remains. Open: the record
   path (item 1), the refresh-relaunched orbits (3, ISSUE-007).
-
-## Deferred
+  DEFERRED 2026-11-25 (owner): the controller is done; the model is not
+  trusted on the close-page read sides, the bank_interleave row-hit levels or
+  open_page's mixed cell until it resumes. [deferred/MC-023.md](deferred/MC-023.md).
 
 - **MC-009** -- pumice arbiter: steps (a) and (c) done (the STAGE-1b
   selection out of the classify cone; build-time pick modes). Step (b), hit /
