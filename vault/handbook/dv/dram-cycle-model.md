@@ -965,3 +965,28 @@ refresh credits has to clear those too
 (`char_results/board_mc025_ref_align_sku100_2026-11-24.md`). One residual:
 a one-cycle draw on one row in 263 survives alignment (memory-controllers
 ISSUE-008), so repeat a lone one-cycle difference before believing it.
+
+## A delay term keeps the gate the event comes after (2026-11-25, MC-023)
+
+The close_page read sides were 10 .. 12.5 percent high because the model's
+same-row ACT after a self-close fired at fire + 3 where the RTL's fires at
+fire + 4. The first probe for it (`ap_close_rec`) gated the ACT from the fire
+but, in doing so, lifted the rule that kept the lookahead off BEFORE the
+fire: the ACT was armed early and the cell got faster (104 -> 138, the board
+93). The term that landed (`ap_row_lag`) adds the delay after the fire and
+keeps the earlier gate. **When a "later" term moves a cell the wrong way,
+check what it removed before the event.** Read the RTL chain off the proxy's
+DRAM trace first: ACT, column + 2, self-close at tRAS, next ACT; the slot
+count per chain is the whole answer.
+
+## Compare refresh-placed modes by proportion, not per offset (2026-11-25, MC-023)
+
+The model at the board's `REF_ALIGN` offsets (GO offset `2 (tREFI - o - 1)`
+ticks) changes mode within a 10-MC launch shift on both presets, and neither
+side pins the launch latency to that precision. A per-offset model-vs-board
+mode match is therefore not a test; **compare the share of each mode across
+the offsets**. A term that is the RTL's behaviour (the refresh drain's one
+PRE per two slots, proxy-measured) can still move a preset out of its board
+mode: then another term was compensating, and making the RTL's term the
+default waits until that one is found
+(`char_results/model_mc023_ap_row_lag_refresh_drain_2026-11-25.md`).

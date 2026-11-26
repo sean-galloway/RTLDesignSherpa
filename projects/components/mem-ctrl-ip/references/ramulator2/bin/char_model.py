@@ -469,6 +469,12 @@ class ModelConfig:
     ap_fire_stale: bool = True         # GraniteSKU: the pair of a column that fired with auto-precharge is masked the slot after its fire
                                        #   (the RTL since MC-021 step 4; False = the RTL before, whose leftover column request won the select)
     ap_seq: bool = True                # GraniteSKU: the auto-precharge self-close sequenced as the bank timer does -- fire = max(ACT + tRAS,
+    ref_drain_pb: bool = False         # GraniteSKU: the refresh drain as the RTL override does it -- one PREpb a slot off the registered
+                                       #   row image, a lost slot after each, the REF once the image shows every bank closed (proxy
+                                       #   2026-11-25); off by default: it puts open_page's mixed cell in the board's two modes but
+                                       #   takes defaults' out of its one (MC-023 item 4, the hybrid's gap still open)
+    ap_row_lag: int = 2                # GraniteSKU: a head of the row the self-close closed decodes no ACT before fire + 2, its ACT
+                                       #   at fire + 4 as the proxy measures (MC-023 item 1); 0 = the model before (fire + 3)
     rfc_block: bool = True             # GraniteSKU: the pick core's tRFC demand block -- no demand request or fire until the
                                        #   counter the REF grant loads with the CSR tRFC reads zero, the first ACT at grant + 1 +
                                        #   tRFC + 2 (16 at the SKU's 13; the proxy probe 2026-11-24); False = the ACT at the
@@ -673,6 +679,11 @@ CONFIGS.update({c.name: c for c in [
          "columns, a write turn after 512 starved cycles)", dir_mode=1),
     _sku("norfcblock", "the first ACT after a refresh at the device's tRFC with the lookahead, no tRFC demand block: "
          "the model before memory-controllers MC-023 item 4", rfc_block=False),
+    _sku("noaprowlag", "a head of the row the self-close closed requesting its ACT at its timer (fire -> ACT 3): the model "
+         "before memory-controllers MC-023 item 1, every close_page read side 10 .. 12.5 percent high", ap_row_lag=0),
+    _sku("refdrainpb", "the refresh drain as the RTL's override issues it: one PREpb a slot off the registered row image "
+         "with a lost slot after each, the REF when the image shows every bank closed (MC-023 item 4, not yet the default)",
+         ref_drain_pb=True),
     _sku("noapseq", "the auto-precharge path at the CK-exact DRAM terms alone: the model before the sequenced self-close "
          "(MC-020 decision 2)", ap_seq=False),
     _sku("margin", "the SKU's counters under the one-CK phase margin the host derived until 2026-11-22 (tRC 7, tWR 4, "
@@ -789,6 +800,7 @@ def build_sim(cfg: ModelConfig, trace_path: str, *, bl8: bool = False, split: bo
             pick_la=cfg.pick_la, rank_ok_lag=cfg.rank_ok_lag, ap_act_la=cfg.ap_act_la, ap_stale=cfg.ap_stale,
             hit_lag=cfg.hit_lag, ap_fire_stale=cfg.ap_fire_stale, wr_fill_lag=cfg.wr_fill_lag, close_lag=cfg.close_lag,
             ap_seq=cfg.ap_seq, t_rp_ap_rd=cfg.t_rp_ap_rd, t_rp_ap_wr=cfg.t_rp_ap_wr, rfc_block=cfg.rfc_block,
+            ap_row_lag=cfg.ap_row_lag, ref_drain_pb=cfg.ref_drain_pb,
             dir_mode=cfg.dir_mode, wr_starve=cfg.wr_starve, wr_burst=cfg.wr_burst,
             **_sku_debug_params(),
         )

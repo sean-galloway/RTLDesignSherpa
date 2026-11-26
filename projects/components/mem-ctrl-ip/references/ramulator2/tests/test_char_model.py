@@ -616,6 +616,25 @@ def test_rfc_block_is_the_sku_default_and_moves_the_first_act_after_a_refresh():
     assert cm.CONFIGS["sku_norfcblock"].rfc_block is False
 
 
+
+def test_ap_row_lag_puts_the_same_row_act_at_the_self_close_plus_four():
+    """MC-023 item 1 (proxy 2026-11-25, close_page incremental, one generator): the RTL's per-bank read chain is ACT,
+    RD + AP at + 2, the self-close at ACT + tRAS 5, the next ACT at + 9 MC -- fire -> ACT 4, the head of the closed
+    row reading as a hit until the row image clears and the record re-classifies it. The model had fire -> ACT 3 (8 MC
+    a chain) and every close_page read side 10 .. 12.5 percent high (incremental 104 against the board's 93).
+    ap_row_lag 2 is the SKU default; the writes, whose tWR hides the slot, do not move."""
+    import tempfile
+    from dataclasses import replace
+    assert cm.CONFIGS["granite_sku100_close"].ap_row_lag == 2
+    assert cm.CONFIGS["sku_noaprowlag"].ap_row_lag == 0
+    sc = replace([s for s in cm.SUITES["all"] if s.name == "incremental_bl8"][0], txn_count=256)
+    with tempfile.TemporaryDirectory() as t:
+        now = cm.run_scenario(cm.CONFIGS["granite_sku100_close"], sc, t)
+        old = cm.run_scenario(replace(cm.CONFIGS["granite_sku100_close"], name="close_noaprowlag", ap_row_lag=0), sc, t)
+    ratio = float(old["rd_bw_mb_s"]) / float(now["rd_bw_mb_s"])
+    assert abs(ratio - 9 / 8) < 0.02, (old["rd_bw_mb_s"], now["rd_bw_mb_s"])      # 9 MC a chain against 8
+    assert abs(float(old["wr_bw_mb_s"]) / float(now["wr_bw_mb_s"]) - 1) < 0.005, (old["wr_bw_mb_s"], now["wr_bw_mb_s"])
+
 def test_read_priority_register_makes_the_mixed_cell_one_mode_and_bounds_the_writes():
     """MC-024 (priced 2026-11-24): the read-priority direction register (dir_mode 1) takes the board's fast shape
     as the rule. On the mixed cell under both open-page presets it is ONE mode at two GO phases a refresh period

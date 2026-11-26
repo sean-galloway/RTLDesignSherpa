@@ -22,6 +22,9 @@
   57 in / 0 out; open_page's intermediate mode remains. Open: the record
   path (item 1), the refresh-relaunched orbits (3, ISSUE-007).
   Un-deferred 2026-11-25 (owner: "finish 23").
+  2026-11-25: item 1 DONE (`ap_row_lag`, the same-row ACT at fire + 4:
+  close_page reads within 4 percent, 57 in / 0 out); item 4's refresh drain
+  `ref_drain_pb` measured and kept a knob (open_page right, defaults wrong).
 
 ## Deferred
 

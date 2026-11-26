@@ -151,6 +151,12 @@ namespace Ramulator {
 //     (rfc_block, MC-023 item 4) the pick core's tRFC counter, loaded the
 //     slot after the grant, holds every demand request and fire until it
 //     reads zero, so the first ACT fires at grant + 1 + tRFC + 2.
+//     ref_drain_pb (MC-023 item 4, off by default) drains the RTL's way instead
+//     of the PREab: one PREpb a slot off the registered row image, a lost slot
+//     after each, the REF once the image shows every bank closed.
+//   * The same-row ACT after a self-close (ap_row_lag, MC-023 item 1): a head
+//     of the closed row decodes no ACT before fire + 2 (the row image clears
+//     the slot after the fire, then the record re-classifies it): fire -> ACT 4.
 //   * Not carried (the error bars): the pop shadow (the fire reads the live
 //     head, which is the shadow's effect), the write-data fill and the sink /
 //     return-ring back-pressure, the age overlay (HAS_AGE with age_thresh 0
@@ -199,6 +205,14 @@ class GraniteSKUController : public ControllerBase {
                                 //   fires two slots later (grant + 16 at the SKU's 13). false = the model before:
                                 //   the ACT waits only for the device's tRFC, with the lookahead (grant + 13)
                                 //   (memory-controllers MC-023 item 4, the proxy probe 2026-11-24)
+  bool m_ref_drain_pb = false;  // MC-023 item 4: the refresh drain as mc_bank_pick's override does it -- one PREpb a slot, to the
+                                //   lowest bank the REGISTERED row image (r_row_act, two slots behind the fires) shows open with its
+                                //   registered pre-ready (r_pre_rdy, bank_pre_ready_la); the live gate refuses a bank the last slot's
+                                //   PRE already closed, so that slot is lost; the REF only once the registered image shows every bank
+                                //   closed. false = one PREab the slot every open bank can take it (the model before)
+  size_t s_ref_pres = 0, s_ref_lost = 0;
+  std::vector<bool> m_pre_rdy_reg;   // [bank] r_pre_rdy: the PRE lookahead-ready as it stood at the start of last slot
+  std::vector<int> m_ref_img_reg;    // [bank] r_row_act: the open rows as they stood at the start of last slot (the fires of two slots back)
   int m_t_rfc_mc = 0;           // TIMINGS tRFC in MC cycles as the host derives it (a row -> row hop of nRFC)
   Clk_t m_rfc_free = 0;         // the first tick the tRFC counter reads zero
   int m_cmd_refab = -1;
@@ -216,6 +230,13 @@ class GraniteSKUController : public ControllerBase {
                                 //   col_major_interleaved_bl4 355 / 358 (356 / 361) -- four cells the default over-prices by 10 .. 15 --
                                 //   but close_page mixed_bl8 60 / 66 (board 73 / 121, the default's 73 / 117), so it stays off: the
                                 //   mixed cell's same-row head is not present at the fire the way this probe sees it (MC-023)
+  int m_ap_row_lag = 2;         // MC-023 item 1 (2026-11-25): a head OF THE ROW the self-close closed decodes no ACT request
+                                //   before fire + ap_row_lag slots -- it reads as a hit until the row image clears the slot after
+                                //   the fire, then the record re-classifies it -- so its ACT fires at fire + ap_row_lag + 2, the
+                                //   proxy's fire + 4 (close_page incremental: ACT, RDA + 2, self-close at ACT + tRAS 5, next ACT
+                                //   + 9 MC; the model had + 8, every close_page read side 10 .. 12.5 percent high). A head of
+                                //   another row keeps the lookahead (the col_major chain across a burst's row step). Unlike the
+                                //   ap_close_rec probe it leaves the lookahead off BEFORE the fire too. 0 = the model before
   int m_ap_close_lag = 0;       // PROBE, kept for the record: a flat gate from the fire on every head (1 overshoots the board, 2
                                 //   undershoots; the mixture above is the term); 0 = off
   int m_dir_batch_max = 255;
@@ -384,8 +405,10 @@ class GraniteSKUController : public ControllerBase {
     RAMULATOR_PARSE_PARAM(m_t_rp_ap_rd, int, "t_rp_ap_rd").default_val(-1);
     RAMULATOR_PARSE_PARAM(m_t_rp_ap_wr, int, "t_rp_ap_wr").default_val(-1);
     RAMULATOR_PARSE_PARAM(m_ap_close_lag, int, "ap_close_lag").default_val(0);
+    RAMULATOR_PARSE_PARAM(m_ap_row_lag, int, "ap_row_lag").default_val(2);
     RAMULATOR_PARSE_PARAM(m_ap_close_rec, bool, "ap_close_rec").default_val(false);
     RAMULATOR_PARSE_PARAM(m_rfc_block, bool, "rfc_block").default_val(true);
+    RAMULATOR_PARSE_PARAM(m_ref_drain_pb, bool, "ref_drain_pb").default_val(false);
     RAMULATOR_PARSE_PARAM(m_dir_batch_max, int, "dir_batch_max").default_val(255);
     RAMULATOR_PARSE_PARAM(m_dir_hold_idle, int, "dir_hold_idle").default_val(8);
     RAMULATOR_PARSE_PARAM(m_dir_mode, int, "dir_mode").default_val(0);
@@ -419,6 +442,7 @@ class GraniteSKUController : public ControllerBase {
     if (m_hit_lag < 0) throw std::runtime_error("GraniteSKU: hit_lag must be >= 0");
     if (m_wr_fill_lag < 0) throw std::runtime_error("GraniteSKU: wr_fill_lag must be >= 0");
     if (m_close_lag < 0) throw std::runtime_error("GraniteSKU: close_lag must be >= 0");
+    if (m_ap_row_lag < 0) throw std::runtime_error("GraniteSKU: ap_row_lag must be >= 0");
     const auto& spec = *m_device.m_spec;
     m_cmd_act = spec.get_command_id("ACT");
     m_cmd_prepb = spec.get_command_id("PREpb");
@@ -479,6 +503,8 @@ class GraniteSKUController : public ControllerBase {
     pp_expired.assign(m_num_banks, false);
     m_ord.assign(m_num_banks, false);
     m_row_img_prev.assign(m_num_banks, -1);
+    m_pre_rdy_reg.assign(m_num_banks, false);
+    m_ref_img_reg.assign(m_num_banks, -1);
   }
 
   void setup(IFrontEnd* frontend, IMemorySystem* memory_system) override {
@@ -495,6 +521,8 @@ class GraniteSKUController : public ControllerBase {
     m_stats.add("sku_ap_cols", s_ap_cols);
     m_stats.add("sku_ap_seq_holds", s_ap_seq_holds);
     m_stats.add("sku_to_pre", s_to_pre);
+    m_stats.add("sku_ref_pres", s_ref_pres);
+    m_stats.add("sku_ref_lost", s_ref_lost);
     m_stats.add("sku_dir_flips", s_dir_flips);
     m_stats.add("sku_dir_flips_fire", s_dir_flips_fire);
     m_stats.add("sku_dir_flips_drain", s_dir_flips_drain);
@@ -626,10 +654,56 @@ class GraniteSKUController : public ControllerBase {
                 << " rd " << m_read_buffer.size() << " wr " << m_write_buffer.size()
                 << " prio " << m_priority_buffer.size() << " pending " << m_pending.size() << std::endl;
     }
+    // r_pre_rdy for next slot: bank_pre_ready_la as it stands now, before this slot's commands
+    std::vector<bool> pre_rdy_now(m_num_banks, false);
+    const std::vector<int> img_now = m_bank_open_row;
+    if (m_ref_drain_pb) {
+      for (int b = 0; b < m_num_banks; b++)
+        pre_rdy_now[b] = m_bank_open_row[b] >= 0 && !(m_ap_seq && m_bank_ap[b]) &&
+                         m_device.m_bank_nodes[b]->check_timing(m_cmd_prepb, m_bank_open_av[b],
+                                                                m_clk + static_cast<Clk_t>(m_pick_la) * m_slot_ticks);
+    }
     // refresh demanded: drain (PREab) then grant; the demand block holds every demand fire this slot
     bool fire_allowed = true;
     const bool ref_pending = m_priority_buffer.size() > 0;
-    if (ref_pending) {
+    if (ref_pending && m_ref_drain_pb) {
+      // the override's drain scan reads the registered row image (r_row_act: the open rows at the start of last slot,
+      // so a PRE fired last slot still shows open) and the registered pre-ready (r_pre_rdy, taken at the same point)
+      bool img_open = false;
+      int j = -1;
+      for (int b = 0; b < m_num_banks; b++) {
+        // a bank whose self-close is still pending keeps r_row_valid until it fires (mc_bank_timer), and the
+        // registered image clears two slots after: open to the scan, but never pre-ready (safe_pre_la is
+        // !r_ap_pending), so it holds the REF without taking a PRE
+        const bool ap_open = m_ap_seq && m_bank_ap[b] && m_clk < m_ap_fire_clk[b] + static_cast<Clk_t>(2 * m_slot_ticks);
+        if (ap_open) { img_open = true; continue; }
+        if (m_ref_img_reg[b] < 0) continue;
+        img_open = true;
+        if (j < 0 && m_pre_rdy_reg[b]) j = b;
+      }
+      if (img_open) {
+        if (j >= 0 && m_bank_open_row[j] >= 0 && check_timing(m_cmd_prepb, m_bank_open_av[j])) {
+          m_device.issue_command(m_cmd_prepb, m_bank_open_av[j], m_clk);
+          note_close(j);
+          m_bank_open_row[j] = -1;
+          m_slot_cmds.push_back(CmdEv{CL_PRE, j, -1, false, false});
+          s_ref_pres++;
+          s_main_maint++;
+          if (dbg()) std::cout << "[sku] clk " << m_clk << " refresh drain PRE bank " << j << std::endl;
+        } else {
+          s_ref_lost++;
+        }
+      } else {
+        Candidate cand = pick_priority_if();
+        if (cand.valid && cand.it->command == m_cmd_refab) {
+          m_rfc_free = m_clk + static_cast<Clk_t>(1 + m_t_rfc_mc) * m_slot_ticks;
+          issue(cand.it, *cand.buffer);
+          s_main_maint++;
+          if (dbg()) std::cout << "[sku] clk " << m_clk << " maint cmd " << cand.it->command << std::endl;
+        }
+      }
+      fire_allowed = false;
+    } else if (ref_pending) {
       Candidate cand = pick_priority_if();
       if (cand.valid) {
         if (cand.it->command == m_cmd_prea) {
@@ -648,6 +722,7 @@ class GraniteSKUController : public ControllerBase {
     }
     if (m_rfc_block && m_clk < m_rfc_free) fire_allowed = false;
     schedule_slot(fire_allowed, ref_pending);
+    if (m_ref_drain_pb) { m_pre_rdy_reg = pre_rdy_now; m_ref_img_reg = img_now; }
   }
 
  private:
@@ -837,6 +912,8 @@ class GraniteSKUController : public ControllerBase {
             m_clk - m_ap_fire_clk[b] < static_cast<Clk_t>(m_ap_close_lag) * m_slot_ticks) continue;
         // the same_row rule (no lookahead for a head of the row the self-close closed) is the model before ap_close_rec
         const bool same_row = m_bank_ap[b] && m_bank_ap_row[b] == row_of(*h.it);
+        if (m_ap_seq && same_row && m_ap_row_lag > 0 &&
+            m_clk < m_ap_fire_clk[b] + static_cast<Clk_t>(m_ap_row_lag) * m_slot_ticks) continue;
         const int la = (same_row && !m_ap_act_la && !(m_ap_seq && m_ap_close_rec)) ? 0 : m_pick_la;
         if (decode_timer(h.cmd, h.it->addr_vec, la)) { req_nxt[p] = true; cls_nxt[p] = CL_ACT; }
       }
