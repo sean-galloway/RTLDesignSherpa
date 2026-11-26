@@ -571,3 +571,19 @@ Found and measured:
   unreachable there and the result carries over. Flat regenerated for it.
   Open: no onyx proof or sim drives WriteClean -- the harness needs it in
   `as_req_type` with its write-back obligations.
+- 2026-11-25 **bin 6 on the board (jet-prime BUG-002 fix, e6957a314):**
+  SEL 4 and SEL 5 rebuilt at 3aa81b0e0: WNS +0.015 / 0.000 ns at 100 MHz,
+  0 failing, the same jet-prime fill-staging path as every bin; SEL 4
+  29,506 LUT / 25,768 FF, SEL 5 29,412 / 25,737 (+61 / +55 LUT over bin
+  5); bitstreams `ref_onyx_bringup.bit` sha256 50ca66b2500b614d,
+  `ref_onyxd` 9c45056700c78602; the same 11 build warnings as bin 5. Each
+  session under `board_lock.sh`, sweep before io. The all-open dual
+  55-cell sweep is cycle-identical to bin 5 in 55 of 55 cells in both
+  modes (run cycles, latency, read-data CRC), the six onyx counters and
+  the tally bins equal in every cell, 0 errors; io PASS on both. What
+  that shows: no regression, not the fix. The write-back count (181,941)
+  is unchanged, so no entry was ended, and no cycle moved, so no drain or
+  order hold engaged -- the sweep never snoops a victim in a write-back
+  buffer (the sim's uniform soak reached it 0-6 times a cell, the
+  hot-set phase 21-102). Exercising it on the board needs a hot-set
+  profile in the sweep; nothing counts WB snarfs on the board today.
