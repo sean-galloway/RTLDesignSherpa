@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/amber-mesi-l1 — bugs
 
-**Next ID: BUG-006** — never recycle a number, even when its item closed.
+**Next ID: BUG-007** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 5 | done (kept for history) |
+| [closed/](closed/) | 6 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -55,3 +55,4 @@ by construction rather than by discipline.
   (directed, RED pre-fix), the oracle row IM+SNOOP_READ_ONCE+in_pending=S,
   and the formal ap_pend_chain property. Closed 2026-10-29.
 - **BUG-005** ([page](closed/BUG-005.md)) — amber_pair_fabric's write-port arbiter: the last winner kept top priority (same code as jet BUG-006). P2. Filed 2026-11-26. Fixed 2026-11-26 with jet BUG-006 (arbiter_round_robin, req/grant/ACK mode, the kick in the request); amber full 121/121; closed.
+- **BUG-006** ([page](closed/BUG-006.md)) — the Genesys2 harness tally_latch_bank_test cleared the tally while the MonBus path was still delivering (seed-dependent false failure, gate seeds 2 and 68390). P3. Filed and closed 2026-11-26: drain before the clear.

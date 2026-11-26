@@ -418,6 +418,20 @@ the test, as `test_stream_mon_perf` and now `test_fb_harness` do.
 Related: [[seeds-and-determinism]] (a rerun that changes seeds is not a
 reproduction), [[bfm-usage]], [[coverage]].
 
+**Two sessions building one area collide even with no cleanup at all.** A
+cell's build directory is named by the cell, not by the session, so two
+sessions running the same area's suite at the same time build every cell
+into the same `local_sim_build/<cell>`. On 2026-11-26 two cache-ip sessions
+ran amber FULL together: Verilator's precompiled header was rewritten under
+a compile that was using it ("one or more PCH files were found, but they
+were invalid", then "Vtop__pch.h.fast: No such file"), and every rerun
+reused the same directory and crashed cc1plus at the same address. The
+reruns make it look like a bad test; the identical-address segfault on
+reuse is the tell. Before running an area's suite, check that no other
+session is running it (`ps` for pytest in that tests directory), and say so
+to the peer rather than racing it; a corrupted cell needs its build
+directory removed, not a rerun.
+
 ## A cocotb version bump runs TWO matrices, and the second one is the trap
 
 Measured 2026-10-08 (tooling BUG-015). The 2.1.0 flip matrix gated TASK-025

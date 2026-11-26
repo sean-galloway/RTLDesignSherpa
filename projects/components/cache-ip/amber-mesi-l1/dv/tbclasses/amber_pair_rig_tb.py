@@ -281,6 +281,7 @@ class AmberPairRigTB(TBBase):
             'dt_forwards': 0, 'pass_throughs': 0, 'absorbs': 0,
             'mem_ar': 0, 'wb_bursts': 0, 'upgrades': 0,
             'first_grant': [], 'replay_beats': 0, 'orphan_grants': 0,
+            'w_grants': 0, 'abs_kicks': 0,
         }
 
         # observation
@@ -462,12 +463,61 @@ class AmberPairRigTB(TBBase):
     # ------------------------------------------------------------------
     # monitor: per-cycle observation of both caches, fabric, ACE, monbus
     # ------------------------------------------------------------------
+    def _check_w_grant(self):
+        """The write port's arbiter registers its grant from the previous
+        cycle's requests (amber BUG-005).  A write-back's request drops in
+        the cycle an absorption of its line is kicked (abs_kick_match), so
+        a granted write-back never starts its burst with an absorption of
+        its line already pending -- the absorption lands first.  (A kick
+        in the burst's own decision cycle is not covered, as before the
+        arbiter change: abs_pend is not yet set when the burst is chosen.)"""
+        f = self.dut.u_fabric
+        if int(f.wstate_q.value) == 0 and int(f.u_w_arb.grant_valid.value):
+            gid = int(f.u_w_arb.grant_id.value)
+            self.stats['w_grants'] += 1
+            if gid < 2:
+                addr = int(getattr(self.dut, f'm{gid}_awaddr').value)
+                pend = int(f.abs_pend_vld_q.value)
+                hit = any(((pend >> i) & 1)
+                          and int(f.abs_pend_addr_q[i].value) == addr
+                          for i in (0, 1))
+                self._score(f"write port: cache{gid}'s write-back granted with "
+                            f"an absorption of its line already pending",
+                            hit, False)
+
+    def _check_kick_vs_wb(self):
+        """amber BUG-005: on amber an absorption of line X is never kicked
+        while a write-back of X waits at a cache port, so the fabric's
+        abs_kick_match request term never fires here.  A waiting
+        write-back means its cache is in MISS_DRAIN (the victim drains
+        there and nowhere else), the fabric admits a data snoop into
+        MISS_DRAIN only with a request pending from that cache, and
+        amber's request is the fill start, which follows the drain.  If
+        this fires, that chain broke: jet's directed scenario (k)
+        (WbGrantVsAbsorbKick) then applies to amber.  abs_kicks counts
+        the kicks this check saw."""
+        f = self.dut.u_fabric
+        if not int(f.w_abs_kick.value):
+            return
+        self.stats['abs_kicks'] += 1
+        kline = self._line_of(int(f.grant_addr_q.value))
+        for c in (0, 1):
+            d = self.dut
+            if (int(getattr(d, f'm{c}_awvalid').value)
+                    and self._line_of(int(getattr(d, f'm{c}_awaddr').value))
+                    == kline):
+                self._score(f"absorption kick on line {kline:#x} while "
+                            f"cache{c}'s write-back of it waits (unreachable "
+                            f"on amber)", True, False)
+
     async def _monitor(self):
         d = self.dut
         while True:
             await FallingEdge(d.clk)
             await Timer(100, units='ps')
             self.cyc += 1
+            self._check_w_grant()
+            self._check_kick_vs_wb()
 
             # drain guard clear: the peer's FSM back to a safe state
             for c in range(2):

@@ -502,11 +502,29 @@ async def tally_latch_bank_test(dut):
         assert ts >= prev_ts, f"slot {slot} ts {ts} < previous {prev_ts}"
         prev_ts = ts
 
-    # tally_clear re-arms the bank (item 1's real payoff).
+    # tally_clear re-arms the bank (item 1's real payoff).  The MonBus path
+    # must DRAIN first (tally_clear_freeze_test's protocol): it is a
+    # low-bandwidth channel, so after a 48-transaction burst with every
+    # packet type watched it is still delivering when the slot walk ends,
+    # and packets landing after the clear refill the re-armed bank (seed
+    # 68390: 7 counted, 3 latched).  Drained = the bins stop moving over a
+    # 256-cycle window.
+    prev = None
+    for _ in range(64):
+        for _ in range(256):
+            await cocotb.triggers.RisingEdge(dut.aclk)
+        cur = sum(await _read_bins(tb, n=33))
+        if cur == prev:
+            break
+        prev = cur
+    else:
+        raise AssertionError("MonBus path never drained before the clear")
     await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)
     for _ in range(256):
         await cocotb.triggers.RisingEdge(dut.aclk)
     status = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_STATUS)
+    post = sum(await _read_bins(tb, n=33))
+    assert post == 0, f"events after the clear ({post}): the path was not drained"
     assert (status & 0xFFFF) == 0, f"latch fill not re-armed: 0x{status:08x}"
 
 
