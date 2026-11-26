@@ -141,6 +141,13 @@ module mc_xddr2_refresh_ctrl
         end
     endgenerate
 
+    // The counter reloads with interval - 1 and expires at 0, so a CSR value of
+    // N issues a refresh every N cycles. It used to reload N, which made the
+    // period N + 1: the host's tREFI floor (never late) came out one cycle late
+    // (MC-023, 2026-11-26). 0 stays 0 (expire every cycle) instead of wrapping.
+    logic [15:0] w_refi_reload;
+    assign w_refi_reload = (w_refi_eff == 16'd0) ? 16'd0 : w_refi_eff - 16'd1;
+
     // Credit limits, clamped: postpone <= MAX_PENDING-2 so the pending
     // accumulator (saturating at 8) can always exceed it and FORCE the
     // refresh; pull-in <= 8 per the JEDEC +-8 window.  With HAS_POSTPONE=0
@@ -189,9 +196,9 @@ module mc_xddr2_refresh_ctrl
         end else begin
             // tREFI countdown — only ticks when enabled (init done).
             if (!enable_i || refi_reload_i) begin
-                r_refi_cnt <= w_refi_eff;
+                r_refi_cnt <= w_refi_reload;
             end else if (w_refi_expired) begin
-                r_refi_cnt <= w_refi_eff;
+                r_refi_cnt <= w_refi_reload;
             end else begin
                 r_refi_cnt <= r_refi_cnt - 16'd1;
             end

@@ -317,12 +317,14 @@ async def cocotb_test_andesite_refresh_ctrl(dut):
         # Mode A: after pullin_idle_streak idle cycles a pending-based request
         # fires.  Use pullin=0 so the only path that can raise the 8th-cycle
         # request is the pending backlog, not a pull-in grant.
-        await tb.setup(refi=12, pullin=0, elastic_en=1,
+        await tb.setup(refi=13, pullin=0, elastic_en=1,
                        pullin_idle_streak=8, demand=1)
         # Clear the first backlog so we start the idle window with pending == 0.
         chk(await tb.wait_req(400) is not None, "no initial refresh request")
         await tb.grant()
-        # refi=12 leaves r_refi_cnt == 8 after grant()'s settle window, so the
+        # refi=13 leaves r_refi_cnt == 8 after grant()'s settle window (the
+        # counter reloads refi - 1 since MC-023, 2026-11-26; this was refi=12
+        # when it reloaded refi), so the
         # next expiry lands at the 8-cycle idle confirmation and produces a
         # pending-based request rather than a pull-in.
         dut.demand_i.value = 0
@@ -451,7 +453,9 @@ async def cocotb_test_andesite_refresh_ctrl(dut):
     elif tt == "tcr_derate_small_interval_bounded":
         # Mode B: a very short derated interval must still obey the JEDEC
         # pending ceiling and drain cleanly.
-        await tb.setup(refi=8, tcr_en=1, trefi_derate=2)
+        # refi=12 >> 2 = an interval of 3 cycles (this was refi=8 = 2, which
+        # ran at 3 while the counter's period was interval + 1, MC-023).
+        await tb.setup(refi=12, tcr_en=1, trefi_derate=2)
         max_pending = 0
         for _ in range(100):
             await RisingEdge(dut.mc_clk)
@@ -462,7 +466,7 @@ async def cocotb_test_andesite_refresh_ctrl(dut):
                 f"pending {p} exceeds JEDEC 8-postponed ceiling")
         chk(max_pending > 0, "pending never grew")
         # Drain with one-cycle grants spaced one cycle apart so we outrun the
-        # 2-cycle reload interval; using tb.grant()'s settle window would let
+        # 3-cycle interval; using tb.grant()'s settle window would let
         # expiries arrive faster than grants and the drain would stall.
         drained = False
         grants = 0
@@ -526,7 +530,9 @@ async def cocotb_test_andesite_refresh_ctrl(dut):
             f"fgr 0/3 request cycles differ: {req0} vs {req3}")
         chk(reloads0 == reloads3,
             f"fgr 0/3 reload sequences differ: {reloads0} vs {reloads3}")
-        chk(all(rv == base_refi for rv in reloads3),
+        # The counter loads interval - 1 (it expires at 0, so the period is the
+        # interval; MC-023, 2026-11-26).
+        chk(all(rv == base_refi - 1 for rv in reloads3),
             f"fgr=3 reloads are not the 1x row: {reloads3}")
 
     elif tt == "fgr_trfc_select_per_density":
@@ -583,9 +589,11 @@ async def cocotb_test_andesite_refresh_ctrl(dut):
             if int(dut.refresh_req_o.value):
                 await tb.grant()
         chk(flipped, "first reload never happened")
-        chk(reloads[0] == 40,
-            f"first reload {reloads[0]} != 40 (1x armed at reset)")
-        chk(all(rv == 10 for rv in reloads[1:]),
+        # The counter loads interval - 1 (it expires at 0, so the period is the
+        # interval; MC-023, 2026-11-26): 40 -> 39, the 4x row 10 -> 9.
+        chk(reloads[0] == 39,
+            f"first reload {reloads[0]} != 39 (1x armed at reset)")
+        chk(all(rv == 9 for rv in reloads[1:]),
             f"post-change reloads are not the 4x row: {reloads[1:]}")
         # Modes-still-clean: with the factor held at 1x, the elastic/TCR
         # modes behave exactly as the inherited suite proves -- re-run the

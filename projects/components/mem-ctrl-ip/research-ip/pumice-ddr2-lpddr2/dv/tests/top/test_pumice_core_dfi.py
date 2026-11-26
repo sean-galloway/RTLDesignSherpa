@@ -772,6 +772,19 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
                          f"stretch -- tREFI poke dead or refresh gated")
 
     # ---- arm B: postpone ----------------------------------------------------
+    # Drain arm A's backlog under the strict setting before arm B's baseline.
+    # A tick that lands in the last cycles of arm A is still pending when the
+    # postpone limit goes on; the idle gap between demand batches then (rightly)
+    # drains it, inside arm B's window, and it reads as a leak. Which side of the
+    # boundary that tick falls on is the tREFI phase: it moved when the refresh
+    # counter's period went from tREFI + 1 to tREFI (MC-023, 2026-11-26).
+    # The grant clears the backlog several cycles before the REF reaches the
+    # DFI slave this test counts at, so wait out the command path too.
+    for _ in range(200):
+        if int(dut.u_core.u_sched_plane.g_refresh.u_refresh.r_pending.value) == 0:
+            break
+        await RisingEdge(dut.aclk)
+    await ClockCycles(dut.aclk, 24)
     dut.ref_postpone_i.value = 7
     b = _refs()
     await _demand(480, 9)                        # ~5 ticks, under the limit
