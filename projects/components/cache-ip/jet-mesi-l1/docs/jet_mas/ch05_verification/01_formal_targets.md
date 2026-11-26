@@ -70,3 +70,5 @@ fabric has one rule amber's lacks: two write-backs to one line in
 presentation order (jet BUG-005). It is checked in simulation only, at the
 cache ports (the pair rig's `_check_wb_order`); jet has no fabric proof
 (jet-prime's `ap_wb_order` covers the same rule on its pipelined fabric).
+No jet run has yet presented two same-line write-backs at once, so on jet
+the check has not fired and the hold is unexercised (BUG-005).
