@@ -147,8 +147,16 @@ def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
     drv.freeze_trace(True)
     for p in rd_prog:
         drv.program_wr_engine(**p)
+    # The meters run through the pre-pass (clear_stats zeros them before the
+    # timed GO): wait_engine's progress probe reads the write meter, and with
+    # the meters frozen it saw no progress, so the wait ended on its bare
+    # wall-clock bound. In simulation that bound fell mid-pre-pass on a
+    # loaded machine and the timed phase reprogrammed engines still writing
+    # (memory-controllers MC-023, 2026-11-26).
+    drv.freeze_trace(False)
     drv.start_wr(mask)
     pre_ok = pm.wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    drv.freeze_trace(True)
     if not pre_ok and diag is not None and host_diag is not None:
         diag["mixed_prepass"] = host_diag(drv)
 
@@ -257,8 +265,10 @@ def measure_conc(fam, drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
     # Untimed pre-pass: the reader's region, written by generator 1's write engine.
     drv.freeze_trace(True)
     drv.program_wr_engine(**rd_prog)
+    drv.freeze_trace(False)          # live meters for the progress probe (see measure)
     drv.start_wr(0b10)
     pre_ok = pm.wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    drv.freeze_trace(True)
     if not pre_ok and diag is not None and host_diag is not None:
         diag[f"{fam}_prepass"] = host_diag(drv)
 

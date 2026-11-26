@@ -193,7 +193,8 @@ async def _ref_align_probe(dut, events):
     """TEST_REF_ALIGN (memory-controllers MC-025): per launch (any GO bit in
     the chargen block), the cycles to the harness's tREFI reload pulse and the
     controller's countdown the cycle after it. Checked at the end of the test:
-    every launch gets one reload at offset + 1 and the counter holds tREFI."""
+    every launch gets one reload at offset + 1 and the counter holds tREFI - 1
+    (it expires at 0, so the period is tREFI; MC-023, 2026-11-26)."""
     try:
         mac = dut.u_dut.u_dut
         eng = mac.u_engines
@@ -1136,18 +1137,22 @@ async def cocotb_test_granite_perf(dut):
                       f["rd_util"], (f">={gate}" if gate else "-"))
 
     # TEST_REF_ALIGN: the reload lands at launch + offset + 1 on every launch, and the
-    # controller's countdown holds the programmed tREFI the cycle after (MC-025).
+    # controller's countdown holds the programmed tREFI - 1 the cycle after (MC-025;
+    # the counter expires at 0, so the period is tREFI -- MC-023, 2026-11-26).
     if os.environ.get("TEST_REF_ALIGN", ""):
         off = int(os.environ["TEST_REF_ALIGN"], 0)
         dut._log.info("TEST_REF_ALIGN %d: %d reloads %s", off, len(ref_align_events), ref_align_events[:6])
         assert ref_align_events, "TEST_REF_ALIGN set but no reload pulse was seen"
         for ev in ref_align_events:
             assert ev["dist"] == off + 1, f"reload {ev['dist']} cycles after launch, expected {off + 1}: {ev}"
-            assert ev["cnt_after"] == t_refi, f"tREFI countdown {ev['cnt_after']} after the reload, expected {t_refi}: {ev}"
+            assert ev["cnt_after"] == t_refi - 1, f"tREFI countdown {ev['cnt_after']} after the reload, expected {t_refi - 1}: {ev}"
 
     # Integrity must hold for the perf number to be trustworthy.
     for fk in fam_names:
         f = fams[fk]
+        # A pre-pass that did not finish leaves the timed phase reprogramming
+        # engines still writing: the record is not a measurement.
+        assert f.get("prepass_ok", True), f"{fk}: read-region pre-pass did not complete"
         assert f["wr_ok"], f"{fk}: write engine did not complete"
         assert f["rd_ok"], f"{fk}: read engine did not complete"
         assert f["mismatched"] == 0, f"{fk}: {f['mismatched']} beats mismatched"
