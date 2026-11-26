@@ -2,7 +2,7 @@
 
 # vault/tracking/projects/components/riscv-ip/common-rv32i — tasks
 
-**Next ID: TASK-003** — never recycle a number, even when its item closed.
+**Next ID: TASK-004** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **TASK-003** — the `bin/apps/core_drills` app: design doc, then merlin modes 1-2 and peregrine's predictor drill (mode 3); split out of peregrine-rv32im TASK-003, deferred.
 
 ## Active
 

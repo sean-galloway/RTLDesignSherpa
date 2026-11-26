@@ -1,0 +1,141 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "PPPPPPPP"
+    },
+    {
+      "name": "cycle",
+      "wave": "22222222",
+      "data": [
+        "n",
+        "n+1",
+        "n+2",
+        "n+3",
+        "n+4",
+        "n+5",
+        "n+6",
+        "n+7"
+      ]
+    },
+    [
+      "predicted taken",
+      {
+        "name": "IF",
+        "wave": "========",
+        "data": [
+          "BR",
+          "T",
+          "T+4",
+          "T+8",
+          "T+12",
+          "T+16",
+          "T+20",
+          "T+24"
+        ]
+      },
+      {
+        "name": "ID",
+        "wave": "x=======",
+        "data": [
+          "BR",
+          "T",
+          "T+4",
+          "T+8",
+          "T+12",
+          "T+16",
+          "T+20"
+        ]
+      },
+      {
+        "name": "EX",
+        "wave": "x.======",
+        "data": [
+          "BR",
+          "T",
+          "T+4",
+          "T+8",
+          "T+12",
+          "T+16"
+        ]
+      },
+      {
+        "name": "ex_mispredict",
+        "wave": "0......."
+      },
+      {
+        "name": "retire (WB)",
+        "wave": "x...====",
+        "data": [
+          "BR",
+          "T",
+          "T+4",
+          "T+8"
+        ]
+      }
+    ],
+    {},
+    [
+      "mispredicted",
+      {
+        "name": "IF",
+        "wave": "========",
+        "data": [
+          "BR",
+          "BR+4",
+          "BR+8",
+          "T",
+          "T+4",
+          "T+8",
+          "T+12",
+          "T+16"
+        ]
+      },
+      {
+        "name": "ID",
+        "wave": "x=======",
+        "data": [
+          "BR",
+          "BR+4",
+          "-",
+          "T",
+          "T+4",
+          "T+8",
+          "T+12"
+        ]
+      },
+      {
+        "name": "EX",
+        "wave": "x.======",
+        "data": [
+          "BR",
+          "-",
+          "- ",
+          "T",
+          "T+4",
+          "T+8"
+        ]
+      },
+      {
+        "name": "ex_mispredict",
+        "wave": "0.10...."
+      },
+      {
+        "name": "retire (WB)",
+        "wave": "x...====",
+        "data": [
+          "BR",
+          "-",
+          "- ",
+          "T"
+        ]
+      }
+    ]
+  ],
+  "config": {
+    "hscale": 1.6
+  },
+  "head": {
+    "text": "A taken branch: predicted, 0 bubbles; mispredicted, 2 (redirect from EX)"
+  }
+}

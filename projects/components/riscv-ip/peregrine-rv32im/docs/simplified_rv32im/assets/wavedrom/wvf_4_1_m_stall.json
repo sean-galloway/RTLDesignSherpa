@@ -1,0 +1,87 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "PPPP|PPPPP"
+    },
+    {
+      "name": "cycle",
+      "wave": "2222|22222",
+      "data": [
+        "e-1",
+        "e",
+        "e+1",
+        "e+2",
+        "e+32",
+        "e+33",
+        "e+34",
+        "e+35",
+        "e+36"
+      ]
+    },
+    {
+      "name": "ID",
+      "wave": "==..|..===",
+      "data": [
+        "MUL",
+        "A",
+        "A+4",
+        "A+8",
+        "A+12"
+      ]
+    },
+    {
+      "name": "EX",
+      "wave": "==..|..===",
+      "data": [
+        "X",
+        "MUL",
+        "A",
+        "A+4",
+        "A+8"
+      ]
+    },
+    {
+      "name": "ex_m_stall",
+      "wave": "01..|.0..."
+    },
+    {
+      "name": "mdu busy",
+      "wave": "0.1.|.0..."
+    },
+    {
+      "name": "mdu done",
+      "wave": "0...|.10.."
+    },
+    {
+      "name": "MEM",
+      "wave": "===.|..===",
+      "data": [
+        "W",
+        "X",
+        "-",
+        "MUL",
+        "A",
+        "A+4"
+      ]
+    },
+    {
+      "name": "retire (WB)",
+      "wave": "====|...==",
+      "data": [
+        "V",
+        "W",
+        "X",
+        "-",
+        "MUL",
+        "A"
+      ]
+    }
+  ],
+  "config": {
+    "hscale": 1.6
+  },
+  "head": {
+    "text": "An iterative MUL holds EX for 33 stall cycles; EX/MEM takes bubbles while older work drains"
+  }
+}

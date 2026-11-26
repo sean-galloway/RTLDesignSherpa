@@ -1,0 +1,108 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "PPPPPPP"
+    },
+    {
+      "name": "cycle",
+      "wave": "2222222",
+      "data": [
+        "m-1",
+        "m",
+        "m+1",
+        "m+2",
+        "m+3",
+        "m+4",
+        "m+5"
+      ]
+    },
+    {
+      "name": "IF",
+      "wave": "=======",
+      "data": [
+        "E+8",
+        "E+12",
+        "H",
+        "H+4",
+        "H+8",
+        "H+12",
+        "H+16"
+      ]
+    },
+    {
+      "name": "ID",
+      "wave": "=======",
+      "data": [
+        "E+4",
+        "E+8",
+        "-",
+        "H",
+        "H+4",
+        "H+8",
+        "H+12"
+      ]
+    },
+    {
+      "name": "EX",
+      "wave": "=======",
+      "data": [
+        "E",
+        "E+4",
+        "-",
+        "- ",
+        "H",
+        "H+4",
+        "H+8"
+      ]
+    },
+    {
+      "name": "MEM",
+      "wave": "=======",
+      "data": [
+        "E-4",
+        "E",
+        "-",
+        "- ",
+        "-  ",
+        "H",
+        "H+4"
+      ]
+    },
+    {
+      "name": "mem_trap",
+      "wave": "010...."
+    },
+    {
+      "name": "mepc / mcause",
+      "wave": "=.=....",
+      "data": [
+        "old",
+        "E / 11"
+      ]
+    },
+    {
+      "name": "retire (WB)",
+      "wave": "=======",
+      "data": [
+        "E-8",
+        "E-4",
+        "E",
+        "-",
+        "- ",
+        "-  ",
+        "H"
+      ]
+    },
+    {
+      "name": "rvfi_trap",
+      "wave": "0.10..."
+    }
+  ],
+  "config": {
+    "hscale": 1.6
+  },
+  "head": {
+    "text": "Trap entry: ecall commits in MEM, retires as a trap beat, 3 bubbles to the handler"
+  }
+}
