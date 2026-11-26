@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/jet-mesi-l1 — bugs
 
-**Next ID: BUG-006** — never recycle a number, even when its item closed.
+**Next ID: BUG-007** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what
 correct looks like. If you cannot state the expected behaviour, it is an
@@ -12,7 +12,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 5 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Open
 
-(none)
+- **BUG-006** ([page](open/BUG-006.md)) — jet_pair_fabric's write-port arbiter keeps the LAST match of a scan that ends at the previous winner: the last winner keeps top priority (the comment says fair round-robin). Fairness by timing accident; jet BUG-005 scenario (j) depends on it. P2. Filed 2026-11-26.
 
 ## Active
 
