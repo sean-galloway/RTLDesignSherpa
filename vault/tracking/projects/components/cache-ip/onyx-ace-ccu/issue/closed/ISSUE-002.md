@@ -1,7 +1,7 @@
 # ISSUE-002: a snarfed write-back victim still drains after passing the line dirty; an IO WriteUnique that lands before it is overwritten
 
 **Priority:** P3
-**Status:** ACTIVE 2026-11-24 -- resolved on both sides and sim-verified; onyx `prove` (depth 24) and `prove_book` PASS, jet-prime control liveness PASS; the jet-prime control safety prove is still running
+**Status:** CLOSED 2026-11-25 -- resolved on both sides and sim-verified; onyx `prove` (depth 24) and `prove_book` PASS, jet-prime control safety (BMC depth 64) and liveness (depth 112) PASS, pair fabric `prove` and `prove_book` PASS
 **Owner:** TBD
 **Filed:** 2026-11-23 (onyx TASK-001 step 7)
 
@@ -80,5 +80,9 @@ on, landed after the new owner's write-back). Both sides are now fixed:
   the upgrade's resident S; the RTL's Invalid is correct (fixed in both
   models and the core model).
 
-Closes when the onyx `prove` / `prove_book` and jet-prime's control and
-pair-fabric proofs pass on the regenerated flats.
+Closed 2026-11-25: every proof passed on the regenerated flats -- onyx
+`prove` (depth 24, 29:28 h) and `prove_book`; jet-prime control liveness
+(depth 112, 15:20) and safety (BMC depth 64, 39:30 h); pair fabric `prove`
+and `prove_book`. Left open elsewhere: no onyx proof or sim drives
+WriteClean (TASK-001), and jet carries the same defect (jet BUG-005,
+deferred: jet is frozen).

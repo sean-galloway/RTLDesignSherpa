@@ -13,8 +13,8 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,15 +24,17 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Active
 
-- **BUG-002** ([page](active/BUG-002.md)) — a write-back victim passed on by a
+(none)
+
+## Closed
+
+- **BUG-002** ([page](closed/BUG-002.md)) — a write-back victim passed on by a
   snoop still drained, and its stale bytes could land after the new owner's
   write-back (two caches, no IO port; found as onyx ISSUE-002, reproduced
   2026-11-24 by a hot-set soak phase). Fixed and sim-verified 2026-11-24: the
   entry ends at the snoop, a draining one answers no further snoop, the
-  fabric orders same-line write-backs by presentation; proofs running.
-
-## Closed
-
+  fabric orders same-line write-backs by presentation. Closed 2026-11-25
+  on the proofs (control safety BMC 64 and liveness 112, pair fabric, onyx).
 - **BUG-003** ([page](closed/BUG-003.md)) — the fill unit test's capture-hold
   check summed the beats of the slot behind the held one, which the
   out-of-order responder may legitimately stream (seed 13525); split per

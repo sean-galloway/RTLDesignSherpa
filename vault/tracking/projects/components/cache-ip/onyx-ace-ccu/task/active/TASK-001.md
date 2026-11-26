@@ -587,3 +587,8 @@ Found and measured:
   buffer (the sim's uniform soak reached it 0-6 times a cell, the
   hot-set phase 21-102). Exercising it on the board needs a hot-set
   profile in the sweep; nothing counts WB snarfs on the board today.
+- 2026-11-25 **ISSUE-002 closed:** the jet-prime control safety prove
+  (BMC depth 64, 39:30 h) PASS on the committed flat (e6957a314), the last
+  proof outstanding; ISSUE-002 and jet-prime BUG-002 closed. Still open from
+  it: WriteClean is driven by no onyx proof or sim; a hot-set board profile
+  and a WB-snarf counter if the board is to exercise the fix.
