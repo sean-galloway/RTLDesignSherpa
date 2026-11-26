@@ -120,12 +120,12 @@ architecture; `docs/hive_mas/` for block internals.
 
 ### 3.2 Resource Budget (NexysA7 100T)
 
-**FPGA Target:** Xilinx Artix-7 XC7A100T-1CSG324C
+**FPGA Target:** Xilinx Artix-7 XC7A100T-1CSG324C; **clock: 75 MHz** for every HIVE domain (HIVE-C, engine monitor, Delta), owner 2026-11-25
 
 | Component | LUTs | FFs | DSPs | BRAM (36Kb) | Notes |
 |-----------|------|-----|------|-------------|-------|
 | **Block 1: HIVE-C Controller** | 1,400 | 900 | 0 | 8 | VexRiscv "Small" config |
-| **Block 2: Engine Monitor (1 gatling, 4 contexts)** | 1,900 | 1,750 | 0 | 5 | gatling_core 1,066 + gatling_mem_bram 799 LUTs as measured on the Nexys A7 board build (100 MHz); FFs are the whole board top's 1,742, an upper bound; BRAM at 4 KB per context (`MEM_WORDS=1024`, SERV's 2+2 KB): 4 banks + 1 register-file tile. The four per-engine peripheral sets are not in the row (they were not in the SERV row either) |
+| **Block 2: Engine Monitor (1 gatling, 4 contexts)** | 1,900 | 1,750 | 0 | 5 | gatling_core 1,066 + gatling_mem_bram 799 LUTs as measured on gatling's Nexys A7 board build (closed at 100 MHz, above HIVE's 75 MHz); FFs are the whole board top's 1,742, an upper bound; BRAM at 4 KB per context (`MEM_WORDS=1024`, SERV's 2+2 KB): 4 banks + 1 register-file tile. 4 KB is the size for now (owner, 2026-11-25); it is one parameter, and the BRAM column follows it (gatling's 16 KB default is 17 BRAMs). The four per-engine peripheral sets are not in the row (they were not in the SERV row either) |
 | **Block 3: Control Network** | 300 | 200 | 0 | 1 | HIVE-C ↔ engine monitor, 4 slave ports; scaled from the 16-slave estimate, not measured |
 | **Block 4: Configuration Manager** | 1,500 | 1,200 | 0 | 2 | Virtual contexts |
 | **HIVE control plane subtotal** | **5,100** | **4,050** | **0** | **16** | 8.0% LUT, 12% BRAM |
@@ -158,7 +158,7 @@ architecture; `docs/hive_mas/` for block internals.
 | Feature | Status | Description |
 |---------|--------|-------------|
 | VexRiscv master (HIVE-C) | note | RV32IM, 5-stage pipeline, 32KB I-mem + 32KB D-mem |
-| Engine monitor (1 gatling) | note | RV32I barrel, four contexts, one per compute engine; each context retires one instruction every 4 cycles (25 MIPS per engine at 100 MHz) from a private 4 KB program/data bank |
+| Engine monitor (1 gatling) | note | RV32I barrel, four contexts, one per compute engine; each context retires one instruction every 4 cycles (18.75 MIPS per engine at 75 MHz) from a private 4 KB program/data bank; each context reads a `MON_ID` register ({engine Delta tile ID, gatling ID, context number}) and a `TIME` register from its peripheral window |
 | Control network | note | Star topology, 4 slave ports, round-robin arbitration |
 | Independent firmware | note | Separate binaries for HIVE-C and the monitor; the four monitor contexts run the same image |
 
@@ -170,7 +170,7 @@ architecture; `docs/hive_mas/` for block internals.
 | Buffer occupancy tracking | note | Real-time FIFO fill levels |
 | Congestion detection | note | Programmable thresholds, immediate alerts |
 | Error detection | note | Parity errors, protocol violations |
-| Periodic reporting | note | Configurable interval (default 1000 cycles) |
+| Periodic reporting | note | Configurable interval (default 1000 cycles), timed from the Ocelus time base (§4.5) |
 
 ### 4.3 Network Reconfiguration
 
@@ -189,6 +189,14 @@ architecture; `docs/hive_mas/` for block internals.
 | Low-latency delivery | note | ~10-20 cycles vs. 100+ for memory-mapped |
 | AXIS master interface | note | Direct injection into Delta Network |
 | Completion tracking | note | PKT_STATUS packets from RAPIDS |
+
+### 4.5 Observation and time base (owner, 2026-11-25)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Ocelus monitor on gatling | note | An Ocelus monitor (`rtl/amba/ocelus/`) watches the engine monitor, as it watches the rest of the system, and reports on MonBus. gatling's own ports are not AMBA; which buses the monitor taps (the four AXIS injectors, the AXIL loader) is a MAS open item |
+| Local timer | note | The Ocelus monitor's `axi_monitor_timer`: a frequency-invariant tick (`counter_freq_invariant`) and a 32-bit count. HIVE reads it into the peripheral window's `TIME` register, so firmware times its periodic reports without a cycle counter of its own |
+| Global usync timer | note | One system-wide microsecond time base shared by every Ocelus monitor (rtl/amba/monitors TASK-005, open). When it lands, `TIME` reads the usync value, so engine reports and MonBus packets carry the same time |
 
 ---
 
@@ -285,7 +293,7 @@ mesh range whatever its size.
 ### 8.1 Latency Targets
 
 - **Descriptor Injection:** < 30 cycles (HIVE-C → RAPIDS)
-- **Command Response:** < 1 µs @ 100 MHz
+- **Command Response:** < 1 µs @ 75 MHz (75 cycles)
 - **Monitoring Aggregation:** < 100 cycles for all 4 engine status reads
 - **Context Switch:** < 25 cycles (including quiesce)
 
@@ -293,7 +301,7 @@ mesh range whatever its size.
 
 - **Monitor Overhead:** < 5% of compute-engine time (the router taps are observation-only)
 - **Congestion Detection Latency:** < 10 cycles
-- **Periodic Reporting Interval:** 1000 cycles (configurable)
+- **Periodic Reporting Interval:** 1000 cycles (configurable), measured on the `TIME` register
 
 **See:** `docs/hive_has/ch06_performance/01_performance.md` for the full
 target set and the tradeoff tables behind them.
@@ -307,7 +315,7 @@ target set and the tradeoff tables behind them.
 ```systemverilog
 // Top-level integration example (architectural port names)
 module system_top (
-    input  logic        clk_100mhz,
+    input  logic        clk_75mhz,
     input  logic        rst_n,
     // Host interface
     input  logic [31:0] host_cmd,
@@ -318,7 +326,7 @@ module system_top (
 
     // HIVE instance
     hive_top u_hive (
-        .aclk           (clk_100mhz),
+        .aclk           (clk_75mhz),
         .aresetn        (rst_n),
         .host_cmd       (host_cmd),
         .host_resp      (host_resp),
@@ -327,8 +335,8 @@ module system_top (
     );
 
     // Delta Network instance
-    delta_network_4x4 u_delta (
-        .aclk           (clk_100mhz),
+    delta_network_2x2 u_delta (
+        .aclk           (clk_75mhz),
         .aresetn        (rst_n),
         .tile16_*       (rapids_interface),  // RAPIDS virtual tile
         .tile17_*       (hive_interface)     // HIVE-C virtual tile
@@ -336,7 +344,7 @@ module system_top (
 
     // RAPIDS instance
     rapids_top u_rapids (
-        .aclk           (clk_100mhz),
+        .aclk           (clk_75mhz),
         .aresetn        (rst_n),
         .axis_cda_*     (rapids_interface),  // From Delta
         .m_axi_*        (memory_interface)   // To external memory
@@ -382,7 +390,8 @@ HIVE-C's core sits behind the `hive_c_loader` contract (AXIL loader window,
 load-then-run); the LDR testplan verifies that contract, not the core. That
 deliberate isolation makes the core **swappable by parameter** (`CORE_FLAVOR`,
 to be recorded in the MAS): `vexriscv` is the default today, `peregrine` is
-the intended successor when falcon rung 3 lands. The swap touches only the
+the intended successor when falcon rung 3 lands. (peregrine closes at 54.1 MHz, its PRD P14, so as
+HIVE-C it would need its own clock or a faster build to meet HIVE's 75 MHz.) The swap touches only the
 wrapper's core-facing glue (VexRiscv native ibus/dbus cmd/rsp vs peregrine's
 caches-behind-AXI4); the loader, firmware, and testplan carry over unchanged.
 
@@ -436,6 +445,19 @@ HIVE demonstrates:
   Quick stats, block diagram, resource budget, interfaces, tile map,
   scenarios and performance targets updated. HIVE-C and the §10.3 core
   strategy are unchanged.
+- 2026-11-25, later: owner answers to the v0.3 open items. (1) "have a
+  gatlin id along with the existing hart id": each context reads `MON_ID`
+  in its peripheral window, {engine Delta tile ID, gatling ID, context
+  number}; gatling's core is unchanged (its `mhartid` still reads 0). The
+  owner notes the engine's Delta unit already has its own unique ID, and
+  that is what identifies the engine: `axis_injector` stamps it on every
+  packet, so the register is for firmware that labels its reports, not for
+  addressing. (2) "there should be an ocelus watching gatlin; with these
+  there is a local timer and a global usync timer": §4.5; no HIVE-specific
+  timer. (3) 4 KB per context for now, a one-parameter change later.
+  (4) "update hive to 75mhz": every HIVE clock domain targets 75 MHz;
+  §8.1's command response becomes 75 cycles. §10.3's successor core,
+  peregrine, closes at 54.1 MHz (its PRD P14), below this target.
 - 2026-10-12: PRD 0.2. HAS/MAS v0.2 published.
 
 ## 13. Documentation Generation

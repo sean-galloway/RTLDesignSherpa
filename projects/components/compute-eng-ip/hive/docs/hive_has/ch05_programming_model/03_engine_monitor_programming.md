@@ -26,18 +26,24 @@
 The engine monitor is one gatling core (riscv-ip/gatling-rv32i): four
 barrel contexts, context *n* watching compute engine *n*. Each context runs a
 small monitor firmware image from its own 4 KB bank, and all four run the
-same image. gatling contexts cannot tell themselves apart (`mhartid` reads 0
-on every context, gatling PRD §3.3); instead the monitor top routes each
-context's accesses to the peripheral window to its own engine's peripherals,
-so the same address names a different engine's counters in each context.
+same image. The monitor top routes each context's accesses to the
+peripheral window to its own engine's peripherals, so the same address names
+a different engine's counters in each context. gatling's `mhartid` reads 0 on
+every context (gatling PRD §3.3); a context that needs to know who it is
+reads `MON_ID` in its window: the engine's Delta tile ID, the gatling ID and
+its context number. The Delta tile ID is what identifies the engine: the
+injector stamps it on every packet whether or not firmware reads it, so
+`MON_ID` is for firmware that labels its own reports.
 (v0.2 had sixteen SERV cores, each reading its tile ID from a register at
 0xF000_0000.)
 
 What gatling's ISA means for monitor firmware:
 
 - **RV32I only.** No CSRs: every CSR reads 0 and drops writes, and there is
-  no cycle counter (Zicntr was removed from gatling). A time base comes from
-  the peripheral window.
+  no cycle counter (Zicntr was removed from gatling). Time comes from the
+  `TIME` register in the peripheral window, which reads the Ocelus time base:
+  the local timer of the Ocelus monitor that watches gatling now, the global
+  usync timer once rtl/amba/monitors TASK-005 lands.
 - **No interrupts.** Firmware polls `trigger_logic`'s flags; the hardware
   comparator keeps congestion detection inside its < 10 cycle budget
   whatever the firmware is doing.
@@ -45,7 +51,7 @@ What gatling's ISA means for monitor firmware:
   misaligned access). The other three engines stay monitored, and HIVE-C
   sees the halt in the context's status and can reload and restart it.
 - **Throughput:** each context retires one instruction every four cycles
-  (25 MIPS per engine at 100 MHz), where a SERV took one bit per cycle.
+  (18.75 MIPS per engine at 75 MHz), where a SERV took one bit per cycle.
 
 ## Trigger Conditions
 
@@ -55,7 +61,7 @@ The monitor firmware evaluates five trigger classes:
 |---|---------|-------------------|--------|
 | 1 | Congestion | `buffer_occupancy > 75%` | Send PKT_STATUS congestion alert to HIVE-C; optionally throttle local injection |
 | 2 | Error | parity error or protocol violation | Send error status packet; halt local injection pending recovery |
-| 3 | Periodic report | 1000 cycles | Send statistics snapshot to HIVE-C |
+| 3 | Periodic report | 1000 cycles, read on `TIME` | Send statistics snapshot to HIVE-C |
 | 4 | Descriptor queue event | RAPIDS completion signal | Notify HIVE-C for next-batch scheduling |
 | 5 | Custom | user-defined via debug registers | Inject debug trace packet |
 

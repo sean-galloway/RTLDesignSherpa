@@ -6,7 +6,8 @@
 # its four barrel contexts monitor the four compute engines, one each. The
 # per-engine scenarios SM-01..SM-06 carry over unchanged (they test the
 # peripheral set one engine sees); SM-07 is rewritten for gatling and SM-08
-# is new (the context-to-engine decode).
+# is new (the context-to-engine decode). SM-09 (MON_ID) and SM-10 (TIME,
+# the Ocelus time base) are new from the owner's answers the same day.
 
 module: hive_engine_monitor
 rtl_file: projects/components/compute-eng-ip/hive/rtl/engine_monitor/engine_monitor_top.sv (PLANNED - RTL not written yet, vault hive TASK-000)
@@ -118,4 +119,29 @@ functional_scenarios:
     test_function: "cocotb_test_hive_engine_monitor"
     test_level: func
     priority: high
+    status: planned
+
+  - id: SM-09
+    name: "MON_ID per context"
+    description: "Each context reads MON_ID from its peripheral window:
+                  [31:24] its engine's Delta tile ID (the injector's
+                  TILE_ID), [15:8] GATLING_ID, [7:0] its context number;
+                  the four contexts running one image read four different
+                  values (owner 2026-11-25: a gatling ID along with the
+                  hart ID; gatling's mhartid still reads 0)."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: gate
+    priority: medium
+    status: planned
+
+  - id: SM-10
+    name: "TIME reads the Ocelus time base"
+    description: "TIME follows the Ocelus monitor's local timer
+                  (axi_monitor_timer count) in every context; a firmware
+                  periodic report timed on TIME fires once per configured
+                  interval. Repointed at the global usync value when
+                  rtl/amba/monitors TASK-005 lands."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: func
+    priority: medium
     status: planned

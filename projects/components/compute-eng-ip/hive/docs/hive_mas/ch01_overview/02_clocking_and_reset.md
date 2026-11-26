@@ -27,16 +27,17 @@
 
 | Domain | Clock | Frequency | Components |
 |--------|-------|-----------|------------|
-| 1 | `hive_c_clk` | 100 MHz (PoC), 150+ MHz (optimized) | VexRiscv core, I/D memories, descriptor generation, control-network master, CDA AXIS master |
-| 2 | `mon_clk` | 100 MHz | The engine monitor: the gatling core and its memory, and the four per-engine peripheral sets (traffic counters, trigger logic, injection FIFOs, control-network slaves) |
-| 3 | `delta_clk` | 100 MHz | Delta routers, NI, router configuration registers (Delta-owned; HIVE writes them) |
+| 1 | `hive_c_clk` | 75 MHz | VexRiscv core, I/D memories, descriptor generation, control-network master, CDA AXIS master |
+| 2 | `mon_clk` | 75 MHz | The engine monitor: the gatling core and its memory, and the four per-engine peripheral sets (traffic counters, trigger logic, injection FIFOs, control-network slaves) |
+| 3 | `delta_clk` | 75 MHz | Delta routers, NI, router configuration registers (Delta-owned; HIVE writes them) |
 | 4 | `host_clk` | 50-100 MHz, external | UART, AXI4-Lite slave, command parser |
 
 : Clock domains
 
 `mon_clk` is the one engine-monitor domain: one gatling core and the four
 engines' peripherals. (v0.2 named it `serv_clk`, shared by sixteen SERVs.)
-gatling's board build closes at 100 MHz on the Nexys A7.
+Every HIVE domain targets 75 MHz (owner, 2026-11-25); gatling's own board
+build closes at 100 MHz on the Nexys A7, so the monitor has margin there.
 `delta_clk` may be phase-aligned with `hive_c_clk` in the PoC but must not
 be assumed synchronous; all crossings use the async FIFOs below regardless.
 

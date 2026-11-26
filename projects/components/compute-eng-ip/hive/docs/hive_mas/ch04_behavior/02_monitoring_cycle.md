@@ -35,7 +35,8 @@ the same loop on their own engines, interleaved by gatling's rotation.
    congestion line is combinationally current with the tap (this is what
    meets the < 10-cycle detection target — no firmware round trip).
 3. The context polls `trigger_logic` and the counter bank (gatling has no
-   interrupts); on the periodic-report interval it snapshots metrics into
+   interrupts); when its `TIME` register (the Ocelus time base, MAS
+   Chapter 2) passes the periodic-report interval it snapshots metrics into
    the uplink frame. The context issues one instruction every four
    `mon_clk` cycles.
 

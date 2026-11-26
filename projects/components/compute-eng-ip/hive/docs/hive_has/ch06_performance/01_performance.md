@@ -32,7 +32,7 @@ the acceptance criteria RTL bring-up will be verified against.
 |--------|--------|-------|
 | Descriptor injection (HIVE-C → RAPIDS) | < 30 cycles | Includes AXIS handshake + Delta traversal |
 | CDA packet latency through Delta | ~10-20 cycles | One hop per router; tile 16 is edge-attached |
-| Command response (host → HIVE-C action) | < 1 µs @ 100 MHz | Host interface round trip |
+| Command response (host → HIVE-C action) | < 1 µs @ 75 MHz (75 cycles) | Host interface round trip |
 | Context switch (incl. quiesce) | < 25 cycles | Deterministic; 10-20 typical |
 | Congestion detection (occupancy → alert sent) | < 10 cycles | `trigger_logic` evaluation + packetize |
 | Status packet generation | < 5 cycles | From trigger to `tvalid` |
@@ -83,7 +83,7 @@ monitors tracking accurately; context switch < 25 cycles; correct routing for al
 four packet classes; zero packet loss under normal operation; congestion
 alert < 10 cycles.
 
-Performance: ≥ 100 MHz on NexysA7 100T; descriptor injection < 30 cycles;
+Performance: 75 MHz on NexysA7 100T; descriptor injection < 30 cycles;
 NoC ≥ 80% theoretical throughput; monitor overhead < 5%; switch overhead < 1%
 on 1000+ cycle phases.
 

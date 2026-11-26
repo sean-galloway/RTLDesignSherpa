@@ -40,7 +40,7 @@ Single VexRiscv RISC-V processor serving as the global coordinator.
 | Core | VexRiscv "Small" configuration |
 | ISA | RV32IM (no compressed, no floating point) |
 | Pipeline | 5-stage |
-| Frequency | 100 MHz (PoC), 150+ MHz (optimized target) |
+| Frequency | 75 MHz, the HIVE target for every domain (owner, 2026-11-25) |
 | Memory | 32 KB tightly-coupled I-mem + 32 KB tightly-coupled D-mem (BRAM) |
 | External interfaces | UART/AXI4-Lite slave (host), AXIS master (CDA injection), control network master (engine monitor) |
 
@@ -55,7 +55,7 @@ Single VexRiscv RISC-V processor serving as the global coordinator.
 6. Handle interrupt routing and exception processing
 
 **Performance targets:** descriptor injection < 30 cycles (HIVE-C → RAPIDS);
-command response < 1 µs @ 100 MHz; status aggregation over all four engines < 100 cycles.
+command response < 1 µs @ 75 MHz (75 cycles); status aggregation over all four engines < 100 cycles.
 
 ---
 
@@ -76,8 +76,8 @@ v0.2 design of sixteen SERV bit-serial cores, one per tile of a 4x4 mesh
 | Core | gatling (`gatling_core` + `gatling_mem_bram`) |
 | ISA | RV32I; no CSRs (every CSR reads 0), no interrupts, no trap vector |
 | Contexts | 4, strict rotation; context *n* monitors engine *n* |
-| Throughput | 1 instruction per 4 cycles per context (25 MIPS per engine at 100 MHz) |
-| Frequency | 100 MHz (the gatling board build closes at 100 MHz on the Nexys A7) |
+| Throughput | 1 instruction per 4 cycles per context (18.75 MIPS per engine at 75 MHz) |
+| Frequency | 75 MHz, HIVE's target (gatling's own board build closes at 100 MHz on the Nexys A7) |
 | Memory | one private program/data bank per context, 4 KB each (`MEM_WORDS=1024`), loaded and started per context over the bank's AXI4-Lite port |
 | Resources | about 1,900 LUTs (core 1,066 + memory 799, gatling board build), 5 BRAM at 4 KB per context |
 | Interfaces | per engine: control-network slave (from HIVE-C), AXIS master (PKT_CONFIG/PKT_STATUS), router monitoring tap |
@@ -115,7 +115,9 @@ context-lock); the other three engines stay monitored.
 
 **Performance targets:** monitoring overhead < 5% of compute-engine time;
 congestion detection < 10 cycles; periodic reporting interval 1000 cycles
-(configurable).
+(configurable), timed on the `TIME` register, which reads the Ocelus time
+base (the monitor's local timer now, the global usync timer once
+rtl/amba/monitors TASK-005 lands).
 
 ---
 

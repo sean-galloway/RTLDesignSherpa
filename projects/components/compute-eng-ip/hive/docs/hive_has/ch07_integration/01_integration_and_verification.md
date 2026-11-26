@@ -65,7 +65,7 @@ The tile internals (NI, router, compute element) are Delta's architecture:
 ```systemverilog
 // Top-level integration example (architectural port names; see MAS ch.3)
 module system_top (
-    input  logic        clk_100mhz,
+    input  logic        clk_75mhz,
     input  logic        rst_n,
     // Host interface
     input  logic [31:0] host_cmd,
@@ -76,7 +76,7 @@ module system_top (
 
     // HIVE instance
     hive_top u_hive (
-        .aclk           (clk_100mhz),
+        .aclk           (clk_75mhz),
         .aresetn        (rst_n),
         .host_cmd       (host_cmd),
         .host_resp      (host_resp),
@@ -86,7 +86,7 @@ module system_top (
 
     // Delta Network instance
     delta_network_2x2 u_delta (
-        .aclk           (clk_100mhz),
+        .aclk           (clk_75mhz),
         .aresetn        (rst_n),
         .tile16_*       (rapids_interface),  // RAPIDS virtual tile
         .tile17_*       (hive_interface)     // HIVE-C virtual tile
@@ -94,7 +94,7 @@ module system_top (
 
     // RAPIDS instance
     rapids_top u_rapids (
-        .aclk           (clk_100mhz),
+        .aclk           (clk_75mhz),
         .aresetn        (rst_n),
         .axis_cda_*     (rapids_interface),  // From Delta
         .m_axi_*        (memory_interface)   // To external memory
@@ -160,7 +160,7 @@ vs. model validation.
 | 1 — Core infrastructure | VexRiscv integration + memories; gatling with one engine's peripheral set; basic AXIS injection; unit tests | 1-3 |
 | 2 — 2×2 system | 2×2 mesh + four compute engines + the engine monitor's four contexts; control network; config register bank; descriptor-injection integration test | 4-6 |
 | 3 — Full system | ≥ 2 virtual contexts; switch logic; HIVE-C scheduler firmware; RAPIDS + Delta end-to-end | 7-10 |
-| 4 — Optimization | 100 MHz closure; Artix-7 fit; SimPy-guided tuning | 11-12 |
+| 4 — Optimization | 75 MHz closure; Artix-7 fit; SimPy-guided tuning | 11-12 |
 | 5 — Validation | NexysA7 hardware-in-loop; model-vs-hardware; stress; tutorials | 13-14 |
 
 : Implementation roadmap

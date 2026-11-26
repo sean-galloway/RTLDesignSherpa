@@ -32,7 +32,9 @@ events, control-network grant sequence and per-slave service intervals,
 trigger_logic raw lines, switch_controller FSM state, and CDC FIFO
 full/empty flags. The repo's Ocelus monitor system attaches to this bus for
 protocol and coverage collection in system simulations — no internal
-signals are probed ad hoc.
+signals are probed ad hoc. An Ocelus monitor also watches the engine monitor
+in hardware (PRD §4.5); its local timer feeds each context's `TIME`
+register (Chapter 2, engine_monitor).
 
 ## Protocol Checkers (immediate assertions)
 

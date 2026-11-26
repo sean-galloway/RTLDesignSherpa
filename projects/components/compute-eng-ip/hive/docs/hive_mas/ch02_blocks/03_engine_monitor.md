@@ -73,9 +73,36 @@ gatling's rule that contexts are implicit and binaries uniform (gatling PRD
 the request, like the memory; the counter bank and the mailboxes are
 registered reads.
 
-(v0.2's `serv_wrapper` exposed a read-only tile-ID register at
-`0xF000_0000`. With the decode by context, firmware does not need its
-engine number; whether to expose one anyway is an open item below.)
+Two registers in the window are the same for every engine's set except
+for what they read:
+
+| Register | Access | Contents |
+|----------|--------|----------|
+| `MON_ID` | RO | [31:24] the engine's Delta tile ID (the injector's `TILE_ID`); [15:8] `GATLING_ID`, a parameter of the monitor top, 0 in HIVE's one-gatling build; [7:0] the context number, `dmem_ctx` |
+| `TIME` | RO | The Ocelus time base: the 32-bit count of the local `axi_monitor_timer` now, the global usync value once rtl/amba/monitors TASK-005 lands |
+
+: Identity and time registers in each peripheral set
+
+`MON_ID` (owner, 2026-11-25: a gatling ID along with the hart ID) does not
+change gatling's core: `mhartid` still reads 0, and the context number comes
+from `dmem_ctx`, which the decode already uses. Nothing in HIVE needs the
+register to address an engine: the decode by context routes the accesses,
+and the engine's Delta unit has its own unique tile ID, which
+`axis_injector` stamps on every packet. Firmware reads `MON_ID` only to
+label what it reports. (v0.2's `serv_wrapper` exposed a read-only tile-ID
+register at `0xF000_0000`.)
+
+## Observation and time
+
+An Ocelus monitor (`rtl/amba/ocelus/`) watches the engine monitor and
+reports on MonBus like the rest of the system (owner, 2026-11-25). Its
+`axi_monitor_timer` is the local timer: a frequency-invariant tick from
+`counter_freq_invariant`, so an interval set in ticks means the same time at
+any clock, and a 32-bit count, which `TIME` reads. When the global usync
+timer exists (rtl/amba/monitors TASK-005), every Ocelus monitor stamps from
+it and `TIME` reads it too, so an engine's report and a MonBus packet about
+the same event carry the same time. HIVE adds no timer of its own; the
+periodic report (Chapter 4) is timed on `TIME`.
 
 ## Per-engine peripherals
 
@@ -121,13 +148,13 @@ observation port out.
 
 - Tap synchronization (decided 2026-10-13): **dual-flop synchronizers** per
   direction at the tap boundary inside `traffic_counter`.
-- Whether `trigger_logic` also owns the periodic-report timer or the
-  context does (gatling has no cycle counter; a hardware timer in the
-  peripheral window is the likely answer).
-- Whether each context may read its engine number (an `ENGINE_ID` register
-  in the peripheral window). The decode by context makes it unnecessary for
-  the counters and injector; exposing it would be HIVE's departure from
-  gatling's implicit-context rule. Owner decision.
+- Periodic-report time base (decided 2026-11-25): the Ocelus monitor's
+  local timer, then the global usync timer, read through `TIME`.
+- Engine identity (decided 2026-11-25): `MON_ID` as above; the Delta tile
+  ID is the engine's identity.
+- Which buses the Ocelus monitor taps. gatling's instruction and data ports
+  are not AMBA; the four AXIS injectors (`axis_monitor_lite`) and the
+  `gatling_mem_bram` AXI4-Lite loader (`axi_monitor_lite`) are.
 - The peripheral window's base address (v0.2's `0xF000_0000` is a
   candidate) and its fit inside gatling's one-stage data latency.
 

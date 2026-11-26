@@ -30,6 +30,16 @@ What this voids or changes below:
   ctrl_network passes because the test logs CN-04 as a known issue and
   returns before CN-05..07 (it no longer fails at CN-05 as written below).
 
+Owner answers later the same day (PRD 0.3 history, §4.5):
+- Every HIVE clock domain targets **75 MHz** (was 100 MHz PoC / 150+ MHz).
+- `engine_monitor_top.sv` also carries two read-only registers in each
+  peripheral set: `MON_ID` = {engine Delta tile ID, `GATLING_ID`, context
+  number} and `TIME` (the Ocelus time base). Testplan SM-09 and SM-10.
+- An Ocelus monitor watches the engine monitor; its local
+  `axi_monitor_timer` feeds `TIME` now, the global usync timer
+  (rtl/amba/monitors TASK-005) later. No HIVE-specific timer.
+- 4 KB per context stays for now (`MEM_WORDS=1024`).
+
 ## Where this was left (session ran out of context mid-bring-up)
 
 Phase 1 of the HIVE RTL started 2026-10-13: cores acquired, scaffold + five
