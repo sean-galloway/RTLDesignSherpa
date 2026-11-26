@@ -1,7 +1,7 @@
 # TASK-002: peregrine HAS and MAS books (PRD §7 deliverable 2)
 
 **Priority:** P2
-**Status:** ACTIVE (2026-11-25; owner: "continue" after TASK-001 closed)
+**Status:** CLOSED 2026-11-25
 **Owner:** TBD (follows riscv-ip/peregrine-rv32im TASK-001)
 
 ## What
@@ -111,3 +111,8 @@ mismatch above: access faults not built (§3, §4.3), MonBus not built
 the §2 riscv-formal note. Error handling is TASK-005 (open). The three
 stale RTL header comments (`peregrine_top`, `peregrine_uc_axi`,
 `peregrine_hazard`) are corrected, comments only.
+
+## Closed (2026-11-25)
+
+Both books are built at v0.1 (3aa81b0e0) and the README row links them; the
+PRD mismatches they found are resolved (6e04a5976).
