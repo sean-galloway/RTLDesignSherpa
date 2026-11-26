@@ -14,8 +14,9 @@ by section):
   exit, precise halt) — a per-core MAS/MAS-erratum concern; this
   component owns the shared DTM/DM and the integration contract.
 
-Consumers: falcon rungs (kestrel → garuda) and hive-serv (VexRiscv +
-SERV carry core-native debug mode; the house DTM/DM is their transport).
+Consumers: falcon rungs (kestrel → garuda) and hive (VexRiscv
+carries core-native debug mode and the house DTM/DM is its transport;
+hive's gatling engine monitor has no debug mode).
 
 Reference design: Zhang, *RISC-V Architecture and DSP Processor Design*
 ch8 (DTM/DM structure walkthrough); the RISC-V Debug Specification

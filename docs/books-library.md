@@ -66,8 +66,8 @@ revision only) are indexed in the [Docs Library](docs-library.md),
 
 | Book | Source index |
 | --- | --- |
-| hive_has | [hive_has_index.md](../projects/components/compute-eng-ip/hive-serv/docs/hive_has/hive_has_index.md) |
-| hive_mas | [hive_mas_index.md](../projects/components/compute-eng-ip/hive-serv/docs/hive_mas/hive_mas_index.md) |
+| hive_has | [hive_has_index.md](../projects/components/compute-eng-ip/hive/docs/hive_has/hive_has_index.md) |
+| hive_mas | [hive_mas_index.md](../projects/components/compute-eng-ip/hive/docs/hive_mas/hive_mas_index.md) |
 
 ### dfx-ip
 

@@ -25,6 +25,12 @@
 
 ## 2.1 Network Position
 
+> **HIVE update (2026-11-25, hive PRD 0.3):** HIVE now monitors four compute
+> engines on a 2x2 mesh with one gatling core (one context per engine) in
+> place of the sixteen per-tile SERV monitors drawn below. The diagram and
+> the packet matrix keep this spec's 4x4 example; read "SERV N" as the
+> monitor context for tile N.
+
 ```
 +--------------------------------------------------------------+
 |                    HIVE Control Plane                        |

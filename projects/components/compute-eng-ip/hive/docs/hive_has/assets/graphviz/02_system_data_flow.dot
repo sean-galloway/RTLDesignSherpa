@@ -1,0 +1,44 @@
+// HIVE system data flow -- house style per vault/handbook/authoring/block-diagrams.md.
+// Converted from the ASCII figure in HAS ch02 (position in the RAPIDS / Delta
+// / HIVE ecosystem). Descriptors go down from the host through HIVE-C into
+// Delta and on to RAPIDS; RAPIDS moves data between DDR (the bar) and the
+// compute tiles through Delta; status climbs back to HIVE-C on the right.
+digraph hive_system_flow {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.90", ranksep="0.65", splines=ortho,
+           label="HIVE in the RAPIDS / Delta / HIVE system - descriptor, data and status flows",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    host  [label="Host system\n(x86 CPU, ARM SoC, ...)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    hivec [label="HIVE-C Controller (virtual tile 17)\nVexRiscv firmware: parse host commands, build RAPIDS descriptors,\ninject CDA packets, aggregate engine-monitor statistics, manage reconfiguration", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    serv  [label="Engine Monitor (one gatling, 4 contexts)\ntraffic counters, congestion detection,\npacket injection, one context per engine", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    delta [label="Delta Network (external)\nroutes every AXIS packet by TUSER / TDEST", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rapids [label="RAPIDS DMA Engine (virtual tile 16, external)\ndescriptor engine: parses 256-bit CDA descriptors,\nruns MM2S / S2MM transfers;\ncompletion interrupt to HIVE-C", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tiles [label="Compute Engines 0-3 (on the 2x2 Delta mesh)\nDSP MACs, local BRAM", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+
+    bar   [label="DDR memory (AXI4) - activations, weights, results", fillcolor="white", width=6, height=0.5, fontsize=11, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+
+    x_st [shape=point, width=0.01, height=0.01, label="", style=invis];
+
+    host  -> hivec  [dir=both, xlabel="commands (UART / AXI4-Lite)"];
+    hivec -> x_cda  [dir=none, xlabel="CDA descriptors\n(TUSER=01, TDEST=16)"];
+    x_cda -> delta;
+    x_cda [shape=point, width=0.01, height=0.01, label="", style=invis];
+    hivec -> serv   [xlabel="Control Network\ncommands"];
+    rapids -> bar   [dir=both, xlabel="AXI4 MM2S reads /\nS2MM writes"];
+    delta -> rapids [dir=both, xlabel="CDA + results in (TDEST=16) /\nPKT_DATA out (TDEST 0-3)"];
+    delta -> tiles  [dir=both, xlabel="PKT_DATA in /\nresults out (TID = engine)"];
+    serv  -> delta  [xlabel="PKT_STATUS / PKT_CONFIG"];
+    hivec -> x_st   [dir=back, xlabel="PKT_STATUS (TDEST=17)"];
+    x_st  -> delta  [dir=none];
+
+
+    { rank=same; hivec; }
+    { rank=same; serv; x_cda; x_st; }
+    serv -> x_cda -> x_st [style=invis];
+    { rank=same; rapids; tiles; }
+    rapids -> tiles [style=invis];
+}

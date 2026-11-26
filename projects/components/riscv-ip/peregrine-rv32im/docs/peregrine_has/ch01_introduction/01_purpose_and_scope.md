@@ -47,7 +47,7 @@ peregrine is meant to diff against merlin as additions: merlin's stage registers
 
 In scope: the ISA implemented, the programmer-visible state, the address map, every port of `peregrine_core` and `peregrine_top`, the memory and trap contracts at those ports, the cycle costs, the clock reached on the Nexys A7 part, integration rules, and a summary of how the RTL was verified.
 
-Out of scope: block internals (MAS), the predictor drill and the study book (riscv-ip/peregrine-rv32im TASK-003), and the hive-serv HIVE-C integration (TASK-004).
+Out of scope: block internals (MAS), the predictor drill and the study book (riscv-ip/peregrine-rv32im TASK-003), and the hive HIVE-C integration (TASK-004).
 
 ## Non-Goals
 

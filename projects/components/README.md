@@ -68,7 +68,7 @@ tracker. Nothing here is a second copy of either.
 | dfx-ip (house debug port: jtag-tap, jtag-axil-agent, riscv-debug scaffolds) | [dfx-ip/docs/dfx_has/dfx_has_index.md](dfx-ip/docs/dfx_has/dfx_has_index.md) |
 | legacy-ip (retro_legacy_blocks: HPET, 8259, 8254, RTC, SMBus, PM/ACPI, IOAPIC, GPIO, UART) | [legacy-ip/retro_legacy_blocks/README.md](legacy-ip/retro_legacy_blocks/README.md) |
 | misc (ROM/RAM wrappers and utilities) | [utility-ip/misc/README.md](utility-ip/misc/README.md) |
-| compute-eng-ip (compute systems: hive-serv control plane — Phase 1 RTL in progress; cell CGRA scaffold) | [compute-eng-ip/README.md](compute-eng-ip/README.md) |
+| compute-eng-ip (compute systems: hive control plane — Phase 1 RTL in progress; cell CGRA scaffold) | [compute-eng-ip/README.md](compute-eng-ip/README.md) |
 
 ---
 

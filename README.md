@@ -219,7 +219,7 @@ Production-shaped reusable IP, ordered by IP type. Each has its own README + dv/
 | BCH | Ready | Binary BCH encoder/decoder importing the reed-solomon GF(2^m) layer; 1.0, Genesys-2 board-validated | [`projects/components/ecc-ip/bch/`](projects/components/ecc-ip/bch/) |
 | kestrel RISC-V core | Ready | RV32I single-cycle core; rv32ui battery 42/42 spike lockstep, riscv-formal 42/42 | [`projects/components/riscv-ip/kestrel-rv32i/`](projects/components/riscv-ip/kestrel-rv32i/) |
 | merlin / peregrine / gyrfalcon / garuda | Planned | Falcon-suite ladder: 5-stage pipeline → advanced in-order → OoO capstone (+A atomics flavor) → OoO + FPU | [`projects/components/riscv-ip/`](projects/components/riscv-ip/) |
-| HIVE | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + 16 SERV monitor cores) | [`projects/components/compute-eng-ip/hive-serv/`](projects/components/compute-eng-ip/hive-serv/) |
+| HIVE | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + one gatling monitoring four compute engines) | [`projects/components/compute-eng-ip/hive/`](projects/components/compute-eng-ip/hive/) |
 | amber cache | In progress | Blocking MESI snoopy L1 — first of the cache-ip gemstone family (HAS/MAS v1.0; RTL landing) | [`projects/components/cache-ip/amber-mesi-l1/`](projects/components/cache-ip/amber-mesi-l1/) |
 | jet / basalt / onyx | Planned | Lockup-free MESI L1 (MSHR) · MOESI L2 · ACE coherence manager (CCU) | [`projects/components/cache-ip/`](projects/components/cache-ip/) |
 | dfx-ip debug port | Planned | House debug port: jtag-tap transport, jtag-axil-agent config poke, riscv-debug override plane (scaffolds) | [`projects/components/dfx-ip/`](projects/components/dfx-ip/) |
@@ -463,7 +463,7 @@ Build complete, production-ready peripherals for FPGA deployment (**25+ componen
 |-----------|--------|-------------|
 | **[kestrel](projects/components/riscv-ip/kestrel-rv32i/)** | Ready | RV32I single-cycle core — rv32ui 42/42 spike lockstep, riscv-formal 42/42 |
 | **[merlin / peregrine / gyrfalcon / garuda](projects/components/riscv-ip/)** | Planned | The ladder: 5-stage pipeline → advanced in-order → OoO capstone (+A atomics flavor) → OoO + FPU |
-| **[HIVE](projects/components/compute-eng-ip/hive-serv/)** | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[HIVE](projects/components/compute-eng-ip/hive/)** | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + one gatling monitoring four compute engines) |
 
 #### Cache Coherence (gemstone family)
 

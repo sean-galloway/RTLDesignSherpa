@@ -1,7 +1,7 @@
 # gatling — Tetrad Compute Engine (barrel RV32I + Xcell)
 
 **Directory:** `compute-eng-ip/gatling/` — the compute-eng-ip family
-(alongside `cell/`, `tile/`, `hive-serv/`).
+(alongside `cell/`, `tile/`, `hive/`).
 **Codename:** gatling — the barrel machine; one datapath, four barrels.
 **ISA:** RV32I base + `Xcell` non-standard extension (custom-0/custom-1 space).
 **Status:** PRD 0.3; the RV32I barrel is built and verified (rv32ui 168/168
@@ -63,7 +63,7 @@ cost is amortized to ~1 IPC per context.
 - Xcell (`gatling_xcell.sv`, `gatling_xcell_pkg.sv`) lands with the cell
   seam; until then custom-0 decodes as illegal and locks its context.
 
-## Relationship to cell / tile / hive-serv
+## Relationship to cell / tile / hive
 
 - `cell/` PRD 0.1 blocks stand; gatling **drives** the execution FSM
   slot, upgraded to a programmable sequencer. The bf16 ALU datapath
@@ -72,7 +72,10 @@ cost is amortized to ~1 IPC per context.
   traffic; cell configuration arrives in-band over delta.
 - `tile/` TILE_SPEC §11 hierarchy stands: 4 gatlings per tile (one per
   tetrad), tetrad MonBus merge observes all four contexts.
-- `hive-serv/` stays the control plane; gatling is data plane, like cell.
+- `hive/` stays the control plane; gatling is data plane, like cell.
+  hive also uses one gatling as its engine monitor (hive PRD 0.3,
+  2026-11-25): four contexts, one per compute engine, in the SERV
+  monitors' place. That is a monitor role, not Xcell sequencing.
 
 Naming note: gatling is **not** a falcon-suite rung (see
 `riscv-ip/README.md` — "the ladder again, nothing more"). It consumes

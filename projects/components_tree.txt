@@ -609,7 +609,7 @@ components
 │   │   └── docs
 │   │       ├── PRD.md
 │   │       └── axon_spec.md
-│   ├── hive-serv
+│   ├── hive
 │   │   ├── .gitignore
 │   │   ├── CLAUDE.md
 │   │   ├── PRD.md
@@ -3463,7 +3463,7 @@ components
 │   │   │   │   ├── ch05_programming_model
 │   │   │   │   │   ├── 01_hive_c_firmware.md
 │   │   │   │   │   ├── 02_descriptor_scheduling.md
-│   │   │   │   │   ├── 03_serv_monitor_programming.md
+│   │   │   │   │   ├── 03_engine_monitor_programming.md
 │   │   │   │   │   └── 04_network_reconfiguration.md
 │   │   │   │   ├── ch06_performance
 │   │   │   │   │   └── 01_performance.md
@@ -3483,7 +3483,7 @@ components
 │   │   │       ├── ch02_blocks
 │   │   │       │   ├── 01_hive_top.md
 │   │   │       │   ├── 02_hive_c_controller.md
-│   │   │       │   ├── 03_serv_monitor.md
+│   │   │       │   ├── 03_engine_monitor.md
 │   │   │       │   ├── 04_control_network.md
 │   │   │       │   ├── 05_config_manager.md
 │   │   │       │   └── 06_common_utilities.md
@@ -3505,7 +3505,7 @@ components
 │   │   │   │   ├── hive_c_loader_testplan.yaml
 │   │   │   │   ├── hive_ctrl_network_testplan.yaml
 │   │   │   │   ├── hive_descriptor_gen_testplan.yaml
-│   │   │   │   └── hive_serv_monitor_testplan.yaml
+│   │   │   │   └── hive_engine_monitor_testplan.yaml
 │   │   │   └── tests
 │   │   │       ├── Makefile
 │   │   │       ├── conftest.py
@@ -3513,7 +3513,7 @@ components
 │   │   │       ├── test_hive_c_loader.py
 │   │   │       ├── test_hive_ctrl_network.py
 │   │   │       ├── test_hive_descriptor_gen.py
-│   │   │       └── test_hive_serv_monitor.py
+│   │   │       └── test_hive_engine_monitor.py
 │   │   └── rtl
 │   │       ├── Makefile
 │   │       ├── control_network
@@ -3527,7 +3527,7 @@ components
 │   │       ├── hive_c_controller
 │   │       │   ├── axis4_master.sv
 │   │       │   └── descriptor_gen.sv
-│   │       └── serv_monitor
+│   │       └── engine_monitor
 │   │           ├── axis_injector.sv
 │   │           ├── ctrl_net_slave.sv
 │   │           ├── local_mem.sv

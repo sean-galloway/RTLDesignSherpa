@@ -32,8 +32,8 @@ Two later consumers depend on what peregrine chooses:
 - **gyrfalcon** reuses peregrine's predictor, trap machinery, L1s and AXI
   fabric (spec rung 4). Its baseline ISA is peregrine's RV32IM exactly, so
   every peregrine battery has to carry over unchanged.
-- **hive-serv HIVE-C** names peregrine as the successor `CORE_FLAVOR` to
-  VexRiscv (hive-serv PRD §10.3). The LDR testplan becomes peregrine's
+- **hive HIVE-C** names peregrine as the successor `CORE_FLAVOR` to
+  VexRiscv (hive PRD §10.3). The LDR testplan becomes peregrine's
   system bring-up test on the day the RTL exists.
 
 ## 2. Non-goals
@@ -384,7 +384,7 @@ the worked version, with measured miss rates replacing the assumed ones.
 | P4 | Caches | **DECIDED (spec; amber PRD v0.8, 2026-10-30, Sean):** split blocking L1s, the D$ is amber, write-back + dirty bit | memory path |
 | P5 | Predictor sizing | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"); built 2026-11-24:** BTB 32 entries direct-mapped, BHT 256 counters indexed by PC[9:2], no RAS, `BP_EN` parameter for the predict-not-taken A/B | IF area/timing, drill |
 | P6 | CSR set | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `mstatus` (MIE, MPIE, MPP fixed at M), `mie`, `mip`, `mtvec` (direct mode only), `mepc`, `mcause`, `mscratch`, `mtval`; read-only `misa`, `mhartid`=0, `mvendorid`/`marchid`/`mimpid`/`mconfigptr`=0; PMP CSRs with zero entries (`pmpcfg0-15`, `pmpaddr0-63` read 0, writes ignored: the spec makes them WARL, so a core without PMP still accepts them; added in stage 1, 2026-11-23); no Zicntr (gatling's 2026-10-21 precedent; cycle counts come from MonBus). CSR read-after-write stalls rather than forwards | decode, trap unit, rv32mi pass set |
-| P7 | Address map and fabric | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** RAM cacheable from `RESET_ADDR` (kestrel's 0x0000_0000); CLINT at 0x0200_0000 in the SiFive layout (`msip` +0x0, `mtimecmp` +0x4000, `mtime` +0xBFF8) inside the core wrapper; 0x1000_0000-0x1FFF_FFFF uncached I/O (board UART and other MMIO), everything else cacheable. **AMENDED 2026-11-24 (Sean, "Amend P7"):** the row said "0x1000_0000 and up", but the riscv-tests and arch-test images link at 0x8000_0000 and must stay cacheable, so the window is bounded at 0x1FFF_FFFF. The sim TBs detect `tohost` from the store's RVFI retire, so a `tohost` in the cacheable image needs no uncached path; the I$, D$ and uncached masters merged by a small house AXI4 arbiter to one fabric port | TB top, hive-serv glue |
+| P7 | Address map and fabric | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** RAM cacheable from `RESET_ADDR` (kestrel's 0x0000_0000); CLINT at 0x0200_0000 in the SiFive layout (`msip` +0x0, `mtimecmp` +0x4000, `mtime` +0xBFF8) inside the core wrapper; 0x1000_0000-0x1FFF_FFFF uncached I/O (board UART and other MMIO), everything else cacheable. **AMENDED 2026-11-24 (Sean, "Amend P7"):** the row said "0x1000_0000 and up", but the riscv-tests and arch-test images link at 0x8000_0000 and must stay cacheable, so the window is bounded at 0x1FFF_FFFF. The sim TBs detect `tohost` from the store's RVFI retire, so a `tohost` in the cacheable image needs no uncached path; the I$, D$ and uncached masters merged by a small house AXI4 arbiter to one fabric port | TB top, hive glue |
 | P8 | M-unit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** radix-2 for both (33 cycles), `MUL_DSP` parameter for a 1–2 cycle DSP multiply as the measured contrast. Built 2026-11-23: 33 stall cycles iterative, 1 on a divide early-out, 2 with `MUL_DSP=1` | CPI, book chapter |
 | P9 | I$ | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** in-core `peregrine_icache`, direct-mapped 4 KiB, 64 B lines, read-only, one AXI4 read master; marked as the slot a cache-ip I$ would replace | IF, area |
 | P10 | `fence.i` | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** D$ clean-all + I$ invalidate + pipeline flush; needs a CPU-side clean-all request on amber (filed as cache-ip/amber-mesi-l1 TASK-004, done 2026-11-24). The cacheless build (`CACHE_EN=0`) flushes and redirects too (owner 2026-11-25), so both builds pass Zifencei | amber, Zifencei tests |
@@ -409,7 +409,7 @@ the worked version, with measured miss rates replacing the assumed ones.
 4. Targeted formal; riscv-formal on `CACHE_EN=0`.
 5. Book: *Simplified RV32IM: peregrine — speculation and traps*, with
    predictor drill mode 3 in `core_drills`.
-6. The hive-serv HIVE-C `CORE_FLAVOR=peregrine` swap, as the system
+6. The hive HIVE-C `CORE_FLAVOR=peregrine` swap, as the system
    bring-up.
 
 ## 8. History

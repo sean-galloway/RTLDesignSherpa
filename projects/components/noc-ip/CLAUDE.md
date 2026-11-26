@@ -90,7 +90,7 @@ DELTA Network Architecture (4×4 Mesh)
 │   ├── Packet Classifier
 │   ├── Virtual Channel Allocator
 │   ├── Crossbar Switch (5×5)
-│   ├── SERV Monitor
+│   ├── HIVE monitor tap (SERV in this draft; one gatling context per engine since 2026-11-25)
 │   └── Compute Element
 │
 ├── Virtual Tiles
@@ -138,8 +138,8 @@ else route_LOCAL;  // Arrived
 |------|-------|--------|-------------|---------|
 | PKT_DATA | 00 | RAPIDS/Tiles | RAPIDS/Tiles | Compute data |
 | PKT_DESC | 01 | HIVE-C | RAPIDS | DMA descriptors |
-| PKT_CONFIG | 10 | HIVE-C/SERV | Routers | Configuration |
-| PKT_STATUS | 11 | SERV | HIVE-C | Monitoring |
+| PKT_CONFIG | 10 | HIVE-C/engine monitor | Routers | Configuration |
+| PKT_STATUS | 11 | HIVE engine monitor (SERV in the draft spec) | HIVE-C | Monitoring |
 
 **See:** `delta_spec/ch01_overview/03_packet_type_routing.md`
 

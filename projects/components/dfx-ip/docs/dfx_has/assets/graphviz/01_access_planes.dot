@@ -25,7 +25,7 @@ digraph dfx_access_planes {
     obs [label="Observation Plane (existing)\n*_monlite drop-and-count monitors\nsee both planes' traffic (observed, nothing driven back)",
          style="filled,dashed", style="filled,dashed", fillcolor="white"];
 
-    bar [label="Fabric clock domain - every component's CSRs over AXIL4 (amber, jet, mem-ctrl, dma, ecc, ...)  |  RISC-V cores with debug mode (falcon rungs, hive-serv)",
+    bar [label="Fabric clock domain - every component's CSRs over AXIL4 (amber, jet, mem-ctrl, dma, ecc, ...)  |  RISC-V cores with debug mode (falcon rungs, hive)",
          fillcolor="white", width=10, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     jtag  -> tap   [dir=both, xlabel="TDI / TMS in, TDO out"];

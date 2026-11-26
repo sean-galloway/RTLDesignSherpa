@@ -111,7 +111,7 @@ graph TD
 | **[BCH](../../projects/components/ecc-ip/bch)** | Ready | Binary BCH codec; 1.0, Genesys-2 board-validated |
 | **[kestrel](../../projects/components/riscv-ip/kestrel-rv32i)** | Ready | RV32I single-cycle core (rv32ui + riscv-formal 42/42) |
 | **[falcon suite rungs](../../projects/components/riscv-ip)** | Planned | merlin / peregrine / gyrfalcon / garuda RISC-V ladder |
-| **[HIVE](../../projects/components/compute-eng-ip/hive-serv)** | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + 16 SERV cores) |
+| **[HIVE](../../projects/components/compute-eng-ip/hive)** | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + one gatling monitoring four compute engines) |
 | **[amber](../../projects/components/cache-ip/amber-mesi-l1)** | In progress | Blocking MESI snoopy L1 (gemstone family) |
 | **[cache-ip rungs](../../projects/components/cache-ip)** | Planned | jet (MSHR L1) · basalt (MOESI L2) · onyx (ACE CCU) |
 | **[dfx-ip](../../projects/components/dfx-ip)** | Planned | House debug port: jtag-tap, jtag-axil-agent, riscv-debug |
@@ -300,7 +300,7 @@ Build complete, production-ready peripherals for FPGA deployment (**25+ componen
 |-----------|--------|-------------|
 | **[kestrel](../../projects/components/riscv-ip/kestrel-rv32i)** | Ready | RV32I single-cycle core — rv32ui 42/42 spike lockstep, riscv-formal 42/42 |
 | **[merlin / peregrine / gyrfalcon / garuda](../../projects/components/riscv-ip)** | Planned | The ladder: 5-stage → advanced in-order → OoO capstone (+A atomics) → OoO + FPU |
-| **[HIVE](../../projects/components/compute-eng-ip/hive-serv)** | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[HIVE](../../projects/components/compute-eng-ip/hive)** | In progress (Phase 1 RTL) | Distributed RISC-V control (VexRiscv + one gatling monitoring four compute engines) |
 
 #### Cache Coherence (gemstone family)
 

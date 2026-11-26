@@ -1,7 +1,7 @@
 # PROVENANCE — vendor/serv
 
 Vendored copy of the SERV RISC-V core, used by the HIVE subsystem
-(`projects/components/compute-eng-ip/hive-serv`) as the per-tile monitor core.
+(`projects/components/compute-eng-ip/hive`) as the per-tile monitor core.
 
 - **Upstream:** https://github.com/olofk/serv
 - **Version:** 1.4.0 (git tag `1.4.0`, commit `7d9cde4e6ca4f4c84d7512a752a4c187537dd373`)

@@ -86,7 +86,7 @@ Every stage ended with a mutation pass: each mutant rebuilt from clean, the fail
 
 - Interrupts are not in riscv-formal (P12); the directed suites and `core_props` cover them.
 - On some beats the predictor check accepts either of two predictions the pipeline timing allows; pinning those needs the lookup cycle modelled exactly.
-- No board run: peregrine has been verified in simulation and formal only. The hive-serv HIVE-C integration is its planned system bring-up (TASK-004).
+- No board run: peregrine has been verified in simulation and formal only. The hive HIVE-C integration is its planned system bring-up (TASK-004).
 
 ---
 

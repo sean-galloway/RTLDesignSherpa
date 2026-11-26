@@ -292,8 +292,8 @@ test-retro_legacy_blocks: test-retro-legacy
 .PHONY: test-hive
 test-hive:
 	@echo "=== HIVE Project Tests ==="
-	@if [ -f $(PROJECTS_DIR)/hive/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/hive/dv/tests run-all || true; \
+	@if [ -f $(PROJECTS_DIR)/compute-eng-ip/hive/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/compute-eng-ip/hive/dv/tests run-all || true; \
 	else \
 		echo "HIVE test Makefile not found (may not have tests yet)"; \
 	fi

@@ -216,12 +216,12 @@ Educational ladder ascending in microarchitectural complexity: merlin
 
 #### Hive
 **Status:** In progress — HAS/MAS v0.2, Phase 1 RTL (returned to compute-eng-ip 2026-10-13; control half of the compute family, cell is the data half)
-**Location:** [`projects/components/compute-eng-ip/hive-serv/`](../../../projects/components/compute-eng-ip/hive-serv/)
+**Location:** [`projects/components/compute-eng-ip/hive/`](../../../projects/components/compute-eng-ip/hive/)
 
-HIVE control/monitoring system — 1 VexRiscv control plane (HIVE-C) + 16 SERV per-tile monitors; the control plane for the cell CGRA.
+HIVE control/monitoring system — 1 VexRiscv control plane (HIVE-C) + one gatling engine monitor (four contexts, one per compute engine); the control plane for the cell CGRA.
 
 **Documentation:**
-- [Specification](../../../projects/components/compute-eng-ip/hive-serv/docs/)
+- [Specification](../../../projects/components/compute-eng-ip/hive/docs/)
 
 ---
 

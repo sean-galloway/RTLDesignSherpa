@@ -26,7 +26,7 @@
 **Version:** 0.1
 **Date:** 2026-10-10
 **Status:** Research memo — cited authority for the education site's book references
-**Scope:** `projects/components/riscv-ip/` (falcon suite + hive-serv) and
+**Scope:** `projects/components/riscv-ip/` (falcon suite + hive) and
 `projects/components/cache-ip/` (amber-mesi-l1, jet-mesi-l1), mapped against
 Patterson & Hennessy, *Computer Organization and Design, RISC-V Edition*
 (hereafter **COD**) and, for the cache decisions and the out-of-order capstone,
@@ -109,7 +109,7 @@ Site citation rule: **gyrfalcon material must cite H&P (§3.x) and/or Shen & Lip
 | SUBNORMAL_SUPPORT=0 (FTZ) at the units for v1 | Spec open decisions | COD §3.5 covers denormalized numbers in an elaboration (Fig 3.13 caption: "Denormalized numbers are described in the Elaboration on page 233"); IEEE gradual underflow is the default COD describes | **aligned-with-divergence** — FTZ is a real divergence from IEEE 754 default behavior and from the COD treatment; must be cited as such in the garuda book (it is honest, build-time, and non-default, but it is a divergence) |
 | Non-pipelined 9–11-cycle Goldschmidt FDIV / Newton-rsqrt FSQRT behind an FP reservation station; issue holds while busy | Spec rung 5 | COD §4.6 *Understanding Program Performance*: "For modern pipelines, structural hazards usually revolve around the floating-point unit, which may not be fully pipelined" — the exact teaching point | **aligned** at the pipeline level. **Gap at the algorithm level**: COD §3.4's fast-division content is integer SRT; neither COD §3.5 nor the converted H&P chapters cover Goldschmidt or Newton-Raphson square root — garuda needs a numerical-methods citation here (G9) |
 
-### 2.6 hive-serv (1 VexRiscv + 16 SERV cluster) — adjacent, uses RISC-V rather than teaching it
+### 2.6 hive (1 VexRiscv + 16 SERV cluster as of this memo; one gatling for four compute engines since 2026-11-25) — adjacent, uses RISC-V rather than teaching it
 
 | Decision | Plan | Book anchor | Verdict |
 |---|---|---|---|

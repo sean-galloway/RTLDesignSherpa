@@ -19,7 +19,7 @@ already exists house-wide):
 Owner ruling (2026-10-11), the access-model seed: **riscv needs override
 control deep down; most other IP only needs access to their configs.**
 The config plane is therefore the common case; the override plane exists
-for the falcon rungs and hive-serv cores.
+for the falcon rungs and hive cores.
 
 Components:
 

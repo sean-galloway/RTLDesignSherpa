@@ -54,7 +54,7 @@ design.
 | cache-ip/basalt-moesi-l2 | README "pencil only"; PRD v0.1 all rows OPEN | Gated behind onyx v1 |
 | cache-ip/jet-mesi-l1 | README "Scaffolded 2026-10-04 — README + PRD only"; placeholder rtl/dv/docs | Waits for amber |
 | cache-ip/onyx-ace-ccu | README "Scaffolded 2026-10-05 — README + PRD only"; placeholder rtl/dv/docs | Waits for amber pair rig |
-| compute-eng-ip | Area README current (2026-10-18): hive-serv, cell, tile + three alu-* definition dirs | Compute family: HIVE control plane, cell/tile engines, ALU definitions |
+| compute-eng-ip | Area README current (2026-10-18): hive, cell, tile + three alu-* definition dirs | Compute family: HIVE control plane, cell/tile engines, ALU definitions |
 | compute-eng-ip/cell | PRD v0.3 (2026-10-18): cell = alu-infer ALU + delta node + config registers + ALU registers (A–D persistent operands, T, OP_SRC, DEST, IP/OP) + data-in/out memories; sender-generic per-source credit returns; DEST default = recorded source (chain-back); tetrad engine deferred (gatling leading); ALU RTL landed in cell/rtl (func + gate green) | The tile's compute unit — the lowest module; one delta node per cell; elastic valid/ready ALU pipeline |
 | compute-eng-ip/alu-infer | PRD v0.50 + MAS v0.50 (2026-10-18, revs pinned at 0.50 per owner while the ALU heads to the board; PDF/DOCX built at 0.50); RTL implemented inside cell on the math_bf16_* library (func + gate green); per-tetrad control core deferred 2026-10-18 (gatling-rv32i leading candidate), in-band config/programming; valid/ready elastic pipeline (tag-based alignment ruling 2026-10-18 — 8-bit tag per loaded invocation, FIFO-tracked, op valid gated on its tag group; as-built realization is the alignment-timer mailbox); same-clock operand capture; multiplier/FMA deep-pipelining queued for FPGA bring-up | Cell inference ALU: bf16 lanes (2 per 32-bit line), fp32 MAC accumulate, function array on rtl/math bf16 blocks |
 | compute-eng-ip/alu-rv32f | PRD definition only (2026-10-17) | Falcon-suite RV32F FP unit contract on rtl/math fp32 blocks; garuda realization |
@@ -67,7 +67,7 @@ design.
 | mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4 | README "structure only — no HAS, no RTL" | v4 research placeholder |
 | riscv-ip/garuda-rv32imaf | `.gitkeep` shells; area README "planned, structure only" | FP OoO rung placeholder |
 | riscv-ip/gyrfalcon-rv32ima | `.gitkeep` shells; area README "planned, structure only" | OoO capstone placeholder |
-| compute-eng-ip/hive-serv | HAS/MAS v0.2; Phase 1 RTL in progress (descriptor_gen, axis_cda_master, ctrl_network CN-01..03 green; vault hive-serv TASK-000) | HIVE control system (1 VexRiscv + 16 SERV) |
+| compute-eng-ip/hive | HAS/MAS v0.2; Phase 1 RTL in progress (descriptor_gen, axis_cda_master, ctrl_network CN-01..03 green; vault hive TASK-000) | HIVE control system (1 VexRiscv + 1 gatling monitoring four compute engines; PRD 0.3, 2026-11-25) |
 | riscv-ip/merlin-rv32i | `.gitkeep` shells; area README "planned, structure only" | 5-stage placeholder |
 | riscv-ip/peregrine-rv32im | `.gitkeep` shells; area README "planned, structure only" | Advanced in-order placeholder |
 

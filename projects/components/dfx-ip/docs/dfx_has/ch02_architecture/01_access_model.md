@@ -45,17 +45,17 @@ single-step). This reaches *deep down* into a core — it can stop
 execution mid-stream, inspect and modify architectural state, and step
 one instruction at a time.
 
-**Consumers:** the falcon rungs (kestrel → garuda) and hive-serv's
-VexRiscv + SERV cores. A core pays for the override plane only when it
-implements debug mode; SERV/VexRiscv already carry their own, so
-hive-serv mostly needs the transport.
+**Consumers:** the falcon rungs (kestrel → garuda) and hive's
+VexRiscv + gatling cores. A core pays for the override plane only when it
+implements debug mode; VexRiscv already carries its own, and gatling has
+none (no CSRs), so hive mostly needs the transport.
 
 ## Tiering summary
 
 | Consumer | Observation | Config poke | Core override |
 |---|---|---|---|
 | falcon rungs (riscv-ip) | monlite | yes (CSRs: CLINT, caches, predictors) | **yes — debug mode + DM** |
-| hive-serv cores | monlite | yes | yes (core-native debug mode; house DTM/DM transport) |
+| hive cores | monlite | yes | yes (core-native debug mode; house DTM/DM transport) |
 | cache-ip (amber/jet/onyx) | monlite | yes (CSR config + MonBus thresholds) | no |
 | mem-ctrl-ip | monlite | yes (scheduler/PHY CSRs) | no |
 | dma-ip (stream/rapids) | monlite | yes | no |

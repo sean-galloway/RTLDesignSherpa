@@ -24,12 +24,12 @@
 # Cell — Compute Engine IP
 
 **Codename:** cell · **Directory:** `cell/` — the compute-eng-ip family
-alongside [`hive-serv`](../hive-serv/).
+alongside [`hive`](../hive/).
 
 Cell is the repo's compute engine and the **lowest module** of the
 compute tile (owner direction 2026-10-18): the part that actually
-computes. Where [hive-serv](../hive-serv/) is the control plane (one
-VexRiscv master + sixteen SERV monitors), cell is the data plane — fed,
+computes. Where [hive](../hive/) is the control plane (one
+VexRiscv master + one gatling engine monitor), cell is the data plane — fed,
 programmed, and paced entirely in-band on delta.
 
 ## Blocks

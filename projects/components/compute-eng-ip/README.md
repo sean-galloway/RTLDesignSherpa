@@ -25,13 +25,13 @@
 
 Compute systems: the engines that compute and the control planes that
 orchestrate them. Family revived 2026-10-13 (created 2026-09-29 in the
-component-tree regrouping) when **cell** joined and **hive-serv** returned
+component-tree regrouping) when **cell** joined and **hive** returned
 from its 2026-10-10..2026-10-13 stay in riscv-ip — HIVE uses RISC-V cores but
 is a *system*, not a core, and it is the control half of this family.
 
 | Directory | What | Status |
 |---|---|---|
-| [`hive-serv/`](hive-serv/) | Hierarchical control/monitoring system: 1 VexRiscv master (HIVE-C) + 16 SERV per-tile monitors; inband descriptor injection into delta; coordinates RAPIDS and cell | HAS/MAS v0.2; Phase 1 RTL in progress (vault hive-serv TASK-000) |
+| [`hive/`](hive/) | Hierarchical control/monitoring system: 1 VexRiscv master (HIVE-C) + one gatling engine monitor (four contexts, one per compute engine, on a 2x2 delta mesh); inband descriptor injection into delta; coordinates RAPIDS and cell | PRD 0.3 (2026-11-25); Phase 1 RTL in progress (vault hive TASK-000) |
 | [`cell/`](cell/) | The tile's compute unit — the lowest module (owner direction 2026-10-18): alu-infer bf16 ALU (elastic valid/ready pipeline) + one `delta_mesh_cell` node + config registers + ALU registers (A·B·C·D persistent operands + T, `OP_SRC` mux, `IP`/`OP` pointers) + data-in / data-out memories; sender-generic credit returns, `DEST` result routing (default: recorded source). ALU RTL landed in [`alu-infer/rtl/`](alu-infer/rtl/) (func + gate green); balance planned | [PRD](cell/docs/PRD.md) 0.3 (2026-10-18) |
 | [`tile/`](tile/) | Compute-engine tile: 16 cells as 2×2×1 tetrads (K4 at both scales) + per-level MonBus aggregation + rapids attach; **delta is the node**, instantiated 16×; tetrad control core deferred pending the cell (gatling-rv32i leading) | [Tile Spec](tile/docs/TILE_SPEC.md) v1.5 (2026-10-18) |
 | [`alu-infer/`](alu-infer/) | Cell compute ALU: bf16 inference datapath (2×bf16 lanes per line) built mostly on the [rtl/math](../../../rtl/math/) `math_bf16_*` library — fp32 MAC accumulate; valid/ready elastic pipeline (II=1 while draining; **tag-based alignment** ruled 2026-10-18, as-built since 2026-10-19 — 8-bit tag per loaded invocation, FIFO-tracked, an op's valid gated on its whole tag group); per-tetrad RV32I control core (**deferred 2026-10-18** — gatling-rv32i leading candidate, kestrel-class a `CORE_FLAVOR` option; in-band config/programming; not SERV — Ocelus agent). RTL + unit tests live here (`alu-infer/rtl/`, `alu-infer/dv/tests/`, moved from `cell/` 2026-10-20); the cell integrates the block | [PRD](alu-infer/PRD.md) 0.50 · [MAS](alu-infer/docs/alu_infer_mas/alu_infer_mas_index.md) 0.50 (2026-10-18; revs pinned at 0.50 per owner, "for now," while the ALU heads to the board) |
@@ -39,10 +39,10 @@ is a *system*, not a core, and it is the control half of this family.
 | [`alu-rv32f/`](alu-rv32f/) | Falcon-suite RV32F FP32 execution-unit definition — full F-extension set on the [rtl/math](../../../rtl/math/) fp32 library, fcsr flag contract, long-latency divide/sqrt lesson; realized by the garuda rung; no RTL here | [PRD](alu-rv32f/PRD.md) 0.1 (2026-10-17) |
 
 The trio forms the compute system: **cell** is the data plane (the CGRA),
-**hive-serv** is the control plane, **tile** is the subsystem that assembles
+**hive** is the control plane, **tile** is the subsystem that assembles
 cells onto delta nodes at scale, and **delta** is the fabric between them —
 nodes collectively form the network, tile is the IP that instantiates one
-network segment. **RAPIDS** moves bulk data. See the [hive-serv HAS](hive-serv/docs/hive_has/hive_has_index.md),
+network segment. **RAPIDS** moves bulk data. See the [hive HAS](hive/docs/hive_has/hive_has_index.md),
 the [cell README](cell/README.md), and the [tile spec](tile/docs/TILE_SPEC.md).
 
 The three `alu-*` directories are the family's ALU building-block

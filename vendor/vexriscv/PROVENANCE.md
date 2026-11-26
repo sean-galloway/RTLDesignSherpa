@@ -1,13 +1,13 @@
 # PROVENANCE — vendor/vexriscv
 
 Generated netlist for the HIVE-C master controller core (RTL Design Sherpa
-hive-serv component).
+hive component).
 
 - **Upstream:** https://github.com/SpinalHDL/VexRiscv
 - **Version:** baf7dc82f855eddaf5b0a20a6802c526f127e38a (clone commit baf7dc82f855eddaf5b0a20a6802c526f127e38a)
-- **Configuration:** `projects/components/compute-eng-ip/hive-serv/bin/vexriscv/HiveCGen.scala`
+- **Configuration:** `projects/components/compute-eng-ip/hive/bin/vexriscv/HiveCGen.scala`
   (RV32IM, no compressed, no MMU, no caches, machine CSRs, reset 0x0000_0000)
-- **Generated:** 2026-10-13 by `hive-serv/bin/generate_hive_cores.sh`
+- **Generated:** 2026-10-13 by `hive/bin/generate_hive_cores.sh`
 - **Toolchain note:** upstream `project/build.properties` (sbt 1.6.0) is
   overridden to sbt 1.10.7 for Java 21 compatibility; see the
   header comment in the generator script for why the 1.0.1 tag is not used.
@@ -17,7 +17,7 @@ hive-serv component).
 ## Regenerate
 
 ```bash
-projects/components/compute-eng-ip/hive-serv/bin/generate_hive_cores.sh --force
+projects/components/compute-eng-ip/hive/bin/generate_hive_cores.sh --force
 ```
 
 Requires java + sbt on PATH. The emitted Verilog is checked in so simulation,

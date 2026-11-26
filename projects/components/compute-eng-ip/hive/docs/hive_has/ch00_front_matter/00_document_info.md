@@ -1,0 +1,115 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
+# Document Information
+
+## HIVE Hardware Architecture Specification
+
+**Document Number:** HIVE-HAS-001
+**Version:** 0.4
+**Status:** Draft (pre-RTL — specification phase)
+**Classification:** Open Source - MIT License
+
+---
+
+## Document Purpose
+
+This Hardware Architecture Specification (HAS) defines the external, system-level
+architecture of the HIVE subsystem (Hierarchical Intelligent Vector Environment):
+what it is, what it controls, how it connects to the host, the RAPIDS DMA engine,
+and the Delta Network, how packets and registers are encoded at its boundaries,
+and how it is integrated into a larger system. It is written for consumers of the
+subsystem — integrators, firmware engineers, and verification engineers — and is
+deliberately interface-first: ports, packet formats, encodings, and protocols,
+with rationale where boundary behavior is a design decision rather than an
+obvious default.
+
+This document does not describe the internal microarchitecture. Block internals,
+cycle-level behavior, clock/reset implementation detail, and the verification
+hook plan live in the companion Micro-Architecture Specification (MAS).
+
+**Target Audience:**
+- System architects evaluating HIVE for integration alongside RAPIDS and Delta
+- Hardware engineers wiring HIVE into a system top level
+- Firmware engineers writing HIVE-C control software or engine monitor (gatling) firmware
+- Verification engineers planning subsystem-level and system-level test coverage
+
+**Companion Documents:**
+- HIVE Micro-Architecture Specification (MAS) - internal block-level implementation intent
+- HIVE PRD (`PRD.md`) - product requirements, use cases, and roadmap
+- RAPIDS Beats HAS/MAS - the DMA engine HIVE-C controls
+- Delta HAS/MAS - the network HIVE-C and the engine monitor inject packets into
+
+---
+
+## References
+
+| ID | Document | Description |
+|----|----------|-------------|
+| [REF-1] | HIVE MAS v0.2 (`docs/hive_mas/`) | Micro-Architecture Specification (companion) |
+| [REF-2] | HIVE PRD (`PRD.md`) | Product requirements and use cases |
+| [REF-3] | RAPIDS Beats HAS (`../../../../../dma-ip/rapids/docs/rapids_beats_has/rapids_beats_has_index.md`) | RAPIDS DMA engine; CDA consumer |
+| [REF-4] | Delta HAS (`../../../../../fabric-gen-ip/delta/docs/delta_has/delta_has_index.md`) | mesh NoC (HIVE uses a 2x2 mesh); packet routing fabric |
+| [REF-5] | AXI4-Stream Protocol Specification, ARM IHI 0051A | AXIS signal semantics (TUSER/TID/TDEST/TLAST) |
+| [REF-6] | VexRiscv (https://github.com/SpinalHDL/VexRiscv) | HIVE-C master core generator |
+| [REF-7] | gatling (`../../../../../riscv-ip/gatling-rv32i/PRD.md`) | 4-context barrel RV32I core used for the engine monitor |
+| [REF-8] | RISC-V Falcon Suite README (`../README.md`) | Suite ladder and hive placement beside it |
+
+: Reference Documents
+
+---
+
+## Terminology
+
+| Term | Definition |
+|------|------------|
+| CDA | Compute Direct Access — the packet class (TUSER=2'b01) HIVE-C uses to inject RAPIDS descriptors inband |
+| Context | One of 4 pre-loaded routing configurations (systolic, mesh, tree, custom) held by the Configuration Manager |
+| Control Network | Dedicated low-bandwidth star network between HIVE-C and the four engine-monitor contexts (one slave port per engine), separate from the Delta data path |
+| HIVE-C | The HIVE master controller: one VexRiscv RV32IM core, Delta Virtual Tile 17 |
+| Inband Control | Control messages carried through the data network as packets rather than over a separate memory-mapped bus |
+| Engine monitor | The gatling core whose four contexts monitor the four compute engines, one each (not to be confused with verification monitors) |
+| gatling | The repo's 4-context barrel RV32I core (riscv-ip/gatling-rv32i); here, the engine monitor |
+| PKT_DATA / PKT_CONFIG / PKT_STATUS | AXIS packet classes encoded in TUSER[1:0]: 2'b00 compute data, 2'b10 configuration, 2'b11 status |
+| Quiesce | The drain-and-hold protocol that empties the network before an atomic context switch |
+| Virtual Tile | A Delta Network endpoint that is not a physical compute tile: 16 = RAPIDS, 17 = HIVE-C |
+| VexRiscv | SpinalHDL-generated RISC-V core family; HIVE-C uses the "Small" RV32IM configuration |
+
+: Terminology and Definitions
+
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.1 | 2026-10-12 | seang | Initial HAS release. Migrates and supersedes the v0.3 `hive_spec/` + `hive_specification.md` drafts; resource-budget table corrected (HIVE-only vs. system subtotals disambiguated); delta references repointed to `fabric-gen-ip/delta` |
+| 0.2 | 2026-10-13 | seang | Owner decisions recorded: fabric IDLE status register (PeakRDL bank) is the quiesce check; kestrel loader pattern for firmware load; descriptor mailbox parameter-controlled with dedicated register file default (custom-instruction alternative rejected). Addendum: delta relationship closed — the AXIS fabric generator is the fabric (same fabric as the archived NoC draft); AXIS-only communication rule — all block-boundary traffic is AXI4-Stream, control network AXIS-shaped, AXI4-Lite for registers only, no AXI4 full |
+| 0.3 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.4 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
+
+: Document Revision History
+
+---
+
+**Last Updated:** 2026-10-13

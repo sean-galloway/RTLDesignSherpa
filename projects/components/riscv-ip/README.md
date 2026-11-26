@@ -68,11 +68,12 @@ clean-slate -- but a core whose ISA contract *is* kestrel's shares the
 source rather than copying it; the block chapters stay in the kestrel MAS,
 its reference consumer.
 
-### Moved: hive-serv
+### Moved: hive
 
-hive-serv — the SERV-based control/monitoring system (1 VexRiscv control
-plane + 16 SERV monitor cores) — left this area 2026-10-13 for
-[`compute-eng-ip/hive-serv`](../compute-eng-ip/hive-serv/): it *uses* RISC-V
+hive — the control/monitoring system (1 VexRiscv control plane, then
+16 SERV monitor cores; since 2026-11-25 one gatling monitoring four compute
+engines) — left this area 2026-10-13 for
+[`compute-eng-ip/hive`](../compute-eng-ip/hive/): it *uses* RISC-V
 cores rather than teaching one, and it is the control half of the compute
 family (its other half is the cell CGRA), not a falcon-ladder rung. This
 directory is the ladder again, nothing more.

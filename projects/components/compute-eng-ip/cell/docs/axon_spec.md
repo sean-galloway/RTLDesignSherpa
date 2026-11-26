@@ -36,8 +36,9 @@ network: a SERV agent (or a small group of them) paired with the delta AXIS
 fabric, attached at the **tile** boundary — the level where the cell array
 faces RAPIDS (owner hierarchy 2026-10-13: four cells make a tetrad, four tetrads
 make a tile; the tile connects to RAPIDS). It is the tile-level twin
-of [hive-serv](../../hive-serv/)'s monitors — the same idiom (tiny bit-serial
-agent + stream fabric), applied to the data path instead of the control path.
+of [hive](../../hive/)'s monitors as first designed (sixteen SERVs; hive
+has used one gatling for its four compute engines since 2026-11-25) — the
+same idiom (tiny bit-serial agent + stream fabric), applied to the data path instead of the control path.
 
 ## Role
 

@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-004** — hive-serv HIVE-C `CORE_FLAVOR=peregrine` swap, peregrine's system bring-up (PRD §7 item 6, hive-serv PRD §10.3).
+- **TASK-004** — hive HIVE-C `CORE_FLAVOR=peregrine` swap, peregrine's system bring-up (PRD §7 item 6, hive PRD §10.3).
 - **TASK-005** — bus error handling: load/store access faults on AXI SLVERR/DECERR from the uncached port and amber (PRD §3/§4.3, amended to not built 2026-11-25); not scheduled.
 
 ## Active

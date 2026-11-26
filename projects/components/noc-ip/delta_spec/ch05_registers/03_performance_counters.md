@@ -89,6 +89,9 @@ void detect_congestion(void) {
 
 ## 3.4 SERV Monitor Integration
 
+(HIVE replaced the SERVs with one gatling engine monitor on 2026-11-25,
+hive PRD 0.3; the same register reads apply to each gatling context.)
+
 SERV monitors can read these registers and generate PKT_STATUS reports:
 
 ```c

@@ -691,8 +691,8 @@ pumice_bank_sched_core = "set aside under rtl/OLD/ -- two-stage scheduler, too b
 [[area]]
 name = "hive"
 kind = "component"
-rtl_roots = ["projects/components/compute-eng-ip/hive-serv/rtl"]
-filelist_dirs = ["projects/components/compute-eng-ip/hive-serv/rtl/filelists"]
+rtl_roots = ["projects/components/compute-eng-ip/hive/rtl"]
+filelist_dirs = ["projects/components/compute-eng-ip/hive/rtl/filelists"]
 
 [[area]]
 name = "cell"

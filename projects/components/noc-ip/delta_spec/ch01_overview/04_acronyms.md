@@ -37,7 +37,7 @@
 | NoC | Network-on-Chip |
 | PKT | Packet |
 | RAPIDS | Rapid AXI Programmable In-band Descriptor System |
-| SERV | Simple Embedded RISC-V (monitor core) |
+| SERV | Simple Embedded RISC-V: the per-tile monitor core of this spec's HIVE. HIVE replaced the sixteen SERVs with one gatling engine monitor on 2026-11-25 (hive PRD 0.3); "SERV monitor" in this spec now reads as that monitor's context for the tile |
 | S2MM | Stream to Memory-Mapped |
 | TID | Transaction ID (AXIS sideband signal) |
 | TDEST | Transaction Destination (AXIS sideband signal) |
@@ -54,7 +54,7 @@
 - **RAPIDS DMA**: Rapid AXI Programmable In-band Descriptor System
   - See `projects/components/dma-ip/rapids/docs/rapids_beats_has/` and `rapids_beats_mas/`
 - **HIVE Control**: VexRiscv-based control plane
-  - See `projects/components/compute-eng-ip/hive-serv/` (re-homed from compute-eng-ip 2026-10-10)
+  - See `projects/components/compute-eng-ip/hive/` (re-homed from compute-eng-ip 2026-10-10)
 
 ### Academic References
 - Dally, W. J., & Towles, B. (2004). "Principles and Practices of Interconnection Networks"

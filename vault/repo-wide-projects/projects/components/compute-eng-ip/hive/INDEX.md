@@ -4,9 +4,9 @@ summary: hive component
 repo: projects/components/compute-eng-ip/hive
 ---
 
-# projects/components/compute-eng-ip/hive-serv
+# projects/components/compute-eng-ip/hive
 
-**Code:** [`projects/components/compute-eng-ip/hive-serv/`](../../../../../../projects/components/compute-eng-ip/hive-serv)
+**Code:** [`projects/components/compute-eng-ip/hive/`](../../../../../../projects/components/compute-eng-ip/hive)
 
 hive component (re-homed from compute-eng-ip 2026-10-10)
 

@@ -1,0 +1,121 @@
+# Testplan for hive_engine_monitor (Block 2)
+# STATUS: planned -- RTL not written yet. Contract: HAS ch3 Block 2
+# (monitored metrics, trigger conditions), MAS §2.3 (module tree; dual-flop
+# tap synchronizers decision 2026-10-13).
+# 2026-11-25 (owner): one gatling core replaces the sixteen SERV monitors;
+# its four barrel contexts monitor the four compute engines, one each. The
+# per-engine scenarios SM-01..SM-06 carry over unchanged (they test the
+# peripheral set one engine sees); SM-07 is rewritten for gatling and SM-08
+# is new (the context-to-engine decode).
+
+module: hive_engine_monitor
+rtl_file: projects/components/compute-eng-ip/hive/rtl/engine_monitor/engine_monitor_top.sv (PLANNED - RTL not written yet, vault hive TASK-000)
+test_file: projects/components/compute-eng-ip/hive/dv/tests/test_hive_engine_monitor.py
+
+# Module description:
+# gatling_core + gatling_mem_bram (riscv-ip/gatling-rv32i; 4 KB bank per
+# context, AXIL loader), plus per engine: traffic_counter behind the
+# (read-only) router tap, trigger_logic threshold comparator, axis_injector
+# (PKT_CONFIG/PKT_STATUS commit), and ctrl_net_slave. The top routes each
+# context's peripheral-window accesses to its own engine's set (dmem_ctx).
+# Detection is hardware; policy (packet content) is monitor firmware -- the
+# Phase-1 tests drive tap/injector signals directly and run gatling only in
+# the bring-up scenarios.
+
+parameters:
+  - name: TILE_ID
+    default: 0
+  - name: CONGESTION_THRESHOLD
+    default: 6
+
+functional_scenarios:
+  - id: SM-01
+    name: "Per-direction packet counters"
+    description: "tap strobes increment pkt_rx_count[4]/pkt_tx_count[4] per
+                  direction, plus pkt_local_inject/pkt_local_consume;
+                  wrapping at 2^32; clear-on-read when the statistics-reset
+                  command arrives."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-02
+    name: "Real-time occupancy and stall tracking"
+    description: "buffer_occupancy[4] tracks the tap's fill-level bus;
+                  stall_cycles increments while valid-packet-waiting-for-
+                  credit is asserted."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-03
+    name: "Congestion trigger at threshold"
+    description: "Occupancy crossing cfg_threshold (default 75% of 8) raises
+                  congestion_flag within the < 10-cycle detection target
+                  and holds until occupancy drops back below; threshold is
+                  runtime-writable from the control network."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-04
+    name: "Dual-flop tap synchronization"
+    description: "Tap inputs crossing into mon_clk pass through two-stage
+                  synchronizers (2026-10-13 decision): functional sim checks
+                  the documented 2-cycle settling behavior on randomized tap
+                  transitions; the tap never back-drives the router."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: gate
+    priority: medium
+    status: planned
+
+  - id: SM-05
+    name: "Injector commit → AXIS packet"
+    description: "Firmware-style word writes + TVALID commit produce a
+                  single-beat 128-bit packet with tuser per commit record
+                  (2'b10 config / 2'b11 status), tid = TILE_ID, tlast set;
+                  tready stall holds the commit without duplicate beats."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-06
+    name: "Sticky error flags"
+    description: "Parity/protocol-violation strobes set sticky error_flags
+                  and are visible to the context's next poll (gatling has no
+                  interrupts); explicit clear via control
+                  frame; overflow/underflow events counted."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: func
+    priority: medium
+    status: planned
+
+  - id: SM-07
+    name: "gatling bring-up in the monitor"
+    description: "Load one tiny monitor-firmware image (poll trigger flags,
+                  increment a counter, emit a status packet) into all four
+                  context banks through gatling_mem_bram's AXIL loader, set
+                  the run bits, and observe each engine's assembled
+                  PKT_STATUS on its own injector -- end-to-end proof that
+                  the barrel core + glue execute real firmware."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: func
+    priority: high
+    status: planned
+
+  - id: SM-08
+    name: "Peripheral decode by context"
+    description: "With the same image in all four banks, drive a different
+                  tap pattern into each engine: each context's counter reads
+                  and injector commits reach only its own engine (dmem_ctx
+                  selects the peripheral set), and a trap that halts one
+                  context leaves the other three engines' monitoring and
+                  reporting unchanged."
+    test_function: "cocotb_test_hive_engine_monitor"
+    test_level: func
+    priority: high
+    status: planned

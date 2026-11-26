@@ -39,8 +39,8 @@ Latest revision of every PDF under `projects/components/`.
 | [Papamarcos_Patel_1984_ISCA_Snoopy_Coherence.pdf](cache-ip/References/Papamarcos_Patel_1984_ISCA_Snoopy_Coherence.pdf) | — | 576 KB | `projects/components/cache-ip/References/` |
 | [Sorin_Hill_Wood_2020_Primer_Memory_Consistency_Cache_Coherence_2ed.pdf](cache-ip/References/Sorin_Hill_Wood_2020_Primer_Memory_Consistency_Cache_Coherence_2ed.pdf) | — | 4.7 MB | `projects/components/cache-ip/References/` |
 | [Stoy_Shen_Arvind_2001_FME_Cache_Coherence_Proofs.pdf](cache-ip/References/Stoy_Shen_Arvind_2001_FME_Cache_Coherence_Proofs.pdf) | — | 402 KB | `projects/components/cache-ip/References/` |
-| [HIVE_HAS_v0.2.pdf](compute-eng-ip/hive-serv/docs/HIVE_HAS_v0.2.pdf) | v0.2 | 1.6 MB | `projects/components/compute-eng-ip/hive-serv/docs/` |
-| [HIVE_MAS_v0.2.pdf](compute-eng-ip/hive-serv/docs/HIVE_MAS_v0.2.pdf) | v0.2 | 1024 KB | `projects/components/compute-eng-ip/hive-serv/docs/` |
+| [HIVE_HAS_v0.2.pdf](compute-eng-ip/hive/docs/HIVE_HAS_v0.2.pdf) | v0.2 | 1.6 MB | `projects/components/compute-eng-ip/hive/docs/` |
+| [HIVE_MAS_v0.2.pdf](compute-eng-ip/hive/docs/HIVE_MAS_v0.2.pdf) | v0.2 | 1024 KB | `projects/components/compute-eng-ip/hive/docs/` |
 | [increment_patterns.pdf](dma-ip/rapids/docs/increment_patterns.pdf) | — | 138 KB | `projects/components/dma-ip/rapids/docs/` |
 | [RAPIDS_Beats_HAS_v0.17.pdf](dma-ip/rapids/docs/RAPIDS_Beats_HAS_v0.17.pdf) | v0.17 | 7.0 MB | `projects/components/dma-ip/rapids/docs/` |
 | [RAPIDS_Beats_MAS_v0.14.pdf](dma-ip/rapids/docs/RAPIDS_Beats_MAS_v0.14.pdf) | v0.14 | 11.4 MB | `projects/components/dma-ip/rapids/docs/` |

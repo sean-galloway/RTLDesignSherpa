@@ -23,7 +23,7 @@ hierarchy, which dies at FPGA bring-up.
   from JTAG. One agent serves every component on the fabric.
 - `riscv-debug` — the override plane: RISC-V Debug Specification debug
   module (DTM/DM, abstract commands, program buffer) coupled to a core's
-  debug mode. Built for the falcon rungs and hive-serv's cores.
+  debug mode. Built for the falcon rungs and hive's cores.
 - The access model governing which plane each consumer needs (ch02).
 
 **Explicitly out of scope:**
