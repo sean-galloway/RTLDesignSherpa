@@ -15,9 +15,9 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 1 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -28,13 +28,17 @@ exactly one state by construction rather than by discipline.
   (`defaults row_major_bl4`, 269,754 vs 269,753). Filed 2026-11-25 from
   MC-022's board check. [open/ISSUE-008.md](open/ISSUE-008.md).
 
+## Closed
+
 - **ISSUE-007** -- the `bank_interleave` row-hit cells at the phase-exact
   counters sit at the 583 MB/s ceiling with a per-pass draw a step below it
   (566 on five to seven of eighteen cells, ~520 on one, the cells differing
   run to run; single-direction passes, so not the direction register); the
   model is 585 flat. Filed 2026-11-22 from MC-020 decision 1.
-
-## Closed
+  CLOSED 2026-11-25 as understood: the level is the refresh phase at launch
+  re-launching a pick-pipeline orbit, pinned per offset by `REF_ALIGN`
+  (MC-025); the model term is MC-023 item 3, deferred.
+  [closed/ISSUE-007.md](closed/ISSUE-007.md).
 
 - **ISSUE-005** -- the open-page mixed cell's slow attractor: the direction
   register's 255 / 255 cap alternation (272 / 272) where the fast mode, taken

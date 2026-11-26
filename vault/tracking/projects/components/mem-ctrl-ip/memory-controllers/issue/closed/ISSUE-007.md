@@ -9,7 +9,7 @@
 (`defaults`), no cell mismatches, and the step is 3 percent on most of the
 affected cells; the 11 percent step hits one cell per run. A model-vs-board
 question first.
-**Status:** open 2026-11-22
+**Status:** CLOSED 2026-11-25 (owner: closed as understood) -- the mechanism is known and pinned on the board; the model term is MC-023 item 3, deferred. Was: open 2026-11-22
 **Owner:** TBD
 
 ## The observation
@@ -87,3 +87,14 @@ could pay it several times over.
 > phase at launch. The model question (the 566 and ~518 orbits) is unchanged,
 > but a board point can now be pinned to a phase and compared with the model
 > at the same phase.
+
+## Resolution (2026-11-25): closed as understood, no action on the RTL
+
+The level is the refresh phase at launch, not a defect: tREFI 780 is a
+multiple of the pick pipeline's 4 / 12 / 13 slot orbit periods, so each
+refresh re-launches the orbit a pass is in (proxy traces, 2026-11-23), and
+with `REF_ALIGN` each offset selects its level on the board, repeatably
+(MC-025, section 6). No cell mismatches; `bank_interleave` is not the shipped
+preset. What is not done is the model reproducing the 566 and ~518 orbits:
+MC-023 item 3, deferred 2026-11-25. Until it resumes, compare these cells
+board to board at a fixed `TEST_REF_ALIGN`, not against the model.
