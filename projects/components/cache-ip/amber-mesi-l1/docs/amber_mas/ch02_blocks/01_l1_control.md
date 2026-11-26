@@ -99,6 +99,16 @@ With the registered data array (`DATA_SYNC_READ = 1`, the core default) the
 arriving `{set, beat}` is also presented on data port A, which reads every
 way at that edge.
 
+Both port-A address muxes, and the compare's tag mux, select on
+`ctrl_req_ready` (a state that can accept), not on the accept itself
+(peregrine TASK-006, 75 MHz). The CPU's request valid comes back from
+ready through the CPU's own logic, so selecting on the handshake put that
+whole loop in front of the tag LUTRAM address. In an accepting state with
+no request the ports read an arriving-address set that nothing consumes:
+the accept latch and the fast-path decode are qualified by the accept,
+and the registered data read lands in `CTRL_IDLE` or `CTRL_SNOOP`, which
+never use port A.
+
 `ctrl_req_ready` is a register function only (the state and a run
 counter): high in `CTRL_IDLE`, and in `CTRL_HIT_RD` for back-to-back
 accepts, at most `HIT_RUN_MAX` (default 8) in a row. A snoop is granted
@@ -119,9 +129,12 @@ nothing else depends on it combinationally.
   the array at the write's edge and get the pre-write word, so a write hit
   occupies the port for two cycles.
 - **Anything else** (a miss, an S-write upgrade): `CTRL_LOOKUP`, which
-  re-classifies from the latched request exactly as before, presents beat 0
-  for the victim gather, and goes on to `CTRL_MISS_VICTIM` or (upgrade)
-  `CTRL_MISS_FILL`. The miss path is unchanged. `CTRL_LOOKUP` is also where
+  re-classifies from the latched request exactly as before and goes on to
+  `CTRL_MISS_VICTIM` or (upgrade) `CTRL_MISS_FILL`. Its data-array address
+  is the latched `{set, beat}` whatever the outcome; it does not switch to
+  beat 0 on a miss (peregrine TASK-006: that put the hit compare and the
+  next-state decode in front of the block RAM address, amber's critical
+  path at 75 MHz). `CTRL_LOOKUP` is also where
   the replay and a snoop detour (a snoop granted in the accept cycle)
   classify.
 
@@ -130,7 +143,7 @@ hit state reads its own latched address in its own cycle instead.
 
 ### Stage 3: Miss handling
 
-1. `CTRL_MISS_VICTIM`: read the victim tag/state from the tag array and, if dirty, gather the victim line from `l1_data_array` port A one beat per cycle into `victim_line_mem` (a beat-addressed store inside `l1_control`; `l1_victim` keeps only the address and the valid). Under `DATA_SYNC_READ` the gather presents beat k+1's address while it writes beat k.
+1. `CTRL_MISS_VICTIM`: read the victim tag/state from the tag array and, if dirty, gather the victim line from `l1_data_array` port A one beat per cycle into `victim_line_mem` (a beat-addressed store inside `l1_control`; `l1_victim` keeps only the address and the valid). Under `DATA_SYNC_READ` the gather has a lead cycle: the first `CTRL_MISS_VICTIM` cycle (victim way chosen, `ctrl_repl_req`) presents beat 0's address, cycle k presents beat k and writes beat k-1, and `ctrl_victim_load` lands in cycle `FILL_BEATS` + 1, so a dirty miss is one cycle longer than on the combinational build. A clean victim leaves for `CTRL_MISS_FILL` from the first cycle as before.
 2. `CTRL_MISS_DRAIN`: if the victim is M, launch `l1_drain` with the address from `l1_victim`; the engine reads the data beat by beat (`ctrl_victim_beat_idx` → `ctrl_victim_beat_data`). Wait for the drain-done handshake.
 3. `CTRL_MISS_FILL`: launch `l1_fill` with the missing line address. The pending-fill bypass register is loaded now.
 4. `CTRL_FILL_WRITE`: on `fill_done`, write the fill data into `l1_data_array` port A and install the tag + new state in `l1_tag_array` port A.
@@ -159,7 +172,12 @@ walk's cursor is the latched request address's set field, cleared to set 0.
    eviction stays WriteBack). Snoops are granted here as on the miss path.
 4. `CTRL_CLEAN_COMMIT`: the B response is in. If the victim way still holds
    the line at M, it is rewritten at E; if a snoop during the drain already
-   moved it (S or I), the commit leaves it. Back to `CTRL_CLEAN_SCAN` on
+   moved it (S or I), the commit leaves it. The still-M check is the tag
+   compare sampled in the last `CTRL_MISS_DRAIN` cycle and registered
+   (`cl_commit_m_q`), so the write enable comes from a flop: the commit's
+   only predecessor is `CTRL_MISS_DRAIN`, which writes no tag, and a snoop
+   detour's tag write lands before the walk returns there, so the sample is
+   exact (peregrine TASK-006). Back to `CTRL_CLEAN_SCAN` on
    the same set, which picks its next M way if any.
 5. `CTRL_CLEAN_RSP`: the response (the request's `wdata` echoed; the CPU
    drives 0) is valid in this cycle, after the last line's B.

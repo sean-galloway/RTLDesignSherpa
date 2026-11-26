@@ -29,6 +29,31 @@ needs a faster clock.
 - 17.5 ns failed by 0.051 where 17.0 ns passed: near the edge, placement
   noise exceeds the 0.2 ns budget.
 
+## Progress (2026-11-26, riscv-ip/peregrine-rv32im TASK-006)
+
+The owner set 75 MHz as peregrine's floor. Three `l1_control` changes
+landed for it, none of which changes the 1-cycle hit:
+
+- a dirty miss's gather presents beat 0 in its first `CTRL_MISS_VICTIM`
+  cycle instead of `CTRL_LOOKUP` switching the data RAM address on its own
+  next-state decode (`DATA_SYNC_READ=1` only; +1 cycle per dirty miss);
+- `CTRL_CLEAN_COMMIT`'s still-M compare is sampled in `CTRL_MISS_DRAIN` and
+  registered (`cl_commit_m_q`, no cycle cost);
+- the port-A tag / data address and compare-tag muxes select on `acc_ok`
+  (ready) rather than `acc`, so the CPU's request valid is out of the tag
+  LUTRAM address cone.
+
+Inside `peregrine_top` (no snooper) the CPU side now closes 13.333 ns in
+every placement tried (+0.099 to +0.300, 0.2 ns uncertainty in); TASK-005's
+latency test is unchanged (read hit 1 / 1, write hit 1 / 2).
+
+`amber_top` alone (`MAINT_EN=1`, `USE_MONITOR=0`, same uncertainty) still
+misses: -0.777 at 13.333 ns, -0.975 at 13.0 ns. The limiter is the snoop
+side, which `peregrine_top` does not have: control state -> ready / grant ->
+`l1_snoop_resp` (in `u_fab`) -> the snoop address -> port-B tag LUTRAM ->
+compare -> stale / CRRESP -> the snoop FSM (19 levels). The same shape as
+the port-A fix: the address should not depend on the grant. Open here.
+
 ## What (a direction, not decided)
 
 Without giving up the 1-cycle hit if possible:

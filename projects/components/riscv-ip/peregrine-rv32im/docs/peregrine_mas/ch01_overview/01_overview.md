@@ -29,7 +29,7 @@ peregrine is merlin's five-stage pipeline with additions, and is meant to be rea
 
 - the IF / ID / EX / MEM / WB stage split and the four pipeline registers, with merlin's control-versus-payload split (only control fields reset and flush);
 - the forwarding unit: EX/MEM over MEM/WB, with the select computed in ID and registered beside ID/EX;
-- the load-use bubble and the load-to-branch interlock;
+- the load-use bubble and the second load interlock (merlin's load-to-branch interlock, widened to every consumer of a load by TASK-006);
 - the WB-to-ID register-file bypass;
 - the registered-read memory contract with the global `mem_wait` hold.
 

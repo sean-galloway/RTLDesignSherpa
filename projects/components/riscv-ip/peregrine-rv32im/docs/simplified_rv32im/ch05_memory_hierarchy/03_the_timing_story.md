@@ -84,6 +84,66 @@ multiplier builds. Every remaining tight path runs through amber; every
 path that stays inside peregrine has at least 3.5 ns to spare. amber's
 own closure on this part is cache-ip/amber-mesi-l1 TASK-007.
 
+## The floor: 75 MHz
+
+The decision did not last. HIVE, the first system to carry peregrine,
+runs every clock domain at 75 MHz, and the owner set that as the floor
+(2026-11-26: "the slowest clock I want is 75mhz"). At 13.333 ns the
+stage-7 design missed by 2.501 ns, and every failing path group ran
+through amber:
+
+- inside amber, its control state through the miss decision to the data
+  RAM address (-2.50);
+- core to amber, `mie` through the interrupt decision and the D request
+  into amber's accept (-2.35);
+- amber to core, the response through the load align and the WB-to-EX
+  forward into the ALU (-1.94).
+
+Four changes close it in the study (riscv-ip/peregrine-rv32im TASK-006),
+each measured on top of the last:
+
+| Change | Cost | WNS at 13.333 ns |
+|--------|------|------------------|
+| None (stage 7) | | -2.501 |
+| Option (c): no WB-to-EX forward of a load | +6.4% kernel CPI | -2.003 |
+| Register the interrupt decision | 1 cycle of interrupt latency | -0.525 |
+| amber reads a miss's beat 0 a cycle later | 1 cycle per dirty miss | -0.305 |
+| amber's clean-all commit check from a flop | none | +0.587 |
+
+: The 75 MHz changes, timing study (TASK-006)
+
+The two amber changes share a shape: a decision fed back into an address
+or a write enable in the same cycle it was made. The miss path used to
+switch the data RAM address to beat 0 while `CTRL_LOOKUP` was still
+deciding it had missed; now the first miss cycle presents beat 0. The
+clean-all commit used to compare the tag in the cycle that writes it; the
+cycle before it (the drain's last) cannot change that tag, so the compare
+is sampled there.
+
+The finished RTL needed a fifth. With the four changes built for real,
+one `MUL_DSP=1` placement missed by 0.003 ns on a path that is the same
+shape again: amber's state, out as ready, through the CPU's request valid,
+back in as the accept, selecting the tag LUTRAM address. The address only
+matters when a request is accepted, and the accept can only happen in a
+state where ready is high, so the mux now selects on ready (a register
+function) and the CPU's logic leaves the address cone. With all five, every
+placement closed with the 0.2 ns budget in:
+
+| Period | Frequency | `MUL_DSP` | WNS |
+|--------|-----------|-----------|-----|
+| 12.5 ns | 80.0 MHz | 0 | +0.133 |
+| 13.0 ns | 76.9 MHz | 0 | +0.316 |
+| 13.0 ns | 76.9 MHz | 1 | +0.111 |
+| 13.333 ns | 75.0 MHz | 0 | +0.300 |
+| 13.333 ns | 75.0 MHz | 1 | +0.099 |
+
+: Clock sweep, the TASK-006 RTL
+
+The target is **13.333 ns, 75 MHz**. Time per kernel instruction went
+from 1.343 x 18.5 = 24.8 ns to 1.429 x 13.333 = 19.1 ns, 1.30 times
+faster. A 2-cycle amber hit, option (b), also closes 75 MHz (+0.30 ns as
+a stand-in) but costs 10.7% to 12.8% CPI, about 20 ns per instruction.
+
 ## What the story teaches
 
 - **A cycle saved in one block can cost nanoseconds in another.** The
@@ -91,5 +151,8 @@ own closure on this part is cache-ip/amber-mesi-l1 TASK-007.
   in the period.
 - **Measure all the options before choosing.** Every option that kept
   100 MHz cost 0.4% to 12.8% CPI and still did not close.
-- **Iron law.** Time = instructions x CPI x period. The decision kept
-  CPI and gave up period; option (b) would have done the opposite.
+- **Iron law.** Time = instructions x CPI x period. The stage-7 decision
+  kept CPI and gave up period; the 75 MHz floor gave back 6.4% CPI for a
+  39% faster clock, and won 1.30 times overall.
+- **A floor set by the system beats a target set by the block.** The
+  clock came from what HIVE needed, not from what peregrine reached.

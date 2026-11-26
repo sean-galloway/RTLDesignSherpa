@@ -37,5 +37,5 @@ every stream on both builds and reports the speedup of `BP_EN=1`.
 
 ## What a mispredict costs in time
 
-Two bubbles at the core clock. At the 18.5 ns period (Chapter 5) that is
-37 ns per mispredict.
+Two bubbles at the core clock. At the 13.333 ns period (Chapter 5) that
+is 27 ns per mispredict.

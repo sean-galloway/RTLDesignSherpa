@@ -65,7 +65,7 @@ The machine-mode CSR file of PRD P6: one combinational read port (the CSR instru
 | `irq_external` | input | `1` | MEIP pin (level) |
 | `mtvec` | output | `[31:0]` | Trap vector (direct mode) |
 | `mepc` | output | `[31:0]` | Return PC for mret |
-| `irq_pending` | output | `1` | An enabled interrupt is pending and mstatus.MIE is set |
+| `irq_pending` | output | `1` | An enabled interrupt was pending and mstatus.MIE set in the previous cycle (registered) |
 | `irq_cause` | output | `[31:0]` | Its mcause (MEI > MSI > MTI) |
 
 : peregrine_csr ports
@@ -79,7 +79,7 @@ The machine-mode CSR file of PRD P6: one combinational read port (the CSR instru
 - **Trap entry:** `MPIE <= MIE`, `MIE <= 0`, `mepc <= trap_epc[31:2]`, `mcause <= trap_cause`, `mtval <= trap_tval`.
 - **mret:** `MIE <= MPIE`, `MPIE <= 1`.
 - **Write masks:** `mie` keeps only MSIE, MTIE, MEIE; `mtvec` and `mepc` keep bits 31:2; `mstatus` keeps MIE and MPIE; writes to `misa`, `mstatush`, `mip` and the PMP CSRs are ignored.
-- **Interrupts.** `irq_pending = |(mie & mip) & mstatus.MIE`, with `mip` taken from the three pins each cycle. `irq_cause` picks MEI, then MSI, then MTI.
+- **Interrupts.** The decision `|(mie & mip) & mstatus.MIE`, with `mip` taken from the three pins each cycle, is registered: `irq_pending` and `irq_cause` (MEI, then MSI, then MTI) are what the previous cycle saw (TASK-006; `mie` through the decision into amber's request accept was a 75 MHz critical path). A cycle with `wen`, `trap_take` or `mret_take` loads `irq_pending = 0`, so the cycle after a CSR write that disables interrupts, a trap entry (which clears MIE) or an `mret` never takes an interrupt on the old enables. An interrupt is recognized one cycle after its pin and enables allow it, and a pin that drops is still seen for one cycle.
 - **Reset.** Every CSR resets to 0, so interrupts are disabled and `mtvec` is 0 until software sets them.
 
 ---

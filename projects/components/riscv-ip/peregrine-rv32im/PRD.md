@@ -102,8 +102,11 @@ merlin's five stages, with the additions marked:
 ```
 
 merlin's forwarding (EX/MEM over MEM/WB, select computed in ID), its
-load-use bubble and its load-to-branch interlock carry over unchanged.
-peregrine is meant to diff against merlin as additions only.
+load-use bubble and its load-to-branch interlock carry over, with one
+change for the 75 MHz floor (P14, TASK-006): the load-to-branch interlock
+covers every consumer of a load in MEM, so no load is forwarded WB to EX
+and a load-use costs 2 cycles. peregrine is meant to diff against merlin
+as additions only.
 
 ### 4.2 Branch prediction
 
@@ -391,7 +394,7 @@ the worked version, with measured miss rates replacing the assumed ones.
 | P11 | Decode growth | **DECIDED 2026-11-23 (Sean: "can't it have a param so there is one common file?"):** one `rv32i_decode` with parameters `M_EXT` and `ZICSR` (real CSR ops, `mret`, and trap causes in place of halt causes), both default 0. The new outputs (`m_op`, `csr_op`, `mret`) always exist and are constant 0 when their parameter is off, so kestrel, merlin and gatling elaborate the same logic they do today; their full suites and the common-rv32i unit tests are the proof. gyrfalcon's `A_EXT` and garuda's F decode extend the same file the same way | common-rv32i decode, its testplan and unit test; the three existing cores re-run unchanged |
 | P12 | Cacheless build + formal reach | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `CACHE_EN=0` gives merlin's Harvard ports; merlin's riscv-formal insn checks run on that build (with traps off via the formal harness); interrupts checked by the directed suite where lockstep cannot align them | DV plan, formal |
 | P13 | amber hit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"): measure first.** **MEASURED 2026-11-24 (TASK-001 stage 6): 4 cycles.** At amber's CPU GAXI port (pair rig, l1_pkg default geometry), a read or write hit's response is valid 4 cycles after the accept, and the port accepts again after 3: IDLE (accept), LOOKUP (tag read), HIT_RD/HIT_WR, IDLE, then the 2-deep response staging FIFO. A miss on the bench memory is 29. **Option (b) CHOSEN 2026-11-24 (Sean, "b, please"): amber gains a pipelined hit path**, filed as cache-ip/amber-mesi-l1 TASK-005; the target latency (1 cycle keeps a single MEM stage, 2 needs M1/M2 or one stall per access) is set there together with stage 4. **Implemented 2026-11-24 (TASK-005, target 1 cycle): a hit answers 1 cycle after the accept; read hits accept back to back (occupancy 1), a write hit holds the port 2.** The test now asserts those numbers. The rejected option was peregrine accepting the stall. Gate: `dv/tests/test_peregrine_amber_latency.py` asserts the hit numbers | CPI model, MEM stage |
-| P14 | FPGA target | **AMENDED 2026-11-25 (owner, "Lower the clock target"):** keep amber's 1-cycle hit and the current CPI, and close at the frequency the design reaches rather than 100 MHz. Measured at stage 7 (OOC, xc7a100t-1, 0.2 ns of uncertainty added, MUL_DSP=0): 17.0 ns (58.8 MHz) closes at +0.331 ns, but 17.5 ns fails, so placement noise at that edge is larger than the budget; 18.5 ns (54.1 MHz) closes with MUL_DSP=0 (+0.100) and with MUL_DSP=1 (+0.342). The three tightest path groups all involve amber, whose `MAINT_EN=1` build alone misses 100 MHz on this part by 4.05 ns. **Target (owner, 2026-11-25): 18.5 ns, 54.1 MHz**, the period that closed in both `MUL_DSP` builds; amber's limiting paths are cache-ip/amber-mesi-l1 TASK-007. Originally **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** 100 MHz OOC on the Nexys A7 (xc7a100t-1), the riscv-ip ISSUE-001 anchor, with config CSR paths false-pathed per house rule; the predictor lookup and the trap redirect are the paths to watch; since stage 3 also the EX mispredict redirect (forwarded operand, target add, 32-bit compare against the predicted target, PC mux, fetch address), which the stage-3 review expects to become critical | timing, book |
+| P14 | FPGA target | **AMENDED 2026-11-26 (owner, "the slowest clock I want is 75mhz"; HIVE runs every domain at 75 MHz): target 13.333 ns, 75 MHz, as a floor.** The owner accepted the CPI cost of the route measured in TASK-006: no WB-to-EX forward of a load (+6.4% kernel CPI, +0.4% rv32ui), a registered interrupt decision (one cycle later), and three amber `l1_control` changes (a dirty miss's gather starts a cycle later; the clean-all commit check is registered; the port-A address selects on ready, not on the accept). Measured on the TASK-006 RTL (OOC, xc7a100t-1, 0.2 ns of uncertainty): at 13.333 ns +0.300 (`MUL_DSP=0`) and +0.099 (`MUL_DSP=1`); +0.316 / +0.111 at 13.0 ns; +0.133 at 12.5 ns (`MUL_DSP=0`). Previously **AMENDED 2026-11-25 (owner, "Lower the clock target"):** keep amber's 1-cycle hit and the current CPI, and close at the frequency the design reaches rather than 100 MHz. Measured at stage 7 (OOC, xc7a100t-1, 0.2 ns of uncertainty added, MUL_DSP=0): 17.0 ns (58.8 MHz) closes at +0.331 ns, but 17.5 ns fails, so placement noise at that edge is larger than the budget; 18.5 ns (54.1 MHz) closes with MUL_DSP=0 (+0.100) and with MUL_DSP=1 (+0.342). The three tightest path groups all involve amber, whose `MAINT_EN=1` build alone misses 100 MHz on this part by 4.05 ns. **Target (owner, 2026-11-25): 18.5 ns, 54.1 MHz**, the period that closed in both `MUL_DSP` builds; amber's limiting paths are cache-ip/amber-mesi-l1 TASK-007. Originally **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** 100 MHz OOC on the Nexys A7 (xc7a100t-1), the riscv-ip ISSUE-001 anchor, with config CSR paths false-pathed per house rule; the predictor lookup and the trap redirect are the paths to watch; since stage 3 also the EX mispredict redirect (forwarded operand, target add, 32-bit compare against the predicted target, PC mux, fetch address), which the stage-3 review expects to become critical | timing, book |
 
 ## 7. Deliverables & sequencing
 
@@ -414,6 +417,12 @@ the worked version, with measured miss rates replacing the assumed ones.
 
 ## 8. History
 
+- 2026-11-26: P14 amended (owner): 75 MHz is the floor. TASK-006 closes
+  13.333 ns (+0.300 / +0.099 for `MUL_DSP=0` / 1, and every placement
+  at 13.0 and 12.5 ns closed) with the load-use interlock widened to every
+  consumer, the interrupt decision registered, and three amber
+  `l1_control` timing changes; kernel CPI 1.343
+  -> 1.429, about 1.30x faster per instruction than 54.1 MHz.
 - 2026-11-25: PRD amended to the RTL as built (owner: "amend the prd for
   now; add a task for the future for error handling"), from the
   mismatches TASK-002's books found: no load/store access faults (§3,

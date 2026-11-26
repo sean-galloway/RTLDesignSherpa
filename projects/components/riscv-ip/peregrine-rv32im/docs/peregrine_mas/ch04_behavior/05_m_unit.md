@@ -71,7 +71,7 @@ An M instruction raises no exception of its own. A MEM redirect (an older trap o
 
 ## Timing
 
-The `MUL_DSP=1` product is combinational between registers that sit behind muxes, so the DSP cannot absorb a pipeline register; the stage-2 review flagged it for P14. Measured at stage 7: at 18.5 ns `MUL_DSP=1` closed with +0.342 ns, better than the iterative build's +0.100 ns.
+The `MUL_DSP=1` product is combinational between registers that sit behind muxes, so the DSP cannot absorb a pipeline register; the stage-2 review flagged it for P14. Measured at stage 7: at 18.5 ns `MUL_DSP=1` closed with +0.342 ns, better than the iterative build's +0.100 ns. At 13.333 ns (TASK-006) it closed with +0.099 ns against +0.300; in both builds the limiting path is the CPU request into amber, not the multiplier.
 
 ---
 

@@ -7,8 +7,7 @@
 | Mispredict | 2 cycles | 2 |
 | Correctly predicted taken branch | 0 (merlin paid 2) | 2 |
 | Trap, `mret`, `fence.i` | 3 cycles, plus `fence.i`'s clean and invalidate | 3, 5 |
-| Load-use | 1 cycle, as in merlin | 5 |
-| Load to branch or JALR | 1 more, as in merlin | |
+| Load-use | 2 cycles (merlin: 1, or 2 to a branch); no load is forwarded WB to EX | 5 |
 | CSR behind CSR | up to 2 cycles | 3 |
 | M instruction | 33, 1 (early out) or 2 (`MUL_DSP=1` multiply) | 4 |
 | Cache hit | 0 extra (1-cycle amber hit) | 5 |
@@ -16,17 +15,16 @@
 
 : Where cycles go
 
-On the stage-7 kernels the measured CPI is 1.343 (without `mm`), and on
-the rv32ui images 1.989 (TASK-001 stage 7, the CPI harness at the
-step-5 design).
+On the stage-7 kernels the measured CPI is 1.429 (without `mm`), and on
+the rv32ui images 1.998 (TASK-006, the CPI harness; 1.343 and 1.989
+before the second load interlock).
 
 ## Area and clock
 
-The 17.0 ns build of `peregrine_top`, the closest measured to the
-target, used 5,064 LUTs, 3,004 flip-flops, 9 RAMB36 blocks and 922 LUTs
-as distributed RAM on the xc7a100t-1 (TASK-001 stage 7). The target
-period is 18.5 ns, 54.1 MHz, set by amber's paths rather than
-peregrine's (Chapter 5).
+The 13.333 ns build of `peregrine_top` used 4,810 LUTs, 3,009
+flip-flops and 9 block RAM tiles on the xc7a100t-1 (TASK-006,
+`MUL_DSP=0`). The target period is 13.333 ns, 75 MHz, the
+owner's floor; amber's paths still set the margin (Chapter 5).
 
 ## What was left out
 

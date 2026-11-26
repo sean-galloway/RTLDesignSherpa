@@ -138,12 +138,29 @@ module peregrine_csr #(
     end
 
     // Interrupt decision: globally enabled, individually enabled, pending.
+    // Registered (peregrine TASK-006, the 75 MHz build): mie -> decision ->
+    // the D request valid -> amber's accept cone was a critical path, so the
+    // commit point sees the decision one cycle after the pins and enables
+    // make it. A CSR write, a trap entry or an mret clears it for that one
+    // cycle, so a write that disables interrupts (or the MIE clear of a trap
+    // entry) is never followed by an interrupt taken on the old enables.
     logic [31:0] w_irq_en;
+    logic        r_irq_pending;
+    logic [31:0] r_irq_cause;
     assign w_irq_en    = r_mie & w_mip & {32{r_mie_bit}};
-    assign irq_pending = |w_irq_en;
-    assign irq_cause   = w_irq_en[IRQ_MEI] ? {1'b1, MCAUSE_MEI} :
-                         w_irq_en[IRQ_MSI] ? {1'b1, MCAUSE_MSI} :
-                                             {1'b1, MCAUSE_MTI};
+    assign irq_pending = r_irq_pending;
+    assign irq_cause   = r_irq_cause;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_irq_pending <= 1'b0;
+            r_irq_cause   <= '0;
+        end else begin
+            r_irq_pending <= (|w_irq_en) & ~wen & ~trap_take & ~mret_take;
+            r_irq_cause   <= w_irq_en[IRQ_MEI] ? {1'b1, MCAUSE_MEI} :
+                             w_irq_en[IRQ_MSI] ? {1'b1, MCAUSE_MSI} :
+                                                 {1'b1, MCAUSE_MTI};
+        end
+    )
 
     // State.  Trap entry, mret and a CSR write never coincide: each is the
     // commit of the one instruction in MEM.

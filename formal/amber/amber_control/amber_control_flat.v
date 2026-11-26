@@ -344,6 +344,13 @@ module l1_control (
 	(* ram_style = "distributed" *) reg [64 - 1:0] victim_line_mem [0:FILL_BEATS - 1];
 	wire [64 - 1:0] victim_sn_word;
 	reg [BEAT_INDEX_WIDTH:0] mv_cnt_q;
+	localparam signed [31:0] MV_LEAD = (1 ? 1 : 0);
+	function automatic signed [((BEAT_INDEX_WIDTH + 0) >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - (BEAT_INDEX_WIDTH + 0)) - 1:0] sv2v_cast_DE5CF_signed;
+		input reg signed [((BEAT_INDEX_WIDTH + 0) >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - (BEAT_INDEX_WIDTH + 0)) - 1:0] inp;
+		sv2v_cast_DE5CF_signed = inp;
+	endfunction
+	localparam [BEAT_INDEX_WIDTH:0] MV_END = sv2v_cast_DE5CF_signed(FILL_BEATS + MV_LEAD);
+	reg cl_commit_m_q;
 	reg fill_seen_q;
 	reg fill_done_q;
 	reg drain_seen_q;
@@ -395,7 +402,7 @@ module l1_control (
 	assign acc_ok = (state_q == OH_IDLE) || ((state_q == OH_HIT_RD) && (hit_run_q < sv2v_cast_B50F1_signed(8)));
 	assign acc = req_valid && acc_ok;
 	wire [TAG_WIDTH - 1:0] cmp_tag;
-	assign cmp_tag = (acc ? acc_tag : req_tag);
+	assign cmp_tag = (acc_ok ? acc_tag : req_tag);
 	reg hit_any;
 	reg [WAY_INDEX_WIDTH - 1:0] hit_way;
 	reg [2:0] hit_state;
@@ -701,10 +708,6 @@ module l1_control (
 	end
 	wire cl_last = req_set == sv2v_cast_CC260_signed(16 - 1);
 	wire cl_commit_m = ctrl_tag_a_tag_state[sv2v_cast_32(victim_way_q) * TAG_STATE_WIDTH+:TAG_STATE_WIDTH] == {victim_tag_q, 3'b011};
-	function automatic signed [((BEAT_INDEX_WIDTH + 0) >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - (BEAT_INDEX_WIDTH + 0)) - 1:0] sv2v_cast_DE5CF_signed;
-		input reg signed [((BEAT_INDEX_WIDTH + 0) >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - (BEAT_INDEX_WIDTH + 0)) - 1:0] inp;
-		sv2v_cast_DE5CF_signed = inp;
-	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -745,7 +748,7 @@ module l1_control (
 					state_d = OH_REPLAY;
 				else if ((mv_cnt_q == {(BEAT_INDEX_WIDTH >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - BEAT_INDEX_WIDTH) {1'sb0}}) && kmap_start_fill)
 					state_d = OH_MISS_FILL;
-				else if (mv_cnt_q == sv2v_cast_DE5CF_signed(FILL_BEATS))
+				else if (mv_cnt_q == MV_END)
 					state_d = OH_MISS_DRAIN;
 				else
 					state_d = OH_MISS_VICTIM;
@@ -910,7 +913,7 @@ module l1_control (
 						victim_state_q <= mv_victim_state;
 						mv_cnt_q <= mv_cnt_q + 1'b1;
 					end
-					else if (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS))
+					else if (mv_cnt_q < MV_END)
 						mv_cnt_q <= mv_cnt_q + 1'b1;
 					else
 						mv_cnt_q <= 1'sb0;
@@ -953,22 +956,30 @@ module l1_control (
 					;
 			endcase
 		end
-	always @(posedge clk)
-		if (((state_q == OH_MISS_VICTIM) || (state_q == OH_CLEAN_GATHER)) && (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)))
-			victim_line_mem[mv_cnt_q[BEAT_INDEX_WIDTH - 1:0]] <= ctrl_data_a_rdata;
+	wire mv_cap = ((state_q == OH_MISS_VICTIM) && !(1 && (mv_cnt_q == {(BEAT_INDEX_WIDTH >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - BEAT_INDEX_WIDTH) {1'sb0}}))) && (mv_cnt_q < MV_END);
+	wire cg_cap = (state_q == OH_CLEAN_GATHER) && (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS));
 	function automatic [BEAT_INDEX_WIDTH - 1:0] sv2v_cast_9FF7F;
 		input reg [BEAT_INDEX_WIDTH - 1:0] inp;
 		sv2v_cast_9FF7F = inp;
 	endfunction
+	wire [BEAT_INDEX_WIDTH - 1:0] cap_beat = (mv_cap ? sv2v_cast_9FF7F(mv_cnt_q - sv2v_cast_DE5CF_signed(MV_LEAD)) : mv_cnt_q[BEAT_INDEX_WIDTH - 1:0]);
+	always @(posedge clk)
+		if (mv_cap || cg_cap)
+			victim_line_mem[cap_beat] <= ctrl_data_a_rdata;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			cl_commit_m_q <= 1'b0;
+		else
+			cl_commit_m_q <= cl_commit_m;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		ctrl_tag_a_set = (acc ? acc_set : req_set);
+		ctrl_tag_a_set = (acc_ok ? acc_set : req_set);
 		ctrl_tag_a_wr_en = 1'b0;
 		ctrl_tag_a_wr_way_onehot = 1'sb0;
 		ctrl_tag_a_wr_set = req_set;
 		ctrl_tag_a_wr_tag_state = 1'sb0;
-		ctrl_data_a_addr = (1 && acc ? {acc_set, acc_beat} : {req_set, req_beat});
+		ctrl_data_a_addr = (1 && acc_ok ? {acc_set, acc_beat} : {req_set, req_beat});
 		ctrl_data_a_way = hit_way_q;
 		ctrl_data_a_wr_en = 1'b0;
 		ctrl_data_a_wr_way_onehot = hit_way_onehot;
@@ -1006,8 +1017,7 @@ module l1_control (
 				ctrl_tag_a_wr_tag_state = {{TAG_WIDTH {1'b0}}, 3'b000};
 			end
 			OH_LOOKUP:
-				if (1 && (state_d == OH_MISS_VICTIM))
-					ctrl_data_a_addr = {req_set, {BEAT_INDEX_WIDTH {1'b0}}};
+				;
 			OH_HIT_WR: begin
 				ctrl_data_a_wr_en = 1'b1;
 				ctrl_tag_a_wr_en = hit_state_q != 3'b011;
@@ -1016,21 +1026,18 @@ module l1_control (
 				ctrl_repl_hit = 1'b1;
 			end
 			OH_HIT_RD: ctrl_repl_hit = 1'b1;
-			OH_MISS_VICTIM: begin
+			OH_MISS_VICTIM:
 				if (mv_cnt_q == {(BEAT_INDEX_WIDTH >= 0 ? BEAT_INDEX_WIDTH + 1 : 1 - BEAT_INDEX_WIDTH) {1'sb0}}) begin
 					ctrl_repl_req = 1'b1;
 					ctrl_data_a_addr = {req_set, {BEAT_INDEX_WIDTH {1'b0}}};
 					ctrl_data_a_way = ctrl_repl_way;
 				end
-				else if (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)) begin
+				else if (mv_cnt_q < MV_END) begin
 					ctrl_data_a_addr = {req_set, mv_cnt_q[BEAT_INDEX_WIDTH - 1:0]};
 					ctrl_data_a_way = victim_way_q;
 				end
 				else
 					ctrl_victim_load = 1'b1;
-				if (1 && (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS)))
-					ctrl_data_a_addr = {req_set, sv2v_cast_9FF7F(mv_cnt_q + 1'b1)};
-			end
 			OH_CLEAN_GATHER: begin
 				ctrl_data_a_way = victim_way_q;
 				if (mv_cnt_q < sv2v_cast_DE5CF_signed(FILL_BEATS))
@@ -1039,7 +1046,7 @@ module l1_control (
 					ctrl_victim_load = 1'b1;
 			end
 			OH_CLEAN_COMMIT: begin
-				ctrl_tag_a_wr_en = cl_commit_m;
+				ctrl_tag_a_wr_en = cl_commit_m_q;
 				ctrl_tag_a_wr_way_onehot = victim_way_onehot;
 				ctrl_tag_a_wr_tag_state = {victim_tag_q, 3'b010};
 			end

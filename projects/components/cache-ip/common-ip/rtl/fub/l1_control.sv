@@ -390,6 +390,21 @@ module l1_control
     logic [BUS_WIDTH-1:0]       victim_line_mem [FILL_BEATS];
     logic [BUS_WIDTH-1:0]       victim_sn_word;   // the bypass's current CD beat
     logic [BEAT_INDEX_WIDTH:0]  mv_cnt_q;
+    // MISS_VICTIM gather schedule. Combinational read (MV_LEAD = 0): gather
+    // cycle k (mv_cnt_q = k) reads and captures beat k. Registered read
+    // (MV_LEAD = 1): cycle 0 presents beat 0's address, cycle k presents
+    // beat k and captures beat k-1, so victim_load lands at FILL_BEATS + 1.
+    // The lead cycle is the 75 MHz timing fix (peregrine TASK-006): LOOKUP
+    // no longer moves the data-array address on its own next-state decode
+    // (hit compare -> miss -> beat 0), which was amber's critical path.
+    localparam int MV_LEAD = DATA_SYNC_READ ? 1 : 0;
+    localparam logic [BEAT_INDEX_WIDTH:0] MV_END =
+        (BEAT_INDEX_WIDTH+1)'(FILL_BEATS + MV_LEAD);
+    // CLEAN_COMMIT's "still M" check, sampled in MISS_DRAIN (the only
+    // predecessor; nothing writes the tag array in MISS_DRAIN, and a snoop
+    // detour's tag write lands before it returns there), so the tag
+    // compare is a flop away from the tag-array write enable
+    logic cl_commit_m_q;
 
     // transaction-completion handshake flags (start pulses are one cycle;
     // done may only be honoured after the start has been presented; the
@@ -466,10 +481,16 @@ module l1_control
                         && (hit_run_q < RUN_W'(HIT_RUN_MAX)));
     assign acc    = req_valid && acc_ok;
 
-    // the tag the port-A compare runs on: the arriving request's in its
-    // accept cycle, the latched one otherwise (LOOKUP)
+    // the tag the port-A compare runs on: the arriving request's in a
+    // state that can accept, the latched one otherwise (LOOKUP). The
+    // select is acc_ok, not acc (peregrine TASK-006, 75 MHz): req_valid
+    // comes from the CPU and, behind it, from ready, so selecting on acc
+    // put the whole handshake in front of the tag LUTRAM address. In an
+    // accepting state with no request the port reads a don't-care set:
+    // nothing consumes port A there unless acc (the accept latch and the
+    // fast-path decode are both qualified by it).
     logic [TAG_WIDTH-1:0] cmp_tag;
-    assign cmp_tag = acc ? acc_tag : req_tag;
+    assign cmp_tag = acc_ok ? acc_tag : req_tag;
 
     // ------------------------------------------------------------------
     // LOOKUP: combinational hit/miss across the ways (tag match on a
@@ -909,7 +930,7 @@ module l1_control
                     state_d = OH_REPLAY;                       // defensive
                 end else if (mv_cnt_q == '0 && kmap_start_fill) begin
                     state_d = OH_MISS_FILL;                    // clean victim
-                end else if (mv_cnt_q == (BEAT_INDEX_WIDTH+1)'(FILL_BEATS)) begin
+                end else if (mv_cnt_q == MV_END) begin
                     state_d = OH_MISS_DRAIN;                   // victim staged
                 end else begin
                     state_d = OH_MISS_VICTIM;                  // gathering
@@ -1100,7 +1121,7 @@ module l1_control
                                                 [TAG_STATE_WIDTH-1 -: TAG_WIDTH];
                         victim_state_q <= mv_victim_state;
                         mv_cnt_q       <= mv_cnt_q + 1'b1;
-                    end else if (mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS)) begin
+                    end else if (mv_cnt_q < MV_END) begin
                         mv_cnt_q <= mv_cnt_q + 1'b1;
                     end else begin
                         mv_cnt_q <= '0;
@@ -1169,20 +1190,35 @@ module l1_control
     // both read it by beat (ctrl_victim_beat_data / victim_sn_word), so
     // the store is one word per beat and maps to distributed RAM.
     // ------------------------------------------------------------------
+    // the registered read's lead cycle (mv_cnt_q == 0) captures nothing
+    wire mv_cap = (state_q == OH_MISS_VICTIM)
+                  && !(DATA_SYNC_READ && mv_cnt_q == '0)
+                  && mv_cnt_q < MV_END;
+    wire cg_cap = (state_q == OH_CLEAN_GATHER)
+                  && mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS);
+    wire [BEAT_INDEX_WIDTH-1:0] cap_beat = mv_cap
+        ? BEAT_INDEX_WIDTH'(mv_cnt_q - (BEAT_INDEX_WIDTH+1)'(MV_LEAD))
+        : mv_cnt_q[BEAT_INDEX_WIDTH-1:0];
+
     always_ff @(posedge clk) begin
-        if ((state_q == OH_MISS_VICTIM || state_q == OH_CLEAN_GATHER)
-            && mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS)) begin
-            victim_line_mem[mv_cnt_q[BEAT_INDEX_WIDTH-1:0]] <= ctrl_data_a_rdata;
+        if (mv_cap || cg_cap) begin
+            victim_line_mem[cap_beat] <= ctrl_data_a_rdata;
         end
     end
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) cl_commit_m_q <= 1'b0;
+        else                      cl_commit_m_q <= cl_commit_m;
+    )
 
     // ------------------------------------------------------------------
     // Outputs
     // ------------------------------------------------------------------
     always_comb begin
-        // tag array port A: the arriving request's set in its accept
-        // cycle (classified there), the latched set otherwise
-        ctrl_tag_a_set           = acc ? acc_set : req_set;
+        // tag array port A: the arriving request's set in a state that
+        // can accept (classified there; see cmp_tag for why the select is
+        // acc_ok), the latched set otherwise
+        ctrl_tag_a_set           = acc_ok ? acc_set : req_set;
         ctrl_tag_a_wr_en         = 1'b0;
         ctrl_tag_a_wr_way_onehot = '0;
         ctrl_tag_a_wr_set        = req_set;
@@ -1190,10 +1226,13 @@ module l1_control
 
         // data array port A. Registered read: the arriving request's word
         // is read at its accept edge and consumed in HIT_RD the next
-        // cycle. Combinational read: HIT_RD reads its own latched address
-        // in its own cycle, so an accept there must not move the port.
-        ctrl_data_a_addr = (DATA_SYNC_READ && acc) ? {acc_set, acc_beat}
-                                                   : {req_set, req_beat};
+        // cycle; selected on acc_ok like the tag port (a read in an
+        // accepting state with no request lands in IDLE or SNOOP, which
+        // never consume port A). Combinational read: HIT_RD reads its own
+        // latched address in its own cycle, so an accept there must not
+        // move the port.
+        ctrl_data_a_addr = (DATA_SYNC_READ && acc_ok) ? {acc_set, acc_beat}
+                                                      : {req_set, req_beat};
         ctrl_data_a_way  = hit_way_q;
         ctrl_data_a_wr_en         = 1'b0;
         ctrl_data_a_wr_way_onehot = hit_way_onehot;
@@ -1254,12 +1293,11 @@ module l1_control
                 ctrl_tag_a_wr_tag_state  = { {TAG_WIDTH{1'b0}}, AMBER_STATE_I };
             end
             OH_LOOKUP: begin
-                // registered array read: a miss gathers from beat 0 next
-                // cycle, so beat 0's address is presented here; the hit
-                // path keeps the default {req_set, req_beat} already
-                // presented, read at this edge, consumed in HIT_RD
-                if (DATA_SYNC_READ && state_d == OH_MISS_VICTIM)
-                    ctrl_data_a_addr = {req_set, {BEAT_INDEX_WIDTH{1'b0}}};
+                // the default {req_set, req_beat}: read at this edge,
+                // consumed in HIT_RD. A miss does NOT move the address
+                // here (that put the hit compare and the next-state decode
+                // in front of the array address); MISS_VICTIM's lead cycle
+                // presents beat 0 instead
             end
             OH_HIT_WR: begin
                 // byte-merge write; promote E->M (M keeps its tag entry).
@@ -1276,24 +1314,20 @@ module l1_control
                 ctrl_repl_hit = 1'b1;
             end
             OH_MISS_VICTIM: begin
+                // cycle k presents beat k on both read flavours; the
+                // registered read captures it at k+1 (MV_LEAD). The way
+                // select is after the register: cycle 0 captures only on a
+                // combinational read, from the way the engine names now
                 if (mv_cnt_q == '0) begin
                     ctrl_repl_req = 1'b1;
                     ctrl_data_a_addr = {req_set, {BEAT_INDEX_WIDTH{1'b0}}};
                     ctrl_data_a_way  = ctrl_repl_way;
-                end else if (mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS)) begin
+                end else if (mv_cnt_q < MV_END) begin
                     ctrl_data_a_addr = {req_set, mv_cnt_q[BEAT_INDEX_WIDTH-1:0]};
                     ctrl_data_a_way  = victim_way_q;
                 end else begin
                     ctrl_victim_load = 1'b1;
                 end
-                // registered array read: the address leads the capture by
-                // one cycle -- beat 0 was presented during LOOKUP, so
-                // gather cycle k presents beat k+1 (the way select is
-                // after the register and keeps its cycle)
-                if (DATA_SYNC_READ
-                    && mv_cnt_q < (BEAT_INDEX_WIDTH+1)'(FILL_BEATS))
-                    ctrl_data_a_addr = {req_set,
-                                        BEAT_INDEX_WIDTH'(mv_cnt_q + 1'b1)};
             end
             OH_CLEAN_GATHER: begin
                 // the MISS_VICTIM gather on the latched M way (the way was
@@ -1310,7 +1344,7 @@ module l1_control
             OH_CLEAN_COMMIT: begin
                 // the WriteClean's B is in: M -> E, unless a snoop during
                 // the drain already moved the line
-                ctrl_tag_a_wr_en         = cl_commit_m;
+                ctrl_tag_a_wr_en         = cl_commit_m_q;
                 ctrl_tag_a_wr_way_onehot = victim_way_onehot;
                 ctrl_tag_a_wr_tag_state  = {victim_tag_q, AMBER_STATE_E};
             end

@@ -28,8 +28,9 @@ then how the core was checked (Chapter 6) and what it all cost (Chapter
 7). Where kestrel's book teaches a datapath you can trace by hand, this
 one teaches decisions: why a counter is installed at 01 and not 10, why
 an M instruction holds EX instead of using a scoreboard, why an
-interrupt skips an M instruction, and why the clock target came down
-from 100 MHz to 54.1 MHz instead of the cache's hit time going up.
+interrupt skips an M instruction, why the clock target came down
+from 100 MHz to 54.1 MHz instead of the cache's hit time going up, and
+how it went back to 75 MHz for a 6.4% CPI.
 
 ## Document Structure
 

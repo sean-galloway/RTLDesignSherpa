@@ -390,8 +390,8 @@ HIVE-C's core sits behind the `hive_c_loader` contract (AXIL loader window,
 load-then-run); the LDR testplan verifies that contract, not the core. That
 deliberate isolation makes the core **swappable by parameter** (`CORE_FLAVOR`,
 to be recorded in the MAS): `vexriscv` is the default today, `peregrine` is
-the intended successor when falcon rung 3 lands. (peregrine closes at 54.1 MHz, its PRD P14, so as
-HIVE-C it would need its own clock or a faster build to meet HIVE's 75 MHz.) The swap touches only the
+the intended successor when falcon rung 3 lands. (peregrine closes 75 MHz since
+riscv-ip/peregrine-rv32im TASK-006, its PRD P14, so it runs on HIVE's 75 MHz domain.) The swap touches only the
 wrapper's core-facing glue (VexRiscv native ibus/dbus cmd/rsp vs peregrine's
 caches-behind-AXI4); the loader, firmware, and testplan carry over unchanged.
 
@@ -457,7 +457,8 @@ HIVE demonstrates:
   timer. (3) 4 KB per context for now, a one-parameter change later.
   (4) "update hive to 75mhz": every HIVE clock domain targets 75 MHz;
   §8.1's command response becomes 75 cycles. §10.3's successor core,
-  peregrine, closes at 54.1 MHz (its PRD P14), below this target.
+  peregrine, closed at 54.1 MHz then; on 2026-11-26 it was brought to
+  75 MHz (riscv-ip/peregrine-rv32im TASK-006, its PRD P14).
 - 2026-10-12: PRD 0.2. HAS/MAS v0.2 published.
 
 ## 13. Documentation Generation

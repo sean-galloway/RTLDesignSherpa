@@ -137,7 +137,7 @@ DESC = {
                       "irq_software": "MSIP pin (level)", "irq_timer": "MTIP pin (level)",
                       "irq_external": "MEIP pin (level)",
                       "mtvec": "Trap vector (direct mode)", "mepc": "Return PC for mret",
-                      "irq_pending": "An enabled interrupt is pending and mstatus.MIE is set",
+                      "irq_pending": "An enabled interrupt was pending and mstatus.MIE set in the previous cycle (registered)",
                       "irq_cause": "Its mcause (MEI > MSI > MTI)"},
     "peregrine_mdu": {"clk": "Clock", "rst_n": "Reset (busy, done, count)",
                       "funct3": "M-extension operation", "idle": "Neither busy nor done",

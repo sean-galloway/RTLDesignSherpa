@@ -31,8 +31,7 @@ peregrine has no performance target (PRD §2); this chapter reports what was mea
 |-------|--------------|-------|
 | Correctly predicted taken branch, JAL or JALR | 0 | The lesson of PRD §4.2 |
 | Mispredict (direction, or target of a taken guess) | 2 | IF/ID and ID/EX flushed; merlin pays this on every taken branch |
-| Load followed by a dependent instruction | 1 | Load-use bubble |
-| Load followed by a dependent branch or JALR | 2 | Load-use bubble plus the load-to-branch interlock; 1 if one instruction sits between |
+| Load followed by a dependent instruction | 2 | Load-use bubble plus the second load interlock (no load is forwarded WB to EX, TASK-006); 1 if one instruction sits between |
 | CSR instruction behind an older CSR instruction | up to 2 | It waits in ID until the older one has written in MEM |
 | M instruction, iterative | 33 | Hold-in-EX: start cycle plus 32 steps |
 | Divide by zero, or -2^31 / -1 | 1 | Early-out |
@@ -55,8 +54,8 @@ All on `peregrine_sys_tb_top` (`peregrine_top` on a behavioral AXI4 memory) unle
 
 | Workload | CPI | Source |
 |----------|-----|--------|
-| Five self-checking kernels (`sum`, `list`, `sort`, `memcpy`, `crc`; the sixth, `mm`, is left out because its iterative multiply dominates it) | 1.343 | TASK-001 stage 7 CPI harness |
-| rv32ui images | 1.989 | TASK-001 stage 7 CPI harness |
+| Five self-checking kernels (`sum`, `list`, `sort`, `memcpy`, `crc`; the sixth, `mm`, is left out because its iterative multiply dominates it) | 1.429 | TASK-006 CPI harness (1.343 before the load interlock, +6.4%) |
+| rv32ui images | 1.998 | TASK-006 CPI harness (1.989 before, +0.4%) |
 | M-heavy stress program (5,941 instructions, 34% M), iterative multiply | 9.16 | TASK-001 stage 2, cacheless |
 | The same program, `MUL_DSP=1` | 3.83 | TASK-001 stage 2, cacheless |
 
@@ -81,23 +80,29 @@ The rv32ui images are short self-checking tests dominated by cold misses and tra
 
 ## Clock and Area (PRD P14)
 
-The FPGA target is **18.5 ns (54.1 MHz)** on the Nexys A7 part, xc7a100t-1, set by the owner on 2026-11-25. Measured out of context on `peregrine_top` with 0.2 ns of setup uncertainty added:
+The FPGA target is **13.333 ns (75 MHz)** on the Nexys A7 part, xc7a100t-1, the owner's floor since 2026-11-26 ("the slowest clock I want is 75mhz"; HIVE runs every domain at 75 MHz). Measured out of context on `peregrine_top` with 0.2 ns of setup uncertainty added:
 
 | Period | MHz | `MUL_DSP` | WNS (ns) |
 |--------|-----|-----------|----------|
-| 15.5 | 64.5 | 0 | -0.684 |
-| 16.0 | 62.5 | 0 | -0.607 |
-| 16.67 | 60.0 | 0 | -0.043 |
-| 17.0 | 58.8 | 0 | +0.331 |
-| 17.5 | 57.1 | 0 | -0.051 |
-| **18.5** | **54.1** | **0** | **+0.100** |
-| **18.5** | **54.1** | **1** | **+0.342** |
+| 12.5 | 80.0 | 0 | +0.133 |
+| 13.0 | 76.9 | 0 | +0.316 |
+| 13.0 | 76.9 | 1 | +0.111 |
+| **13.333** | **75.0** | **0** | **+0.300** |
+| **13.333** | **75.0** | **1** | **+0.099** |
 
-: OOC timing sweep, xc7a100t-1
+: OOC timing sweep, xc7a100t-1 (TASK-006)
 
-17.0 ns closed but 17.5 ns did not: near this edge the placement noise is larger than the 0.2 ns budget, so 18.5 ns, which closed in both multiplier builds, is the target.
+Every placement closed with the uncertainty budget in. The slack does not order by period (12.5 ns and 13.0 ns are within placement noise of the target), so the margin beyond the budget is about 0.1 to 0.3 ns. The tightest group in every build is the CPU's request valid into amber's fast-path next-state decode (core to D\$, 15 levels); the core's own paths have 0.98 ns or more.
 
-At 17.0 ns the build used 5,064 LUTs, 3,004 flip-flops, 9 RAMB36 and 922 LUTRAM (`MUL_DSP=0`).
+TASK-006 made five changes to get there from 54.1 MHz (18.5 ns, the stage-7 point) without giving amber a 2-cycle hit:
+
+- no load is forwarded from WB to EX: the consumer waits in ID and reads the load through the WB-to-ID bypass (+6.4% kernel CPI);
+- the interrupt decision is registered (one cycle later; see the MAS traps section);
+- amber's miss reads beat 0 one cycle into the miss rather than switching the data RAM address on its lookup result (one cycle per dirty miss);
+- amber's clean-all commit takes its still-Modified check from a flop (no cycle cost);
+- amber's port-A address and compare-tag muxes select on ready rather than on the accept, so the CPU's request valid no longer reaches the tag LUTRAM address (no cycle cost; without it a `MUL_DSP=1` placement missed by 0.003 ns).
+
+At 13.333 ns the build used 4,810 LUTs, 3,009 flip-flops and 9 block RAM tiles (`MUL_DSP=0`); `MUL_DSP=1` used 4,805 LUTs and 4 DSPs.
 
 The three tightest path groups all run through amber: amber's own control state into its data RAM address, the core's request into amber's accept-cycle lookup, and amber's response into the core's load alignment and forwarding. Every path group that stays inside peregrine has at least 3.5 ns of slack. amber built alone with `MAINT_EN=1` misses 10 ns on this part by 4.05 ns. The owner kept amber's 1-cycle hit and lowered the clock rather than add a stage to the load path; amber's paths are filed as cache-ip/amber-mesi-l1 TASK-007.
 

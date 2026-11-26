@@ -51,7 +51,7 @@ EX keeps one cause per instruction, in that order of precedence: decode's, then 
 In MEM, for the valid instruction there:
 
 - `mem_exc`: it carries an exception.
-- `mem_irq = valid & ~m_op & irq_pending & ~r_mem_irq_lock`: an interrupt attaches to it.
+- `mem_irq = valid & ~m_op & irq_pending & ~r_mem_irq_lock`: an interrupt attaches to it. `irq_pending` is registered in `peregrine_csr` (one cycle behind the pins and enables, cleared for the cycle after a CSR write, trap or mret).
 - `mem_trap = (mem_exc | mem_irq) & ~mem_wait`.
 - `mem_mret` and `mem_csr_wen` require no exception and no interrupt.
 

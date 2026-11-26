@@ -40,7 +40,9 @@ instructions, and the difference scales with their share.
 
 The stage-2 review flagged the DSP product as a timing risk: it is
 combinational between registers that sit behind muxes, so the DSP block
-cannot absorb a pipeline register. At the clock peregrine closed at
-(18.5 ns, Chapter 5), `MUL_DSP=1` closed with +0.342 ns of slack, better
-than the iterative build's +0.100 ns: at that period the multiplier is
-not the critical path.
+cannot absorb a pipeline register. At the stage-7 clock (18.5 ns,
+Chapter 5), `MUL_DSP=1` closed with +0.342 ns of slack, better than the
+iterative build's +0.100 ns. At the 75 MHz floor it closed with +0.099
+ns against the iterative build's +0.300, and in both builds the limiting
+path is the CPU request into amber: the multiplier is not the critical
+path at either period.

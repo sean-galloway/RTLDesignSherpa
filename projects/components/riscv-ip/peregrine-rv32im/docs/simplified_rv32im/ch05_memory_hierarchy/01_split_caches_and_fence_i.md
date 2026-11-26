@@ -37,7 +37,8 @@ until the line is in. An in-order core with one memory access in flight
 has nothing to overlap with a second miss, so a non-blocking cache would
 be invisible (PRD §2). A load issues in MEM and takes its data in WB; on
 a hit that adds no cycle and leaves merlin's single load-use bubble as it
-was.
+was. (The 75 MHz floor later added a second load-use bubble; see The
+Timing Story.)
 
 ## fence.i becomes real work
 

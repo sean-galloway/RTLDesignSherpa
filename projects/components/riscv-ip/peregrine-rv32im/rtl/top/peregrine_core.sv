@@ -445,15 +445,19 @@ module peregrine_core #(
         .flush_idex   (flush_idex)
     );
 
-    // Load-to-branch interlock (merlin's, riscv-ip common-rv32i ISSUE-001
-    // row 3).
+    // Load interlock, second cycle. merlin's load-to-branch interlock
+    // (riscv-ip common-rv32i ISSUE-001 row 3) widened to every consumer
+    // (peregrine TASK-006, the 75 MHz build): an ID instruction whose
+    // operand is a load now in MEM waits one more cycle and reads the load
+    // through the WB->ID bypass. No load is forwarded WB->EX, so the D$
+    // response -> load align -> ALU path is gone; a load-use costs two
+    // bubbles instead of one.
     logic exmem_is_load;
     logic stall_ldbr;
 
     assign exmem_is_load = ex_mem_q.dmem_req & ~ex_mem_q.dmem_we & ex_mem_q.valid;
     assign stall_ldbr    = if_id_q.valid & exmem_is_load &
-                           (((id_branch | id_jalr) & (id_fwd_a == FWD_MEMWB)) |
-                            (id_branch & (id_fwd_b == FWD_MEMWB)));
+                           ((id_fwd_a == FWD_MEMWB) | (id_fwd_b == FWD_MEMWB));
 
     // CSR serialization: a CSR instruction in ID waits while an older CSR
     // instruction is in ID/EX or EX/MEM, so its EX-stage read of the CSR
@@ -497,11 +501,13 @@ module peregrine_core #(
     logic [31:0] ex_rs1_fwd;
     logic [31:0] ex_rs2_fwd;
 
+    // The MEM/WB arm is the non-load writeback value: stall_ldbr keeps a
+    // load in WB from ever being forwarded into EX (TASK-006).
     assign ex_rs1_fwd = (ex_fwd_a == FWD_EXMEM) ? ex_mem_q.alu_y :
-                        (ex_fwd_a == FWD_MEMWB) ? wb_fwd_data     :
+                        (ex_fwd_a == FWD_MEMWB) ? mem_wb_q.alu_y  :
                                                   id_ex_q.rs1_data;
     assign ex_rs2_fwd = (ex_fwd_b == FWD_EXMEM) ? ex_mem_q.alu_y :
-                        (ex_fwd_b == FWD_MEMWB) ? wb_fwd_data     :
+                        (ex_fwd_b == FWD_MEMWB) ? mem_wb_q.alu_y  :
                                                   id_ex_q.rs2_data;
 
     logic [31:0] alu_a;

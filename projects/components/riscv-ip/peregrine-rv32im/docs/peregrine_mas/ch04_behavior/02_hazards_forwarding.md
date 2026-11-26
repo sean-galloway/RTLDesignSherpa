@@ -30,7 +30,7 @@ EX takes each operand from one of three places, chosen by the select registered 
 | Select | Source | Value |
 |--------|--------|-------|
 | `FWD_EXMEM` | The instruction in MEM | `ex_mem_q.alu_y` (ALU, CSR old value, M result or link) |
-| `FWD_MEMWB` | The instruction in WB | `wb_fwd_data`: the load's aligned word for a load, else `mem_wb_q.alu_y` |
+| `FWD_MEMWB` | The instruction in WB | `mem_wb_q.alu_y`, the non-load value (a load in WB is never forwarded to EX, see Load-Use) |
 | `FWD_IDEX` | The register file | The value read in ID, with the WB-to-ID bypass |
 
 : EX operand sources
@@ -39,15 +39,13 @@ EX/MEM wins over MEM/WB; x0 never forwards. The select is computed in ID, one cy
 
 The register-file read in ID bypasses a write in the same cycle: if WB writes the register ID reads (not x0), ID takes WB's value.
 
-A load's value is forwarded from WB, since its data arrives in WB. That forward (amber's response, through the wrapper's capture mux and the WB alignment, into the EX operand mux and the ALU, ending at EX/MEM) is one of the three tightest path groups at the P14 clock.
+A load's value is **not** forwarded from WB to EX (TASK-006). Its data arrives in WB, and that forward (amber's response, through the wrapper's capture mux and the WB alignment, into the EX operand mux and the ALU) was 1.9 ns too long at 75 MHz. The load's consumers read it through the WB-to-ID bypass instead, which ends at the ID/EX register.
 
 ## Load-Use
 
-A load in EX whose `rd` matches either source of the instruction in ID stalls IF and ID for one cycle and inserts a bubble into ID/EX. The next cycle the load is in MEM, the consumer is still in ID, and when the consumer reaches EX the load is in WB and forwards through `FWD_MEMWB`.
+A load in EX whose `rd` matches either source of the instruction in ID stalls IF and ID for one cycle and inserts a bubble into ID/EX (`stall_lu`). The next cycle the load is in MEM and the consumer is still in ID; its source would forward from MEM/WB, so it stalls one more cycle (`stall_ldbr`). The load is then in WB and the consumer reads its value through the WB-to-ID bypass. A load followed directly by a dependent instruction therefore costs 2 cycles; with one instruction between them, 1 (`stall_ldbr` only).
 
-## Load to Branch
-
-Branch and JALR operands do **not** take a load's data from WB. Their MEM/WB arm is `mem_wb_q.alu_y`, the non-load value, which keeps the load data path out of the branch compare. A branch (either source) or JALR (rs1) in ID whose source would forward from MEM/WB, with a load in EX/MEM, stalls one more cycle (`stall_ldbr`); the load is then in WB and the branch reads its value through the WB-to-ID bypass. A load followed directly by a dependent branch therefore costs 2 cycles; with one instruction between them, 1.
+`stall_ldbr` began as merlin's load-to-branch interlock (branch and JALR operands only). TASK-006 widened it to every consumer, so the EX operand mux and the branch compare share one MEM/WB arm, `mem_wb_q.alu_y`. Kernel CPI went from 1.343 to 1.429 (+6.4%), rv32ui from 1.989 to 1.998.
 
 ## CSR Serialization
 

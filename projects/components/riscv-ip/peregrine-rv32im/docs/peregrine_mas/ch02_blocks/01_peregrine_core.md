@@ -52,7 +52,7 @@
 |--------|---------|
 | `pc`, `pc_d`, `pc_d_nw` | The PC, its next value, and its next value as if `mem_wait` were low |
 | `if_pred_taken`, `if_pred_target` | The predictor's guess for the instruction at `pc` |
-| `stall_lu`, `stall_ldbr`, `stall_csr`, `stall_ifid` | Load-use, load-to-branch and CSR interlocks; their OR |
+| `stall_lu`, `stall_ldbr`, `stall_csr`, `stall_ifid` | Load-use, second load (any consumer of a load in MEM) and CSR interlocks; their OR |
 | `ex_m_stall` | An M instruction in EX whose result is not done |
 | `ex_taken`, `ex_target`, `ex_next_pc` | The resolved direction, target and next PC in EX |
 | `ex_mispredict`, `ex_flush` | The guess disagrees with the outcome; the EX redirect (not while an M instruction holds) |

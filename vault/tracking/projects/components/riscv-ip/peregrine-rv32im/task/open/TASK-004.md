@@ -16,10 +16,10 @@ has no lane INDEX yet; the work is in compute-eng-ip/hive (renamed from
 hive-serv 2026-11-25, when one gatling replaced its 16 SERV monitors; the
 HIVE-C core strategy this task follows is unchanged by that).
 
-**Clock (2026-11-25):** HIVE now targets 75 MHz in every domain, and
-peregrine closes at 54.1 MHz (PRD P14; amber's paths, cache-ip/amber-mesi-l1
-TASK-007). As HIVE-C it needs either its own slower clock domain behind the
-existing CDC, or a faster build. Decide before the swap.
+**Clock (2026-11-25, resolved 2026-11-26):** HIVE targets 75 MHz in every
+domain. peregrine closed at 54.1 MHz then; TASK-006 brought it to 75 MHz
+(13.333 ns, PRD P14, owner floor), so HIVE-C runs peregrine on the 75 MHz
+domain and no slower clock is needed.
 
 ## Done when
 
