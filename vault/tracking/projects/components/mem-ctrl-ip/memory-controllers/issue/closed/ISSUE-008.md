@@ -6,7 +6,7 @@
 **Priority:** P3 -- one cycle on one row; no conclusion so far depends on it,
 but MC-025's promise is cycle-exact A/Bs, and an unexplained draw is a source
 of noise that will be mistaken for a microarchitectural difference.
-**Status:** open 2026-11-25
+**Status:** CLOSED 2026-11-25 (owner: no action -- not worth the cost of finding) -- Was: open 2026-11-25
 **Owner:** TBD
 
 ## The observation
@@ -32,3 +32,12 @@ DRAM-side state left by the previous cell. First step: repeat the full
 `every` at offset 0 several times on one bitstream to measure the rate and
 see whether the drawn rows are always the same; then probe the row that
 draws.
+
+## Resolution (2026-11-25): closed, no action
+
+Owner's call: one cycle on one row in 263 does not change any decision, and
+finding it would take many repeated board suites. The workaround stands as
+the rule: a lone one-cycle difference on one row of an aligned A/B is
+repeated before it is believed (MC-025 record, section 5;
+`vault/handbook/dv/dram-cycle-model.md`). Reopen if aligned A/Bs start
+showing it on more than an isolated row.

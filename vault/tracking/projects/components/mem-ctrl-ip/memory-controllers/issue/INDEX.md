@@ -15,20 +15,22 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started (the ISSUE-000 template is not counted) |
+| [open/](open/) | 0 | accepted, not started (the ISSUE-000 template is not counted) |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 7 | done (kept for history) |
+| [closed/](closed/) | 8 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
+## Closed
+
 - **ISSUE-008** -- a rare one-cycle draw survives refresh alignment: one
   board row in 263 differed by a cycle at the same `REF_ALIGN` offset
   (`defaults row_major_bl4`, 269,754 vs 269,753). Filed 2026-11-25 from
-  MC-022's board check. [open/ISSUE-008.md](open/ISSUE-008.md).
-
-## Closed
+  MC-022's board check. 
+  CLOSED 2026-11-25, no action (owner): repeat a lone one-cycle row
+  before believing it. [closed/ISSUE-008.md](closed/ISSUE-008.md).
 
 - **ISSUE-007** -- the `bank_interleave` row-hit cells at the phase-exact
   counters sit at the 583 MB/s ceiling with a per-pass draw a step below it
