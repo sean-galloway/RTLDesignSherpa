@@ -20,6 +20,9 @@ the [FPGA area](../INDEX.md) "Boards / components").
   restated literal is how they drift, silently and green
 - [[sequences]] - named, ordered, dependency-checked campaign steps
   (projects/fpga-systems/bin/sequence.py); one init, N tests, transport injected
+- [[launch-go]] - every environment starts all its engines with ONE GO write;
+  a UART write takes >= 16 ms, so two start writes never overlap two engines
+  (the cache-ip dual sweeps ran sequentially from bin 1 to bin 7)
 
 ## Where things live
 - [[area-structure]] - board / component / build under projects/fpga-systems,

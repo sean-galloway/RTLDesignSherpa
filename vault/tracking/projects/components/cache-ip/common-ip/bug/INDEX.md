@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-001** ([page](open/BUG-001.md)) — the Genesys2 cache-ip rigs' dual sweeps never overlap the two injectors: the host starts them with two UART writes >= 16 ms (1.6M cycles) apart, longer than any cell runs. Found 2026-11-26 (onyx bin 7 hot set); every board dual result is two single-injector runs back to back
+(none)
 
 ## Active
 
-(none)
+- **BUG-001** ([page](active/BUG-001.md)) — the Genesys2 cache-ip rigs' dual sweeps never overlap the two injectors: the host starts them with two UART writes >= 16 ms (1.6M cycles) apart, longer than any cell runs. Found 2026-11-26 (onyx bin 7 hot set); every board dual result is two single-injector runs back to back; fixed 2026-11-27 with a harness GO (one write starts both); closes on the board re-runs
 
 ## Closed
 

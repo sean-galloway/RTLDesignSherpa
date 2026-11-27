@@ -416,6 +416,7 @@ module amber_pair_harness
     localparam logic [3:0] HCSR_FABRIC_DBG  = 4'h4;
 
     logic [31:0] hcsr_ctrl, hcsr_status;
+    logic [1:0]  hcsr_go;     // GO: one pulse per injector, from one register write
     logic [63:0] r_cycle_ctr;
 
     // Aggregate cycle-injector status
@@ -460,6 +461,7 @@ module amber_pair_harness
         .s_axil_rvalid (s0_rvalid),
         .s_axil_rready (s0_rready),
         .o_ctrl        (hcsr_ctrl),
+        .o_go          (hcsr_go),
         .i_status      (hcsr_status),
         .i_cycle_lo    (r_cycle_ctr[31:0]),
         .i_cycle_hi    (r_cycle_ctr[63:32]),
@@ -509,6 +511,7 @@ module amber_pair_harness
         .cpu_rsp_rd_valid(ci0_rsp_valid),
         .cpu_rsp_rd_ready(ci0_rsp_ready),
         .cpu_rsp_rd_data (ci0_rsp_data),
+        .i_go            (hcsr_go[0]),
         .o_done          (ci0_done),
         .o_busy          (ci0_busy),
         .o_err_flag      (ci0_err)
@@ -546,6 +549,7 @@ module amber_pair_harness
         .cpu_rsp_rd_valid(ci1_rsp_valid),
         .cpu_rsp_rd_ready(ci1_rsp_ready),
         .cpu_rsp_rd_data (ci1_rsp_data),
+        .i_go            (hcsr_go[1]),
         .o_done          (ci1_done),
         .o_busy          (ci1_busy),
         .o_err_flag      (ci1_err)
@@ -1349,6 +1353,7 @@ module amber_harness_csr (
     input  logic        s_axil_rready,
 
     output logic [31:0] o_ctrl,
+    output logic [1:0]  o_go,          // GO [0] ci0 [1] ci1: one-cycle pulses
     input  logic [31:0] i_status,
     input  logic [31:0] i_cycle_lo,
     input  logic [31:0] i_cycle_hi,
@@ -1363,9 +1368,16 @@ module amber_harness_csr (
     localparam logic [9:0] HCSR_CYCLE_LO   = 10'h2;
     localparam logic [9:0] HCSR_CYCLE_HI   = 10'h3;
     localparam logic [9:0] HCSR_FABRIC_DBG = 10'h4;
+    // 0x064: GO, write-only, reads 0.  A write with bit k set pulses
+    // injector k's start for one cycle, so ONE write starts both in the
+    // same cycle (cache-ip common-ip BUG-001: two CTRL.run writes over the
+    // UART bridge land >= 16 ms apart, longer than a whole run)
+    localparam logic [9:0] HCSR_GO         = 10'h19;
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
+    logic [1:0] r_go;
+    assign o_go = r_go;
 
     // Write path: accept AW and W independently per AXI4-Lite spec.
     logic        r_bvalid;
@@ -1386,10 +1398,12 @@ module amber_harness_csr (
             r_aw_done <= 1'b0;
             r_w_done  <= 1'b0;
             r_ctrl    <= '0;
+            r_go      <= '0;
         end else begin
             // CTRL[0] (tally_clear) is write-1-pulse: a write with bit 0 set
             // raises o_ctrl[0] for exactly one cycle, then it self-clears.
             r_ctrl[0] <= 1'b0;
+            r_go      <= '0;
             if (s_axil_awvalid && s_axil_awready) begin
                 r_aw_done <= 1'b1;
                 r_awaddr  <= s_axil_awaddr;
@@ -1403,6 +1417,8 @@ module amber_harness_csr (
                 r_bvalid  <= 1'b1;
                 r_aw_done <= 1'b0;
                 r_w_done  <= 1'b0;
+                if (r_wstrb[0] && (r_awaddr[11:2] == HCSR_GO))
+                    r_go <= r_wdata[1:0];
                 for (int b = 0; b < 4; b++) begin
                     if (r_wstrb[b] && (r_awaddr[11:2] == HCSR_CTRL)) begin
                         r_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
@@ -1430,6 +1446,7 @@ module amber_harness_csr (
             HCSR_CYCLE_LO:   r_rdata = i_cycle_lo;
             HCSR_CYCLE_HI:   r_rdata = i_cycle_hi;
             HCSR_FABRIC_DBG: r_rdata = {28'b0, i_fabric_dbg};
+            HCSR_GO:         r_rdata = 32'h0;   // write-only pulses
             default:         r_rdata = 32'hDEAD_BEEF;
         endcase
     end

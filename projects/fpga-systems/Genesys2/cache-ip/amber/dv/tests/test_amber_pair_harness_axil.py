@@ -65,6 +65,7 @@ HCSR_STATUS = 0x04
 HCSR_CYCLE_LO = 0x08
 HCSR_CYCLE_HI = 0x0C
 HCSR_FABRIC_DBG = 0x10
+HCSR_GO = 0x64             # write-only launch: bit k pulses injector k's start (common-ip BUG-001)
 
 # Tally config register offsets (64-bit stride)
 TALLY_CAM_CLEAR = 0x100
@@ -590,6 +591,82 @@ async def _ci_snapshot(tb, ci_base):
         "stall": await tb.read32(ci_base + CI_STALL_CYCLES),
         "cstall": await tb.read32(ci_base + CI_CREDIT_STALL),
     }
+
+
+@cocotb.test(timeout_time=5000, timeout_unit="ms")
+async def go_simultaneous_start_test(dut):
+    """The harness GO starts both injectors in the SAME cycle (cache-ip
+    common-ip BUG-001).
+
+    Both injectors are staged with CTRL.run=0 and must not start; one GO
+    write (0x3) must raise both injectors' run state on one clock edge;
+    a GO naming one injector starts only that one; GO reads 0.  Before the
+    GO existed the host started them with two CTRL.run writes, which over
+    the UART bridge land >= 16 ms apart, longer than any run, so the
+    injectors never overlapped on the board."""
+    clk_task = cocotb.start_soon(_manual_clock(dut))
+    tb = AmberPairHarnessAXILTest(dut, clk_task)
+    await tb.reset()
+    ci = (dut.u_dut.u_ci0, dut.u_dut.u_ci1)
+    rise = [[], []]
+
+    async def watch():
+        prev = [0, 0]
+        cyc = 0
+        while True:
+            await cocotb.triggers.RisingEdge(dut.aclk)
+            cyc += 1
+            for k in range(2):
+                cur = int(ci[k].o_busy.value)
+                if cur and not prev[k]:
+                    rise[k].append(cyc)
+                prev[k] = cur
+    w = cocotb.start_soon(watch())
+
+    async def stage(count):
+        for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
+                              (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
+            await tb.write32(ci_base + CI_SEED, seed)
+            await tb.write32(ci_base + CI_ADDR_BASE, 0x0000_0000)
+            await tb.write32(ci_base + CI_ADDR_MASK, 0x0000_0FFF)
+            await tb.write32(ci_base + CI_TRANS_COUNT, count)
+            await tb.write32(ci_base + CI_CTRL, 64 << 8)       # run = 0: staged
+
+    async def wait_done(mask):
+        for _ in range(200_000):
+            if ((await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)) & mask) == mask:
+                return
+        raise AssertionError(f"injectors {mask:#x} did not finish")
+
+    count = 64
+    await stage(count)
+    for _ in range(200):
+        await cocotb.triggers.RisingEdge(dut.aclk)
+    assert rise == [[], []], f"a staged injector started without GO: {rise}"
+    assert (await tb.read32(ADDR_HARNESS_CSR + HCSR_GO)) == 0, "GO must read 0"
+
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_GO, 0x3)
+    await wait_done(0x3)
+    assert len(rise[0]) == 1 and len(rise[1]) == 1, f"GO 0x3: starts {rise}"
+    assert rise[0][0] == rise[1][0], \
+        f"GO 0x3 started the injectors in different cycles: {rise[0][0]} vs {rise[1][0]}"
+    for ci_base, name in [(ADDR_CYCLE_INJECTOR0, "ci0"), (ADDR_CYCLE_INJECTOR1, "ci1")]:
+        acc = await tb.read32(ci_base + CI_ACC_COUNT)
+        rsp = await tb.read32(ci_base + CI_RSP_COUNT)
+        assert acc == count and rsp == count, f"GO run {name}: acc/rsp {acc}/{rsp} != {count}"
+    dut._log.info(f"GO 0x3: both injectors started in cycle {rise[0][0]}")
+
+    # a GO naming one injector starts that one only
+    await stage(count)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_GO, 0x1)
+    await wait_done(0x1)
+    for _ in range(200):
+        await cocotb.triggers.RisingEdge(dut.aclk)
+    assert len(rise[0]) == 2 and len(rise[1]) == 1, f"GO 0x1 started ci1 too: {rise}"
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_GO, 0x2)
+    await wait_done(0x2)
+    assert len(rise[0]) == 2 and len(rise[1]) == 2, f"GO 0x2: starts {rise}"
+    w.cancel()
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="ms")

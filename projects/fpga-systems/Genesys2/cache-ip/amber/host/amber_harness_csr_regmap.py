@@ -71,4 +71,14 @@ top_block = {
         'type': 'reg',
         'value': {'default': '0x00000000', 'offset': '3:0', 'sw': 'r', 'type': 'field'},
     },
+    'GO': {
+        # write-only launch: bit k pulses injector k's start for one cycle,
+        # so ONE write starts both injectors in the same harness cycle.  Two
+        # CTRL.run writes over the UART bridge land >= 16 ms apart, longer
+        # than a whole run (cache-ip common-ip BUG-001).  Reads 0.
+        'address': '0x064', 'default': '0x00000000', 'name': 'GO', 'offset': '0x064',
+        'size': 4, 'sw': 'w', 'type': 'reg',
+        'ci0': {'default': '0x0', 'offset': '0', 'sw': 'w', 'type': 'field'},
+        'ci1': {'default': '0x0', 'offset': '1', 'sw': 'w', 'type': 'field'},
+    },
 }

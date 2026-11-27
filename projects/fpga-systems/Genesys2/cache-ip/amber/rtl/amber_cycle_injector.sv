@@ -115,6 +115,16 @@ module amber_cycle_injector
     input  logic [CPU_RSP_W-1:0]    cpu_rsp_rd_data,
 
     // ------------------------------------------------------------------
+    // Launch: the harness's GO pulse (one cycle).  A run starts on it, or on
+    // CTRL.run, with the configuration staged in the CSRs.  The harness
+    // drives one GO bit per injector from ONE register write, so the two
+    // injectors start in the same cycle: two CTRL.run writes over the UART
+    // bridge land >= 16 ms apart, longer than a whole run (cache-ip
+    // common-ip BUG-001).  Tie to 0 where no harness GO exists.
+    // ------------------------------------------------------------------
+    input  logic                    i_go,
+
+    // ------------------------------------------------------------------
     // Status outputs to the harness aggregate
     // ------------------------------------------------------------------
     output logic                    o_done,
@@ -523,7 +533,7 @@ module amber_cycle_injector
         else                                          w_credit = OUTST_W'(w_ctrl_outst);
     end
 
-    assign w_start    = ~r_run & r_ctrl[0];
+    assign w_start    = ~r_run & (r_ctrl[0] | i_go);
     assign w_flushing = (r_flush_cnt != '0);
 
     // The generator is fed while the run has requests left to issue; it

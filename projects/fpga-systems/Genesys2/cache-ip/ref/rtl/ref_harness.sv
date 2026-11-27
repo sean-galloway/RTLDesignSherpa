@@ -436,6 +436,7 @@ module ref_harness
     localparam logic [3:0] HCSR_FABRIC_DBG  = 4'h4;
 
     logic [31:0] hcsr_ctrl, hcsr_status;
+    logic [1:0]  hcsr_go;     // GO: one pulse per injector, from one register write
     logic [63:0] r_cycle_ctr;
     logic [31:0] onyx_cnt [8];   // the onyx counters (zero outside SEL 4 / 5)
     logic [31:0] onyx_mon_ctrl;  // the onyx observer's masks (CSR 0x038 / 0x03C; onyx_monlite's ocelus layers)
@@ -499,6 +500,7 @@ module ref_harness
         .s_axil_rvalid (s0_rvalid),
         .s_axil_rready (s0_rready),
         .o_ctrl        (hcsr_ctrl),
+        .o_go          (hcsr_go),
         .i_status      (hcsr_status),
         .i_cycle_lo    (r_cycle_ctr[31:0]),
         .i_cycle_hi    (r_cycle_ctr[63:32]),
@@ -564,6 +566,7 @@ module ref_harness
         .cpu_rsp_rd_valid(ci0_rsp_valid),
         .cpu_rsp_rd_ready(ci0_rsp_ready),
         .cpu_rsp_rd_data (ci0_rsp_data),
+        .i_go            (hcsr_go[0]),
         .o_done          (ci0_done),
         .o_busy          (ci0_busy),
         .o_err_flag      (ci0_err)
@@ -601,6 +604,7 @@ module ref_harness
         .cpu_rsp_rd_valid(ci1_rsp_valid),
         .cpu_rsp_rd_ready(ci1_rsp_ready),
         .cpu_rsp_rd_data (ci1_rsp_data),
+        .i_go            (hcsr_go[1]),
         .o_done          (ci1_done),
         .o_busy          (ci1_busy),
         .o_err_flag      (ci1_err)
@@ -2100,6 +2104,7 @@ module ref_harness_csr (
     input  logic        s_axil_rready,
 
     output logic [31:0] o_ctrl,
+    output logic [1:0]  o_go,          // GO [0] ci0 [1] ci1: one-cycle pulses
     input  logic [31:0] i_status,
     input  logic [31:0] i_cycle_lo,
     input  logic [31:0] i_cycle_hi,
@@ -2131,6 +2136,11 @@ module ref_harness_csr (
     localparam logic [4:0] HCSR_CYCLE_LO   = 5'h02;
     localparam logic [4:0] HCSR_CYCLE_HI   = 5'h03;
     localparam logic [4:0] HCSR_FABRIC_DBG = 5'h04;
+    // 0x064: GO, write-only, reads 0.  A write with bit k set pulses
+    // injector k's start for one cycle, so ONE write starts both in the
+    // same cycle (cache-ip common-ip BUG-001: two CTRL.run writes over the
+    // UART bridge land >= 16 ms apart, longer than a whole run)
+    localparam logic [4:0] HCSR_GO         = 5'h19;
     localparam logic [4:0] HCSR_ONYX_CNT0  = 5'h08;   // 0x020 .. 0x034: the six onyx counters
     // 0x038 / 0x03C: the onyx observer's masks, the ocelus layers (enables
     // 1 = on, masks bit set = drop).  Reset: observer, error and perf
@@ -2162,6 +2172,8 @@ module ref_harness_csr (
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
+    logic [1:0] r_go;
+    assign o_go = r_go;
     logic [31:0] r_onyx_mon_ctrl, r_onyx_mon_mask, r_onyx_mon_win_lo, r_onyx_mon_win_hi;
     assign o_onyx_mon_ctrl = r_onyx_mon_ctrl;
     assign o_onyx_mon_mask = r_onyx_mon_mask;
@@ -2194,6 +2206,7 @@ module ref_harness_csr (
             r_aw_done <= 1'b0;
             r_w_done  <= 1'b0;
             r_ctrl    <= '0;
+            r_go      <= '0;
             r_onyx_mon_ctrl <= ONYX_MON_CTRL_RESET;
             r_onyx_mon_mask <= '0;
             r_onyx_mon_win_lo <= '0;
@@ -2207,6 +2220,7 @@ module ref_harness_csr (
             // raises o_ctrl[0] for exactly one cycle, then it self-clears.
             // IO_CTRL[0] (go) is the same shape.
             r_ctrl[0] <= 1'b0;
+            r_go      <= '0;
             r_io_ctrl[0] <= 1'b0;
             if (s_axil_awvalid && s_axil_awready) begin
                 r_aw_done <= 1'b1;
@@ -2221,6 +2235,8 @@ module ref_harness_csr (
                 r_bvalid  <= 1'b1;
                 r_aw_done <= 1'b0;
                 r_w_done  <= 1'b0;
+                if (r_wstrb[0] && (r_awaddr[6:2] == HCSR_GO))
+                    r_go <= r_wdata[1:0];
                 for (int b = 0; b < 4; b++) begin
                     if (r_wstrb[b] && (r_awaddr[6:2] == HCSR_CTRL)) begin
                         r_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
@@ -2272,6 +2288,7 @@ module ref_harness_csr (
             HCSR_CYCLE_LO:   r_rdata = i_cycle_lo;
             HCSR_CYCLE_HI:   r_rdata = i_cycle_hi;
             HCSR_FABRIC_DBG: r_rdata = {28'b0, i_fabric_dbg};
+            HCSR_GO:         r_rdata = 32'h0;   // write-only pulses
             5'h08, 5'h09, 5'h0A, 5'h0B, 5'h0C, 5'h0D:
                              r_rdata = i_onyx_cnt[3'(r_araddr[6:2] - HCSR_ONYX_CNT0)];
             HCSR_ONYX_CNT_CU_DT:  r_rdata = i_onyx_cnt[6];

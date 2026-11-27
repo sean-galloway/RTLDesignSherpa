@@ -215,8 +215,12 @@ class JetDriver:
         self.bus[name].start(self._ctrl_shadow[name])
 
     def start_all(self) -> None:
-        self.start_ci("ci0")
-        self.start_ci("ci1")
+        """Start both injectors in the SAME cycle: their configurations are
+        staged by configure_ci (CTRL with run=0), and one harness GO write
+        pulses both starts.  Two start_ci calls would be two UART writes
+        >= 16 ms apart, longer than a whole run, so the injectors would
+        never overlap (cache-ip common-ip BUG-001)."""
+        self.bus["harness"].write("GO", ci0=1, ci1=1)
 
     def wait_done(self, timeout: float = 120.0, poll: float = 0.1,
                   sleep_fn=None) -> bool:

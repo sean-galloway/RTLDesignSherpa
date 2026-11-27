@@ -10,7 +10,7 @@ summary: Board process - common infra, then board/component specifics.
 Board-agnostic method and shared code -- the canonical patterns every flow
 reuses -- live in one place:
 
-- [cmn-infra/](cmn-infra/INDEX.md) - [[uart-harness]], the [[host-stack]] py
+- [cmn-infra/](cmn-infra/INDEX.md) - [[uart-harness]], [[launch-go]], the [[host-stack]] py
   plumbing, [[build-flows]], [[timing-closure]], [[timing-triage-tool]], [[boards]]
 
 Start with [[area-structure]] if you are adding a board, a component or a build;
