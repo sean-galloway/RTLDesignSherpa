@@ -4,7 +4,7 @@ prove_book
 cover
 
 [options]
-# Two safety tasks (see the harness header).  prove: the 24 "local"
+# Two safety tasks (see the harness header).  prove: the 25 "local"
 # properties, BMC depth 24 -- the longest single-transaction path at four
 # beats per line is a PassDirty fill (reset 2, pulse, grant, AR take, AC
 # accepted, four CD beats, CR, replay, the absorption's AW / 4 W / B,

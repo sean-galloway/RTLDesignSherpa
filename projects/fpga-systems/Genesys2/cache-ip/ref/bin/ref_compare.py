@@ -104,8 +104,10 @@ DUAL = {
     # injector after the other wherever the peer's hits starved its miss)
     "jet":          (f"{RIGS}/jet/results/perf_sweep_bin21_bug008_single_*.json",
                      f"{RIGS}/jet/results/perf_sweep_bin21_bug008_2*.json"),
-    "jet-prime s6": (f"{RIGS}/ref/results/perf_sweep_jetpp_go_single_*.json",
-                     f"{RIGS}/ref/results/perf_sweep_jetpp_go_dual_*.json"),
+    # jet-prime s6: the jet-prime BUG-004 fix (CleanUnique -> CleanInvalid,
+    # a memory read waits out a write to its line), onyx's BUG-001/002 fixes
+    "jet-prime s6": (f"{RIGS}/ref/results/perf_sweep_jetpp_bug004_single_*.json",
+                     f"{RIGS}/ref/results/perf_sweep_jetpp_bug004_dual_*.json"),
     "onyx":         (RESULTS["onyx"], f"{RIGS}/ref/results/perf_sweep_onyx_go_dual_*.json"),
     "onyx-d":       (RESULTS["onyx-d"], f"{RIGS}/ref/results/perf_sweep_onyxd_go_dual_*.json"),
 }

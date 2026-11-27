@@ -12,15 +12,15 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 3 | done (kept for history) |
+| [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-004** ([page](open/BUG-004.md)) — the pair fabric carries onyx BUG-001 (CleanUnique snooped as MakeInvalid drops a killed upgrade's dirty peer; the rig's golden model encodes the loss) and onyx BUG-002 (no hold of a memory read against an in-flight write to its line). Filed 2026-11-26; not reproduced here
+(none)
 
 ## Active
 
@@ -28,6 +28,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Closed
 
+- **BUG-004** ([page](closed/BUG-004.md)) — jet_prime_pair_fabric carried onyx BUG-001 / BUG-002: CleanUnique snooped MakeInvalid (a killed upgrade dropped a Modified peer's stores; the golden model scored the loss correct) and no hold of a memory read against an in-flight write to its line. Filed 2026-11-26; fixed and closed 2026-11-27 (CleanInvalid; read hold; reached in 21 of 26 full pair-rig cells; prove 25/25 + prove_book + cover 22/22; board SEL 3 clean).
 - **BUG-002** ([page](closed/BUG-002.md)) — a write-back victim passed on by a
   snoop still drained, and its stale bytes could land after the new owner's
   write-back (two caches, no IO port; found as onyx ISSUE-002, reproduced

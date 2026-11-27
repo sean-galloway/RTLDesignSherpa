@@ -289,7 +289,7 @@ Error flags / unfinished runs across all sources: 0
 
 - amber: `perf_sweep_bin14_go_20261127T091929Z.json` against `perf_sweep_bin14_go_single_20261127T091929Z.json`
 - jet: `perf_sweep_bin21_bug008_20261127T174527Z.json` against `perf_sweep_bin21_bug008_single_20261127T174527Z.json`
-- jet-prime s6: `perf_sweep_jetpp_go_dual_20261127T091929Z.json` against `perf_sweep_jetpp_go_single_20261127T091929Z.json`
+- jet-prime s6: `perf_sweep_jetpp_bug004_dual_20261127T185823Z.json` against `perf_sweep_jetpp_bug004_single_20261127T185823Z.json`
 - onyx: `perf_sweep_onyx_go_dual_20261127T182844Z.json` against `perf_sweep_onyx_bin2_single_20261122T150901Z.json`
 - onyx-d: `perf_sweep_onyxd_go_dual_20261127T182844Z.json` against `perf_sweep_onyxd_bin2_single_20261122T151318Z.json`
 
@@ -301,8 +301,8 @@ Error flags / unfinished runs across the dual sources: 0
 | r4k_we0 | 4 | 1.15 (1.03x) | 1.02 (1.02x) | 1.01 (1.01x) | 1.01 (1.01x) | 1.01 (1.01x) |
 | r4k_we0 | 16 | 1.15 (1.03x) | 1.02 (1.02x) | 1.01 (1.01x) | 1.01 (1.01x) | 1.01 (1.01x) |
 | r4k_we255 | 1 | 30.11 (14.79x) | 29.02 (7.20x) | 19.48 (6.43x) | 19.48 (6.43x) | 19.48 (6.43x) |
-| r4k_we255 | 4 | 30.67 (15.10x) | 27.21 (25.95x) | 12.28 (11.77x) | 12.38 (11.87x) | 12.22 (11.71x) |
-| r4k_we255 | 16 | 30.67 (15.10x) | 24.23 (23.20x) | 9.85 (9.48x) | 9.85 (9.47x) | 9.76 (9.39x) |
+| r4k_we255 | 4 | 30.67 (15.10x) | 27.21 (25.95x) | 12.38 (11.87x) | 12.38 (11.87x) | 12.22 (11.71x) |
+| r4k_we255 | 16 | 30.67 (15.10x) | 24.23 (23.20x) | 9.85 (9.47x) | 9.85 (9.47x) | 9.76 (9.39x) |
 | smoke4k_we64 | 1 | 8.32 (4.16x) | 9.63 (2.39x) | 7.50 (2.48x) | 7.50 (2.48x) | 7.50 (2.48x) |
 | smoke4k_we64 | 4 | 8.25 (6.45x) | 7.13 (7.09x) | 4.47 (4.44x) | 4.47 (4.44x) | 4.47 (4.44x) |
 | smoke4k_we64 | 16 | 8.25 (6.45x) | 6.62 (6.57x) | 3.65 (3.63x) | 3.65 (3.63x) | 3.64 (3.62x) |
@@ -310,8 +310,8 @@ Error flags / unfinished runs across the dual sources: 0
 | r64k_we64 | 4 | 31.49 (1.76x) | 26.28 (2.31x) | 9.54 (1.57x) | 9.53 (1.57x) | 9.50 (1.49x) |
 | r64k_we64 | 16 | 31.49 (1.76x) | 26.56 (2.49x) | 9.09 (1.72x) | 9.09 (1.72x) | 8.98 (1.67x) |
 | r128k_we64 | 1 | 42.28 (1.56x) | 35.70 (1.49x) | 18.14 (1.09x) | 18.14 (1.09x) | 19.94 (1.06x) |
-| r128k_we64 | 4 | 44.83 (1.70x) | 36.80 (2.29x) | 12.69 (1.57x) | 12.69 (1.57x) | 12.48 (1.50x) |
-| r128k_we64 | 16 | 44.83 (1.70x) | 37.03 (2.35x) | 12.46 (1.65x) | 12.52 (1.65x) | 12.23 (1.59x) |
+| r128k_we64 | 4 | 44.83 (1.70x) | 36.80 (2.29x) | 12.66 (1.57x) | 12.69 (1.57x) | 12.48 (1.50x) |
+| r128k_we64 | 16 | 44.83 (1.70x) | 37.03 (2.35x) | 12.53 (1.65x) | 12.52 (1.65x) | 12.23 (1.59x) |
 | disjoint64k_we64 | 1 | 28.30 (1.51x) | 24.05 (1.38x) | 12.94 (1.05x) | 12.94 (1.05x) | 14.28 (1.04x) |
 | disjoint64k_we64 | 4 | 30.61 (1.70x) | 24.14 (2.10x) | 8.90 (1.45x) | 8.90 (1.45x) | 9.04 (1.41x) |
 | disjoint64k_we64 | 16 | 30.61 (1.70x) | 24.60 (2.29x) | 8.61 (1.62x) | 8.61 (1.62x) | 8.63 (1.59x) |
@@ -537,10 +537,13 @@ measures the same way.
   reproduces bin 7's cycle count exactly -- not within noise, identical --
   and every CRC equals bin 7's: onyx at two ports is the fabric's behavior.
   (The dual cells were sequential, common-ip BUG-001. Concurrent -- the
-  GO rebuild -- onyx and the fabric are cycle-identical in 32 of 55 dual
-  cells, within 4 % in 18 more, and apart only where both cores hammer
-  one line: `r64b_we64` (a single 64-byte line) is 3.6 % slower behind
-  onyx at depth 1 and 10 to 12 % slower at depth 2 to 16.)
+  GO rebuild -- onyx and the fabric were cycle-identical in 32 of 55 dual
+  cells and apart where both cores hammer one line, `r64b_we64` 10 to 12 %
+  slower behind onyx: onyx's BUG-002 fix holds a memory read while a
+  write to its line is in flight, and the fabric did not.  With the same
+  fix in the fabric (jet-prime BUG-004, 2026-11-27) onyx and the fabric
+  are cycle-identical in 42 of 55 concurrent dual cells and within 0.5 %
+  in the other 13; `r64b_we64` moved on the fabric side, +10 to +12 %.)
   Hit floor 2, MLP 10.60 on `r64k_we64` at depth 16, as s6. With the read
   deferred until the gather (`REF_CACHE_SEL=5`) the resident rows are
   unchanged (every hit-only cell equal; `r16k_we64` +0.4 to +0.9 % from its
@@ -691,9 +694,10 @@ and every run complete across all five). Reading it:
 - **The shared memory port.** `disjoint64k_we64` and the thrash rows cost
   1.4-1.7x on jet-prime and onyx at depth >= 4 with nothing shared: two
   caches' misses on one memory, not coherence.
-- **onyx against the fabric** is cycle-identical in 32 of 55 cells
-  concurrently and slower only on a single hammered line (`r64b_we64`, up
-  to 12 %); deferring the read costs -1 to +10 % at depth 1 and -2 to
+- **onyx against the fabric** is cycle-identical in 42 of 55 cells
+  concurrently and within 0.5 % in the other 13, against the fabric with
+  jet-prime BUG-004's fix (its read hold costs the hammered line
+  `r64b_we64` 10-12 %, as onyx's did); deferring the read costs -1 to +10 % at depth 1 and -2 to
   +3 % at depth 16 for half the memory reads where cores share written
   lines.
 

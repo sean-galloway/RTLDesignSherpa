@@ -19,6 +19,17 @@
 // No property claims data values; the properties are about WHICH beat goes
 // WHERE and WHEN, and about every valid/ready pair the fabric drives.
 //
+// jet-prime BUG-004 (2026-11-27, onyx BUG-001 / BUG-002 ported): a
+// CleanUnique is snooped CleanInvalid (map_snoop below), so a CleanUnique
+// slot may now get a DataTransfer verdict -- P22's "mem_done without a
+// read" clause dropped its no-data qualifier, which only held while that
+// snoop was MakeInvalid (never answered with data, as_cr_mi_nodt); and a
+// memory read is not first presented while a write to its line is in
+// flight (P24, ap_mar_no_wr_race).  Mutations on a scratch flat: the
+// read hold removed -> FAIL ap_mar_no_wr_race at step 4; CleanUnique back
+// to MakeInvalid -> FAIL ap_ac_legal at step 3.  New covers cp_cu_dt
+// (step 7) and cp_mar_wr_wait (step 5).
+//
 // Internal observability: the DUT flat is parameter-specialized (see the
 // Makefile) and jet_prime_pair_fabric.sby exposes the transaction table and
 // the queue heads as DUT output ports (read_verilog -mem2reg turns the
@@ -186,6 +197,7 @@ module formal_jet_prime_pair_fabric #(
     localparam [2:0] REQ_RNSD = 3'b110;
     localparam [3:0] ACSNOOP_READ_SHARED  = 4'h1;
     localparam [3:0] ACSNOOP_READ_UNIQUE  = 4'h7;
+    localparam [3:0] ACSNOOP_CLEAN_INVALID = 4'h9;
     localparam [3:0] ACSNOOP_MAKE_INVALID = 4'hC;
     localparam CR_DT = 0;             // l1_pkg AMBER_CRRESP_DT
     localparam CR_PD = 2;             // l1_pkg AMBER_CRRESP_PD
@@ -202,6 +214,7 @@ module formal_jet_prime_pair_fabric #(
         case (t)
             3'b000, REQ_RNSD: map_snoop = ACSNOOP_READ_SHARED;
             REQ_RU:           map_snoop = ACSNOOP_READ_UNIQUE;
+            REQ_CU:           map_snoop = ACSNOOP_CLEAN_INVALID;   // jet-prime BUG-004 (IHI0022's mapping)
             default:          map_snoop = ACSNOOP_MAKE_INVALID;
         endcase
     endfunction
@@ -678,6 +691,19 @@ module formal_jet_prime_pair_fabric #(
     reg [2*AW-1:0] ac_addr_d;
     reg [7:0]  ac_snoop_d;
     reg [3:0]  h_delivered;   // the requester received the slot's last beat
+    // the write in flight on the memory port: AW taken, BRESP not yet (one
+    // burst at a time); P24 below
+    reg        f_wfly;
+    reg [LINE_W-1:0] f_wfly_line;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            f_wfly <= 1'b0;  f_wfly_line <= '0;
+        end else if (maw_hs) begin
+            f_wfly <= 1'b1;  f_wfly_line <= line_of(mem_awaddr);
+        end else if (mb_hs) begin
+            f_wfly <= 1'b0;
+        end
+    end
     always @(posedge clk) begin
         vld_d <= obs_vld;  rack_d <= obs_rack;  cr_done_d <= obs_cr_done;
         pd_d <= obs_pd;  abs_done_d <= obs_abs_done;  line_d <= obs_line_f;
@@ -704,7 +730,7 @@ module formal_jet_prime_pair_fabric #(
     reg [3:0] v_line_dup, v_grant_locked, v_release, v_rack_src, v_mo, v_free, v_wb_hold;
     reg [1:0] v_arready, v_ar_pair, v_route_mem, v_route_rpl, v_r_stable, v_r_infl, v_r_beats;
     reg [1:0] v_ac_legal, v_ac_stable, v_sn_count, v_cd_slot;
-    reg       v_mar_legal, v_mar_stable, v_abs_legal;
+    reg       v_mar_legal, v_mar_stable, v_abs_legal, v_mar_race;
     reg [3:0] v_flags;
     reg [1:0] v_engines;
     reg [1:0] wb_sel_now;   // a WB of direction d was selected this edge
@@ -714,7 +740,7 @@ module formal_jet_prime_pair_fabric #(
         v_arready = 2'd0;  v_ar_pair = 2'd0;  v_route_mem = 2'd0;  v_route_rpl = 2'd0;
         v_r_stable = 2'd0;  v_r_infl = 2'd0;  v_r_beats = 2'd0;
         v_ac_legal = 2'd0;  v_ac_stable = 2'd0;  v_sn_count = 2'd0;  v_cd_slot = 2'd0;
-        v_mar_legal = 1'b0;  v_mar_stable = 1'b0;  v_abs_legal = 1'b0;
+        v_mar_legal = 1'b0;  v_mar_stable = 1'b0;  v_abs_legal = 1'b0;  v_mar_race = 1'b0;
         v_flags = 4'd0;  v_engines = 2'd0;
         wb_sel_now = {(wstate_d == W_IDLE) && (obs_wstate == W_AW) && (obs_w_sel == 2'd1),
                       (wstate_d == W_IDLE) && (obs_wstate == W_AW) && (obs_w_sel == 2'd0)};
@@ -823,7 +849,9 @@ module formal_jet_prime_pair_fabric #(
                 || (obs_dt[s] && !obs_cr_done[s])
                 || (obs_pd[s] && !(obs_dt[s] && obs_cr_done[s]))
                 || (obs_mem_issued[s] && !(obs_ac_done[s] && obs_ar_taken[s] && !obs_nodata[s]))
-                || (obs_mem_done[s] && !(obs_mem_issued[s] || (obs_cr_done[s] && obs_dt[s] && !obs_nodata[s])))
+                // mem_done without a read: the DataTransfer verdict beat the AR -- a fill's, or
+                // (BUG-004) a CleanUnique's, whose CleanInvalid may carry the peer's Modified line
+                || (obs_mem_done[s] && !(obs_mem_issued[s] || (obs_cr_done[s] && obs_dt[s])))
                 || (obs_rpl_done[s] && !(obs_cr_done[s] && obs_ar_taken[s] && (obs_dt[s] || obs_nodata[s])))
                 || (obs_abs_issued[s] && !(obs_pd[s] && obs_cr_done[s]))
                 || (obs_abs_done[s] && !obs_abs_issued[s])
@@ -866,6 +894,12 @@ module formal_jet_prime_pair_fabric #(
                              && (mem_araddr == {sl_line(obs_line_f, mem_arid[1:0]), 4'd0})
                              && (mem_arlen == 8'd3) && !mo[mem_arid[1:0]]))
             v_mar_legal = 1'b1;
+        // P24 (jet-prime BUG-004, onyx BUG-002) a memory read is not first
+        //    presented while a write to its line is in flight (AXI orders
+        //    nothing between them)
+        if (mem_arvalid && !(mar_v_d && !mar_r_d) && f_wfly
+            && (line_of(mem_araddr) == f_wfly_line))
+            v_mar_race = 1'b1;
         // P8 AXI AR stability on the memory port
         if (mar_v_d && !mar_r_d && !(mem_arvalid && (mem_arid == mar_id_d) && (mem_araddr == mar_addr_d)))
             v_mar_stable = 1'b1;
@@ -919,6 +953,7 @@ module formal_jet_prime_pair_fabric #(
             ap_arready_slot:  assert (v_arready == 2'd0);
             ap_ar_pairing:    assert (v_ar_pair == 2'd0);
             ap_mar_legal:     assert (!v_mar_legal);
+            ap_mar_no_wr_race: assert (!v_mar_race);
             ap_route_mem:     assert (v_route_mem == 2'd0);
             ap_route_rpl:     assert (v_route_rpl == 2'd0);
             ap_ac_legal:      assert (v_ac_legal == 2'd0);
@@ -994,6 +1029,15 @@ module formal_jet_prime_pair_fabric #(
             cp_pass_through:  cover (c_r_hs[0] && obs_mem_pres[0] && c_rlast[0]);
             cp_replay_last:   cover (c_r_hs[1] && obs_rpl_pres[1] && c_rlast[1] && !obs_nodata[d2(obs_rpl_slot_f, 1)]);
             cp_nodata_beat:   cover (c_r_hs[0] && obs_rpl_pres[0] && obs_nodata[d2(obs_rpl_slot_f, 0)]);
+            // a CleanUnique's snoop answered with data (the killed-upgrade
+            // corner CleanInvalid now passes dirty; BUG-004)
+            cp_cu_dt:         cover ((cr_hs[0] && cr_dt[0] && obs_nodata[d2(obs_sni_head_f, 0)])
+                                  || (cr_hs[1] && cr_dt[1] && obs_nodata[d2(obs_sni_head_f, 1)]));
+            // a memory read waiting out a write to its line (BUG-004)
+            cp_mar_wr_wait:   cover (f_wfly && (obs_wstate == W_B)
+                                     && (|(obs_vld & obs_ar_taken & ~obs_nodata & ~obs_mem_issued & obs_ac_done
+                                           & ~(obs_cr_done & obs_dt)))
+                                     && !mem_arvalid);
             cp_abs_landed:    cover (mb_hs && w_abs);
             cp_wb_landed:     cover (mb_hs && !w_abs);
             cp_wb_blocked_then_hs: cover (maw_hs && !w_abs && wbblk_seen[w_wdir]);

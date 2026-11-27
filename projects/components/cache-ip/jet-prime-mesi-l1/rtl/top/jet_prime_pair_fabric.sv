@@ -63,7 +63,16 @@
 //
 //   Snoop map (IHI0022 ACSNOOP[3:0]): READ_SHARED /
 //   READ_NOT_SHARED_DIRTY -> SNOOP_READ_SHARED (4'h1), READ_UNIQUE ->
-//   SNOOP_READ_UNIQUE (4'h7), CLEAN_UNIQUE -> SNOOP_MAKE_INVALID (4'hC).
+//   SNOOP_READ_UNIQUE (4'h7), CLEAN_UNIQUE -> SNOOP_CLEAN_INVALID (4'h9,
+//   IHI0022's own mapping; MAKE_UNIQUE -> SNOOP_MAKE_INVALID, 4'hC).  A
+//   CleanUnique's requester normally holds the line Shared, so no peer
+//   holds it dirty -- but an upgrade killed by a snoop before its grant
+//   (the killed-upgrade rule: its line went Invalid, the upgrade completes
+//   to Invalid) is still granted, by then possibly after the peer took the
+//   line Modified; CleanInvalid makes that peer pass the line dirty
+//   (DataTransfer + PassDirty) and the fabric absorbs it, where
+//   MakeInvalid dropped the peer's stores (jet-prime BUG-004, onyx
+//   BUG-001).  The requester still gets its one no-data beat.
 //
 //   Per-line serialization, pulse to retire.  A request whose line is
 //   held by a valid slot (either direction) waits ungranted; its AR stays
@@ -394,6 +403,7 @@ module jet_prime_pair_fabric
     // ------------------------------------------------------------------
     localparam logic [3:0] ACSNOOP_READ_SHARED  = 4'h1;   // IHI0022
     localparam logic [3:0] ACSNOOP_READ_UNIQUE  = 4'h7;
+    localparam logic [3:0] ACSNOOP_CLEAN_INVALID = 4'h9;
     localparam logic [3:0] ACSNOOP_MAKE_INVALID = 4'hC;
     // ReadNotSharedDirty is issued on the upstream AR channel, but the
     // fabric still probes the peer with a READ_SHARED snoop (the two
@@ -405,6 +415,7 @@ module jet_prime_pair_fabric
             AMBER_ACE_READ_SHARED,
             AMBER_ACE_READ_NOT_SHARED_DIRTY: return ACSNOOP_READ_SHARED;
             AMBER_ACE_READ_UNIQUE:           return ACSNOOP_READ_UNIQUE;
+            AMBER_ACE_CLEAN_UNIQUE:          return ACSNOOP_CLEAN_INVALID;  // a killed upgrade's peer may hold it dirty (BUG-004)
             default:                         return ACSNOOP_MAKE_INVALID;
         endcase
     endfunction
@@ -693,7 +704,19 @@ module jet_prime_pair_fabric
     // presented AR at the other slot (the fabric formal's ap_mar_stable,
     // step 4).  A DataTransfer verdict landing on a held AR therefore
     // drains the read's beats instead of suppressing it.
+    //
+    // Nor while the write port has a burst to the slot's line selected and
+    // not yet BRESP'd (r_wfly_*): AXI orders nothing between a read and a
+    // write in flight, so the read could return the bytes from before the
+    // write -- and the snooped cache, answering after its own write-back
+    // completed, says Invalid or Shared, so the stale beats are forwarded
+    // (jet-prime BUG-004, onyx BUG-002).  The write-back hold below is the
+    // other direction (a write may not start while a slot on its line
+    // gathers), and a burst in flight waits on nothing a read holds, so
+    // the two holds cannot close a cycle.
     // ------------------------------------------------------------------
+    logic              w_wfly_vld;      // the write port holds a burst (selected, not yet BRESP'd)
+    logic [LINE_W-1:0] r_wfly_line;     // ... to this line
     logic              w_marc_vld;      // the lowest-index candidate
     logic [SLOT_W-1:0] w_marc_slot;
     logic              r_mar_vld;       // a presented AR not yet taken
@@ -703,7 +726,8 @@ module jet_prime_pair_fabric
         w_marc_slot = '0;
         for (int s = FAB_SLOTS - 1; s >= 0; s--) begin
             if (r_vld[s] && r_ar_taken[s] && !r_nodata[s] && !r_mem_issued[s]
-                && r_ac_done[s] && !(r_cr_done[s] && r_dt[s])) begin
+                && r_ac_done[s] && !(r_cr_done[s] && r_dt[s])
+                && !(w_wfly_vld && (r_wfly_line == r_line[s]))) begin
                 w_marc_vld  = 1'b1;
                 w_marc_slot = SLOT_W'(s);
             end
@@ -932,6 +956,18 @@ module jet_prime_pair_fabric
         end
     end
     wire w_wvalid = |w_wcand;
+
+    // the line of the burst the write port holds, captured at its selection
+    // (the memory read hold above, BUG-004)
+    assign w_wfly_vld = (r_wstate != W_IDLE);
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_wfly_line <= '0;
+        end else if ((r_wstate == W_IDLE) && w_wvalid) begin
+            r_wfly_line <= (w_wsel == 2'd2) ? r_line[w_absc_slot]
+                                            : line_of(c_awaddr[w_wsel[0]]);
+        end
+    )
 
     wire        w_cur_abs = (r_w_sel == 2'd2);
     wire        w_cur_dir = r_w_sel[0];

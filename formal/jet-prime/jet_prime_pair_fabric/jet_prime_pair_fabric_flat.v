@@ -369,26 +369,28 @@ module jet_prime_pair_fabric (
 	output wire [SLOT_W - 1:0] dbg_grant_slot;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:379:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:388:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 16 must be a power of two");
 		if (((FILL_BEATS & (FILL_BEATS - 1)) != 0) || (FILL_BEATS < 2))
-			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:381:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 16 / 32*8 must be a power of two >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:390:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 16 / 32*8 must be a power of two >= 2");
 		if ((32 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:383:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 32 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:392:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 32 must be a multiple of 8");
 		if ((4 < 2) || ((1 << SLOT_W) < 4))
-			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:385:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 4 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:394:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 4 must be >= 2");
 		if ((1 << IW) < 4)
-			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:387:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 2**3 must cover 4 (the memory read IDs)");
+			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:396:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 2**3 must cover 4 (the memory read IDs)");
 		if (2 < 1)
-			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:389:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 2 must be >= 1");
+			$display("Error [%0t] .flat_build/prep/jet_prime_pair_fabric.sv:398:13 - jet_prime_pair_fabric.<unnamed_block>.<unnamed_block>\n msg: ", $time, "jet_prime_pair_fabric: 2 must be >= 1");
 	end
 	localparam [3:0] ACSNOOP_READ_SHARED = 4'h1;
 	localparam [3:0] ACSNOOP_READ_UNIQUE = 4'h7;
+	localparam [3:0] ACSNOOP_CLEAN_INVALID = 4'h9;
 	localparam [3:0] ACSNOOP_MAKE_INVALID = 4'hc;
 	function automatic [3:0] map_snoop;
 		input reg [2:0] req_type;
 		case (req_type)
 			3'b000, 3'b110: map_snoop = ACSNOOP_READ_SHARED;
 			3'b001: map_snoop = ACSNOOP_READ_UNIQUE;
+			3'b010: map_snoop = ACSNOOP_CLEAN_INVALID;
 			default: map_snoop = ACSNOOP_MAKE_INVALID;
 		endcase
 	endfunction
@@ -678,6 +680,8 @@ module jet_prime_pair_fabric (
 	assign s1_crready = r_sni_cnt[1] != {SNI_W {1'sb0}};
 	assign s0_cdready = r_sni_cnt[0] != {SNI_W {1'sb0}};
 	assign s1_cdready = r_sni_cnt[1] != {SNI_W {1'sb0}};
+	wire w_wfly_vld;
+	reg [LINE_W - 1:0] r_wfly_line;
 	reg w_marc_vld;
 	reg [SLOT_W - 1:0] w_marc_slot;
 	reg r_mar_vld;
@@ -690,7 +694,7 @@ module jet_prime_pair_fabric (
 		begin : sv2v_autoblock_8
 			reg signed [31:0] s;
 			for (s = 4 - 1; s >= 0; s = s - 1)
-				if (((((r_vld[s] && r_ar_taken[s]) && !r_nodata[s]) && !r_mem_issued[s]) && r_ac_done[s]) && !(r_cr_done[s] && r_dt[s])) begin
+				if ((((((r_vld[s] && r_ar_taken[s]) && !r_nodata[s]) && !r_mem_issued[s]) && r_ac_done[s]) && !(r_cr_done[s] && r_dt[s])) && !(w_wfly_vld && (r_wfly_line == r_line[s]))) begin
 					w_marc_vld = 1'b1;
 					w_marc_slot = sv2v_cast_7C1AF_signed(s);
 				end
@@ -919,6 +923,12 @@ module jet_prime_pair_fabric (
 		end
 	end
 	wire w_wvalid = |w_wcand;
+	assign w_wfly_vld = r_wstate != W_IDLE;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_wfly_line <= 1'sb0;
+		else if ((r_wstate == W_IDLE) && w_wvalid)
+			r_wfly_line <= (w_wsel == 2'd2 ? r_line[w_absc_slot] : line_of(c_awaddr[w_wsel[0]]));
 	wire w_cur_abs = r_w_sel == 2'd2;
 	wire w_cur_dir = r_w_sel[0];
 	wire [BUF_AW - 1:0] w_abs_raddr;

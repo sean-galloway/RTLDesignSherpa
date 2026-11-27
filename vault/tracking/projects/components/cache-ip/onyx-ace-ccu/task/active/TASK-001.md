@@ -762,3 +762,13 @@ Found and measured:
   exact numbers). Done-when's "every D9 event class on MonBus in sim and
   captured on the board" is met. Results
   `perf_sweep_onyx{,d}_go{,_hot}_dual_20261127T182844Z.json`.
+- 2026-11-27 **onyx against the fabric, corrected (jet-prime BUG-004):**
+  the bin 8 entry's "32 of 55 dual cells cycle-identical, up to 12 % slower
+  only on `r64b_we64`" was onyx's BUG-002 read hold against a fabric that
+  lacked it. With onyx's BUG-001 / BUG-002 fixes ported into
+  `jet_prime_pair_fabric` (jet-prime BUG-004, closed) and SEL 3 re-swept
+  (stamp 20261127T185823Z), onyx (SEL 4, 20261127T182844Z) is
+  cycle-identical to the fabric in 42 of 55 concurrent dual cells and
+  within 0.5 % in the other 13. Done-when's "cycles per transaction equal
+  to the pair fabric's in parallel-issue mode" holds against the fixed
+  fabric, within 0.5 %.

@@ -128,13 +128,18 @@ ACE_READ_NOT_SHARED_DIRTY = 6
 # fabric ACSNOOP encodings (IHI0022 4-bit, framework SnoopType)
 FAB_SNOOP_RS = 0x1   # SnoopType.READ_SHARED
 FAB_SNOOP_RU = 0x7   # SnoopType.READ_UNIQUE
+FAB_SNOOP_CI = 0x9   # SnoopType.CLEAN_INVALID
 FAB_SNOOP_MI = 0xC   # SnoopType.MAKE_INVALID
 SNOOP_NAME_BY_FAB = {FAB_SNOOP_RS: 'SNOOP_READ_SHARED',
                      FAB_SNOOP_RU: 'SNOOP_READ_UNIQUE',
+                     FAB_SNOOP_CI: 'SNOOP_CLEAN_INVALID',
                      FAB_SNOOP_MI: 'SNOOP_MAKE_INVALID'}
+# a CleanUnique is snooped CleanInvalid (IHI0022's mapping): a killed
+# upgrade granted after the peer took the line Modified makes the peer pass
+# it dirty, where MakeInvalid dropped the peer's stores (jet-prime BUG-004)
 FAB_SNOOP_BY_TYPE = {ACE_READ_SHARED: FAB_SNOOP_RS,
                      ACE_READ_UNIQUE: FAB_SNOOP_RU,
-                     ACE_CLEAN_UNIQUE: FAB_SNOOP_MI,
+                     ACE_CLEAN_UNIQUE: FAB_SNOOP_CI,
                      ACE_MAKE_UNIQUE: FAB_SNOOP_MI,
                      ACE_READ_NOT_SHARED_DIRTY: FAB_SNOOP_RS}
 
@@ -143,6 +148,7 @@ FAB_SNOOP_BY_TYPE = {ACE_READ_SHARED: FAB_SNOOP_RS,
 FRAMEWORK_SNOOPS = {
     'SNOOP_READ_SHARED': SnoopType.READ_SHARED,
     'SNOOP_READ_UNIQUE': SnoopType.READ_UNIQUE,
+    'SNOOP_CLEAN_INVALID': SnoopType.CLEAN_INVALID,
     'SNOOP_MAKE_INVALID': SnoopType.MAKE_INVALID,
 }
 
@@ -281,6 +287,10 @@ class JetPairRigTB(TBBase):
         self.checks = 0
         self.mismatches = 0
         self.scenarios = {}
+        # CleanUnique snoops answered with data: the killed-upgrade corner
+        # (jet-prime BUG-004) -- CleanInvalid makes a Modified peer pass the
+        # line dirty where MakeInvalid dropped its stores
+        self.cu_dt_count = 0
         self._ace_seq = [0, 0]
         self._cd_seq = [0, 0]
         self._cd_started = [False, False]
@@ -951,6 +961,8 @@ class JetPairRigTB(TBBase):
         if ft['resolution'] is not None:
             self._score(f"ft{ft['cyc']}: snooped twice", 1, 0)
         ft['resolution'] = res.crresp
+        if ft['type'] == ACE_CLEAN_UNIQUE and (res.crresp >> CRRESP_DT) & 1:
+            self.cu_dt_count += 1
         if (res.crresp >> CRRESP_DT) & 1:
             ft['data_actual'] = cd
             if (res.crresp >> CRRESP_PD) & 1:
@@ -1187,7 +1199,7 @@ class JetPairRigTB(TBBase):
             side.slot_state[(exp['set'], way)] = exp['next']
             if exp['next'] == 'I':
                 # an invalidation without a forward (e.g. MakeInvalid on
-                # S, or the fabric-contract M-kill corner) drops the
+                # S, or CleanInvalid on a clean line) drops the
                 # resident content; a forwarded line's content moved to
                 # the memory model at the resolution
                 side.cache_data.pop((exp['set'], way), None)
@@ -2188,6 +2200,7 @@ class JetPairRigTB(TBBase):
             'pre_ar_answers': [s.pre_ar_answers for s in self.sides],
             'pend_installs': [s.pend_installs for s in self.sides],
             'kill_count': [s.kill_count for s in self.sides],
+            'cu_dt_count': self.cu_dt_count,
             'wb_ended': [s.ended for s in self.sides],
             'wb_passed_drains': [s.passed_drains for s in self.sides],
             'stats': self.stats,

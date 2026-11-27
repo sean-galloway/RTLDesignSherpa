@@ -42,7 +42,7 @@ include $(REPO_ROOT)/make/formal_flat.mk
 
 all: prove prove-book cover
 
-# the 24 local safety properties, BMC depth 24
+# the 25 local safety properties, BMC depth 24
 prove: jet_prime_pair_fabric_flat.v
 	sby -f jet_prime_pair_fabric.sby prove
 
