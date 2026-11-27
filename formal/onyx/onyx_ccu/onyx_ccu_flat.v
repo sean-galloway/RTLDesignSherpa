@@ -381,19 +381,19 @@ module onyx_ccu (
 	output reg [(N_REQ * 8) - 1:0] evt_lock_wait_addr;
 	initial begin
 		if ((2 < 2) || (2 > 4))
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:451:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2 must be 2..4 (D11)");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:461:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2 must be 2..4 (D11)");
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:453:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 16 must be a power of two");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:463:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 16 must be a power of two");
 		if (((FILL_BEATS & (FILL_BEATS - 1)) != 0) || (FILL_BEATS < 2))
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:455:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 16 / 32*8 must be a power of two >= 2");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:465:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 16 / 32*8 must be a power of two >= 2");
 		if ((32 % 8) != 0)
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:457:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 32 must be a multiple of 8");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:467:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 32 must be a multiple of 8");
 		if ((4 < 2) || ((1 << SLOT_W) < 4))
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:459:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 4 must be >= 2");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:469:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 4 must be >= 2");
 		if ((1 << IW) < 4)
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:461:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2**3 must cover 4 (the memory read IDs)");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:471:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2**3 must cover 4 (the memory read IDs)");
 		if (2 < 1)
-			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:463:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2 must be >= 1");
+			$display("Error [%0t] .flat_build/prep/onyx_ccu.sv:473:13 - onyx_ccu.<unnamed_block>.<unnamed_block>\n msg: ", $time, "onyx_ccu: 2 must be >= 1");
 	end
 	localparam [3:0] ACSNOOP_READ_ONCE = 4'h0;
 	localparam [3:0] ACSNOOP_READ_SHARED = 4'h1;
@@ -409,6 +409,7 @@ module onyx_ccu (
 		case (req_type)
 			3'b000, 3'b110: map_snoop = ACSNOOP_READ_SHARED;
 			3'b001: map_snoop = ACSNOOP_READ_UNIQUE;
+			3'b010: map_snoop = ACSNOOP_CLEAN_INVALID;
 			CLS_IO_READ: map_snoop = ACSNOOP_READ_ONCE;
 			CLS_IO_WRITE: map_snoop = ACSNOOP_CLEAN_INVALID;
 			default: map_snoop = ACSNOOP_MAKE_INVALID;
@@ -775,6 +776,8 @@ module onyx_ccu (
 				end
 		end
 	end
+	wire w_wfly_vld;
+	reg [LINE_W - 1:0] r_wfly_line;
 	reg w_marc_vld;
 	reg [SLOT_W - 1:0] w_marc_slot;
 	reg r_mar_vld;
@@ -787,7 +790,7 @@ module onyx_ccu (
 		begin : sv2v_autoblock_22
 			reg signed [31:0] s;
 			for (s = 4 - 1; s >= 0; s = s - 1)
-				if (((((r_vld[s] && r_ar_taken[s]) && !r_nodata[s]) && !r_mem_issued[s]) && !r_dt[s]) && (0 ? w_gathered[s] : w_ac_all[s])) begin
+				if ((((((r_vld[s] && r_ar_taken[s]) && !r_nodata[s]) && !r_mem_issued[s]) && !r_dt[s]) && (0 ? w_gathered[s] : w_ac_all[s])) && !(w_wfly_vld && (r_wfly_line == r_line[s]))) begin
 					w_marc_vld = 1'b1;
 					w_marc_slot = sv2v_cast_7C1AF_signed(s);
 				end
@@ -1010,6 +1013,9 @@ module onyx_ccu (
 			r_aw_pres <= c_awvalid & ~c_awready;
 			r_aw_yield <= w_aw_younger;
 		end
+	reg [2 - 1:0] w_wb_gather_blk;
+	reg [2 - 1:0] w_wb_abs_blk;
+	reg [2 - 1:0] r_aw_old;
 	reg [2 - 1:0] w_wb_blocked;
 	reg w_wb_blocked_io;
 	always @(*) begin
@@ -1019,13 +1025,19 @@ module onyx_ccu (
 			reg signed [31:0] d;
 			for (d = 0; d < 2; d = d + 1)
 				begin
-					w_wb_blocked[d] = w_aw_younger[d];
+					w_wb_gather_blk[d] = 1'b0;
+					w_wb_abs_blk[d] = 1'b0;
 					begin : sv2v_autoblock_34
 						reg signed [31:0] s;
 						for (s = 0; s < 4; s = s + 1)
-							if ((r_vld[s] && (r_line[s] == line_of(c_awaddr[((2 - 1) - d) * 8+:8]))) && (!w_gathered[s] || (r_pd[s] && !r_abs_done[s])))
-								w_wb_blocked[d] = 1'b1;
+							if (r_vld[s] && (r_line[s] == line_of(c_awaddr[((2 - 1) - d) * 8+:8]))) begin
+								if (!w_gathered[s])
+									w_wb_gather_blk[d] = 1'b1;
+								if (r_pd[s] && !r_abs_done[s])
+									w_wb_abs_blk[d] = 1'b1;
+							end
 					end
+					w_wb_blocked[d] = (w_aw_younger[d] | w_wb_gather_blk[d]) | (w_wb_abs_blk[d] & ~r_aw_old[d]);
 				end
 		end
 		w_wb_blocked_io = 1'b0;
@@ -1050,6 +1062,29 @@ module onyx_ccu (
 	end
 	wire w_io_w_slot = ((((io_awvalid & w_io_aw_sh) & r_iow_slot_vld) & w_gathered[r_iow_slot]) & (~r_pd[r_iow_slot] | r_abs_done[r_iow_slot])) & ~w_io_line_wb;
 	wire w_io_w_pass = ((io_awvalid & ~w_io_aw_sh) & ~r_iow_busy) & ~w_wb_blocked_io;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_aw_old <= 1'sb0;
+		else
+			r_aw_old <= (c_awvalid & ~c_awready) & (r_aw_old | w_wb_gather_blk);
+	reg [4 - 1:0] w_abs_old_wb;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_37
+			reg signed [31:0] s;
+			for (s = 0; s < 4; s = s + 1)
+				begin
+					w_abs_old_wb[s] = 1'b0;
+					begin : sv2v_autoblock_38
+						reg signed [31:0] d;
+						for (d = 0; d < 2; d = d + 1)
+							if ((c_awvalid[d] && r_aw_old[d]) && (line_of(c_awaddr[((2 - 1) - d) * 8+:8]) == r_line[s]))
+								w_abs_old_wb[s] = 1'b1;
+					end
+				end
+		end
+	end
 	reg w_absc_vld;
 	reg [SLOT_W - 1:0] w_absc_slot;
 	always @(*) begin
@@ -1057,10 +1092,10 @@ module onyx_ccu (
 			;
 		w_absc_vld = 1'b0;
 		w_absc_slot = 1'sb0;
-		begin : sv2v_autoblock_37
+		begin : sv2v_autoblock_39
 			reg signed [31:0] s;
 			for (s = 4 - 1; s >= 0; s = s - 1)
-				if (((r_vld[s] && w_gathered[s]) && r_pd[s]) && !r_abs_issued[s]) begin
+				if ((((r_vld[s] && w_gathered[s]) && r_pd[s]) && !r_abs_issued[s]) && !w_abs_old_wb[s]) begin
 					w_absc_vld = 1'b1;
 					w_absc_slot = sv2v_cast_7C1AF_signed(s);
 				end
@@ -1075,7 +1110,7 @@ module onyx_ccu (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_38
+		begin : sv2v_autoblock_40
 			reg signed [31:0] d;
 			for (d = 0; d < 2; d = d + 1)
 				w_wcand[d] = c_awvalid[d] & ~w_wb_blocked[d];
@@ -1083,10 +1118,10 @@ module onyx_ccu (
 		w_wcand[W_ABS] = w_absc_vld;
 		w_wcand[W_IO] = w_io_w_slot | w_io_w_pass;
 		w_wsel = r_w_rr;
-		begin : sv2v_autoblock_39
+		begin : sv2v_autoblock_41
 			reg signed [31:0] k;
 			for (k = NW - 1; k >= 0; k = k - 1)
-				begin : sv2v_autoblock_40
+				begin : sv2v_autoblock_42
 					reg signed [31:0] idx;
 					idx = (sv2v_cast_32(r_w_rr) + k) % NW;
 					if (w_wcand[idx])
@@ -1095,13 +1130,19 @@ module onyx_ccu (
 		end
 	end
 	wire w_wvalid = |w_wcand;
-	wire w_cur_abs = r_w_sel == sv2v_cast_D6176_signed(W_ABS);
-	wire w_cur_io = r_w_sel == sv2v_cast_D6176_signed(W_IO);
-	wire w_cur_wb = !w_cur_abs && !w_cur_io;
+	assign w_wfly_vld = r_wstate != W_IDLE;
 	function automatic [PORT_W - 1:0] sv2v_cast_65AE2;
 		input reg [PORT_W - 1:0] inp;
 		sv2v_cast_65AE2 = inp;
 	endfunction
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_wfly_line <= 1'sb0;
+		else if ((r_wstate == W_IDLE) && w_wvalid)
+			r_wfly_line <= (w_wsel == sv2v_cast_D6176_signed(W_ABS) ? r_line[w_absc_slot] : (w_wsel == sv2v_cast_D6176_signed(W_IO) ? line_of(io_awaddr) : line_of(c_awaddr[((2 - 1) - sv2v_cast_65AE2(w_wsel)) * 8+:8])));
+	wire w_cur_abs = r_w_sel == sv2v_cast_D6176_signed(W_ABS);
+	wire w_cur_io = r_w_sel == sv2v_cast_D6176_signed(W_IO);
+	wire w_cur_wb = !w_cur_abs && !w_cur_io;
 	wire [PORT_W - 1:0] w_cur_dir = sv2v_cast_65AE2(r_w_sel);
 	wire [32 - 1:0] w_abs_rdata;
 	assign w_abs_raddr = {r_w_slot, r_w_beat};
@@ -1131,10 +1172,10 @@ module onyx_ccu (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_41
+		begin : sv2v_autoblock_43
 			reg signed [31:0] d;
 			for (d = 0; d < 2; d = d + 1)
-				begin : sv2v_autoblock_42
+				begin : sv2v_autoblock_44
 					reg mine;
 					mine = w_cur_wb && (w_cur_dir == sv2v_cast_65AE2_signed(d));
 					c_awready[d] = ((r_wstate == W_AW) && mine) && mem_awready;
@@ -1157,10 +1198,10 @@ module onyx_ccu (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_43
+		begin : sv2v_autoblock_45
 			reg signed [31:0] s;
 			for (s = 0; s < 4; s = s + 1)
-				begin : sv2v_autoblock_44
+				begin : sv2v_autoblock_46
 					reg [PORT_W - 1:0] dp;
 					dp = sv2v_cast_65AE2(r_dir[s]);
 					w_rack_hit[s] = ((((r_vld[s] & r_ar_taken[s]) & ~r_rack[s]) & (r_dir[s] != sv2v_cast_6B2BA_signed(IO))) & c_coh_done_valid[dp]) & (c_coh_done_id[((2 - 1) - dp) * IW+:IW] == r_arid[s]);
@@ -1234,7 +1275,7 @@ module onyx_ccu (
 			r_w_slot <= 1'sb0;
 			r_w_rr <= 1'sb0;
 			r_w_beat <= 1'sb0;
-			begin : sv2v_autoblock_45
+			begin : sv2v_autoblock_47
 				reg signed [31:0] s;
 				for (s = 0; s < 4; s = s + 1)
 					begin
@@ -1243,7 +1284,7 @@ module onyx_ccu (
 						r_cr_left[s] <= 1'sb0;
 					end
 			end
-			begin : sv2v_autoblock_46
+			begin : sv2v_autoblock_48
 				reg signed [31:0] d;
 				for (d = 0; d < 2; d = d + 1)
 					begin
@@ -1253,7 +1294,7 @@ module onyx_ccu (
 						r_cd_beat[d] <= 1'sb0;
 					end
 			end
-			begin : sv2v_autoblock_47
+			begin : sv2v_autoblock_49
 				reg signed [31:0] d;
 				for (d = 0; d < N_REQ; d = d + 1)
 					begin
@@ -1266,16 +1307,16 @@ module onyx_ccu (
 			end
 		end
 		else begin
-			begin : sv2v_autoblock_48
+			begin : sv2v_autoblock_50
 				reg signed [31:0] d;
 				for (d = 0; d < 2; d = d + 1)
-					begin : sv2v_autoblock_49
+					begin : sv2v_autoblock_51
 						reg push;
 						reg pop;
 						push = coh_req_vld[d] & ~((w_grant & (w_grant_dir == sv2v_cast_6B2BA_signed(d))) & w_cand_live[d]);
 						pop = (w_grant & (w_grant_dir == sv2v_cast_6B2BA_signed(d))) & ~w_cand_live[d];
 						if (pop) begin
-							begin : sv2v_autoblock_50
+							begin : sv2v_autoblock_52
 								reg signed [31:0] k;
 								for (k = 0; k < 3; k = k + 1)
 									begin
@@ -1337,7 +1378,7 @@ module onyx_ccu (
 			end
 			if (r_ior_busy && w_free_now[r_ior_slot])
 				r_ior_busy <= 1'b0;
-			begin : sv2v_autoblock_51
+			begin : sv2v_autoblock_53
 				reg signed [31:0] d;
 				for (d = 0; d < 2; d = d + 1)
 					if (w_ar_take[d]) begin
@@ -1364,13 +1405,13 @@ module onyx_ccu (
 				r_io_arregion <= io_arregion;
 				r_arw_vld[IO] <= 1'b0;
 			end
-			begin : sv2v_autoblock_52
+			begin : sv2v_autoblock_54
 				reg signed [31:0] p;
 				for (p = 0; p < 2; p = p + 1)
-					begin : sv2v_autoblock_53
+					begin : sv2v_autoblock_55
 						reg push_q;
 						push_q = (w_grant & (w_grant_dir != sv2v_cast_6B2BA_signed(p))) & (w_grant_npeer != {PC_W {1'sb0}});
-						if (w_ac_hs[p]) begin : sv2v_autoblock_54
+						if (w_ac_hs[p]) begin : sv2v_autoblock_56
 							reg signed [31:0] k;
 							for (k = 0; k < (4 - 1); k = k + 1)
 								r_snq[p][k] <= r_snq[p][k + 1];
@@ -1379,7 +1420,7 @@ module onyx_ccu (
 							r_snq[p][sv2v_cast_7C1AF(r_snq_cnt[p] - sv2v_cast_36294(w_ac_hs[p]))] <= w_slot_idx;
 						r_snq_cnt[p] <= (r_snq_cnt[p] + sv2v_cast_36294(push_q)) - sv2v_cast_36294(w_ac_hs[p]);
 						if (w_cr_hs[p]) begin
-							begin : sv2v_autoblock_55
+							begin : sv2v_autoblock_57
 								reg signed [31:0] k;
 								for (k = 0; k < (2 - 1); k = k + 1)
 									r_sni[p][k] <= r_sni[p][k + 1];
@@ -1399,7 +1440,7 @@ module onyx_ccu (
 							r_cd_beat[p] <= (s_cdlast[p] ? {BEAT_INDEX_WIDTH {1'sb0}} : r_cd_beat[p] + sv2v_cast_9FF7F_signed(1));
 					end
 			end
-			begin : sv2v_autoblock_56
+			begin : sv2v_autoblock_58
 				reg signed [31:0] s;
 				for (s = 0; s < 4; s = s + 1)
 					begin
@@ -1409,7 +1450,7 @@ module onyx_ccu (
 							r_cr_left[s] <= r_cr_left[s] - w_cr_dec[s];
 					end
 			end
-			begin : sv2v_autoblock_57
+			begin : sv2v_autoblock_59
 				reg signed [31:0] a;
 				for (a = 0; a < N_REQ; a = a + 1)
 					if (w_buf_we[a])
@@ -1425,7 +1466,7 @@ module onyx_ccu (
 			end
 			if (w_mr_hs && mem_rlast)
 				r_mem_done[w_mr_slot] <= 1'b1;
-			begin : sv2v_autoblock_58
+			begin : sv2v_autoblock_60
 				reg signed [31:0] d;
 				for (d = 0; d < N_REQ; d = d + 1)
 					if (r_rpl_vld[d]) begin
@@ -1490,7 +1531,7 @@ module onyx_ccu (
 					end
 				default: r_wstate <= W_IDLE;
 			endcase
-			begin : sv2v_autoblock_59
+			begin : sv2v_autoblock_61
 				reg signed [31:0] s;
 				for (s = 0; s < 4; s = s + 1)
 					begin
@@ -1507,7 +1548,7 @@ module onyx_ccu (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_60
+		begin : sv2v_autoblock_62
 			reg signed [31:0] p;
 			for (p = 0; p < 2; p = p + 1)
 				begin
@@ -1518,7 +1559,7 @@ module onyx_ccu (
 					evt_read_wasted[p] = (w_cr_hs[p] && s_crresp[(((2 - 1) - p) * l1_pkg_AMBER_CRRESP_WIDTH) + l1_pkg_AMBER_CRRESP_DT]) && (r_mem_issued[w_sni_head[p]] || (w_mar_vld && (w_mar_slot == w_sni_head[p])));
 				end
 		end
-		begin : sv2v_autoblock_61
+		begin : sv2v_autoblock_63
 			reg signed [31:0] d;
 			for (d = 0; d < N_REQ; d = d + 1)
 				begin
@@ -1537,7 +1578,7 @@ module onyx_ccu (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_62
+		begin : sv2v_autoblock_64
 			reg signed [31:0] d;
 			for (d = 0; d < 2; d = d + 1)
 				dbg_pend_vld[d] = r_pend_cnt[d] != {3 {1'sb0}};
@@ -1553,7 +1594,7 @@ module onyx_ccu (
 		if (_sv2v_0)
 			;
 		unused_ar = 1'b0;
-		begin : sv2v_autoblock_63
+		begin : sv2v_autoblock_65
 			reg signed [31:0] d;
 			for (d = 0; d < 2; d = d + 1)
 				unused_ar = unused_ar ^ ^{c_arlen[((2 - 1) - d) * 8+:8], c_arsize[((2 - 1) - d) * 3+:3], c_arburst[((2 - 1) - d) * 2+:2], c_arlock[d], c_arqos[((2 - 1) - d) * 4+:4], c_arregion[((2 - 1) - d) * 4+:4], c_wuser[((2 - 1) - d) * UW+:UW]};

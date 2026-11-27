@@ -42,7 +42,7 @@ include $(REPO_ROOT)/make/formal_flat.mk
 
 all: prove prove-book cover
 
-# the 24 local safety properties, BMC depth 24
+# the 27 local safety properties, BMC depth 24
 prove: onyx_ccu_flat.v
 	sby -f onyx_ccu.sby prove
 

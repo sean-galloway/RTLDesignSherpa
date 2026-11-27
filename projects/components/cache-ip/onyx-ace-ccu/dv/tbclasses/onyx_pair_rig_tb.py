@@ -53,7 +53,8 @@ at the end, requires
 - the exact counters (onyx_counters) equal the model: transactions ==
   grants, memory reads == memory ARs, absorptions, reads wasted (a memory
   read issued for a slot a peer then supplied) == dropped reads, lines
-  supplied == forwarded lines;
+  supplied == forwarded lines + upgrades a peer passed the line dirty to
+  (a killed upgrade's CleanInvalid, onyx BUG-001);
 - every MonBus class count is bounded by its counter, and the shortfall
   across classes is accounted for by the observer's own drop reports (the
   payload of each PktTypeError packet is the events lost): the observer
@@ -99,7 +100,10 @@ FAB_SNOOP_RO = 0x0   # ReadOnce
 FAB_SNOOP_CI = 0x9   # CleanInvalid
 SNOOP_NAME_BY_FAB = {**jp.SNOOP_NAME_BY_FAB,
                      FAB_SNOOP_RO: 'SNOOP_READ_ONCE', FAB_SNOOP_CI: 'SNOOP_CLEAN_INVALID'}
+# onyx snoops a CleanUnique with CleanInvalid (IHI0022's mapping; the pair
+# fabric's MakeInvalid dropped a killed upgrade's dirty peer -- onyx BUG-001)
 FAB_SNOOP_BY_TYPE = {**jp.FAB_SNOOP_BY_TYPE,
+                     jp.ACE_CLEAN_UNIQUE: FAB_SNOOP_CI,
                      CLS_IO_READ: FAB_SNOOP_RO, CLS_IO_WRITE: FAB_SNOOP_CI}
 FRAMEWORK_SNOOPS = {**jp.FRAMEWORK_SNOOPS,
                     'SNOOP_READ_ONCE': SnoopType.READ_ONCE,
@@ -299,7 +303,8 @@ class OnyxPairRigTB(JetPairRigTB):
         self._score("onyx counters: mem_read == memory ARs", cnt['mem_read'], s['mem_ar'])
         self._score("onyx counters: absorb == absorptions", cnt['absorb'], s['absorbs'])
         self._score("onyx counters: read_wasted == reads dropped", cnt['read_wasted'], s['r_dropped'])
-        self._score("onyx counters: supplied == forwarded lines", cnt['supplied'], s['dt_forwards'])
+        self._score("onyx counters: supplied == forwarded lines + upgrades supplied",
+                    cnt['supplied'], s['dt_forwards'] + s.get('cu_dt', 0))
         # the TB's own event count (from the taps) equals the counters: the
         # window model is anchored to the exact instrument
         ea = self.exp_all
@@ -758,6 +763,11 @@ class OnyxPairRigTB(JetPairRigTB):
         ft['resolution'] = res.crresp
         if dt:
             ft['data_actual'] = cd
+            if ft['type'] == jp.ACE_CLEAN_UNIQUE:
+                # a killed upgrade's peer passing the line dirty under
+                # CleanInvalid (onyx BUG-001): supplied, absorbed, never
+                # forwarded (the requester gets its no-data beat)
+                self.stats['cu_dt'] = self.stats.get('cu_dt', 0) + 1
             if pd:
                 self.mem[line] = bytearray(cd)
                 self.stats['absorbs'] += 1

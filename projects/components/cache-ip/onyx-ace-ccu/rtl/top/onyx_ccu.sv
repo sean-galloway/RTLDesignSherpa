@@ -67,8 +67,16 @@
 //
 //   Snoop map (IHI0022 ACSNOOP[3:0]): READ_SHARED /
 //   READ_NOT_SHARED_DIRTY -> SNOOP_READ_SHARED (4'h1), READ_UNIQUE ->
-//   SNOOP_READ_UNIQUE (4'h7), CLEAN_UNIQUE / MAKE_UNIQUE ->
-//   SNOOP_MAKE_INVALID (4'hC).  EVICT and WRITE_BACK pulses allocate
+//   SNOOP_READ_UNIQUE (4'h7), CLEAN_UNIQUE -> SNOOP_CLEAN_INVALID (4'h9,
+//   IHI0022's own mapping), MAKE_UNIQUE -> SNOOP_MAKE_INVALID (4'hC).  A
+//   CleanUnique's requester normally holds the line Shared, so no peer
+//   holds it dirty -- but an upgrade killed by a snoop before its grant
+//   (jet-prime's killed-upgrade rule: its line went Invalid, the upgrade
+//   completes to Invalid) is still granted, by then possibly after a peer
+//   took the line Modified; CleanInvalid makes that peer pass the line
+//   dirty (DataTransfer + PassDirty) and onyx absorbs it, where
+//   MakeInvalid dropped the peer's stores (onyx BUG-001).  The requester
+//   still gets the one no-data beat.  EVICT, WRITE_BACK and WRITE_CLEAN pulses allocate
 //   nothing: in a broadcast CCU without a directory a clean eviction needs
 //   no coherence action, and the write-back is the write port's.
 //
@@ -181,14 +189,16 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //   - Instantiated by: onyx_pair_rig_tb (two jet-primes, the pair fabric's
-//     place), the Genesys2 reference harness (a later step)
+//     place), onyx_core_rig_tb (the core alone, N BFM caches and a BFM
+//     memory), the Genesys2 reference harness
 //   - Consumes: N jet_prime_top memory sides + D-8 sidebands + ACE responders,
 //     one ACE-Lite master (the pair rig's BFM; the reference rig's doorbell)
 //   - Package: l1_pkg (ACE request classes, CRRESP bit positions)
 //
 //------------------------------------------------------------------------------
 // Test:
-//   Location: projects/components/cache-ip/onyx-ace-ccu/dv/tests/test_onyx_pair_rig.py
+//   Location: projects/components/cache-ip/onyx-ace-ccu/dv/tests/test_onyx_pair_rig.py,
+//             test_onyx_core_rig.py
 //   Run: cd projects/components/cache-ip/onyx-ace-ccu/dv/tests && make clean-all && make run-all-gate-parallel
 //
 //==============================================================================
@@ -482,6 +492,7 @@ module onyx_ccu
             AMBER_ACE_READ_SHARED,
             AMBER_ACE_READ_NOT_SHARED_DIRTY: return ACSNOOP_READ_SHARED;
             AMBER_ACE_READ_UNIQUE:           return ACSNOOP_READ_UNIQUE;
+            AMBER_ACE_CLEAN_UNIQUE:          return ACSNOOP_CLEAN_INVALID;  // a killed upgrade's peer may hold it dirty (BUG-001)
             CLS_IO_READ:                     return ACSNOOP_READ_ONCE;      // the IO's ReadOnce
             CLS_IO_WRITE:                    return ACSNOOP_CLEAN_INVALID;  // the IO's WriteUnique: dirty data first
             default:                         return ACSNOOP_MAKE_INVALID;
@@ -811,7 +822,17 @@ module onyx_ccu
     // DataTransfer yet, and -- DEFER_AR=0 -- every peer's AC accepted, or
     // -- DEFER_AR=1 -- every peer's CR in.  Lowest index first; once
     // presented the AR is HELD until its handshake (ap_mar_stable).
+    //
+    // Nor while the write port has a burst to the slot's line selected and
+    // not yet BRESP'd (r_wfly_*): AXI orders nothing between a read and a
+    // write in flight, so the read could return the bytes from before the
+    // write -- and the snooped cache, answering after its own write-back /
+    // WriteClean completed, says Invalid or Shared, so the stale beats are
+    // forwarded (onyx BUG-002).  The write-back hold below is the other
+    // direction (a write may not start while a slot on its line gathers).
     // ------------------------------------------------------------------
+    logic              w_wfly_vld;     // the write port holds a burst (selected, not yet BRESP'd)
+    logic [LINE_W-1:0] r_wfly_line;    // ... to this line
     logic              w_marc_vld;
     logic [SLOT_W-1:0] w_marc_slot;
     logic              r_mar_vld;
@@ -821,7 +842,8 @@ module onyx_ccu
         w_marc_slot = '0;
         for (int s = SLOTS - 1; s >= 0; s--) begin
             if (r_vld[s] && r_ar_taken[s] && !r_nodata[s] && !r_mem_issued[s]
-                && !r_dt[s] && (DEFER_AR ? w_gathered[s] : w_ac_all[s])) begin
+                && !r_dt[s] && (DEFER_AR ? w_gathered[s] : w_ac_all[s])
+                && !(w_wfly_vld && (r_wfly_line == r_line[s]))) begin
                 w_marc_vld  = 1'b1;
                 w_marc_slot = SLOT_W'(s);
             end
@@ -1040,16 +1062,36 @@ module onyx_ccu
         end
     )
 
+    // A write-back presented while a slot on its line still gathers is
+    // OLDER than anything that slot's verdict can absorb: it was presented
+    // before the line's current owner answered (a past owner's started
+    // drain).  r_aw_old marks it for as long as it stays presented.  An old
+    // write-back is not held behind the line's pending absorption, and the
+    // absorption waits for it (below) -- otherwise a stale drain held there
+    // lands AFTER a newer owner's absorbed bytes (onyx BUG-003: c1's drain
+    // started, c0 took the line and wrote it, the IO's ReadOnce absorbed
+    // c0's line, then c1's drain overwrote it).  A write-back first
+    // presented after the verdict (the new owner's) is newer and still
+    // waits for the absorption.  No cycle: an absorption needs its slot's
+    // gather complete, so an old write-back on that line is never held by
+    // a gather while the absorption waits for it.
+    logic [N_PORTS-1:0] w_wb_gather_blk;   // a slot on the line still gathers
+    logic [N_PORTS-1:0] w_wb_abs_blk;      // a slot on the line has an absorption pending
+    logic [N_PORTS-1:0] r_aw_old;
     logic [N_PORTS-1:0] w_wb_blocked;
     logic               w_wb_blocked_io;   // the IO's non-shareable write, the same hold
     always_comb begin
         for (int d = 0; d < N_PORTS; d++) begin
-            w_wb_blocked[d] = w_aw_younger[d];
+            w_wb_gather_blk[d] = 1'b0;
+            w_wb_abs_blk[d]    = 1'b0;
             for (int s = 0; s < SLOTS; s++) begin
-                if (r_vld[s] && (r_line[s] == line_of(c_awaddr[d]))
-                    && (!w_gathered[s] || (r_pd[s] && !r_abs_done[s])))
-                    w_wb_blocked[d] = 1'b1;
+                if (r_vld[s] && (r_line[s] == line_of(c_awaddr[d]))) begin
+                    if (!w_gathered[s])                 w_wb_gather_blk[d] = 1'b1;
+                    if (r_pd[s] && !r_abs_done[s])     w_wb_abs_blk[d]    = 1'b1;
+                end
             end
+            w_wb_blocked[d] = w_aw_younger[d] | w_wb_gather_blk[d]
+                            | (w_wb_abs_blk[d] & ~r_aw_old[d]);
         end
         w_wb_blocked_io = 1'b0;
         for (int s = 0; s < SLOTS; s++) begin
@@ -1075,6 +1117,26 @@ module onyx_ccu
                        & (~r_pd[r_iow_slot] | r_abs_done[r_iow_slot]) & ~w_io_line_wb;
     wire w_io_w_pass = io_awvalid & ~w_io_aw_sh & ~r_iow_busy & ~w_wb_blocked_io;
 
+    // the old write-backs: marked while presented and held by a gather on
+    // their line, kept until taken (BUG-003)
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_aw_old <= '0;
+        end else begin
+            r_aw_old <= c_awvalid & ~c_awready & (r_aw_old | w_wb_gather_blk);
+        end
+    )
+    // an absorption waits while an old write-back to its line is presented
+    logic [SLOTS-1:0] w_abs_old_wb;
+    always_comb begin
+        for (int s = 0; s < SLOTS; s++) begin
+            w_abs_old_wb[s] = 1'b0;
+            for (int d = 0; d < N_PORTS; d++)
+                if (c_awvalid[d] && r_aw_old[d] && (line_of(c_awaddr[d]) == r_line[s]))
+                    w_abs_old_wb[s] = 1'b1;
+        end
+    end
+
     // absorption candidate: lowest slot with PassDirty not yet written
     logic              w_absc_vld;
     logic [SLOT_W-1:0] w_absc_slot;
@@ -1082,7 +1144,7 @@ module onyx_ccu
         w_absc_vld  = 1'b0;
         w_absc_slot = '0;
         for (int s = SLOTS - 1; s >= 0; s--) begin
-            if (r_vld[s] && w_gathered[s] && r_pd[s] && !r_abs_issued[s]) begin
+            if (r_vld[s] && w_gathered[s] && r_pd[s] && !r_abs_issued[s] && !w_abs_old_wb[s]) begin
                 w_absc_vld  = 1'b1;
                 w_absc_slot = SLOT_W'(s);
             end
@@ -1103,6 +1165,19 @@ module onyx_ccu
         end
     end
     wire w_wvalid = |w_wcand;
+
+    // the line of the burst the write port holds, captured at its selection
+    // (the memory read hold above, BUG-002)
+    assign w_wfly_vld = (r_wstate != W_IDLE);
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_wfly_line <= '0;
+        end else if ((r_wstate == W_IDLE) && w_wvalid) begin
+            r_wfly_line <= (w_wsel == WSEL_W'(W_ABS)) ? r_line[w_absc_slot]
+                         : (w_wsel == WSEL_W'(W_IO))  ? line_of(io_awaddr)
+                         :                              line_of(c_awaddr[PORT_W'(w_wsel)]);
+        end
+    )
 
     wire               w_cur_abs = (r_w_sel == WSEL_W'(W_ABS));
     wire               w_cur_io  = (r_w_sel == WSEL_W'(W_IO));
@@ -1541,6 +1616,9 @@ module onyx_ccu
             if (w_ar_take[d] && (is_nodata(r_type[r_arw_slot[d]]) != (c_arlen[d] == 8'd0)))
                 $error("onyx_ccu: port %0d AR length disagrees with the request class", d);
         end
+        if (mem_arvalid && mem_arready && w_wfly_vld && !w_mar_io
+            && (line_of(mem_araddr) == r_wfly_line))
+            $error("onyx_ccu: memory read of line %h while a write to it is in flight", r_wfly_line);
         if (mem_rvalid && !(r_vld[w_mr_slot] && r_mem_issued[w_mr_slot] && !r_mem_done[w_mr_slot]))
             $error("onyx_ccu: memory R beat for slot %0d with no read outstanding", w_mr_slot);
         for (int s = 0; s < SLOTS; s++)

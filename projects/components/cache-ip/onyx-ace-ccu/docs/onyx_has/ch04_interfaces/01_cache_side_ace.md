@@ -43,6 +43,16 @@ A cache-side port is three things the house caches already present:
 
 The D2 subset as decided 2026-11-20: `ReadNotSharedDirty`, `ReadUnique`, `CleanUnique`, `WriteBack`, `Evict` -- what the house caches issue. `WriteBack` and `Evict` allocate nothing in the manager; `MakeUnique` is decoded as a no-data class but no cache issues it yet. `ReadShared` is accepted and snooped as `ReadNotSharedDirty` would be; a MESI cache has no Owned state and does not issue it.
 
+amber's `WriteClean` (amber TASK-004, the clean-all write-back: the dirty line is written and kept) is a sideband class like `WriteBack`: it allocates nothing, and its AW/W/B is a write-port pass-through under the same hold.
+
+## What a cache owes the port on its own writes
+
+onyx tracks no write-back or `WriteClean` in its table; the cache answers for the line while the write is in flight. The core-alone rig (`dv/tests/test_onyx_core_rig.py`) holds its BFM caches to these rules, which are jet-prime's (BUG-002) extended to `WriteClean`:
+
+- **A write-back victim** answers the first snoop that takes the line with `DataTransfer` + `PassDirty` from its buffer, and Invalid after that; its drain, once presented, completes (the presentation-order rule on the write port keeps it ahead of the new owner's write-back).
+- **A `WriteClean` line** is busy until its BRESP and answers snoops as Modified until then. Answered clean, a requester that then hits only Shared copies would be served from memory before the `WriteClean` lands: onyx holds that write while the requester's slot gathers.
+- **A killed upgrade** (the Shared line invalidated by a snoop before its `CleanUnique` was granted) completes to Invalid and does not perform its store; onyx snoops the upgrade with `CleanInvalid`, so a peer that took the line Modified in between passes it dirty rather than dropping it (onyx BUG-001).
+
 ## The ACE-front-side flavor
 
 An ACE master that carries the class on `ARSNOOP`/`AWSNOOP` rather than on the sideband is the D7 adapter's second half: a thin decode of `ARSNOOP` into the sideband pulse in front of the port. It is not built in v1 because no such master exists in the family yet; the RDS-DV `AXI4ACEMasterRead/Write` BFMs are the first candidates.

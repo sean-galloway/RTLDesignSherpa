@@ -592,3 +592,61 @@ Found and measured:
   proof outstanding; ISSUE-002 and jet-prime BUG-002 closed. Still open from
   it: WriteClean is driven by no onyx proof or sim; a hot-set board profile
   and a WB-snarf counter if the board is to exercise the fix.
+- 2026-11-26 **Step 5's core-alone rig, and WriteClean (the two items
+  open from ISSUE-002's close).** `dv/tb/onyx_core_rig_tb.sv` (onyx_ccu
+  alone; four cache port sets c0..c3, the first N_PORTS bound; the IO port
+  tied idle -- its paths stay the pair rig's and the reference rig's),
+  `dv/tbclasses/onyx_core_rig_tb.py` and `dv/tests/test_onyx_core_rig.py`
+  (GATE 1 cell, FUNC 4, FULL +20: N 2/3/4 x DEFER_AR 0/1 x profile
+  fast/normal/stress, DW 64 and 32). Each cache is a MESI model on the
+  framework BFMs (AXI4MasterRead/Write, AXI4ACESnoopSlave with a custom
+  handler, the D-8 sidebands driven per cycle) over a MemoryModel behind
+  AXI4SlaveRead/Write; it issues every class onyx decodes -- RNSD, RU,
+  CleanUnique, WriteBack, Evict and amber's WriteClean -- under the
+  cache-side obligations now written into HAS ch04/01 (a victim answers
+  the first taking snoop DT+PD then Invalid; a WriteClean line is busy and
+  answers as Modified until its BRESP; a killed upgrade completes to
+  Invalid without its store). Checks: every load hit, fill and snoop
+  supply against the golden (the last stored value), single-writer on
+  every install, memory equal to the write at each BRESP, every line
+  flushed and memory equal to the golden at the end, no live slot, and a
+  zero-count guard on every class.
+  **Two onyx defects found on its first runs, both fixed:** BUG-001 (a
+  killed upgrade's CleanUnique snooped MakeInvalid dropped a peer's dirty
+  line -- 10 of 12 gate seeds on the pre-fix RTL; CleanUnique now snoops
+  CleanInvalid, IHI 0022's mapping) and BUG-002 (a memory read could issue
+  while a write to its line was in flight on the memory port; the read now
+  waits out the write port's burst to its line). The same two shapes sit in
+  `jet_prime_pair_fabric` (jet-prime BUG-004, open). The pair rig's
+  expected-ACSNOOP map follows BUG-001, and its counter identity counts a
+  CleanUnique slot a peer passed the line dirty to as supplied (2-13 per
+  full cell: the killed-upgrade corner IS reached with real jet-primes).
+  The full level then found a third, pre-existing: BUG-003 (a stale drain
+  held behind a newer owner's absorption -- the IO's ReadOnce -- landed on
+  top of it; old write-backs now go first). The rig's own first full run
+  also exposed two model faults, fixed in the TB: a victim's drain was
+  treated as started at launch (now a per-port write queue: one write
+  handed to the BFM at a time, an unstarted one ended by a snoop that
+  takes its line), and a launch was recorded a coroutine-step late (a
+  snoop in between missed the upgrade it killed); AR/AW/CR/CD timeouts
+  raised to 200k cycles with a 20k-cycle no-progress watchdog in their
+  place. HAS ch03/02 (Table 3.1, the read hold, the write-back order) and
+  ch04/01-02 updated.
+  **Regression (from clean, twice at fresh seeds):** onyx full 75/75, 0
+  reruns (core rig 24 cells: 71,633 checks, 0 mismatches, 972 killed
+  upgrades, 765 snoops of a WriteClean in flight, 427 writes ended before
+  they started; pair rig 33 cells; gather 18). Genesys2 ref rig full
+  27/27, 0 reruns.
+  **WriteClean in formal:** the harness admits it in `as_req_type` with the
+  write-back's obligations (no launch queue entry, no AR, outside the
+  pending-depth bound); cover `cp_wc_on_live_line` reached; mutation
+  (WriteClean back into `is_coh_req`) fails `ap_pend_count` at step 4,
+  where the old harness passed the same mutant. With the fixes: map
+  CleanUnique -> CleanInvalid, P24 `ap_mar_no_wr_race`, P17 relaxed and
+  P25 `ap_abs_after_old_wb` for BUG-003 ("old" re-derived from the table),
+  covers `cp_cu_dt`, `cp_mar_wr_wait`, `cp_old_wb_before_abs`; cover 32/32;
+  on the final flat the four mutations fail `ap_ac_legal` (BUG-001), P24
+  (BUG-002), `ap_pend_count` (WriteClean) and P25 (BUG-003). PROVE_CORE
+  now holds 27 assertions (the .sby and Makefile said 24; HEAD had 25).
+  `prove` (BMC 24) and `prove_book` (BMC 16) running on flat md5 34a9908c;
+  BUG-001..003 close when they PASS.

@@ -74,7 +74,10 @@
 // Assumption inventory (environment obligations; each recorded):
 //   - house reset protocol; every environment VALID low under reset;
 //   - A-req: a request pulse carries one of the four classes jet_prime_top
-//     emits (READ_NOT_SHARED_DIRTY, READ_UNIQUE, CLEAN_UNIQUE, WRITE_BACK);
+//     emits (READ_NOT_SHARED_DIRTY, READ_UNIQUE, CLEAN_UNIQUE, WRITE_BACK)
+//     or amber's WRITE_CLEAN (TASK-004's clean-all write-back: the line is
+//     written and kept); WRITE_BACK and WRITE_CLEAN allocate nothing, so
+//     neither is a launch with an AR;
 //     a cache holds at most PEND_DEPTH (4) launches whose AR onyx has
 //     not taken (the read transport skids up to three launches ahead of
 //     the held AR -- delta 02);
@@ -279,6 +282,7 @@ module formal_onyx_ccu #(
     localparam [2:0] REQ_CU   = 3'b010;
     localparam [2:0] REQ_WB   = 3'b100;
     localparam [2:0] REQ_RNSD = 3'b110;
+    localparam [2:0] REQ_WC   = 3'b111;   // amber's WriteClean (a cache pulse; CLS_IO_RD shares the code in the table only)
     localparam [2:0] CLS_IO_RD = 3'b111;
     localparam [2:0] CLS_IO_WR = 3'b101;
     localparam [3:0] ACSNOOP_READ_ONCE     = 4'h0;
@@ -304,10 +308,16 @@ module formal_onyx_ccu #(
         case (t)
             3'b000, REQ_RNSD: map_snoop = ACSNOOP_READ_SHARED;
             REQ_RU:           map_snoop = ACSNOOP_READ_UNIQUE;
+            REQ_CU:           map_snoop = ACSNOOP_CLEAN_INVALID;   // onyx BUG-001 (IHI0022's mapping)
             CLS_IO_RD:        map_snoop = ACSNOOP_READ_ONCE;
             CLS_IO_WR:        map_snoop = ACSNOOP_CLEAN_INVALID;
             default:          map_snoop = ACSNOOP_MAKE_INVALID;
         endcase
+    endfunction
+
+    // a write-side pulse: a write-back or a WriteClean, no AR, no slot
+    function automatic is_wr_pulse(input [2:0] t);
+        is_wr_pulse = (t == REQ_WB) || (t == REQ_WC);
     endfunction
 
     function automatic is_nodata(input [2:0] t);
@@ -583,6 +593,14 @@ module formal_onyx_ccu #(
     function automatic [LINE_W-1:0] sl_line(input [SLOTS*LINE_W-1:0] f, input [1:0] s);
         sl_line = f[s*LINE_W +: LINE_W];
     endfunction
+
+    // a valid slot holds the line of address a (the WriteClean cover)
+    function automatic wc_live_line(input [AW-1:0] a);
+        wc_live_line = (obs_vld[0] && (sl_line(obs_line_f, 2'd0) == line_of(a)))
+                    || (obs_vld[1] && (sl_line(obs_line_f, 2'd1) == line_of(a)))
+                    || (obs_vld[2] && (sl_line(obs_line_f, 2'd2) == line_of(a)))
+                    || (obs_vld[3] && (sl_line(obs_line_f, 2'd3) == line_of(a)));
+    endfunction
     function automatic [1:0] sl_dir(input [1:0] s);
         sl_dir = obs_dir_f[s*2 +: 2];
     endfunction
@@ -669,7 +687,7 @@ module formal_onyx_ccu #(
                     q_line[d] <= {{LINE_W{1'b0}}, q_line[d][4*LINE_W-1:LINE_W]};
                     q_nd[d]   <= {1'b0, q_nd[d][3:1]};
                 end
-                if (req_vld[d] && (d3(req_type_f, d) != REQ_WB)) begin
+                if (req_vld[d] && !is_wr_pulse(d3(req_type_f, d))) begin
                     for (k = 0; k < 4; k = k + 1) begin
                         if (k == (q_cnt[d] - (c_ar_hs[d] ? 1 : 0))) begin
                             q_line[d][k*LINE_W +: LINE_W] <= line_of(req_addr_f[d*AW +: AW]);
@@ -717,8 +735,9 @@ module formal_onyx_ccu #(
                 // A-req
                 assume /* as_req_type */ (!req_vld[d]
                     || (d3(req_type_f, d) == REQ_RNSD) || (d3(req_type_f, d) == REQ_RU)
-                    || (d3(req_type_f, d) == REQ_CU)   || (d3(req_type_f, d) == REQ_WB));
-                assume /* as_req_depth */ (!(req_vld[d] && (d3(req_type_f, d) != REQ_WB))
+                    || (d3(req_type_f, d) == REQ_CU)   || (d3(req_type_f, d) == REQ_WB)
+                    || (d3(req_type_f, d) == REQ_WC));
+                assume /* as_req_depth */ (!(req_vld[d] && !is_wr_pulse(d3(req_type_f, d)))
                     || (q_cnt[d] < 3'd4) || c_ar_hs[d]);
                 // A-ar: the oldest untaken launch, its class's length, a fresh ID
                 assume /* as_ar_head */ (!c_arvalid[d]
@@ -942,6 +961,38 @@ module formal_onyx_ccu #(
     reg [2*AW-1:0] ac_addr_d;
     reg [7:0]  ac_snoop_d;
     reg [3:0]  h_delivered;   // the requester received the slot's last beat
+    // old write-backs (onyx BUG-003): presented while a slot on their line
+    // still gathers, kept while presented and untaken -- re-derived here from
+    // the table, not read from the DUT; P17 / P25 below
+    reg  [1:0] f_aw_old, f_aw_old_d;
+    reg  [1:0] f_wb_gather;
+    always @(*) begin
+        for (d = 0; d < 2; d = d + 1) begin
+            f_wb_gather[d] = 1'b0;
+            for (s = 0; s < SLOTS; s = s + 1)
+                if (obs_vld[s] && !obs_gathered[s]
+                    && (sl_line(obs_line_f, s) == line_of(c_awaddr_f[d*AW +: AW])))
+                    f_wb_gather[d] = 1'b1;
+        end
+    end
+    always @(posedge clk) begin
+        if (!rst_n) f_aw_old <= 2'd0;
+        else        f_aw_old <= c_awvalid & ~c_awready & (f_aw_old | f_wb_gather);
+        f_aw_old_d <= f_aw_old;
+    end
+    // the write in flight on the memory port: AW taken, BRESP not yet (one
+    // burst at a time); P24 below
+    reg        f_wfly;
+    reg [LINE_W-1:0] f_wfly_line;
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            f_wfly <= 1'b0;  f_wfly_line <= '0;
+        end else if (maw_hs) begin
+            f_wfly <= 1'b1;  f_wfly_line <= line_of(mem_awaddr);
+        end else if (mb_hs) begin
+            f_wfly <= 1'b0;
+        end
+    end
     always @(posedge clk) begin
         vld_d <= obs_vld;  rack_d <= obs_rack;  gathered_d <= obs_gathered;
         pd_d <= obs_pd;  abs_done_d <= obs_abs_done;  line_d <= obs_line_f;
@@ -972,11 +1023,11 @@ module formal_onyx_ccu #(
 
     // violation vectors (one bit per slot / direction / peer), asserted
     // zero below so a counterexample names the offender
-    reg [3:0] v_line_dup, v_grant_locked, v_release, v_rack_src, v_mo, v_free, v_wb_hold;
+    reg [3:0] v_line_dup, v_grant_locked, v_release, v_rack_src, v_mo, v_free, v_wb_hold, v_abs_order;
     reg [2:0] v_arready, v_ar_pair, v_route_mem, v_route_rpl, v_r_stable;
     reg [1:0] v_r_infl, v_r_beats;
     reg [1:0] v_ac_legal, v_ac_stable, v_sn_count, v_cd_slot;
-    reg       v_mar_legal, v_mar_stable, v_abs_legal;
+    reg       v_mar_legal, v_mar_stable, v_abs_legal, v_mar_race;
     reg [3:0] v_flags;
     reg [2:0] v_engines;
     reg [3:0] v_io;         // the IO port's own: its R, its one-at-a-time, its write handshakes, its selection
@@ -984,11 +1035,11 @@ module formal_onyx_ccu #(
     reg       io_sel_now;   // the IO's write was selected this edge
     always @(*) begin
         v_line_dup = 4'd0;  v_grant_locked = 4'd0;  v_release = 4'd0;  v_rack_src = 4'd0;
-        v_mo = 4'd0;  v_free = 4'd0;  v_wb_hold = 4'd0;
+        v_mo = 4'd0;  v_free = 4'd0;  v_wb_hold = 4'd0;  v_abs_order = 4'd0;
         v_arready = 3'd0;  v_ar_pair = 3'd0;  v_route_mem = 3'd0;  v_route_rpl = 3'd0;
         v_r_stable = 3'd0;  v_r_infl = 2'd0;  v_r_beats = 2'd0;
         v_ac_legal = 2'd0;  v_ac_stable = 2'd0;  v_sn_count = 2'd0;  v_cd_slot = 2'd0;
-        v_mar_legal = 1'b0;  v_mar_stable = 1'b0;  v_abs_legal = 1'b0;
+        v_mar_legal = 1'b0;  v_mar_stable = 1'b0;  v_abs_legal = 1'b0;  v_mar_race = 1'b0;
         v_flags = 4'd0;  v_engines = 3'd0;  v_io = 4'd0;
         wb_sel_now = {(wstate_d == W_IDLE) && (obs_wstate == W_AW) && (obs_w_sel == 2'd1),
                       (wstate_d == W_IDLE) && (obs_wstate == W_AW) && (obs_w_sel == 2'd0)};
@@ -1018,13 +1069,22 @@ module formal_onyx_ccu #(
             // P20 a slot frees only once the requester has its last beat and its read is drained
             if (vld_d[s] && !obs_vld[s] && !(h_delivered[s] && !mo[s]))
                 v_free[s] = 1'b1;
-            // P17 a write-back is selected only when no slot on its line lacks a verdict or
-            //     has an absorption pending (the previous cycle's table, the selected AW);
-            //     the IO's non-shareable write under the same hold (its WriteUnique: P-IO4)
+            // P17 a write-back is selected only when no slot on its line lacks a verdict, nor --
+            //     unless the write-back is OLD (presented while the line's slot gathered:
+            //     BUG-003) -- has an absorption pending (the previous cycle's table, the
+            //     selected AW); the IO's non-shareable write under the same hold (its
+            //     WriteUnique: P-IO4)
             for (k = 0; k < 2; k = k + 1)
                 if (wb_sel_now[k] && vld_d[s] && (sl_line(line_d, s) == line_of(aw_addr_d[k*AW +: AW]))
-                    && (!gathered_d[s] || (pd_d[s] && !abs_done_d[s])))
+                    && (!gathered_d[s] || (pd_d[s] && !abs_done_d[s] && !f_aw_old_d[k])))
                     v_wb_hold[s] = 1'b1;
+            // P25 (BUG-003) an absorption is not selected while an old write-back to its
+            //     line is presented: the past owner's bytes land first
+            for (k = 0; k < 2; k = k + 1)
+                if ((wstate_d == W_IDLE) && (obs_wstate == W_AW) && (obs_w_sel == W_SEL_ABS)
+                    && (obs_w_slot == s[1:0]) && aw_v_d[k] && f_aw_old_d[k]
+                    && (line_of(aw_addr_d[k*AW +: AW]) == sl_line(line_d, s)))
+                    v_abs_order[s] = 1'b1;
             if (io_sel_now && !io_aw_sh_d && vld_d[s] && (sl_line(line_d, s) == line_of(io_aw_addr_dd))
                 && (!gathered_d[s] || (pd_d[s] && !abs_done_d[s])))
                 v_wb_hold[s] = 1'b1;
@@ -1222,6 +1282,11 @@ module formal_onyx_ccu #(
                                     && (mem_arlen == 8'd3)))
                              && !mo[mem_arid[1:0]]))
             v_mar_legal = 1'b1;
+        // P24 (onyx BUG-002) a memory read is not first presented while a
+        //    write to its line is in flight (AXI orders nothing between them)
+        if (mem_arvalid && !(mar_v_d && !mar_r_d) && f_wfly
+            && (line_of(mem_araddr) == f_wfly_line))
+            v_mar_race = 1'b1;
         // P8 AXI AR stability on the memory port
         if (mar_v_d && !mar_r_d && !(mem_arvalid && (mem_arid == mar_id_d) && (mem_araddr == mar_addr_d)))
             v_mar_stable = 1'b1;
@@ -1294,8 +1359,10 @@ module formal_onyx_ccu #(
             ap_rack_source:   assert (v_rack_src == 4'd0);
             ap_free_complete: assert (v_free == 4'd0);
             ap_wb_select_hold: assert (v_wb_hold == 4'd0);
+            ap_abs_after_old_wb: assert (v_abs_order == 4'd0);
             ap_wb_order:      assert (v_wb_order == 2'd0);
             ap_mar_stable:    assert (!v_mar_stable);
+            ap_mar_no_wr_race: assert (!v_mar_race);
             ap_r_stable:      assert (v_r_stable == 3'd0);
             ap_ac_stable:     assert (v_ac_stable == 2'd0);
         end
@@ -1376,6 +1443,24 @@ module formal_onyx_ccu #(
             cp_io_absorb:     cover (mb_hs && w_abs && (sl_dir(obs_w_slot) == IO));
             cp_io_two_live:   cover (obs_ior_busy && obs_iow_busy);
             cp_io_both_ac:    cover (ac_hs == 2'b11);
+            // a WriteClean pulse on a line a live slot holds (it must allocate
+            // nothing and not take the line's lock: ap_pend_count, ap_line_unique)
+            // a CleanUnique slot whose peer passes the line dirty (the killed-
+            // upgrade corner, onyx BUG-001): absorbed, the requester's no-data beat
+            cp_cu_dt:         cover ((cr_hs[0] && cr_dt[0] && obs_nodata[d2(obs_sni_head_f, 0)]
+                                      && (sl_dir(d2(obs_sni_head_f, 0)) != IO))
+                                  || (cr_hs[1] && cr_dt[1] && obs_nodata[d2(obs_sni_head_f, 1)]
+                                      && (sl_dir(d2(obs_sni_head_f, 1)) != IO)));
+            // a memory read waiting out a write to its line (BUG-002)
+            cp_mar_wr_wait:   cover (f_wfly && (obs_wstate == W_B) && (|(obs_vld & obs_ar_taken & ~obs_nodata & ~obs_mem_issued & obs_ac_all & ~obs_dt))
+                                     && !mem_arvalid);
+            // BUG-003: an old write-back taken while its line's absorption waits
+            cp_old_wb_before_abs: cover (maw_hs && !w_abs && f_aw_old[w_wdir]
+                                         && (|(obs_vld & obs_gathered & obs_pd & ~obs_abs_issued)));
+            cp_wc_on_live_line: cover (((req_vld[0] && (d3(req_type_f, 0) == REQ_WC))
+                                        && (wc_live_line(req_addr_f[0 +: AW])))
+                                    || ((req_vld[1] && (d3(req_type_f, 1) == REQ_WC))
+                                        && (wc_live_line(req_addr_f[AW +: AW]))));
         end
     end
 

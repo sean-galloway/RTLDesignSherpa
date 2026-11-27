@@ -49,7 +49,7 @@ The write port carries two kinds of burst, one at a time, round-robin over N + 1
 - One AXI4 master; the memory read ID is the slot index; the requester's `ARID` is returned to it.
 - The read is issued per the D6 mode and dropped when a peer supplies the line.
 - Write-backs pass through with the cache's ID; absorptions carry the manager's reserved ID.
-- One write burst in flight; the write-back hold against an incomplete gather or pending absorption.
+- One write burst in flight; the write-back hold against an incomplete gather or pending absorption, and a memory read to a line held while a write to that line is in flight (onyx BUG-002).
 
 ## What is open
 
