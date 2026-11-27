@@ -202,6 +202,7 @@ async def _arb_probe(dut, start, n):
                 "m: wcol=%04x wact=%04x ract=%04x wpre=%04x q1a_wact=%04x | "
                 "wv=%04x wpend=%04x rv=%04x | rowact=%02x actrdy=%02x rdwrrdy=%02x prerdy=%02x "
                 "actguard=%02x apclos=%02x preclos=%02x actpick=%02x prepick=%02x drainok=%02x wrdrain=%d"
+                " | lane2: v=%d pre=%d b%d"
             ) % (
                 cyc, v(ar.r_pick_valid), op, v(ar.r_bank), v(ar.w_fire_out), v(ar.w_out_safe),
                 v(ar.w_out_hold), v(ar.w_out_ready), v(ar.cmd_ready_i), v(ar.wr_commit_ready_i),
@@ -212,7 +213,10 @@ async def _arb_probe(dut, start, n):
                 v(ar.wr_sch_valid_i), v(ar.wr_sch_pend_i), v(ar.rd_sch_valid_i),
                 v(ar.bank_row_active_i), v(ar.bank_act_ready_i), v(ar.bank_rdwr_ready_i),
                 v(ar.bank_pre_ready_i), v(ar.w_act_guard), v(ar.r_ap_closing), v(ar.r_pre_closing),
-                v(ar.w_act_pick), v(ar.w_pre_pick), v(ar.drain_close_ok_i), v(ar.r_wr_drain))
+                v(ar.w_act_pick), v(ar.w_pre_pick), v(ar.drain_close_ok_i), v(ar.r_wr_drain),
+                # pumice TASK-047 row lane (constant 0 without DUAL_ISSUE)
+                v(getattr(ar, "r2_valid", None)), v(getattr(ar, "r2_pre", None)),
+                v(getattr(ar, "r2_bank", None)))
             dut._log.info("%s", row)
             if fh:
                 fh.write(row + "\n")

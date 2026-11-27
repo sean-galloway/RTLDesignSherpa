@@ -268,8 +268,16 @@ module mc_dfi_cmd_path
             logic [COL_WIDTH-1:0] sub_col;
             // A DUAL_ISSUE word may carry the row lane alone: its main op is
             // then OP_NOP and drives nothing (no selected NOP on its phase).
+            // Only a column op fans out: a non-column op (ACT/PRE/REF/MRS) on
+            // a gs>0 sub would place a duplicate of itself on that sub's phase,
+            // since the formatter puts non-column ops on its row_phase_i
+            // (= sub_phase here). Found 2026-11-27 (scoria TASK-010) by
+            // test_scoria_dfi_cmd_path non_column_ops_use_only_sub0: before
+            // TASK-047 the formatter forced non-column ops to phase 0, so the
+            // duplicate merged onto sub 0's phase and was invisible.
             assign sub_active = cmd_valid_i && w_gate
                               && (SUBW_MAX'(gs) < w_n_sub)
+                              && ((gs == 0) || w_is_rd || w_is_wr)
                               && !(DUAL_ISSUE && (w_op == OP_NOP));
             // Phase / column for this sub. Only column ops fan out; ACT/PRE/REF/
             // MRS keep sub 0 on the base phase (their gs>0 subs are inactive).

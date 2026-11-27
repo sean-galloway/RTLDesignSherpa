@@ -12,9 +12,10 @@
 
 **Priority:** P3 (research; bounded gain, real timing risk)
 **Status:** OPEN. 2026-11-27: the lane is board-clean at the 75 MHz SKU point
-(0 mismatched on every profile, `every` +19 / +25 percent). Remaining: the
-`mixed_bl8` regression under open page (results log, 2026-11-27), then the
-DUAL_ISSUE default. Earlier: unparked 2026-11-03 (ISSUE-027 closed). Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
+(0 mismatched on every profile, `every` +19 / +25 percent); the `mixed_bl8`
+regression is found and fixed in RTL (the lane served the other direction).
+Remaining: the board re-run on the fixed lane bitstream, then the DUAL_ISSUE
+default. Earlier: unparked 2026-11-03 (ISSUE-027 closed). Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
 and see if it can happen; give best effort then defer if needed"). Built
 behind `DUAL_ISSUE` (default off, cycle-identical to HEAD), verified in sim
 and formal: 9 -> 8 slots per bank-walk row, col_ilv +12 / +14 percent at one
@@ -335,3 +336,47 @@ yet measured. The mixed family is bimodal on granite by refresh phase (memory-co
 MC-023), so a lane-shifted schedule landing in a slower mode is one candidate; a
 genuine write/read turn cost from the lane under open page is the other. Next: the
 proxy sim of `mixed_bl8` open_page with and without the lane at 75 MHz.
+
+### 2026-11-27: the `mixed_bl8` loss -- the lane served the other direction; fixed
+
+The proxy reproduces the board to the MB/s (`test_ddr2_char_perf`, `mixed`, 4 + 4
+generators, TXN 8000, BL8, 75 MHz): lane off 205.1 / 170.4, lane on 147.7 / 145.6
+(board 206.5 / 171.6 and 147.7 / 145.6). Same data, very different command stream:
+
+| per run | lane off | lane on |
+|---|---|---|
+| ACT | 130,564 | 158,781 (+22 %) |
+| explicit PRE | 51,693 | 93,541 (+81 %) |
+| write -> read turns | ~8,500 | ~16,000 |
+| columns per write batch | ~64 | ~32 |
+
+Arbiter trace (`PERF_ARB_TRACE`, the lane's register now in the row): mid write
+batch the lane precharged a write bank and activated the READERS' row there
+(`W1 x8|a0 W0 x5|p1 W0 W0|a1 W0`, then the turn). The next writes found their row
+closed and the arbiter turned. Cause: `w2_bank` fell back to the other direction's
+demand ACT / PRE whenever the current direction's could not ride (its bank a column
+candidate's). The main lane has the same fallback but only gets a row slot after a
+column; the lane gets one beside every column.
+
+Fix (`mc_cmd_arbiter`): the lane serves only the direction of the column it rides
+beside (`w2_dir_wr`: write when the write column is preferred or alone), from
+registers like the rest of the cone. Lane off is untouched (every term under
+`w_dual`). Proxy, lane on, fixed:
+
+| family | lane off wr / rd | lane on wr / rd |
+|---|---|---|
+| mixed_bl8 (union) | 205.1 / 170.4 (340.9) | **183.8 / 183.8 (367.6, +7.8 %)** |
+| col_ilv 1 thread | 455.7 / 505.6 | 505.0 / 565.1 |
+| col_ilv 8 threads | 525.2 / 545.0 | 538.6 / 565.5 |
+| col_major 8 threads | 460.7 / 511.1 | 510.8 / 573.6 |
+
+0 mismatched, 0 model violations; the col_ilv / col_major gains are the 11-03
+numbers unchanged. Same commit: `mc_dfi_cmd_path` let a non-column op drive every
+sub when `n_subcmd > 1` (a duplicate ACT / PRE / REF on another phase), latent since
+this task moved non-column ops onto `row_phase`; gs > 0 subs are now column-only.
+Not reachable at the board geometry (n_subcmd 1).
+
+Regression: pumice func 362 passed / 8 skipped / 0 failed, pumice core DFI suite
+with the lane built 14 / 14, granite 25 + 1 xfail, common-ip store-arbiter contract
+27 + 3 xfail, `formal/mc_common/mc_cmd_arbiter` prove / cover / dual / dual_cover
+PASS (flat regenerated).

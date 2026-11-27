@@ -1584,10 +1584,23 @@ module mc_cmd_arbiter
     function automatic logic f2_free (input logic [BKW-1:0] b);
         return !(rd_col_f && (rd_col_bank == b)) && !(wr_col_f && (wr_col_bank == b));
     endfunction
-    assign w2_act_rd = rd_act_f && f2_free(rd_act_bank);
-    assign w2_act_wr = wr_act_f && f2_free(wr_act_bank);
-    assign w2_pre_rd = rd_pre_f && f2_free(rd_pre_bank);
-    assign w2_pre_wr = wr_pre_f && f2_free(wr_pre_bank);
+    // The lane serves the DIRECTION of the column it rides beside, never the
+    // other one (2026-11-27). Taking the other direction's demand row command
+    // closed and re-opened banks under the running batch: on the concurrent
+    // mixed family (4 writers + 4 readers, bank-paired, one row apart) the
+    // lane precharged a write bank for the readers' row mid-batch, the next
+    // write found its row gone, and the arbiter turned. Write batches halved
+    // (~64 -> ~32 columns), turnarounds doubled, ACT +22 / PRE +81 percent,
+    // and the union fell 343 -> 291 MB/s on the board and in the proxy alike.
+    // The direction is the write-first rule's, from registers like the rest
+    // of this cone: write when the write column is preferred (or the only
+    // one), read otherwise.
+    logic w2_dir_wr;
+    assign w2_dir_wr = wr_col_f && (w_col_wrf || !rd_col_f);
+    assign w2_act_rd = !w2_dir_wr && rd_act_f && f2_free(rd_act_bank);
+    assign w2_act_wr =  w2_dir_wr && wr_act_f && f2_free(wr_act_bank);
+    assign w2_pre_rd = !w2_dir_wr && rd_pre_f && f2_free(rd_pre_bank);
+    assign w2_pre_wr =  w2_dir_wr && wr_pre_f && f2_free(wr_pre_bank);
     assign w2_act_v  = w_act_gate_live && (w2_act_rd || w2_act_wr);
     assign w2_pre_v  = w2_pre_rd || w2_pre_wr;
 
