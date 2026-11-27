@@ -1,8 +1,10 @@
 # Testplan for hive_c_loader (Block 1: vexriscv_wrapper + memories + loader)
-# STATUS: planned — RTL not written yet (Phase 1 bring-up, per HAS ch7 roadmap).
+# STATUS: CORE_FLAVOR=vexriscv implemented and verified gate/func/full 2026-11-27
+# (vault hive TASK-000 step 3). The peregrine flavor is not built yet
+# (riscv-ip/peregrine-rv32im TASK-004); the same scenarios are its acceptance test.
 
 module: hive_c_loader
-rtl_file: projects/components/compute-eng-ip/hive/rtl/hive_c_controller/hive_c_loader.sv (PLANNED - RTL not written yet, vault hive TASK-000)
+rtl_file: projects/components/compute-eng-ip/hive/rtl/hive_c_controller/hive_c_loader.sv
 test_file: projects/components/compute-eng-ip/hive/dv/tests/test_hive_c_loader.py
 
 # Module description:
@@ -12,61 +14,81 @@ test_file: projects/components/compute-eng-ip/hive/dv/tests/test_hive_c_loader.p
 # loader: an AXI4-Lite slave window into both memories with load-then-run
 # control (HAS §5.1, MAS §2.2 decision 2026-10-13: kestrel loader pattern).
 
-parameters: []
+parameters:
+  - name: CORE_FLAVOR
+    values: ["vexriscv"]   # "peregrine" joins when its glue is built
+    note: "the test selects it with HIVE_C_CORE_FLAVOR; every scenario is flavor-independent"
 
 functional_scenarios:
   - id: LDR-01
     name: "Reset hold and staged release"
-    description: "Out of reset the core is held (hive_c_rst_n low into the
-                  wrapper); the loader's run bit gates core reset release.
-                  Verify no ibus/dbus activity while held, first ibus cmd
-                  at 0x0000_0000 after release."
+    description: "Out of reset the core is held: CTRL.run (0x2_0000 bit 0,
+                  reset 0) is the core's reset.  Verify no fetch or data
+                  request on any cycle while held (and again after run is
+                  cleared), CTRL/o_run read 0, and the first fetch after
+                  writing run = 1 is at 0x0000_0000."
     test_function: "cocotb_test_hive_c_loader"
     test_level: gate
     priority: high
-    status: planned
+    status: verified
 
   - id: LDR-02
     name: "AXIL window writes and reads back both memories"
     description: "Word writes via the AXIL slave land in I-mem (0x0000_0000
                   region) and D-mem (0x0000_8000 region) and read back
-                  identically; sub-word strobes behave; out-of-window
-                  addresses return SLVERR per the loader address map."
+                  identically (random addresses and data against a byte-lane
+                  model, bank edges); random and fixed sub-word strobes merge
+                  per lane; BUILD_ID reads the flavor's ID; unmapped
+                  (0x1_xxxx, unmapped register offsets), unaligned, and
+                  read-only (BUILD_ID write) accesses return SLVERR and
+                  change nothing."
     test_function: "cocotb_test_hive_c_loader"
     test_level: func
     priority: high
-    status: planned
+    status: verified
 
   - id: LDR-03
     name: "Load-then-run handoff"
-    description: "Load a small RV32IM program (assembled addi/jal/store
-                  sequence with M-extension ops) over AXIL, flip run, and
-                  observe the core execute: ibus fetch sequence matches the
-                  program counter progression and a D-mem write of the
-                  expected result value appears on the dbus."
+    description: "Load a small RV32I program (addi/add/lui/sw/jal) over
+                  AXIL, set run, and observe the core execute: the fetch
+                  sequence is 0x0..0x14 in order, then only the jal loop
+                  target or sequential wrong-path fetches after it (a
+                  fetch-order observation shows those; a retire-order one
+                  would not); exactly one store of 12 to 0x8000 appears on
+                  the data port; after run = 0 the loader reads 12 there and
+                  the program words unchanged.  (M ops are LDR-05's.)"
     test_function: "cocotb_test_hive_c_loader"
     test_level: func
     priority: high
-    status: planned
+    status: verified
 
   - id: LDR-04
     name: "Ibus/dbus arbitration: loader port vs core port"
-    description: "While the core is held, loader AXIL accesses have the
-                  memory ports; during run, the core owns them and loader
-                  writes are blocked (or serialized per the documented
-                  arbitration). Verify no port corruption on the switch."
+    description: "While the core is held, the loader owns port B.  During
+                  run: memory writes to either bank return SLVERR and do not
+                  land; CTRL stays writable and reads run = 1; loader reads
+                  of both banks return the right words while a store/load
+                  loop contends for port B every few cycles (the core wins,
+                  the read waits; the test requires at least one core access
+                  per read in the window); the loop's loads return its
+                  stores; after run = 0 the last accepted store is in
+                  memory and the window is writable again."
     test_function: "cocotb_test_hive_c_loader"
     test_level: func
     priority: medium
-    status: planned
+    status: verified
 
   - id: LDR-05
     name: "M-extension smoke on the generated core"
-    description: "Program exercises mul/div via MulDivIterativePlugin and
-                  stores results; golden compares against Python ints.
+    description: "Program runs all eight RV32M ops (mul, mulh, mulhsu,
+                  mulhu, div, divu, rem, remu) on fixed corner operands
+                  (signs, divide by zero, INT_MIN / -1) and, at func/full,
+                  random operands (8 / 32 pairs, SEED-logged); every result
+                  store is compared in order against a Python golden of the
+                  spec semantics, and a sample is read back from D-mem.
                   Confirms the generated RV32IM netlist matches the pinned
                   HiveCGen configuration."
     test_function: "cocotb_test_hive_c_loader"
     test_level: gate
     priority: high
-    status: planned
+    status: verified

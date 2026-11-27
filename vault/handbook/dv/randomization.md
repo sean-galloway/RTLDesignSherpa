@@ -64,6 +64,20 @@ So for any shared-resource arbiter, scheduler or picker:
 3. **Mutation-check the assertion.** Revert the fix, confirm the test goes red,
    restore. An assertion that never fails on the bug it was written for is
    decoration. Same rule as [[formal]].
+4. **Count the collision you claim to test.** A "reads correct under
+   contention" check proves nothing on a run where no read met the other
+   requester. Record a witness at the arbitration point (cycles where both
+   wanted the resource) and fail the test when it is zero.
+
+**Case (hive_c_loader LDR-04, 2026-11-27):** loader AXIL reads ran while the
+core looped on stores and loads, and every read value was checked. The
+mutant "AR ignores the core's port-B access" was caught on one seed and
+passed on the next: gate made 4 reads, picked at random across both banks,
+while the core only used the D bank in about a third of its cycles, so the
+random phase could miss every collision. The fix made the collision
+structural (a store-dense loop, reads aimed at the core's bank, 16 reads at
+gate) and added the witness (`fub_arvalid && w_core_d_mem` cycles >= 1).
+After that the mutant failed on all six seeds tried.
 
 ## Known gaps in the framework (both closed 2026-09-27)
 

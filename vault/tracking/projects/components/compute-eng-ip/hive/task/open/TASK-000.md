@@ -2,6 +2,45 @@
 
 **Status:** open · **Priority:** high · **Filed:** 2026-10-13 · **Area:** projects/components/compute-eng-ip/hive
 
+## 2026-11-27: next step 3 done (vexriscv flavor), uncommitted
+
+`hive_c_loader` is written and verified for `CORE_FLAVOR = "vexriscv"`:
+`rtl/hive_c_controller/hive_c_loader.sv` (AXIL window, CTRL run bit,
+port-B arbitration), `hive_c_bram.sv` (32 KB TDP bank, x2), and
+`hive_c_core_vexriscv.sv` (the core glue). Filelists
+`hive_c_loader.f` / `hive_c_bram.f` / `hive_c_core_vexriscv.f`, and
+`hive_c_loader.f` is wired into `hive_all.f` (part of step 4). The design,
+the address map, the `CORE_FLAVOR` seam and the planned peregrine glue are
+in MAS ch02 `02_hive_c_controller.md`. The testplan LDR-01..05 is verified.
+
+- Address map: memory 0x0_0000-0x0_FFFF (the firmware map), CTRL at
+  0x2_0000 ({active, run}), BUILD_ID at 0x2_0004. Run-mode memory writes,
+  unmapped, unaligned and read-only accesses return SLVERR (kestrel acks
+  them with OKAY).
+- The test was reworked (the scenarios are unchanged in intent): run is
+  the CTRL register, not a port; AXIL goes through the framework AXIL4
+  master; two wrong expectations were fixed (DIV's funct3 was DIVU's, and
+  the 0xC-strobe write of 0xAABBCCDD expected 0xCCDD0078, but AXI lanes 2-3 carry 0xAABB, so the right value is 0xAABB0078); LDR-03 now
+  accepts VexRiscv's wrong-path fetches after the jal. LDR-04/05 were
+  strengthened.
+- Full sweep 2026-11-27 (`make clean-all && make run-all-full-parallel`):
+  c_loader gate/func/full PASS; descriptor_gen and ctrl_network
+  gate/func/full PASS (ctrl_network still logs CN-04 as a known issue and
+  returns before CN-05); engine_monitor SKIPPED (no top RTL);
+  axis_cda_master gate/func PASS, **full FAILS**. That failure is not a
+  design failure: its `_D` level table has no `'full'` key, so the module
+  raises `KeyError: 'full'` at import, on every run, and simulates nothing.
+  It is a one-line test fix in `test_hive_axis_cda_master.py`, not made in
+  this pass.
+- Mutation-checked: five RTL mutants (run not gating the core's reset;
+  write window open in run mode; run-mode write landing anyway; AR ignoring
+  the core's port-B access; load response from the wrong bank). Each one
+  fails the gate test.
+- Next for the loader: the peregrine flavor (riscv-ip/peregrine-rv32im
+  TASK-004) once peregrine's bus-error work lands. Its open items (the
+  uncached-window vs 0x4000_0000 map conflict, clean-on-stop) are in the
+  MAS chapter's Open Items.
+
 ## 2026-11-25: gatling replaces the SERV monitors; renamed to hive
 
 Owner: "in hive I got rid of the serv cores and replaced them with a single
@@ -93,9 +132,8 @@ hive CN suite as the regression.
    write `engine_monitor_top.sv` (gatling core + memory + four per-engine
    peripheral sets; MAS ch02_blocks/03_engine_monitor.md, the
    hive_engine_monitor testplan).
-3. Write hive_c_loader.sv (vendor/vexriscv/VexRiscv.v iBus/dBus cmd/rsp to
-   32 KB BRAM, AXIL slave loader, kestrel load-then-run; see testplan + MAS
-   decision: kestrel pattern).
+3. ~~Write hive_c_loader.sv~~ (done 2026-11-27 for the vexriscv flavor, see
+   the top section; the peregrine flavor is riscv-ip/peregrine-rv32im TASK-004).
 4. Wire per-block filelists into rtl/filelists/hive_all.f; run the full
    gate/func sweep (`make run-all` in dv/tests or per-file pytest); commit.
 5. Update PRD/CLAUDE status lines (they say "no RTL yet").
