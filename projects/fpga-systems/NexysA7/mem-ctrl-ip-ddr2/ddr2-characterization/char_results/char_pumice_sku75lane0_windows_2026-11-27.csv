@@ -1,0 +1,10 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes,rd_lat_mean,rd_lat_min,rd_lat_max
+defaults,mixed_bl8,mixed,8,8000,0,0,1,0,2048000,75.0,743842,0.0354,206.50,895003,0.0354,171.62,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 343.2 MB/s over 895003 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]",,,
+defaults,row_thrash_bl8,row_thrash,8,8000,0,0,1,0,2048000,75.0,332822,0.0142,461.51,300368,0.0097,511.37,50.57,32000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst",49.24,28,71
+defaults,random_bl8,random,8,8000,0,0,1,0,2048000,75.0,354441,0.0142,433.36,318908,0.0097,481.64,50.73,32000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector",51.33,28,88
+open_page,mixed_bl8,mixed,8,8000,0,0,1,0,2048000,75.0,773571,0.0356,198.56,938356,0.0356,163.69,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 327.4 MB/s over 938356 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]",,,
+open_page,row_thrash_bl8,row_thrash,8,8000,0,0,1,0,2048000,75.0,363508,0.0142,422.55,331350,0.0097,463.56,50.55,32000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst",51.09,28,73
+open_page,random_bl8,random,8,8000,0,0,1,0,2048000,75.0,381795,0.0142,402.31,355603,0.0097,431.94,53.43,32000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector",54.66,28,106
+close_page,mixed_bl8,mixed,8,8000,0,0,1,0,2048000,75.0,1207849,0.0267,127.17,1511916,0.0267,101.59,0.00,0,0,4,"mixed: 4 writers + 4 readers from one GO, union 203.2 MB/s over 1511916 cycles; layout [(0, 0), (1, 0), (0, 1), (1, 1)]",,,
+close_page,row_thrash_bl8,row_thrash,8,8000,0,0,1,0,2048000,75.0,563028,0.0142,272.81,515273,0.0097,298.09,96.00,32000,0,4,"row_thrash: 4 injector(s), one bank, two rows alternating per burst",76.44,28,101
+close_page,random_bl8,random,8,8000,0,0,1,0,2048000,75.0,627440,0.0142,244.80,578287,0.0097,265.61,96.42,32000,0,4,"random: 4 injector(s), LFSR walk in a 2-row region per injector",82.63,28,151

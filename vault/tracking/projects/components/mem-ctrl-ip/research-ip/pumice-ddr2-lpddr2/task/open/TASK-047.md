@@ -11,9 +11,10 @@
 > (the arbiter cone is the 75 MHz critical path at +0.001 ns).
 
 **Priority:** P3 (research; bounded gain, real timing risk)
-**Status:** OPEN 2026-11-03 (unparked the same day: ISSUE-027 closed and the
-50 MHz board build with the lane closes at +0.134 ns, 0 failing). Remaining:
-the board run. Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
+**Status:** OPEN. 2026-11-27: the lane is board-clean at the 75 MHz SKU point
+(0 mismatched on every profile, `every` +19 / +25 percent). Remaining: the
+`mixed_bl8` regression under open page (results log, 2026-11-27), then the
+DUAL_ISSUE default. Earlier: unparked 2026-11-03 (ISSUE-027 closed). Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
 and see if it can happen; give best effort then defer if needed"). Built
 behind `DUAL_ISSUE` (default off, cycle-identical to HEAD), verified in sim
 and formal: 9 -> 8 slots per bank-walk row, col_ilv +12 / +14 percent at one
@@ -300,3 +301,37 @@ now 0. For this task the lane's board result stands: lane on, 0 mismatched on
 every profile, +7.6 / +7.9 % on `every`. What is left before closing: a lane-on
 vs lane-off board A/B on a FAST_RD_RELEASE = 0 build (the numbers above were
 taken with it on), then the default decision for DUAL_ISSUE.
+
+### 2026-11-27, board at 75 MHz (the SKU point): lane clean, one repeatable regression
+
+One bitstream, `PUMICE_DUAL_ISSUE=1` built from main (mem-ctrl-ip at 805fea022) (includes the BUG-033 fix
+and d36ee4882): `build-perf/fpga/bitstream/ddr2_char_pumice_sku75_lane_2026-11-26.bit`,
+WNS +0.089 ns, 0 failing, WHS +0.008, 39,613 LUT (+598 over the 11-09 lane-off
+build at +0.002 ns; both are noise-level margins). Arms: lane off (no TEST_DUAL_ISSUE)
+and lane on (`TEST_DUAL_ISSUE=1`, row_phase 1), interleaved per profile,
+`PUMICE_MC_CLK_HZ=75000000`. CSVs: `char_results/char_pumice_sku75lane{0,1}*_2026-11-27.csv`.
+
+| profile | rows | mismatched off / on | wr / rd on vs off (mean) | worst row |
+|---|---|---|---|---|
+| every | 68 | 0 / 0 | **+19.2 / +24.9 %** | -0.4 % |
+| concurrent | 8 | 0 / 0 | +3.6 / +3.6 % | 0 |
+| multigen | 8 | 0 / 0 | +2.2 / +2.2 % | 0 |
+| half_threads | 48 | 0 / 0 | +7.3 / +0.5 % | -0.6 % |
+| half_burst8 | 12 | 0 / 0 | +9.6 / +0.9 % | -0.3 % |
+| half_burst, half_gap | 36 | 0 / 0 | 0 / 0 | -0.5 % |
+| windows x3 | 9 each | 0 / 0 | -3.2 / +2.3 % | **-28.5 / -15.2 %** |
+
+The windows loss is one scenario, identical in all three runs (to 0.01 percent):
+`mixed_bl8` (4 writers + 4 readers from one GO) under `defaults` and `open_page`:
+
+| config | lane off wr / rd MB/s | lane on wr / rd | union |
+|---|---|---|---|
+| defaults | 206.5 / 171.6 | 147.7 / 145.6 | 343.2 -> 291.2 (-15 %) |
+| open_page | 198.6 / 163.7 | 145.0 / 141.9 | |
+| close_page | 127.2 / 101.6 | 131.3 / 105.2 | +3 % |
+
+Every other windows row gains (row_thrash / random up to +12 percent). Mechanism not
+yet measured. The mixed family is bimodal on granite by refresh phase (memory-controllers
+MC-023), so a lane-shifted schedule landing in a slower mode is one candidate; a
+genuine write/read turn cost from the lane under open page is the other. Next: the
+proxy sim of `mixed_bl8` open_page with and without the lane at 75 MHz.

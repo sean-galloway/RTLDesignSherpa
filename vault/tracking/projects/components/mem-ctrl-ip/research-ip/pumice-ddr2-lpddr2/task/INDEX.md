@@ -20,10 +20,10 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
-- **TASK-047** — OPEN 2026-11-03 (unparked: ISSUE-027 closed). Dual issue on
-  DFI 1:2, built behind `DUAL_ISSUE`, sim and formal green (9 -> 8 slots per
-  bank-walk row); the 50 MHz board build with the lane closes at +0.134 ns.
-  Remaining: the board run.
+- **TASK-047** — OPEN. Dual issue on DFI 1:2, built behind `DUAL_ISSUE`. Board
+  2026-11-27 at 75 MHz: 0 mismatched, `every` +19 / +25 percent; `mixed_bl8`
+  open page -15 percent union, repeatable. Remaining: that regression, then the
+  default.
 
 ## Deferred
 

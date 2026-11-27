@@ -22,7 +22,8 @@
   [deferred/MC-026.md](deferred/MC-026.md).
 
 - **MC-027** -- re-run the SKU board set on a bitstream with the tREFI period
-  fix (d36ee4882). Deferred 2026-11-26 pending the owner's go.
+  fix (d36ee4882). Board re-run done 2026-11-27 (0 mismatched); the model
+  compare re-read stays deferred.
   [deferred/MC-027.md](deferred/MC-027.md).
 
 ## Dropped

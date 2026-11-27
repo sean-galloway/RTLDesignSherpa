@@ -1,0 +1,9 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,rd_hist_gap,threads,notes,rd_lat_mean,rd_lat_min,rd_lat_max
+defaults,incremental_bl8,incremental,8,8000,0,0,1,0,1024000,75.0,299145,0.0023,128.37,299145,0.0046,256.73,115.51,16000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x80000",87.74,28,1265
+defaults,row_major_bl8,row_major,8,8000,0,0,1,0,1024000,75.0,200254,0.0023,191.76,200254,0.0046,383.51,69.50,16000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x800",67.78,28,661
+defaults,col_major_bl8,col_major,8,8000,0,0,1,0,1024000,75.0,423282,0.0023,90.72,423282,0.0046,181.44,167.94,16000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000",122.80,28,291
+defaults,col_major_interleaved_bl8,col_major_interleaved,8,8000,0,0,1,0,1024000,75.0,301527,0.0023,127.35,301527,0.0046,254.70,92.68,16000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000",92.13,28,431
+open_page,incremental_bl8,incremental,8,8000,0,0,1,0,1024000,75.0,348880,0.0023,110.07,348880,0.0046,220.13,116.14,16000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x80000",103.95,28,1262
+open_page,row_major_bl8,row_major,8,8000,0,0,1,0,1024000,75.0,200261,0.0023,191.75,200261,0.0046,383.50,69.63,16000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x800",67.89,32,661
+open_page,col_major_bl8,col_major,8,8000,0,0,1,0,1024000,75.0,487202,0.0023,78.82,487202,0.0046,157.63,167.94,16000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000",138.40,28,301
+open_page,col_major_interleaved_bl8,col_major_interleaved,8,8000,0,0,1,0,1024000,75.0,344073,0.0023,111.60,344073,0.0046,223.21,127.81,16000,0,2,"concurrent 1w+2r of 4w+4r built, region 0x4000000",101.81,28,573
