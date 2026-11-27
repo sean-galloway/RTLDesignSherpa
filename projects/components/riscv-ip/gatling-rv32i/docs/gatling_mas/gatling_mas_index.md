@@ -45,6 +45,8 @@
 - [gatling_core (top)](ch02_blocks/01_gatling_core.md)
 - [gatling_regfile](ch02_blocks/02_gatling_regfile.md)
 - [gatling_mem_bram](ch02_blocks/03_gatling_mem_bram.md)
+- [gatling_xcell](ch02_blocks/04_gatling_xcell.md)
+- [gatling_tetrad](ch02_blocks/05_gatling_tetrad.md)
 
 ### Chapter 3: Internal Interfaces
 

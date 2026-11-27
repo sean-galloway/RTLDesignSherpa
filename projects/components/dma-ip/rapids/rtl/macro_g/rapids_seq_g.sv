@@ -228,6 +228,9 @@ module rapids_seq_g #(
         .dmem_wdata     (w_dmem_wdata),
         .halted         (w_halted),
         .halt_cause     (),
+        // Xcell off (XCELL_EN = 0, the default): the custom-0 opcode is illegal
+        .done (), .xc_req (), .xc_ctx (), .xc_funct3 (), .xc_reg0 (), .xc_rs1 (), .xc_imm (),
+        .xc_ok (1'b0), .xc_rdata (32'd0),
         .rvfi_valid     (),
         .rvfi_ctx       (),
         .rvfi_order     (),

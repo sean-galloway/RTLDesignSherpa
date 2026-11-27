@@ -199,8 +199,8 @@ async def cocotb_test_gatling_context_lock(dut):
 
 @cocotb.test(timeout_time=2000, timeout_unit="ms")
 async def cocotb_test_gatling_xcell_locks(dut):
-    """The Xcell custom-0 opcode is not built yet: it decodes as illegal and
-    locks its context after the instructions before it retired; the other
+    """With Xcell off (XCELL_EN = 0, gatling_tb_top's build) the custom-0
+    opcode decodes as illegal and locks its context after the instructions before it retired; the other
     three run their loops to completion."""
     tb = await _start(dut)
     xcell = {0: addi(1, 0, 0x55), 1: XCELL_POP_X5, 2: addi(2, 0, 7), 3: ECALL}

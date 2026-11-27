@@ -14,9 +14,10 @@
 -f $REPO_ROOT/projects/components/compute-eng-ip/alu-infer/rtl/filelists/alu_infer_top.f
 
 # Cell shared package and slice-1 modules
-$REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/cell_pkg.sv
+# The memories carry their own filelists (cell_mem_in.f brings cell_pkg)
+-f $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/filelists/cell_mem_in.f
+-f $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/filelists/cell_mem_out.f
+
 $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/cell_cfg_regs.sv
-$REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/cell_mem_in.sv
-$REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/cell_mem_out.sv
 $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/cell_rx.sv
 $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/cell_top.sv

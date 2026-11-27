@@ -33,12 +33,15 @@ _TESTS = Path(__file__).resolve().parent
 _GATLING_DV = _TESTS.parent
 _REPO = Path(os.environ.get("REPO_ROOT", str(_TESTS.parents[5])))
 _KESTREL_DV = _REPO / "projects/components/riscv-ip/kestrel-rv32i/dv"
+# alu-infer's golden model (the tetrad tests' expected result lines)
+_ALU_INFER_TBCLASSES = _REPO / "projects/components/compute-eng-ip/alu-infer/dv/tbclasses"
 
 PATHS = (
     _GATLING_DV / "tbclasses",
     _KESTREL_DV,
     _KESTREL_DV / "tests" / "programs",     # normalize_hex, kestrel's directed images
     _TESTS,
+    _ALU_INFER_TBCLASSES,
 )
 KESTREL_PROGRAMS = _KESTREL_DV / "tests" / "programs"
 
@@ -52,6 +55,7 @@ def setup_paths():
 setup_paths()
 
 TB_FILELIST = "projects/components/riscv-ip/gatling-rv32i/dv/filelists/gatling_tb.f"
+TETRAD_TB_FILELIST = "projects/components/riscv-ip/gatling-rv32i/dv/filelists/gatling_tetrad_tb.f"
 
 COMPILE_ARGS = [
     "--trace", "--trace-structs", "--trace-depth", "99",

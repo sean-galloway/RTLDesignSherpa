@@ -12,4 +12,5 @@
 
 -f $GATLING_ROOT/rtl/filelists/fub/gatling_regfile.f
 -f $GATLING_ROOT/rtl/filelists/fub/gatling_mem_bram.f
--f $GATLING_ROOT/rtl/filelists/top/gatling_core.f
+# gatling_tetrad.f brings gatling_core.f and fub/gatling_xcell.f
+-f $GATLING_ROOT/rtl/filelists/top/gatling_tetrad.f

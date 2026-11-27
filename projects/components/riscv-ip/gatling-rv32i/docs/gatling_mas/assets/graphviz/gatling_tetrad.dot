@@ -1,0 +1,59 @@
+// gatling_tetrad - MAS Figure 2.3 (gatling sequencing its tetrad's cells).
+// House style: vault/handbook/authoring/block-diagrams.md (copied from the
+// axi_plane reference).  Three columns: the cell's fill seam and input
+// memory on the left, the core and the Xcell unit in the middle, the result
+// memory and its drain seam on the right; the ALU sits under the Xcell unit.
+// One cell is drawn; there is one per context (NUM_HARTS).  The boundary
+// bar is the tetrad's edge toward the rest of the cell (not built yet:
+// compute-eng-ip cell TASK-001/002).
+// Source of truth: rtl/top/gatling_tetrad.sv, rtl/fub/gatling_xcell.sv.
+digraph gatling_tetrad {
+    rankdir=TB;
+    graph [splines=ortho, nodesep=1.4, ranksep=1.0, newrank=true, fontname="Helvetica"];
+    node  [fontname="Helvetica", fontsize=11, style=filled, fillcolor="white", penwidth=1.2];
+    edge  [fontname="Helvetica", fontsize=10, color="#333333", arrowsize=0.8];
+
+    // ---- program memory (outside, as in every gatling build) ------------
+    pmem [label="Program memory (outside)\nimem / dmem ports, registered read", shape=box,
+          style="rounded,filled", fillcolor="#E2EFDA"];
+
+    // ---- core and Xcell unit (middle) -----------------------------------
+    core  [label="gatling_core  (XCELL_EN = 1)\nF / D / X / W barrel over NUM_HARTS contexts\nXcell in X: stall = no retire, refetch next slot",
+           shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    xcell [label="gatling_xcell\nper context: head / tail pointers, issue stager,\nFLUSH latch, event bit; xc_ok answered in X",
+           shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    alu   [label="alu_infer_top  (per cell)\nelastic issue / retire, tag-aligned pipe",
+           shape=box, peripheries=2, fillcolor="#D6E4F0"];
+
+    // ---- cell memories (left / right) ------------------------------------
+    min  [label="cell_mem_in  (per cell)\nIN_DEPTH lines, registered read", shape=cylinder, fillcolor="#E8DFF5"];
+    mout [label="cell_mem_out  (per cell)\nOUT_DEPTH lines, registered read", shape=cylinder, fillcolor="#E8DFF5"];
+
+    // ---- seams to the rest of the cell -----------------------------------
+    bar [label="Cell seams (gatling_tetrad ports, one set per cell): fill  |  cfg_*  |  line_consumed  |  drain  |  flush_*  |  kick_*, status",
+         shape=box, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2,
+         width=13.5, height=0.5, fontsize=12];
+
+    { rank=same; pmem; }
+    { rank=same; min; core; mout; }
+    { rank=same; xcell; }
+    { rank=same; alu; }
+    min -> core -> mout [style=invis, minlen=3];
+
+    pmem -> core [dir=both, xlabel="fetch {ctx, pc} / word;\nload, store"];
+    core -> xcell [xlabel="xc_req, ctx, funct3,\nreg0, rs1, imm (X)"];
+    core -> xcell [dir=back, color="#1A7A1A", xlabel="xc_ok (X);\nxc_rdata (W)"];
+
+    bar -> min [xlabel="fill: wr_valid,\naddr, data"];
+    xcell -> min [xlabel="POP: rd_valid, rd_addr = head"];
+    xcell -> min [dir=back, color="#1A7A1A", xlabel="rd_data (next cycle), occupancy"];
+
+    xcell -> alu [xlabel="POP x0: valid, op_line_a / b,\nfunc_sel, acc_ctrl, threshold"];
+    alu -> xcell [color="#1A7A1A", xlabel="PUSH x0: result_valid,\nline | flags"];
+
+    xcell -> mout [xlabel="PUSH: wr_valid,\naddr = tail, data"];
+    mout -> bar [xlabel="drain: rd_valid,\naddr / data"];
+
+    xcell -> bar [dir=both, style=dashed, color="#777777", minlen=2,
+                  xlabel="out: line_consumed,\nFLUSH {dest, tag}, KICK,\nctx_stalled / stall_op\n\nin: cfg_func_sel, op_lines,\nthreshold, credit_batch"];
+}

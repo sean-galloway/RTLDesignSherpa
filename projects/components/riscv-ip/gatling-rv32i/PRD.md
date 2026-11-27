@@ -1,8 +1,8 @@
 # GATLING PRD — Tetrad Compute Engine
 
-**Version:** 0.4 (2026-10-21 — the deliberate departures from the RISC-V
-spec recorded in 3.3; no Zicntr.)
-**Date:** 2026-10-21
+**Version:** 0.5 (2026-11-26 — Xcell built: CFG moved to funct3 110, x0
+the ALU port, acc_ctrl in POP, KICK/WAIT a one-shot barrier.)
+**Date:** 2026-11-26
 **Owner decision inputs:** "Instructions" (over MMIO) for fabric
 handshake; mini RV per tetrad (over per-cell ALU+FSM); codename
 gatling (barrel machine).
@@ -56,31 +56,43 @@ standard extensions.
 ### 3.1 Xcell encoding (custom-0, opcode 0x0B)
 
 ```
- 31                     15 14   12 11      7 6       0
-+-------------------------+-------+---------+--------+
-|        imm[31:12]       | funct3|   rd    | 0x0B   |  CFG
-|        000000000000     |  000  |   rd    | 0x0B   |  POP
-|        000000000000     |  001  |  rs1    | 0x0B   |  PUSH
-|        000000000000     |  010  |  00000  | 0x0B   |  ECTX
-|        000000000000     |  011  |  rs1    | 0x0B   |  FLUSH
-|        000000000000     |  100  |  rs1    | 0x0B   |  KICK
-|        000000000000     |  101  |  rs1    | 0x0B   |  WAIT
-+-------------------------+-------+---------+--------+
-funct3 110/111 : reserved.
+ 31            20 19     15 14   12 11      7 6       0
++-----------------+---------+-------+---------+--------+
+|  0000000000,acc |  00000  |  000  |   rd    | 0x0B   |  POP   (acc = insn[21:20])
+|  000000000000   |  00000  |  001  |  rs1    | 0x0B   |  PUSH
+|  000000000000   |  00000  |  010  |  00000  | 0x0B   |  ECTX
+|  000000000000   |  00000  |  011  |  rs1    | 0x0B   |  FLUSH
+|  000000000000   |  00000  |  100  |  rs1    | 0x0B   |  KICK
+|  000000000000   |  00000  |  101  |  rs1    | 0x0B   |  WAIT
+|    idx[11:0]    |  00000  |  110  |   rd    | 0x0B   |  CFG   (idx = insn[31:20])
++-----------------+---------+-------+---------+--------+
+funct3 111 : reserved (illegal).
 funct3 010 (ECTX) and 011/100/101 (FLUSH/KICK/WAIT) added in v0.2.
-The v0.1 WAITCD/WAITGT placeholders are superseded by KICK/WAIT pending
-the tetrad MAS.
+v0.5: CFG moved to funct3 110 with an I-type index.  The v0.2 drawing put
+CFG's imm[31:12] over funct3, so a CFG of index 0 encoded exactly as POP
+(owner 2026-11-26).  POP x0 carries acc_ctrl in insn[21:20], zero (HOLD)
+in the v0.2 encoding.
 ```
+
+Register x0 is the ALU port (owner 2026-11-26): `POP x0` issues the
+cell's function on its next operand line(s) and `PUSH x0` retires the
+ALU's result into the result memory (cell MAS 4: "POP ... presents them to
+the ALU issue handshake; PUSH retires result line(s) from the ALU"), while
+`POP rd` / `PUSH rs1` with any other register move one line between the
+cell's memories and the program.  x0 as a source is the constant zero,
+which no program needs to push, so the field costs nothing.
 
 | Instr | Action | Blocking behavior |
 |---|---|---|
-| `CFG rd, imm` | rd ← mode-register[imm]: 0=element mode (0=bf16: 2 bf16 lanes per 32-bit line, fp32 accumulate; other values reserved for the int8/fp32 roadmap per alu-infer PRD `func_sel[8:7]`), 1=credit batch N, 2=context ID (read-only, see §7 open item), 3+=reserved | never blocks |
-| `POP rd` | rd ← next element of this context's input memory; head advances; consumed-line credit returned to rapids per credit-batch config | context stalls if input empty — hardware interlock, not a spin |
-| `PUSH rs1` | rs1 → this context's result memory; tail advances; grant requested on result path; packetizer batches X flits | context stalls if no grant |
+| `CFG rd, idx` | rd ← mode-register[idx]: 0=element mode (0=bf16: 2 bf16 lanes per 32-bit line, fp32 accumulate; other values reserved for the int8/fp32 roadmap per alu-infer PRD `func_sel[8:7]`), 1=credit batch N, 2=context ID (read-only, see §7 open item), 3+=reserved | never blocks |
+| `POP x0, acc` | issue the cell's configured function on its next `OP_LINES` (1 or 2) input lines, acc_ctrl = insn[21:20]; head advances per line; each line consumed is one credit returned to rapids per credit-batch config | context stalls while the previous issue waits for the ALU or the memory holds fewer lines — hardware interlock, not a spin |
+| `POP rd` | rd ← next line of this context's input memory; head advances; one consumed line | context stalls if input empty |
+| `PUSH x0` | the ALU's next result (line, or the compare row's lane mask) → this context's result memory; tail advances; packetizer batches X flits | context stalls until a result is ready and the result memory has room |
+| `PUSH rs1` | rs1 → this context's result memory; tail advances | context stalls while the result memory is full |
 | `ECTX` | context done: freeze PC, raise done status to tetrad MonBus, release datapath share; context restarts on reset/config reload | drains at next context boundary |
-| `FLUSH rs1` | rs1[14:0] → cell `FLUSH_DEST` {ext,level,X,Y,Z}; rs1[18:15] → cell `FLUSH_TAG` (RAPIDS sink-channel tag); trigger cell flush-and-send of result memory | context stalls until drain controller accepts command |
-| `KICK rs1` | raise tetrad coordination event on the tetrad MonBus with value `rs1`; provisional encoding pending tetrad MAS | non-blocking once event is posted |
-| `WAIT rs1` | stall context until the tetrad coordination condition in `rs1` is observed (e.g. group-done bitmask); provisional encoding pending tetrad MAS | context stalls until condition true |
+| `FLUSH rs1` | rs1[14:0] → cell `FLUSH_DEST` {ext,level,X,Y,Z}; rs1[18:15] → cell `FLUSH_TAG` (RAPIDS sink-channel tag); the command is held for the drain controller until accepted, then the cell flushes-and-sends its result memory | context stalls while an earlier FLUSH is still unaccepted |
+| `KICK rs1` | set this context's event bit and raise a tetrad coordination event on the tetrad MonBus with value `rs1` | never blocks |
+| `WAIT rs1` | stall until every context in mask `rs1[3:0]` has kicked or is done (ECTX). One-shot barrier (owner 2026-11-26): an event bit clears only when its context is restarted; a reusable barrier waits for the tetrad MAS | context stalls until the condition holds |
 
 Design note (owner doctrine): fixed hardware owns the line-rate
 handshake (credit/grant detection, memory ports); the program owns
@@ -146,7 +158,10 @@ own bf16 ALU datapath (owner ruling 2026-10-19).
 - Input/result memory port conflict across contexts: impossible —
   each context owns its cell's memories, addressed by `sel`.
 - Interlock stall (POP empty / PUSH no-grant): only `sel` stalls;
-  rotation skips it (bubble) — three contexts keep the datapath busy.
+  its slot is spent (bubble) and it retries the same instruction next
+  window — three contexts keep the datapath busy.  As built the rotation
+  never skips (3.3): the stalled instruction does not retire and leaves
+  its PC, so the context refetches it.
 
 ### 4.3 Branch behavior
 
@@ -234,7 +249,10 @@ provisional pending the tetrad MAS.
 Scope of the first RTL (owner, 2026-10-21): the RV32I barrel first --
 four harts running the rv32ui battery on the Nexys A7 -- with the Xcell
 custom-0 opcode decoding as illegal (context-lock) until the cell seam
-exists. Xcell lands in the next pass.
+exists. Xcell landed 2026-11-26 (gatling-rv32i TASK-002): `gatling_core`
+`XCELL_EN`, `gatling_xcell`, and `gatling_tetrad`, which wires the core to
+each cell's input memory, alu-infer ALU and result memory; the barrel-only
+builds keep `XCELL_EN = 0`.
 
 ## 8. Deliverables & sequencing
 
@@ -247,6 +265,13 @@ exists. Xcell lands in the next pass.
 5. Tetrad integration when `tetrad.sv` lands in `tile/`.
 
 ## 9. History
+
+- 2026-11-26: PRD 0.5. Xcell built (TASK-002). Owner decisions: CFG on
+  funct3 110 with an I-type index (the 0.2 drawing collided with POP);
+  register x0 is the ALU port for POP / PUSH; KICK / WAIT a one-shot
+  barrier; the tetrad DV runs on the real cell memories and alu-infer.
+  acc_ctrl rides in POP x0's insn[21:20]. 4.2 corrected: a stalled
+  context retries, it is not skipped.
 
 - 2026-10-21: PRD 0.4. The deliberate departures from the RISC-V spec
   recorded (3.3): mhartid 0, the CSR stub, no trap vector, WFI illegal, a

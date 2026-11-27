@@ -90,8 +90,10 @@ kestrel's own lineage: same RV32I contract, decode and ALU, inverted
 pipeline lesson -- N contexts hide one shared datapath's latency instead of
 stages hiding latency for one stream. The RV32I barrel is built and runs
 four harts on the Nexys A7 (2026-10-21) and passes riscv-arch-test
-rv32i_m/I on every context (156/156, 2026-11-22); Xcell is next, tracked in
-[vault TASK-002](../../../vault/tracking/projects/components/riscv-ip/gatling-rv32i/task/open/TASK-002.md).
+rv32i_m/I on every context (156/156, 2026-11-22). Xcell (custom-0) and the
+tetrad top were built 2026-11-26: a hand-assembled tetrad program runs in DV
+on the real cell blocks against alu-infer's golden
+([vault TASK-002](../../../vault/tracking/projects/components/riscv-ip/gatling-rv32i/task/closed/TASK-002.md)).
 
 ## Goals per rung
 

@@ -36,6 +36,26 @@ Each hart's state is its own; the datapath exists once and serves the harts in s
 
 RV32I exactly as kestrel implements it (PRD 3, [REF-7]): every base instruction (unpriv §2.1); FENCE (unpriv §2.1.7) and FENCE.I (Zifencei, unpriv §4.1) retire as no-ops; MRET (priv §3.3.2) falls through to the next instruction. Self-modifying code works without FENCE.I: a store is visible to the context's next fetch, which is the ordering Zifencei exists to provide.
 
+## Xcell: talking to the cell
+
+Each context drives one cell of its tetrad -- its input memory, its alu-infer ALU and its result memory -- through seven instructions in the custom-0 opcode space (`0001011`, PRD 3.1). Every one names a register in bits [11:7]; for POP and PUSH, register x0 means the cell's ALU.
+
+| Instruction | funct3 | Effect | Waits while |
+|---|---|---|---|
+| `POP x0, acc` | 000 | Issue the cell's configured function on its next input line (two lines for a two-operand function); `acc` (bits [21:20]) is the accumulator control: 0 hold, 1 accumulate, 2 clear, 3 drain | the previous issue is still waiting for the ALU, or the input memory holds fewer lines than the function takes |
+| `POP rd` | 000 | rd <- the next input line | the input memory is empty |
+| `PUSH x0` | 001 | Move the ALU's next result into the result memory (the compare function's lane mask, packed low) | no result is ready, or the result memory is full |
+| `PUSH rs1` | 001 | rs1 -> the result memory | the result memory is full |
+| `ECTX` | 010 | The context is done: it stops, with halt cause 8 | never |
+| `FLUSH rs1` | 011 | Ask the cell to send its result memory to {tag = rs1[18:15], destination = rs1[14:0]} | the previous FLUSH has not been taken yet |
+| `KICK rs1` | 100 | Raise this context's event, with value rs1 | never |
+| `WAIT rs1` | 101 | Continue once every context in mask rs1[3:0] has kicked or is done | some context in the mask has done neither |
+| `CFG rd, idx` | 110 | rd <- cell setting `idx` (bits [31:20]): 0 the element format, 1 the credit batch; anything else reads 0 | never |
+
+: Table 2.1: Xcell instructions
+
+funct3 111 is reserved and is an illegal instruction. Each input line popped is one consumed line, returned to the line's sender as credit by the cell. A context's event stays raised until the context is stopped and restarted, so KICK and WAIT make one barrier per run. A waiting instruction simply runs again on the context's next turn; nothing else is lost, and the other contexts never wait for it.
+
 ## CSRs
 
 There is no CSR state. Every CSR instruction (Zicsr, unpriv §4.2) reads zero and discards its write, without trapping -- the Zicntr counters (`rdcycle`, `rdtime`, `rdinstret`; unpriv §4.3) and `mhartid` (priv §3.1.5) included, so a program cannot tell which context it is (by design, PRD 7). There is no trap vector (`mtvec`, priv §3.1.7, is accepted and ignored), and `WFI` (priv §3.3.3) is illegal. PRD 3.3 lists these departures from the RISC-V specification and why.
@@ -51,12 +71,13 @@ There are no traps. The exceptions the ISA defines -- instruction-address-misali
 | 3 | Taken branch, JAL or JALR to an address that is not 4-byte aligned |
 | 4 | Misaligned load (LH/LHU off a half-word, LW off a word) |
 | 5 | Misaligned store |
-| 0xF | Illegal instruction (including the custom-0 opcode until Xcell is built) |
+| 8 | ECTX: the program is done (not an exception) |
+| 0xF | Illegal instruction (including Xcell funct3 111) |
 
-: Table 2.1: Halt causes (kestrel's encoding)
+: Table 2.2: Halt causes (kestrel's encoding, plus 8)
 
 The halting instruction does not write a register or memory. The riscv-tests verdict on a context is its last write to gp (x3) at the ECALL halt: 1 is a pass.
 
 ## Timing a program can rely on
 
-None, by design: a context's speed depends on nothing it does. Every instruction -- ALU, load, store, taken or not-taken branch -- takes exactly four clocks of its context, whatever the other contexts are doing.
+Every instruction -- ALU, load, store, taken or not-taken branch, and every Xcell instruction that does not wait -- takes exactly four clocks of its context, whatever the other contexts are doing. An Xcell instruction that waits (Table 2.1) costs four more clocks per turn it waits, and only its own context's.

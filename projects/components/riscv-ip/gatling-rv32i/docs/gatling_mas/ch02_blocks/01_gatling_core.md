@@ -36,12 +36,16 @@ The barrel core: the rotation, one PC per context, per-context halt and run cont
 | `imem_rdata` | in | D | The fetched word, one cycle after the request (registered read) |
 | `dmem_req`, `dmem_ctx`, `dmem_addr`, `dmem_wstrb`, `dmem_wdata` | out | X | Data access; `dmem_addr` is word-aligned, strobes and data lane-rotated |
 | `dmem_rdata` | in | W | The load word, one cycle after the request |
-| `halted[NUM_HARTS-1:0]`, `halt_cause[NUM_HARTS-1:0][3:0]` | out | | Per-context halt state (rv32i_pkg causes) |
+| `halted[NUM_HARTS-1:0]`, `halt_cause[NUM_HARTS-1:0][3:0]` | out | | Per-context halt state (rv32i_pkg causes, plus 8 = done) |
+| `done[NUM_HARTS-1:0]` | out | | Halted by ECTX |
+| `xc_req`, `xc_ctx`, `xc_funct3`, `xc_reg0`, `xc_rs1`, `xc_imm` | out | X | The Xcell instruction in X (`XCELL_EN = 1`) |
+| `xc_ok` | in | X | 1 = the Xcell instruction completes; 0 = stall |
+| `xc_rdata` | in | W | POP rd / CFG rd value, one cycle after `xc_ok` |
 | `rvfi_*`, `rvfi_ctx` | out | W | One retirement per cycle at most, tagged with its context; `rvfi_order` counts that context's retirements |
 
 : Table 2.1: gatling_core ports
 
-Parameters: `NUM_HARTS` (default 4, the tetrad; at least the pipeline depth of 4, checked at elaboration, and not necessarily a power of two since the rotation counter wraps explicitly -- the context-index ports are `$clog2(NUM_HARTS)` wide) and `RESET_ADDR` (default 0; the board and the rv32ui battery use 0x8000_0000). `gatling_regfile` and `gatling_mem_bram` take the same `NUM_HARTS` and size their context arrays from it.
+Parameters: `XCELL_EN` (default 0: the custom-0 opcode is illegal, as in every barrel-only build; `gatling_tetrad` sets 1), `NUM_HARTS` (default 4, the tetrad; at least the pipeline depth of 4, checked at elaboration, and not necessarily a power of two since the rotation counter wraps explicitly -- the context-index ports are `$clog2(NUM_HARTS)` wide) and `RESET_ADDR` (default 0; the board and the rv32ui battery use 0x8000_0000). `gatling_regfile` and `gatling_mem_bram` take the same `NUM_HARTS` and size their context arrays from it.
 
 ## The stages
 
@@ -68,4 +72,14 @@ Validity is carried per stage (`d_valid`, `x_valid`, `w_valid`) and re-qualified
 
 ## Halts (context-lock)
 
-The X stage raises a halt for decode's causes (ecall, ebreak, illegal -- including the not-yet-built Xcell custom-0 opcode), a misaligned control-flow target (IALIGN=32) and a misaligned load or store, exactly as kestrel. The halting instruction retires as an RVFI trap beat in W -- the same cycle `halted[c]` rises -- with no register write and no memory access. The context's next F slot sees `halted_q[c]` and fetches nothing; the other three contexts are unaffected.
+The X stage raises a halt for decode's causes (ecall, ebreak, illegal -- including the whole custom-0 opcode when `XCELL_EN = 0`, and its reserved funct3 111 when 1), a misaligned control-flow target (IALIGN=32) and a misaligned load or store, exactly as kestrel. The halting instruction retires as an RVFI trap beat in W -- the same cycle `halted[c]` rises -- with no register write and no memory access. The context's next F slot sees `halted_q[c]` and fetches nothing; the other three contexts are unaffected.
+
+## Xcell and the interlock stall
+
+With `XCELL_EN = 1`, D recognizes custom-0 with funct3 000-110 as Xcell. Every Xcell instruction names its register in insn[11:7] (PRD 3.1), so for them D issues the rs1 read from insn[11:7] instead of insn[19:15], and decode's illegal cause is dropped. POP and CFG write that register; the others read it.
+
+In X the instruction goes out on the `xc_*` port and `gatling_xcell` answers `xc_ok` in the same cycle. When `xc_ok` is 0 the instruction stalls: `w_valid` stays low (no retirement, no RVFI beat, no register write), the PC is not written and `pc_fresh` is left alone, so the context's next F slot fetches the same instruction and it is presented again NUM_HARTS cycles later. Nothing else in the barrel changes -- the rotation never skips (PRD 3.3), and a stalled context costs the others nothing because their slots were never shared.
+
+POP rd and CFG rd return their value on `xc_rdata` one cycle after X, in W, where it is selected ahead of the load path. ECTX completes like a halt without being a trap: the PC is frozen, `halted[c]` rises with cause 8 (HALT_DONE, outside kestrel's 0-5 and F) and `done[c]` with it, and the retirement beat has `rvfi_trap = 0`. funct3 111 stays illegal.
+
+With `XCELL_EN = 0` every Xcell term is a constant zero and the core is the barrel it was; `xc_ok` and `xc_rdata` are ignored, and the instances that do not build Xcell tie them to zero.

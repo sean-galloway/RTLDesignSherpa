@@ -47,9 +47,23 @@
 //          falls through; the SYSTEM CSR class reads zero.  Halts are
 //          PER CONTEXT (PRD 7 item 4, context-lock, owner 2026-10-21): the
 //          halting instruction retires as an RVFI trap beat, that context
-//          stops fetching, and the other three keep running.  The Xcell
-//          custom-0 opcode is not built yet, so it decodes as illegal and
-//          locks its context the same way.
+//          stops fetching, and the other three keep running.
+//
+//          Xcell (PRD 3.1, custom-0 0x0B), built when XCELL_EN = 1.  The
+//          core decodes the seven instructions and hands each one, in X, to
+//          the xc_* port: funct3 names it, xc_reg0 says its register field
+//          (insn[11:7]) is x0, xc_rs1 carries that register's value and
+//          xc_imm insn[31:20].  The Xcell unit (gatling_xcell) answers xc_ok
+//          in the same cycle.  xc_ok = 0 is an interlock stall: the
+//          instruction does not retire, writes nothing and leaves its PC, so
+//          the context fetches it again on its next slot and retries --
+//          the rotation never skips (PRD 3.3), a stalled context just
+//          repeats.  POP rd and CFG rd take their value from xc_rdata in W,
+//          one stage after X, like a load.  ECTX retires and halts its
+//          context with cause HALT_DONE (8), reported on done[].  funct3 111
+//          stays illegal.  With XCELL_EN = 0 the whole opcode is illegal and
+//          locks its context, as before Xcell existed; xc_ok and xc_rdata
+//          are then ignored.
 //
 //          Context run control.  hart_run[c] = 0 holds context c at
 //          RESET_ADDR with its halt cleared and kills any of its instructions
@@ -70,7 +84,8 @@
 
 module gatling_core #(
     parameter int          NUM_HARTS  = 4,                 // contexts; >= 4 (the pipeline depth)
-    parameter logic [31:0] RESET_ADDR = 32'h0000_0000
+    parameter logic [31:0] RESET_ADDR = 32'h0000_0000,
+    parameter bit          XCELL_EN   = 1'b0               // 1 = build the Xcell custom-0 instructions
 ) (
     input  logic                         clk,
     input  logic                         rst_n,
@@ -92,6 +107,17 @@ module gatling_core #(
     // Per-context halt state
     output logic [NUM_HARTS-1:0]         halted,
     output logic [NUM_HARTS-1:0][3:0]    halt_cause,     // [ctx]
+    output logic [NUM_HARTS-1:0]         done,           // halted by ECTX (cause HALT_DONE)
+
+    // Xcell port: one instruction in X per cycle, answered the same cycle
+    output logic             xc_req,                     // a live Xcell instruction in X
+    output logic [$clog2(NUM_HARTS)-1:0] xc_ctx,
+    output logic [2:0]       xc_funct3,                  // 000 POP .. 101 WAIT, 110 CFG
+    output logic             xc_reg0,                    // insn[11:7] == x0
+    output logic [31:0]      xc_rs1,                     // value of register insn[11:7]
+    output logic [11:0]      xc_imm,                     // insn[31:20]
+    input  logic             xc_ok,                      // 1 = completes now; 0 = stall, retry next slot
+    input  logic [31:0]      xc_rdata,                   // POP rd / CFG rd value, one cycle after xc_ok (W)
 
     // RVFI: at most one retirement per cycle, from W; rvfi_ctx names the
     // context and rvfi_order counts that context's retirements.
@@ -142,6 +168,15 @@ module gatling_core #(
     localparam logic [3:0] STRB_BYTE = 4'b0001;
     localparam logic [3:0] STRB_HALF = 4'b0011;
     localparam logic [3:0] STRB_WORD = 4'b1111;
+
+    // Xcell (PRD 3.1).  HALT_DONE is gatling's own cause, outside kestrel's
+    // set (rv32i_pkg uses 0-5 and F).
+    localparam logic [6:0] OPCODE_XCELL = 7'b0001011;  // custom-0
+    localparam logic [2:0] XC_POP   = 3'b000;
+    localparam logic [2:0] XC_ECTX  = 3'b010;
+    localparam logic [2:0] XC_CFG   = 3'b110;
+    localparam logic [2:0] XC_RSVD  = 3'b111;
+    localparam logic [3:0] HALT_DONE = 4'h8;
 
     // Boundary reset synchronization, as kestrel_core: rst_n is an
     // asynchronous-assert input of unknown deassert quality.
@@ -254,6 +289,12 @@ module gatling_core #(
         .imm  (d_imm)
     );
 
+    // Xcell decode.  Every Xcell instruction names its register in
+    // insn[11:7] (PRD 3.1), so for them that field is the rs1 read address.
+    logic d_is_xc;
+
+    assign d_is_xc = XCELL_EN && (d_insn[6:0] == OPCODE_XCELL) && (d_insn[14:12] != XC_RSVD);
+
     // Register file: read issued here, data in X.  Written from W.
     logic [31:0]       x_rs1, x_rs2;
     logic              rf_wen;
@@ -266,7 +307,7 @@ module gatling_core #(
     ) u_regfile (
         .clk      (clk),
         .rs_ctx   (d_ctx),
-        .rs1_addr (d_insn[19:15]),
+        .rs1_addr (d_is_xc ? d_insn[11:7] : d_insn[19:15]),
         .rs2_addr (d_insn[24:20]),
         .rs1_data (x_rs1),
         .rs2_data (x_rs2),
@@ -284,6 +325,7 @@ module gatling_core #(
     alu_op_e           x_alu_op;
     logic              x_src_a_pc, x_src_b_imm, x_rd_wen, x_dmem_req, x_dmem_we;
     logic              x_branch, x_jump, x_jalr, x_csr_stub, x_lui;
+    logic              x_is_xc;
     logic [3:0]        x_dec_cause;
 
     `ALWAYS_FF_RST(clk, w_aresetn,
@@ -301,15 +343,17 @@ module gatling_core #(
         x_alu_op    <= dec_alu_op;
         x_src_a_pc  <= dec_src_a_pc;
         x_src_b_imm <= dec_src_b_imm;
-        x_rd_wen    <= dec_rd_wen;
-        x_dmem_req  <= dec_dmem_req;
+        x_rd_wen    <= d_is_xc ? ((d_insn[14:12] == XC_POP) || (d_insn[14:12] == XC_CFG))
+                               : dec_rd_wen;
+        x_dmem_req  <= dec_dmem_req & ~d_is_xc;
         x_dmem_we   <= dec_dmem_we;
         x_branch    <= dec_branch;
         x_jump      <= dec_jump;
         x_jalr      <= dec_jalr;
         x_csr_stub  <= dec_csr_stub;
         x_lui       <= (d_insn[6:0] == OPCODE_LUI);
-        x_dec_cause <= dec_halt_cause;
+        x_dec_cause <= d_is_xc ? HALT_NONE : dec_halt_cause;
+        x_is_xc     <= d_is_xc;
     end
 
     // =========================================================================
@@ -416,6 +460,20 @@ module gatling_core #(
                                           : HALT_NONE);
     assign halt_now        = x_live & (|halt_cause_eff);
 
+    // Xcell: the instruction goes to the Xcell unit, which answers xc_ok now.
+    // A stall retires nothing and writes nothing (no PC, no register, no
+    // halt): the context refetches the same instruction on its next slot.
+    logic x_stall, x_ectx;
+
+    assign xc_req    = x_live & x_is_xc;
+    assign xc_ctx    = x_ctx;
+    assign xc_funct3 = x_funct3;
+    assign xc_reg0   = (x_rd == 5'd0);
+    assign xc_rs1    = x_rs1;
+    assign xc_imm    = x_insn[31:20];
+    assign x_stall   = xc_req & ~xc_ok;
+    assign x_ectx    = xc_req &  xc_ok & (x_funct3 == XC_ECTX);
+
     // Writeback value for everything but a load, formed here: LUI takes the
     // immediate, JAL/JALR the link, the CSR stub zero, the rest the ALU.
     logic        x_rd_wb;
@@ -432,7 +490,7 @@ module gatling_core #(
     // hart_run[x_ctx].
     logic pc_we;
 
-    assign pc_we = x_live & ~halt_now;
+    assign pc_we = x_live & ~halt_now & ~x_stall & ~x_ectx;
 
     always_ff @(posedge clk) begin
         if (pc_we) pc_mem[x_ctx] <= next_pc;
@@ -455,7 +513,11 @@ module gatling_core #(
                     if (halt_now) begin
                         halted_q[c] <= 1'b1;
                         cause_q[c]  <= halt_cause_eff;
-                    end else begin
+                    end else if (x_ectx) begin
+                        // ECTX: the context is done; its PC stays frozen
+                        halted_q[c] <= 1'b1;
+                        cause_q[c]  <= HALT_DONE;
+                    end else if (!x_stall) begin
                         pc_fresh[c] <= 1'b0;
                     end
                 end
@@ -466,11 +528,15 @@ module gatling_core #(
     assign halted     = halted_q;
     assign halt_cause = cause_q;
 
+    always_comb begin
+        for (int c = 0; c < NUM_HARTS; c++) done[c] = halted_q[c] & (cause_q[c] == HALT_DONE);
+    end
+
     // X -> W
     logic              w_valid;
     logic [HART_W-1:0] w_ctx;
     logic [31:0]       w_pc, w_pc_wdata, w_insn, w_wb;
-    logic              w_trap, w_rd_wb, w_load;
+    logic              w_trap, w_rd_wb, w_load, w_xc_rd;
     logic [2:0]        w_funct3;
     logic [1:0]        w_offset;
     logic [4:0]        w_rs1_addr, w_rs2_addr, w_rd;
@@ -480,7 +546,7 @@ module gatling_core #(
 
     `ALWAYS_FF_RST(clk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) w_valid <= 1'b0;
-        else                          w_valid <= x_live;
+        else                          w_valid <= x_live & ~x_stall;
     )
 
     always_ff @(posedge clk) begin
@@ -493,9 +559,11 @@ module gatling_core #(
         w_rd        <= x_rd;
         w_wb        <= x_wb;
         w_load      <= ls_load & ~ls_misalign;
+        w_xc_rd     <= x_is_xc;
         w_funct3    <= x_funct3;
         w_offset    <= ls_offset;
-        w_rs1_addr  <= x_insn[19:15];
+        // Xcell PUSH/ECTX/FLUSH/KICK/WAIT read insn[11:7]; POP and CFG write it
+        w_rs1_addr  <= (x_is_xc && !x_rd_wen) ? x_insn[11:7] : x_insn[19:15];
         w_rs2_addr  <= x_insn[24:20];
         w_rs1       <= x_rs1;
         w_rs2       <= x_rs2;
@@ -525,7 +593,8 @@ module gatling_core #(
         endcase
     end
 
-    assign w_rd_wdata = w_load ? ld_data : w_wb;
+    assign w_rd_wdata = w_xc_rd ? xc_rdata :
+                        w_load  ? ld_data  : w_wb;
 
     assign rf_wen   = w_live & w_rd_wb;
     assign rf_wctx  = w_ctx;

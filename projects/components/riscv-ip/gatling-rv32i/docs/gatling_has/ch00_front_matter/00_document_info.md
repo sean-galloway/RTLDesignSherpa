@@ -61,7 +61,7 @@ This Hardware Architecture Specification (HAS) is gatling's external contract: w
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
-| 0.1 | 2026-10-22 | seang | Initial HAS: the RV32I barrel with `NUM_HARTS` contexts (four by default, the tetrad), the CSR stub and the deliberate departures from the RISC-V spec (PRD 3.3), the board memory map, the figures (system context, programmer's view, address map) and the references. The ISA blocks are `riscv-ip/common-rv32i`'s, shared with kestrel. Xcell (PRD 3.1) reserved, not yet built. |
+| 0.1 | 2026-10-22 | seang | Initial HAS: the RV32I barrel with `NUM_HARTS` contexts (four by default, the tetrad), the CSR stub and the deliberate departures from the RISC-V spec (PRD 3.3), the board memory map, the figures (system context, programmer's view, address map) and the references. The ISA blocks are `riscv-ip/common-rv32i`'s, shared with kestrel. Xcell (2026-11-26): the seven custom-0 instructions and the tetrad seams. |
 
 : Document Revision History
 

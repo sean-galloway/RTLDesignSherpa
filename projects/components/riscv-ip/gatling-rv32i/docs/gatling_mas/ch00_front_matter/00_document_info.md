@@ -82,7 +82,7 @@ The ISA and halt contract are kestrel's, and gatling uses kestrel's decode, imme
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
-| 0.1 | 2026-10-22 | seang | Initial MAS: the RV32I barrel as built (gatling_core, gatling_regfile, gatling_mem_bram); `NUM_HARTS` a parameter (default 4, at least the pipeline depth, capped at 16 by the memory system); the decode / immediate-generator / ALU blocks and ISA package shared from `riscv-ip/common-rv32i`; the CSR-stub cell; the figures (datapath, regfile and mem_bram block diagrams, the rotation grid, Waveform 4.1) and the references. Four harts on the Nexys A7. Xcell not yet built (custom-0 decodes as illegal). |
+| 0.1 | 2026-10-22 | seang | Initial MAS: the RV32I barrel as built (gatling_core, gatling_regfile, gatling_mem_bram); `NUM_HARTS` a parameter (default 4, at least the pipeline depth, capped at 16 by the memory system); the decode / immediate-generator / ALU blocks and ISA package shared from `riscv-ip/common-rv32i`; the CSR-stub cell; the figures (datapath, regfile and mem_bram block diagrams, the rotation grid, Waveform 4.1) and the references. Four harts on the Nexys A7. Xcell (2026-11-26): the `xc_*` port and interlock stall in `gatling_core` behind `XCELL_EN`, `gatling_xcell`, `gatling_tetrad`, and their tests. |
 
 : Document Revision History
 

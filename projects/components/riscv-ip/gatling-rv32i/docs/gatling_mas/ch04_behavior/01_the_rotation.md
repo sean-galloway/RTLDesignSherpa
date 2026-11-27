@@ -46,6 +46,10 @@ The same window as the grid, on `gatling_core`'s ports. `sel_q` walks c0, c1, c2
 
 The branch decision and target are known in X and written to the context's PC at the end of X, two cycles before that context's next fetch. There is no wrong-path fetch to cancel, so no bubble, no flush and no prediction.
 
+## A waiting Xcell instruction costs one window
+
+An Xcell instruction that cannot complete (its cell's memory empty or full, the ALU not ready, a FLUSH not yet taken, a WAIT not yet met) does not retire and leaves its PC, so the context fetches it again in its next slot. The slot is spent, not given away: the other contexts keep their own slots and never see the stall, and the waiting context's instruction is presented once per window until it completes. That is the interlock the PRD asks for -- "a context that would wait simply isn't scheduled" -- built without letting a context issue sooner than one window after its last instruction, which is what keeps the barrel free of hazard logic.
+
 ## Stopping and restarting a context
 
 `hart_run[c]` low kills context c's instruction in whichever stage holds it -- the stage valid is re-qualified by `hart_run` everywhere -- and holds its PC at RESET_ADDR. Released, the context fetches RESET_ADDR in its next F slot with its retirement order at 0. DV stops a context at all four rotation phases (one per stage) and checks that nothing retires while it is held; a mutant that drops the qualification in W retires one leaked beat and is caught only by the stop in the W phase.

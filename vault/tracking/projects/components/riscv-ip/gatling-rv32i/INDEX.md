@@ -7,7 +7,7 @@ Tetrad compute engine (barrel RV32I + Xcell), one engine per tetrad,
 
 | Task | Summary |
 |---|---|
-| [TASK-002](task/open/TASK-002.md) | Gatling RTL bring-up: barrel model chapter, RTL, HAS/MAS (blocks tile milestone M1) |
+| _(none)_ | |
 
 ## Deferred
 
@@ -19,5 +19,6 @@ Tetrad compute engine (barrel RV32I + Xcell), one engine per tetrad,
 
 | Task | Summary |
 |---|---|
+| [TASK-002](task/closed/TASK-002.md) | Gatling RTL bring-up: barrel, Xcell (custom-0) and the tetrad; the hand-assembled tetrad program runs in DV on the real cell blocks against alu-infer's golden |
 | [TASK-004](task/closed/TASK-004.md) | FPGA rework: the per-context PC file in distributed RAM (common-rv32i ISSUE-001 row 4); 1,308 -> 1,200 LUT, 894 -> 772 FF, WNS +0.190..+0.470 -> +0.424..+0.660 over 3 placer directives |
 | [TASK-001](task/closed/TASK-001.md) | Tetrad compute FSM: kestrel-evaluation answered by gatling; PRD §7 decisions all settled (2026-10-21: implicit context, separate program regions, context-lock) |

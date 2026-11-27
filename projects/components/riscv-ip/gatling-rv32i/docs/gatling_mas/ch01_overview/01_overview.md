@@ -52,7 +52,7 @@ The figure is drawn from `gatling_core.sv`: the ranks are the four stages, the b
 
 gatling's ISA contract is kestrel's (PRD 3): the same opcode map, the same trap/halt causes, the same CSR stub, FENCE/FENCE.I as NOPs, MRET falling through. The blocks that implement it are the `riscv-ip/common-rv32i` blocks kestrel also instantiates, used unchanged through their own filelists (`$RV32I_COMMON_ROOT`): `rv32i_decode`, `rv32i_imm_gen`, `rv32i_alu` and `rv32i_pkg`. One ISA has one source; a fix to the shared decode is a fix to both cores.
 
-New for the barrel: `gatling_core` (the rotation, the per-context state and the stage registers), `gatling_regfile` (four register files in one block RAM) and `gatling_mem_bram` (one memory bank per context, the AXIL loader, per-context run and status).
+New for the barrel: `gatling_core` (the rotation, the per-context state and the stage registers), `gatling_regfile` (four register files in one block RAM) and `gatling_mem_bram` (one memory bank per context, the AXIL loader, per-context run and status). New for Xcell: `gatling_xcell` (the seven custom-0 instructions against each context's cell) and `gatling_tetrad` (the core, the Xcell unit and per context the cell's input memory, alu-infer ALU and result memory).
 
 ## Owner decisions this build implements
 
@@ -61,6 +61,7 @@ New for the barrel: `gatling_core` (the rotation, the per-context state and the 
 | Context visibility: implicit | No context-ID read; software cannot tell contexts apart |
 | Program placement: separate | One 16 KB program/data bank per context, seen at every address |
 | Illegal instruction: context-lock | Every halt stops only its context; the other three keep running |
-| Scope: RV32I barrel first | Xcell (custom-0) decodes as illegal until the cell seam exists |
+| Scope: RV32I barrel first, Xcell next | Xcell built behind `XCELL_EN` (`gatling_xcell`, `gatling_tetrad`); the barrel-only builds keep it off and custom-0 illegal |
+| Xcell encoding and semantics (owner, 2026-11-26) | CFG on funct3 110 (I-type index); x0 is the ALU port for POP and PUSH; KICK / WAIT a one-shot barrier |
 
 : Table 1.2: PRD decisions realized in the RTL
