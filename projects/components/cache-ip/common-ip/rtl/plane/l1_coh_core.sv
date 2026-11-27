@@ -115,6 +115,9 @@ module l1_coh_core
     // target; l1_control presents addresses a cycle ahead), 0 = the
     // original combinational read (distributed RAM)
     parameter bit DATA_SYNC_READ = 1'b1,
+    // amber TASK-006: 1 = sole coherent master; read fills install E
+    // (l1_control READ_FILL_E). Default 0 installs S.
+    parameter bit READ_FILL_E    = 1'b0,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH
@@ -312,7 +315,8 @@ module l1_coh_core
         .LINE_BYTES (LINE_BYTES),
         .BUS_WIDTH  (BUS_WIDTH),
         .PF_GUARD   (PF_GUARD),
-        .DATA_SYNC_READ (DATA_SYNC_READ)
+        .DATA_SYNC_READ (DATA_SYNC_READ),
+        .READ_FILL_E    (READ_FILL_E)
     ) u_control (
         .clk                     (clk),
         .rst_n                   (rst_n),

@@ -85,7 +85,7 @@ The CPU word is 32 bits and amber's beat 64, with no width converter: the word r
 
 ## The Upgrade Cost
 
-amber installs every read fill Shared (its AXI4 plane sees no IsShared), so the first store to a line a load brought in pays a CleanUnique upgrade, a 1-beat AR the memory answers. It is correct on any AXI4 memory and a cost on a single-core system; cache-ip/amber-mesi-l1 TASK-006 is open to install such fills Exclusive.
+amber's AXI4 plane sees no IsShared, so by default amber installs every read fill Shared, and the first store to a line a load brought in pays a CleanUnique upgrade (a 1-beat AR the memory answers). peregrine's D\$ is the system's only coherent master and its snoop port is tied idle, so `peregrine_top` sets amber's `READ_FILL_E = 1` (cache-ip/amber-mesi-l1 TASK-006): read fills install Exclusive, and that store is a write hit. On the CPI kernels this removes 0.08% of cycles.
 
 ---
 

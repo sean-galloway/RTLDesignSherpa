@@ -447,7 +447,7 @@ the worked version, with measured miss rates replacing the assumed ones.
   in spike lockstep, arch-test M and `Zifencei`, the interrupt suite, and
   self-modifying code through dirty D$ lines. fence.i also redirects at
   `CACHE_EN=0` (owner 2026-11-25), so the cacheless build passes
-  `Zifencei` too. The fill-as-S upgrade cost is amber TASK-006. First OOC of `peregrine_top` on xc7a100t-1: WNS -9.3 ns at
+  `Zifencei` too. The fill-as-S upgrade cost was amber TASK-006 (closed 2026-11-26: peregrine sets amber's `READ_FILL_E`, so read fills install E; kernels -0.08% cycles). First OOC of `peregrine_top` on xc7a100t-1: WNS -9.3 ns at
   10 ns, input to stage 7 (P14).
 - 2026-11-24: P7 amended (owner): the uncached I/O window is
   0x1000_0000-0x1FFF_FFFF, not "0x1000_0000 and up", so the test images at

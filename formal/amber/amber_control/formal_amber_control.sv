@@ -205,6 +205,8 @@ module formal_amber_control (
     logic obs_pend_vld_q;
     logic [2:0]        obs_pend_state_q;
     logic [2:0]        obs_install_state_eff;
+    logic [2:0]        obs_req_class_q;
+    logic              obs_fill_pass_dirty_q;
     logic [15:0]       obs_sn_return_q;
     logic obs_fill_seen_q;
     logic obs_fill_done_q;
@@ -329,6 +331,8 @@ module formal_amber_control (
         .pend_vld_q               (obs_pend_vld_q),
         .pend_state_q             (obs_pend_state_q),
         .install_state_eff        (obs_install_state_eff),
+        .req_class_q              (obs_req_class_q),
+        .fill_pass_dirty_q        (obs_fill_pass_dirty_q),
         .sn_return_q              (obs_sn_return_q),
         .fill_seen_q              (obs_fill_seen_q),
         .fill_done_q              (obs_fill_done_q),
@@ -558,6 +562,8 @@ module formal_amber_control (
         .pend_vld_q               (obs_pend_vld_q),
         .pend_state_q             (obs_pend_state_q),
         .install_state_eff        (obs_install_state_eff),
+        .req_class_q              (obs_req_class_q),
+        .fill_pass_dirty_q        (obs_fill_pass_dirty_q),
         .sn_return_q              (obs_sn_return_q),
         .fill_seen_q              (obs_fill_seen_q),
         .fill_done_q              (obs_fill_done_q),
@@ -670,6 +676,8 @@ module amber_control_props (
     input  logic        pend_vld_q,
     input  logic [2:0]  pend_state_q,
     input  logic [2:0]  install_state_eff,
+    input  logic [2:0]  req_class_q,
+    input  logic        fill_pass_dirty_q,
     input  logic [15:0] sn_return_q,
     input  logic        fill_seen_q,
     input  logic        fill_done_q,
@@ -956,6 +964,24 @@ module amber_control_props (
                     && (ctrl_tag_a_wr_set == req_set)
                     && (ctrl_tag_a_wr_way_onehot == (upgr_q ? hit_way_onehot : victim_way_onehot))
                     && (ctrl_tag_a_wr_tag_state == {req_tag, install_state_eff})));
+    end
+
+    // S3b fill install rule (MAS ch03/03 fabric_ace, amber TASK-006),
+    // stated independently of the DUT's install_state: with no armed
+    // snoop effect, a ReadNotSharedDirty fill without PassDirty installs
+    // F_READ_FILL_STATE, and every other fill (PassDirty, ReadUnique,
+    // CleanUnique / MakeUnique upgrade) installs Modified. The flat pins
+    // READ_FILL_E=0 (amber's configuration), so F_READ_FILL_STATE is
+    // Shared; READ_FILL_E=1 (peregrine) changes only this constant.
+    localparam [2:0] F_STATE_S         = 3'b001;
+    localparam [2:0] F_STATE_M         = 3'b011;
+    localparam [2:0] F_READ_FILL_STATE = F_STATE_S;
+    always @(posedge clk) begin
+        if (rst_n)
+            ap_fill_install_rule: assert (!(ctrl_state == CS_FILL_WRITE && !pend_vld_q)
+                || (ctrl_tag_a_wr_tag_state[2:0] ==
+                    ((req_class_q == ACE_READ_NOT_SHARED_DIRTY && !fill_pass_dirty_q)
+                        ? F_READ_FILL_STATE : F_STATE_M)));
     end
 
     // S4 an armed post-commit snoop effect (invalidation-sticks) is what the

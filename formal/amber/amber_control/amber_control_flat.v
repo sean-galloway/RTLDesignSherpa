@@ -298,17 +298,17 @@ module l1_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:329:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:337:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:331:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:339:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:333:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:341:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:335:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:343:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:337:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:345:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
 		if (8 < 1)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:339:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 8 must be >= 1");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:347:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 8 must be >= 1");
 	end
 	localparam signed [31:0] CTRL_BITS = 16;
 	localparam [15:0] OH_IDLE = 16'h0001;
@@ -464,7 +464,7 @@ module l1_control (
 	wire pf_clear;
 	wire [2:0] install_state;
 	wire [2:0] install_state_eff;
-	assign install_state = ((req_class_q == 3'b110) && !fill_pass_dirty_q ? 3'b001 : 3'b011);
+	assign install_state = ((req_class_q == 3'b110) && !fill_pass_dirty_q ? (0 ? 3'b010 : 3'b001) : 3'b011);
 	assign install_state_eff = (pend_vld_q ? pend_state_q : install_state);
 	assign pf_load = ((state_q == OH_MISS_FILL) && !upgr_q) && !pf_active;
 	assign pf_clear = state_q == OH_FILL_WRITE;

@@ -51,10 +51,12 @@
 //          is selected by the accepted address's lane bit, registered at
 //          the accept.  amber's ACE snoop port is tied idle: one core, no
 //          other cache, so no snoop ever arrives (amber MAS ch03/04).
-//          amber installs every read fill Shared (its AXI4 plane sees no
-//          IsShared), so the first store to a line a load brought in pays a
-//          CleanUnique upgrade: a 1-beat AR the memory answers.  Correct on
-//          any AXI4 memory; a cost recorded in TASK-001.
+//          amber's AXI4 plane sees no IsShared, so by default it installs
+//          every read fill Shared and the first store to a line a load
+//          brought in pays a CleanUnique upgrade.  With no other cache in
+//          the system that is pure cost, so peregrine sets READ_FILL_E=1:
+//          read fills install Exclusive and that store is a write hit
+//          (amber TASK-006).
 //
 //          D$ clean (amber TASK-004): one engine issues amber's clean-all
 //          ({maint=1, we=0}) when no access is in flight, and waits for its
@@ -551,7 +553,8 @@ module peregrine_top #(
         .AXI_ID_WIDTH   (AXI_IW),
         .AXI_USER_WIDTH (1),
         .USE_MONITOR    (1'b0),
-        .MAINT_EN       (1'b1)
+        .MAINT_EN       (1'b1),
+        .READ_FILL_E    (1'b1)
     ) u_dcache (
         .aclk             (clk),
         .aresetn          (w_aresetn),

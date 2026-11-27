@@ -87,6 +87,11 @@ module amber_top
     // addr ({maint, addr, we, be, wdata}; peregrine's fence.i). Default 0
     // keeps the classic packing for every existing consumer.
     parameter bit MAINT_EN       = 1'b0,
+    // amber TASK-006: 1 = no other coherent cache exists (the snoop port
+    // is tied idle), so read fills install E: the AXI4 plane carries no
+    // IsShared, and this is the only way to know a line is unshared.
+    // Default 0 installs S (pair rig, Genesys2 harness).
+    parameter bit READ_FILL_E    = 1'b0,
     localparam int STRB_W       = BUS_WIDTH / 8,
     localparam int IW           = AXI_ID_WIDTH,
     localparam int UW           = AXI_USER_WIDTH,
@@ -379,7 +384,8 @@ module amber_top
         .USE_MONITOR    (USE_MONITOR),
         // amber_top always sits behind a coherence fabric (pair rig,
         // Genesys2 harness): enable the BUG-002 pending-fill snoop guard.
-        .PF_GUARD       (1'b1)
+        .PF_GUARD       (1'b1),
+        .READ_FILL_E    (READ_FILL_E)
     ) u_coh (
         .clk               (aclk),
         .rst_n             (w_aresetn),

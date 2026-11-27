@@ -11,21 +11,21 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-006** — install a read fill as E when the response says the line is not shared (IsShared = 0); today every fill is S and a load-then-store line pays an upgrade (riscv-ip/peregrine-rv32im TASK-001 stage 4).
 
 ## Active
 
 
 ## Closed
 
+- **TASK-006** — read fills install E behind `READ_FILL_E` (default 0; peregrine sets 1, as the only coherent master). The fabrics return no IsShared, so the rule is not unconditional. Formal `ap_fill_install_rule`; peregrine kernels -0.08% cycles. Closed 2026-11-26.
 - **TASK-007** — amber closes 75 MHz on xc7a100t-1: `amber_top` +0.560 at 13.333 ns (+0.100 at 13.0), `peregrine_top` 13.333 ns; five timing changes in `l1_control` / `l1_snoop_resp`, 1-cycle hit kept. Closed 2026-11-26.
 - **TASK-004** — CPU-side clean-all request, for peregrine's `fence.i` (riscv-ip/peregrine-rv32im PRD P10). Closed 2026-11-24: `MAINT_EN=1` maint op, WriteClean walk, response after the last B (da9e8df71); peregrine `fence_i` and `Zifencei` pass at `CACHE_EN=1`.
 - **TASK-005** — pipelined hit path on the CPU port, for peregrine's MEM stage (PRD P13 option (b)). Closed 2026-11-24: read hit 1 cycle / issue every cycle, write hit 1 / 2 (was 4 / 3); HIT_RUN_MAX=8 bounds snoop wait to 9; common-ip FULL 255/255, amber FULL 121/121, formal cover/live/safety PASS, OOC WNS +0.342 ns.

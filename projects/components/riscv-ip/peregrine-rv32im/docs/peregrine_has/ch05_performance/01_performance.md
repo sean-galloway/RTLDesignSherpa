@@ -41,7 +41,7 @@ peregrine has no performance target (PRD §2); this chapter reports what was mea
 | D\$ hit (load or store) | 0 | Accepted in MEM, response in WB (amber TASK-005) |
 | Access in the cycle after a D\$ write hit | 1 | A write hit holds amber's port a second cycle |
 | D\$ miss | amber's miss time | 29 cycles from accept to response on amber's pair rig bench memory (PRD P13) |
-| First store to a line a load brought in | amber's upgrade | amber installs fills Shared; the store pays a CleanUnique upgrade, 18 cycles on the rig (amber TASK-006 is open to install Exclusive) |
+| First store to a line a load brought in | 0 | peregrine sets amber's `READ_FILL_E`: read fills install Exclusive, so the store is a write hit (amber TASK-006; Shared would cost an 18-cycle CleanUnique upgrade on the rig) |
 | I\$ miss | refill | One AR, a whole-line INCR burst (8 beats at 64 B / 64-bit), one replay cycle, plus fabric latency |
 | CLINT access | 0 | Response the next cycle |
 | Uncached access | one AXI4 round trip | A store waits for its B response (stores are not posted) |

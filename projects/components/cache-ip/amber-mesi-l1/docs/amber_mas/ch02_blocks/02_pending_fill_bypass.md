@@ -50,7 +50,7 @@ While a fill is outstanding, a snoop may arrive for the same line. The pending-f
 The register is loaded in `CTRL_MISS_FILL` when the fill is launched. `pf_state` is determined by the request type:
 
 - Read miss to shared → `STATE_S`
-- Read miss to exclusive → `STATE_E` (arrives with the Task 5 fill FUB's exclusive qualifier; unreachable in the Task 4 integration, which installs S deterministically)
+- Read miss to exclusive → `STATE_E`, only with `READ_FILL_E = 1` (amber TASK-006: the cache is the only coherent master, as in peregrine). Every other build installs S, because the fabrics do not return IsShared (ch03/03).
 - Write miss (whole-line allocate) → `STATE_M`
 
 **An upgrade (`CLEAN_UNIQUE`) does NOT load the register** (MINOR-1

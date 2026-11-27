@@ -270,6 +270,7 @@ module amber_top #(
     parameter int AXI_USER_WIDTH = 1,
     parameter bit USE_MONITOR    = 1'b1,
     parameter bit MAINT_EN       = 1'b0,
+    parameter bit READ_FILL_E    = 1'b0,   // amber TASK-006; CPU-port contract unchanged
     localparam int STRB_W        = BUS_WIDTH / 8,
     localparam int IW            = AXI_ID_WIDTH,
     localparam int UW            = AXI_USER_WIDTH,

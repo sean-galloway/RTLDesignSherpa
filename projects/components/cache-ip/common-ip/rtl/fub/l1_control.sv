@@ -207,6 +207,14 @@ module l1_control
     // streams. Cycle behaviour is otherwise identical.
     parameter bit DATA_SYNC_READ = 1'b0,
     parameter int HIT_RUN_MAX    = 8,
+    // amber TASK-006: 1 = this cache is the system's only coherent master
+    // (no peer cache can hold a copy), so a ReadNotSharedDirty fill without
+    // PassDirty installs Exclusive instead of Shared and the first store to
+    // it is a write hit, not a CleanUnique upgrade. 0 (default): install S,
+    // the only safe rule while the fabric does not return IsShared (the
+    // AXI4 plane pads RRESP[3:2] to 0; amber_pair_fabric and onyx do not
+    // compute it). Set only where no snoop can ever arrive (peregrine).
+    parameter bit READ_FILL_E    = 1'b0,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH - LINE_OFFSET_WIDTH,
@@ -572,9 +580,10 @@ module l1_control
     logic                        pf_load, pf_clear;
 
     // install state at FILL_WRITE / bypass load: ReadNotSharedDirty fills
-    // install Shared unless the interconnect returned PassDirty (RRESP[2]),
-    // in which case the cache owns the dirty data and must install Modified
-    // so the write-back responsibility is not lost. All write, upgrade, and
+    // install Shared (Exclusive under READ_FILL_E) unless the interconnect
+    // returned PassDirty (RRESP[2]), in which case the cache owns the dirty
+    // data and must install Modified so the write-back responsibility is
+    // not lost. All write, upgrade, and
     // MakeUnique transactions install Modified (MAS ch02_blocks/02) -- unless
     // a snoop's post-commit effect (downgrade S / invalidation I) is pending;
     // an armed I is never overwritten by a later S.
@@ -582,7 +591,7 @@ module l1_control
 
     assign install_state =
         (req_class_q == AMBER_ACE_READ_NOT_SHARED_DIRTY && !fill_pass_dirty_q)
-            ? AMBER_STATE_S : AMBER_STATE_M;
+            ? (READ_FILL_E ? AMBER_STATE_E : AMBER_STATE_S) : AMBER_STATE_M;
     assign install_state_eff = pend_vld_q ? pend_state_q : install_state;
 
     assign pf_load = (state_q == OH_MISS_FILL) && !upgr_q && !pf_active;

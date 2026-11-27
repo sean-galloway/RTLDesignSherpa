@@ -64,9 +64,13 @@ passes (owner, 2026-11-25).
 
 ## The cost of filling shared
 
-amber installs every read fill as Shared, because the plain AXI4 fabric
-returns no "is shared" information. In a single-core system the first
-store to a line a load brought in therefore pays an upgrade round trip
-(18 cycles from the accept on amber's test rig, Section 5.2, against 1 for a write hit). The
-fix, installing Exclusive when the response says nobody else holds the
-line, is amber's work: cache-ip/amber-mesi-l1 TASK-006.
+A plain AXI4 fabric returns no "is shared" information, so amber
+installs a read fill as Shared by default. Then the first store to a line
+a load brought in pays an upgrade round trip (18 cycles from the accept
+on amber's test rig, Section 5.2, against 1 for a write hit). peregrine
+knows something the fabric cannot say: its D\$ is the only cache in the
+system, so no other copy can exist. It sets amber's `READ_FILL_E`, read
+fills install Exclusive, and that first store is an ordinary write hit
+(cache-ip/amber-mesi-l1 TASK-006). On the CPI kernels the saving is small,
+0.08% of cycles, because most stored-to lines are first brought in by a
+store, which already installs Modified.
