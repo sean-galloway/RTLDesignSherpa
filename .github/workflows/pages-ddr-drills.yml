@@ -38,7 +38,7 @@ jobs:
 
       # Node 20 for deterministic Math/DOM-free behavior; the suites are
       # zero-dependency, so this job stays fast.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
 
