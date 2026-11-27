@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/jet-mesi-l1 — bugs
 
-**Next ID: BUG-008** — never recycle a number, even when its item closed.
+**Next ID: BUG-009** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what
 correct looks like. If you cannot state the expected behaviour, it is an
@@ -12,7 +12,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Open
 
-(none)
+- **BUG-008** ([page](open/BUG-008.md)) — jet_pair_fabric's safe-peer wait counts the peer's LOOKUP / HIT states as unsafe: a miss waits for as long as the peer hits back to back (board r4k_we0 depth >= 2 after the GO: one injector runs after the other). P1. Filed 2026-11-27.
 
 ## Active
 

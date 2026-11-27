@@ -698,3 +698,33 @@ Found and measured:
   the same sequential runs. Results
   `perf_sweep_onyx_bin7_dual_20261127T071454Z.json`,
   `perf_sweep_onyx_bin7_hot_dual_20261127T071454Z.json`.
+- 2026-11-27 **bin 8 = the GO rebuild (common-ip BUG-001, 6d10c92f5),
+  the first concurrent board run:** SEL 4 / 5 rebuilt with the harness GO,
+  post-route WNS -0.063 / -0.161 ns, +0.004 / +0.000 after the post-route
+  phys_opt (shipped), hold clean; `ref_onyx` sha256 bfde49148071d529,
+  `ref_onyxd` 81d9a070fd9112c4. One `board_lock.sh` session with every
+  rig (stamp 20261127T091929Z): program, init + smoke, the 55-cell dual
+  sweep, the hot set, io -- all PASS, 0 injector errors in all 120 onyx
+  cells. The hot set reaches both corners on the board: CleanUnique +
+  DataTransfer 16 / 58 / 121 / 175 / 202 (SEL 4, depth 1-16; SEL 5 23-189),
+  old write-backs 229-960 (SEL 5 189-930), ~10,700-12,400 lines supplied
+  -- BUG-001's and BUG-003's fixes exercised on hardware, no error. SEL 4
+  keeps `read_wasted <= supplied - cu_dt` in all 60 cells, SEL 5 wastes 0
+  in all 60. Sim of the hot cell from reset (`onyx_hot_set_test`,
+  `HOT_COUNT=20000`): depth 1 transactions 27,894, write-backs 8,545,
+  cu_dt 16, old_wb 229 exact on SEL 4 (supplied / absorb / mem_read /
+  wasted +-1; SEL 5 likewise, mem_read +-2); depth 16 within ~5 % (cu_dt
+  202 board / 193 sim; the board cell runs warm after the 55-cell sweep,
+  not reproduced exactly). The D6 trade re-measured concurrently: reads
+  wasted 94 % of memory reads on `r16k_we64`, 54 % on `r64k_we255`, 49 %
+  on the hot set (the sequential bin 2 had 1-30 %); the deferred mode
+  saves that fraction for -1 to +10 % cycles at depth 1 and -2 to +3 % at
+  depth 16. onyx against `jet_prime_pair_fabric` concurrently: 32 of 55
+  dual cells cycle-identical, up to 12 % slower only on the single
+  hammered line `r64b_we64`. The tally's unexpected count grows with
+  contention (SEL 4 `smoke4k_we64` d1: 105 sequential, 11,030 concurrent):
+  most likely LOCK_WAIT (0x27), which the ref-onyx profile does not bin
+  and which only fires under contention -- not confirmed per code. The
+  comparison report carries the new onyx counters table and a two-core
+  table. Results `perf_sweep_onyx{,d}_go_dual_20261127T091929Z.json`,
+  `perf_sweep_onyx{,d}_go_hot_dual_20261127T091929Z.json`.

@@ -30,6 +30,22 @@ built to reach a coherence corner reached it in sim (12,380 lines supplied)
 and not on the board (8); the sim with injector 1 started after injector 0
 reproduced the board's 22,874 transactions exactly.
 
+What the first concurrent run found (2026-11-27, every rig rebuilt with
+the GO): a liveness bug in the jet pair fabric that every sequential run
+had hidden -- a miss waits for as long as the peer cache hits back to back
+(jet BUG-008) -- and a D6 trade on onyx several times larger than the
+sequential counters said (reads wasted 49-94 % of memory reads on the
+shared sets, against 1-30 %). A launch defect does not just blur numbers;
+it hides the bugs the measurement exists to find.
+
+Checking a launch change on the board: a sweep that runs AFTER a
+concurrent one inherits a different memory image and cache state (two
+writers to a shared address end in either order), so its CRCs move even
+where the change cannot reach. The clean control is a rig whose sweep
+follows only program and smoke: on the GO rebuild HPDcache and CVA6 equal
+their previous single-core sweeps in 54 of 55 cells (the first cell
+follows the GO-launched smoke).
+
 The sim cannot show this on its own: its AXI-Lite driver issues the two
 writes tens of cycles apart, so both engines overlap and the sim looks
 right. A sim test of the launch has to check the start CYCLE (below), not

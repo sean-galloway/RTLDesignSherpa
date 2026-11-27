@@ -321,6 +321,8 @@ async def smoke_test(dut):
     base = 0x0000_0000
     base1 = int(os.environ.get('JET_SMOKE_BASE1', '0'), 0)
     count = int(os.environ.get('JET_SMOKE_COUNT', '200'))
+    we_mix = int(os.environ.get('JET_SMOKE_WE_MIX', '64'), 0)
+    outstanding = int(os.environ.get('JET_SMOKE_OUTSTANDING', '0'), 0)
 
     for ci_base, seed, ci_addr_base in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678, base),
                                   (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF, base1)]:
@@ -328,12 +330,12 @@ async def smoke_test(dut):
         await tb.write32(ci_base + CI_ADDR_BASE, ci_addr_base)
         await tb.write32(ci_base + CI_ADDR_MASK, mask)
         await tb.write32(ci_base + CI_TRANS_COUNT, count)
-        ctrl = (64 << 8) | 0x00
+        ctrl = ((outstanding & 0xFF) << 16) | ((we_mix & 0xFF) << 8)   # run = 0: staged
         await tb.write32(ci_base + CI_CTRL, ctrl)
 
-    # Start both injectors
-    await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, (64 << 8) | 0x01)
-    await tb.write32(ADDR_CYCLE_INJECTOR1 + CI_CTRL, (64 << 8) | 0x01)
+    # Start both injectors with the one harness GO, as JetDriver.start_all
+    # does on the board (handbook launch-go)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_GO, 0x3)
 
     # Poll for done with a generous but bounded timeout.
     max_cycles = 500_000
@@ -365,6 +367,18 @@ async def smoke_test(dut):
 
     dut._log.info(f"ci0 status=0x{status0:08x} err=0x{err0:08x} rsp_crc=0x{rsp_crc0:016x}")
     dut._log.info(f"ci1 status=0x{status1:08x} err=0x{err1:08x} rsp_crc=0x{rsp_crc1:016x}")
+    cyc0 = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_RUN_CYCLES)
+    cyc1 = await tb.read32(ADDR_CYCLE_INJECTOR1 + CI_RUN_CYCLES)
+    dut._log.info(f"run_cycles ci0={cyc0} ci1={cyc1}")
+    # JET_SMOKE_JSON=<path> records the run for a board-vs-sim comparison
+    # (the cocotb logger output is not kept per test)
+    smoke_json = os.environ.get('JET_SMOKE_JSON')
+    if smoke_json:
+        import json
+        with open(smoke_json, "w") as fh:
+            json.dump({"mask": mask, "base1": base1, "count": count, "we_mix": we_mix,
+                       "outstanding": outstanding, "run_cycles": [cyc0, cyc1],
+                       "rsp_crc": [f"{rsp_crc0:016x}", f"{rsp_crc1:016x}"]}, fh)
 
     # Read a few tally bins
     bins = []

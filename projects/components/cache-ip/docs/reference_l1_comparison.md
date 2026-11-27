@@ -21,8 +21,14 @@ memory read alongside the snoop (`REF_CACHE_SEL=4`) and deferred until the
 gather (`REF_CACHE_SEL=5`), plus a table of the two managers alone;
 2026-11-22, the onyx counters table -- the D6 trade counted on the board
 (reads issued, lines supplied, reads wasted) from the bin 2 builds with
-the pair block's tally chain. Re-run `ref/bin/ref_compare.py` after any
-new sweep.
+the pair block's tally chain; 2026-11-27, **every "both injectors" result
+before this date was sequential, not concurrent** (cache-ip common-ip
+BUG-001: the host started the two injectors with two UART writes >= 16 ms
+apart, longer than a run, so injector 1 ran after injector 0 finished).
+The rigs now launch both with one harness GO; the onyx counters table is
+re-measured that way and a two-core table is added (both from the GO
+rebuild of every rig). The single-core tables are unaffected. Re-run
+`ref/bin/ref_compare.py` after any new sweep.
 **Rig:** Genesys 2 (Kintex-7 325T-2), 100 MHz, the cache-ip pair harness
 with the pipelined cycle injector (common-ip TASK-002), the house 512 KB
 AXI4 block-RAM memory, one UART host stack.
@@ -223,55 +229,92 @@ Error flags / unfinished runs across all sources: 0
 |---|---|---|---|---|---|
 | jet_prime_pair_fabric | 4300 | 1660 | 1296 | +2.757 | 10 |
 | onyx_ccu (N_PORTS 2) | 4628 | 1664 | 1296 | +2.885 | 9 |
-### onyx counters, both injectors (the D6 trade: reads issued, lines supplied, reads wasted)
+### onyx counters, both injectors started by one GO (the D6 trade: reads issued, lines supplied, reads wasted)
 
-- onyx: `perf_sweep_onyx_bin2_dual_20261122T151054Z.json`
-- onyx-d: `perf_sweep_onyxd_bin2_dual_20261122T151512Z.json`
+- onyx: `perf_sweep_onyx_go_dual_20261127T091929Z.json`, `perf_sweep_onyx_go_hot_dual_20261127T091929Z.json`
+- onyx-d: `perf_sweep_onyxd_go_dual_20261127T091929Z.json`, `perf_sweep_onyxd_go_hot_dual_20261127T091929Z.json`
 
-| config | depth | mode | transactions | memory reads | lines supplied | reads wasted | wasted / issued | absorptions | write-backs |
-|---|---|---|---|---|---|---|---|---|---|
-| r4k_we0 | 1 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 16 |
-| r4k_we0 | 1 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 16 |
-| r4k_we0 | 4 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 16 |
-| r4k_we0 | 4 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 16 |
-| r4k_we0 | 16 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 16 |
-| r4k_we0 | 16 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 16 |
-| r4k_we255 | 1 | onyx | 128 | 64 | 64 | 64 | 1.000 | 64 | 0 |
-| r4k_we255 | 1 | onyx-d | 128 | 0 | 64 | 0 | 0.000 | 64 | 0 |
-| r4k_we255 | 4 | onyx | 128 | 64 | 64 | 64 | 1.000 | 64 | 16 |
-| r4k_we255 | 4 | onyx-d | 128 | 0 | 64 | 0 | 0.000 | 64 | 16 |
-| r4k_we255 | 16 | onyx | 128 | 64 | 64 | 64 | 1.000 | 64 | 16 |
-| r4k_we255 | 16 | onyx-d | 128 | 0 | 64 | 0 | 0.000 | 64 | 16 |
-| smoke4k_we64 | 1 | onyx | 64 | 64 | 16 | 16 | 0.250 | 16 | 0 |
-| smoke4k_we64 | 1 | onyx-d | 64 | 48 | 16 | 0 | 0.000 | 16 | 0 |
-| smoke4k_we64 | 4 | onyx | 32 | 32 | 32 | 32 | 1.000 | 32 | 32 |
-| smoke4k_we64 | 4 | onyx-d | 32 | 0 | 32 | 0 | 0.000 | 32 | 32 |
-| smoke4k_we64 | 16 | onyx | 32 | 32 | 32 | 32 | 1.000 | 32 | 32 |
-| smoke4k_we64 | 16 | onyx-d | 32 | 0 | 32 | 0 | 0.000 | 32 | 32 |
-| r16k_we64 | 1 | onyx | 381 | 381 | 116 | 116 | 0.304 | 116 | 46 |
-| r16k_we64 | 1 | onyx-d | 381 | 265 | 116 | 0 | 0.000 | 116 | 46 |
-| r16k_we64 | 4 | onyx | 383 | 383 | 116 | 116 | 0.303 | 116 | 77 |
-| r16k_we64 | 4 | onyx-d | 383 | 267 | 116 | 0 | 0.000 | 116 | 77 |
-| r16k_we64 | 16 | onyx | 383 | 383 | 116 | 116 | 0.303 | 116 | 77 |
-| r16k_we64 | 16 | onyx-d | 383 | 267 | 116 | 0 | 0.000 | 116 | 77 |
-| r64k_we64 | 1 | onyx | 20240 | 20240 | 192 | 192 | 0.009 | 192 | 4778 |
-| r64k_we64 | 1 | onyx-d | 20240 | 20048 | 192 | 0 | 0.000 | 192 | 4778 |
-| r64k_we64 | 4 | onyx | 20240 | 20240 | 192 | 192 | 0.009 | 192 | 4810 |
-| r64k_we64 | 4 | onyx-d | 20240 | 20048 | 192 | 0 | 0.000 | 192 | 4810 |
-| r64k_we64 | 16 | onyx | 20240 | 20239 | 192 | 191 | 0.009 | 192 | 4810 |
-| r64k_we64 | 16 | onyx-d | 20240 | 20048 | 192 | 0 | 0.000 | 192 | 4810 |
-| r64k_we255 | 1 | onyx | 20490 | 20303 | 637 | 637 | 0.031 | 637 | 19367 |
-| r64k_we255 | 1 | onyx-d | 20490 | 19666 | 637 | 0 | 0.000 | 637 | 19367 |
-| r64k_we255 | 4 | onyx | 20490 | 20303 | 637 | 637 | 0.031 | 637 | 19367 |
-| r64k_we255 | 4 | onyx-d | 20490 | 19666 | 637 | 0 | 0.000 | 637 | 19367 |
-| r64k_we255 | 16 | onyx | 20490 | 20303 | 637 | 637 | 0.031 | 637 | 19367 |
-| r64k_we255 | 16 | onyx-d | 20490 | 19666 | 637 | 0 | 0.000 | 637 | 19367 |
-| r128k_we64 | 1 | onyx | 30083 | 30083 | 638 | 638 | 0.021 | 638 | 7258 |
-| r128k_we64 | 1 | onyx-d | 30083 | 29445 | 638 | 0 | 0.000 | 638 | 7258 |
-| r128k_we64 | 4 | onyx | 30083 | 30083 | 638 | 638 | 0.021 | 638 | 7258 |
-| r128k_we64 | 4 | onyx-d | 30083 | 29445 | 638 | 0 | 0.000 | 638 | 7258 |
-| r128k_we64 | 16 | onyx | 30083 | 30072 | 638 | 627 | 0.021 | 638 | 7258 |
-| r128k_we64 | 16 | onyx-d | 30083 | 29445 | 638 | 0 | 0.000 | 638 | 7258 |
+| config | depth | mode | transactions | memory reads | lines supplied | reads wasted | wasted / issued | absorptions | write-backs | CleanUnique + DT | old write-backs |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 0 | 0 | 0 |
+| r4k_we0 | 1 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 0 | 0 | 0 |
+| r4k_we0 | 4 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 0 | 0 | 0 |
+| r4k_we0 | 4 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 0 | 0 | 0 |
+| r4k_we0 | 16 | onyx | 16 | 16 | 16 | 16 | 1.000 | 16 | 0 | 0 | 0 |
+| r4k_we0 | 16 | onyx-d | 16 | 0 | 16 | 0 | 0.000 | 16 | 0 | 0 | 0 |
+| r4k_we255 | 1 | onyx | 20590 | 20425 | 20425 | 20425 | 1.000 | 20425 | 0 | 0 | 0 |
+| r4k_we255 | 1 | onyx-d | 20590 | 0 | 20425 | 0 | 0.000 | 20425 | 0 | 0 | 0 |
+| r4k_we255 | 4 | onyx | 19111 | 18946 | 18946 | 18943 | 1.000 | 18946 | 0 | 3 | 0 |
+| r4k_we255 | 4 | onyx-d | 18823 | 3 | 18654 | 0 | 0.000 | 18654 | 0 | 3 | 0 |
+| r4k_we255 | 16 | onyx | 15180 | 15032 | 15039 | 15028 | 1.000 | 15039 | 0 | 4 | 0 |
+| r4k_we255 | 16 | onyx-d | 15087 | 7 | 14924 | 0 | 0.000 | 14924 | 0 | 7 | 0 |
+| smoke4k_we64 | 1 | onyx | 5220 | 5220 | 5220 | 5220 | 1.000 | 5220 | 0 | 0 | 0 |
+| smoke4k_we64 | 1 | onyx-d | 5220 | 0 | 5220 | 0 | 0.000 | 5220 | 0 | 0 | 0 |
+| smoke4k_we64 | 4 | onyx | 5041 | 5041 | 5041 | 5041 | 1.000 | 5041 | 0 | 0 | 0 |
+| smoke4k_we64 | 4 | onyx-d | 5041 | 0 | 5041 | 0 | 0.000 | 5041 | 0 | 0 | 0 |
+| smoke4k_we64 | 16 | onyx | 4823 | 4823 | 4823 | 4823 | 1.000 | 4823 | 0 | 0 | 0 |
+| smoke4k_we64 | 16 | onyx-d | 4818 | 0 | 4818 | 0 | 0.000 | 4818 | 0 | 0 | 0 |
+| r16k_we64 | 1 | onyx | 5493 | 5493 | 5148 | 5148 | 0.937 | 5148 | 9 | 0 | 0 |
+| r16k_we64 | 1 | onyx-d | 5428 | 343 | 5085 | 0 | 0.000 | 5085 | 7 | 0 | 0 |
+| r16k_we64 | 4 | onyx | 5314 | 5314 | 5025 | 5025 | 0.946 | 5025 | 123 | 0 | 0 |
+| r16k_we64 | 4 | onyx-d | 5312 | 286 | 5026 | 0 | 0.000 | 5026 | 120 | 0 | 0 |
+| r16k_we64 | 16 | onyx | 5201 | 5189 | 4913 | 4901 | 0.944 | 4913 | 122 | 0 | 0 |
+| r16k_we64 | 16 | onyx-d | 5294 | 290 | 5004 | 0 | 0.000 | 5004 | 124 | 0 | 0 |
+| r64k_we64 | 1 | onyx | 21773 | 21772 | 3487 | 3486 | 0.160 | 3487 | 2913 | 0 | 0 |
+| r64k_we64 | 1 | onyx-d | 21759 | 18279 | 3480 | 0 | 0.000 | 3480 | 2904 | 0 | 3 |
+| r64k_we64 | 4 | onyx | 21736 | 21735 | 3493 | 3492 | 0.161 | 3493 | 2884 | 0 | 3 |
+| r64k_we64 | 4 | onyx-d | 21774 | 18258 | 3516 | 0 | 0.000 | 3516 | 2900 | 0 | 2 |
+| r64k_we64 | 16 | onyx | 21710 | 21085 | 3478 | 2853 | 0.135 | 3478 | 2871 | 0 | 1 |
+| r64k_we64 | 16 | onyx-d | 21715 | 18234 | 3481 | 0 | 0.000 | 3481 | 2877 | 0 | 2 |
+| r64k_we255 | 1 | onyx | 26164 | 25876 | 13927 | 13926 | 0.538 | 13927 | 11584 | 0 | 5 |
+| r64k_we255 | 1 | onyx-d | 26203 | 11958 | 13959 | 0 | 0.000 | 13959 | 11589 | 0 | 2 |
+| r64k_we255 | 4 | onyx | 26110 | 25830 | 13791 | 13790 | 0.534 | 13791 | 11682 | 1 | 8 |
+| r64k_we255 | 4 | onyx-d | 26128 | 12061 | 13789 | 0 | 0.000 | 13789 | 11692 | 0 | 9 |
+| r64k_we255 | 16 | onyx | 25846 | 25548 | 13491 | 13462 | 0.527 | 13491 | 11764 | 1 | 10 |
+| r64k_we255 | 16 | onyx-d | 26036 | 12166 | 13593 | 0 | 0.000 | 13593 | 11844 | 1 | 11 |
+| r128k_we64 | 1 | onyx | 30398 | 30398 | 2209 | 2209 | 0.073 | 2209 | 6148 | 0 | 0 |
+| r128k_we64 | 1 | onyx-d | 30393 | 28183 | 2210 | 0 | 0.000 | 2210 | 6146 | 0 | 0 |
+| r128k_we64 | 4 | onyx | 30404 | 30399 | 2207 | 2202 | 0.072 | 2207 | 6155 | 0 | 3 |
+| r128k_we64 | 4 | onyx-d | 30398 | 28187 | 2211 | 0 | 0.000 | 2211 | 6152 | 0 | 4 |
+| r128k_we64 | 16 | onyx | 30398 | 29773 | 2246 | 1621 | 0.054 | 2246 | 6070 | 0 | 6 |
+| r128k_we64 | 16 | onyx-d | 30404 | 28180 | 2224 | 0 | 0.000 | 2224 | 6094 | 0 | 4 |
+| hot16_we179 | 1 | onyx | 27894 | 25181 | 12381 | 12314 | 0.489 | 12381 | 8545 | 16 | 229 |
+| hot16_we179 | 1 | onyx-d | 27894 | 12976 | 12300 | 0 | 0.000 | 12300 | 8583 | 23 | 189 |
+| hot16_we179 | 4 | onyx | 26917 | 24283 | 11570 | 11442 | 0.471 | 11570 | 8847 | 121 | 595 |
+| hot16_we179 | 4 | onyx-d | 26973 | 12956 | 11519 | 0 | 0.000 | 11519 | 8925 | 109 | 584 |
+| hot16_we179 | 16 | onyx | 26237 | 23702 | 10750 | 10539 | 0.445 | 10750 | 9381 | 202 | 960 |
+| hot16_we179 | 16 | onyx-d | 26191 | 13188 | 10698 | 0 | 0.000 | 10698 | 9423 | 189 | 930 |
+
+### Two cores at once (both injectors started by one GO; the slower injector, cycles per transaction, and x its single-core figure)
+
+- amber: `perf_sweep_bin14_go_20261127T091929Z.json` against `perf_sweep_bin14_go_single_20261127T091929Z.json`
+- jet: `perf_sweep_bin20_go_20261127T091929Z.json` against `perf_sweep_bin20_go_single_20261127T091929Z.json`
+- jet-prime s6: `perf_sweep_jetpp_go_dual_20261127T091929Z.json` against `perf_sweep_jetpp_go_single_20261127T091929Z.json`
+- onyx: `perf_sweep_onyx_go_dual_20261127T091929Z.json` against `perf_sweep_onyx_bin2_single_20261122T150901Z.json`
+- onyx-d: `perf_sweep_onyxd_go_dual_20261127T091929Z.json` against `perf_sweep_onyxd_bin2_single_20261122T151318Z.json`
+
+Error flags / unfinished runs across the dual sources: 0
+
+| config | depth | amber | jet | jet-prime s6 | onyx | onyx-d |
+|---|---|---|---|---|---|---|
+| r4k_we0 | 1 | 2.03 (1.01x) | 4.02 (1.00x) | 3.01 (1.00x) | 3.01 (1.00x) | 3.01 (1.00x) |
+| r4k_we0 | 4 | 1.15 (1.03x) | 2.02 (2.02x) | 1.01 (1.01x) | 1.01 (1.01x) | 1.01 (1.01x) |
+| r4k_we0 | 16 | 1.15 (1.03x) | 2.02 (2.02x) | 1.01 (1.01x) | 1.01 (1.01x) | 1.01 (1.01x) |
+| r4k_we255 | 1 | 30.11 (14.79x) | 29.07 (7.21x) | 19.48 (6.43x) | 19.48 (6.43x) | 19.48 (6.43x) |
+| r4k_we255 | 4 | 30.67 (15.10x) | 27.40 (26.13x) | 12.28 (11.77x) | 12.38 (11.87x) | 12.22 (11.71x) |
+| r4k_we255 | 16 | 30.67 (15.10x) | 25.32 (24.24x) | 9.85 (9.48x) | 9.85 (9.47x) | 9.76 (9.39x) |
+| smoke4k_we64 | 1 | 8.32 (4.16x) | 9.75 (2.42x) | 7.50 (2.48x) | 7.50 (2.48x) | 7.50 (2.48x) |
+| smoke4k_we64 | 4 | 8.25 (6.45x) | 7.30 (7.25x) | 4.47 (4.44x) | 4.47 (4.44x) | 4.47 (4.44x) |
+| smoke4k_we64 | 16 | 8.25 (6.45x) | 2.03 (2.02x) | 3.65 (3.63x) | 3.65 (3.63x) | 3.64 (3.62x) |
+| r64k_we64 | 1 | 29.92 (1.61x) | 26.47 (1.52x) | 14.77 (1.21x) | 14.77 (1.20x) | 15.91 (1.16x) |
+| r64k_we64 | 4 | 31.49 (1.76x) | 26.27 (2.30x) | 9.54 (1.57x) | 9.53 (1.57x) | 9.50 (1.49x) |
+| r64k_we64 | 16 | 31.49 (1.76x) | 26.59 (2.50x) | 9.09 (1.72x) | 9.09 (1.72x) | 8.98 (1.67x) |
+| r128k_we64 | 1 | 42.28 (1.56x) | 35.74 (1.49x) | 18.14 (1.09x) | 18.14 (1.09x) | 19.94 (1.06x) |
+| r128k_we64 | 4 | 44.83 (1.70x) | 36.80 (2.29x) | 12.69 (1.57x) | 12.69 (1.57x) | 12.48 (1.50x) |
+| r128k_we64 | 16 | 44.83 (1.70x) | 37.04 (2.35x) | 12.46 (1.65x) | 12.52 (1.65x) | 12.23 (1.59x) |
+| disjoint64k_we64 | 1 | 28.30 (1.51x) | 24.14 (1.38x) | 12.94 (1.05x) | 12.94 (1.05x) | 14.28 (1.04x) |
+| disjoint64k_we64 | 4 | 30.61 (1.70x) | 24.15 (2.10x) | 8.90 (1.45x) | 8.90 (1.45x) | 9.04 (1.41x) |
+| disjoint64k_we64 | 16 | 30.61 (1.70x) | 24.68 (2.30x) | 8.61 (1.62x) | 8.61 (1.62x) | 8.63 (1.59x) |
 
 <!-- end generated -->
 
@@ -386,8 +429,12 @@ measures the same way.
   5.81 / 5.82 cycles per transaction on the two injectors against jet's
   10.74 / 10.70, depth 4 7.08 / 7.11 against 11.48 / 11.46, `r64k_we255`
   8.66 / 8.65 against 10.90 / 11.01, `r128k_we64` 8.10 / 8.09 against
-  16.02 / 15.82 -- the same figures as with the peer idle, so the fabric
-  is no longer what a second core costs. Hit floor (3), the 1.00 hit rows
+  16.02 / 15.82 -- the same figures as with the peer idle. **Retracted
+  2026-11-27:** both sweeps ran the injectors one after the other
+  (common-ip BUG-001), so "the same figures as with the peer idle" is
+  what a sequential run gives, not a fabric result; the concurrent
+  numbers are the two-core table (jet-prime `r64k_we64` depth 16 1.72x its
+  single-core figure, jet 2.50x). Hit floor (3), the 1.00 hit rows
   and MLP 10.8 unchanged; smoke CRC on injector 0 is the jet rig's
   (1814064162). The cache-only OOC row is s2's (same cache). Full
   bitstream (bin 3, the step-4 fabric with the memory-AR hold) 17,932 LUT
@@ -434,7 +481,8 @@ measures the same way.
   12). Both injectors active on the same region (`perf_sweep_jetpp_bin4_dual_*.json`):
   `r64k_we64` depth 1 12.78 / 12.74, depth 16 5.32 / 5.34; `r64k_we255`
   depth 1 13.25 / 13.32; `r128k_we64` depth 1 17.20 / 16.98 -- the
-  single-core numbers, as with s3. Every CRC of the 55 single-core runs
+  single-core numbers, as with s3 (sequential, common-ip BUG-001: the
+  peer was never active at the same time). Every CRC of the 55 single-core runs
   equals bin 3's (the data path is untouched; only the timing moved).
   Smoke CRC on injector 0 is the jet rig's (1814064162). Full bitstream
   (bin 4) 18,126 LUT / 11,890 FF, WNS +0.019 ns under the 0.2 ns
@@ -477,7 +525,8 @@ measures the same way.
   the same worst path as bins 3-4 (the fill engine's staging read pointer
   into the data BRAM address); smoke PASS, both 55-run sweeps err 0, all
   55 single-core CRCs equal to bin 4's; dual-active `r64k_we64` depth 1
-  12.28 / 12.25, depth 16 5.30 / 5.32. Cache alone out of context at
+  12.28 / 12.25, depth 16 5.30 / 5.32 (sequential -- common-ip BUG-001;
+  concurrent, 14.77 and 9.09). Cache alone out of context at
   10 ns (`ref/results/ooc/jetp6`): 6,033 LUT / 5,402 FF, WNS +0.082 (s5
   6,010 / 5,399 at +0.321, the same path).
 - **onyx in the fabric's place (2026-11-21).** The s6 pair with `onyx_ccu`
@@ -487,6 +536,11 @@ measures the same way.
   the 55 single-injector cells and the 55 dual cells, both injectors,
   reproduces bin 7's cycle count exactly -- not within noise, identical --
   and every CRC equals bin 7's: onyx at two ports is the fabric's behavior.
+  (The dual cells were sequential, common-ip BUG-001. Concurrent -- the
+  GO rebuild -- onyx and the fabric are cycle-identical in 32 of 55 dual
+  cells, within 4 % in 18 more, and apart only where both cores hammer
+  one line: `r64b_we64` (a single 64-byte line) is 3.6 % slower behind
+  onyx at depth 1 and 10 to 12 % slower at depth 2 to 16.)
   Hit floor 2, MLP 10.60 on `r64k_we64` at depth 16, as s6. With the read
   deferred until the gather (`REF_CACHE_SEL=5`) the resident rows are
   unchanged (every hit-only cell equal; `r16k_we64` +0.4 to +0.9 % from its
@@ -509,6 +563,30 @@ measures the same way.
   trade, then: the deferred mode elides every wasted read -- the sharing
   rate of the workload, 1 to 30 % of the memory reads here -- for +8 to
   +12 % per transaction at depth 1 in thrash and under 2 % at depth 16.
+  **Superseded 2026-11-27:** those dual cells ran the injectors one after
+  the other (common-ip BUG-001), so the "sharing" they counted was only
+  the lines the second run found in the first one's cache. Re-measured
+  with both injectors launched by one GO (the onyx counters table): with
+  the read alongside the snoop, reads wasted is 94 % of the memory reads
+  on the shared resident set `r16k_we64` (5,148 of 5,493 at depth 1),
+  16 % on `r64k_we64` (3,486 of 21,772), 54 % on `r64k_we255` (13,926 of
+  25,876), 7 % on `r128k_we64` (2,209 of 30,398) and 49 % on the hot set
+  `hot16_we179` (12,314 of 25,181); with the read deferred, reads wasted is
+  0 in all 60 cells and memory reads fall by the same fraction (5,493 ->
+  343, 21,772 -> 18,279, 25,876 -> 11,958, 30,398 -> 28,183, 25,181 ->
+  12,976). The cycle cost of deferring, two cores at once (the slower
+  injector): +7.7 % on `r64k_we64` and +10.0 % on `r128k_we64` at depth 1,
+  +1.8 % on `r64k_we255`, +2.0 % on the hot set, and -2.3 to +2.9 % at
+  depth 16. The trade is therefore a much larger memory-read saving than
+  the sequential runs showed -- half the reads wherever the cores write
+  the same lines -- for the same few percent of cycles. With the read
+  alongside the snoop, reads wasted equals lines supplied in 30 of the 60
+  cells and stays within `supplied - cu_dt` in all 60: a CleanUnique
+  that a peer answers with data supplies a line but takes no memory read
+  (onyx BUG-001's fix). The hot set reaches both corners onyx BUG-001 and
+  BUG-003 were fixed for (CleanUnique with DataTransfer 16 to 202 per
+  cell, old write-backs 189 to 960) with 0 injector errors; the
+  sequential bin 7 sweep reached neither.
   The bin 2 builds reproduce bin 1's cycle count in all 220 cells (the
   observation costs no cycle) and add the chain the jet rig carries:
   27,872 / 27,143 LUT, 25,877 / 25,854 FF, WNS +0.001 / +0.027 ns. The
@@ -520,7 +598,8 @@ measures the same way.
   to LOCK_WAIT only; `jet_perf_sweep.py --onyx-mon-classes`), and the
   bin 3 build (27,668 LUT, 25,090 FF, WNS -0.001 ns, the same path)
   measures them: `MEM_READ` opened alone equals its counter in 39 of 55
-  dual cells and in every cell at depth 1 and 2 (`r64k_we64` depth 1:
+  dual cells (sequential traffic, common-ip BUG-001 -- the channel has
+  not been re-measured with both cores at once) and in every cell at depth 1 and 2 (`r64k_we64` depth 1:
   20,240 = 20,240 where the all-open bin read 12,603), short only in the
   thrash cells at depth 4 to 16 where the caches' two unmasked observers
   still share the channel, each with a drop report; the deferred build
@@ -587,6 +666,34 @@ and 2x on misses (CVA6's miss handler overlaps the write-back with the
 refill; amber drains then fills). Both gaps have a named mechanism to go
 after; jet's is jet-prime TASK-001.
 
+**Two cores at once (2026-11-27, the GO rebuild of every rig).** The first
+concurrent measurement on any rig (the two-core table; 0 injector errors
+and every run complete across all five). Reading it:
+
+- **Read sharing is free everywhere but jet.** `r4k_we0` (both cores
+  reading one 4 KB set) costs 1.00-1.03x the single-core figure on amber,
+  jet-prime and onyx at every depth. On jet it is 2.02x from depth 4: the
+  pair fabric holds a granted miss's snoop while the peer cache serves
+  back-to-back hits, so one injector runs after the other (jet BUG-008,
+  reproduced in sim from reset; the wave shows the fabric in F_AC with
+  `peer_safe` low for ~20,000 cycles). jet's 2.1-2.5x on the disjoint set
+  at depth >= 4, where the cores share no line, is consistent with the
+  same wait (every jet miss snoops its peer); not separately traced.
+- **Write sharing is the coherence cost.** `r4k_we255` (both cores
+  writing one 4 KB set): 6-26x single-core on every rig, 19.5 cycles per
+  transaction at depth 1 and 9.8-12.4 from depth 4 on jet-prime / onyx
+  against 25-31 at every depth on amber and jet --
+  the line ping-pong the fabric exists for, which no earlier board run
+  had exercised.
+- **The shared memory port.** `disjoint64k_we64` and the thrash rows cost
+  1.4-1.7x on jet-prime and onyx at depth >= 4 with nothing shared: two
+  caches' misses on one memory, not coherence.
+- **onyx against the fabric** is cycle-identical in 32 of 55 cells
+  concurrently and slower only on a single hammered line (`r64b_we64`, up
+  to 12 %); deferring the read costs -1 to +10 % at depth 1 and -2 to
+  +3 % at depth 16 for half the memory reads where cores share written
+  lines.
+
 ## Reproduction
 
 ```bash
@@ -601,7 +708,8 @@ make ooc CACHE=hpd ; make ooc CACHE=cva6 ; make ooc CACHE=jet ; make ooc CACHE=j
 make ooc CACHE=jet_nomon ; make ooc CACHE=jetp6_nomon ; make ooc CACHE=amber_nomon   # the same with the observers off
 make bitstream REF_CACHE_SEL=4 ; make program REF_CACHE_SEL=4 ; make run SEQUENCES="init smoke" REF_CACHE_SEL=4   # onyx in the fabric's place (SEL 5: DEFER_AR)
 make ooc CACHE=jetp_fabric ; make ooc CACHE=onyx2            # the two managers alone
-python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --profile ref-onyx --outstanding 1 2 4 8 16 --out ../results/perf_sweep_onyx_bin2_dual_<stamp>.json   # SEL 4/5 with the tally chain: bins 11-17 onyx, the six counters per cell
+python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --profile ref-onyx --outstanding 1 2 4 8 16 --out ../results/perf_sweep_onyx_go_dual_<stamp>.json   # SEL 4/5 with the tally chain: bins 11-17 onyx, the eight counters per cell; both injectors launched by one harness GO (a dual result is only one if it is named *_go_dual_*)
+python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --profile ref-onyx --outstanding 1 2 4 8 16 --configs hot16_we179 --out ../results/perf_sweep_onyx_go_hot_dual_<stamp>.json   # the hot set: the CleanUnique-DataTransfer and old-write-back corners
 python3 ../bin/ref_compare.py                   # the tables above
 ```
 

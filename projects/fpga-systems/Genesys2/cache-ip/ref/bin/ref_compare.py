@@ -21,8 +21,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_IP = os.path.normpath(os.path.join(HERE, ".."))          # .../Genesys2/cache-ip/ref
 RIGS = os.path.normpath(os.path.join(CACHE_IP, ".."))         # .../Genesys2/cache-ip
 RESULTS = {
-    "amber":    f"{RIGS}/amber/results/perf_sweep_bin*_single_*.json",
-    "jet":      f"{RIGS}/jet/results/perf_sweep_bin*_single_*.json",
+    # amber and jet are pinned to the bins the report's prose reads (amber
+    # bin 11, jet bin 17); their newer single-core sweeps feed the two-core
+    # table's ratios (DUAL below), not these columns.
+    "amber":    f"{RIGS}/amber/results/perf_sweep_bin11_single_*.json",
+    "jet":      f"{RIGS}/jet/results/perf_sweep_bin17_single_*.json",
     "HPDcache": f"{RIGS}/ref/results/perf_sweep_bin*_single_*.json",
     "CVA6 WB":  f"{RIGS}/ref/results/perf_sweep_cva6_bin*_single_*.json",
     # jet-prime in the same slot with NO pair fabric (TASK-001):
@@ -73,13 +76,39 @@ OOC = {
 # the two-port managers alone (18 slots, SNOOP_INFLIGHT 2)
 OOC_MGR = {"jet_prime_pair_fabric": "jetp_fabric", "onyx_ccu (N_PORTS 2)": "onyx2"}
 # onyx's exact counters (TASK-001 step 6b, D9): the newest DUAL sweep of each
-# onyx mode that recorded them ("onyx" key per cell; bin2 = the tally-chain
-# build). The D6 measure is reads wasted over reads issued in the parallel
-# mode; the deferred mode's wasted count is its own check (should be 0).
+# onyx mode that recorded them ("onyx" key per cell), plus the newest hot-set
+# sweep (the hot16_we179 cell, built to reach the CleanUnique-DataTransfer
+# and old-write-back corners). The D6 measure is reads wasted over reads
+# issued in the parallel mode; the deferred mode's wasted count is its own
+# check (should be 0).
+# ONLY sweeps launched by the harness GO count as dual: every earlier "dual"
+# file (bin1..bin7, named perf_sweep_<rig>_bin<N>_dual_*) started the two
+# injectors with two UART writes >= 16 ms apart, so they ran one after the
+# other (cache-ip common-ip BUG-001). Those files stay as records; they are
+# not two-core measurements.
 ONYX_CNT = {
-    "onyx":   f"{RIGS}/ref/results/perf_sweep_onyx_bin*_dual_*.json",
-    "onyx-d": f"{RIGS}/ref/results/perf_sweep_onyxd_bin*_dual_*.json",
+    "onyx":   [f"{RIGS}/ref/results/perf_sweep_onyx_go_dual_*.json",
+               f"{RIGS}/ref/results/perf_sweep_onyx_go_hot_dual_*.json"],
+    "onyx-d": [f"{RIGS}/ref/results/perf_sweep_onyxd_go_dual_*.json",
+               f"{RIGS}/ref/results/perf_sweep_onyxd_go_hot_dual_*.json"],
 }
+# Two cores at once: the newest dual sweep per coherent rig whose two
+# injectors were launched by ONE harness GO (common-ip BUG-001). The value is
+# the slower injector's cycles per transaction; the ratio is against the
+# same bitstream's single-core sweep (injector 0, peer idle) where the GO
+# pass recorded one, else the rig's single-core column in the first table.
+DUAL = {
+    "amber":        (f"{RIGS}/amber/results/perf_sweep_bin*_go_single_*.json",
+                     f"{RIGS}/amber/results/perf_sweep_bin*_go_2*.json"),
+    "jet":          (f"{RIGS}/jet/results/perf_sweep_bin*_go_single_*.json",
+                     f"{RIGS}/jet/results/perf_sweep_bin*_go_2*.json"),
+    "jet-prime s6": (f"{RIGS}/ref/results/perf_sweep_jetpp_go_single_*.json",
+                     f"{RIGS}/ref/results/perf_sweep_jetpp_go_dual_*.json"),
+    "onyx":         (RESULTS["onyx"], f"{RIGS}/ref/results/perf_sweep_onyx_go_dual_*.json"),
+    "onyx-d":       (RESULTS["onyx-d"], f"{RIGS}/ref/results/perf_sweep_onyxd_go_dual_*.json"),
+}
+DUAL_CONFIGS = ("r4k_we0", "r4k_we255", "smoke4k_we64", "r64k_we64", "r128k_we64",
+                "disjoint64k_we64")
 OOC_DIR = f"{CACHE_IP}/results/ooc"
 # The same cache with USE_MONITOR=0 (MonBus observers and their arbiter tied
 # off): HPDcache and CVA6 carry no equivalent, so the area row is shown both
@@ -112,14 +141,19 @@ def load(pattern):
     return os.path.basename(f), rows
 
 
-def load_onyx(pattern):
-    """per (config, depth): the onyx counters of the newest dual sweep that has them"""
-    for f in reversed(sorted(glob.glob(pattern))):
-        data = json.load(open(f))["results"]
-        rows = {(r["config"], r.get("outstanding", 1)): r["onyx"] for r in data if "onyx" in r}
-        if rows:
-            return os.path.basename(f), rows
-    return None, {}
+def load_onyx(patterns):
+    """per (config, depth): the onyx counters of the newest sweep per pattern
+    that has them, merged; returns the source file names and the rows"""
+    srcs, rows = [], {}
+    for pattern in patterns:
+        for f in reversed(sorted(glob.glob(pattern))):
+            data = json.load(open(f))["results"]
+            got = {(r["config"], r.get("outstanding", 1)): r["onyx"] for r in data if "onyx" in r}
+            if got:
+                srcs.append(os.path.basename(f))
+                rows.update(got)
+                break
+    return srcs, rows
 
 
 def ooc_summary(name):
@@ -201,23 +235,55 @@ def main():
             out.append(f"| {n} | pending | | | | |")
         else:
             out.append(f"| {n} | {s['lut']} | {s['ff']} | {s['lutram']} | {float(s['wns_ns']):+.3f} | {s['worst_levels']} |")
-    out.append("### onyx counters, both injectors (the D6 trade: reads issued, lines supplied, reads wasted)\n")
+    out.append("### onyx counters, both injectors started by one GO (the D6 trade: reads issued, lines supplied, reads wasted)\n")
     osrc, ocnt = {}, {}
-    for n, pat in ONYX_CNT.items():
-        osrc[n], ocnt[n] = load_onyx(pat)
-        out.append(f"- {n}: `{osrc[n]}`" if osrc[n] else f"- {n}: pending")
+    for n, pats in ONYX_CNT.items():
+        osrc[n], ocnt[n] = load_onyx(pats)
+        out.append(f"- {n}: " + ", ".join(f"`{f}`" for f in osrc[n]) if osrc[n] else f"- {n}: pending")
     out.append("")
-    out.append("| config | depth | mode | transactions | memory reads | lines supplied | reads wasted | wasted / issued | absorptions | write-backs |")
-    out.append("|---|---|---|---|---|---|---|---|---|---|")
-    for cfg in SHOW_CONFIGS:
+    out.append("| config | depth | mode | transactions | memory reads | lines supplied | reads wasted | wasted / issued | absorptions | write-backs | CleanUnique + DT | old write-backs |")
+    out.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
+    for cfg in SHOW_CONFIGS + ("hot16_we179",):
         for d in SHOW_DEPTHS:
             for n in ONYX_CNT:
                 c = ocnt[n].get((cfg, d))
                 if not c:
-                    out.append(f"| {cfg} | {d} | {n} | pending | | | | | | |")
+                    out.append(f"| {cfg} | {d} | {n} | pending | | | | | | | | |")
                     continue
                 frac = c["read_wasted"] / c["mem_read"] if c["mem_read"] else 0.0
-                out.append(f"| {cfg} | {d} | {n} | {c['txn']} | {c['mem_read']} | {c['supplied']} | {c['read_wasted']} | {frac:.3f} | {c['absorb']} | {c['wb']} |")
+                out.append(f"| {cfg} | {d} | {n} | {c['txn']} | {c['mem_read']} | {c['supplied']} | {c['read_wasted']} | {frac:.3f} | {c['absorb']} | {c['wb']} | {c.get('cu_dt', '-')} | {c.get('old_wb', '-')} |")
+    out.append("")
+    out.append("### Two cores at once (both injectors started by one GO; the slower injector, cycles per transaction, and x its single-core figure)\n")
+    dsrc, dtab, done1 = {}, {}, {}
+    for n, (single_pat, pat) in DUAL.items():
+        ssrc, done1[n] = load(single_pat)
+        f = newest(pat)
+        dsrc[n] = (f"`{os.path.basename(f)}`" + (f" against `{ssrc}`" if ssrc else "")) if f else None
+        dtab[n] = {}
+        if f:
+            for r in json.load(open(f))["results"]:
+                cyc = max(r["ci0"]["run_cycles"], r["ci1"]["run_cycles"])
+                dtab[n][(r["config"], r.get("outstanding", 1))] = (
+                    cyc / r["count"], r["done"] and not (r["ci0"]["err_flag"] or r["ci1"]["err_flag"]))
+        out.append(f"- {n}: {dsrc[n]}" if dsrc[n] else f"- {n}: pending")
+    dbad = sum(1 for n in DUAL for v in dtab[n].values() if not v[1])
+    out.append("")
+    out.append(f"Error flags / unfinished runs across the dual sources: {dbad}\n")
+    out.append("| config | depth | " + " | ".join(DUAL) + " |")
+    out.append("|---|---|" + "---|" * len(DUAL))
+    for cfg in DUAL_CONFIGS:
+        for d in SHOW_DEPTHS:
+            cells = []
+            for n in DUAL:
+                v = dtab[n].get((cfg, d))
+                one = done1[n].get((cfg, d))
+                if not v:
+                    cells.append("pending")
+                elif one:
+                    cells.append(f"{v[0]:.2f} ({v[0] / one['cpt']:.2f}x)")
+                else:
+                    cells.append(f"{v[0]:.2f}")
+            out.append(f"| {cfg} | {d} | " + " | ".join(cells) + " |")
     text = "\n".join(out) + "\n"
     if args.out:
         open(args.out, "w").write(text)
