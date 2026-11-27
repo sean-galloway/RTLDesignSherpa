@@ -13,9 +13,9 @@
 **Priority:** P3 (research; bounded gain, real timing risk)
 **Status:** OPEN. 2026-11-27: the lane is board-clean at the 75 MHz SKU point
 (0 mismatched on every profile, `every` +19 / +25 percent); the `mixed_bl8`
-regression is found and fixed in RTL (the lane served the other direction).
-Remaining: the board re-run on the fixed lane bitstream, then the DUAL_ISSUE
-default. Earlier: unparked 2026-11-03 (ISSUE-027 closed). Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
+regression is found and fixed in RTL (the lane served the other direction);
+the board re-run on the fixed bitstream is clean and `mixed_bl8` gains +9 / +40
+percent union. Remaining: the DUAL_ISSUE default. Earlier: unparked 2026-11-03 (ISSUE-027 closed). Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
 and see if it can happen; give best effort then defer if needed"). Built
 behind `DUAL_ISSUE` (default off, cycle-identical to HEAD), verified in sim
 and formal: 9 -> 8 slots per bank-walk row, col_ilv +12 / +14 percent at one
@@ -380,3 +380,26 @@ Regression: pumice func 362 passed / 8 skipped / 0 failed, pumice core DFI suite
 with the lane built 14 / 14, granite 25 + 1 xfail, common-ip store-arbiter contract
 27 + 3 xfail, `formal/mc_common/mc_cmd_arbiter` prove / cover / dual / dual_cover
 PASS (flat regenerated).
+
+### 2026-11-27, board at 75 MHz on the fixed lane: clean, `mixed_bl8` now gains
+Bitstream `build-perf/fpga/bitstream/ddr2_char_pumice_sku75_lanedir_2026-11-27.bit`
+(`PUMICE_DUAL_ISSUE=1`, be8d7cd76): WNS +0.140 ns, 0 failing endpoints, WHS +0.022 ns.
+Same bitstream lane off and lane on (`TEST_DUAL_ISSUE=1`, row_phase 1), interleaved
+per profile; `windows` three times each way. Smoke ALL PASS; **0 mismatched and every
+row ok** in all 20 runs (`char_pumice_sku75dir{0,1}*_2026-11-27.csv`).
+
+`mixed_bl8` union MB/s (identical across the three repeats to 0.1 MB/s):
+
+| config | lane off | lane on, before the fix | **lane on, fixed** |
+|---|---|---|---|
+| defaults | 343.2 (206.5 / 171.6) | 291.2 (-15 %) | **375.2 (187.6 / 229.7), +9.3 %** |
+| open_page | 327.4 (198.6 / 163.7) | 283.9 (-13 %) | **457.6 (228.8 / 475.8), +39.8 %** |
+| close_page | 205.4 | 210.4 | 210.4, +2.4 % |
+
+The rest of `windows`, lane on vs off: row_thrash +11 / +12 % (defaults), random
++9 / +10 %, open_page +1 / +8..11 %, close_page 0..+3 %. Other profiles, mean
+wr / rd: `every` +19.2 / +24.9 % (worst cell col_major_bl8_multiid rd -1.7 %),
+`concurrent` +9.2 / +9.2 %, `multigen` +2.3 / +2.3 %, `half_threads` +7.3 / +0.5 %
+(worst -0.8 % wr). No cell loses more than 1.7 % in any direction except the
+defaults `mixed_bl8` write half (-9.2 %), where the readers gain +33.9 % and the
+union +9.3 %. Every Done-when item is met; what remains is the default.

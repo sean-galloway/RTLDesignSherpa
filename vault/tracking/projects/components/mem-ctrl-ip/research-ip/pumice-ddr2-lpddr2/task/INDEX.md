@@ -21,9 +21,9 @@ exactly one state by construction rather than by discipline.
 ## Open
 
 - **TASK-047** — OPEN. Dual issue on DFI 1:2, built behind `DUAL_ISSUE`. Board
-  2026-11-27 at 75 MHz: 0 mismatched, `every` +19 / +25 percent; `mixed_bl8`
-  open page -15 percent union, repeatable. Remaining: that regression, then the
-  default.
+  2026-11-27 at 75 MHz on the fixed lane: 0 mismatched in 20 runs, `every`
+  +19 / +25 percent, `mixed_bl8` union +9 / +40 percent (was -15). Remaining:
+  the default.
 
 ## Deferred
 
