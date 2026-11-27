@@ -650,3 +650,8 @@ Found and measured:
   now holds 27 assertions (the .sby and Makefile said 24; HEAD had 25).
   `prove` (BMC 24) and `prove_book` (BMC 16) running on flat md5 34a9908c;
   BUG-001..003 close when they PASS.
+- 2026-11-26 **Proofs on flat 34a9908c:** `prove_book` PASS (21:28). `prove`
+  died at step 19 with no verdict. It shared sby's status database with
+  `prove_book`, which reset it when it finished (handbook formal note, now
+  covering a crash mid-run as well as at startup). `prove` restarted alone
+  at 22:03; BUG-001..003 close when it passes.

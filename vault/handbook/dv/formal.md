@@ -750,7 +750,16 @@ property. Run the tasks of one `.sby` sequentially (a shell script that
 chains them), or give each its own directory copy as the mutants have; the
 `-f` flag only clears the task's workdir, not the shared database.
 
-Case: onyx TASK-001 step 4 (`formal/onyx/onyx_ccu`).
+Surviving the start is not surviving the run. On 2026-11-26 `prove` and
+`prove_book` started together and both got past startup. `prove_book`
+passed at 21:28. Twenty minutes later `prove`, 2 h 18 m in and waiting on
+the step-19 solver, died with the same `no such table` traceback and
+`rc=1`. Its next status write found the table gone. Stagger or not, two
+tasks of one `.sby` in one directory share the database for as long as
+both run.
+
+Case: onyx TASK-001 step 4 (`formal/onyx/onyx_ccu`); the mid-run crash in
+onyx TASK-001 (BUG-001..003 proofs, 2026-11-26).
 
 ## Three traps from peregrine's formal (riscv-ip peregrine-rv32im TASK-001 stage 5, 2026-11-25)
 
