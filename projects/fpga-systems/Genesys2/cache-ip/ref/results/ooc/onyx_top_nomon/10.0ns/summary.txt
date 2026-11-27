@@ -1,0 +1,12 @@
+top onyx_top
+part xc7k325tffg900-2
+period_ns 10.0
+wns_ns 1.557
+worst_levels 13
+worst_start u_ccu/r_pend_addr_reg[1][0][23]/C
+worst_end u_cnt/r_sl_cu_reg[1]/D
+lut 7516
+ff 2653
+ramb36 0
+ramb18 0
+lutram 1944

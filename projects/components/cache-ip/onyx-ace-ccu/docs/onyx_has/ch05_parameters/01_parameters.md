@@ -23,7 +23,7 @@
 
 # Build-Time Geometry
 
-**Status:** parameters fixed 2026-11-21 with onyx TASK-001 step 2 (D4, D5 and D11 decided 2026-11-20, PRD v0.7). `onyx_ccu` takes its geometry from `l1_pkg` the way the caches do; there is no `onyx_pkg` in v1.
+**Status:** parameters fixed 2026-11-21 with onyx TASK-001 step 2 (D4, D5 and D11 decided 2026-11-20, PRD v0.7). `onyx_ccu` takes its geometry from `l1_pkg` the way the caches do; `onyx_pkg` (`rtl/includes/onyx_pkg.sv`) holds only the MonBus event codes, the IO port's grant classes and the monitor ids.
 
 ## Parameters of `onyx_ccu`
 
@@ -48,9 +48,10 @@
 |---|---|---|
 | `FILL_BEATS` | `LINE_BYTES * 8 / BUS_WIDTH` | 8 at the rig geometry (64-byte lines, 64-bit bus); the formal geometry uses 4 |
 | `SLOT_W` | `clog2(SLOTS)` | 5 at 18 slots |
-| `PORT_W` | `clog2(N_PORTS)` | 1 at two ports; the peer counters per slot are this wide |
+| `PORT_W` | `clog2(N_PORTS)` | 1 at two ports; a peer index |
+| `PC_W` | `clog2(N_PORTS + 1)` | 2 at two ports; the per-slot peer counters are this wide (`onyx_ccu.sv:235`, `563-564`), since the IO's transactions have N_PORTS peers |
 | pending queue depth | 4 per port | the launches a cache can hold with their AR untaken (its read transport skids up to three ahead of the held AR) |
-| snoop-data buffers | `N_PORTS` buffers of `SLOTS * FILL_BEATS` words | distributed RAM, one write port each, two reads (replay, absorption) |
+| snoop-data buffers | `N_PORTS + 1` buffers (one per requester, the IO's included) of `SLOTS * FILL_BEATS` words | distributed RAM, one write port each, two reads (replay, absorption) |
 
 : Table 5.2: Derived sizes
 
@@ -68,4 +69,4 @@
 
 ## Not parameters in v1
 
-The ACE-Lite IO port (D1) and the monlite observation taps (D9) are later steps of onyx TASK-001 and have no parameter yet; a directory-lite snoop filter (D3) is a future elaboration parameter and is not present.
+The ACE-Lite IO port (D1) is always present and has no parameter; a rig that does not use it ties `io_arvalid` / `io_awvalid` low. The observer (D9) is in `onyx_top`, which adds `USE_MONITOR` (default 1; 0 ties the MonBus outputs off) and `MON_OUT_DEPTH` (default 16, a power of two of at least 2) (`onyx_top.sv:38-39`). A directory-lite snoop filter (D3) is a future elaboration parameter and is not present.

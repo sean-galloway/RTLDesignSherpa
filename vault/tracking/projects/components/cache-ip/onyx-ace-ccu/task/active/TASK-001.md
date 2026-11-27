@@ -789,3 +789,19 @@ Found and measured:
   transaction (the gather costs its slowest peer; the absorption's BRESP is
   covered at step 15 at N=2, 3, 4), but full contention reaches ~69 (N=3) /
   ~76 (N=4) steps, beyond any affordable depth -- as N=2's 24 is.
+- 2026-11-27 **Step 7, docs and the last cost row:** the onyx MAS 0.1
+  (`docs/onyx_mas/`, markdown only: the eight blocks of `onyx_ccu` and
+  `onyx_top` from the RTL with line cites, the interfaces, the event map,
+  observer and counters, formal targets and rigs, parameters; two figures).
+  HAS Figure 2.1 redrawn from the RTL (the IO port, the observer and the
+  counters included) and the stale HAS text reconciled with the RTL: the IO
+  in the grant (N_PORTS + 1) and write port (N_PORTS + 2), N_PORTS + 1
+  snoop-data buffers, the replay's lowest-index pick, `PC_W`, `onyx_pkg`,
+  `USE_MONITOR` / `MON_OUT_DEPTH`, D1 / D9 built. PRD section 5 records
+  each criterion's status: 1, 2, 4 and 6 met (4 on the board 2026-11-27, 6
+  re-measured concurrently against the BUG-004-fixed fabric, 42 of 55
+  identical, the rest within 0.5 %); 5 met with the without-observers row
+  (`make ooc CACHE=onyx_top{,_nomon}`: 8,660 / 3,277 FF / 2,115 LUTRAM at
+  +0.623 ns against 7,516 / 2,653 / 1,944 at +1.557 ns, the observer 1,144
+  LUT); 3 safety at N = 2 and 3, N = 4 running, liveness bounds open.
+  N = 3 `prove` (29 properties, depth 20) PASS in 1 h 46 min.

@@ -1,0 +1,92 @@
+// COPY of onyx_has/assets/graphviz/01_block_diagram.dot (HAS Figure 2.1),
+// kept in step with it: each book build reads only its own assets.
+// onyx ACE CCU whole-unit block diagram, AS BUILT -- house style per
+// vault/handbook/authoring/block-diagrams.md. Drawn from the RTL:
+// rtl/top/onyx_ccu.sv (the manager, one module) and rtl/top/onyx_top.sv
+// (the manager + onyx_monlite + onyx_counters). Classes from the RTL:
+// the pending queues, transaction table, AC / in-flight queues and the
+// snoop-data buffers are register files / distributed RAM (Storage); the
+// write port is the one FSM (r_wstate IDLE / AW / W / B); the grant and the
+// per-buffer CD write are round-robin picks; the memory AR stage holds a
+// presented AR in r_mar_vld (Registered); the R router and the R select
+// are combinational.
+digraph onyx_whole_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.55", ranksep="0.70", splines=ortho,
+           label=<<B>onyx ACE CCU - whole unit as built (onyx_ccu inside onyx_top; one clock, N_PORTS 2-4 caches + one ACE-Lite IO port)</B>>,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    // ---- requester-side interfaces (order pinned below) -------------------
+    c_b   [group=L, label="Write response B\nc_b*[d], io_b* (comb)", style="rounded,filled", fillcolor="#E2EFDA"];
+    c_aw  [group=L2, label="Write AW / W\ncache write-backs c_aw* / c_w*[d],\nIO writes io_aw* / io_w* (comb)", style="rounded,filled", fillcolor="#E2EFDA"];
+    c_sb  [group=C, label="D-8 sideband per cache\nc_coh_req_* (pulse),\nc_coh_done_* (retire)", style="rounded,filled", fillcolor="#E2EFDA"];
+    io    [label="ACE-Lite IO port\nio_ar* / io_aw* address,\nAxDOMAIN, AxSNOOP", style="rounded,filled", fillcolor="#E2EFDA"];
+    c_ar  [label="Read AR\nc_ar*[d], io_ar*\n(arready flopped)", style="rounded,filled", fillcolor="#E2EFDA"];
+    snp   [group=S, width=3.4, label="Peer snoop ports\nevery cache: AC out,\nCR / CD in", style="rounded,filled", fillcolor="#E2EFDA"];
+    c_r   [group=R, label="Read data R\nc_r*[d], io_r* (comb)", style="rounded,filled", fillcolor="#E2EFDA"];
+    { rank=same; c_b; c_aw; c_sb; io; c_ar; snp; c_r; }
+    c_b -> c_aw -> c_ar -> c_sb -> io -> snp -> c_r [style=invis];
+
+    // ---- request path (center) ---------------------------------------------
+    pend  [group=C, label="Pending request queues\nr_pend_* - 4 deep per cache\n(the sideband pulses, in order)", shape=cylinder, fillcolor="#E8DFF5"];
+    grant [group=C, label="Grant: rotating priority over N_PORTS + 1\nunder the per-line lock and a free slot", shape=invtrapezium, fillcolor="#FFF2CC", width=4.4, height=0.55];
+    table [group=C, label="Transaction table (point of serialization, D5)\nSLOTS entries: requester, line, class, AR fields,\npeer counters r_ac_left / r_cr_left, verdict r_dt / r_pd,\ncompletion bits (retire: the coh_done id);\none valid slot per line", shape=cylinder, fillcolor="#E8DFF5"];
+    mar   [group=C, label="Memory AR stage\nlowest ready slot; DEFER_AR picks the trigger;\npresented AR held (r_mar_vld) until taken", peripheries=2, fillcolor="#D6E4F0"];
+
+    // ---- snoop path ---------------------------------------------------------
+    snq   [group=S, label="AC queues + in-flight queues per cache\nr_snq (grant order) / r_sni (SNOOP_INFLIGHT)\nCR pairs with the in-flight head", shape=cylinder, fillcolor="#E8DFF5"];
+    cdarb [group=S, label="CD write pick per buffer\nround-robin over the peers", shape=invtrapezium, fillcolor="#FFF2CC", width=3.4, height=0.5];
+    buf   [group=S, label="Snoop-data buffers\nN_PORTS + 1 (one per requester),\nSLOTS x FILL_BEATS words, {slot, beat};\n1 write, 2 async reads", shape=cylinder, fillcolor="#E8DFF5"];
+    rpl   [group=S, label="Replay engines, one per requester\nr_rpl_* : the supplied line, or the\nupgrade's single no-data beat", peripheries=2, fillcolor="#D6E4F0"];
+
+    // ---- return path (right edge) ------------------------------------------
+    rsel  [group=R, label="R select per requester\nmemory beat first, else replay\n(a presented replay beat holds)"];
+    rrt   [group=R, label="Memory R router (by RID = slot)\nforward if gathered, no DT;\ndrop if DT; else hold"];
+
+    // ---- write path (left edge) --------------------------------------------
+    wport [group=L2, label="Write port - one burst at a time\nr_wstate IDLE / AW / W / B, round-robin over\nN write-backs + the absorption + the IO write;\nwrite-back holds and old-WB-first order", style="filled,diagonals", peripheries=2, fillcolor="#FCE4D6"];
+
+    // ---- observation (onyx_top) --------------------------------------------
+    mon   [label="onyx_monlite + onyx_counters (onyx_top)\nevent taps -> MonBus packets, 8 exact counters\n(USE_MONITOR=0 ties the observer off;\nnothing driven back)", style="filled,dashed", peripheries=2, fillcolor="#D6E4F0"];
+
+    bar   [group=C, label="onyx boundary - memory-side AXI4 master mem_*  (AR flopped-source, R / AW / W / B comb)  |  MonBus out (onyx_top)",
+           style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=15, height=0.5, fontsize=11];
+
+    { rank=same; mar; buf; rrt; }
+    { rank=same; wport; rpl; }
+
+    // ---- request flow: pulse -> queue -> grant -> table -> memory AR -------
+    c_sb  -> pend  [xlabel="fill / upgrade pulse\n{addr, class}\n(WB, WC, Evict: none)"];
+    pend  -> grant [xlabel="head (or live pulse)\n{line, class}"];
+    io    -> grant [xlabel="IO candidate\nReadOnce / ReadNoSnoop /\nWriteUnique"];
+    grant -> table [penwidth=1.8, xlabel="grant: allocate\n{requester, line, class}"];
+    c_ar  -> table [xlabel="AR take into the\ngranted slot {ARID,\nARCACHE, ARPROT}"];
+    table -> mar   [xlabel="ready slot\n{line, cache, prot}"];
+    mar   -> bar   [penwidth=1.8, xlabel="Read from memory\nAR {ARID = slot,\nline or IO burst}"];
+
+    // ---- snoop fanout and gather -------------------------------------------
+    table -> snq   [dir=both, xlabel="slot to each\npeer's AC queue;\nCR back: counters,\nverdict DT / PD"];
+    snp   -> snq   [dir=both, style=dashed, color="#777777", xlabel="AC out {line, ACSNOOP}\nCR in {CRRESP}"];
+    snp   -> cdarb [xlabel="CD beats"];
+    cdarb -> buf   [penwidth=1.8, xlabel="one beat per buffer\nat {slot, beat}"];
+
+    // ---- forward data: write-backs, IO writes, absorptions -----------------
+    c_aw  -> wport [xlabel="write-back / IO write\n{AW fields, W beats}"];
+    buf   -> wport [xlabel="absorption read\n(PassDirty line)"];
+    wport -> bar   [dir=both, penwidth=1.8, xlabel="Write to memory\nAW / W out, B in"];
+
+    // ---- return data (green) -----------------------------------------------
+    c_r   -> rsel  [dir=back, color="#1A7A1A", penwidth=1.8, xlabel="R beats\n{requester ARID}"];
+    rsel  -> rrt   [dir=back, color="#1A7A1A", xlabel="forwarded\nmemory beat"];
+    rrt   -> bar   [dir=back, color="#1A7A1A", xlabel="Read data\nR {RID = slot}"];
+    rsel  -> rpl   [dir=back, color="#1A7A1A", xlabel="replay beat"];
+    buf   -> rpl   [color="#1A7A1A", xlabel="line beats"];
+    c_b   -> wport [dir=back, color="#1A7A1A", xlabel="BRESP to the\nwriter"];
+
+    // ---- observation sideband ----------------------------------------------
+    table -> mon   [style=dashed, color="#777777", xlabel="evt_* taps"];
+    mon   -> bar   [style=dashed, color="#777777", xlabel="MonBus packets"];
+}

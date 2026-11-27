@@ -218,11 +218,27 @@ Each is **PROPOSED** pending an owner ruling except where marked **DECIDED**.
    onyx -- `prove` depth 24 PASS 20:30, `prove_book` depth 16 PASS 14:41,
    19 of 19 covers, three mutations failing as written. With the tagged
    gather (D4) there is no presumed-miss bound to prove: completion is
-   counted, not timed out. **Open:** liveness bounds (the control's
-   derived-bound style) and the N = 3, 4 harness.
+   counted, not timed out. **N = 3 and 4 (2026-11-27):** one N-generic
+   harness (`formal/onyx/onyx_ccu_n3/formal_onyx_ccu_n.sv`, units
+   `onyx_ccu_n3` and `onyx_ccu_n4`) adds a per-slot, per-peer shadow, so a
+   peer the fanout skips -- a hang at N = 2's level -- fails as safety
+   (`ap_snq_count`); cover 41/41 and `prove_fast` (17 properties, depth
+   32) PASS at both N; 19 mutants fail at both N, seven of them a rule
+   narrowed back to ports 0 and 1 that N = 2 cannot see. N = 3 `prove`
+   (29 properties, depth 20) PASS in 1 h 46 min; N = 4 `prove`, both
+   `prove_book` runs and N = 2's re-prove on the BUG-001..003 flat are
+   running (onyx TASK-001). Every depth is a BMC bound
+   that covers one transaction end to end, not full N-way contention
+   (derivation in the `.sby` headers). **Open:** liveness bounds (the
+   control's derived-bound style).
 4. **Observation.** Every D9 event class visible on MonBus in simulation
-   and captured on at least one FPGA board. **Not built** (a later
-   TASK-001 step); the pair fabric's debug taps are in place.
+   and captured on at least one FPGA board. **Met 2026-11-27:** the
+   seven classes (TXN_START, MEM_READ, GATHER_DONE, READ_WASTED, ABSORB,
+   WRITEBACK, LOCK_WAIT) and the drop report are scored in the pair-rig
+   and reference-rig sims, and captured on the Genesys2 reference rig
+   with both injectors launched by one GO: 120 cells per mode, every
+   class non-zero (READ_WASTED zero by design in the deferred mode), the
+   tally's unexpected bin 0 in every cell.
 5. **Cost.** Synthesis/implementation numbers (LUT/FF/RAM, fmax) on
    Nexys A7 and/or Genesys 2, recorded in `docs/` the way pumice
    characterised, with and without the observers (D9). **Measured
@@ -231,6 +247,15 @@ Each is **PROPOSED** pending an owner ruling except where marked **DECIDED**.
    1,660 / 1,296 at +2.757; the Genesys2 rig at 100 MHz with onyx WNS
    +0.006 ns (SEL 4) and +0.000 ns (SEL 5), the worst path jet-prime's.
    Without-observers is moot until the taps exist.
+   **With and without the observers, measured 2026-11-27:** `onyx_top`
+   out of context as the reference rig builds it (N_PORTS 2, SLOTS 18,
+   SNOOP_INFLIGHT 2, with the IO port, the BUG-001..003 fixes and
+   `onyx_counters`), `make ooc CACHE=onyx_top{,_nomon}`: 8,660 LUT / 3,277
+   FF / 2,115 LUTRAM at +0.623 ns with the observer (worst path the
+   pending count into the observer's drop counter, 23 levels), 7,516 /
+   2,653 / 1,944 at +1.557 ns with USE_MONITOR=0. The observer is 1,144
+   LUT (13 %), 624 FF and 171 LUTRAM; no block RAM either way. The
+   counters stay in both rows (USE_MONITOR does not remove them).
 6. **No slower than the fabric it replaces.** On the cache-ip reference
    rig's pair sweeps, onyx in parallel-issue mode (D6) at cycles per
    transaction equal to `jet_prime_pair_fabric`'s (bin 7, both injectors)
@@ -242,6 +267,15 @@ Each is **PROPOSED** pending an owner ruling except where marked **DECIDED**.
    deferred mode's latency cost measured: +8 to +12 % at depth 1 on the
    thrash rows, under +2 % at depth 16, resident rows equal; its elision
    rate awaits a memory-side AR counter (D9).
+   **Re-measured concurrently 2026-11-27** (the earlier board sweeps ran
+   the two injectors one after the other, cache-ip common-ip BUG-001):
+   against the fabric with onyx's BUG-001 / BUG-002 fixes ported
+   (jet-prime BUG-004), onyx is cycle-identical in 42 of 55 dual cells
+   and within 0.5 % in the other 13. The deferred mode's elision, now
+   counted (`onyx_counters`): parallel issue wastes 94 % of its memory
+   reads on `r16k_we64`, 54 % on `r64k_we255` and 49 % on the hot set;
+   the deferred mode wastes none, for -1 to +10 % cycles at depth 1 and
+   -2 to +3 % at depth 16.
 
 ## 6. Non-goals
 

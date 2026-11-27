@@ -77,7 +77,7 @@ include $(RDS_ROOT)/make/fpga_flow.mk
 LINT_GENERICS += -GREF_CACHE_SEL=$(REF_CACHE_SEL)
 
 # ---- cache-only area / Fmax (TASK-003 comparison) ----------------------------
-# make ooc CACHE=hpd|cva6|jet|jetp|jetp5|jetp6|amber|{jet,jetp6,amber}_nomon|jetp_fabric|onyx2 [PERIOD=10.0]: out-of-context synth+route
+# make ooc CACHE=hpd|cva6|jet|jetp|jetp5|jetp6|amber|{jet,jetp6,amber}_nomon|jetp_fabric|onyx2|onyx_top{,_nomon} [PERIOD=10.0]: out-of-context synth+route
 # of one cache module via fpga/tcl/ooc_cache.tcl; reports under
 # ../results/ooc/<cache>/<period>ns/ (summary.txt has lut/ff/ramb/wns; outside
 # fpga/, which `make clean` wipes -- the first run lost three rows that way).
@@ -123,6 +123,17 @@ ooc_gen_onyx2       := N_PORTS=2 SLOTS=18 SNOOP_INFLIGHT=2
 # OOC clock port follows, or the timing row is empty
 ooc_clk_jetp_fabric := clk
 ooc_clk_onyx2       := clk
+# onyx_top as the reference rig builds it (N_PORTS 2, SLOTS 18,
+# SNOOP_INFLIGHT 2) with its observer and counters, and with USE_MONITOR=0
+# (onyx PRD criterion 5, with and without the observers).
+ooc_top_onyx_top       := onyx_top
+ooc_top_onyx_top_nomon := onyx_top
+ooc_fl_onyx_top        := $(FRAMEWORK_ROOT)/rtl/filelists/ooc_onyx_top.f
+ooc_fl_onyx_top_nomon  := $(ooc_fl_onyx_top)
+ooc_gen_onyx_top       := N_PORTS=2 SLOTS=18 SNOOP_INFLIGHT=2
+ooc_gen_onyx_top_nomon := N_PORTS=2 SLOTS=18 SNOOP_INFLIGHT=2 USE_MONITOR=1'b0
+ooc_clk_onyx_top       := clk
+ooc_clk_onyx_top_nomon := clk
 .PHONY: ooc
 ooc:
 	mkdir -p $(OOC_OUT)

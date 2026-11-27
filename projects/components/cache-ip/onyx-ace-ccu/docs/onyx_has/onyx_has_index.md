@@ -25,7 +25,7 @@
 
 **Version:** 0.3
 **Date:** 2026-11-21
-**Status:** 0.3: the D rows decided (PRD v0.7, 2026-11-20) and the RTL built -- `onyx_ccu`, jet-prime's pair fabric generalized to N ports, verified on jet-prime's pair-rig grid, argued formally at two ports and measured on the Genesys2 reference rig (onyx TASK-001, 2026-11-21). Open: the ACE-Lite IO port (D1), the MonBus taps (D9), the N rows other than N1.
+**Status:** 0.3: the D rows decided (PRD v0.7, 2026-11-20) and the RTL built -- `onyx_ccu`, jet-prime's pair fabric generalized to N ports, verified on jet-prime's pair-rig grid, argued formally at two ports and measured on the Genesys2 reference rig (onyx TASK-001, 2026-11-21). Since built: the ACE-Lite IO port (D1, `onyx_ccu.sv` `io_*`), the MonBus observer and counters (D9, `onyx_monlite`, `onyx_counters`, composed in `onyx_top`), and formal harnesses at N_PORTS 3 and 4. Open: the N rows other than N1.
 
 **Scope:** The architecture of `onyx` as the snoop-based ACE coherency manager for the `cache-ip/` family. This book records the port contracts that are decided (D7), the design-invariant landscape proposed by the PRD, and the open decisions that must close before the manager architecture can be fixed. It does not invent answers for the open rows.
 
@@ -84,7 +84,7 @@
 
 | Figure | Source | Subject |
 |---|---|---|
-| 2.1 | `assets/graphviz/01_block_diagram.dot` | the manager shape as planned before the D rows closed; the blocks are the built ones ([Chapter 2.4](ch02_overview/04_block_diagram.md)), a redraw from the RTL is pending |
+| 2.1 | `assets/graphviz/01_block_diagram.dot` | the whole unit as built, drawn from `onyx_ccu.sv` and `onyx_top.sv` ([Chapter 2.4](ch02_overview/04_block_diagram.md)) |
 
 : Table 0.0: Figures and their sources
 

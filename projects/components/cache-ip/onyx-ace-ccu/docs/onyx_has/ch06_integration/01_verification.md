@@ -48,7 +48,7 @@
 
 The harness (`formal_onyx_ccu.sv`) is the pair fabric's carried over: the environment is both caches, both snoop responders and the memory as free inputs under their documented contracts (the request pulses, the AR in launch order with a fresh ID, the retire after the last beat, the responders answering only accepted ACs in order with CD before CR, the memory answering only issued reads). What onyx changed is what the harness changed: the per-slot accept and answer bits became counters, so the harness reads the DUT's all-accepted and gathered flags; the memory AR waits on all-accepted and the absence of a DataTransfer; the flag order is DataTransfer implies all-accepted, PassDirty implies DataTransfer, gathered implies all-accepted; `CDREADY` depends on `CDVALID`. The first run found one real weakness and one harness gap together: the memory could present a beat nobody asked for in the one cycle after reset where its contract was not yet armed, and onyx's gather counters read "complete" for an invalid slot, so the stray beat was forwarded. The RTL now qualifies both memory-R routes with a read outstanding (a beat for no read is held, as a memory fault), and the harness holds reset for the two steps before the contracts arm. The mutations: the gather declared complete at once, the fanout including the requester, a second grant to a port with its AR untaken; each fails at step 3 on its property.
 
-A three-port harness needs the per-peer accept and answer shadow the counters summarize; it is the next formal item. Liveness bounds (the control's style, derived from the environment's constants) are not yet stated for onyx.
+The three- and four-port harness, `formal/onyx/onyx_ccu_n3` and `_n4` (one N-generic harness, commit c6273863b), adds the per-peer accept and answer shadow the counters summarize: cover 41/41 and `prove_fast` (17 properties, BMC depth 32) PASS at both N, 19 mutants fail at both N, the N = 3 `prove` (29 properties, depth 20) PASS; the N = 4 `prove` and both `prove_book` runs: running, see onyx TASK-001. N_PORTS 2's re-prove on flat 34a9908c (after BUG-001..003): running, see onyx TASK-001. Liveness bounds (the control's style, derived from the environment's constants) are not yet stated for onyx.
 
 ## What the IO port found
 
@@ -56,5 +56,5 @@ The first IO read against two sharers hung: with every cache a peer of one slot,
 
 ## Not yet run
 
-- A core-alone rig with BFM caches on the AXI4 side, and a three-cache rig with real caches (N_PORTS 3 and 4 are lint-clean and BFM-exercised on the snoop side only).
+- A three-cache rig with real caches. (The core-alone rig with BFM caches, `dv/tests/test_onyx_core_rig.py`, runs `onyx_ccu` at N_PORTS 2, 3 and 4 in both D6 modes; results in onyx TASK-001, 2026-11-26.)
 - Golden-model parity at the three-block level beyond the pair-rig lockstep model (the gem5 `MESI_Two_Level` mapping remains the plan).

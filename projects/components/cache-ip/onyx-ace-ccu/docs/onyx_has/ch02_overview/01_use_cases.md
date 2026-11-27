@@ -36,7 +36,7 @@ Each cache is an AXI4 master toward onyx with its request class on the D-8 sideb
 
 ## Three and four caches
 
-`N_PORTS` reaches 4 (D11). The core lints and is formally argued at two ports; the snoop-gather rig exercises the BFM side of the fanout at three and four ports; a three-cache rig with real caches and the N_PORTS 3 formal harness are the next items.
+`N_PORTS` reaches 4 (D11). The core-alone rig (`dv/tests/test_onyx_core_rig.py`) runs `onyx_ccu` at N_PORTS 2, 3 and 4 with BFM caches; the snoop-gather rig exercises the BFM side of the fanout at three and four ports. Formal: `formal/onyx/onyx_ccu_n3` and `_n4` (one N-generic harness, commit c6273863b): cover 41/41 and `prove_fast` (17 properties, BMC depth 32) PASS at both N, 19 mutants fail at both N, the N = 3 `prove` (29 properties, depth 20) PASS; the N = 4 `prove` and both `prove_book` runs: running, see onyx TASK-001. A three-cache rig with real caches is not built.
 
 ## Standalone testing with BFM caches
 

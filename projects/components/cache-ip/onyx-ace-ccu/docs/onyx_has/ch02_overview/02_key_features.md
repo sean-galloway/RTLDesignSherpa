@@ -49,11 +49,11 @@ Data is accepted from the one peer that supplies it (Exclusive or Modified under
 
 ## Fair arbitration everywhere
 
-Rotating priority at the grant over the ports, at the write port over the write-backs and the absorption, and at each snoop-data buffer's write among the peers.
+Rotating priority at the grant over the N_PORTS caches and the IO port (`onyx_ccu.sv:695-704`), at the write port over the N_PORTS write-backs, the absorption and the IO write (`onyx_ccu.sv:1154-1166`), and at each snoop-data buffer's write among the peers.
 
-## Observation (D9, decided, not yet built)
+## Observation (D9, decided, built)
 
-`*_monlite` taps behind `USE_MONITOR` for transaction start, fanout, gather completion, elision hit/miss, serialization stalls and drains are a later TASK-001 step; the debug taps the pair-rig testbench reads are in place.
+`onyx_ccu`'s one-cycle event taps feed `onyx_monlite` (MonBus packets for transaction start, gather completion with its verdict, memory read, wasted read, absorption, write-back and lock wait, behind `USE_MONITOR`, mask layers and an address window) and `onyx_counters` (eight exact counts), composed in `onyx_top` (Chapter 4.4). The AC handshake is not a class: it is transaction start times the peer count. The debug taps the pair-rig testbench reads are kept beside them.
 
 ## Design invariants
 

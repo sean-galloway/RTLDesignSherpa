@@ -28,7 +28,7 @@
 | Title | onyx — Snoop-Based ACE Coherency Unit — Hardware Architecture Specification |
 | Version | 0.3 |
 | Date | 2026-11-21 |
-| Status | 0.3: the D rows decided (PRD v0.7, 2026-11-20) and the RTL built -- `onyx_ccu`, the pair fabric generalized to N ports; verified on jet-prime's pair-rig grid, argued formally at two ports, measured on the Genesys2 reference rig (onyx TASK-001). Open: the ACE-Lite IO port, the MonBus taps, the N rows other than N1. |
+| Status | 0.3: the D rows decided (PRD v0.7, 2026-11-20) and the RTL built -- `onyx_ccu`, the pair fabric generalized to N ports; verified on jet-prime's pair-rig grid, argued formally at two ports, measured on the Genesys2 reference rig (onyx TASK-001). Since built: the ACE-Lite IO port (D1), the MonBus observer and counters (D9), formal harnesses at N_PORTS 3 and 4. Open: the N rows other than N1. |
 | Scope | `onyx` as the coherence manager between the family's ACE-shaped caches and the house AXI4 memory path; N cache-side ACE slave ports, one memory-side AXI4 master, one inter-cache snoop fanout, MonBus observation. |
 | Not in scope | Cache storage inside onyx, directory-based coherence except as the D3 snoop-filter candidate, DVM and full barrier semantics, multi-CCU/multi-domain systems, stash/dealloc, CPU or upstream-master port beyond ACE-Lite IO. |
 

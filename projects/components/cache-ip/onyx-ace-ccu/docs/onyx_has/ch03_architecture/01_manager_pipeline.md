@@ -27,7 +27,7 @@
 
 ## What enters and what leaves
 
-onyx v1 is a coherency unit and nothing else (D1): N_PORTS cache-side ports (2 to 4, D11), one AXI4 master toward memory, and the snoop fanout to every attached cache. The ACE-Lite IO port that D1 keeps in scope is a later step of TASK-001 and is not in the v1 pipeline.
+onyx v1 is a coherency unit and nothing else (D1): N_PORTS cache-side ports (2 to 4, D11), one AXI4 master toward memory, and the snoop fanout to every attached cache. The ACE-Lite IO port that D1 keeps in scope is built: it is requester N_PORTS of the same table (`onyx_ccu.sv:129-160`, Chapter 4.5).
 
 A cache-side port carries three things from a jet-prime cache:
 
@@ -42,7 +42,7 @@ The request class rides the sideband rather than `ARSNOOP` because that is what 
 A fill or upgrade moves through the manager in these steps; every one is a field of the transaction table (Chapter 3.3), so the pipeline is the table, not a chain of stages.
 
 1. **Pulse.** The sideband pulse enters the port's pending queue (depth 4). The head of the queue, or the live pulse when the queue is empty, is the port's grant candidate.
-2. **Grant.** A candidate is granted when no valid slot holds its line (the per-line lock, D5), a slot is free, and the port has no AR still untaken from an earlier grant. One grant per cycle, rotating priority over the ports. The grant allocates the slot and arms the port's `ARREADY`.
+2. **Grant.** A candidate is granted when no valid slot holds its line (the per-line lock, D5), a slot is free, and the port has no AR still untaken from an earlier grant. One grant per cycle, rotating priority over the N_PORTS caches and the IO port (`onyx_ccu.sv:695-704`). The grant allocates the slot and arms the port's `ARREADY`.
 3. **AR take.** The cache's AR for the launch is taken into the slot (its ID, cache and protection attributes). `ARREADY` comes from the armed register only, never combinationally from the AR.
 4. **Fanout.** The slot is queued for an AC to every peer except the requester (D3, Chapter 3.4). Each peer's AC channel drains its queue in order, up to SNOOP_INFLIGHT accepted and unanswered.
 5. **Memory read.** For a data class, the memory AR issues once every peer has accepted its AC, unless a peer has already answered with `DataTransfer` (DEFER_AR = 0); with DEFER_AR = 1 it issues only once every CR is in and none supplied the line (D6). A presented AR is held until taken.

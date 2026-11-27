@@ -37,7 +37,7 @@ When the read issues is the D6 mode (Chapter 3.2): `DEFER_AR = 0` at the last pe
 
 ## Writes
 
-The write port carries two kinds of burst, one at a time, round-robin over N + 1 candidates:
+The write port carries three kinds of burst, one at a time, round-robin over N + 2 candidates (`onyx_ccu.sv:528`, `1154-1166`): the two below and the IO port's write (Chapter 4.5):
 
 - **Write-backs,** passed through from a cache's AW/W/B with the cache's own `AWID`, address, length and attributes. A write-back to a line with a slot whose gather is incomplete, or whose absorption is pending, holds at its AW until that clears; one presented while another port already presents a write-back to the same line holds until that one is taken, so two write-backs to a line land in presentation order.
 - **Absorptions,** the manager's own writes of a `PassDirty` line from the slot buffer: a full line at the slot's line address with `AWID = 8'hA0 | requester port` truncated to the ID width (at the rigs' 8-bit IDs, `A0` and `A1`), full strobes. One absorption per supplied-dirty transaction; the slot does not free until its `BRESP`.
@@ -53,4 +53,4 @@ The write port carries two kinds of burst, one at a time, round-robin over N + 1
 
 ## What is open
 
-- The ACE-Lite IO port of D1, a later TASK-001 step, will add a non-coherent requester on this side's traffic.
+- (The ACE-Lite IO port of D1 is built; its memory-side consequences are in Chapter 4.5.)

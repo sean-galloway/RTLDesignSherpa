@@ -1,0 +1,57 @@
+// onyx write port (onyx_ccu.sv:1013-1231, 1487-1529) -- house style per
+// vault/handbook/authoring/block-diagrams.md. Drawn from the RTL. The
+// holds and candidates are combinational over the table and the order
+// flags; the flags are flops; the selection is a rotating pick; the burst
+// sequencer r_wstate is the one FSM in onyx; the AW / W path is a
+// combinational pass-through of the selected writer.
+digraph onyx_write_port {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.70", splines=ortho,
+           label=<<B>onyx write port - one burst system-wide, round-robin over N_PORTS write-backs + the absorption + the IO write</B>>,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    c_b   [label="Write response B\nc_b*[d], io_b* (comb)", style="rounded,filled", fillcolor="#E2EFDA"];
+    c_aw  [label="Writer AW / W (comb pass-through)\ncache d: write-back or WriteClean;\nIO: WriteUnique / WriteLineUnique / WriteNoSnoop", style="rounded,filled", fillcolor="#E2EFDA"];
+    table [label="Transaction table\nper slot: line, gathered,\nr_pd / r_abs_issued / r_abs_done,\nthe IO write's slot", shape=cylinder, fillcolor="#E8DFF5"];
+    { rank=same; c_b; c_aw; table; }
+    c_b -> c_aw -> table [style=invis];
+
+    flags [label="Order flags per cache\nr_aw_pres, r_aw_yield (BUG-002),\nr_aw_old (BUG-003)", peripheries=2, fillcolor="#D6E4F0"];
+    buf   [label="Snoop-data buffer\nof the slot's requester\n(PassDirty line)", shape=cylinder, fillcolor="#E8DFF5"];
+
+    holds [label="Write-back holds per cache\nyield to an older same-line AW;\nline still gathers; line owes an\nabsorption (old write-back exempt)"];
+    iog   [label="IO write gate\nWriteUnique: gathered, absorbed,\nno cache AW on the line;\nWriteNoSnoop: the holds"];
+    absc  [label="Absorption candidate\nlowest gathered PassDirty slot,\nnot issued, no old write-back\npresented to its line"];
+    { rank=same; holds; iog; absc; }
+    iog -> holds -> absc [style=invis];
+
+    pick  [label="Select: rotating priority from r_w_rr\nover N_PORTS + 2 candidates", shape=invtrapezium, fillcolor="#FFF2CC", width=8.0, height=0.5];
+    fsm   [label="Burst FSM r_wstate: IDLE / AW / W / B\nr_w_sel, r_w_slot, r_w_beat;\nr_wfly_line (holds the memory read, BUG-002)", style="filled,diagonals", peripheries=2, fillcolor="#FCE4D6"];
+    mux   [label="AW / W mux\nthe selected writer's channels, or the\nabsorption: line address, buffer beats,\nfull strobes, AWID 8'hA0 | requester"];
+
+    bar   [label="onyx boundary - memory write channels mem_aw* / mem_w* / mem_b* (comb pass-through, gated by r_wstate)",
+           style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=12, height=0.5, fontsize=11];
+
+    // ---- candidates ----
+    c_aw  -> flags [xlabel="cache AWVALID,\nline"];
+    flags -> holds [style=dashed, color="#777777", xlabel="old / yield"];
+    table -> holds [style=dashed, color="#777777", xlabel="line gathers /\nowes absorption"];
+    table -> absc  [style=dashed, color="#777777", xlabel="PassDirty,\ngathered"];
+    c_aw  -> iog   [xlabel="IO AW\n{domain, line}"];
+    holds -> pick  [xlabel="WB candidate\n(per cache)"];
+    iog   -> pick  [xlabel="IO write\ncandidate"];
+    absc  -> pick  [xlabel="absorption\ncandidate"];
+    pick  -> fsm   [penwidth=1.8, xlabel="winner"];
+
+    // ---- forward data ----
+    fsm   -> mux   [style=dashed, color="#777777", xlabel="select"];
+    buf   -> mux   [xlabel="absorption beats"];
+    c_aw  -> mux   [xlabel="AW fields,\nW beats"];
+    mux   -> bar   [penwidth=1.8, xlabel="Write to memory\nAW / W"];
+
+    // ---- write response ----
+    c_b   -> bar   [dir=back, color="#1A7A1A", xlabel="BRESP to the writer\n(absorption: consumed)"];
+}

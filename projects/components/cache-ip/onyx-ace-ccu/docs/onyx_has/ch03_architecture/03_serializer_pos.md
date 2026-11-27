@@ -29,7 +29,7 @@
 
 onyx holds every transaction in flight in one table of SLOTS entries shared by all ports; a slot is the manager's unit of serialization. A slot carries the requester port, the line, the request class, the taken AR's ID and attributes, the counts of peers yet to accept the AC and yet to answer, the verdict bits (`DataTransfer`, `PassDirty`), and the completion bits (memory read issued and drained, replay done, absorption issued and done, retire seen). The memory read ID is the slot index, so a memory beat names its slot directly and the requester sees its own AR ID back.
 
-SLOTS defaults to N_PORTS times (MSHR_COUNT plus 1): every entry of every cache and every upgrade can be in flight at once and nothing ever waits for a slot.
+SLOTS defaults to 18 (`onyx_ccu.sv:218`), which is N_PORTS times (MSHR_COUNT plus 1) at two ports and jet-prime's MSHR_COUNT of 8: every entry of every cache and every upgrade can be in flight at once and no cache waits for a slot. The IO port's one read and one write are not in that sum.
 
 ## The per-line rule
 
@@ -41,8 +41,8 @@ Two transactions on the same line never proceed together. A grant candidate whos
 
 Three arbiters rotate:
 
-- the grant, over the N ports: priority starts one past the last granted port, so a port that lost a cycle wins the next contested one;
-- the write port, over the N write-back channels and the absorption, the same way;
+- the grant, over the N_PORTS caches and the IO port (requester N_PORTS): priority starts one past the last granted requester, so a requester that lost a cycle wins the next contested one (`onyx_ccu.sv:695-704`, `1373`);
+- the write port, over the N_PORTS write-back channels, the absorption and the IO write (N_PORTS + 2 candidates), the same way (`onyx_ccu.sv:528`, `1154-1166`);
 - the CD write into each requester port's snoop-data buffer, over the peers wanting it (Chapter 3.4).
 
 No fixed-priority path exists, so a single busy port cannot starve another of grants, of the write port, or of a buffer. A port is held back from a second grant only while its own AR from the previous grant is untaken, which is the cache's pace, not another port's.
@@ -55,4 +55,4 @@ No fixed-priority path exists, so a single busy port cannot starve another of gr
 - A write-back is selected for the memory write port only when no slot on its line has an incomplete gather or a pending absorption.
 - Two write-backs to one line are forwarded in the order they were presented: one presented while another port already presents one to the same line yields until that one is taken (jet-prime BUG-002: a victim whose drain had started when a snoop passed its line on still drains, and must land before the new owner's write-back of the line).
 
-The first four are stated and proven on the onyx formal harness at N_PORTS 2 (TASK-001 step 4), carried over from the pair fabric's 27-property argument; the fifth is `ap_wb_order` on the same harness (2026-11-24).
+The first four are stated and proven on the onyx formal harness at N_PORTS 2 (TASK-001 step 4), carried over from the pair fabric's 27-property argument; the fifth is `ap_wb_order` on the same harness (2026-11-24). All five are restated at N_PORTS 3 and 4 in `formal/onyx/onyx_ccu_n3` and `_n4` (one N-generic harness, commit c6273863b): cover 41/41 and `prove_fast` (17 properties, BMC depth 32) PASS at both N, 19 mutants fail at both N, the N = 3 `prove` (29 properties, depth 20) PASS; the N = 4 `prove` and both `prove_book` runs: running, see onyx TASK-001.
