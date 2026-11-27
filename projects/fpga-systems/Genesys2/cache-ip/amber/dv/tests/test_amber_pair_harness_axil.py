@@ -198,6 +198,23 @@ async def aperture_probe_test(dut):
     except Exception as e:
         failures.append(f"harness_csr access failed: {e}")
 
+    # harness_csr decodes its whole 4 KB window: an unmapped offset reads
+    # 0xDEADBEEF and a write to one is dropped.  The decode once used only
+    # addr[5:2], so 0x040 (the reference rig's IO_ADDR) wrote CTRL and 0x050
+    # (IO_STATUS) read FABRIC_DBG, whose bit 31 is 0 -- "IO port present" on
+    # a rig that has none.
+    try:
+        await tb.write32(ADDR_HARNESS_CSR + 0x040, 0x0000_0006)
+        ctrl = await tb.read32(ADDR_HARNESS_CSR + HCSR_CTRL)
+        if ctrl != 0x0000_0000:
+            failures.append(f"write to unmapped 0x040 reached CTRL: 0x{ctrl:08x}")
+        for off in (0x040, 0x050, 0x050 + 0x40 * 3, 0xFFC):
+            got = await tb.read32(ADDR_HARNESS_CSR + off)
+            if got != 0xDEAD_BEEF:
+                failures.append(f"unmapped harness_csr 0x{off:03x} read 0x{got:08x}, not 0xdeadbeef")
+    except Exception as e:
+        failures.append(f"harness_csr unmapped access failed: {e}")
+
     # harness_csr cycle counter should advance
     try:
         cyc0 = await tb.read32(ADDR_HARNESS_CSR + HCSR_CYCLE_LO)
@@ -471,11 +488,23 @@ async def injector_latency_test(dut):
             f"{name}: latency sum {lat_sum} exceeds run cycles {run_cycles}"
 
 
+async def _record_watched_accepts(dut, out: list, n: int) -> None:
+    """Append in_ts of each packet monbus_pkt_tally accepts while the watch
+    matches, until n are recorded.  Sampled on the falling edge so the
+    combinational accept/match terms are settled for the coming capture."""
+    t = dut.u_dut.u_tally.u_tally
+    while len(out) < n:
+        await cocotb.triggers.FallingEdge(dut.aclk)
+        if int(t.w_accept.value) and int(t.w_watch_match.value):
+            out.append(int(t.in_ts.value))
+
+
 @cocotb.test(timeout_time=5000, timeout_unit="ms")
 async def tally_latch_bank_test(dut):
     """16-deep first-event latch bank (formal/amber TASK-001 items 1+3):
     an all-types watch mask fills all 16 slots, slot readback is indexed by
-    LATCH_SEL, timestamps are non-decreasing, and tally_clear re-arms."""
+    LATCH_SEL, slot i holds the i-th watched packet the tally accepted, and
+    tally_clear re-arms."""
     clk_task = cocotb.start_soon(_manual_clock(dut))
     tb = AmberPairHarnessAXILTest(dut, clk_task)
     await tb.reset()
@@ -483,6 +512,12 @@ async def tally_latch_bank_test(dut):
 
     # Arm the watch for every packet type (mask bit per 4-bit pkt_type).
     await tb.write32(ADDR_TALLY_CFGW + TALLY_WATCH_CTRL, (1 << 31) | 0xFFFF)
+    # The arrival order the bank must reproduce: the timestamp of every
+    # watched packet the tally accepts, sampled mid-cycle (the capture
+    # condition is w_accept && w_watch_match in ST_RUN, and in_ready already
+    # implies ST_RUN).
+    accepted = []
+    rec = cocotb.start_soon(_record_watched_accepts(dut, accepted, TALLY_NUM_LATCH))
     await _run_burst(tb, count=48)
 
     status = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_STATUS)
@@ -490,8 +525,15 @@ async def tally_latch_bank_test(dut):
     assert fill == TALLY_NUM_LATCH, \
         f"latch fill {fill} != {TALLY_NUM_LATCH} (bank deeper than 4 wanted)"
 
-    # Walk all slots: VALID set, timestamps non-decreasing in capture order.
-    prev_ts = -1
+    # Walk all slots: VALID set, slot i = the i-th accepted watched packet.
+    # Not "timestamps non-decreasing": each cache stamps its own packets
+    # (mon0/mon1_timestamp) before monbus_arbiter merges the two streams, so a
+    # packet stamped 561 can arrive behind one stamped 562 from the other
+    # cache.  Both caches are identical amber_top instances (agent 0x00A0), so
+    # no packet field names its source; the arrival order is the invariant.
+    assert len(accepted) >= TALLY_NUM_LATCH, \
+        f"only {len(accepted)} watched packets accepted, bank holds {TALLY_NUM_LATCH}"
+    rec.kill()
     for slot in range(TALLY_NUM_LATCH):
         await tb.write32(ADDR_TALLY_CFGW + TALLY_LATCH_SEL, slot)
         st = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_STATUS)
@@ -499,8 +541,8 @@ async def tally_latch_bank_test(dut):
         ts_lo = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_TS_LO)
         ts_hi = await tb.read32(ADDR_TALLY_CFGR + TALLY_LATCH_TS_HI)
         ts = (ts_hi << 32) | ts_lo
-        assert ts >= prev_ts, f"slot {slot} ts {ts} < previous {prev_ts}"
-        prev_ts = ts
+        assert ts == accepted[slot], \
+            f"slot {slot} ts {ts} != accepted packet {slot}'s ts {accepted[slot]}"
 
     # tally_clear re-arms the bank (item 1's real payoff).  The MonBus path
     # must DRAIN first (tally_clear_freeze_test's protocol): it is a

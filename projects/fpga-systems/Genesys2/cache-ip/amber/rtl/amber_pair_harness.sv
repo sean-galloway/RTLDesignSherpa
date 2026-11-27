@@ -1355,11 +1355,14 @@ module amber_harness_csr (
     input  logic [3:0]  i_fabric_dbg
 );
 
-    localparam logic [3:0] HCSR_CTRL       = 4'h0;
-    localparam logic [3:0] HCSR_STATUS     = 4'h1;
-    localparam logic [3:0] HCSR_CYCLE_LO   = 4'h2;
-    localparam logic [3:0] HCSR_CYCLE_HI   = 4'h3;
-    localparam logic [3:0] HCSR_FABRIC_DBG = 4'h4;
+    // Word index into the whole 4 KB harness_csr window (addr[11:2]): an
+    // unmapped offset reads 0xDEADBEEF and a write to one is dropped.  A
+    // narrower decode aliases every 64 B onto these five registers.
+    localparam logic [9:0] HCSR_CTRL       = 10'h0;
+    localparam logic [9:0] HCSR_STATUS     = 10'h1;
+    localparam logic [9:0] HCSR_CYCLE_LO   = 10'h2;
+    localparam logic [9:0] HCSR_CYCLE_HI   = 10'h3;
+    localparam logic [9:0] HCSR_FABRIC_DBG = 10'h4;
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
@@ -1401,7 +1404,7 @@ module amber_harness_csr (
                 r_aw_done <= 1'b0;
                 r_w_done  <= 1'b0;
                 for (int b = 0; b < 4; b++) begin
-                    if (r_wstrb[b] && (r_awaddr[5:2] == HCSR_CTRL)) begin
+                    if (r_wstrb[b] && (r_awaddr[11:2] == HCSR_CTRL)) begin
                         r_ctrl[8*b +: 8] <= r_wdata[8*b +: 8];
                     end
                 end
@@ -1421,7 +1424,7 @@ module amber_harness_csr (
     assign s_axil_rdata   = r_rdata;
 
     always_comb begin
-        case (r_araddr[5:2])
+        case (r_araddr[11:2])
             HCSR_CTRL:       r_rdata = r_ctrl;
             HCSR_STATUS:     r_rdata = i_status;
             HCSR_CYCLE_LO:   r_rdata = i_cycle_lo;

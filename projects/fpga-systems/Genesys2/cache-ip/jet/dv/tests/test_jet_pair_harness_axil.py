@@ -225,6 +225,23 @@ async def aperture_probe_test(dut):
     except Exception as e:
         failures.append(f"harness_csr access failed: {e}")
 
+    # harness_csr decodes its whole 4 KB window: an unmapped offset reads
+    # 0xDEADBEEF and a write to one is dropped.  The decode once used only
+    # addr[5:2], so 0x040 (the reference rig's IO_ADDR) wrote CTRL and 0x050
+    # (IO_STATUS) read FABRIC_DBG, whose bit 31 is 0 -- "IO port present" on
+    # a rig that has none.
+    try:
+        await tb.write32(ADDR_HARNESS_CSR + 0x040, 0x0000_0006)
+        ctrl = await tb.read32(ADDR_HARNESS_CSR + HCSR_CTRL)
+        if ctrl != 0x0000_0000:
+            failures.append(f"write to unmapped 0x040 reached CTRL: 0x{ctrl:08x}")
+        for off in (0x040, 0x050, 0x050 + 0x40 * 3, 0xFFC):
+            got = await tb.read32(ADDR_HARNESS_CSR + off)
+            if got != 0xDEAD_BEEF:
+                failures.append(f"unmapped harness_csr 0x{off:03x} read 0x{got:08x}, not 0xdeadbeef")
+    except Exception as e:
+        failures.append(f"harness_csr unmapped access failed: {e}")
+
     # harness_csr cycle counter should advance
     try:
         cyc0 = await tb.read32(ADDR_HARNESS_CSR + HCSR_CYCLE_LO)

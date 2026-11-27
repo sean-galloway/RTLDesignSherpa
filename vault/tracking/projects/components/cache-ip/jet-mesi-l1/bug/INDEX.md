@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/jet-mesi-l1 — bugs
 
-**Next ID: BUG-007** — never recycle a number, even when its item closed.
+**Next ID: BUG-008** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what
 correct looks like. If you cannot state the expected behaviour, it is an
@@ -14,7 +14,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 6 | done (kept for history) |
+| [closed/](closed/) | 7 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -34,6 +34,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 - **BUG-004** ([page](closed/BUG-004.md)) — jet_pair_fabric safe-peer wait demands an idle peer lookup (`lkup_live`) that a pipelined request stream never grants while the peer's own fill waits on the fabric: both caches park with an AR held, F_AC forever. Found by the pipelined cycle injector (common-ip TASK-002) at depth 8; pinned by pair-rig scenario (i). P1. Filed and closed 2026-11-11 (fix in jet_pair_fabric; jet FULL 149/149, bin 17 swept).
 - **BUG-005** ([page](closed/BUG-005.md)) — a write-back victim passed on by a snoop still drains (jet carries jet-prime BUG-002: stale bytes can land after the new owner's write-back). Deferred 2026-11-24 while jet was frozen; fixed 2026-11-25 at the owner's request (jet-prime's fix ported, jet full 149/149); control liveness and safety proofs PASS; closed 2026-11-26; the fabric order hold, unreached by random traffic on jet, is pinned by pair-rig scenario (j).
 - **BUG-006** ([page](closed/BUG-006.md)) — jet_pair_fabric's write-port arbiter keeps the LAST match of a scan that ends at the previous winner: the last winner keeps top priority (the comment says fair round-robin). Fairness by timing accident; jet BUG-005 scenario (j) depends on it. P2. Filed 2026-11-26. Fixed 2026-11-26 with rtl/common arbiter_round_robin (req/grant/ACK mode; the absorption kick folded into the write-back's request); jet full 149/149; pinned by pair-rig scenarios (j) and (k) and the grant-eligibility check; closed.
+- **BUG-007** ([page](closed/BUG-007.md)) — the Genesys2 jet pair harness decoded 64 B of its 4 KB harness_csr window (addr[5:2]): every offset aliased onto five registers, so the shared host's io sequence read IO_STATUS (0x050) as FABRIC_DBG, saw "IO port present" and wrote CTRL through IO_ADDR (0x040). P3. Filed and closed 2026-11-26: decode addr[11:2]; probe test pins it; board io now skips itself, bin 19 sweeps CRC-identical.
 
 ## Deferred
 
