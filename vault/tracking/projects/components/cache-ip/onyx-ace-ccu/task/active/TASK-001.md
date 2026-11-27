@@ -772,3 +772,20 @@ Found and measured:
   within 0.5 % in the other 13. Done-when's "cycles per transaction equal
   to the pair fabric's in parallel-issue mode" holds against the fixed
   fabric, within 0.5 %.
+- 2026-11-27 **formal at N_PORTS = 3 and 4 (in progress):** one harness for
+  both (`formal/onyx/onyx_ccu_n3/formal_onyx_ccu_n.sv`, `-DNP=3` / `-DNP=4`;
+  units `onyx_ccu_n3`, `onyx_ccu_n4`), geometry as N=2 but N (SLOTS 4).
+  Per-slot, per-peer shadow (owed / AC accepted / CR answered) and three new
+  properties on it (`ap_peer_shadow`, `ap_snq_count` -- a dropped peer, a
+  hang at N=2's level, fails as safety -- and `ap_cr_slot`); 33 properties
+  (`prove` 29, `prove_book` 4), 41 covers. Results so far: cover 41/41 at
+  both N (deepest step 15); `prove_fast` (17 cheap properties) PASS to
+  depth 32 at both N (N=3 4,737 s, N=4 3,053 s); 19 mutants each fail at both
+  N (seven of them narrow a generalized rule back to ports 0/1, invisible
+  at N=2); no property fails on the RTL. Still running: `prove` (29, target
+  depth 20) -- N=3 clean through step 18, N=4 through 16; `prove_book`
+  (depth 16) -- N=3 PASS all 16 steps on a scratch copy, N=4 clean through
+  step 14. Depth gap, recorded in the .sby headers: N does not lengthen one
+  transaction (the gather costs its slowest peer; the absorption's BRESP is
+  covered at step 15 at N=2, 3, 4), but full contention reaches ~69 (N=3) /
+  ~76 (N=4) steps, beyond any affordable depth -- as N=2's 24 is.

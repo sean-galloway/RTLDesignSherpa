@@ -813,3 +813,32 @@ offer in the gaps. Counters that move only toward release (occupancy
 filled, a full memory drained) are safe as they are.
 
 Case: gatling-rv32i TASK-005 (2026-11-26).
+
+## Widening a harness from 2 ports to N: shadow the per-peer state, and time properties WITH their lemmas (2026-11-27)
+
+At N=2 a slot of onyx_ccu had one peer, so two counters ("peers yet to
+accept", "peers yet to answer") said everything. At N=3 and N=4
+(`formal/onyx/onyx_ccu_n3`, `onyx_ccu_n4`, one harness shared through
+`-DNP=`) the same properties, widened, still passed against a fanout that
+DROPPED a peer: the slot never gathers, and every counter stays consistent
+with itself. That is a hang, and liveness is not in a safety BMC -- but it
+becomes a safety property once the harness keeps its own per-slot, per-peer
+shadow (owed at the grant, accepted at the AC handshake, answered at the
+CR) and asserts that each peer's snoop-queue depth equals the number of
+live slots that owe it an AC it has not accepted (`ap_snq_count`; the
+dropped-peer mutant fails at step 4). When a harness grows a dimension, ask
+what "nothing happens" looks like along that dimension and whether some
+count already in the RTL betrays it.
+
+The same widening is where a 2-port harness's hidden "the other one" lives:
+`1 - p`, `dir & 1`, `{c1, c0}`. Mutate each generalization back to ports 0 /
+1 (a no-op at N=2, a bug at N=3); every such mutant should fail, and here
+seven did, at steps 5-10.
+
+Cost: timing each property ALONE (BMC depth 15, N=4) split the set cleanly
+-- 17 of 29 at 15-42 s, the rest minutes -- but several of the dear ones
+were SLOWER alone than inside the full set. smtbmc assumes every assertion
+at the earlier steps, so the other properties are lemmas, and isolating a
+property removes them. Keep the cheap properties IN the expensive task and
+re-prove them deeper in a task of their own (`prove_fast`), rather than
+splitting them out of it.

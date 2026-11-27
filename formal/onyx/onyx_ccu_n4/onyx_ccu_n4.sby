@@ -1,0 +1,74 @@
+[tasks]
+prove
+prove_fast
+prove_book
+cover
+
+[options]
+# onyx_ccu at N_PORTS=4 (onyx TASK-001 "Done when": the serializer and the
+# gather proven safe at N = 2, 3, 4).  Harness: ../onyx_ccu_n3/formal_onyx_ccu_n.sv
+# (N-generic; its header holds the assumption set and the mutation record).
+# Every depth below is a BMC BOUND, not a proof: depth d checks steps
+# 0..d-1, steps 0-1 are reset, so d-2 cycles of operation.
+#
+# Depth derivation.  The longest single-transaction path at four beats per
+# line is a PassDirty fill -- reset 2, pulse, grant, AR take, AC accepted,
+# four CD beats, CR, replay, the absorption's AW / 4 W / B, retire, release:
+# ~20 steps -- and N does NOT lengthen it: the grant pushes every peer's
+# snoop queue in one cycle and each peer has its own AC / CR / CD channels,
+# so a gather costs its slowest peer (the supplier: AC, 4 CD, CR), not the
+# sum of N-1 or N.  Measured: the absorption's BRESP (cp_abs_landed) is
+# reached at step 15 at N = 2, 3 and 4 alike.  What N adds is CONTENTION,
+# each term bounded by the RTL: the grant round-robin over N+1 requesters
+# (+N), a supplier serving up to SLOTS-1 = 3 earlier slots from its own
+# queue (+3 x 6), a second peer supplying another slot of the same
+# requester through its one-write-port buffer (+4), and the single write
+# port's round-robin over N+2 candidates at >= 6 cycles a burst (+6(N+1)):
+# ~20 + 4 + 18 + 4 + 30 = ~76 steps for one transaction
+# under full 4-way contention.  No affordable depth reaches that at any N
+# (N=2's depth 24 does not either); the bounds below are what was measured
+# affordable, and what each covers is stated with it.
+#
+#   prove       (all 29 local properties)  depth 20: steps 0..19, 18 cycles
+#       after reset -- the uncontended single-transaction lifetime (~20)
+#       up to its release, NOT N=2's "a same-line request waits it out and
+#       is re-granted" (~24) nor any contended lifetime.  Measured per-step
+#       cost (boolector, shared host at load 25-70): steps 13-16 took 2.3 / 8.8 / 36.0 / 52.1 min;
+#       the N=2 depth-24 run sat 5h44m on step 21.
+#   prove_fast  (the 17 cheap properties of those 29) depth 32: the
+#       uncontended same-line re-grant (24) + one write-port burst wait (6)
+#       + reset (2).  ~40-60 s per step in the mid 20s.  Measured: PASS 2026-11-27, 3053 s.
+#   prove_book  (the 4 end-to-end bookkeeping properties) depth 16: one slot
+#       lifetime plus the ID's reuse and its beats, as at N=2.  ~4x per
+#       step: steps 12-14 took 3.6 / 16.9 / 78.5 min.
+#   cover       depth 40: all 41 covers reached by step 15 (PASS, 40 s).
+prove: mode bmc
+prove: depth 20
+prove_fast: mode bmc
+prove_fast: depth 32
+prove_book: mode bmc
+prove_book: depth 16
+cover: mode cover
+cover: depth 40
+
+[engines]
+prove: smtbmc boolector
+prove_fast: smtbmc boolector
+prove_book: smtbmc boolector
+cover: smtbmc boolector
+
+[script]
+read_verilog -formal -sv -mem2reg onyx_ccu_flat.v
+prove: read -formal -sv -DNP=4 -DNP4 -DPROVE_CORE formal_onyx_ccu_n.sv
+prove_fast: read -formal -sv -DNP=4 -DNP4 -DPROVE_FAST formal_onyx_ccu_n.sv
+prove_book: read -formal -sv -DNP=4 -DNP4 -DPROVE_BOOK formal_onyx_ccu_n.sv
+cover: read -formal -sv -DNP=4 -DNP4 -DPROVE_CORE -DPROVE_BOOK formal_onyx_ccu_n.sv
+proc
+expose onyx_ccu/w:r_vld onyx_ccu/w:r_nodata onyx_ccu/w:r_ar_taken onyx_ccu/w:w_ac_all onyx_ccu/w:w_gathered onyx_ccu/w:r_dt onyx_ccu/w:r_pd onyx_ccu/w:r_mem_issued onyx_ccu/w:r_mem_done onyx_ccu/w:r_rpl_done onyx_ccu/w:r_abs_issued onyx_ccu/w:r_abs_done onyx_ccu/w:r_rack onyx_ccu/w:r_arw_vld onyx_ccu/w:r_mar_vld onyx_ccu/w:r_mar_slot onyx_ccu/w:r_pend_ovf onyx_ccu/w:r_rpl_vld onyx_ccu/w:r_wstate onyx_ccu/w:r_w_sel onyx_ccu/w:r_w_slot onyx_ccu/w:w_cand_locked onyx_ccu/w:w_mem_pres onyx_ccu/w:w_rpl_pres onyx_ccu/w:w_mr_drop onyx_ccu/w:w_wb_blocked onyx_ccu/w:r_dir* onyx_ccu/w:r_ac_left* onyx_ccu/w:r_cr_left* onyx_ccu/w:r_line* onyx_ccu/w:r_type* onyx_ccu/w:r_arid* onyx_ccu/w:r_arw_slot* onyx_ccu/w:r_rpl_slot* onyx_ccu/w:w_ac_slot* onyx_ccu/w:w_sni_head* onyx_ccu/w:r_pend_cnt* onyx_ccu/w:r_sni_cnt* onyx_ccu/w:r_snq_cnt* onyx_ccu/w:w_cand_addr* onyx_ccu/w:r_iow onyx_ccu/w:r_iow_done onyx_ccu/w:r_ior_busy onyx_ccu/w:r_iow_busy onyx_ccu/w:r_iow_slot_vld onyx_ccu/w:r_ior_slot onyx_ccu/w:r_iow_slot onyx_ccu/w:r_io_araddr onyx_ccu/w:r_io_arlen onyx_ccu/w:w_wb_blocked_io onyx_ccu/w:w_io_line_wb onyx_ccu/w:w_io_w_slot onyx_ccu/w:w_io_w_pass
+prep -top formal_onyx_ccu_n
+memory_map
+delete t:$print
+
+[files]
+../onyx_ccu_n3/formal_onyx_ccu_n.sv
+onyx_ccu_flat.v
