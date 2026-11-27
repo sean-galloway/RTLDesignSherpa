@@ -125,3 +125,5 @@ Findings outside gatling, not fixed here (compute-eng-ip's):
 
 Not done here: a formal deadlock-freedom proof of the interlock (PRD 6,
 "where it pays"); the tetrad on a board (no tetrad build target exists).
+
+Both done in [TASK-005](TASK-005.md) (2026-11-27).

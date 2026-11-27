@@ -17,27 +17,9 @@
 #
 # Created: 2026-11-26
 
-"""The tetrad program.
-
-One binary for all four contexts (contexts are implicit, PRD 7 item 2); the
-cells differ only in their configuration, as they would after the in-band
-cfg stream: a MAC, an ADD, a RELU and a COMPARE cell.
-
-    CFG   x5, 1            ; credit batch register = this cell's FLUSH word
-    POP   x0, CLEAR        ; first invocation clears the MAC bank
-    PUSH  x0
-    li    x7, N
-  loop:
-    POP   x0, ACCUM        ; acc_ctrl is ignored by the non-MAC rows
-    PUSH  x0
-    addi  x7, x7, -1
-    bne   x7, x0, loop
-    li    x8, 1
-    KICK  x8               ; this context's group-done event
-    li    x6, 0xF
-    WAIT  x6               ; the tetrad barrier
-    FLUSH x5               ; drain to {tag, dest}
-    ECTX
+"""The tetrad program (dv/tbclasses/gatling/tetrad_program.py, shared with
+the Nexys A7 board host): one binary on four contexts over a MAC, ADD, RELU
+and COMPARE cell -- CLEAR + N ACCUMULATE, KICK, WAIT on all four, FLUSH, ECTX.
 
 Checks: every result line against alu-infer's golden, in order; the
 consumed-line ledger (lines popped = lines fed); one FLUSH per context,
@@ -57,25 +39,10 @@ from TBClasses.shared.test_levels import reg_level_grid
 
 from gatling.gatling_tetrad_tb import GatlingTetradTB          # noqa: E402
 from gatling import xcell_asm as xa                              # noqa: E402
-from gatling.tetrad_golden import CellModel, bf16_line, line_ok, spec_str  # noqa: E402
-import alu_infer_golden as g                                     # noqa: E402
+from gatling.tetrad_golden import line_ok, spec_str              # noqa: E402
+from gatling.tetrad_program import build_runs, tetrad_program    # noqa: E402
 
 LEVEL = os.environ.get("TEST_LEVEL", "gate").lower()
-
-
-def tetrad_program(n: int) -> xa.Prog:
-    p = xa.Prog().emit(xa.cfg(5, 1), xa.pop(0, xa.ACC_CLEAR), xa.push(0), xa.li(7, n))
-    p.label("loop").emit(xa.pop(0, xa.ACC_ACCUM), xa.push(0), xa.addi(7, 7, -1)).bne(7, 0, "loop")
-    p.emit(xa.li(8, 1), xa.kick(8), xa.li(6, 0xF), xa.wait(6), xa.flush(5), xa.ectx())
-    return p
-
-
-CELLS = (
-    lambda: CellModel(g.OP_MAC),
-    lambda: CellModel(g.OP_ADD),
-    lambda: CellModel(g.OP_RELU),
-    lambda: CellModel(g.OP_CMP, sub_op=1, threshold=0x0000),   # lane < +0
-)
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="ms")
@@ -92,22 +59,14 @@ async def cocotb_test_tetrad_program(dut):
     for c in range(n_ctx):
         await tb.backdoor_load(c, prog.words())
 
-    rng = random.Random(seed)
-    flush_word = []
+    runs = build_runs(random.Random(seed), n_ctx, count)
+    flush_word = [r.word for r in runs]
     expect = []
-    for c in range(n_ctx):
-        m = CELLS[c % len(CELLS)]()
-        word = ((0x3 + c) << 15) | (0x0100 * (c + 1) + 0x2A)     # tag, dest
-        flush_word.append(word)
+    for c, r in enumerate(runs):
+        m = r.model
         tb.configure(c, func_sel=m.func_sel, op_lines=m.op_lines,
-                     threshold=m.threshold, credit_batch=word)
-        lines, specs = [], []
-        for acc in [xa.ACC_CLEAR] + [xa.ACC_ACCUM] * count:
-            a = bf16_line(rng)
-            b = bf16_line(rng) if m.op_lines == 2 else 0
-            lines += [a, b] if m.op_lines == 2 else [a]
-            specs.append(m.step(a, b, acc))
-        expect.append((m, specs, len(lines), lines))
+                     threshold=m.threshold, credit_batch=r.word)
+        expect.append((m, r.specs, len(r.lines), r.lines))
 
     # Each cell's stream starts late, staggered, so every context's first
     # POP x0 waits on an empty input memory (the occupancy interlock);

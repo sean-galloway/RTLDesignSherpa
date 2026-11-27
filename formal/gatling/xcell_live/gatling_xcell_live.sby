@@ -1,0 +1,44 @@
+# gatling Xcell interlock, bounded liveness (gatling-rv32i TASK-005).
+# prove_live:    every context retires every BOUND (72) cycles under fair cells.
+# prove_isolate: context 0's input memory may starve; contexts 1..3 still retire.
+# cover:         an ALU result reaches PUSH x0 (the environment is not vacuous).
+# (Task names end in _live/_isolate after prove_ so formal/.gitignore's
+# *_prove_*/ covers their run directories.)
+# Depth 100 > BOUND + the core's reset synchronizer, so a context that stops
+# retiring for BOUND cycles anywhere in the first 100 is a counterexample.
+# Unbounded (abc pdr) was tried 2026-11-27: frame 54 after 7 h, no
+# convergence, so it is not a task here.
+
+[tasks]
+prove_live
+prove_isolate
+cover
+
+[options]
+prove_live: mode bmc
+prove_live: depth 100
+prove_isolate: mode bmc
+prove_isolate: depth 100
+cover: mode cover
+cover: depth 60
+
+[engines]
+prove_live: smtbmc bitwuzla
+prove_isolate: smtbmc bitwuzla
+cover: smtbmc bitwuzla
+
+[script]
+read_verilog -formal -sv gatling_xcell_live_flat.v
+prove_live: read_verilog -formal -sv formal_gatling_xcell_live.sv
+cover: read_verilog -formal -sv formal_gatling_xcell_live.sv
+prove_isolate: read_verilog -formal -sv formal_gatling_xcell_live.sv
+prove_live: chparam -set ISOLATE 0 formal_gatling_xcell_live
+cover: chparam -set ISOLATE 0 formal_gatling_xcell_live
+prove_isolate: chparam -set ISOLATE 1 formal_gatling_xcell_live
+prep -top formal_gatling_xcell_live
+memory_map
+delete t:$print
+
+[files]
+gatling_xcell_live_flat.v
+formal_gatling_xcell_live.sv

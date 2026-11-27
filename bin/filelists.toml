@@ -746,6 +746,7 @@ kind = "board"
 rtl_roots = []
 filelist_dirs = [
     "projects/fpga-systems/NexysA7/riscv-ip/gatling/build-bram/rtl/filelists",
+    "projects/fpga-systems/NexysA7/riscv-ip/gatling/build-tetrad/rtl/filelists",
     "projects/fpga-systems/NexysA7/riscv-ip/gatling/dv/filelists",
 ]
 

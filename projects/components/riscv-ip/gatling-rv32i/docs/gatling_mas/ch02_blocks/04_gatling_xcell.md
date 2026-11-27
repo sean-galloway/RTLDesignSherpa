@@ -67,6 +67,16 @@ The unit owns the input memory's head and the result memory's tail, one each per
 
 Each context has one event bit, set by its KICK and cleared only while the context is held (`hart_run` low). WAIT completes when every context in its mask has either kicked or is done (ECTX). That makes a one-shot barrier per run, which is what a tetrad's group-done needs (owner, 2026-11-26); a reusable barrier with generations belongs to the tetrad MAS when it exists. A context that halts for any other reason never satisfies a WAIT: a locked context is a bug to surface, not a member that finished.
 
+## The program contract
+
+Every interlock waits on something outside the context -- a line arriving, a result-memory slot draining, the drain controller taking a FLUSH, the ALU taking or returning an invocation -- with three exceptions that only the program can rule out, because the thing waited for is the waiting context's own next instruction:
+
+- `PUSH x0` with no invocation outstanding waits for a result that was never issued.
+- More than `PIPE_DEPTH + 1` `POP x0` outstanding (issued and not yet retired by a `PUSH x0`): the ALU holds `PIPE_DEPTH` and the stager one more, so the next `POP x0` waits for the stager, the stager for the ALU, and the ALU for a `PUSH x0` the stalled context can never reach.
+- `WAIT` on a context that never KICKs or finishes.
+
+Outside those, no interlock can wait forever: the bounded-liveness proof (Chapter 5, `formal/gatling/xcell_live`) shows it on the real core and unit against a fair abstract cell. The tetrad program keeps one invocation outstanding (POP x0 then PUSH x0), well inside the bound.
+
 ## Status
 
 `ctx_stalled[c]` is set while context c's last X slot stalled and `ctx_stall_op[c]` names the instruction (funct3), `event_flags` shows the event bits, `kick_valid` / `kick_value` the KICKs. With the core's `done` these are the per-context status the PRD gives the tetrad MonBus (active, stall reason, done).

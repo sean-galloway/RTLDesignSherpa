@@ -29,7 +29,7 @@ endif
 
 # UART-equivalence cocotb sim: the REAL uart_axil_bridge + gatling_mem_bram +
 # core driving the UNMODIFIED host programs (../bin/gatling_programs.py).
-SIM_TESTS := $(SELF_DIR)/../dv/tests
+SIM_TESTS := $(SELF_DIR)/../dv/tests/test_gatling_board_uart.py
 SEQ_DIR   := $(SELF_DIR)/../bin
 
 include $(RDS_ROOT)/make/fpga_flow.mk

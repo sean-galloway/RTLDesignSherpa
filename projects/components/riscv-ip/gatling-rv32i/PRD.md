@@ -217,7 +217,11 @@ consumed* (POP), not instructions; grants are in *elements pushed*
   credit/grant ledger against the cell PRD reference model.
 - **Formal (where it pays):** deadlock freedom of the interlock
   (POP-empty ∨ PUSH-no-grant ∧ no ECTX ⇒ eventually credit ∨ grant),
-  following the repo's targeted-formal doctrine.
+  following the repo's targeted-formal doctrine. Done as bounded
+  liveness (`formal/gatling/xcell_live`, TASK-005): under a fair cell
+  and the program contract (MAS 2, gatling_xcell), every context retires
+  every 72 cycles, and a starved context never blocks the others; BMC
+  depth 100.
 
 ## 7. Open items (owner decisions needed)
 

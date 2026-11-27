@@ -789,3 +789,27 @@ onyx TASK-001 (BUG-001..003 proofs, 2026-11-26).
   simulation the same idea is a TB-only scrambler (`RSP_SCRAMBLE` in
   `peregrine_sys_tb_top`). A model that is kinder than the spec hides
   exactly the bugs the spec allows.
+
+## A fair environment must keep the protocol, or the solver times its offers to miss (2026-11-26)
+
+A bounded-liveness harness models each wait outside the DUT as "the
+environment acts within K cycles". gatling's Xcell proof
+(`formal/gatling/xcell_live`) failed at step 73 of 100: context 0 never
+retired, stuck on `PUSH x0` with its result outstanding. The abstract ALU's
+`result_valid` was a free bit with "high at least once every K = 4 cycles",
+and the barrel samples a context's interlock in only one cycle of four, so
+the solver raised `result_valid` exactly on the three cycles the context
+was not in X, forever. Real alu-infer cannot do that: its `result_valid` is
+`occupancy != 0 && mb_arrived[head]`, held until taken. The model was the
+bug -- it dropped valid without a ready, which no valid/ready source may
+do.
+
+Rule: a fair environment keeps the handshake rules of the interface it
+stands in for. A valid it drives is held until its ready; only readies may
+come and go. Check every free signal against the one-slot-in-N sampling of
+a barrel or a polled interlock: if the bound K is not shorter than the
+sampling period and the signal can fall back, the solver will place every
+offer in the gaps. Counters that move only toward release (occupancy
+filled, a full memory drained) are safe as they are.
+
+Case: gatling-rv32i TASK-005 (2026-11-26).

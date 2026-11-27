@@ -83,7 +83,14 @@ class GatlingBoard:
         self.bridge = bridge
 
     def read(self, addr: int) -> int:
-        return self.bridge.read(addr)
+        """One read. UARTAxiBridge.read returns None for an ERR answer (a
+        non-OKAY AXI response) or a malformed one; carrying on would put a
+        None where a register value belongs, so it stops here, naming the
+        command (gatling-rv32i ISSUE-001)."""
+        v = self.bridge.read(addr)
+        if v is None:
+            raise IOError(f"UART read R {addr:08X}: ERR or no valid response")
+        return v
 
     def write(self, addr: int, data: int) -> None:
         """One acked write. UARTAxiBridge.write returns False when no "OK"
