@@ -185,10 +185,44 @@ class OnyxPairRigTB(JetPairRigTB):
                                         timeout_cycles=self.RSP_TIMEOUT_CYCLES)
         cocotb.start_soon(self._watch_onyx_mon())
         cocotb.start_soon(self._watch_onyx_events())
+        cocotb.start_soon(self._watch_old_wb())
         cocotb.start_soon(self._watch_io())
 
     def _in_win(self, addr):
         return self.mon_win is None or (self.mon_win[0] <= addr <= self.mon_win[1])
+
+    async def _watch_old_wb(self):
+        """Count onyx_ccu's own r_aw_old rising per cache port: a write
+        first presented while a slot on its line still gathers (BUG-003's
+        order hold).  The counter block mirrors that flop from the event
+        taps; this reads the real one, so cnt_old_wb is checked against the
+        RTL, not against a second model."""
+        f = self.dut.u_fabric
+        m = self.dut.u_onyx_cnt
+        prev = 0
+        cyc = 0
+        diverged = 0
+        self.stats['old_wb'] = 0
+        while True:
+            await RisingEdge(self.dut.clk)
+            cyc += 1
+            cur = int(f.r_aw_old.value)
+            self.stats['old_wb'] += bin(cur & ~prev & 0x3).count('1')
+            prev = cur
+            # the mirror is exact or the counter is not: compare the flops
+            mir = int(m.r_aw_old.value)
+            if mir != cur:
+                diverged += 1
+                if diverged <= 4:
+                    self.log.error(
+                        f"cyc {cyc}: counter mirror r_aw_old={mir:02b} != onyx_ccu r_aw_old={cur:02b} "
+                        f"awvalid={int(self.dut.m1_awvalid.value)}{int(self.dut.m0_awvalid.value)} "
+                        f"awready={int(self.dut.c_awready_v.value):02b} "
+                        f"awaddr0=0x{int(self.dut.c_awaddr[0].value):x} awaddr1=0x{int(self.dut.c_awaddr[1].value):x} "
+                        f"mirror gath={int(m.r_sl_gath.value):0{len(m.r_sl_gath)}b} "
+                        f"slot_vld={int(m.slot_vld_i.value):0{len(m.slot_vld_i)}b} "
+                        f"gather_blk={int(f.w_wb_gather_blk.value):02b} mirror_gblk={int(m.w_aw_gblk.value):02b}")
+                self._score(f"cyc {cyc}: counter mirror r_aw_old == onyx_ccu r_aw_old", mir, cur)
 
     async def _watch_onyx_events(self):
         """Count the unit's events per class, all and in-window, from the
@@ -296,7 +330,8 @@ class OnyxPairRigTB(JetPairRigTB):
         grants = sum(s['grants'])
         d = self.dut
         cnt = {k: int(getattr(d, f'cnt_{k}').value)
-               for k in ('txn', 'supplied', 'mem_read', 'read_wasted', 'absorb', 'wb')}
+               for k in ('txn', 'supplied', 'mem_read', 'read_wasted', 'absorb', 'wb',
+                         'cu_dt', 'old_wb')}
         self.onyx_cnt = cnt
         # the counters are exact against the model (independent of USE_MONITOR)
         self._score("onyx counters: txn == grants", cnt['txn'], grants)
@@ -305,6 +340,8 @@ class OnyxPairRigTB(JetPairRigTB):
         self._score("onyx counters: read_wasted == reads dropped", cnt['read_wasted'], s['r_dropped'])
         self._score("onyx counters: supplied == forwarded lines + upgrades supplied",
                     cnt['supplied'], s['dt_forwards'] + s.get('cu_dt', 0))
+        self._score("onyx counters: cu_dt == upgrades supplied", cnt['cu_dt'], s.get('cu_dt', 0))
+        self._score("onyx counters: old_wb == r_aw_old rises", cnt['old_wb'], s['old_wb'])
         # the TB's own event count (from the taps) equals the counters: the
         # window model is anchored to the exact instrument
         ea = self.exp_all
@@ -874,9 +911,28 @@ class OnyxPairRigTB(JetPairRigTB):
             for c in range(2):
                 self._score(f"nomon{c}: observer silent", self._mon_pkts[c], 0)
 
+    QUIESCE_BOUND = 5000   # cycles: a drain still running past this is stuck
+
     async def _quiescence(self):
-        await super()._quiescence()
+        """The base waits a fixed 40 cycles after the traffic ends, which
+        covers the pair fabric.  onyx's write-backs hold no slot (dbg_busy
+        does not see them), and one can still be draining then, behind an
+        absorption or a gather on its line on the one write port (seed
+        12782, s016 m02v4 full: a drain started 25 cycles before the base
+        sampled and finished correctly after).  Wait for both caches' WB
+        buffers to empty and the write port to go idle, bounded, then run
+        the base's checks: a drain still running at the bound fails them
+        as stuck."""
         f = self.dut.u_fabric
+        waited = 0
+        while waited < self.QUIESCE_BOUND:
+            if (all(not side.wb and side.draining is None for side in self.sides)
+                    and int(f.r_wstate.value) == 0):
+                break
+            await self._negedge_settled()
+            waited += 1
+        self.stats['quiesce_wait'] = waited
+        await super()._quiescence()
         self._score("quiescent: no IO read in flight", int(f.r_ior_busy.value), 0)
         self._score("quiescent: no IO write in flight", int(f.r_iow_busy.value), 0)
 

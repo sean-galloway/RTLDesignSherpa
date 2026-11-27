@@ -158,6 +158,8 @@ module onyx_pair_rig_tb
     output logic [31:0]                 cnt_read_wasted,
     output logic [31:0]                 cnt_absorb,
     output logic [31:0]                 cnt_wb,
+    output logic [31:0]                 cnt_cu_dt,
+    output logic [31:0]                 cnt_old_wb,
 
     // ------------------------------------------------------------------
     // onyx's ACE-Lite IO port (D1), driven by the TB's ACE master BFMs
@@ -589,6 +591,7 @@ module onyx_pair_rig_tb
     logic                     oc_evt_grant, oc_evt_mem_ar, oc_evt_absorb, oc_evt_wb, oc_evt_wb_io;
     logic [1:0]               oc_evt_gather, oc_evt_gather_dt, oc_evt_gather_pd, oc_evt_read_wasted;
     logic [2:0]               oc_evt_grant_cls;
+    logic [FAB_SLOTS-1:0]     oc_slot_vld;
     logic [1:0]               oc_evt_ac;
     logic [2:0]               oc_evt_lock_wait;
     logic [1:0]               io_rresp_2;
@@ -775,7 +778,7 @@ module onyx_pair_rig_tb
         .mem_bvalid       (mem_bvalid),
         .mem_bready       (mem_bready),
         .dbg_busy         (),
-        .dbg_slot_vld     (),
+        .dbg_slot_vld     (oc_slot_vld),
         .dbg_pend_vld     (),
         .dbg_abs_pend     (),
         .dbg_grant        (),
@@ -847,13 +850,19 @@ module onyx_pair_rig_tb
         .monbus_timestamp  (mon2_timestamp),
         .dropped_count     (mon2_dropped)
     );
-    onyx_counters #(.N_PORTS(2)) u_onyx_cnt (
+    onyx_counters #(.N_PORTS(2), .SLOTS(FAB_SLOTS), .ADDR_WIDTH(ADDR_WIDTH),
+                    .LINE_BYTES(LINE_BYTES)) u_onyx_cnt (
         .clk(clk), .rst_n(rst_n), .clear_i(1'b0), .freeze_i(1'b0),
         .evt_grant_i(oc_evt_grant), .evt_gather_i(oc_evt_gather), .evt_gather_dt_i(oc_evt_gather_dt),
         .evt_mem_ar_i(oc_evt_mem_ar), .evt_read_wasted_i(oc_evt_read_wasted),
         .evt_absorb_i(oc_evt_absorb), .evt_wb_i(oc_evt_wb),
+        .evt_grant_slot_i(oc_grant_slot), .evt_grant_addr_i(oc_grant_addr),
+        .evt_grant_cu_i(oc_evt_grant_cls == 3'(AMBER_ACE_CLEAN_UNIQUE)),
+        .evt_gather_slot_i(oc_evt_gather_slot), .slot_vld_i(oc_slot_vld),
+        .c_awvalid_i({m1_awvalid, m0_awvalid}), .c_awready_i(c_awready_v), .c_awaddr_i(c_awaddr),
         .cnt_txn_o(cnt_txn), .cnt_supplied_o(cnt_supplied), .cnt_mem_read_o(cnt_mem_read),
-        .cnt_read_wasted_o(cnt_read_wasted), .cnt_absorb_o(cnt_absorb), .cnt_wb_o(cnt_wb)
+        .cnt_read_wasted_o(cnt_read_wasted), .cnt_absorb_o(cnt_absorb), .cnt_wb_o(cnt_wb),
+        .cnt_cu_dt_o(cnt_cu_dt), .cnt_old_wb_o(cnt_old_wb)
     );
 
     // ------------------------------------------------------------------

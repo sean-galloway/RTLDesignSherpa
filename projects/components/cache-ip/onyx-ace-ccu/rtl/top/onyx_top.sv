@@ -272,7 +272,9 @@ module onyx_top
     output logic [31:0]                 cnt_mem_read,
     output logic [31:0]                 cnt_read_wasted,
     output logic [31:0]                 cnt_absorb,
-    output logic [31:0]                 cnt_wb
+    output logic [31:0]                 cnt_wb,
+    output logic [31:0]                 cnt_cu_dt,      // CleanUnique slots that ended with data (BUG-001's case)
+    output logic [31:0]                 cnt_old_wb      // cache writes presented on a line a slot still gathers
 );
 
     logic                evt_grant;
@@ -372,13 +374,19 @@ module onyx_top
         .dropped_count(mon_dropped)
     );
 
-    onyx_counters #(.N_PORTS(N_PORTS)) u_cnt (
+    onyx_counters #(.N_PORTS(N_PORTS), .SLOTS(SLOTS), .ADDR_WIDTH(ADDR_WIDTH),
+                    .LINE_BYTES(LINE_BYTES)) u_cnt (
         .clk(clk), .rst_n(rst_n), .clear_i(cnt_clear), .freeze_i(cnt_freeze),
         .evt_grant_i(evt_grant), .evt_gather_i(evt_gather), .evt_gather_dt_i(evt_gather_dt),
         .evt_mem_ar_i(evt_mem_ar), .evt_read_wasted_i(evt_read_wasted),
         .evt_absorb_i(evt_absorb), .evt_wb_i(evt_wb),
+        .evt_grant_slot_i(dbg_grant_slot), .evt_grant_addr_i(dbg_grant_addr),
+        .evt_grant_cu_i(evt_grant_cls == 3'(AMBER_ACE_CLEAN_UNIQUE)),
+        .evt_gather_slot_i(evt_gather_slot), .slot_vld_i(dbg_slot_vld),
+        .c_awvalid_i(c_awvalid), .c_awready_i(c_awready), .c_awaddr_i(c_awaddr),
         .cnt_txn_o(cnt_txn), .cnt_supplied_o(cnt_supplied), .cnt_mem_read_o(cnt_mem_read),
-        .cnt_read_wasted_o(cnt_read_wasted), .cnt_absorb_o(cnt_absorb), .cnt_wb_o(cnt_wb)
+        .cnt_read_wasted_o(cnt_read_wasted), .cnt_absorb_o(cnt_absorb), .cnt_wb_o(cnt_wb),
+        .cnt_cu_dt_o(cnt_cu_dt), .cnt_old_wb_o(cnt_old_wb)
     );
 
 endmodule : onyx_top

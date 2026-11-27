@@ -1616,7 +1616,11 @@ module onyx_ccu
             if (w_ar_take[d] && (is_nodata(r_type[r_arw_slot[d]]) != (c_arlen[d] == 8'd0)))
                 $error("onyx_ccu: port %0d AR length disagrees with the request class", d);
         end
-        if (mem_arvalid && mem_arready && w_wfly_vld && !w_mar_io
+        // a read whose bytes are used (not a supplied line's: its own
+        // absorption may be in flight while the AR it presented alongside
+        // the snoop is still held to its handshake, and that read is
+        // discarded) never overlaps a write to its line
+        if (mem_arvalid && mem_arready && w_wfly_vld && !w_mar_io && !r_dt[w_mar_slot]
             && (line_of(mem_araddr) == r_wfly_line))
             $error("onyx_ccu: memory read of line %h while a write to it is in flight", r_wfly_line);
         if (mem_rvalid && !(r_vld[w_mr_slot] && r_mem_issued[w_mr_slot] && !r_mem_done[w_mr_slot]))

@@ -107,6 +107,21 @@ CONFIGS = [
     ("smoke4k_we64_repeat", 0x000FFF, 0x00000, 0x00000, 64, False),
 ]
 
+# Configs run only when --configs names them, so the default sweep's cells
+# keep the carried-in state earlier bins ran them from.
+#
+# hot16_we179, the hot set: both injectors on 16 lines -- 8 tags (address
+# bits 15:13) x 2 sets (bit 6) of the 128-set, 4-way, 64 B geometry -- with
+# ~70% writes (we_mix 179 of 256), so every miss evicts a dirty line and
+# the peer's misses snoop lines sitting in write-back buffers: the pair
+# rig's HotSetContention, the stimulus jet-prime BUG-002 and onyx BUG-001 /
+# BUG-003 need.  The injector's address is base + (lfsr & mask), a bitwise
+# AND, so the mask need not be contiguous.
+EXTRA_CONFIGS = [
+    ("hot16_we179",    0x00E07F, 0x00000, 0x00000, 179, False),
+]
+EXTRA_NAMES = {c[0] for c in EXTRA_CONFIGS}
+
 
 # onyx's observer classes (onyx_pkg codes) and their bit in ONYX_MON_CTRL.perf_mask
 ONYX_MON_CLASSES = {"TXN_START": 0x20, "GATHER_DONE": 0x22, "MEM_READ": 0x23,
@@ -161,8 +176,10 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
     driver.tally_clear()  # start from zeroed bins; each run below re-clears
     results = []
     for depth in outstanding:
-        for name, mask, base0, base1, we_mix, do_latch in CONFIGS:
+        for name, mask, base0, base1, we_mix, do_latch in CONFIGS + EXTRA_CONFIGS:
             if names and name not in names:
+                continue
+            if not names and name in EXTRA_NAMES:
                 continue
             say(f"[sweep] {name}: count={count} mask=0x{mask:06x} "
                 f"bases=0x{base0:05x}/0x{base1:05x} we_mix={we_mix} "
@@ -208,7 +225,8 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
                 # frozen with it (CTRL[1]), read in the same frozen window
                 hc = driver.bus["harness"]
                 onyx = {k: hc.read(f"ONYX_CNT_{k.upper()}") for k in
-                        ("txn", "supplied", "mem_read", "read_wasted", "absorb", "wb")}
+                        ("txn", "supplied", "mem_read", "read_wasted", "absorb", "wb",
+                         "cu_dt", "old_wb")}
                 onyx["mon"] = onyx_mon
 
             driver.tally_clear()
@@ -254,7 +272,8 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
                 f"wall={wall:.2f}s err={st0['err_flag'] or st1['err_flag']}"
                 + (f" onyx txn={onyx['txn']} supplied={onyx['supplied']} "
                    f"mem_rd={onyx['mem_read']} wasted={onyx['read_wasted']} "
-                   f"absorb={onyx['absorb']} wb={onyx['wb']}" if onyx else ""))
+                   f"absorb={onyx['absorb']} wb={onyx['wb']} "
+                   f"cu_dt={onyx['cu_dt']} old_wb={onyx['old_wb']}" if onyx else ""))
             if unc != 0 or st0["err_flag"] or st1["err_flag"] or not ok:
                 say(f"[sweep] WARNING {name}: unexpected/err/timeout flag set")
 
@@ -268,7 +287,8 @@ def main(argv=None):
     ap.add_argument("--board", default="genesys2")
     ap.add_argument("--count", type=int, default=20000)
     ap.add_argument("--configs", nargs="+", default=None,
-                    help="run only these named configs")
+                    help="run only these named configs (the EXTRA_CONFIGS, "
+                         "e.g. hot16_we179, run only when named)")
     ap.add_argument("--outstanding", nargs="+", type=int, default=[1],
                     help="injector depths to sweep (1..16); default 1")
     ap.add_argument("--ci1-idle", action="store_true",

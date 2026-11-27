@@ -255,4 +255,20 @@ top_block = {
         'size': 4, 'sw': 'r', 'type': 'reg',
         'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
     },
+    'ONYX_CNT_CU_DT': {
+        # onyx BUG-001's corner (reference rig REF_CACHE_SEL 4/5 only): CleanUnique
+        # slots whose gather ended with data -- a killed upgrade's peer passed the
+        # line dirty; cleared by CTRL[0], held by CTRL[1]
+        'address': '0x05C', 'default': '0x00000000', 'name': 'ONYX_CNT_CU_DT', 'offset': '0x05C',
+        'size': 4, 'sw': 'r', 'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
+    'ONYX_CNT_OLD_WB': {
+        # onyx BUG-003's / jet-prime BUG-002's corner (REF_CACHE_SEL 4/5 only): cache
+        # writes first presented on a line a slot still gathers (a victim drain a
+        # snoop passed on); cleared by CTRL[0], held by CTRL[1]
+        'address': '0x060', 'default': '0x00000000', 'name': 'ONYX_CNT_OLD_WB', 'offset': '0x060',
+        'size': 4, 'sw': 'r', 'type': 'reg',
+        'value': {'default': '0x00000000', 'offset': '31:0', 'sw': 'r', 'type': 'field'},
+    },
 }

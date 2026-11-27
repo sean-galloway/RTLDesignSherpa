@@ -655,3 +655,26 @@ Found and measured:
   `prove_book`, which reset it when it finished (handbook formal note, now
   covering a crash mid-run as well as at startup). `prove` restarted alone
   at 22:03; BUG-001..003 close when it passes.
+- 2026-11-26 **Board prep for the BUG-001..003 fixes: corner counters and a
+  hot set.** `onyx_counters` gains `cu_dt` (CleanUnique slots whose gather
+  ended with data, BUG-001's case) and `old_wb` (cache writes presented,
+  not accepted that cycle, on a line a slot still gathers, BUG-003's and
+  jet-prime BUG-002's case), from a per-slot mirror on the grant and
+  gather taps, so `onyx_ccu` and its flat are unchanged (regenerated in
+  scratch: md5 34a9908c). Harness CSR `ONYX_CNT_CU_DT` 0x05C /
+  `ONYX_CNT_OLD_WB` 0x060; sweep config `hot16_we179` (mask 0xE07F: 8 tags
+  x 2 sets against 4 ways, we_mix 179), run only when named so the
+  55-cell sweep stays cell-for-cell comparable. Checks: the pair rig scores
+  `cu_dt` against its model and the mirrored `r_aw_old` against
+  `onyx_ccu`'s every cycle; mutations (each corner term dropped) fail them.
+  The mirror first counted a write accepted in its presenting cycle (seed
+  11064, 9 vs 8); fixed. The reference-rig sim's new `onyx_hot_set_test`
+  reaches both corners at gate (SEL 4: cu_dt 13, old_wb 46; SEL 5: 7 / 37)
+  and asserts SEL 4's `read_wasted == supplied - cu_dt`. The first onyx
+  full run failed 3 of 75 (fresh seeds, base 3407029206): two were
+  BUG-002's sim check over-reaching (the write in flight was the slot's
+  OWN absorption, its read discarded -- narrowed to reads whose bytes are
+  used), one the pair rig sampling quiescence while a correct drain was
+  still running (onyx write-backs hold no slot; now waits, bounded). After:
+  75/75 on that seed base and 75/75 fresh (3226594171), 0 reruns;
+  reference-rig gate 9/9. SEL 4 / 5 bitstreams building.

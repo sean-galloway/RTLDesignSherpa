@@ -14,6 +14,7 @@
 #   jet-primes and a real tally chain, and 4 and 5 expose onyx's six exact
 #   counters at harness CSR 0x020-0x034; the smoke checks those.
 
+import json
 import os
 import sys
 
@@ -76,6 +77,8 @@ HCSR_CYCLE_LO = 0x08
 HCSR_CYCLE_HI = 0x0C
 HCSR_FABRIC_DBG = 0x10
 HCSR_ONYX_CNT0 = 0x20       # six onyx counters, 0x20..0x34 (REF_CACHE_SEL 4/5; 0 elsewhere)
+HCSR_ONYX_CNT_CU_DT = 0x5C  # onyx's corner counters (SEL 4/5; 0 elsewhere): CleanUnique slots that ended with data
+HCSR_ONYX_CNT_OLD_WB = 0x60 # ... and cache writes first presented on a line a slot still gathers
 HCSR_ONYX_MON_CTRL = 0x38   # the onyx observer's masks: [0] enable [1] error [2] perf [5:4] port mask [31:16] class mask
 HCSR_ONYX_MON_MASK = 0x3C   # [15:0] packet-type mask, [31:16] error-code mask
 HCSR_ONYX_MON_WIN_LOW = 0x14    # the observer's inclusive address window (CTRL[3] enables)
@@ -387,9 +390,14 @@ async def smoke_test(dut):
     txn, supplied, mem_read, read_wasted, absorb, wb = onyx
     dut._log.info(f"onyx counters (SEL {sel}): txn={txn} supplied={supplied} mem_read={mem_read} "
                   f"read_wasted={read_wasted} absorb={absorb} wb={wb}")
+    cu_dt = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT_CU_DT)
+    old_wb = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT_OLD_WB)
+    dut._log.info(f"onyx corner counters (SEL {sel}): cu_dt={cu_dt} old_wb={old_wb}")
     if sel < 4:
         assert onyx == [0] * 6, f"onyx counters must read 0 without onyx: {onyx}"
+        assert (cu_dt, old_wb) == (0, 0), f"onyx corner counters must read 0 without onyx: {cu_dt}, {old_wb}"
     else:
+        assert cu_dt <= supplied, f"cu_dt {cu_dt} > supplied {supplied}: a CU-with-data is a supplied line"
         assert txn > 0 and mem_read > 0, f"onyx counted no transactions: {onyx}"
         if sel == 4:
             # the read alongside the snoop: every supplied line is a wasted read
@@ -713,6 +721,77 @@ async def _ci_snapshot(tb, ci_base):
         "stall": await tb.read32(ci_base + CI_STALL_CYCLES),
         "cstall": await tb.read32(ci_base + CI_CREDIT_STALL),
     }
+
+
+@cocotb.test(timeout_time=20000, timeout_unit="ms")
+async def onyx_hot_set_test(dut):
+    """The board sweep's hot16_we179 cell in sim (onyx TASK-001; SEL 4/5).
+
+    Both injectors on 16 lines -- 8 tags x 2 sets against 4 ways, ~70%
+    writes -- so every miss evicts a dirty line and the peer's misses snoop
+    lines in write-back buffers.  This is the config the board runs to
+    reach onyx BUG-001's corner (a CleanUnique slot that ends with data) and
+    BUG-003's (a write presented on a line a slot still gathers): it must
+    reach both here, deterministically, or the board cell measures
+    nothing.  The memory content is not checked here (the injector's CRCs
+    have no golden); the onyx and pair rigs check every byte."""
+    sel = int(os.environ.get('REF_CACHE_SEL', '0'))
+    if sel < 4:
+        dut._log.info(f"onyx_hot_set_test: SEL {sel} has no onyx, skipped")
+        return
+    clk_task = cocotb.start_soon(_manual_clock(dut))
+    tb = RefHarnessAXILTest(dut, clk_task)
+    await tb.reset()
+    level = os.environ.get('TEST_LEVEL', 'gate')
+    count = {'gate': 1000, 'func': 4000, 'full': 20000}.get(level, 1000)
+    ctrl = (8 << 16) | (179 << 8)     # 8 outstanding, we_mix 179 of 256
+    for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
+                          (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
+        await tb.write32(ci_base + CI_SEED, seed)
+        await tb.write32(ci_base + CI_ADDR_BASE, 0x0000_0000)
+        await tb.write32(ci_base + CI_ADDR_MASK, 0x0000_E07F)
+        await tb.write32(ci_base + CI_TRANS_COUNT, count)
+        await tb.write32(ci_base + CI_CTRL, ctrl)
+    await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, ctrl | 0x01)
+    await tb.write32(ADDR_CYCLE_INJECTOR1 + CI_CTRL, ctrl | 0x01)
+    for _ in range(2_000_000):
+        status = await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)
+        if (status & 0x03) == 0x03:
+            break
+    else:
+        raise AssertionError("hot set: cycle injectors did not finish")
+    for ci_base, name in [(ADDR_CYCLE_INJECTOR0, "ci0"), (ADDR_CYCLE_INJECTOR1, "ci1")]:
+        err = await tb.read32(ci_base + CI_ERR_FLAG)
+        acc = await tb.read32(ci_base + CI_ACC_COUNT)
+        rsp = await tb.read32(ci_base + CI_RSP_COUNT)
+        assert err == 0, f"hot set {name}: error flag 0x{err:08x}"
+        assert acc == count and rsp == count, f"hot set {name}: acc/rsp {acc}/{rsp} != {count}"
+    onyx = [await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0 + 4 * i) for i in range(6)]
+    txn, supplied, mem_read, read_wasted, absorb, wb = onyx
+    cu_dt = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT_CU_DT)
+    old_wb = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT_OLD_WB)
+    dut._log.info(f"hot set (SEL {sel}, {count} per injector): txn={txn} supplied={supplied} "
+                  f"mem_read={mem_read} read_wasted={read_wasted} absorb={absorb} wb={wb} "
+                  f"cu_dt={cu_dt} old_wb={old_wb}")
+    # the cell log is rewritten by every cocotb test in the module: the
+    # counts go to their own file beside it
+    log_path = os.environ.get('LOG_PATH')
+    if log_path:
+        with open(os.path.splitext(log_path)[0] + "_hot_set.json", "w") as fh:
+            json.dump({"sel": sel, "count": count, "txn": txn, "supplied": supplied,
+                       "mem_read": mem_read, "read_wasted": read_wasted, "absorb": absorb,
+                       "wb": wb, "cu_dt": cu_dt, "old_wb": old_wb}, fh)
+    assert wb > 0 and supplied > 0, f"hot set: no write-backs or no supplied lines: {onyx}"
+    assert cu_dt <= supplied, f"hot set: cu_dt {cu_dt} > supplied {supplied}"
+    if sel == 4:
+        # the read alongside the snoop: every supplied line wasted its read,
+        # except a CleanUnique's, which never reads memory
+        assert read_wasted == supplied - cu_dt, \
+            f"SEL 4 hot set: wasted {read_wasted} != supplied {supplied} - cu_dt {cu_dt}"
+    else:
+        assert read_wasted == 0, f"SEL 5 hot set: wasted {read_wasted} != 0"
+    assert old_wb > 0, "hot set: no write was presented on a line a slot still gathers"
+    assert cu_dt > 0, "hot set: no CleanUnique slot ended with data"
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="ms")

@@ -437,7 +437,7 @@ module ref_harness
 
     logic [31:0] hcsr_ctrl, hcsr_status;
     logic [63:0] r_cycle_ctr;
-    logic [31:0] onyx_cnt [6];   // the onyx counters (zero outside SEL 4 / 5)
+    logic [31:0] onyx_cnt [8];   // the onyx counters (zero outside SEL 4 / 5)
     logic [31:0] onyx_mon_ctrl;  // the onyx observer's masks (CSR 0x038 / 0x03C; onyx_monlite's ocelus layers)
     logic [31:0] onyx_mon_mask;
     logic [31:0] onyx_mon_win_low;   // the observer's address window (CSR 0x014 / 0x018; CTRL[3] enables)
@@ -683,7 +683,7 @@ module ref_harness
     generate
         if (REF_CACHE_SEL == 1) begin : gen_ref_cva6
             assign ref_evt_write_miss = 1'b0;
-            for (genvar k = 0; k < 6; k++) begin : g_z
+            for (genvar k = 0; k < 8; k++) begin : g_z
                 assign onyx_cnt[k] = '0;
             end
             // no IO port in this selection: the doorbell reads absent
@@ -760,7 +760,7 @@ module ref_harness
             assign ref_evt_read_miss  = 1'b0;   // jet reports misses on MonBus, not as pins
             assign ref_evt_write_miss = 1'b0;
             assign ref_rsp_error      = 1'b0;
-            for (genvar k = 0; k < 6; k++) begin : g_z
+            for (genvar k = 0; k < 8; k++) begin : g_z
                 assign onyx_cnt[k] = '0;
             end
             // no IO port in this selection: the doorbell reads absent
@@ -1620,6 +1620,8 @@ module ref_harness
             .cnt_read_wasted  (onyx_cnt[3]),
             .cnt_absorb       (onyx_cnt[4]),
             .cnt_wb           (onyx_cnt[5]),
+            .cnt_cu_dt        (onyx_cnt[6]),
+            .cnt_old_wb       (onyx_cnt[7]),
             .dbg_busy         (jpp_fab_busy),
             .dbg_slot_vld     (),
             .dbg_pend_vld     (),
@@ -1634,7 +1636,7 @@ module ref_harness
             assign onyx_mon_valid     = 1'b0;
             assign onyx_mon_packet    = '0;
             assign onyx_mon_timestamp = '0;
-            for (genvar k = 0; k < 6; k++) begin : g_z
+            for (genvar k = 0; k < 8; k++) begin : g_z
                 assign onyx_cnt[k] = '0;
             end
             // no IO port in the pair fabric: the doorbell reads absent
@@ -1833,7 +1835,7 @@ module ref_harness
         assign s4_arready = 1'b1; assign s4_rvalid = 1'b0; assign s4_rdata = '0; assign s4_rresp = 2'b00;
         assign s5_awready = 1'b1; assign s5_wready = 1'b1; assign s5_bvalid = 1'b0; assign s5_bresp = 2'b00;
         end else begin : gen_ref_hpd
-            for (genvar k = 0; k < 6; k++) begin : g_z
+            for (genvar k = 0; k < 8; k++) begin : g_z
                 assign onyx_cnt[k] = '0;
             end
             // no IO port in this selection: the doorbell reads absent
@@ -2102,7 +2104,7 @@ module ref_harness_csr (
     input  logic [31:0] i_cycle_lo,
     input  logic [31:0] i_cycle_hi,
     input  logic [3:0]  i_fabric_dbg,
-    input  logic [31:0] i_onyx_cnt [6],  // onyx TASK-001: txn, supplied, mem_read, read_wasted, absorb, wb
+    input  logic [31:0] i_onyx_cnt [8],  // onyx TASK-001: txn, supplied, mem_read, read_wasted, absorb, wb, cu_dt, old_wb
     output logic [31:0] o_onyx_mon_ctrl,  // 0x038: the onyx observer's enables, port mask and class mask
     output logic [31:0] o_onyx_mon_mask,  // 0x03C: its packet-type mask and error-code mask
     output logic [31:0] o_onyx_mon_win_low,   // 0x014 / 0x018: its address window (CTRL[3] enables)
@@ -2151,6 +2153,12 @@ module ref_harness_csr (
     localparam logic [4:0] HCSR_IO_STATUS   = 5'h14;   // [0] busy [1] done [3:2] resp [31] absent
     localparam logic [4:0] HCSR_IO_RDATA_LO = 5'h15;
     localparam logic [4:0] HCSR_IO_RDATA_HI = 5'h16;
+    // 0x05C / 0x060: onyx's two corner counters (the six above were the
+    // whole block until onyx BUG-001..003): CleanUnique slots that ended
+    // with data, and cache writes first presented on a line a slot still
+    // gathers
+    localparam logic [4:0] HCSR_ONYX_CNT_CU_DT  = 5'h17;
+    localparam logic [4:0] HCSR_ONYX_CNT_OLD_WB = 5'h18;
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;
@@ -2266,6 +2274,8 @@ module ref_harness_csr (
             HCSR_FABRIC_DBG: r_rdata = {28'b0, i_fabric_dbg};
             5'h08, 5'h09, 5'h0A, 5'h0B, 5'h0C, 5'h0D:
                              r_rdata = i_onyx_cnt[3'(r_araddr[6:2] - HCSR_ONYX_CNT0)];
+            HCSR_ONYX_CNT_CU_DT:  r_rdata = i_onyx_cnt[6];
+            HCSR_ONYX_CNT_OLD_WB: r_rdata = i_onyx_cnt[7];
             HCSR_ONYX_MON_CTRL: r_rdata = r_onyx_mon_ctrl;
             HCSR_ONYX_MON_MASK: r_rdata = r_onyx_mon_mask;
             HCSR_ONYX_MON_WIN_LO: r_rdata = r_onyx_mon_win_lo;
