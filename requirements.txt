@@ -1,7 +1,7 @@
 annotated-types==0.8.0
 antlr4-python3-runtime==4.13.2
 anytree==2.13.0
-chardet==5.2.0
+chardet==7.7.0
 cocotb==2.1.0
 cocotb-bus==0.3.0
 cocotb-coverage==2.0
