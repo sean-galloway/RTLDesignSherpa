@@ -745,3 +745,20 @@ Found and measured:
   mutation (LOCK_WAIT's entry removed) fails naming code 0x27. The board
   results stamped 20261127T091929Z keep their non-zero UNEXPECTED; the
   next ref-onyx sweep records 26 bins and should read 0.
+- 2026-11-27 **every D9 event class on the board (bin 8 bitstreams, the
+  26-bin profile):** SEL 4 / 5 (sha256 bfde49148071d529 /
+  81d9a070fd9112c4, unchanged) re-swept under `board_lock.sh` (stamp
+  20261127T182844Z): program, init + smoke, the 55-cell dual sweep and the
+  hot set -- PASS, 0 injector errors, UNEXPECTED 0 in all 120 cells. Cycles,
+  CRCs, the eight onyx counters and bins 0-17 equal the GO pass's in every
+  cell; the new bins (LOCK_WAIT 18, the caches' J7 19-25) sum exactly to
+  the GO pass's UNEXPECTED per file (SEL 4 dual 702,777, hot 127,975;
+  SEL 5 719,256 / 132,730). Summed over the 60 cells per mode: TXN_START
+  116,533 / 160,065, MEM_READ 116,379 / 97,751, GATHER_DONE 226,743 /
+  305,882, READ_WASTED 152,404 / 0 (the deferred mode wastes none),
+  ABSORB 92,562 / 132,741, WRITEBACK 68,107 / 80,996, LOCK_WAIT 37,387 /
+  44,950, drop reports 58 / 55 -- every class captured on the board (the
+  bins are lower bounds where a drop is reported; the counters carry the
+  exact numbers). Done-when's "every D9 event class on MonBus in sim and
+  captured on the board" is met. Results
+  `perf_sweep_onyx{,d}_go{,_hot}_dual_20261127T182844Z.json`.

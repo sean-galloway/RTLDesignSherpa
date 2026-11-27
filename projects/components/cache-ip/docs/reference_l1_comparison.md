@@ -231,8 +231,8 @@ Error flags / unfinished runs across all sources: 0
 | onyx_ccu (N_PORTS 2) | 4628 | 1664 | 1296 | +2.885 | 9 |
 ### onyx counters, both injectors started by one GO (the D6 trade: reads issued, lines supplied, reads wasted)
 
-- onyx: `perf_sweep_onyx_go_dual_20261127T091929Z.json`, `perf_sweep_onyx_go_hot_dual_20261127T091929Z.json`
-- onyx-d: `perf_sweep_onyxd_go_dual_20261127T091929Z.json`, `perf_sweep_onyxd_go_hot_dual_20261127T091929Z.json`
+- onyx: `perf_sweep_onyx_go_dual_20261127T182844Z.json`, `perf_sweep_onyx_go_hot_dual_20261127T182844Z.json`
+- onyx-d: `perf_sweep_onyxd_go_dual_20261127T182844Z.json`, `perf_sweep_onyxd_go_hot_dual_20261127T182844Z.json`
 
 | config | depth | mode | transactions | memory reads | lines supplied | reads wasted | wasted / issued | absorptions | write-backs | CleanUnique + DT | old write-backs |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -290,8 +290,8 @@ Error flags / unfinished runs across all sources: 0
 - amber: `perf_sweep_bin14_go_20261127T091929Z.json` against `perf_sweep_bin14_go_single_20261127T091929Z.json`
 - jet: `perf_sweep_bin21_bug008_20261127T174527Z.json` against `perf_sweep_bin21_bug008_single_20261127T174527Z.json`
 - jet-prime s6: `perf_sweep_jetpp_go_dual_20261127T091929Z.json` against `perf_sweep_jetpp_go_single_20261127T091929Z.json`
-- onyx: `perf_sweep_onyx_go_dual_20261127T091929Z.json` against `perf_sweep_onyx_bin2_single_20261122T150901Z.json`
-- onyx-d: `perf_sweep_onyxd_go_dual_20261127T091929Z.json` against `perf_sweep_onyxd_bin2_single_20261122T151318Z.json`
+- onyx: `perf_sweep_onyx_go_dual_20261127T182844Z.json` against `perf_sweep_onyx_bin2_single_20261122T150901Z.json`
+- onyx-d: `perf_sweep_onyxd_go_dual_20261127T182844Z.json` against `perf_sweep_onyxd_bin2_single_20261122T151318Z.json`
 
 Error flags / unfinished runs across the dual sources: 0
 

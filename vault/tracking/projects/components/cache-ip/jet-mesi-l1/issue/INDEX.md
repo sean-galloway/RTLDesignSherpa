@@ -2,7 +2,7 @@
 
 # projects/components/cache-ip/jet-mesi-l1 — issues
 
-**Next ID: ISSUE-003** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-004** — never recycle a number, even when its item closed.
 
 An observed problem that is not yet a diagnosed defect or a decided piece of
 work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task,
@@ -12,7 +12,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Open
 
-(none)
+- **ISSUE-003** ([page](open/ISSUE-003.md)) — two jet cores sharing nothing lose every pipelining gain: board `disjoint64k_we64` dual is flat at ~480,000 cycles from depth 1 to 16 (single 349k -> 215k); 2.1-2.3x single-core where jet-prime / onyx are 1.4-1.7x. Suspected: the serial pair fabric. Filed 2026-11-27.
 
 ## Active
 
