@@ -469,13 +469,13 @@ class ModelConfig:
     ap_fire_stale: bool = True         # GraniteSKU: the pair of a column that fired with auto-precharge is masked the slot after its fire
                                        #   (the RTL since MC-021 step 4; False = the RTL before, whose leftover column request won the select)
     ap_seq: bool = True                # GraniteSKU: the auto-precharge self-close sequenced as the bank timer does -- fire = max(ACT + tRAS,
-    ref_drain_pb: bool = False         # GraniteSKU: the refresh drain as the RTL override does it -- one PREpb a slot off the registered
+    ref_drain_pb: bool = True          # GraniteSKU: the refresh drain as the RTL override does it -- one PREpb a slot off the registered
                                        #   row image, a lost slot after each, the REF once the image shows every bank closed (proxy
-                                       #   2026-11-25); off by default: it puts open_page's mixed cell in the board's two modes but
-                                       #   takes defaults' out of its one (MC-023 item 4, the hybrid's gap still open)
-    behind_lag: int = 0                # GraniteSKU: slots after a beat lands before the head record sees it behind the head (the
+                                       #   2026-11-25); the SKU default since 2026-11-26 with behind_lag 1 (MC-023 item 4)
+    behind_lag: int = 1                # GraniteSKU: slots after a beat lands before the head record sees it behind the head (the
                                        #   store's behind_empty counts schedulable entries: pushed t, counted t + 1, behind t + 2 on the
-                                       #   proxy, 2026-11-25); with ref_drain_pb it puts defaults' mixed cell in the RTL's two modes
+                                       #   proxy, 2026-11-25); with ref_drain_pb the hybrid's mixed cell leaves the slow mode at the RTL's
+                                       #   rate (MC-023 item 4: 63 percent slow over 260 GO phases, the deterministic proxy 10 of 16)
     ap_row_lag: int = 2               # GraniteSKU: a head of the row the self-close closed decodes no ACT before fire + 2, its ACT
                                        #   at fire + 4 as the proxy measures (MC-023 item 1); 0 = the model before (fire + 3)
     rfc_block: bool = True             # GraniteSKU: the pick core's tRFC demand block -- no demand request or fire until the
@@ -684,9 +684,8 @@ CONFIGS.update({c.name: c for c in [
          "the model before memory-controllers MC-023 item 4", rfc_block=False),
     _sku("noaprowlag", "a head of the row the self-close closed requesting its ACT at its timer (fire -> ACT 3): the model "
          "before memory-controllers MC-023 item 1, every close_page read side 10 .. 12.5 percent high", ap_row_lag=0),
-    _sku("refdrainpb", "the refresh drain as the RTL's override issues it: one PREpb a slot off the registered row image "
-         "with a lost slot after each, the REF when the image shows every bank closed (MC-023 item 4, not yet the default)",
-         ref_drain_pb=True),
+    _sku("norefdrain", "one PREab before the REF instead of the RTL's per-bank drain, and the entry behind a head seen the "
+         "slot it lands: the model before memory-controllers MC-023 item 4 (2026-11-26)", ref_drain_pb=False, behind_lag=0),
     _sku("noapseq", "the auto-precharge path at the CK-exact DRAM terms alone: the model before the sequenced self-close "
          "(MC-020 decision 2)", ap_seq=False),
     _sku("margin", "the SKU's counters under the one-CK phase margin the host derived until 2026-11-22 (tRC 7, tWR 4, "

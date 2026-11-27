@@ -1,36 +1,29 @@
 # memory-controllers — task lane
 
-**Next ID: MC-026** — never recycle a number.
+**Next ID: MC-028** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 23 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Open
 
 ## Active
 
-- **MC-023** -- the SKU model's open fidelity terms. Item 2 DONE 2026-11-23:
-  the self-close lookahead guard was true at `ap_close_lag` 0 (a pending
-  fire is in the future), fixed; the 2026-11-22 CSVs reproduce to the cycle.
-  Item 4 2026-11-24: the mixed cell's mode is the refresh walk's lock; the
-  `rfc_block` term (first ACT at REF + 16, the RTL's) is the SKU default,
-  57 in / 0 out; open_page's intermediate mode remains. Open: the record
-  path (item 1), the refresh-relaunched orbits (3, ISSUE-007).
-  Un-deferred 2026-11-25 (owner: "finish 23").
-  2026-11-25: item 1 DONE (`ap_row_lag`, the same-row ACT at fire + 4:
-  close_page reads within 4 percent, 57 in / 0 out); item 4's refresh drain
-  `ref_drain_pb` measured and kept a knob (open_page right, defaults wrong).
-  2026-11-25 later: `behind_lag` (the head record sees an entry a slot after
-  it lands) + the drain put `defaults`' mixed cell in the RTL's two modes and
-  proportion; both knobs until item 3 (the drain moves four bank_interleave
-  write sides to ~518). The proxy's combiner default fixed to the SKU's 0.
-
 ## Deferred
+
+- **MC-026** -- the bank_interleave write levels: the model reaches the RTL's
+  ~518 level only with `ref_drain_pb`, in the wrong proportion (26 / 40 against
+  6 / 16). Filed out of MC-023 item 3 and deferred 2026-11-26 (owner).
+  [deferred/MC-026.md](deferred/MC-026.md).
+
+- **MC-027** -- re-run the SKU board set on a bitstream with the tREFI period
+  fix (d36ee4882). Deferred 2026-11-26 pending the owner's go.
+  [deferred/MC-027.md](deferred/MC-027.md).
 
 ## Dropped
 
@@ -46,6 +39,12 @@
   Dropped: no timing gain, 277 LUT against a measured loss.
 
 ## Closed
+
+- **MC-023** -- the SKU model's open fidelity terms. CLOSED 2026-11-26: items 1 (`ap_row_lag`), 2 (the
+  self-close lookahead guard) and 4 (the hybrid: `ref_drain_pb` + `behind_lag` 1, now the SKU defaults; the
+  model leaves the slow mode at the RTL's rate, 63 / 62.5 percent) done; on the way, the RTL's tREFI + 1
+  period (d36ee4882) and the proxy's wall-clock pre-pass (9dc43c4ae) fixed. Item 3 is MC-026 (deferred);
+  board compare 53 in / 4 out, the four are MC-026's. [closed/MC-023.md](closed/MC-023.md).
 
 - **MC-009** -- pumice arbiter: steps (a) and (c) done (the STAGE-1b
   selection out of the classify cone; build-time pick modes). Step (b), hit /

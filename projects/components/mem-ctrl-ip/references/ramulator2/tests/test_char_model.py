@@ -318,6 +318,10 @@ def test_sku_config_is_the_shipped_point():
             # one term, the host's derivation: the preset and the self-close field it programs as tRP (the write
             # path's 2 is the shared tRP already; sku_rpshared differs on the read path's field alone)
             assert sorted(diff) == ["t_rp_ap_rd", "timing_preset"], (name, diff)
+        elif name == "sku_norefdrain":
+            # one term, the refresh episode the RTL runs: its per-bank drain and the behind-the-head record (MC-023
+            # item 4: neither alone holds the hybrid)
+            assert sorted(diff) == ["behind_lag", "ref_drain_pb"], (name, diff)
         elif name.startswith("sku_pool"):
             assert sorted(diff) == ["read_buffer", "write_buffer"], (name, diff)
         elif name == "sku_ideal16":
@@ -644,12 +648,14 @@ def test_behind_lag_with_the_refresh_drain_holds_the_hybrid_mixed_cell_in_the_sl
     proxy's refreshes, behind_lag 1 keeps the slow mode (280 / 280); the drain alone reads well above it."""
     import tempfile
     from dataclasses import replace
-    assert cm.CONFIGS["granite_sku100"].behind_lag == 0
+    # both terms are the SKU default since 2026-11-26; sku_norefdrain is the model before them
+    assert cm.CONFIGS["granite_sku100"].behind_lag == 1 and cm.CONFIGS["granite_sku100"].ref_drain_pb
+    assert cm.CONFIGS["sku_norefdrain"].behind_lag == 0 and not cm.CONFIGS["sku_norefdrain"].ref_drain_pb
     sc = replace([s for s in cm.SUITES["all"] if s.name == "mixed_bl8"][0], txn_count=4000)
     monkeypatch.setenv("GRANITE_GO_OFFSET", "1554")
     with tempfile.TemporaryDirectory() as t:
-        both = cm.run_scenario(replace(cm.CONFIGS["sku_refdrainpb"], name="sku_refdrainbehind", behind_lag=1), sc, t)
-        drain = cm.run_scenario(cm.CONFIGS["sku_refdrainpb"], sc, t)
+        both = cm.run_scenario(cm.CONFIGS["granite_sku100"], sc, t)
+        drain = cm.run_scenario(replace(cm.CONFIGS["granite_sku100"], name="sku_drainonly", behind_lag=0), sc, t)
     wr, rd = float(both["wr_bw_mb_s"]), float(both["rd_bw_mb_s"])
     assert abs(wr - 280) < 3 and abs(rd - 280) < 3, (wr, rd)
     assert float(drain["rd_bw_mb_s"]) > 330, drain["rd_bw_mb_s"]
@@ -678,7 +684,9 @@ def test_read_priority_register_makes_the_mixed_cell_one_mode_and_bounds_the_wri
         os.environ.pop("GRANITE_GO_OFFSET", None)
     for cfg in ("granite_sku100", "granite_sku100_open"):
         rp = [out[(cfg, 1, off)] for off in (0, 780)]
-        sym = out[(cfg, 0, 0)]
+        # the symmetric register's slow mode: the phase whose reads are lower (with the refresh drain and
+        # behind_lag, the SKU default since 2026-11-26, open_page at phase 0 is in the race's fast mode)
+        sym = min((out[(cfg, 0, off)] for off in (0, 780)), key=lambda r: float(r["rd_bw_mb_s"]))
         rds = [float(r["rd_bw_mb_s"]) for r in rp]
         assert abs(rds[0] - rds[1]) / rds[0] < 0.02, (cfg, rds)                      # one mode
         assert min(rds) > 1.2 * float(sym["rd_bw_mb_s"]), (cfg, rds, sym["rd_bw_mb_s"])
