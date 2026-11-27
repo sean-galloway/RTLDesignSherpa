@@ -18,6 +18,8 @@ RDS-DV BFM testbench in `alu-infer/dv/` (own component area since
 | [TASK-005](task/closed/TASK-005.md) | fp32 single-lane element width (func_sel[8:7], open item M6) |
 | [TASK-007](task/open/TASK-007.md) | Close M1-M8 numeric-policy open items at FPGA bring-up |
 | [TASK-010](task/open/TASK-010.md) | Make the accumulate row close at a real FPGA clock (50 MHz failed by -128 ns) |
+| [TASK-011](task/open/TASK-011.md) | Replace the tag-matched result buffer with per-row slots (~3.9k LUT per cell today) |
+| [TASK-012](task/open/TASK-012.md) | Put the FMA multipliers and wide adders on DSP48 and carry chains (full profile does not fit the xc7a100t x4) |
 
 ## Closed
 

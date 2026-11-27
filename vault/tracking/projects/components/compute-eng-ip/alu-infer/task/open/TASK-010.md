@@ -42,3 +42,12 @@ that says nothing about the clock the ALU can run at.
 
 The full profile closes timing at a stated clock on the Genesys 2 and the
 Nexys A7, with the accumulate-loop decision written into the MAS.
+
+## Measured again (2026-11-26, gatling tetrad)
+
+The gatling tetrad OOC build (gatling-rv32i TASK-002; four cells, every
+`ALU_EN_*` = 0, xc7a100t-1, 10 ns, 0.2 ns uncertainty) fails fully timed at
+**-128.8 ns**, a 211-level path through the bf16 rows into the result buffer.
+With the ALU's internal endpoints excluded the rest of the tetrad meets
++0.144 ns, so the ALU is the only block that does not close. Area of the same
+build is in TASK-011 (result buffer) and TASK-012 (DSP / carry-chain mapping).

@@ -2,7 +2,7 @@
 
 # projects/components/compute-eng-ip/cell — tasks
 
-**Next ID: TASK-003** — never recycle a number, even when its item closed.
+**Next ID: TASK-004** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -22,6 +22,7 @@ by construction rather than by discipline.
 
 - **TASK-001** — slice 2: cell_credit (per-source owed counters + 64-cycle timeout + boot credit/set ads, class-0 sink space) + cell_packetizer (batch-X/flush, FLUSH_DEST/FLUSH_TAG, strap check) per cell MAS v0.12 ch04
 - **TASK-002** — slice 3: cell_exec_fsm (pop -> issue -> push loop driving alu_infer_top) + cell_mem_out write path + MonBus observer leaf; the bring-up driver gatling later sequences (owner ruling 2026-10-19)
+- **TASK-003** — build cell_mem_in / cell_mem_out as distributed RAM: arrays written in the reset block, 1,062 FF + ~297 LUT each for 32x32
 
 ## Active
 
