@@ -728,3 +728,20 @@ Found and measured:
   comparison report carries the new onyx counters table and a two-core
   table. Results `perf_sweep_onyx{,d}_go_dual_20261127T091929Z.json`,
   `perf_sweep_onyx{,d}_go_hot_dual_20261127T091929Z.json`.
+- 2026-11-27 **the tally's unexpected count, root-caused (correcting the
+  bin 8 entry's guess):** a probe in the ref harness sim on the tally's own
+  miss signal, keyed per packet (`onyx_profile_unbinned_test`, the board
+  sweep's setup: ref-onyx profile, every onyx class open, one GO),
+  reproduces `smoke4k_we64` depth 1 from reset at 11,114 (board 11,030):
+  10,870 are the jet-prime caches' J7 observer (agent 0x00A2: MSHR alloc
+  2,991, retire 5,127, occupancy 2,520, its drop report 232), which the
+  profile's docstring said were dropped and nothing dropped; 244 are
+  LOCK_WAIT (0x27). The bin 8 entry's "most likely LOCK_WAIT" was wrong
+  for 98 % of it. Not an RTL defect: the profile left two emitters out.
+  Fixed in the profile (`jet_board.build_ref_onyx_profile`): LOCK_WAIT
+  bin 18, J7 bins 19-25, bins 0-17 unchanged; the sweep reads every bin
+  the profile fills (`profile_bin_count`, 26 here). Sim after the fix:
+  UNEXPECTED 0 on SEL 4 and 5 at depth 1 and 16 and on the hot set;
+  mutation (LOCK_WAIT's entry removed) fails naming code 0x27. The board
+  results stamped 20261127T091929Z keep their non-zero UNEXPECTED; the
+  next ref-onyx sweep records 26 bins and should read 0.

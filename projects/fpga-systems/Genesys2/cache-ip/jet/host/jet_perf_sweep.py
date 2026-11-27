@@ -39,7 +39,7 @@ import jet_env  # noqa: F401  (path setup before shared-layer imports)
 sys.path.insert(0, os.path.join(jet_env.repo_root(), "bin"))
 
 from jet_board import (JetDriver, build_jet_bridge,
-                         build_default_profile, PROFILES, harness_probe,
+                         build_default_profile, PROFILES, profile_bin_count, harness_probe,
                          open_jet_link, TALLY_CFGR_BASE, TALLY_CFGW_BASE)
 
 SEED0 = 0x1234_5678
@@ -67,9 +67,11 @@ def _decode_packet(words, ts):
     }
 
 
-def _read_bins(driver):
+def _read_bins(driver, profile="jet"):
+    """Every bin the profile fills (18 for jet, 26 for ref-onyx), then
+    UNEXPECTED."""
     tally = driver.bus["tally_cnt"]
-    bins = [tally.read(f"COUNT{i}") for i in range(18)]
+    bins = [tally.read(f"COUNT{i}") for i in range(profile_bin_count(profile))]
     return bins, tally.read("UNEXPECTED")
 
 
@@ -206,7 +208,7 @@ def run_sweep(driver, *, count, configs=None, settle=0.25, say=print,
             # Freeze for a coherent snapshot, read, then clear for the next run
             # (tally_clear is RMW: the freeze level survives the clear).
             driver.tally_freeze(True)
-            bins, unc = _read_bins(driver)
+            bins, unc = _read_bins(driver, profile)
             delta = bins
             unc_ = unc
 

@@ -128,6 +128,7 @@ CI_MAX_OUTSTANDING = 16     # the RTL's MAX_OUTSTANDING (CTRL clamp)
 # in flight (jet: yes; amber is blocking and may hold at one or two).
 INJECTOR_EXPECT_PIPELINED = True
 TALLY_NUM_LATCH = 16
+TALLY_UNEXPECTED_BIN = 32   # the catch-all bin (N_PROFILE): jet_tally_cnt_regmap UNEXPECTED at 0x100
 
 
 def _key(agent: int, protocol: int, pkt_type: int, event: int) -> int:
@@ -586,8 +587,10 @@ async def smoke_test(dut):
 def _onyx_profile():
     """The reference rig's ref-onyx profile (jet_board.build_ref_onyx_profile):
     the caches' core events in bins 0-10, onyx's classes (agent 0x00A3,
-    onyx_pkg codes) in 11-17."""
+    onyx_pkg codes) in 11-18, the caches' J7 events (agent 0x00A2) in
+    19-25.  Every key the rig emits has a bin (onyx_profile_unbinned_test)."""
     core = [(key, idx) for key, idx in _default_profile() if idx <= 10]
+    j7 = [(key, idx + 8) for key, idx in _default_profile() if idx >= 11]
     return core + [
         (_key(0x00A3, 4, 4, 0x20), 11),  # TXN_START
         (_key(0x00A3, 4, 4, 0x23), 12),  # MEM_READ
@@ -596,7 +599,8 @@ def _onyx_profile():
         (_key(0x00A3, 4, 4, 0x25), 15),  # ABSORB
         (_key(0x00A3, 4, 4, 0x26), 16),  # WRITEBACK
         (_key(0x00A3, 4, 0, 0x09), 17),  # onyx monlite drop report
-    ]
+        (_key(0x00A3, 4, 4, 0x27), 18),  # LOCK_WAIT
+    ] + j7
 
 
 async def _io_access(tb, *, write: bool, shareable: bool, addr: int, wdata: int = 0,
@@ -810,6 +814,83 @@ async def onyx_hot_set_test(dut):
         assert read_wasted == 0, f"SEL 5 hot set: wasted {read_wasted} != 0"
     assert old_wb > 0, "hot set: no write was presented on a line a slot still gathers"
     assert cu_dt > 0, "hot set: no CleanUnique slot ended with data"
+
+
+def _tally_core(dut):
+    """The monbus_pkt_tally inside the reference rig's tally block."""
+    return dut.u_dut.gen_ref_jetpp.u_tally.u_tally
+
+
+async def _watch_unbinned(dut, tally, hist):
+    """Count, per CAM key, every packet the tally accepts into UNEXPECTED."""
+    while True:
+        await cocotb.triggers.RisingEdge(dut.aclk)
+        if int(tally.w_accept.value) and int(tally.w_prof_miss.value):
+            k = int(tally.w_in_key.value)
+            hist[k] = hist.get(k, 0) + 1
+
+
+@cocotb.test(timeout_time=5000, timeout_unit="ms")
+async def onyx_profile_unbinned_test(dut):
+    """The board's ref-onyx sweep setup in sim (SEL 4/5): the ref-onyx
+    profile loaded, every onyx class open (perf_mask 0, as the sweep's
+    default 'all' writes it), both injectors on one GO.  Every packet the
+    tally takes must land in a profile bin: UNEXPECTED stays 0, and a key
+    that misses is named here.  Defaults are the board's smoke4k_we64 cell
+    at depth 1; PROBE_COUNT / PROBE_MASK / PROBE_WE_MIX / PROBE_OUTSTANDING
+    reproduce another."""
+    sel = int(os.environ.get('REF_CACHE_SEL', '0'))
+    if sel < 4:
+        dut._log.info(f"onyx_profile_unbinned_test: SEL {sel} has no onyx, skipped")
+        return
+    clk_task = cocotb.start_soon(_manual_clock(dut))
+    tb = RefHarnessAXILTest(dut, clk_task)
+    await tb.reset()
+    level = os.environ.get('TEST_LEVEL', 'gate')
+    count = int(os.environ.get('PROBE_COUNT', {'gate': 2000, 'func': 8000, 'full': 20000}.get(level, 2000)))
+    mask = int(os.environ.get('PROBE_MASK', '0xFFF'), 0)
+    we_mix = int(os.environ.get('PROBE_WE_MIX', '64'), 0)
+    outstanding = int(os.environ.get('PROBE_OUTSTANDING', '1'))
+    await _load_onyx_profile(tb)
+    # jet_perf_sweep.run_sweep's ONYX_MON_CTRL: enable, error, perf; no
+    # window, no port mask, perf_mask 0 (every class)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL, 0x7)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)          # clear tally + counters
+    hist = {}
+    watcher = cocotb.start_soon(_watch_unbinned(dut, _tally_core(dut), hist))
+    ctrl = (outstanding << 16) | (we_mix << 8)
+    for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
+                          (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
+        await tb.write32(ci_base + CI_SEED, seed)
+        await tb.write32(ci_base + CI_ADDR_BASE, 0x0000_0000)
+        await tb.write32(ci_base + CI_ADDR_MASK, mask)
+        await tb.write32(ci_base + CI_TRANS_COUNT, count)
+        await tb.write32(ci_base + CI_CTRL, ctrl)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_GO, 0x3)
+    for _ in range(2_000_000):
+        if ((await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)) & 0x03) == 0x03:
+            break
+    else:
+        raise AssertionError("profile probe: cycle injectors did not finish")
+    for _ in range(256):
+        await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)            # let the chain drain
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x2)          # freeze
+    bins = await _read_bins(tb, 26)
+    unexpected = await tb.read64(ADDR_TALLY_CNT + TALLY_UNEXPECTED_BIN * 8)
+    watcher.cancel()
+    named = {f"agent 0x{k >> 16:04x} proto {(k >> 12) & 0xF} type {(k >> 8) & 0xF} "
+             f"code 0x{k & 0xFF:02x}": n for k, n in sorted(hist.items())}
+    dut._log.info(f"profile probe (SEL {sel}, {count} per injector, mask 0x{mask:x}, we_mix {we_mix}, "
+                  f"depth {outstanding}): bins {bins} UNEXPECTED {unexpected} unbinned keys {named}")
+    log_path = os.environ.get('LOG_PATH')
+    if log_path:
+        with open(os.path.splitext(log_path)[0] + "_unbinned.json", "w") as fh:
+            json.dump({"sel": sel, "count": count, "mask": mask, "we_mix": we_mix,
+                       "outstanding": outstanding, "bins": bins, "unexpected": unexpected,
+                       "unbinned": named}, fh)
+    assert unexpected == sum(hist.values()), \
+        f"UNEXPECTED {unexpected} != the {sum(hist.values())} misses the probe saw"
+    assert unexpected == 0, f"the ref-onyx profile leaves keys unbinned: {named}"
 
 
 @cocotb.test(timeout_time=5000, timeout_unit="ms")

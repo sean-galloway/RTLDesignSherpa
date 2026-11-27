@@ -345,9 +345,16 @@ def build_ref_onyx_profile() -> List[Tuple[int, int]]:
     Bins 0-10 keep the pair-rig profile's meaning for the two jet-prime
     caches' core and transport observers (agents 0x00A0 / 0x00A1), so the
     sweep's printout (acc / miss / snoop / evict / drop / fill_end /
-    drain_end) reads the same. Bins 11-17 are onyx's observer (agent
-    0x00A3, onyx_pkg codes 0x20-0x27); jet's own J7 bins are dropped here.
-    Bin 17 is onyx's drop report, which the sweep records as jmon_drops.
+    drain_end) reads the same. Bins 11-18 are onyx's observer (agent
+    0x00A3, onyx_pkg codes 0x20-0x27; 0x21 is retired). Bin 17 is onyx's
+    drop report, which the sweep records as jmon_drops; bin 18 is
+    LOCK_WAIT, added after bins 11-17 so their indices did not move.
+    Bins 19-25 are the jet-prime caches' J7 observer (agent 0x00A2), which
+    the caches emit whatever this profile says: the profile's first cut
+    left them, and LOCK_WAIT, out of the legal set, so every one of them
+    counted as UNEXPECTED (11,030 in the board's smoke4k_we64 cell at
+    depth 1; 11,114 in sim from reset, 10,870 of them J7 and 244
+    LOCK_WAIT). Every key the rig emits has a bin here: UNEXPECTED reads 0.
     The D6 elision measure: bin 13 (gathers) with the DataTransfer flag is
     not binned separately -- the tally keys on code only -- so the pair to
     read is bin 12 (memory reads taken) against bin 11 (transactions) and
@@ -373,7 +380,21 @@ def build_ref_onyx_profile() -> List[Tuple[int, int]]:
         (_key(0x00A3, 4, 4, 0x25), 15),  # ABSORB: a PassDirty line written to memory
         (_key(0x00A3, 4, 4, 0x26), 16),  # WRITEBACK: a cache write-back taken
         (_key(0x00A3, 4, 0, 0x09), 17),  # onyx monlite drop report
+        (_key(0x00A3, 4, 4, 0x27), 18),  # LOCK_WAIT: a candidate waited behind a held line (on release)
+        # the jet-prime caches' J7 observer (agent 0x00A2)
+        (_key(0x00A2, 4, 4, 0x10), 19),  # MSHR alloc
+        (_key(0x00A2, 4, 4, 0x11), 20),  # MSHR merge
+        (_key(0x00A2, 4, 4, 0x12), 21),  # MSHR retire
+        (_key(0x00A2, 4, 4, 0x13), 22),  # MSHR occupancy
+        (_key(0x00A2, 4, 4, 0x14), 23),  # WB occupancy
+        (_key(0x00A2, 4, 4, 0x15), 24),  # stall tag-full
+        (_key(0x00A2, 4, 0, 0x09), 25),  # jet_monlite drop report (queue overflow)
     ]
+
+
+def profile_bin_count(profile: str) -> int:
+    """How many bins `profile` fills: one past its highest index."""
+    return 1 + max(idx for _, idx in PROFILES[profile]())
 
 
 PROFILES = {"jet": build_default_profile, "ref-onyx": build_ref_onyx_profile}

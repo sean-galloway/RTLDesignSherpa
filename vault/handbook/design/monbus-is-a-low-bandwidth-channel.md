@@ -68,6 +68,7 @@ stream fits.
 | 2026-09-08 | STREAM Genesys 2, five host programs | one program's mask allowed every type, admitting the ~1.1M-packet perf stream; the group flooded and the UART wedged; the board read as broken for a day ([[uart-harness]]) |
 | 2026-09 | stream-mon coverage campaign | the sequences had to be split so no run enables everything; the drain rate of about one packet per two cycles set the "busy, not flooded" budget ([[testplan]]) |
 | 2026-11-22 | onyx on the Genesys 2 reference rig | the coherency unit's observer emits four per-transaction classes with no mask; in every thrash cell its holders overflowed for the whole run while its six counters stayed exact (bin 11 read 12,613 against 20,240 transactions). Filed as onyx ISSUE-001, which this note reframes: the channel did what it is for; the observer lacked the knob. Fixed the same day: `onyx_monlite` carries the ocelus layers (observer, packet type, event class, error code, port), reset to the rare class only, and then the content filter, an address window on the transaction (a per-slot watch bit set at the grant) |
+| 2026-11-27 | onyx on the Genesys 2 reference rig, the first concurrent sweep | the tally's UNEXPECTED read 11,030 in one cell (105 when the injectors ran one after the other) and was guessed to be onyx's LOCK_WAIT. A sim probe on the tally's own miss (`w_accept && w_prof_miss`, histogrammed by `w_in_key`) from reset gave 11,114: 10,870 were the jet-prime caches' J7 observer (agent 0x00A2), which the ref-onyx profile said were "dropped" but which nothing dropped, and 244 were LOCK_WAIT, which the sweep opens and the profile never binned. Both now have bins (`jet_board.build_ref_onyx_profile`, bins 18-25); `onyx_profile_unbinned_test` fails on any unbinned key and names it |
 
 What the onyx case adds: the sim held the observer to its model and lost 0 to
 9 events a cell, every one reported, which looked like a channel with margin.
@@ -75,5 +76,11 @@ The board's chain, shared by three observers and crossing an AXI-Lite hop,
 has a drain rate the sim never exercised. The counters, not the bins, carried
 the measurement, and the handbook now says so before the next design puts a
 per-transaction class on the channel and reads the bins as counts.
+
+A profile is a claim about which emitters are on the chain. Leaving one out
+does not stop its packets; it turns UNEXPECTED into a count of them, and a
+non-zero UNEXPECTED stops meaning "a packet nobody expected". Bin every
+key the rig emits, hold UNEXPECTED to 0 in a sim test with the board's
+masks, and name the key: a count without the key is a guess.
 
 Related: [[observers-do-not-drive]], [[new-monbus-protocol]], [[sizing-invariants]], [[monitor-board-coverage]].
