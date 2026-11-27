@@ -678,3 +678,23 @@ Found and measured:
   still running (onyx write-backs hold no slot; now waits, bounded). After:
   75/75 on that seed base and 75/75 fresh (3226594171), 0 reruns;
   reference-rig gate 9/9. SEL 4 / 5 bitstreams building.
+- 2026-11-26 **bin 7 on the board (BUG-001..003 fixes + corner counters,
+  1a88fd168):** SEL 4 / 5 built at 100 MHz with the 0.2 ns uncertainty:
+  WNS +0.002 / +0.039 ns, hold clean; SEL 5 30,363 LUT / 26,336 FF (+951 /
+  +599 over bin 6: the three fixes and the counter mirror); SEL 4's area
+  report was overwritten by SEL 5's in the shared reports and project
+  dirs, not recorded. Bitstreams `ref_onyx_bringup.bit` sha256
+  3e1c87cdeb2e9e42, `ref_onyxd` 3ab85dab8034f9fc. SEL 4 session under
+  `board_lock.sh`: program, init + smoke PASS, the all-open 55-cell dual
+  sweep cycle-, CRC-, counter- and tally-identical to bin 6 in 55 of 55
+  cells, 0 injector errors (the tally's unexpected count, 273,245, is the
+  same as bin 6's), io PASS. The hot set reached neither corner (cu_dt 0,
+  old_wb 0, 8-13 lines supplied of ~22,850 transactions) where the sim of
+  the same cell supplies 12,380: the host starts the two injectors with
+  two UART writes >= 16 ms apart, so on the board they never overlap --
+  common-ip BUG-001, which applies to every dual board result so far. The
+  sim with injector 1 started after injector 0 reproduces the board's
+  22,874 transactions exactly. SEL 5 not run: its dual sweep would measure
+  the same sequential runs. Results
+  `perf_sweep_onyx_bin7_dual_20261127T071454Z.json`,
+  `perf_sweep_onyx_bin7_hot_dual_20261127T071454Z.json`.

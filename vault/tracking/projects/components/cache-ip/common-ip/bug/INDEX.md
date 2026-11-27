@@ -2,7 +2,7 @@
 
 # vault/tracking/projects/components/cache-ip/common-ip — bugs
 
-**Next ID: BUG-001** — never recycle a number, even when its item closed.
+**Next ID: BUG-002** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **BUG-001** ([page](open/BUG-001.md)) — the Genesys2 cache-ip rigs' dual sweeps never overlap the two injectors: the host starts them with two UART writes >= 16 ms (1.6M cycles) apart, longer than any cell runs. Found 2026-11-26 (onyx bin 7 hot set); every board dual result is two single-injector runs back to back
 
 ## Active
 

@@ -744,15 +744,27 @@ async def onyx_hot_set_test(dut):
     await tb.reset()
     level = os.environ.get('TEST_LEVEL', 'gate')
     count = {'gate': 1000, 'func': 4000, 'full': 20000}.get(level, 1000)
-    ctrl = (8 << 16) | (179 << 8)     # 8 outstanding, we_mix 179 of 256
+    outstanding = 8
+    # a board cell reproduced exactly: HOT_COUNT / HOT_OUTSTANDING
+    count = int(os.environ.get('HOT_COUNT', count))
+    outstanding = int(os.environ.get('HOT_OUTSTANDING', outstanding))
+    mask = int(os.environ.get('HOT_MASK', '0xE07F'), 0)
+    we_mix = int(os.environ.get('HOT_WE_MIX', '179'), 0)
+    ctrl = (outstanding << 16) | (we_mix << 8)     # we_mix 179 of 256 by default
     for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
                           (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
         await tb.write32(ci_base + CI_SEED, seed)
         await tb.write32(ci_base + CI_ADDR_BASE, 0x0000_0000)
-        await tb.write32(ci_base + CI_ADDR_MASK, 0x0000_E07F)
+        await tb.write32(ci_base + CI_ADDR_MASK, mask)
         await tb.write32(ci_base + CI_TRANS_COUNT, count)
         await tb.write32(ci_base + CI_CTRL, ctrl)
     await tb.write32(ADDR_CYCLE_INJECTOR0 + CI_CTRL, ctrl | 0x01)
+    if int(os.environ.get('HOT_SEQUENTIAL', '0')):
+        # the board as it runs: the host's second start write lands ~16 ms
+        # (1.6M cycles) after the first, after injector 0 is done
+        for _ in range(2_000_000):
+            if (await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)) & 0x01:
+                break
     await tb.write32(ADDR_CYCLE_INJECTOR1 + CI_CTRL, ctrl | 0x01)
     for _ in range(2_000_000):
         status = await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)
@@ -778,16 +790,17 @@ async def onyx_hot_set_test(dut):
     log_path = os.environ.get('LOG_PATH')
     if log_path:
         with open(os.path.splitext(log_path)[0] + "_hot_set.json", "w") as fh:
-            json.dump({"sel": sel, "count": count, "txn": txn, "supplied": supplied,
+            json.dump({"sel": sel, "count": count, "outstanding": outstanding, "txn": txn, "supplied": supplied,
                        "mem_read": mem_read, "read_wasted": read_wasted, "absorb": absorb,
                        "wb": wb, "cu_dt": cu_dt, "old_wb": old_wb}, fh)
     assert wb > 0 and supplied > 0, f"hot set: no write-backs or no supplied lines: {onyx}"
     assert cu_dt <= supplied, f"hot set: cu_dt {cu_dt} > supplied {supplied}"
     if sel == 4:
-        # the read alongside the snoop: every supplied line wasted its read,
-        # except a CleanUnique's, which never reads memory
-        assert read_wasted == supplied - cu_dt, \
-            f"SEL 4 hot set: wasted {read_wasted} != supplied {supplied} - cu_dt {cu_dt}"
+        # the read alongside the snoop: a supplied line wastes its read
+        # unless it is a CleanUnique's (no read) or the answer beat the
+        # read's issue (at depth 1, 51 of 12,380 at 20,000 a side)
+        assert read_wasted <= supplied - cu_dt, \
+            f"SEL 4 hot set: wasted {read_wasted} > supplied {supplied} - cu_dt {cu_dt}"
     else:
         assert read_wasted == 0, f"SEL 5 hot set: wasted {read_wasted} != 0"
     assert old_wb > 0, "hot set: no write was presented on a line a slot still gathers"
