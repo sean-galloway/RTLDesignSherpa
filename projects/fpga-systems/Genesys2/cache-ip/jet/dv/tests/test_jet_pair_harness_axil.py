@@ -8,6 +8,7 @@
 #   equivalence evidence is test_jet_pair_harness_uart, which imports and runs
 #   the same host sequences through the real uart_axil_bridge.
 
+import json
 import os
 import sys
 
@@ -374,7 +375,6 @@ async def smoke_test(dut):
     # (the cocotb logger output is not kept per test)
     smoke_json = os.environ.get('JET_SMOKE_JSON')
     if smoke_json:
-        import json
         with open(smoke_json, "w") as fh:
             json.dump({"mask": mask, "base1": base1, "count": count, "we_mix": we_mix,
                        "outstanding": outstanding, "run_cycles": [cyc0, cyc1],
@@ -786,6 +786,61 @@ async def injector_pipeline_test(dut):
                 f"{name} depth 8: the cache never had two requests in flight (OUTST_MAX {s8['outst_max']})"
             assert s8["run_cycles"] < base["run_cycles"], \
                 f"{name} depth 8: no throughput gain ({s8['run_cycles']} vs {base['run_cycles']} cycles)"
+
+
+@cocotb.test(timeout_time=5000, timeout_unit="ms")
+async def hit_stream_snoop_liveness_test(dut):
+    """jet BUG-008: a granted miss is snooped in bounded time whatever the
+    peer's hit rate.
+
+    Both injectors read one 4 KB set (the board's r4k_we0), launched by one
+    GO, at depth 1, 4 and 16.  Before the fix the fabric's safe-peer wait
+    held the AC for as long as the peer reported LOOKUP / HIT_RD, which a
+    pipelined hit stream does every cycle: from depth 4 one injector ran
+    alone and the other after it (20,000 a side: 22,705 / 42,525 cycles;
+    the board 20,293 / 40,320).  Both must now finish together: the slower
+    injector within 25 % of the faster (the shared-set reads cost the same
+    on both sides; depth 1 already overlapped, 82,358 / 82,384)."""
+    clk_task = cocotb.start_soon(_manual_clock(dut))
+    tb = JetPairHarnessAXILTest(dut, clk_task)
+    await tb.reset()
+    level = os.environ.get('TEST_LEVEL', 'gate')
+    count = int(os.environ.get('JET_LIVENESS_COUNT',
+                               {'gate': 2000, 'func': 8000, 'full': 20000}.get(level, 2000)))
+    results = {}
+    # each depth on a cold 4 KB set of its own (base 64 KB x i): on a set an
+    # earlier run left in both caches every read hits and nothing is snooped
+    for i, depth in enumerate((1, 4, 16)):
+        for ci_base, seed in [(ADDR_CYCLE_INJECTOR0, 0x1234_5678),
+                              (ADDR_CYCLE_INJECTOR1, 0xDEAD_BEEF)]:
+            await tb.write32(ci_base + CI_SEED, seed)
+            await tb.write32(ci_base + CI_ADDR_BASE, i * 0x1_0000)
+            await tb.write32(ci_base + CI_ADDR_MASK, 0x0000_0FFF)
+            await tb.write32(ci_base + CI_TRANS_COUNT, count)
+            await tb.write32(ci_base + CI_CTRL, (depth & 0xFF) << 16)   # we_mix 0, run 0: staged
+        await tb.write32(ADDR_HARNESS_CSR + HCSR_GO, 0x3)
+        for _ in range(2_000_000):
+            if ((await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)) & 0x03) == 0x03:
+                break
+        else:
+            raise AssertionError(f"depth {depth}: the injectors did not finish")
+        snaps = [await _ci_snapshot(tb, b) for b in (ADDR_CYCLE_INJECTOR0, ADDR_CYCLE_INJECTOR1)]
+        for i, s in enumerate(snaps):
+            assert s["err"] == 0 and s["acc"] == count and s["rsp"] == count, \
+                f"depth {depth} ci{i}: err 0x{s['err']:x} acc/rsp {s['acc']}/{s['rsp']} != {count}"
+        cyc = [s["run_cycles"] for s in snaps]
+        results[depth] = cyc
+        dut._log.info(f"r4k_we0 depth {depth}, {count} a side: run_cycles {cyc[0]} / {cyc[1]} "
+                      f"(ratio {max(cyc) / min(cyc):.3f})")
+    # the cell log keeps no dut._log lines past the reset: the cycles go to
+    # their own file beside it
+    log_path = os.environ.get('LOG_PATH')
+    if log_path:
+        with open(os.path.splitext(log_path)[0] + "_liveness.json", "w") as fh:
+            json.dump({"count": count, "run_cycles": results}, fh)
+    for depth, cyc in results.items():
+        assert max(cyc) <= 1.25 * min(cyc), \
+            f"depth {depth}: one injector starved behind the other's hit stream: run_cycles {cyc[0]} / {cyc[1]}"
 
 
 @pytest.mark.parametrize("test_level", reg_level_grid())

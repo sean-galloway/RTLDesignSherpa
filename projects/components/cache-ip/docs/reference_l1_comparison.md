@@ -288,7 +288,7 @@ Error flags / unfinished runs across all sources: 0
 ### Two cores at once (both injectors started by one GO; the slower injector, cycles per transaction, and x its single-core figure)
 
 - amber: `perf_sweep_bin14_go_20261127T091929Z.json` against `perf_sweep_bin14_go_single_20261127T091929Z.json`
-- jet: `perf_sweep_bin20_go_20261127T091929Z.json` against `perf_sweep_bin20_go_single_20261127T091929Z.json`
+- jet: `perf_sweep_bin21_bug008_20261127T174527Z.json` against `perf_sweep_bin21_bug008_single_20261127T174527Z.json`
 - jet-prime s6: `perf_sweep_jetpp_go_dual_20261127T091929Z.json` against `perf_sweep_jetpp_go_single_20261127T091929Z.json`
 - onyx: `perf_sweep_onyx_go_dual_20261127T091929Z.json` against `perf_sweep_onyx_bin2_single_20261122T150901Z.json`
 - onyx-d: `perf_sweep_onyxd_go_dual_20261127T091929Z.json` against `perf_sweep_onyxd_bin2_single_20261122T151318Z.json`
@@ -298,23 +298,23 @@ Error flags / unfinished runs across the dual sources: 0
 | config | depth | amber | jet | jet-prime s6 | onyx | onyx-d |
 |---|---|---|---|---|---|---|
 | r4k_we0 | 1 | 2.03 (1.01x) | 4.02 (1.00x) | 3.01 (1.00x) | 3.01 (1.00x) | 3.01 (1.00x) |
-| r4k_we0 | 4 | 1.15 (1.03x) | 2.02 (2.02x) | 1.01 (1.01x) | 1.01 (1.01x) | 1.01 (1.01x) |
-| r4k_we0 | 16 | 1.15 (1.03x) | 2.02 (2.02x) | 1.01 (1.01x) | 1.01 (1.01x) | 1.01 (1.01x) |
-| r4k_we255 | 1 | 30.11 (14.79x) | 29.07 (7.21x) | 19.48 (6.43x) | 19.48 (6.43x) | 19.48 (6.43x) |
-| r4k_we255 | 4 | 30.67 (15.10x) | 27.40 (26.13x) | 12.28 (11.77x) | 12.38 (11.87x) | 12.22 (11.71x) |
-| r4k_we255 | 16 | 30.67 (15.10x) | 25.32 (24.24x) | 9.85 (9.48x) | 9.85 (9.47x) | 9.76 (9.39x) |
-| smoke4k_we64 | 1 | 8.32 (4.16x) | 9.75 (2.42x) | 7.50 (2.48x) | 7.50 (2.48x) | 7.50 (2.48x) |
-| smoke4k_we64 | 4 | 8.25 (6.45x) | 7.30 (7.25x) | 4.47 (4.44x) | 4.47 (4.44x) | 4.47 (4.44x) |
-| smoke4k_we64 | 16 | 8.25 (6.45x) | 2.03 (2.02x) | 3.65 (3.63x) | 3.65 (3.63x) | 3.64 (3.62x) |
-| r64k_we64 | 1 | 29.92 (1.61x) | 26.47 (1.52x) | 14.77 (1.21x) | 14.77 (1.20x) | 15.91 (1.16x) |
-| r64k_we64 | 4 | 31.49 (1.76x) | 26.27 (2.30x) | 9.54 (1.57x) | 9.53 (1.57x) | 9.50 (1.49x) |
-| r64k_we64 | 16 | 31.49 (1.76x) | 26.59 (2.50x) | 9.09 (1.72x) | 9.09 (1.72x) | 8.98 (1.67x) |
-| r128k_we64 | 1 | 42.28 (1.56x) | 35.74 (1.49x) | 18.14 (1.09x) | 18.14 (1.09x) | 19.94 (1.06x) |
+| r4k_we0 | 4 | 1.15 (1.03x) | 1.02 (1.02x) | 1.01 (1.01x) | 1.01 (1.01x) | 1.01 (1.01x) |
+| r4k_we0 | 16 | 1.15 (1.03x) | 1.02 (1.02x) | 1.01 (1.01x) | 1.01 (1.01x) | 1.01 (1.01x) |
+| r4k_we255 | 1 | 30.11 (14.79x) | 29.02 (7.20x) | 19.48 (6.43x) | 19.48 (6.43x) | 19.48 (6.43x) |
+| r4k_we255 | 4 | 30.67 (15.10x) | 27.21 (25.95x) | 12.28 (11.77x) | 12.38 (11.87x) | 12.22 (11.71x) |
+| r4k_we255 | 16 | 30.67 (15.10x) | 24.23 (23.20x) | 9.85 (9.48x) | 9.85 (9.47x) | 9.76 (9.39x) |
+| smoke4k_we64 | 1 | 8.32 (4.16x) | 9.63 (2.39x) | 7.50 (2.48x) | 7.50 (2.48x) | 7.50 (2.48x) |
+| smoke4k_we64 | 4 | 8.25 (6.45x) | 7.13 (7.09x) | 4.47 (4.44x) | 4.47 (4.44x) | 4.47 (4.44x) |
+| smoke4k_we64 | 16 | 8.25 (6.45x) | 6.62 (6.57x) | 3.65 (3.63x) | 3.65 (3.63x) | 3.64 (3.62x) |
+| r64k_we64 | 1 | 29.92 (1.61x) | 26.42 (1.52x) | 14.77 (1.21x) | 14.77 (1.20x) | 15.91 (1.16x) |
+| r64k_we64 | 4 | 31.49 (1.76x) | 26.28 (2.31x) | 9.54 (1.57x) | 9.53 (1.57x) | 9.50 (1.49x) |
+| r64k_we64 | 16 | 31.49 (1.76x) | 26.56 (2.49x) | 9.09 (1.72x) | 9.09 (1.72x) | 8.98 (1.67x) |
+| r128k_we64 | 1 | 42.28 (1.56x) | 35.70 (1.49x) | 18.14 (1.09x) | 18.14 (1.09x) | 19.94 (1.06x) |
 | r128k_we64 | 4 | 44.83 (1.70x) | 36.80 (2.29x) | 12.69 (1.57x) | 12.69 (1.57x) | 12.48 (1.50x) |
-| r128k_we64 | 16 | 44.83 (1.70x) | 37.04 (2.35x) | 12.46 (1.65x) | 12.52 (1.65x) | 12.23 (1.59x) |
-| disjoint64k_we64 | 1 | 28.30 (1.51x) | 24.14 (1.38x) | 12.94 (1.05x) | 12.94 (1.05x) | 14.28 (1.04x) |
-| disjoint64k_we64 | 4 | 30.61 (1.70x) | 24.15 (2.10x) | 8.90 (1.45x) | 8.90 (1.45x) | 9.04 (1.41x) |
-| disjoint64k_we64 | 16 | 30.61 (1.70x) | 24.68 (2.30x) | 8.61 (1.62x) | 8.61 (1.62x) | 8.63 (1.59x) |
+| r128k_we64 | 16 | 44.83 (1.70x) | 37.03 (2.35x) | 12.46 (1.65x) | 12.52 (1.65x) | 12.23 (1.59x) |
+| disjoint64k_we64 | 1 | 28.30 (1.51x) | 24.05 (1.38x) | 12.94 (1.05x) | 12.94 (1.05x) | 14.28 (1.04x) |
+| disjoint64k_we64 | 4 | 30.61 (1.70x) | 24.14 (2.10x) | 8.90 (1.45x) | 8.90 (1.45x) | 9.04 (1.41x) |
+| disjoint64k_we64 | 16 | 30.61 (1.70x) | 24.60 (2.29x) | 8.61 (1.62x) | 8.61 (1.62x) | 8.63 (1.59x) |
 
 <!-- end generated -->
 
@@ -670,19 +670,22 @@ after; jet's is jet-prime TASK-001.
 concurrent measurement on any rig (the two-core table; 0 injector errors
 and every run complete across all five). Reading it:
 
-- **Read sharing is free everywhere but jet.** `r4k_we0` (both cores
-  reading one 4 KB set) costs 1.00-1.03x the single-core figure on amber,
-  jet-prime and onyx at every depth. On jet it is 2.02x from depth 4: the
-  pair fabric holds a granted miss's snoop while the peer cache serves
-  back-to-back hits, so one injector runs after the other (jet BUG-008,
-  reproduced in sim from reset; the wave shows the fabric in F_AC with
-  `peer_safe` low for ~20,000 cycles). jet's 2.1-2.5x on the disjoint set
-  at depth >= 4, where the cores share no line, is consistent with the
-  same wait (every jet miss snoops its peer); not separately traced.
+- **Read sharing is free.** `r4k_we0` (both cores reading one 4 KB set)
+  costs 1.00-1.03x the single-core figure on every rig at every depth.
+  jet read 2.02x from depth 4 on the GO pass (bin 20): its pair fabric
+  held a granted miss's snoop while the peer cache served back-to-back
+  hits, so one injector ran after the other (jet BUG-008; the wave showed
+  the fabric in F_AC with `peer_safe` low for ~20,000 cycles). Fixed in
+  bin 21: 1.02x. The same wait had also hidden jet's write contention on
+  `smoke4k_we64` at depth 16, 2.02x in bin 20 and 6.57x now -- the
+  injectors finally overlap there. jet's 2.1-2.3x on the disjoint set at
+  depth >= 4, where the cores share no line, is NOT that wait: bin 21
+  leaves it unchanged (2.10x / 2.29x), so it is a cost of its own, not
+  yet traced.
 - **Write sharing is the coherence cost.** `r4k_we255` (both cores
   writing one 4 KB set): 6-26x single-core on every rig, 19.5 cycles per
   transaction at depth 1 and 9.8-12.4 from depth 4 on jet-prime / onyx
-  against 25-31 at every depth on amber and jet --
+  against 24-31 at every depth on amber and jet --
   the line ping-pong the fabric exists for, which no earlier board run
   had exercised.
 - **The shared memory port.** `disjoint64k_we64` and the thrash rows cost
@@ -708,7 +711,7 @@ make ooc CACHE=hpd ; make ooc CACHE=cva6 ; make ooc CACHE=jet ; make ooc CACHE=j
 make ooc CACHE=jet_nomon ; make ooc CACHE=jetp6_nomon ; make ooc CACHE=amber_nomon   # the same with the observers off
 make bitstream REF_CACHE_SEL=4 ; make program REF_CACHE_SEL=4 ; make run SEQUENCES="init smoke" REF_CACHE_SEL=4   # onyx in the fabric's place (SEL 5: DEFER_AR)
 make ooc CACHE=jetp_fabric ; make ooc CACHE=onyx2            # the two managers alone
-python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --profile ref-onyx --outstanding 1 2 4 8 16 --out ../results/perf_sweep_onyx_go_dual_<stamp>.json   # SEL 4/5 with the tally chain: bins 11-17 onyx, the eight counters per cell; both injectors launched by one harness GO (a dual result is only one if it is named *_go_dual_*)
+python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --profile ref-onyx --outstanding 1 2 4 8 16 --out ../results/perf_sweep_onyx_go_dual_<stamp>.json   # SEL 4/5 with the tally chain: bins 11-18 onyx, 19-25 the caches' J7 events (UNEXPECTED 0), the eight counters per cell; both injectors launched by one harness GO (a dual result is only one if it is named *_go_dual_*)
 python3 ../../jet/host/jet_perf_sweep.py --board genesys2 --profile ref-onyx --outstanding 1 2 4 8 16 --configs hot16_we179 --out ../results/perf_sweep_onyx_go_hot_dual_<stamp>.json   # the hot set: the CleanUnique-DataTransfer and old-write-back corners
 python3 ../bin/ref_compare.py                   # the tables above
 ```

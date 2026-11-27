@@ -79,6 +79,9 @@
 //   peer's own fill waits on this fabric -- a circular wait); a peer
 //   mid-miss with nothing queued here reaches its fill launch (the
 //   sideband pulse) in bounded time, after which the same term applies.
+//   The peer's lookup and hit states never hold the AC (jet BUG-008: they
+//   once did, and a peer fed a pipelined hit stream -- HIT_RD every cycle
+//   -- starved the granted miss for as long as the stream ran).
 //
 //   Point of coherence: a PassDirty response means the peer owned the only
 //   correct copy; the forwarded line is also written to the shared memory
@@ -283,20 +286,15 @@ module jet_pair_fabric
     // Peer FSM visibility (the caches' ctrl_state; the safe-peer wait).
     // ISSUE-001 v2: the state is REGISTERED at this fabric's input (the
     // live cone from the peer's cpu_req skid through its classify into the
-    // AC skid was the worst 100 MHz path).  peerN_lkup_live is the peer's
-    // LIVE "a request is present at the lookup" bit (a skid occupancy
-    // register, shallow): the only dangerous transition a 1-cycle-old
-    // state view can miss is IDLE -> classify-outcome in the accept cycle,
-    // and lkup_live covers exactly that cycle.  All later cycles of a
-    // miss/hit are multi-cycle pseudo-states, so the registered view
-    // carries them.  The kill rule's relative timing is preserved: the
-    // peer's coh pulse is itself registered at the source, so the pulse
-    // and the state view shift together.
+    // AC skid was the worst 100 MHz path).  The kill rule's relative
+    // timing is preserved: the peer's coh pulse is itself registered at
+    // the source, so the pulse and the state view shift together.
+    // (jet BUG-008 removed the peer's live lookup bit, peerN_lkup_live:
+    // the wait no longer looks at the peer's lookup at all -- see the
+    // safe-peer block.)
     // ------------------------------------------------------------------
     input  logic [3:0]                  peer0_state,
     input  logic [3:0]                  peer1_state,
-    input  logic                        peer0_lkup_live,
-    input  logic                        peer1_lkup_live,
 
     // ------------------------------------------------------------------
     // Shared-memory AXI4 master side (to sdpram_slave_axi4_axi4)
@@ -619,19 +617,39 @@ module jet_pair_fabric
     endfunction
 
     // ------------------------------------------------------------------
-    // Safe-peer wait: the AC may only be presented when the peer's FSM can
-    // grant the snoop immediately (IDLE), or when the peer is in a miss
-    // state with an ungranted request that the kill rule has converted to
-    // MakeInvalid. LOOKUP / HIT_RD / HIT_WR are treated as unsafe because
-    // the ACE snoop transport skids the AC handshake: a peer that misses
-    // in LOOKUP can reach MISS_FILL with the bypass armed before the
-    // skidded snoop is granted, deadlocking a data-expecting snoop on the
-    // same line. The pending override is therefore restricted to the
-    // miss states where the kill rule is evaluated.
+    // Safe-peer wait: the AC is held while the peer is in INIT or a miss
+    // state (MISS_VICTIM / MISS_DRAIN / MISS_FILL / FILL_WRITE / REPLAY)
+    // with nothing queued here, and through the drain of the granted line
+    // (below).  The peer's lookup and hit states do NOT hold it.
+    //
+    // jet BUG-008 (2026-11-27): the wait used to count LOOKUP / HIT_RD /
+    // HIT_WR as unsafe and also demand an idle peer lookup -- amber's
+    // rule: amber's snoop transport skids the AC, and a peer that misses
+    // in LOOKUP could reach MISS_FILL with its pending-fill bypass armed
+    // before the skidded snoop was granted, deadlocking a data-expecting
+    // snoop on that line.  jet has no such bypass, and its responder
+    // already orders a snoop against its own pipeline: jet_control grants
+    // an AC only while sn_safe_o (no init walk, no service, no
+    // fill-done-unretired commit window, no victim capture, not a
+    // CleanUnique grant cycle, no pended write hit whose array write has
+    // not landed), a captured-not-classified request classifies against
+    // the post-snoop state, and a WAITING AC (sn_want) throttles new CPU
+    // accepts so the safe window opens within the pipe drain (Task 11's
+    // liveness).  A miss the peer takes after the AC is presented is held
+    // here (its AR is accepted only at its own grant), so it is pre-AR
+    // and answered at the Invalid row -- the BUG-004 argument below.  So
+    // on jet the lookup/hit terms were a presentation-time optimization
+    // only, and a costly one: a jet fed a pipelined hit stream reports
+    // HIT_RD and a live lookup on every cycle, and the granted miss of the
+    // other cache waited for as long as that stream ran -- unbounded for a
+    // core that never pauses (board r4k_we0 at depth >= 4: one injector
+    // ran alone, the other after it).  Without them the AC reaches the
+    // peer's transport, sn_want throttles the peer's stream, and the snoop
+    // is serviced in bounded time; jet-prime's pair fabric, with the same
+    // responder, presents its AC with no peer-state wait at all.
     // ------------------------------------------------------------------
-    // Registered peer-state view + the peer's live lkup bit (see the port
-    // comment): the safe-peer decision below never touches the peer's
-    // combinational classify cone.
+    // Registered peer-state view: the safe-peer decision below never
+    // touches the peer's combinational classify cone.
     logic [3:0] peer0_state_q, peer1_state_q;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -645,22 +663,18 @@ module jet_pair_fabric
 
     logic [3:0] peer_state_now;
     logic       peer_pend_now;
-    logic       peer_lkup_now;
     always_comb begin
         if (grant_q == 1'b0) begin
             peer_state_now = peer1_state_q;   // snooping cache 1
-            peer_lkup_now  = peer1_lkup_live;
             peer_pend_now  = (pend_cnt_q[1] != 3'd0) || coh_pulse_vld[1];
         end else begin
             peer_state_now = peer0_state_q;   // snooping cache 0
-            peer_lkup_now  = peer0_lkup_live;
             peer_pend_now  = (pend_cnt_q[0] != 3'd0) || coh_pulse_vld[0];
         end
     end
 
     function automatic logic peer_unsafe(input logic [3:0] st);
-        return (st == ST_INIT) || (st == ST_LOOKUP)
-            || (st == ST_HIT_RD) || (st == ST_HIT_WR)
+        return (st == ST_INIT)
             || (st == ST_MISS_VICTIM) || (st == ST_MISS_DRAIN)
             || (st == ST_MISS_FILL) || (st == ST_FILL_WRITE)
             || (st == ST_REPLAY);
@@ -697,7 +711,7 @@ module jet_pair_fabric
     // drain-on-this-line window is excluded here as before.
     wire peer_drain_grant = drain_vld_q[1'(1 - grant_q)]
         && (drain_line_q[1'(1 - grant_q)] == grant_addr_q);
-    wire peer_safe_data = (!peer_unsafe(peer_state_now) && !peer_lkup_now)
+    wire peer_safe_data = !peer_unsafe(peer_state_now)
         || (peer_pend_now && !peer_drain_grant);
     // issue-time kill: same rule against the CURRENT queue/drain state,
     // including a same-cycle sideband pulse (the fabric sees it live;

@@ -33,7 +33,8 @@ reproduced the board's 22,874 transactions exactly.
 What the first concurrent run found (2026-11-27, every rig rebuilt with
 the GO): a liveness bug in the jet pair fabric that every sequential run
 had hidden -- a miss waits for as long as the peer cache hits back to back
-(jet BUG-008) -- and a D6 trade on onyx several times larger than the
+(jet BUG-008, fixed the same day; the fix also showed that the wait had
+kept jet's write-shared cells from contending) -- and a D6 trade on onyx several times larger than the
 sequential counters said (reads wasted 49-94 % of memory reads on the
 shared sets, against 1-30 %). A launch defect does not just blur numbers;
 it hides the bugs the measurement exists to find.

@@ -100,8 +100,10 @@ ONYX_CNT = {
 DUAL = {
     "amber":        (f"{RIGS}/amber/results/perf_sweep_bin*_go_single_*.json",
                      f"{RIGS}/amber/results/perf_sweep_bin*_go_2*.json"),
-    "jet":          (f"{RIGS}/jet/results/perf_sweep_bin*_go_single_*.json",
-                     f"{RIGS}/jet/results/perf_sweep_bin*_go_2*.json"),
+    # jet: bin 21, the jet BUG-008 fix (the GO pass's bin 20 ran one
+    # injector after the other wherever the peer's hits starved its miss)
+    "jet":          (f"{RIGS}/jet/results/perf_sweep_bin21_bug008_single_*.json",
+                     f"{RIGS}/jet/results/perf_sweep_bin21_bug008_2*.json"),
     "jet-prime s6": (f"{RIGS}/ref/results/perf_sweep_jetpp_go_single_*.json",
                      f"{RIGS}/ref/results/perf_sweep_jetpp_go_dual_*.json"),
     "onyx":         (RESULTS["onyx"], f"{RIGS}/ref/results/perf_sweep_onyx_go_dual_*.json"),
