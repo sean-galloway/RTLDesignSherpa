@@ -225,9 +225,10 @@ Each is **PROPOSED** pending an owner ruling except where marked **DECIDED**.
    (`ap_snq_count`); cover 41/41 and `prove_fast` (17 properties, depth
    32) PASS at both N; 19 mutants fail at both N, seven of them a rule
    narrowed back to ports 0 and 1 that N = 2 cannot see. N = 3 `prove`
-   (29 properties, depth 20) PASS in 1 h 46 min; N = 4 `prove`, both
-   `prove_book` runs and N = 2's re-prove on the BUG-001..003 flat are
-   running (onyx TASK-001). Every depth is a BMC bound
+   (29 properties, depth 20) PASS in 1 h 46 min and `prove_book` (depth
+   16) PASS in 1 h 35 min; N = 4 `prove` and `prove_book` running (onyx
+   TASK-001). N = 2 re-proven on the BUG-001..003 flat (md5 34a9908c):
+   `prove` PASS in 18 h 53 min, `prove_book` PASS. Every depth is a BMC bound
    that covers one transaction end to end, not full N-way contention
    (derivation in the `.sby` headers). **Open:** liveness bounds (the
    control's derived-bound style).

@@ -805,3 +805,10 @@ Found and measured:
   +0.623 ns against 7,516 / 2,653 / 1,944 at +1.557 ns, the observer 1,144
   LUT); 3 safety at N = 2 and 3, N = 4 running, liveness bounds open.
   N = 3 `prove` (29 properties, depth 20) PASS in 1 h 46 min.
+- 2026-11-27 **N = 2 re-proven; BUG-001..003 closed; N = 3 complete:**
+  `prove` (BMC depth 24) PASS on the fixed flat md5 34a9908c in 18 h 53
+  min (the harness and flat the run copied equal the committed ones);
+  with 2026-11-26's `prove_book` PASS, onyx BUG-001, BUG-002 and BUG-003
+  are closed. N = 3 `prove_book` (depth 16) PASS in 1 h 35 min, so every
+  N = 3 task has passed (cover, prove_fast, prove, prove_book). N = 4
+  `prove` and `prove_book` still running.

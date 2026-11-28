@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 3 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,10 +24,10 @@ by construction rather than by discipline.
 
 ## Active
 
-- **BUG-001** ([page](active/BUG-001.md)) — a killed upgrade's CleanUnique, snooped as MakeInvalid, dropped the stores of a peer that took the line Modified in between; now snooped CleanInvalid (IHI 0022). Found and fixed 2026-11-26 by the core-alone rig; closes on the proofs
-- **BUG-002** ([page](active/BUG-002.md)) — a memory read could issue while a write to the same line was in flight on the memory port, returning pre-write bytes; the read now waits out the write port's burst to its line. Found and fixed 2026-11-26 by the core-alone rig; closes on the proofs
-- **BUG-003** ([page](active/BUG-003.md)) — a stale write-back drain held behind a newer owner's absorption landed after it (a third requester needed: the IO port); an old write-back now goes first and the absorption waits for it. Found and fixed 2026-11-26 by the pair rig's full level; closes on the proofs
+(none)
 
 ## Closed
 
-(none)
+- **BUG-001** ([page](closed/BUG-001.md)) — a killed upgrade's CleanUnique, snooped as MakeInvalid, dropped the stores of a peer that took the line Modified in between; now snooped CleanInvalid (IHI 0022). Found and fixed 2026-11-26 by the core-alone rig; closed 2026-11-27 on the proofs (`prove` and `prove_book` PASS on the fixed flat)
+- **BUG-002** ([page](closed/BUG-002.md)) — a memory read could issue while a write to the same line was in flight on the memory port, returning pre-write bytes; the read now waits out the write port's burst to its line. Found and fixed 2026-11-26 by the core-alone rig; closed 2026-11-27 on the proofs (`prove` and `prove_book` PASS on the fixed flat)
+- **BUG-003** ([page](closed/BUG-003.md)) — a stale write-back drain held behind a newer owner's absorption landed after it (a third requester needed: the IO port); an old write-back now goes first and the absorption waits for it. Found and fixed 2026-11-26 by the pair rig's full level; closed 2026-11-27 on the proofs (`prove` and `prove_book` PASS on the fixed flat)
