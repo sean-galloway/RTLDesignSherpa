@@ -202,11 +202,15 @@ if {[info exists ::env(PUMICE_SCHED_CORE)] && $::env(PUMICE_SCHED_CORE) ne ""} {
 } else {
     set _freq_note "$_freq_note, SCHED_CORE=0 (FRFCFS, the top's default)"
 }
-# PUMICE_DUAL_ISSUE=1: build pumice's scheduler row lane (TASK-047). The
-# runtime enable is SCHED_POLICY.dual_issue; unset, the lane is not built.
-if {[info exists ::env(PUMICE_DUAL_ISSUE)] && $::env(PUMICE_DUAL_ISSUE) eq "1"} {
-    lappend current_defines "PUMICE_DUAL_ISSUE"
-    set _freq_note "$_freq_note, DUAL_ISSUE=1"
+# PUMICE_DUAL_ISSUE: pumice's scheduler row lane (TASK-047). BUILT BY DEFAULT
+# since 2026-11-27 (the FPGA SKU; the host sets SCHED_POLICY.dual_issue and
+# DFI_PHASE.row_phase 1 unless TEST_DUAL_ISSUE=0). PUMICE_DUAL_ISSUE=0 builds
+# the lane out (bit-identical to the pre-TASK-047 arbiter) for a control build.
+if {[info exists ::env(PUMICE_DUAL_ISSUE)] && $::env(PUMICE_DUAL_ISSUE) ne ""} {
+    lappend current_defines "PUMICE_DUAL_ISSUE=$::env(PUMICE_DUAL_ISSUE)"
+    if {$::env(PUMICE_DUAL_ISSUE) eq "0"} {
+        set _freq_note "$_freq_note, DUAL_ISSUE row lane BUILT OUT (control build)"
+    }
 }
 # PUMICE_FPGA_SKU=1: build the board without the write/read combiners, the
 # snarf forward and the narrow pack (memory-controllers MC-006, ISSUE-001

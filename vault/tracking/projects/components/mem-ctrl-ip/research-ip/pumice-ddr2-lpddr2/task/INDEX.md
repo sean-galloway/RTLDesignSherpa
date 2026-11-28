@@ -12,18 +12,15 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 52 | done (kept for history) |
+| [closed/](closed/) | 53 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 3 | parked pending a named condition |
 
 ## Open
 
-- **TASK-047** — OPEN. Dual issue on DFI 1:2, built behind `DUAL_ISSUE`. Board
-  2026-11-27 at 75 MHz on the fixed lane: 0 mismatched in 20 runs, `every`
-  +19 / +25 percent, `mixed_bl8` union +9 / +40 percent (was -15). Remaining:
-  the default.
+None.
 
 ## Deferred
 
@@ -51,6 +48,7 @@ None.
 
 ## Closed
 
+- **TASK-047** — CLOSED 2026-11-27: the DFI 1:2 row lane (a demand ACT / PRE beside a column, on `DFI_PHASE.row_phase`) is pumice's default; the lane serves only its column's direction. Board at 75 MHz: 0 mismatched, `every` +19 / +25 percent, `mixed_bl8` union +9 / +40 percent.
 - **TASK-062** — CLOSED 2026-11-02: Ocelus on both controllers, delivered as granite TASK-008 (`mc_ocelus_plane`, common-ip): lite AXI monitors, `mc_monlite` internal events, one AXI-Lite packet writer; granite on the board at 100 MHz, pumice sim-verified (6 cells). The TASK-061 age invariant and a write-merge fallback have no RTL source and were not built.
 - **TASK-060** — CLOSED 2026-11-02: half-burst injectors (`cfg_idx1_bit`, `gap_sweep`), pumice write and read combiners (`WR_MERGE_EN` / `RD_MERGE_EN`, counted), the half families and profiles, the one-thread knee and the thread sweep; granite and LiteDRAM merge nothing. The combiner text misses 75 MHz by 5.6 ns (ships at 50 MHz); the arbiter / CAM restructure is the owner's call.
 - **TASK-061** — CLOSED 2026-10-29: the age-carrying per-bank FIFO, delivered as `gaxi_age_fifo_sync` (PEEK, pool age, `age_dec`, per-head OLDEST/thresh flop) and installed as granite's sixteen bank queues under granite TASK-002; the flag's place in the select is granite TASK-003 item 5.

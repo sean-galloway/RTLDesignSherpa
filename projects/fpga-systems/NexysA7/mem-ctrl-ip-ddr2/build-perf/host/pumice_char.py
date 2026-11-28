@@ -436,10 +436,10 @@ class ControllerConfig:
     # TASK-047 / MC-014 dual issue: SCHED_POLICY.dual_issue on, and every row
     # command on DFI_PHASE.row_phase (default 1 with the lane, 0 without -- the
     # RDL reset), off both column phases. None (no TEST_DUAL_ISSUE) = the
-    # controller's SKU, resolved in apply(): granite ON since 2026-11-16 (THE
-    # FPGA SKU IS THE CONFIGURATION -- the lane is built by default and the
-    # MC-014 / MC-017 cells are taken with it), pumice OFF (its lane default is
-    # pumice TASK-047's open decision). TEST_DUAL_ISSUE=1 / 0 wins either way;
+    # controller's SKU, resolved in apply(): ON for both -- granite since
+    # 2026-11-16 (THE FPGA SKU IS THE CONFIGURATION -- the lane is built by
+    # default and the MC-014 / MC-017 cells are taken with it), pumice since
+    # 2026-11-27 (TASK-047 closed). TEST_DUAL_ISSUE=1 / 0 wins either way;
     # 0 writes the enable off and leaves row_phase at reset. On a bitstream
     # without the lane both fields are inert (DUAL_ISSUE gates them in RTL).
     dual_issue:    Optional[bool] = (os.environ["TEST_DUAL_ISSUE"] != "0"
@@ -449,10 +449,10 @@ class ControllerConfig:
 
     def lane_on(self, drv: DDR2CharDriver) -> bool:
         """The runtime row-lane enable this run programs: the explicit
-        TEST_DUAL_ISSUE, else the controller's SKU (granite on, pumice off)."""
+        TEST_DUAL_ISSUE, else the controller's SKU (on for granite and pumice)."""
         if self.dual_issue is not None:
             return self.dual_issue
-        return drv.controller == "granite"
+        return drv.controller in ("granite", "pumice")
     # SCHED_POLICY.fast_rd_release. Reset ON since 2026-11-07 (pumice BUG-033
     # fixed, e91fb524e); TEST_FAST_RD=0 forces it OFF for an A/B, anything
     # else leaves it on. Written explicitly either way so the run's state does

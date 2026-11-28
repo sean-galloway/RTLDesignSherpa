@@ -97,8 +97,11 @@ module pumice_core
     // DUAL_ISSUE (TASK-047): build the scheduler's row lane -- a demand ACT /
     // PRE in the same DFI word as a column, on DFI_PHASE.row_phase. Runtime
     // enable SCHED_POLICY.dual_issue; the lane runs only on DDR2 with row_phase
-    // off both column phases and one column command per DFI word.
-    parameter bit DUAL_ISSUE     = 1'b0,
+    // off both column phases and one column command per DFI word. BUILT BY
+    // DEFAULT since 2026-11-27 (TASK-047 closed: board-clean at 75 MHz,
+    // mixed_bl8 +9 / +40 percent, every +19 / +25); the CSR resets OFF, so a
+    // build with the lane and the enable clear is cycle-identical to 0.
+    parameter bit DUAL_ISSUE     = 1'b1,
                                          // Off since BUG-027 (the "youngest schedulable"
                                          // predicate chopped page-hit write streams); back
                                          // on with the exact predicate of TASK-044 (a

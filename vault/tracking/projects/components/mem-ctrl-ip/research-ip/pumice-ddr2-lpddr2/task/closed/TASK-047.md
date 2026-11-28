@@ -11,11 +11,13 @@
 > (the arbiter cone is the 75 MHz critical path at +0.001 ns).
 
 **Priority:** P3 (research; bounded gain, real timing risk)
-**Status:** OPEN. 2026-11-27: the lane is board-clean at the 75 MHz SKU point
-(0 mismatched on every profile, `every` +19 / +25 percent); the `mixed_bl8`
-regression is found and fixed in RTL (the lane served the other direction);
-the board re-run on the fixed bitstream is clean and `mixed_bl8` gains +9 / +40
-percent union. Remaining: the DUAL_ISSUE default. Earlier: unparked 2026-11-03 (ISSUE-027 closed). Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
+**Status:** CLOSED 2026-11-27. The row lane is pumice's default (the FPGA SKU):
+`DUAL_ISSUE = 1` on `pumice_core` / `pumice_top` / `pumice_top_geared` and the
+char harness / macro, the host sets `SCHED_POLICY.dual_issue` and
+`DFI_PHASE.row_phase` 1 (both CSRs still reset off). Board at 75 MHz: 0
+mismatched, `every` +19 / +25 percent, `mixed_bl8` union +9 / +40 percent after
+the direction fix (the lane served the other direction). Earlier: board-clean
+lane at 75 MHz with the `mixed_bl8` regression, found and fixed the same day. Earlier: unparked 2026-11-03 (ISSUE-027 closed). Was DEFERRED 2026-11-03 after a best-effort pass (owner: "reopen 47
 and see if it can happen; give best effort then defer if needed"). Built
 behind `DUAL_ISSUE` (default off, cycle-identical to HEAD), verified in sim
 and formal: 9 -> 8 slots per bank-walk row, col_ilv +12 / +14 percent at one
@@ -403,3 +405,23 @@ wr / rd: `every` +19.2 / +24.9 % (worst cell col_major_bl8_multiid rd -1.7 %),
 (worst -0.8 % wr). No cell loses more than 1.7 % in any direction except the
 defaults `mixed_bl8` write half (-9.2 %), where the readers gain +33.9 % and the
 union +9.3 %. Every Done-when item is met; what remains is the default.
+
+### 2026-11-27: the lane is the default; closed
+Owner: "do your recommendation". Same pattern as granite (MC-014): the parameter
+builds the lane, the CSRs reset off (power up is the generic setting), the board
+host turns it on. `DUAL_ISSUE` defaults to 1 on `pumice_core`, `pumice_top`,
+`pumice_top_geared`, `ddr2_char_harness` and `ddr2_char_macro`;
+`PUMICE_DUAL_ISSUE=0` (create_project.tcl) builds it out for a control build;
+`pumice_char.py` resolves an unset `TEST_DUAL_ISSUE` to on for pumice as for
+granite; the proxy's `TEST_DUAL` defaults to 1 (`TEST_DUAL=0` builds it out).
+The harness had its own `DUAL_ISSUE = 0` default, which the first plain build
+caught (the macro bound 0); fixed before the build below.
+
+Regression, clean-all + run-all-func-parallel: pumice 220 passed / 4 skipped and
+32 passed / 4 skipped, char framework (the proxy, lane now on) 226 passed / 2
+xfail, granite 25 passed / 5 skipped / 1 xfail. A plain `make bitstream` (no lane
+env) closes 75 MHz at WNS +0.140 ns / 0 failing / WHS +0.022 ns, identical to the
+explicit lane build: `ddr2_char_pumice_sku75_default_2026-11-27.bit`. Board with
+no lane env: smoke ALL PASS, `windows` and `every` 0 mismatched, every cell within
+0.4 percent of the explicit lane-on run (one multi-id cell +1.7 percent);
+`mixed_bl8` union 375.2 / 457.6 / 210.4 (`char_pumice_sku75def_*_2026-11-27.csv`).

@@ -37,8 +37,9 @@ Knobs: TEST_TREFI (585 = board), TEST_TXN (256), TEST_GAP (0), TEST_BURST_LEN
 (8), TEST_FAMILIES, TEST_NUM_GEN (1), TEST_TIMING_OVERRIDES (""), PERF_DUMP,
 PERF_CMD_TRACE, PERF_PICK_TRACE (per-cycle pick-core rows, _START/_N),
 PERF_ARB_TRACE (per-cycle FR-FCFS arbiter rows to <PERF_DUMP>.arb.txt, _START/_N),
-TEST_ACCESS_PREF (SCHED_POLICY.access_pref, FR-FCFS core), TEST_DUAL (1 = build
-pumice's TASK-047 row lane and run it: SCHED_POLICY.dual_issue, row_phase 1), TEST_WR_CAM_DEPTH
+TEST_ACCESS_PREF (SCHED_POLICY.access_pref, FR-FCFS core), TEST_DUAL (default 1, the
+FPGA SKU since 2026-11-27: pumice's TASK-047 row lane built and run, SCHED_POLICY.dual_issue,
+row_phase 1; 0 = built out, the control), TEST_WR_CAM_DEPTH
 (the write pool, macro default 8; memory-controllers MC-015; its own sim_build tag), TEST_SCHED_CORE
 (1 = BANK_PICK, 0 = FRFCFS). TEST_FAMILIES may include `mixed` (perf_mixed_family.py:
 bank-paired threads one row apart, reads and writes concurrent; needs TEST_NUM_GEN >= 2).
@@ -789,7 +790,7 @@ async def cocotb_test_pumice_perf(dut):
             out["access_pref"] = int(access_pref, 0)
         # TEST_DUAL: the TASK-047 row lane (a DUAL_ISSUE build), row commands on
         # phase 1 beside columns on rd/wr_phase
-        dual = os.environ.get("TEST_DUAL", "0") == "1"
+        dual = os.environ.get("TEST_DUAL", "1") == "1"
         if dual:
             drv.set_sched_policy(dual_issue=True)
             out["dual_issue"] = 1
@@ -959,8 +960,8 @@ def test_ddr2_char_perf(request):
         repo_root=repo_root, filelist_path=_FILELIST)
 
     tag = request.node.name.replace("[", "_").replace("]", "").replace("-", "_")
-    if os.environ.get("TEST_DUAL", "0") == "1":
-        tag += "_dual"        # a different netlist: its own build tree
+    if os.environ.get("TEST_DUAL", "1") != "1":
+        tag += "_nodual"      # the lane built out: a different netlist, its own build tree
     if os.environ.get("TEST_WR_CAM_DEPTH"):
         tag += "_wc" + os.environ["TEST_WR_CAM_DEPTH"]   # another netlist: the write pool size
     sim_build = sim_build_path(tests_dir, tag)
@@ -995,7 +996,7 @@ def test_ddr2_char_perf(request):
         "TEST_PAGE_MODE": os.environ.get("TEST_PAGE_MODE", ""),
         "TEST_TR_INIT": os.environ.get("TEST_TR_INIT", ""),
         "TEST_ACCESS_PREF": os.environ.get("TEST_ACCESS_PREF", ""),
-        "TEST_DUAL": os.environ.get("TEST_DUAL", "0"),
+        "TEST_DUAL": os.environ.get("TEST_DUAL", "1"),
         "TEST_TREFI": os.environ.get("TEST_TREFI", "585"),
         "TEST_TXN": os.environ.get("TEST_TXN", "256"),
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),
@@ -1028,7 +1029,7 @@ def test_ddr2_char_perf(request):
               "SCHED_CORE": os.environ.get("TEST_SCHED_CORE", "0"),  # pumice is FR-FCFS (owner, 2026-10-22)
               # TEST_CLOSE_ON_DRAIN=0/1 overrides pumice's close-on-drain (TASK-044 A/B); unset = the RTL default
               **({"CLOSE_ON_DRAIN": os.environ["TEST_CLOSE_ON_DRAIN"]} if os.environ.get("TEST_CLOSE_ON_DRAIN") else {}),
-              **({"DUAL_ISSUE": "1"} if os.environ.get("TEST_DUAL", "0") == "1" else {}),
+              **({} if os.environ.get("TEST_DUAL", "1") == "1" else {"DUAL_ISSUE": "0"}),  # the macro default is the lane (FPGA SKU)
               # TEST_WR_CAM_DEPTH: the write pool (memory-controllers MC-015); unset = the macro default (8)
               **({"WR_CAM_DEPTH": os.environ["TEST_WR_CAM_DEPTH"]} if os.environ.get("TEST_WR_CAM_DEPTH") else {}),
               # CHAR_RESEARCH_CFG=1: the research configuration (combiners, snarf, narrow pack, pick modes on); the FPGA SKU is the default

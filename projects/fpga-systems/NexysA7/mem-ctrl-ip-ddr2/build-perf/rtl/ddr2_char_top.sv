@@ -350,10 +350,12 @@ module ddr2_char_top #(
 `else
         .SCHED_CORE      (0),   // pumice is FR-FCFS (owner, 2026-10-22); BANK_PICK is granite's
 `endif
-        // TASK-047 row lane: `PUMICE_DUAL_ISSUE builds it (create_project.tcl
-        // env PUMICE_DUAL_ISSUE=1); the runtime enable is SCHED_POLICY.dual_issue.
+        // TASK-047 row lane: built by default (the macro default, the FPGA SKU
+        // since 2026-11-27); `PUMICE_DUAL_ISSUE=0 (create_project.tcl env
+        // PUMICE_DUAL_ISSUE=0) builds it out for a control build. The runtime
+        // enable is SCHED_POLICY.dual_issue, which the host sets by default.
 `ifdef PUMICE_DUAL_ISSUE
-        .DUAL_ISSUE      (1'b1),
+        .DUAL_ISSUE      (`PUMICE_DUAL_ISSUE),
 `endif
         // FPGA SKU (memory-controllers MC-006, ISSUE-001 rows 3, 9, 12):
         // THE FPGA SKU IS THE CONFIGURATION (owner, 2026-11-08: "we need to

@@ -70,7 +70,7 @@ module ddr2_char_macro
     parameter bit NARROW_EN       = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
     parameter bit RUNTIME_PICK_MODES = 1'b0, // 0 = the FPGA SKU, THE configuration since 2026-11-08; PUMICE_RESEARCH_CFG=1 builds the research value (1)
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // pumice: last same-row column carries auto-precharge (TASK-044; 0 = the BUG-027-era A/B)
-    parameter bit DUAL_ISSUE      = 1'b0, // pumice: build the scheduler's row lane (TASK-047); runtime SCHED_POLICY.dual_issue
+    parameter bit DUAL_ISSUE      = 1'b1, // pumice: the scheduler's row lane (TASK-047); the FPGA SKU since 2026-11-27, runtime SCHED_POLICY.dual_issue (the host sets it)
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,

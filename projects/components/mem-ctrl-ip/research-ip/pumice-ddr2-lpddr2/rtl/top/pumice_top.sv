@@ -35,7 +35,7 @@ module pumice_top
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
     parameter int SCHED_CORE     = 1,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge (pumice_core; TASK-044)
-    parameter bit DUAL_ISSUE     = 1'b0, // the scheduler's row lane (pumice_core; TASK-047)
+    parameter bit DUAL_ISSUE     = 1'b1, // the scheduler's row lane (pumice_core; TASK-047); built by default since 2026-11-27, runtime SCHED_POLICY.dual_issue (resets off)
     parameter bit FAST_RD_RELEASE = 1'b1, // build the fast release (pumice_core); runtime enable SCHED_POLICY.fast_rd_release, reset OFF for pumice BUG-033
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
