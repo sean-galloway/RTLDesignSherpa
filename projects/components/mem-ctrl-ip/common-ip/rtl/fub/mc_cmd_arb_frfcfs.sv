@@ -316,6 +316,8 @@ module mc_cmd_arb_frfcfs
     // pre-pick registers, so the pre-pick advances past the command it took and
     // the classify guards below see it in flight exactly as they see the main
     // lane's. w2_*: the lane-2 pick this cycle (registers only).
+    // The lane itself is mc_row_lane (memory-controllers MC-028): r2_* are
+    // its register, read back; w2_* its pick and fire.
     logic                 w_dual;
     logic                 r2_valid, r2_pre;
     logic [BKW-1:0]       r2_bank;
@@ -323,7 +325,7 @@ module mc_cmd_arb_frfcfs
     logic                 w2_load, w2_pre;
     logic [BKW-1:0]       w2_bank;
     logic [ROW_WIDTH-1:0] w2_row;
-    logic                 w2_safe, w2_hold, w2_fire;
+    logic                 w2_hold, w2_fire;
     logic [NUM_BANKS-1:0] w2_act_out, w2_pre_out, w2_act_pick, w2_pre_pick;
     assign w_dual = DUAL_ISSUE && dual_issue_en_i;
 
@@ -1580,10 +1582,13 @@ module mc_cmd_arb_frfcfs
     // The pre-pick's demand ACT / PRE that may ride lane 2: not the bank of
     // either column candidate, so the two lanes of one word never touch one
     // bank. Registers only. The class priority below reads them too.
-    logic w2_act_rd, w2_act_wr, w2_pre_rd, w2_pre_wr, w2_act_v, w2_pre_v;
-    function automatic logic f2_free (input logic [BKW-1:0] b);
-        return !(rd_col_f && (rd_col_bank == b)) && !(wr_col_f && (wr_col_bank == b));
-    endfunction
+    // As per-pair vectors for mc_row_lane (pair = {bank, is_wr}); the lane
+    // excludes the banks the column candidates name (col_pend) and, DIR_RULE,
+    // the other direction.
+    localparam int NPAIR = 2*NUM_BANKS;
+    localparam int PAIRW = (NPAIR > 1) ? $clog2(NPAIR) : 1;
+    logic [NPAIR-1:0] w2_act_req, w2_pre_req, w2_col_pend;
+    logic             w2_act_v, w2_pre_v;
     // The lane serves the DIRECTION of the column it rides beside, never the
     // other one (2026-11-27). Taking the other direction's demand row command
     // closed and re-opened banks under the running batch: on the concurrent
@@ -1597,12 +1602,17 @@ module mc_cmd_arb_frfcfs
     // one), read otherwise.
     logic w2_dir_wr;
     assign w2_dir_wr = wr_col_f && (w_col_wrf || !rd_col_f);
-    assign w2_act_rd = !w2_dir_wr && rd_act_f && f2_free(rd_act_bank);
-    assign w2_act_wr =  w2_dir_wr && wr_act_f && f2_free(wr_act_bank);
-    assign w2_pre_rd = !w2_dir_wr && rd_pre_f && f2_free(rd_pre_bank);
-    assign w2_pre_wr =  w2_dir_wr && wr_pre_f && f2_free(wr_pre_bank);
-    assign w2_act_v  = w_act_gate_live && (w2_act_rd || w2_act_wr);
-    assign w2_pre_v  = w2_pre_rd || w2_pre_wr;
+    always_comb begin
+        w2_act_req = '0; w2_pre_req = '0; w2_col_pend = '0;
+        if (rd_act_f && w_act_gate_live) w2_act_req[{rd_act_bank, 1'b0}] = 1'b1;
+        if (wr_act_f && w_act_gate_live) w2_act_req[{wr_act_bank, 1'b1}] = 1'b1;
+        if (rd_pre_f)                    w2_pre_req[{rd_pre_bank, 1'b0}] = 1'b1;
+        if (wr_pre_f)                    w2_pre_req[{wr_pre_bank, 1'b1}] = 1'b1;
+        if (rd_col_f)                    w2_col_pend[{rd_col_bank, 1'b0}] = 1'b1;
+        if (wr_col_f)                    w2_col_pend[{wr_col_bank, 1'b1}] = 1'b1;
+    end
+    // w2_act_v / w2_pre_v (mc_row_lane's ride flags, w_dual-gated) are driven
+    // with the lane below.
 
     // ---- class priority ------------------------------------------------------
     // access_pref 0 (default, TASK-045): BANK PREPARATION. The classes
@@ -1874,17 +1884,13 @@ module mc_cmd_arb_frfcfs
     // into lane 2 at the same edge, side by side with the read/write choice the
     // main ACT/PRE branches would make. Built from registers only, like
     // w_act_pick: the main pick comb's outputs never enter this cone.
-    assign w2_load   = w_dual && w_dmd_reach && (w_pick_class == CL_COL) && (w2_act_v || w2_pre_v);
-    assign w2_pre    = !w2_act_v;
-    always_comb begin
-        if (w2_act_v) begin
-            w2_bank = (w2_act_rd && !(w_act_wrf && w2_act_wr)) ? rd_act_bank : wr_act_bank;
-            w2_row  = (w2_act_rd && !(w_act_wrf && w2_act_wr)) ? rd_act_row  : wr_act_row;
-        end else begin
-            w2_bank = (w2_pre_rd && !(w_pre_wrf && w2_pre_wr)) ? rd_pre_bank : wr_pre_bank;
-            w2_row  = '0;
-        end
-    end
+    logic             w2_load_en, w2_pick_act, w2_core_ok, w2_main_row, w2_r_act;
+    logic [PAIRW-1:0] w2_pick_pair;
+    logic [NUM_BANKS-1:0] w2_closing;
+    assign w2_load_en = w_dual && w_dmd_reach && (w_pick_class == CL_COL);
+    assign w2_pre     = !w2_pick_act;
+    assign w2_bank    = BKW'(w2_pick_pair >> 1);
+    assign w2_row     = w2_pick_act ? (w2_pick_pair[0] ? wr_act_row : rd_act_row) : '0;
     assign w2_act_pick = (w2_load && !w2_pre) ? (NUM_BANKS'(1) << w2_bank) : '0;
     assign w2_pre_pick = (w2_load &&  w2_pre) ? (NUM_BANKS'(1) << w2_bank) : '0;
 
@@ -1897,40 +1903,72 @@ module mc_cmd_arb_frfcfs
     // needs (closed or closing for an ACT, open for a PRE) -- the wait is a
     // timer, and holding costs the main lane nothing -- and is dropped
     // otherwise; a drop is lossless (row commands consume no CAM entry, the
-    // demand re-classifies).
-    logic w2_main_row;
+    // demand re-classifies). The bank state, timers, tRRD / tFAW and the
+    // refresh busy are mc_row_lane's; this core's terms are below.
     assign w2_main_row = r_pick_valid && !(r_do_rd || r_do_wr);
-    always_comb begin
-        w2_safe = !w2_main_row && !maint_busy_i && !w_zq_busy
-                && !(r_pick_valid && (r_bank == r2_bank));
-        if (r2_pre) w2_safe = w2_safe && bank_row_active_i[RK0][r2_bank]
-                                      && bank_pre_ready_i[RK0][r2_bank];
-        else        w2_safe = w2_safe && !bank_row_active_i[RK0][r2_bank]
-                                      && bank_act_ready_i[RK0][r2_bank]
-                                      && tfaw_ok_i[RK0] && trrd_ok_i[RK0] && !w_rfc_busy;
-    end
-    assign w2_fire = r2_valid && cmd_ready_i && w2_safe;
-    assign w2_hold = r2_valid && !w2_fire
-                   && (r2_pre ? bank_row_active_i[RK0][r2_bank]
-                              : (!bank_row_active_i[RK0][r2_bank]
-                                 || (CLOSE_ON_DRAIN && r_ap_closing[r2_bank])
-                                 || r_pre_closing[r2_bank]));
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r2_valid <= 1'b0; r2_pre <= 1'b0; r2_bank <= '0; r2_row <= '0;
-        end else if (w2_hold) begin
-            r2_valid <= 1'b1;
-        end else if (w_out_ready) begin
-            r2_valid <= w2_load;
-            r2_pre   <= w2_pre;
-            r2_bank  <= w2_bank;
-            r2_row   <= w2_row;
-        end else begin
-            r2_valid <= 1'b0;
-        end
-    )
-    assign row2_act_o  = w2_fire && !r2_pre;
-    assign row2_pre_o  = w2_fire &&  r2_pre;
+    assign w2_core_ok  = !w2_main_row && !maint_busy_i && !w_zq_busy
+                      && !(r_pick_valid && (r_bank == r2_bank));
+    assign w2_closing  = (CLOSE_ON_DRAIN ? r_ap_closing : '0) | r_pre_closing;
+    generate if (DUAL_ISSUE) begin : g_lane2
+        mc_row_lane #(
+            .NUM_BANKS (NUM_BANKS),
+            .ROW_WIDTH (ROW_WIDTH),
+            .PICK_MODE (1),          // per-direction priority (write-first flags)
+            .DIR_RULE  (1'b1),       // the riding column's direction only
+            .HOLD_MODE (0),          // held on the bank state
+            .LATCH_ROW (1'b1)        // the ACT row rides in the lane register
+        ) u_row_lane (
+            .aclk                (aclk),
+            .aresetn             (aresetn),
+            .en_i                (w_dual),
+            .row_req_i           (w2_act_req | w2_pre_req),
+            .act_req_i           (w2_act_req),
+            .pre_req_i           (w2_pre_req),
+            .col_pend_i          (w2_col_pend),
+            .ride_wr_i           (w2_dir_wr),
+            .load_en_i           (w2_load_en),
+            .aged_i              ('0),
+            .below_i             ('0),
+            .act_wrf_i           (w_act_wrf),
+            .pre_wrf_i           (w_pre_wrf),
+            .upd_i               (w_out_ready),
+            .load_row_i          (w2_row),
+            .bank_row_active_i   (bank_row_active_i[RK0]),
+            .bank_act_ready_i    (bank_act_ready_i[RK0]),
+            .bank_pre_ready_i    (bank_pre_ready_i[RK0]),
+            .bank_act_ready_la_i ('0),
+            .bank_pre_ready_la_i ('0),
+            .closing_i           (w2_closing),
+            .tfaw_ok_i           (tfaw_ok_i[RK0]),
+            .trrd_ok_i           (trrd_ok_i[RK0]),
+            .rfc_busy_i          (w_rfc_busy),
+            .core_ok_i           (w2_core_ok),
+            .core_fire_i         (cmd_ready_i),
+            .ride_any_o          (),
+            .ride_act_o          (w2_act_v),
+            .ride_pre_o          (w2_pre_v),
+            .load_o              (w2_load),
+            .pick_onehot_o       (),
+            .pick_pair_o         (w2_pick_pair),
+            .pick_act_o          (w2_pick_act),
+            .vld_o               (r2_valid),
+            .pair_o              (),
+            .bank_o              (r2_bank),
+            .act_o               (w2_r_act),
+            .row_o               (r2_row),
+            .fire_o              (w2_fire),
+            .act_fire_o          (row2_act_o),
+            .pre_fire_o          (row2_pre_o),
+            .hold_o              (w2_hold)
+        );
+        assign r2_pre = !w2_r_act;
+    end else begin : g_no_lane2
+        assign w2_act_v = 1'b0; assign w2_pre_v = 1'b0; assign w2_load = 1'b0;
+        assign w2_pick_pair = '0; assign w2_pick_act = 1'b0; assign w2_r_act = 1'b0;
+        assign r2_valid = 1'b0; assign r2_bank = '0; assign r2_row = '0; assign r2_pre = 1'b0;
+        assign w2_fire = 1'b0;  assign w2_hold = 1'b0;
+        assign row2_act_o = 1'b0; assign row2_pre_o = 1'b0;
+    end endgenerate
     assign row2_bank_o = r2_bank;
     assign row2_row_o  = r2_row;
 

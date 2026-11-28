@@ -23,7 +23,7 @@
 
 # Chapter 4 — Scheduler Plane and Pick Machinery
 
-This chapter documents the common `mc_scheduler_plane` and its two pick cores, selected by `SCHED_CORE`: `mc_cmd_arb_frfcfs` (`MC_SCHED_FRFCFS`, pumice; FR-FCFS over every pool entry) and `mc_cmd_arb_bank` (`MC_SCHED_BANK_PICK`, granite; one pick among the per-bank FIFO heads). They do the same job in two ways. Until 2026-11-27 they were named `mc_cmd_arbiter` and `mc_bank_pick`; tracker items, dated reports and the formal history before that date use the old names. The surrounding plane-stack and descriptor-seam architecture are defined in the [Hardware Architecture Specification (HAS)](../../common_has/common_has_index.md); this chapter does not restate them.
+This chapter documents the common `mc_scheduler_plane` and its two pick cores, selected by `SCHED_CORE`: `mc_cmd_arb_frfcfs` (`MC_SCHED_FRFCFS`, pumice; FR-FCFS over every pool entry) and `mc_cmd_arb_bank` (`MC_SCHED_BANK_PICK`, granite; one pick among the per-bank FIFO heads). They do the same job in two ways. Both put their DUAL_ISSUE row lane through one block, `mc_row_lane` (memory-controllers MC-028, 2026-11-28), with each core's lane rules set by its parameters until MC-028 settles them. Until 2026-11-27 they were named `mc_cmd_arbiter` and `mc_bank_pick`; tracker items, dated reports and the formal history before that date use the old names. The surrounding plane-stack and descriptor-seam architecture are defined in the [Hardware Architecture Specification (HAS)](../../common_has/common_has_index.md); this chapter does not restate them.
 
 ![mc_scheduler_plane internal block diagram](../assets/graphviz/03_mc_scheduler_plane.png)
 
@@ -74,7 +74,7 @@ Ports are declared at `macro/mc_scheduler_plane.sv:69-240`.
 |---|---|---|---|---|
 | Clock/reset | `aclk`, `aresetn` | in | 1 | MC clock and active-low reset. |
 | Config | `page_policy_i` | in | `page_policy_e` | OPEN / CLOSE / HAPPY_HYBRID selector. |
-| Config | `dual_issue_en_i` | in | 1 | Row-lane runtime enable (`DUAL_ISSUE` builds; ignored otherwise and by the BANK_PICK core). The core gates it: DDR2, a row phase off both column phases, one column command per DFI word. |
+| Config | `dual_issue_en_i` | in | 1 | Row-lane runtime enable (`DUAL_ISSUE` builds, both cores; ignored otherwise). The core gates it: DDR2, a row phase off both column phases, one column command per DFI word. |
 | Config | `fast_rd_en_i` | in | 1 | Fast-release runtime enable (`FAST_RD_RELEASE` builds; ignored otherwise). Low gates the entry and clears fast mode, so the stream is the uniform-delay stream; it may change at any time. |
 | Scheduler CSR | `sched_order_mode_i`, `sched_row_sel_i`, `sched_col_sel_i`, `sched_access_pref_i` | in | 2 each | ORDER mode, row/col select, class preference. |
 | Scheduler CSR | `sched_wr_high_wm_i`, `sched_wr_batch_max_i`, `sched_wr_low_wm_i` | in | 8 each | Write-batch watermarks and max. |

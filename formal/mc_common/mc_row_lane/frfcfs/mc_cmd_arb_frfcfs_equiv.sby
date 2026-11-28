@@ -1,0 +1,41 @@
+[tasks]
+lane
+nolane
+cover
+
+[options]
+# MC-028 step A: the FR-FCFS core with its row lane in mc_row_lane against the
+# core before the move. lane: DUAL_ISSUE = 1, dual_issue_en free per cycle;
+# nolane: DUAL_ISSUE = 0 (the lane-off build must be untouched). The pick
+# pipeline is three to four stages and the lane register one more, so a
+# difference shows within a few cycles of the register it moves; 20 cycles
+# also carry holds across several timer waits.
+lane:   mode bmc
+lane:   depth 20
+nolane: mode bmc
+nolane: depth 20
+cover:  mode cover
+cover:  depth 20
+
+[engines]
+smtbmc bitwuzla
+
+[script]
+read_verilog -formal mc_cmd_arb_frfcfs_pair_flat.v
+read -formal -sv mc_cmd_arb_frfcfs_equiv.sv
+# the shape of the pumice proof (formal/mc_common/mc_cmd_arb_frfcfs)
+chparam -set NUM_BANKS 4 -set ROW_WIDTH 4 -set COL_WIDTH 4 -set AXI_ID_WIDTH 2 -set NUM_ENTRIES 2 -set AGE_WIDTH 4 mc_cmd_arb_frfcfs_pair
+lane:   chparam -set DUAL_ISSUE 1 mc_cmd_arb_frfcfs_pair
+cover:  chparam -set DUAL_ISSUE 1 mc_cmd_arb_frfcfs_pair
+nolane: chparam -set DUAL_ISSUE 0 mc_cmd_arb_frfcfs_pair
+prep -top formal_mc_cmd_arb_frfcfs_equiv
+# Both copies start in ONE state: the cores keep payload and storage
+# registers reset-free by design (MC-004 / MC-005), and left uninitialised the
+# two copies would power up differently and differ on those outputs until the
+# first load -- noise, not a behaviour change. Zero-initialising every
+# register without a reset value makes the start state shared.
+setundef -init -zero
+
+[files]
+mc_cmd_arb_frfcfs_pair_flat.v
+mc_cmd_arb_frfcfs_equiv.sv

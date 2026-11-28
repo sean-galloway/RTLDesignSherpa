@@ -1,0 +1,42 @@
+[tasks]
+lane
+lane_n4
+nolane
+cover
+
+[options]
+# MC-028 step A: the bank core with its row lane in mc_row_lane against the
+# core before the move. lane: DUAL_ISSUE = 1 at the granite shape (8 banks,
+# 8 entries), dual_issue_en and every CSR knob free per cycle; lane_n4: the
+# small shape (4 banks, 4 entries, no direction ownership or hold, as the
+# MC-011 equiv_n4); nolane: DUAL_ISSUE = 0.
+lane:    mode bmc
+lane:    depth 20
+lane_n4: mode bmc
+lane_n4: depth 20
+nolane:  mode bmc
+nolane:  depth 20
+cover:   mode cover
+cover:   depth 20
+
+[engines]
+smtbmc bitwuzla
+
+[script]
+read_verilog -formal mc_cmd_arb_bank_pair_flat.v
+read -formal -sv mc_cmd_arb_bank_equiv.sv
+lane:    chparam -set NUM_BANKS 8 -set NUM_ENTRIES 8 -set DUAL_ISSUE 1 mc_cmd_arb_bank_pair
+cover:   chparam -set NUM_BANKS 8 -set NUM_ENTRIES 8 -set DUAL_ISSUE 1 mc_cmd_arb_bank_pair
+lane_n4: chparam -set NUM_BANKS 4 -set NUM_ENTRIES 4 -set DIR_OWNS_ROWS 0 -set DIR_HOLD_IDLE 0 -set DUAL_ISSUE 1 mc_cmd_arb_bank_pair
+nolane:  chparam -set NUM_BANKS 8 -set NUM_ENTRIES 8 -set DUAL_ISSUE 0 mc_cmd_arb_bank_pair
+prep -top formal_mc_cmd_arb_bank_equiv
+# Both copies start in ONE state: the cores keep payload and storage
+# registers reset-free by design (MC-004 / MC-005), and left uninitialised the
+# two copies would power up differently and differ on those outputs until the
+# first load -- noise, not a behaviour change. Zero-initialising every
+# register without a reset value makes the start state shared.
+setundef -init -zero
+
+[files]
+mc_cmd_arb_bank_pair_flat.v
+mc_cmd_arb_bank_equiv.sv

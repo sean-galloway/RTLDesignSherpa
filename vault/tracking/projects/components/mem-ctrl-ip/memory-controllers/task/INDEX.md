@@ -4,27 +4,27 @@
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 1 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Open
 
-- **MC-028** -- one row lane for both pick cores: pull the DUAL_ISSUE lane
-  out of `mc_cmd_arb_frfcfs` and `mc_cmd_arb_bank` into one `mc_row_lane` and
-  settle the rules the two copies enforce differently (direction, bank
-  exclusion, beside-idle, hold) on measurement. Filed 2026-11-27 out of pumice
-  TASK-047; granite's lane checked clean of pumice's wrong-direction bug
-  (mixed +4.9 %). [open/MC-028.md](open/MC-028.md).
-
 - **MC-029** -- the row lane in the diagrams and the common MAS: the
   scheduler-plane and DFI 2.1 plane diagrams, a lane off / on slot waveform,
-  the ch04 text that says BANK_PICK ignores the lane, and the stale pumice
+  the ch04 lane section (its wrong BANK_PICK line fixed 2026-11-28), and the stale pumice
   module-hierarchy PNG. Docs only. Filed 2026-11-27. [open/MC-029.md](open/MC-029.md).
 
 ## Active
+
+- **MC-028** -- one row lane for both pick cores. ACTIVE: step A done 2026-11-28 --
+  `mc_row_lane` holds the lane for both cores with their rules as parameters
+  (PICK_MODE, DIR_RULE, HOLD_MODE, LATCH_ROW), proven equivalent to both
+  pre-move cores (lane on and off, BMC 20), 4 / 4 mutations caught,
+  regressions as before, pumice +0.126 / granite +0.012 WNS. Step B (settle
+  each rule on measurement) next. [active/MC-028.md](active/MC-028.md).
 
 ## Deferred
 

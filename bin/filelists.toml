@@ -763,6 +763,8 @@ kind = "testbench"
 rtl_roots = []
 filelist_dirs = [
     "formal/mc_common/mc_cmd_arb_bank/filelists",
+    "formal/mc_common/mc_row_lane/frfcfs/filelists",
+    "formal/mc_common/mc_row_lane/bank/filelists",
     "formal/mc_common/mc_bank_timer/filelists",
     "formal/mc_common/mc_global_timers/filelists",
 ]
