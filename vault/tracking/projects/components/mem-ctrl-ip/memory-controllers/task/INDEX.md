@@ -1,10 +1,10 @@
 # memory-controllers — task lane
 
-**Next ID: MC-029** — never recycle a number.
+**Next ID: MC-030** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
@@ -18,6 +18,11 @@
   exclusion, beside-idle, hold) on measurement. Filed 2026-11-27 out of pumice
   TASK-047; granite's lane checked clean of pumice's wrong-direction bug
   (mixed +4.9 %). [open/MC-028.md](open/MC-028.md).
+
+- **MC-029** -- the row lane in the diagrams and the common MAS: the
+  scheduler-plane and DFI 2.1 plane diagrams, a lane off / on slot waveform,
+  the ch04 text that says BANK_PICK ignores the lane, and the stale pumice
+  module-hierarchy PNG. Docs only. Filed 2026-11-27. [open/MC-029.md](open/MC-029.md).
 
 ## Active
 
