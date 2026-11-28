@@ -12,19 +12,19 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 2 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-003** — the `bin/apps/core_drills` app: design doc, then merlin modes 1-2 and peregrine's predictor drill (mode 3); split out of peregrine-rv32im TASK-003, deferred.
+(none)
 
 ## Active
 
-(none)
+- **TASK-003** — the `bin/apps/core_drills` app: design doc accepted 2026-11-28 (all decisions as recommended); building merlin modes 1-2 and peregrine's predictor drill (mode 3)
 
 ## Closed
 
