@@ -158,14 +158,18 @@ module monbus_tally_axil
             r_beat   <= 2'd0;
             r_pkt_hi <= '0;
             r_ts     <= '0;
-        end else if (tally_clear) begin
-            // Re-align records on a clear. SAFE only when the producer has
-            // drained: a partial record buffered in the upstream group keeps
-            // arriving after the clear and phase-shifts the stream (every
-            // later packet lands in UNEXPECTED). Host/DV protocol: settle the
-            // MonBus path, freeze, then clear.
-            r_beat   <= 2'd0;
         end else if (w_w_hs) begin
+            // The record phase is NOT reset by tally_clear. A beat is never
+            // dropped (beat 2 stalls on rec_wready; the producer shares this
+            // reset), so the phase cannot drift -- and a clear landing while
+            // a record is partly delivered (e.g. beats 0 / 1 taken, beat 2
+            // stalled by a freeze) used to restart the count there, taking
+            // beat 2 as a new record's beat 0: every later packet's halves
+            // were shifted by one beat (header in packet[63:0]) and landed
+            // in UNEXPECTED until a later clear happened to fall on a record
+            // boundary (the ref rig's onyx window cell, SEED=69690). The
+            // 2026-11-02 settle -> freeze -> clear protocol only narrowed
+            // that window; it is no longer needed for alignment.
             case (r_beat)
                 2'd0: begin r_ts <= rec_wdata[MONBUS_TS_WIDTH-1:0]; r_beat <= 2'd1; end
                 2'd1: begin r_pkt_hi <= rec_wdata;                  r_beat <= 2'd2; end

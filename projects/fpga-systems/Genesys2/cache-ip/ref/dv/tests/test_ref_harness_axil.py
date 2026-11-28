@@ -474,37 +474,30 @@ async def smoke_test(dut):
             assert b == cnt_ or bins[ONYX_MON_BIN["DROP"]] > 0, \
                 f"{name} bin {b} short of its counter {cnt_} with no drop report"
         # The content filter: TXN_START alone through an address window on
-        # the upper half of the 4 KB region transmits a strict subset of the
-        # transactions; the whole address space transmits them all.
+        # the upper half of the 4 KB region transmits exactly the grants whose
+        # line falls in the window (counted here from the observer's grant
+        # tap, so the check holds at any seed); the whole address space
+        # transmits them all.
         open_txn = ((0xFFFF & ~(1 << 0)) << 16) | 0x7
         results = {}
-        if int(os.environ.get('ONYX_WIN_DEBUG', '0')):
-            async def _win_dbg():
-                mon = dut.u_dut.gen_ref_jetpp.gen_onyx.u_onyx.u_mon
-                n = {'grant': 0, 'inwin': 0, 'fire': 0}
-                last = None
-                while True:
-                    await cocotb.triggers.RisingEdge(dut.aclk)
-                    cfg = (int(mon.cfg_addr_win_enable.value), int(mon.cfg_addr_win_low.value),
-                           int(mon.cfg_addr_win_high.value), int(mon.cfg_perf_mask.value), int(mon.cfg_port_mask.value))
-                    if cfg != last:
-                        dut._log.info(f"WINDBG cfg enable={cfg[0]} low=0x{cfg[1]:x} high=0x{cfg[2]:x} perf_mask=0x{cfg[3]:04x} port_mask={cfg[4]:03b} counts={n}")
-                        last = cfg
-                    if int(mon.evt_grant_i.value):
-                        n['grant'] += 1
-                        if int(mon.w_grant_in_win.value):
-                            n['inwin'] += 1
-                        if n['grant'] <= 3:
-                            dut._log.info(f"WINDBG grant addr=0x{int(mon.evt_grant_addr_i.value):x} port={int(mon.evt_grant_port_i.value)} inwin={int(mon.w_grant_in_win.value)} fire_txn={int(mon.c_fire[2 * 2 + 1].value)}")
-                    if int(mon.c_fire[2 * 2 + 1].value):
-                        n['fire'] += 1
-            cocotb.start_soon(_win_dbg())
+        mon = dut.u_dut.gen_ref_jetpp.gen_onyx.u_onyx.u_mon
+        win_cnt = {"lo": 0, "hi": 0, "n": 0}
+
+        async def _count_in_window():
+            while True:
+                await cocotb.triggers.RisingEdge(dut.aclk)
+                if int(mon.evt_grant_i.value):
+                    addr = int(mon.evt_grant_addr_i.value)
+                    if win_cnt["lo"] <= addr <= win_cnt["hi"]:
+                        win_cnt["n"] += 1
+        win_task = cocotb.start_soon(_count_in_window())
         for name, lo, hi in (("upper half", 0x800, 0xFFF), ("everything", 0x0, 0xFFFF_FFFF)):
             await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_LOW, lo)
             await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_HIGH, hi)
             await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL, open_txn | (1 << 3))
             assert (await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_LOW)) == lo
             assert (await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_HIGH)) == hi
+            win_cnt.update(lo=lo, hi=hi, n=0)
             await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x1)
             await _run_burst(tb, count)
             for _ in range(64):
@@ -512,13 +505,18 @@ async def smoke_test(dut):
             await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x2)
             bins = await _read_bins(tb, 18)
             txn = await tb.read32(ADDR_HARNESS_CSR + HCSR_ONYX_CNT0)
-            results[name] = (bins[ONYX_MON_BIN["TXN_START"]], txn, bins[ONYX_MON_BIN["DROP"]])
+            results[name] = (bins[ONYX_MON_BIN["TXN_START"]], txn, bins[ONYX_MON_BIN["DROP"]], win_cnt["n"])
             dut._log.info(f"onyx observer window {name} [0x{lo:x}, 0x{hi:x}]: TXN_START bin {results[name][0]} "
-                          f"of {txn} transactions, drop reports {results[name][2]}")
+                          f"of {txn} transactions, {win_cnt['n']} granted in the window, "
+                          f"drop reports {results[name][2]}")
             await tb.write32(ADDR_HARNESS_CSR + HCSR_CTRL, 0x0)
-        b, txn, drops = results["upper half"]
-        assert txn > 0 and 0 < b < txn, f"windowed TXN_START bin {b} is not a strict subset of {txn}"
-        b, txn, drops = results["everything"]
+        win_task.cancel()
+        b, txn, drops, inwin = results["upper half"]
+        assert txn > 0, "the windowed burst allocated no transaction"
+        assert b <= inwin and (b == inwin or drops > 0), \
+            f"windowed TXN_START bin {b} != the {inwin} of {txn} grants in the window (drop reports {drops})"
+        b, txn, drops, inwin = results["everything"]
+        assert inwin == txn, f"whole-space window: {inwin} grants counted in it, {txn} transactions"
         assert b == txn or drops > 0, f"whole-space window: TXN_START bin {b} short of {txn} with no drop report"
         await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_CTRL, ONYX_MON_CTRL_RESET)
         await tb.write32(ADDR_HARNESS_CSR + HCSR_ONYX_MON_WIN_LOW, 0)

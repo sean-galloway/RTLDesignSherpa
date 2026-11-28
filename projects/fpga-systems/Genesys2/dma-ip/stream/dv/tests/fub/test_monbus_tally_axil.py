@@ -104,6 +104,56 @@ async def cocotb_test_tally_high_volume(dut):
                   % (total, unexpected))
 
 
+
+@cocotb.test(timeout_time=20, timeout_unit="ms")
+async def cocotb_test_tally_clear_mid_record(dut):
+    """A clear landing while a record is partly delivered must not shift the
+    3-beat framing: beats 0 / 1 in, clear, beat 2, then whole records -- every
+    packet bins to its legal entry and UNEXPECTED stays zero. (The reassembler
+    once restarted its beat count on a clear, taking beat 2 as a new record's
+    beat 0; every later packet then landed in UNEXPECTED -- the ref rig's onyx
+    window cell at SEED=69690.)"""
+    from cocotb.triggers import RisingEdge
+    tb = MonbusTallyTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.program_legal_set(LEGAL)
+
+    first = make_packet(*LEGAL[0], data=1)
+    beats = (1, (first >> 64) & ((1 << 64) - 1), first & ((1 << 64) - 1))
+    dut.rec_bready.value = 1
+    dut.rec_awaddr.value = 0
+    dut.rec_wstrb.value = 0xFF
+    for i, b in enumerate(beats):
+        if i == 2:                       # the clear lands mid-record
+            dut.rec_wvalid.value = 0
+            dut.tally_clear.value = 1
+            await RisingEdge(dut.aclk)
+            dut.tally_clear.value = 0
+            await tb.wait_clocks("aclk", 2 * (N_PROFILE + 1) + 20)   # the SRAM walk
+        dut.rec_awvalid.value = 1
+        dut.rec_wdata.value = b
+        dut.rec_wvalid.value = 1
+        while True:
+            await RisingEdge(dut.aclk)
+            if int(dut.rec_wready.value):
+                break
+    dut.rec_awvalid.value = 0
+    dut.rec_wvalid.value = 0
+
+    rest = [make_packet(*LEGAL[i % len(LEGAL)], data=i) for i in range(1, 9)]
+    await tb.send_records(rest, ts_start=2)
+    bins = await tb.read_bins(len(LEGAL), N_PROFILE)
+    expect = {i: 0 for i in range(len(LEGAL))}
+    expect[0] += 1
+    for i in range(1, 9):
+        expect[i % len(LEGAL)] += 1
+    assert bins["UNEXPECTED"] == 0, (
+        "a clear mid-record shifted the 3-beat framing: %d packets in UNEXPECTED"
+        % bins["UNEXPECTED"])
+    for i in range(len(LEGAL)):
+        assert bins.get(i, 0) == expect[i], (
+            "bin %d: expected %d, got %d" % (i, expect[i], bins.get(i, 0)))
+
 def test_monbus_tally_axil(request):
     """Component-level high-volume binning."""
     module, repo_root_, tests_dir, log_dir, rtl_dict = get_paths({
@@ -119,7 +169,6 @@ def test_monbus_tally_axil(request):
         includes=includes,
         toplevel='monbus_tally_axil',
         module=os.path.splitext(os.path.basename(__file__))[0],
-        testcase="cocotb_test_tally_high_volume",
         parameters={'N_PROFILE': N_PROFILE, 'TALLY_ADDR_BITS': 7,
                     'ADDR_WIDTH': 32, 'DATA_WIDTH': 64},
         sim_build=sim_build_path(tests_dir, 'monbus_tally_axil'),
