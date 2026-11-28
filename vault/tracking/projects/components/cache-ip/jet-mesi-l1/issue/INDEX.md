@@ -12,15 +12,15 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 2 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-003** ([page](open/ISSUE-003.md)) — two jet cores sharing nothing lose every pipelining gain: board `disjoint64k_we64` dual is flat at ~480,000 cycles from depth 1 to 16 (single 349k -> 215k); 2.1-2.3x single-core where jet-prime / onyx are 1.4-1.7x. Suspected: the serial pair fabric. Filed 2026-11-27.
+(none)
 
 ## Active
 
@@ -28,6 +28,7 @@ Each item is **its own file**, `<ID>.md`, inside the directory for its state.
 
 ## Closed
 
+- **ISSUE-003** ([page](closed/ISSUE-003.md)) — two jet cores sharing nothing lose every pipelining gain: board `disjoint64k_we64` dual is flat at ~480,000 cycles from depth 1 to 16 (single 349k -> 215k); 2.1-2.3x single-core where jet-prime / onyx are 1.4-1.7x. **Closed 2026-11-27, explained:** traced in the harness sim -- the serial fabric (17 cycles a miss, 96 % busy dual) plus every snoop landing in the peer's commit window (+6.1 cycles a miss); structural, jet frozen, jet-prime / onyx remove it.
 - **ISSUE-002** ([page](closed/ISSUE-002.md)) — jet_monlite commits only 2
   events/cycle and drops the rest under thrash (up to ~1.5% of J7 events on
   64 KB configs); drops are counted (profile bin 17) but MSHR bins undercount.

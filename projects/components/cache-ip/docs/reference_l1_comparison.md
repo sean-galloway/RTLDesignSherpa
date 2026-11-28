@@ -683,8 +683,13 @@ and every run complete across all five). Reading it:
   `smoke4k_we64` at depth 16, 2.02x in bin 20 and 6.57x now -- the
   injectors finally overlap there. jet's 2.1-2.3x on the disjoint set at
   depth >= 4, where the cores share no line, is NOT that wait: bin 21
-  leaves it unchanged (2.10x / 2.29x), so it is a cost of its own, not
-  yet traced.
+  leaves it unchanged (2.10x / 2.29x), so it is a cost of its own,
+  traced in the harness sim (jet ISSUE-003, closed): jet's fabric runs one
+  coherence transaction at a time, 17 cycles a miss, so two cores need
+  twice its time (96 % busy at depth 16), and its round-robin snoops each
+  cache just after completing that cache's own fill, inside the commit
+  window it holds snoop answers for (+6.1 cycles a miss). The slotted
+  fabric of jet-prime and onyx is what removes both.
 - **Write sharing is the coherence cost.** `r4k_we255` (both cores
   writing one 4 KB set): 6-26x single-core on every rig, 19.5 cycles per
   transaction at depth 1 and 9.8-12.4 from depth 4 on jet-prime / onyx

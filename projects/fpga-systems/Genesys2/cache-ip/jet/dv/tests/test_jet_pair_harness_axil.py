@@ -294,6 +294,41 @@ async def aperture_probe_test(dut):
     assert not failures, "; ".join(failures)
 
 
+async def _fabric_probe(dut, acc: dict) -> None:
+    """jet ISSUE-003 probe (JET_FABRIC_PROBE=<json path>): per clock, the
+    fabric's coherence FSM state, its grants per cache, and how often a
+    cache's request waits while the fabric serves the other cache."""
+    fab = dut.u_dut.u_fabric
+    prev = 0
+    while True:
+        await cocotb.triggers.RisingEdge(dut.aclk)
+        st = int(fab.state_q.value)
+        acc["cycles"] += 1
+        acc["state"][st] = acc["state"].get(st, 0) + 1
+        g = int(fab.grant_q.value)
+        if st == 2:   # F_RESP: the snooped peer's control state while it answers
+            ps = int((fab.peer0_state_q if g == 1 else fab.peer1_state_q).value)
+            acc["resp_peer_state"][ps] = acc["resp_peer_state"].get(ps, 0) + 1
+            pc = (dut.u_dut.u_jet0 if g == 1 else dut.u_dut.u_jet1).u_coh.u_control
+            key = "".join([
+                "R" if int(pc.sn_req_i.value) else "-",
+                "S" if int(pc.sn_safe_o.value) else "-",
+                "v" if int(pc.r_sn_state.value) != 0 else "-",
+                "d" if int(pc.w_any_done.value) else "-",
+                "c" if int(pc.w_cap_active.value) else "-",
+                "w" if int(pc.r_srv_vld.value) and int(pc.r_srv_we.value) else "-"])
+            acc["resp_terms"][key] = acc["resp_terms"].get(key, 0) + 1
+        if st != 0:
+            other = 1 - g
+            if int(fab.pend_cnt_q[other].value) != 0:
+                acc["other_waits"][other] += 1
+        if prev == 0 and st == 1:
+            acc["grants"][g] += 1
+        if int(fab.wstate_q.value) != 0:
+            acc["wbusy"] += 1
+        prev = st
+
+
 @cocotb.test(timeout_time=5000, timeout_unit="ms")
 async def smoke_test(dut):
     """Run the jet_board.py smoke sequence in simulation."""
@@ -335,8 +370,16 @@ async def smoke_test(dut):
         await tb.write32(ci_base + CI_CTRL, ctrl)
 
     # Start both injectors with the one harness GO, as JetDriver.start_all
-    # does on the board (handbook launch-go)
-    await tb.write32(ADDR_HARNESS_CSR + HCSR_GO, 0x3)
+    # does on the board (handbook launch-go); JET_SMOKE_GO=0x1 runs
+    # injector 0 alone (the board's single sweep)
+    go_mask = int(os.environ.get('JET_SMOKE_GO', '0x3'), 0)
+    probe_json = os.environ.get('JET_FABRIC_PROBE')
+    probe_acc = {"cycles": 0, "state": {}, "grants": [0, 0],
+                 "other_waits": [0, 0], "wbusy": 0,
+                 "resp_peer_state": {}, "resp_terms": {}}
+    probe_task = (cocotb.start_soon(_fabric_probe(dut, probe_acc))
+                  if probe_json else None)
+    await tb.write32(ADDR_HARNESS_CSR + HCSR_GO, go_mask)
 
     # Poll for done with a generous but bounded timeout.
     max_cycles = 500_000
@@ -345,7 +388,7 @@ async def smoke_test(dut):
         status = await tb.read32(ADDR_HARNESS_CSR + HCSR_STATUS)
         done0 = bool(status & 0x01)
         done1 = bool(status & 0x02)
-        if done0 and done1:
+        if (done0 or not go_mask & 0x1) and (done1 or not go_mask & 0x2):
             done = True
             break
     assert done, f"cycle injectors did not finish within {max_cycles} cycles"
@@ -356,6 +399,10 @@ async def smoke_test(dut):
     err0 = await tb.read32(ADDR_CYCLE_INJECTOR0 + CI_ERR_FLAG)
     err1 = await tb.read32(ADDR_CYCLE_INJECTOR1 + CI_ERR_FLAG)
 
+    if probe_task is not None:
+        probe_task.cancel()
+        with open(probe_json, "w") as fh:
+            json.dump(probe_acc, fh)
     assert err0 == 0, f"ci0 error flag: 0x{err0:08x}"
     assert err1 == 0, f"ci1 error flag: 0x{err1:08x}"
 
