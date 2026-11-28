@@ -137,6 +137,7 @@ DESC = {
                       "buserr_info": "What mbuserr (0x7C0) reads: {line address[31:2], overflow, valid}",
                       "buserr_clear": "A write to mbuserr committed (pulse): clears amber's status",
                       "mret_take": "mret committed in MEM",
+                      "irq_block": "hold irq_pending low: from an mret until the next instruction commits (TASK-007)",
                       "irq_software": "MSIP pin (level)", "irq_timer": "MTIP pin (level)",
                       "irq_external": "MEIP pin (level)",
                       "mtvec": "Trap vector (direct mode)", "mepc": "Return PC for mret",

@@ -288,6 +288,9 @@ class _Gen:
         self.emit(f"addi x{ECALL_REG}, x{ECALL_REG}, 1")
         self.emit("j 4f")
         out.append("3:")
+        # mepc read for the shadow trap-CSR model: an interrupted M
+        # instruction's mepc is its own PC (TASK-007).
+        self.emit("csrr x31, mepc")
         self.emit("la x31, irq_ack")
         self.emit("sw x0, 0(x31)")
         out.append("4:")
@@ -307,6 +310,51 @@ class _Gen:
 def generate(seed: int, blocks: int) -> MextProgram:
     """A seeded program of ``blocks`` hazard shapes."""
     return _Gen(random.Random(seed)).build(blocks)
+
+
+# Full-length divides (no early-out: non-zero divisor, no overflow).
+LAT_DIVIDEND = 0x7654_3210
+LAT_DIVISOR = 7
+
+
+def latency_program(k: int, iters: int) -> str:
+    """``iters`` passes of ``k`` back-to-back independent divides under the
+    machine timer (riscv-ip/peregrine-rv32im TASK-007's latency test).
+
+    The handler reads mepc (for the shadow model), acknowledges at
+    ``irq_ack`` and returns.  Each pass checks every quotient, so a
+    cancelled divide that re-executes wrong fails the program (tohost =
+    3); a clean run writes tohost = 1.
+    """
+    quot = (LAT_DIVIDEND // LAT_DIVISOR) & 0xFFFF_FFFF
+    rds = [f"x{r}" for r in range(10, 10 + k)]
+    out = [".section .text", ".globl _start", "_start:",
+           "    la x31, trap_handler", "    csrw mtvec, x31",
+           f"    li x31, {MIE_MTIE:#x}", "    csrs mie, x31",
+           f"    li x5, {LAT_DIVIDEND:#x}", f"    li x6, {LAT_DIVISOR}",
+           f"    li x7, {quot:#x}", f"    li x8, {iters}",
+           "    csrsi mstatus, 8",
+           "loop:"]
+    out += [f"    div {rd}, x5, x6" for rd in rds]
+    for rd in rds:
+        out += [f"    bne {rd}, x7, bad"]
+    out += ["    addi x8, x8, -1", "    bnez x8, loop",
+            "    csrci mstatus, 8", "    li x31, 1", "    j finish",
+            "bad:", "    csrci mstatus, 8", "    li x31, 3",
+            "finish:", "    la x9, tohost", "    sw x31, 0(x9)",
+            "2:", "    j 2b",
+            "trap_handler:",
+            "    csrrw x31, mscratch, x31",
+            "    csrr x31, mepc",
+            "    la x31, irq_ack",
+            "    sw x0, 0(x31)",
+            "    csrrw x31, mscratch, x31",
+            "    mret",
+            ".section .data", ".align 3",
+            ".globl tohost", "tohost: .dword 0",
+            ".globl fromhost", "fromhost: .dword 0",
+            ".globl irq_ack", "irq_ack: .word 0"]
+    return "\n".join(out) + "\n"
 
 
 # ---------------------------------------------------------------------------

@@ -82,7 +82,8 @@ The in-pipeline exception codes reuse `rv32i_pkg`'s halt-cause values because de
 | `rd_addr`, `wb_sel`, `funct3` | | payload | Writeback destination and select; access size |
 | `rd_wen`, `dmem_req`, `dmem_we`, `ls_misalign`, `exc_cause`, `csr_op` | | control | As in ID/EX; the exception now includes EX's |
 | `csr_wen`, `csr_wdata` | 1, 32 | payload | The CSR write MEM commits |
-| `mret`, `m_op` | 1 each | payload | `mret`; an M instruction (not interruptible) |
+| `mret`, `m_op` | 1 each | payload | `mret`; an M instruction (not interruptible in MEM) |
+| `irq_take` | 1 | payload | (EX/MEM) an M instruction interrupted in EX: traps in MEM with the latched cause (TASK-007) |
 | `bp_pred_taken`, `bp_pred_target`, `bp_mispredict` | | payload | Prediction observation, carried to RVFI |
 | `insn`, `imm`, `rs1_rdata`, `rs2_rdata` | 32 each | payload | RVFI fields (the M unit's latched operands for an M instruction) |
 | `valid` | 1 | control | Not a bubble |

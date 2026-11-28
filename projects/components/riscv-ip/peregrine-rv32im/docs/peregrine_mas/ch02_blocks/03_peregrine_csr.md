@@ -61,6 +61,7 @@ The machine-mode CSR file of PRD P6: one combinational read port (the CSR instru
 | `trap_epc` | input | `[31:0]` | mepc to write (the trapping PC) |
 | `trap_tval` | input | `[31:0]` | mtval to write |
 | `mret_take` | input | `1` | mret committed in MEM |
+| `irq_block` | input | `1` | hold irq_pending low: from an mret until the next instruction commits (TASK-007) |
 | `irq_software` | input | `1` | MSIP pin (level) |
 | `irq_timer` | input | `1` | MTIP pin (level) |
 | `irq_external` | input | `1` | MEIP pin (level) |

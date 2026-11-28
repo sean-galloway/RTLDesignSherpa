@@ -60,9 +60,14 @@ An AXI `SLVERR` or `DECERR` (RRESP or BRESP bit 1) is reported to the core as an
 
 ## When an Interrupt Is Taken
 
-An interrupt is sampled at MEM. A pending, enabled interrupt attaches to the valid instruction in MEM, which traps instead of executing; `mepc` is that instruction's PC, and it runs after `mret`. Three exceptions move the boundary one instruction later:
+An interrupt is sampled at MEM. A pending, enabled interrupt attaches to the valid instruction in MEM, which traps instead of executing; `mepc` is that instruction's PC, and it runs after `mret`.
 
-- **An M instruction is not interruptible.** It reaches MEM only with its result done (up to 33 cycles of work). The interrupt is taken on the next instruction instead, so `mepc` is the successor's PC. The cost is latency: each back-to-back M instruction can delay an interrupt by about 34 cycles. This is the simple solution kept by the owner (2026-11-24); alternatives are tracked as riscv-ip/peregrine-rv32im ISSUE-001.
+- **A running M instruction is interrupted** (TASK-007). While an M instruction holds in EX with its unit busy and nothing older is left in MEM, a pending interrupt takes it: the unit is cancelled, nothing is written, and `mepc` is the M instruction's PC, so it runs again from the start after `mret`.
+- **The first instruction after an `mret` is not interruptible** until it commits. Every return from an interrupt therefore retires at least one instruction, and an M instruction cancelled once completes on its second issue, however often the interrupt comes back.
+
+Three exceptions move the boundary one instruction later:
+
+- **A finished M instruction is not interruptible.** One that reaches MEM has its result done; it commits, and the interrupt is taken on the next instruction (`mepc` = the successor's PC). Finished work is never discarded.
 - **An access already presented is not interruptible** (cached build). A load, store or `fence.i` that presented its request to the memory side while the core was held is not interrupted on the cycle the hold drops; the interrupt goes to the next instruction. This keeps a request from being withdrawn before its handshake.
 - **Nothing is taken during a hold.** While `mem_wait` is high, no trap is taken. A D\$ miss therefore delays an interrupt until the access completes.
 
@@ -70,7 +75,7 @@ A bubble in MEM takes no interrupt; the next valid instruction to reach MEM does
 
 ## Interrupt Latency
 
-From an enabled interrupt line rising to the first handler instruction being fetched: the line reaches `mip` combinationally (the CLINT's timer adds one registered cycle), the interrupt attaches to the next valid instruction in MEM, and the fetch from `mtvec` is the next cycle. In the best case that is 1 to 2 cycles; it grows by the time to the next valid instruction in MEM, any hold in progress, and the M-instruction rule above.
+From an enabled interrupt line rising to the first handler instruction being fetched: the line reaches `mip` combinationally (the CLINT's timer adds one registered cycle), the interrupt attaches to the next valid instruction in MEM, and the fetch from `mtvec` is the next cycle. In the best case that is 1 to 2 cycles; it grows by the time to the next valid instruction in MEM and any hold in progress. M instructions add at most one M instruction: the worst case is an interrupt arriving just after an `mret` into one, which must finish first (the progress rule). Measured from the timer line to the trap beat retiring, over back-to-back divides, the bound is 40 cycles and the measured worst case 38 (mean 8.1; `test_peregrine_mext`, latency test). Holding an interrupt behind every M instruction, as the core did before TASK-007, cost about 34 cycles per back-to-back M instruction.
 
 ---
 

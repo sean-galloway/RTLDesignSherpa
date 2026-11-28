@@ -67,7 +67,7 @@ On one M-heavy stress program (34% M instructions) the iterative unit gave CPI 9
 
 ## Interaction with Traps
 
-An M instruction raises no exception of its own. A MEM redirect (an older trap or `mret`) cancels the unit; under hold-in-EX this can happen only in the M instruction's first EX cycle, because after that MEM holds bubbles. A mutant that did not cancel was caught only after the ecall handler changed the operand (re-executing with the same operands hid it). An M instruction is not interruptible in MEM ("Traps, Interrupts and the Commit Point").
+An M instruction raises no exception of its own. A MEM redirect (an older trap or `mret`) cancels the unit; under hold-in-EX this can happen only in the M instruction's first EX cycle, because after that MEM holds bubbles. A mutant that did not cancel was caught only after the ecall handler changed the operand (re-executing with the same operands hid it). An interrupt also cancels it: a running M instruction is interrupted from EX, `mepc` = its PC, and runs again from the start after `mret`; a finished one is not interruptible in MEM ("Traps, Interrupts and the Commit Point").
 
 ## Timing
 

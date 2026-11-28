@@ -70,6 +70,9 @@ module peregrine_csr #(
     input  logic [31:0] trap_epc,
     input  logic [31:0] trap_tval,
     input  logic        mret_take,
+    // Hold the interrupt decision low (the first instruction after an mret,
+    // TASK-007)
+    input  logic        irq_block,
     // Interrupt pins (level)
     input  logic        irq_software,
     input  logic        irq_timer,
@@ -163,6 +166,8 @@ module peregrine_csr #(
     // make it. A CSR write, a trap entry or an mret clears it for that one
     // cycle, so a write that disables interrupts (or the MIE clear of a trap
     // entry) is never followed by an interrupt taken on the old enables.
+    // irq_block holds it low from an mret until the next instruction
+    // commits (the core's progress rule, TASK-007).
     logic [31:0] w_irq_en;
     logic        r_irq_pending;
     logic [31:0] r_irq_cause;
@@ -174,7 +179,7 @@ module peregrine_csr #(
             r_irq_pending <= 1'b0;
             r_irq_cause   <= '0;
         end else begin
-            r_irq_pending <= (|w_irq_en) & ~wen & ~trap_take & ~mret_take;
+            r_irq_pending <= (|w_irq_en) & ~wen & ~trap_take & ~mret_take & ~irq_block;
             r_irq_cause   <= w_irq_en[IRQ_BUSERR] ? {1'b1, MCAUSE_BUSERR} :
                              w_irq_en[IRQ_MEI]    ? {1'b1, MCAUSE_MEI}    :
                              w_irq_en[IRQ_MSI]    ? {1'b1, MCAUSE_MSI}    :

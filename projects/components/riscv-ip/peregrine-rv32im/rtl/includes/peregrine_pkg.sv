@@ -156,7 +156,8 @@ package peregrine_pkg;
     logic        csr_wen;
     logic [31:0] csr_wdata;
     logic        mret;
-    logic        m_op;          // payload: an M instruction is not interruptible
+    logic        m_op;          // payload: an M instruction is not interruptible in MEM
+    logic        irq_take;      // an M instruction interrupted in EX (TASK-007)
     logic        bp_pred_taken; // observation: the prediction and its outcome
     logic [31:0] bp_pred_target;
     logic        bp_mispredict;

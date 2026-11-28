@@ -34,7 +34,7 @@ The suite lives in `peregrine-rv32im/dv/tests` (Pattern B cocotb tests, Verilato
 | `test_peregrine_battery` | cacheless core | rv32ui, rv32mi, rv32um from `vendor/riscv-tests`, in spike lockstep (pc, insn, every trap's kind and epc); both `MUL_DSP` builds |
 | `test_peregrine_arch` | both builds | riscv-arch-test 3.10.0 `rv32i_m/M` and `Zifencei`, signatures equal to spike's and Sail's |
 | `test_peregrine_irq` | cacheless core | Self-checking interrupt program with a seeded random re-raise delay |
-| `test_peregrine_mext` | cacheless core | Generated programs of 15 hazard shapes around M instructions; register compare, RVFI shadow regfile, spike lockstep; interrupt and `mem_wait` variants |
+| `test_peregrine_mext` | cacheless core | Generated programs of 15 hazard shapes around M instructions; register compare, RVFI shadow regfile, spike lockstep; interrupt and `mem_wait` variants, with interrupts taken on running M instructions and every `mepc` read held to the shadow trap-CSR model; a latency test of back-to-back divides under the timer, bounded at 40 cycles (measured 38) |
 | `test_peregrine_predictor` | cacheless core | The PRD §5 predictor streams on both `BP_EN` builds, every retired prediction held to a model; the A/B comparison |
 | `test_peregrine_mdu` | `peregrine_mdu` | All eight operations against a spec model: edge cross product plus seeded random; exact stall counts, cancel at every step |
 | `test_peregrine_bpred` | `peregrine_bpred` | Against an exact model, cycle by cycle, with randomized initial memory contents |
@@ -65,7 +65,7 @@ Under `formal/peregrine/`, SymbiYosys BMC on sv2v flats:
 | Unit | Build | Result |
 |------|-------|--------|
 | riscv-formal, `checks` and `checks_dsp` | `peregrine_core`, `CACHE_EN=0`, predictor live with free initial tables, traps in, interrupts tied low | 52/52 on each `MUL_DSP` setting |
-| `core_props` | `peregrine_core`, every input free | 22 asserts at depth 20: the predictor training rule and commit precision; 11/11 covers |
+| `core_props` | `peregrine_core`, every input free | 24 asserts at depth 20: the predictor training rule, commit precision, and the TASK-007 rules (no interrupt on the instruction after an `mret`; an interrupted M instruction leaves the unit idle); 13/13 covers |
 | `top_props` | `peregrine_top` with an amber stub whose response data is free on every cycle | Depth 28: every D-side access accepted once and retired with its own data; every fetch carries the memory word; 9/9 covers |
 | `mdu_ref` | `peregrine_mdu` against the M reference | Bounded operands, depth 40: six of eight operations pass; `mulh` and `mulhsu` reached steps 38 and 37 in the time cap |
 
@@ -80,7 +80,7 @@ The M extension runs under riscv-formal's ALTOPS stand-in results, defined only 
 
 ## Mutation
 
-Every stage ended with a mutation pass: each mutant rebuilt from clean, the failure read for its cause, the tree restored. The final stage-7 pass caught 26 of 27; the survivor (a D\$ clean issued while an access is in flight) is equivalent, because amber is blocking. The formal units caught 10 of 10 (`core_props`), 8 of 8 (`top_props`), 10 of 11 riscv-formal mutants (one equivalent) and 5 of 6 `mdu_ref` mutants (one equivalent).
+Every stage ended with a mutation pass: each mutant rebuilt from clean, the failure read for its cause, the tree restored. The final stage-7 pass caught 26 of 27; the survivor (a D\$ clean issued while an access is in flight) is equivalent, because amber is blocking. The formal units caught 10 of 10 (`core_props`; TASK-007 added two more, each caught by its own property), 8 of 8 (`top_props`), 10 of 11 riscv-formal mutants (one equivalent) and 5 of 6 `mdu_ref` mutants (one equivalent).
 
 ## Known Limits
 

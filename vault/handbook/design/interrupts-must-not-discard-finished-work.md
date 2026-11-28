@@ -1,6 +1,6 @@
 ---
 title: Interrupts must not discard finished work
-summary: A commit-point interrupt that throws away a multi-cycle instruction's completed result can starve that instruction forever when interrupts arrive faster than its latency. Make a long instruction non-interruptible once its work is done, and take the interrupt on the next instruction; it stays precise (peregrine M unit, 2026-11-23).
+summary: A commit-point interrupt that throws away a multi-cycle instruction's completed result can starve that instruction forever when interrupts arrive faster than its latency. Make a long instruction non-interruptible once its work is done, and take the interrupt on the next instruction; it stays precise (peregrine M unit, 2026-11-23). Cancelling it mid-run is safe only with a progress rule: the first instruction after an interrupt return is not interruptible (peregrine TASK-007, 2026-11-27).
 ---
 
 # Interrupts must not discard finished work
@@ -38,9 +38,19 @@ same thing in a real system.
   about 34 cycles each. State the bound in the spec; it belongs to the
   book's interrupt-latency table.
 
-The alternative, interrupting the long instruction early (at its start)
-and cancelling the unit, cuts the latency but keeps the livelock whenever
-the interrupt period is shorter than the instruction.
+Interrupting the long instruction while it runs, and cancelling the unit,
+cuts the latency, but on its own it keeps the livelock whenever the
+interrupt period is shorter than the instruction. It needs a progress
+rule too: **the first instruction after an interrupt return cannot be
+interrupted until it commits.** Every return then retires one
+instruction, so a cancelled instruction completes on its second issue.
+peregrine does both (TASK-007, 2026-11-27): an M instruction still running
+in EX is interrupted with `mepc` = its own PC, a finished one still
+commits, and an `mret` sets a flag that holds the interrupt decision low
+until the next commit. The worst-case latency falls from one M instruction
+per back-to-back M instruction to one in total (measured: 271 cycles
+behind 8 divides before, 38 after). With the flag removed, the same fast
+timer livelocks it again.
 
 ## How to find it
 

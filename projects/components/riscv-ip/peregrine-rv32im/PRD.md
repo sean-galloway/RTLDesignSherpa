@@ -203,18 +203,30 @@ executing ("precise at the oldest instruction", spec rung 3). An
 instruction stalled in MEM on a D$ miss cannot take an interrupt until its
 access completes, because the cache is blocking.
 
-**An M instruction is not interruptible** (added 2026-11-23, TASK-001
-stage 2). It reaches MEM only with its result done, and the interrupt is
-taken on the next instruction instead, which is still precise: the
-boundary falls between the M instruction and its successor, and `mepc` is
-the successor's PC. The first stage-2 build let the interrupt take the M
-instruction, discarding its 33 cycles of work. A timer re-raised 3 to 40
-cycles after each acknowledge then caught every M instruction before it
-retired: a livelock, measured in the directed suite. The cost is interrupt
-latency: a run of back-to-back M instructions delays an interrupt by
-about 34 cycles each. Kept as the simple solution for now (Sean,
-2026-11-24: "do the simple solution first; we can reevaluate later"); the
-alternatives are tracked in riscv-ip/peregrine-rv32im ISSUE-001.
+**An M instruction is interrupted while it runs** (TASK-007, owner
+2026-11-27, from ISSUE-001). An interrupt that goes pending while an M
+instruction holds in EX with the unit busy, and nothing older is left in
+MEM, takes the M instruction: the unit is cancelled, its result
+discarded, and `mepc` is the M instruction's own PC, so it runs again
+after `mret`. An M instruction whose result is already done is not
+interrupted: it commits and the interrupt goes to the next instruction
+(finished work is never discarded).
+
+**Progress rule.** The first instruction after an `mret` cannot be
+interrupted until it commits. Every interrupt return therefore retires at
+least one instruction, and a cancelled M instruction completes on its
+second issue whatever the interrupt rate. Without the rule the first
+stage-2 build livelocked: a timer re-raised 3 to 40 cycles after each
+acknowledge caught every M instruction before it finished (the mutant
+with the rule removed livelocks the same way).
+
+**Latency bound.** From the timer line rising to the trap beat retiring,
+at most one M instruction plus the pipeline: 40 cycles (`LAT_BOUND` in
+`test_peregrine_mext`; measured worst 38, mean 8.1, over about 2,100
+interrupts on back-to-back divides in each `MUL_DSP` build), reached only
+when the interrupt arrives right after an `mret` into an M instruction. Holding the interrupt behind every
+M instruction instead, the pre-TASK-007 rule, cost up to about 34 cycles
+per back-to-back M instruction (271 cycles behind 8 divides, measured).
 
 ### 4.4 M unit
 
@@ -246,8 +258,10 @@ alternatives are tracked in riscv-ip/peregrine-rv32im ISSUE-001.
 - **Interaction with traps.** An M instruction raises no exceptions of its
   own. A MEM-stage trap or `mret` cancels the unit. Under hold-in-EX this
   can only happen in the M instruction's first EX cycle: after that, the
-  instruction in MEM is a bubble. An M instruction is not interruptible
-  (§4.3).
+  instruction in MEM is a bubble. An interrupt cancels an M instruction
+  that is still running and takes it, `mepc` = its PC (§4.3); the first
+  instruction after an `mret` cannot be interrupted, so it completes on
+  its second issue.
 
 ### 4.5 Memory hierarchy
 
@@ -442,6 +456,12 @@ the worked version, with measured miss rates replacing the assumed ones.
 
 ## 8. History
 
+- 2026-11-27: TASK-007 (from ISSUE-001): a running M instruction is
+  interrupted, `mepc` = its PC; the first instruction after an `mret` is
+  not interruptible (§4.3, §4.4). Latency bound 40 cycles, measured 38
+  (was up to 271 behind 8 divides). peregrine FULL 100/100; riscv-formal
+  52/52 on both `MUL_DSP` builds; core_props and top_props PASS; 75 MHz
+  +0.273 / +0.466.
 - 2026-11-27: TASK-005 (bus errors) built, owner decisions 2026-11-27:
   load / store access faults from the uncached port and amber fills,
   taken precisely in WB; instruction access faults from I$ refills (P6

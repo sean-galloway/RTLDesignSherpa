@@ -63,4 +63,4 @@ Decision (owner, "yes"): build option 2, with a progress guarantee.
 Interrupts cancel an in-flight M instruction, and the first instruction
 after an `mret` cannot be interrupted, so every return makes progress.
 The worst-case latency becomes one M instruction. This is the work of
-[TASK-007](../../task/active/TASK-007.md).
+[TASK-007](../../task/closed/TASK-007.md).

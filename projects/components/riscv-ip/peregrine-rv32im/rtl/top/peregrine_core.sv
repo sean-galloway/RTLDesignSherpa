@@ -36,13 +36,22 @@
 //          - Interrupts are sampled at the same point: a pending, enabled
 //            interrupt attaches to the valid instruction entering MEM,
 //            which traps instead of executing (precise at the oldest
-//            uncommitted instruction).  The exception is an M instruction:
-//            it reaches MEM only with its result done, and it is not
-//            interruptible there, so the interrupt is taken on the next
-//            instruction.  Without that, an interrupt re-raised faster
-//            than the M unit's 33 cycles discards the M instruction on
-//            every pass and it never retires (a measured livelock,
-//            TASK-001 stage 2).
+//            uncommitted instruction).  An M instruction is interrupted
+//            while it runs (TASK-007): held in EX with the unit busy, MEM
+//            empty and an interrupt pending, it moves to MEM tagged
+//            irq_take (the cause latched that cycle), where it traps with
+//            mepc = its own PC; the unit is cancelled.  An M instruction
+//            whose result is done is not interruptible: it commits and the
+//            interrupt is taken on the next instruction (finished work is
+//            never discarded).  Progress: the first instruction after an
+//            mret cannot be interrupted until it commits at MEM (the CSR
+//            file holds irq_pending low meanwhile), so every interrupt
+//            return retires at least one instruction and a cancelled M
+//            instruction completes on its second issue, whatever the
+//            interrupt rate.  Without that, an interrupt re-raised faster
+//            than the M unit's 33 cycles cancels the M instruction on
+//            every pass and it never retires (the TASK-001 stage 2
+//            livelock).  Worst-case latency: one M instruction.
 //          - mret redirects to mepc from MEM, the same way.
 //          - CSR instructions read the CSR file in EX (the old value is
 //            rd's result and forwards like any ALU result) and write it in
@@ -258,6 +267,11 @@ module peregrine_core #(
 
     // An M instruction holding in EX until its result is ready.
     logic        ex_m_stall;
+    // ... and that instruction interrupted while the unit runs (TASK-007).
+    logic        ex_m_irq;
+    // The registered interrupt decision (peregrine_csr), read in EX and MEM.
+    logic        csr_irq_pending;
+    logic [31:0] csr_irq_cause;
 
     assign imem_addr      = pc;
     assign imem_addr_next    = w_aresetn ? pc_d    : RESET_ADDR;
@@ -521,11 +535,13 @@ module peregrine_core #(
     // younger: IF/ID, ID/EX, and the instruction leaving EX.  Flushes are
     // suppressed while the memories wait so the event replays after.
     // While an M instruction holds in EX, ID/EX holds it (the ID interlock
-    // bubble must not overwrite it) and EX/MEM takes the bubble instead.
+    // bubble must not overwrite it) and EX/MEM takes the bubble instead --
+    // unless it is interrupted (ex_m_irq): then EX/MEM takes the tagged
+    // copy, which traps in MEM and flushes the copy ID/EX still holds.
     assign if_id_flush_eff  = ((flush_ifid | mem_redirect_nw) & ~mem_wait);
     assign id_ex_flush_eff  = ((flush_idex | (stall_ifid & ~ex_m_stall) | mem_redirect_nw)
                                & ~mem_wait);
-    assign ex_mem_flush_eff = (mem_redirect_nw | ex_m_stall) & ~mem_wait;
+    assign ex_mem_flush_eff = (mem_redirect_nw | (ex_m_stall & ~ex_m_irq)) & ~mem_wait;
 
     // -----------------------------------------------------------------
     // EX stage: ALU, branch comparator, alignment checks, CSR read
@@ -606,6 +622,12 @@ module peregrine_core #(
     assign ex_m_valid = id_ex_q.valid & id_ex_q.m_op;
     assign mdu_start  = ex_m_valid & mdu_idle & ~mem_wait & ~mem_redirect_nw;
     assign ex_m_stall = ex_m_valid & ~mdu_done;
+    // Interruptible while the unit is busy (started, so the latched
+    // operands RVFI reports are valid; not done, so no finished result is
+    // discarded), with MEM empty (nothing older uncommitted there; an older
+    // WB fault still wins in MEM) and the pipeline moving.
+    assign ex_m_irq   = ex_m_valid & ~mdu_idle & ~mdu_done & ~ex_mem_q.valid &
+                        csr_irq_pending & ~mem_wait;
 
     peregrine_mdu #(
         .MUL_DSP (MUL_DSP)
@@ -628,6 +650,15 @@ module peregrine_core #(
             ex_m_rs1 <= ex_rs1_fwd;
             ex_m_rs2 <= ex_rs2_fwd;
         end
+    end
+
+    // The interrupt's cause, latched with the decision: MEM traps the
+    // tagged instruction whatever the pins do the next cycle.  Payload,
+    // read only under ex_mem_q.irq_take (one tagged instruction at a time:
+    // the tag needs MEM empty).
+    logic [31:0] r_ex_irq_cause;
+    always_ff @(posedge clk) begin
+        if (ex_m_irq) r_ex_irq_cause <= csr_irq_cause;
     end
 
     logic [31:0] alu_y;
@@ -704,9 +735,11 @@ module peregrine_core #(
 
     // Predictor: looked up by the fetch PC, written once per resolved
     // instruction as it leaves EX (not under mem_wait, not while an M
-    // instruction holds, not when a MEM redirect kills it).
+    // instruction holds, not when a MEM redirect kills it).  An interrupted
+    // M instruction leaves too: it retires as a trap beat.
     logic ex_leaves;
-    assign ex_leaves = id_ex_q.valid & ~mem_wait & ~ex_m_stall & ~mem_redirect_nw;
+    assign ex_leaves = id_ex_q.valid & ~mem_wait & (~ex_m_stall | ex_m_irq) &
+                       ~mem_redirect_nw;
 
     peregrine_bpred #(
         .BP_EN       (BP_EN),
@@ -777,6 +810,7 @@ module peregrine_core #(
     assign ex_mem_d.csr_wdata   = ex_csr_wdata;
     assign ex_mem_d.mret        = id_ex_q.mret;
     assign ex_mem_d.m_op        = id_ex_q.m_op;
+    assign ex_mem_d.irq_take    = ex_m_irq;
     assign ex_mem_d.bp_pred_taken  = id_ex_q.pred_taken;
     assign ex_mem_d.bp_pred_target = id_ex_q.pred_target;
     assign ex_mem_d.bp_mispredict  = ex_mispredict;
@@ -800,10 +834,9 @@ module peregrine_core #(
     // -----------------------------------------------------------------
     logic [31:0] csr_mtvec;
     logic [31:0] csr_mepc;
-    logic        csr_irq_pending;
-    logic [31:0] csr_irq_cause;
 
     logic        mem_exc;
+    logic        mem_irq_lv;    // the sampled interrupt on a non-M instruction
     logic        mem_irq;
     logic        mem_trap;
     logic        mem_valid;     // MEM's instruction, unless WB's bus fault kills it
@@ -829,8 +862,8 @@ module peregrine_core #(
     assign mem_valid = ex_mem_q.valid & ~wb_fault;
 
     assign mem_exc  = ex_mem_q.valid & (ex_mem_q.exc_cause != EXC_NONE);
-    // An M instruction is not interruptible (see the header): its work is
-    // done, and discarding it can starve it forever.
+    // An M instruction in MEM is not interruptible (see the header): its
+    // work is done.  One that EX tagged (irq_take) traps unconditionally.
     // CACHE_EN: not on the cycle after a hold in which this instruction
     // presented a memory request (see the header).
     logic        r_mem_irq_lock;
@@ -838,7 +871,8 @@ module peregrine_core #(
     logic        mem_fencei;
     logic        mem_ls_ok;
 
-    assign mem_irq  = ex_mem_q.valid & ~ex_mem_q.m_op & csr_irq_pending & ~r_mem_irq_lock;
+    assign mem_irq_lv = ex_mem_q.valid & ~ex_mem_q.m_op & csr_irq_pending & ~r_mem_irq_lock;
+    assign mem_irq    = mem_irq_lv | (ex_mem_q.valid & ex_mem_q.irq_take);
     assign mem_trap = (mem_exc | mem_irq) & ~wb_fault & ~mem_wait;
     assign mem_mret = mem_valid & ex_mem_q.mret & ~mem_exc & ~mem_irq & ~mem_wait;
     assign mem_csr_wen = mem_valid & ex_mem_q.csr_wen & ~mem_exc & ~mem_irq & ~mem_wait;
@@ -881,7 +915,7 @@ module peregrine_core #(
     always_comb begin
         mem_trap_tval = 32'd0;
         if (mem_irq) begin
-            mem_trap_cause = csr_irq_cause;
+            mem_trap_cause = ex_mem_q.irq_take ? r_ex_irq_cause : csr_irq_cause;
         end else begin
             unique case (ex_mem_q.exc_cause)
                 EXC_ECALL:  mem_trap_cause = {1'b0, MCAUSE_ECALL_M};
@@ -912,6 +946,21 @@ module peregrine_core #(
             endcase
         end
     end
+
+    // Progress after mret (TASK-007): from the mret's commit until the next
+    // instruction commits at MEM, the CSR file holds irq_pending low, so
+    // that instruction cannot be interrupted (in EX or in MEM).  Into the
+    // CSR's registered decision, not the commit cone.
+    logic r_mret_shadow;
+    logic w_irq_block;
+    assign w_irq_block = mem_mret | (r_mret_shadow & ~(mem_valid & ~mem_wait));
+    `ALWAYS_FF_RST(clk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
+            r_mret_shadow <= 1'b0;
+        end else begin
+            r_mret_shadow <= w_irq_block;
+        end
+    )
 
     // WB's bus fault (TASK-005): the trap the CSR file enters is WB's when
     // there is one (MEM's instruction is killed that cycle).  mtval is the
@@ -944,6 +993,7 @@ module peregrine_core #(
         .trap_epc     (csr_trap_epc),
         .trap_tval    (csr_trap_tval),
         .mret_take    (mem_mret),
+        .irq_block    (w_irq_block),
         .irq_software (irq_software),
         .irq_timer    (irq_timer),
         .irq_external (irq_external),
@@ -971,7 +1021,9 @@ module peregrine_core #(
     end
 
     // Not gated by wb_fault (see mem_valid): the wrapper blocks it then.
-    assign mem_ls_ok  = ex_mem_q.dmem_req & ex_mem_q.valid & ~mem_exc & ~mem_irq;
+    // mem_irq_lv, not mem_irq: a tagged M instruction makes no access, and
+    // the tag stays out of the 75 MHz accept cone.
+    assign mem_ls_ok  = ex_mem_q.dmem_req & ex_mem_q.valid & ~mem_exc & ~mem_irq_lv;
     assign dmem_req   = mem_ls_ok & ~mem_wait;
     assign dmem_req_pre = CACHE_EN & mem_ls_ok;
     assign dmem_addr  = {ex_mem_q.alu_y[31:2], 2'b00};

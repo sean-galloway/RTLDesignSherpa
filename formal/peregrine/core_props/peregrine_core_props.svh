@@ -40,6 +40,12 @@
 //   - a register-file write (WB) is the retiring instruction's rd write.
 // The interrupt lines are free in this harness, so interrupts are among
 // the traps.
+//
+// Interrupting an M instruction (TASK-007):
+//   - the retire after an mret is never an interrupt (the progress rule);
+//   - an M instruction interrupted in EX leaves the M unit idle the cycle
+//     after its trap (cancelled), and its trap beat is checked by the
+//     commit-precision rules above (mepc = its PC, no rd write).
 
 `ifdef FORMAL
     localparam logic [6:0] F_OP_BRANCH = 7'b1100011;
@@ -232,6 +238,38 @@
             cp_c_irq_kills_csr:    cover (mem_trap && mem_irq && id_ex_q.valid && id_ex_q.csr_op);
             cp_c_store_retire:     cover (rvfi_valid && f_st_pend && f_prev_wait);
             cp_c_csr_retire:       cover (rvfi_valid && f_csr_pend);
+        end
+    end
+
+    // -----------------------------------------------------------------
+    // Interrupting an M instruction (TASK-007)
+    // -----------------------------------------------------------------
+    localparam logic [31:0] F_MRET = 32'h3020_0073;
+
+    logic f_mret_retired;   // the last retire was an mret
+    logic f_m_irq_trap;     // last cycle a tagged M instruction trapped
+    always_ff @(posedge clk) begin
+        if (!w_aresetn) begin
+            f_mret_retired <= 1'b0;
+            f_m_irq_trap   <= 1'b0;
+        end else begin
+            if (rvfi_valid)
+                f_mret_retired <= !rvfi_trap && (rvfi_insn == F_MRET);
+            f_m_irq_trap <= mem_trap && ex_mem_q.valid && ex_mem_q.irq_take;
+        end
+    end
+
+    wire f_r_m = (rvfi_insn[6:0] == 7'b0110011) && (rvfi_insn[31:25] == 7'b0000001);
+
+    always_comb begin
+        if (w_aresetn) begin
+            if (rvfi_valid && f_mret_retired)
+                ap_i_after_mret_not_irq: assert (!(rvfi_trap && rvfi_trap_cause[31]));
+            if (f_m_irq_trap)
+                ap_i_m_cancelled:        assert (mdu_idle);
+            cp_i_irq_on_m:      cover (rvfi_valid && rvfi_trap && rvfi_trap_cause[31] && f_r_m);
+            cp_i_after_mret_irq_up: cover (rvfi_valid && f_mret_retired && !rvfi_trap &&
+                                           irq_timer && csr_irq_pending == 1'b0);
         end
     end
 `endif

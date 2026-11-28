@@ -14,8 +14,10 @@
 #          shadow-regfile check of every operand and every M result, and
 #          (without interrupts) spike lockstep.  Interrupt variants raise
 #          the machine timer at random, faster than the M unit's latency,
-#          so interrupts go pending while M instructions run: none may be
-#          taken on an M instruction, and every one must still retire.
+#          so interrupts go pending while M instructions run: they are
+#          taken on the running M instruction (TASK-007), and every one
+#          must still retire.  A latency test runs back-to-back divides
+#          under the timer and bounds the interrupt latency.
 #
 # Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
 # Subsystem: riscv-ip/peregrine-rv32im
@@ -30,9 +32,17 @@ Variants per build (MUL_DSP 0 and 1):
 * ``lockstep``: no interrupts; the trace is locked against spike's.
 * ``irq``: the machine timer re-raises 3-40 cycles (seeded) after each
   acknowledge -- often faster than an M instruction's 33 stall cycles, which
-  livelocked the first build (an M instruction interrupted in MEM is
-  discarded and restarts; it is now not interruptible).
+  livelocked the first build (an interrupted M instruction restarted every
+  pass).  An M instruction is now interrupted while it runs, and the first
+  instruction after an mret cannot be interrupted, so it completes on its
+  second issue (TASK-007).
 * ``irq+mem_wait`` (func and full): the same with 10 % random mem_wait.
+
+``cocotb_test_peregrine_mext_latency``: K back-to-back divides per pass,
+the timer re-raised 3-120 cycles after each acknowledge; every interrupt's
+latency (raise to trap beat) is bounded by one M instruction plus the
+pipeline, where holding the interrupt behind every divide would cost up to
+K of them.
 
 The cycle count and CPI of the lockstep variant are logged for the PRD P8
 comparison (iterative against DSP multiply).
@@ -47,7 +57,6 @@ from pathlib import Path
 import cocotb
 import pytest
 from cocotb_test.simulator import run
-
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -56,11 +65,22 @@ _DV_DIR = str(Path(__file__).resolve().parents[1])
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
-from tbclasses.peregrine.battery import (LINK_BASE, elf_image, lockstep,  # noqa: E402
-                                         parse_spike_log, read_elf32, run_spike)
-from tbclasses.peregrine.mext_program import (generate, is_m_insn,  # noqa: E402
-                                              shadow_check)
-from tbclasses.peregrine.peregrine_tb import PeregrineTB  # noqa: E402
+from tbclasses.peregrine.battery import (
+    LINK_BASE,
+    elf_image,
+    lockstep,
+    parse_spike_log,
+    read_elf32,
+    run_spike,
+)
+from tbclasses.peregrine.csr_shadow import TrapCsrShadow
+from tbclasses.peregrine.mext_program import (
+    generate,
+    is_m_insn,
+    latency_program,
+    shadow_check,
+)
+from tbclasses.peregrine.peregrine_tb import PeregrineTB
 
 TOOLCHAIN = os.environ.get("RISCV_TOOLCHAIN", "/mnt/data/tools/xpack-riscv-none-elf-gcc/bin")
 SPIKE_ISA = "rv32im_zicsr_zifencei"
@@ -69,14 +89,23 @@ CYCLES_PER_BLOCK = 160
 IRQ_DELAY_MIN = 3
 IRQ_DELAY_MAX = 40
 MEM_WAIT_PERCENT = 10
+# Latency test: divides per pass, passes per level, re-raise delays.
+LAT_K = 8
+LAT_ITERS = {"gate": 30, "func": 120, "full": 400}
+LAT_DELAY = (3, 120)
+# The bound (PRD 4.3): an M instruction's run (33 cycles from start to done,
+# MUL_DSP-independent for a divide) plus the pipeline from the interrupt pin
+# to the trap beat at WB.  Measured worst case 38 at every level and both
+# builds (2026-11-27); without the cancel it is 271 behind 8 divides.
+LAT_BOUND = 40
 
 
-def build_elf(source: str, work_dir: Path) -> Path:
+def build_elf(source: str, work_dir: Path, name: str = "mext") -> Path:
     """Assemble and link a generated program at LINK_BASE."""
     work_dir.mkdir(parents=True, exist_ok=True)
-    asm = work_dir / "mext.s"
-    obj = work_dir / "mext.o"
-    elf = work_dir / "mext.elf"
+    asm = work_dir / f"{name}.s"
+    obj = work_dir / f"{name}.o"
+    elf = work_dir / f"{name}.elf"
     asm.write_text(source)
     subprocess.run([f"{TOOLCHAIN}/riscv-none-elf-as", "-march=rv32im_zicsr",
                     "-mabi=ilp32", str(asm), "-o", str(obj)], check=True)
@@ -96,22 +125,26 @@ class TimerSource:
     falling edge (registered, like a CLINT).
     """
 
-    def __init__(self, ack_addr: int, rng: random.Random) -> None:
+    def __init__(self, ack_addr: int, rng: random.Random,
+                 delay: tuple = (IRQ_DELAY_MIN, IRQ_DELAY_MAX)) -> None:
         self.ack_addr = ack_addr
         self.rng = rng
+        self.delay = delay
         self.mtip = 0
-        self.raise_at = rng.randint(IRQ_DELAY_MIN, IRQ_DELAY_MAX)
+        self.raise_at = rng.randint(*delay)
         self.raised = 0
+        self.raise_cycles = []      # the cycle each raise is first driven
 
     def __call__(self, dut, cycle, trace):
         if int(dut.dmem_req.value) and int(dut.dmem_wstrb.value) and \
                 int(dut.dmem_addr.value) == self.ack_addr:
             self.mtip = 0
-            self.raise_at = cycle + self.rng.randint(IRQ_DELAY_MIN, IRQ_DELAY_MAX)
+            self.raise_at = cycle + self.rng.randint(*self.delay)
         if not self.mtip and self.raise_at is not None and cycle >= self.raise_at:
             self.mtip = 1
             self.raise_at = None
             self.raised += 1
+            self.raise_cycles.append(cycle + 1)
         return (0, self.mtip, 0)
 
 
@@ -121,6 +154,7 @@ def _common_checks(tb, label):
     tb.check_trap_beats()
     tb.check_mem_side_effects()
     counts = shadow_check(tb.trace)
+    counts["csr"] = TrapCsrShadow().check(tb.trace)
     # Every interrupted instruction executes later.  "Executes" includes an
     # exception (an interrupted ecall re-executes as an ecall trap); only
     # another interrupt at the same pc does not count.
@@ -180,8 +214,8 @@ async def cocotb_test_peregrine_mext(dut):
         cycles = tb.trace[-1]["cycle"] + 1
         irq_beats = [b for b in tb.trace if b["trap"] and (b["trap_cause"] >> 31)]
         on_m = sum(1 for b in irq_beats if is_m_insn(b["insn"]))
-        # An interrupt pending while an M instruction runs is taken on the
-        # instruction after it (the M instruction is not interruptible).
+        # An interrupt pending while an M instruction runs is taken on it
+        # (TASK-007); one pending as it finishes is taken on the next.
         after_m = sum(1 for k, b in enumerate(tb.trace)
                       if k and b["trap"] and (b["trap_cause"] >> 31)
                       and is_m_insn(tb.trace[k - 1]["insn"]) and not tb.trace[k - 1]["trap"])
@@ -190,6 +224,7 @@ async def cocotb_test_peregrine_mext(dut):
                       f"(CPI {cycles / retired:.3f}); {counts['operands']} operands and "
                       f"{counts['m_results']} M results checked against the RVFI "
                       f"shadow; ecall traps {ecalls}; interrupts {len(irq_beats)} "
+                      f"(shadow trap CSRs {counts['csr']}) "
                       f"(on an M instruction: {on_m}, on the instruction after one: {after_m})")
         assert counts["m_results"] >= program.m_count // 2, \
             f"{label}: only {counts['m_results']} M results checked"
@@ -201,19 +236,57 @@ async def cocotb_test_peregrine_mext(dut):
             assert not errors, "lockstep: " + "; ".join(errors)
         else:
             assert len(irq_beats) >= 8, f"{label}: only {len(irq_beats)} interrupts"
-            assert on_m == 0, f"{label}: {on_m} interrupts taken on an M instruction"
-            if level != "gate":
-                assert after_m >= 3, (f"{label}: only {after_m} interrupts taken "
-                                      f"right after an M instruction")
+            assert on_m >= 3, f"{label}: only {on_m} interrupts taken on an M instruction"
+            assert counts["csr"]["mepc_reads"] >= len(irq_beats) // 2, \
+                f"{label}: the shadow model checked {counts['csr']['mepc_reads']} mepc reads"
 
 
-@pytest.mark.parametrize("mul_dsp", [0, 1])
-@pytest.mark.parametrize("test_level, description",
-                         [(lvl, f"peregrine_mext {lvl}") for lvl in reg_level_grid()])
-def test_peregrine_mext(request, test_level, description, mul_dsp):
-    """Pytest wrapper: one Verilator build per (level, MUL_DSP) cell."""
+@cocotb.test(timeout_time=3000, timeout_unit="ms")
+async def cocotb_test_peregrine_mext_latency(dut):
+    """Back-to-back divides under the timer: interrupt latency is one M instruction."""
+    level = os.environ.get("TEST_LEVEL", "gate")
+    mul_dsp = os.environ.get("MUL_DSP", "0")
+    seed = int(os.environ.get("SEED", "1"))
+    work_dir = Path(os.path.dirname(os.environ.get("LOG_PATH", "."))) / \
+        f"mext_lat_dsp{mul_dsp}_{level}"
+    iters = LAT_ITERS[level]
+    elf = build_elf(latency_program(LAT_K, iters), work_dir, "mext_lat")
+    _, symbols = read_elf32(elf)
+    tb = PeregrineTB(dut, reset_addr=LINK_BASE)
+    await tb.ensure_clock()
+    rng = random.Random(seed)
+    source = TimerSource(symbols["irq_ack"], rng, delay=LAT_DELAY)
+    await tb.assert_reset()
+    await tb.backdoor_load(dict(elf_image(elf)))
+    await tb.release_reset()
+    value = await tb.run_to_tohost(symbols["tohost"],
+                                   max_cycles=iters * LAT_K * 80 + 5000,
+                                   irq_driver=source)
+    assert value == 1, f"latency: a quotient differs (tohost {value})"
+    counts = _common_checks(tb, "latency")
+    irq_beats = [b for b in tb.trace if b["trap"] and (b["trap_cause"] >> 31)]
+    # Each raise is acknowledged by its own handler before the next, so the
+    # k-th interrupt beat answers the k-th raise.
+    lat = [b["cycle"] - r for b, r in zip(irq_beats, source.raise_cycles)]
+    on_m = sum(1 for b in irq_beats if is_m_insn(b["insn"]))
+    divs = sum(1 for b in tb.trace if not b["trap"] and is_m_insn(b["insn"]))
+    dut._log.info(f"latency (MUL_DSP={mul_dsp}, {level}): {len(irq_beats)} interrupts "
+                  f"({on_m} on a divide), {divs} divides retired; latency min "
+                  f"{min(lat)} max {max(lat)} mean {sum(lat) / len(lat):.1f} cycles; "
+                  f"shadow trap CSRs {counts['csr']}")
+    assert divs == iters * LAT_K, f"latency: {divs} divides retired, {iters * LAT_K} issued"
+    assert len(irq_beats) >= iters // 2, f"latency: only {len(irq_beats)} interrupts"
+    assert on_m >= len(irq_beats) // 2, f"latency: only {on_m} interrupts on a divide"
+    assert counts["csr"]["mepc_reads"] == len(irq_beats), \
+        f"latency: {counts['csr']['mepc_reads']} mepc reads for {len(irq_beats)} interrupts"
+    assert max(lat) <= LAT_BOUND, \
+        f"latency: worst {max(lat)} cycles exceeds the bound {LAT_BOUND}"
+
+
+def _mext_run(test_level, mul_dsp, testcase):
+    """One Verilator build per (test, level, MUL_DSP) cell."""
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    name = f"cocotb_test_peregrine_mext_dsp{mul_dsp}_{test_level}"
+    name = f"{testcase}_dsp{mul_dsp}_{test_level}"
     log_path = os.path.join(log_dir, f"{name}.log")
     sim_build = sim_build_path(tests_dir, name)
     os.makedirs(sim_build, exist_ok=True)
@@ -228,7 +301,7 @@ def test_peregrine_mext(request, test_level, description, mul_dsp):
         includes=includes,
         toplevel="peregrine_tb_top",
         module=module,
-        testcase="cocotb_test_peregrine_mext",
+        testcase=testcase,
         sim_build=sim_build,
         extra_env={
             "DUT": "peregrine_tb_top",
@@ -244,3 +317,19 @@ def test_peregrine_mext(request, test_level, description, mul_dsp):
         compile_args=["--trace", "--trace-structs", "--timescale", "1ns/1ps",
                       "-Wno-WIDTHTRUNC", "-Wno-WIDTHEXPAND"],
     )
+
+
+@pytest.mark.parametrize("mul_dsp", [0, 1])
+@pytest.mark.parametrize("test_level, description",
+                         [(lvl, f"peregrine_mext_latency {lvl}") for lvl in reg_level_grid()])
+def test_peregrine_mext_latency(request, test_level, description, mul_dsp):
+    """Pytest wrapper: the interrupt-latency test (TASK-007)."""
+    _mext_run(test_level, mul_dsp, "cocotb_test_peregrine_mext_latency")
+
+
+@pytest.mark.parametrize("mul_dsp", [0, 1])
+@pytest.mark.parametrize("test_level, description",
+                         [(lvl, f"peregrine_mext {lvl}") for lvl in reg_level_grid()])
+def test_peregrine_mext(request, test_level, description, mul_dsp):
+    """Pytest wrapper: one Verilator build per (level, MUL_DSP) cell."""
+    _mext_run(test_level, mul_dsp, "cocotb_test_peregrine_mext")
