@@ -109,7 +109,7 @@
 //   - Instantiated by: jet_prime_coh_core
 //   - Launches from: jet_prime_control (fill_* seam)
 //   - Transport: axi4_master_rd_monlite via l1_axi4_plane / l1_ace_plane
-//   - Queue: gaxi_fifo_sync (house)
+//   - Queue: gaxi_skid_buffer (house; flop-headed, jet-prime ISSUE-001)
 //
 //------------------------------------------------------------------------------
 // Test:
@@ -276,7 +276,15 @@ module jet_prime_fill
 
     assign w_rid_slot = fub_axi_rid[SLOT_W-1:0];
 
-    gaxi_fifo_sync #(
+    // A flop-headed queue (jet-prime ISSUE-001): the head is r_data[0] and
+    // rd_valid is registered, so the beat presentation, fill_done_o and
+    // the control's snoop-safe term that reads it start at a flop. A
+    // gaxi_fifo_sync here read its head from distributed RAM at the read
+    // pointer, and that LUTRAM read opened the rig's worst path (fill
+    // head -> fill_done -> snoop grant -> tag probe -> data port-B
+    // address, 19 levels). Same write-to-read latency (one cycle) and
+    // depth; ~STG_W x 4 flops in place of the LUTRAM.
+    gaxi_skid_buffer #(
         .DATA_WIDTH (STG_W),
         .DEPTH      (4)
     ) u_stage (
@@ -285,9 +293,10 @@ module jet_prime_fill
         .wr_valid    (fub_axi_rvalid),
         .wr_ready    (stg_wr_ready),
         .wr_data     ({w_rid_slot, fub_axi_rdata, fub_axi_rresp[2], fub_axi_rlast}),
-        .rd_ready    (~w_pop_hold),    // the consumer is always-ready; only the capture hold stalls the head
         .count       (),
         .rd_valid    (stg_rd_valid),
+        .rd_ready    (~w_pop_hold),    // the consumer is always-ready; only the capture hold stalls the head
+        .rd_count    (),
         .rd_data     (stg_rd_data)
     );
 
