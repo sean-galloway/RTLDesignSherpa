@@ -33,7 +33,12 @@
 //            proved in cache-ip; here only its CPU-port contract matters;
 //          - the fabric slave takes one read and one write at a time
 //            (AxREADY only when idle, W after AW), returns INCR bursts with
-//            correct RID / RLAST and OKAY, and free valid timing;
+//            correct RID / RLAST, a FREE RRESP / BRESP on every beat
+//            (TASK-005: any I$ refill or uncached access may fail), and
+//            free valid timing;
+//          - the amber stub's response error bit (BUS_ERR_EN) and its
+//            write-back error status (wb_err_*, the core's interrupt 16)
+//            are free on every cycle as well;
 //          - interrupts (irq_external, the TB hooks) are free; the CLINT's
 //            own interrupts are live; dc_clean_req is tied low;
 //          - reset is held two cycles.
@@ -73,6 +78,7 @@ module formal_peregrine_top (
     // Free slave timing and data.
     (* anyseq *)   logic              f_arready, f_rvalid, f_awready, f_wready, f_bvalid;
     (* anyseq *)   logic [AXI_DW-1:0] f_rdata;
+    (* anyseq *)   logic [1:0]        f_rresp, f_bresp;
     (* anyconst *) logic [31:0]       f_x;
     (* anyconst *) logic [31:0]       f_v;
 
@@ -89,6 +95,8 @@ module formal_peregrine_top (
     logic              rvfi_valid;
     logic [31:0]       rvfi_pc_rdata;
     logic [31:0]       rvfi_insn;
+    logic              rvfi_trap;
+    logic [31:0]       rvfi_trap_cause;
 
     peregrine_top #(
         .RESET_ADDR   (32'h0000_0000),
@@ -123,7 +131,7 @@ module formal_peregrine_top (
         .m_axi_arready   (arready),
         .m_axi_rid       (rid),
         .m_axi_rdata     (rdata),
-        .m_axi_rresp     (2'b00),
+        .m_axi_rresp     (f_rresp),
         .m_axi_rlast     (rlast),
         .m_axi_rvalid    (rvalid),
         .m_axi_rready    (rready),
@@ -145,7 +153,7 @@ module formal_peregrine_top (
         .m_axi_wvalid    (wvalid),
         .m_axi_wready    (wready),
         .m_axi_bid       (bid),
-        .m_axi_bresp     (2'b00),
+        .m_axi_bresp     (f_bresp),
         .m_axi_bvalid    (bvalid),
         .m_axi_bready    (bready),
         .dobs_valid      (),
@@ -157,7 +165,7 @@ module formal_peregrine_top (
         .rvfi_pc_rdata   (rvfi_pc_rdata),
         .rvfi_pc_wdata   (),
         .rvfi_insn       (rvfi_insn),
-        .rvfi_trap       (),
+        .rvfi_trap       (rvfi_trap),
         .rvfi_rs1_addr   (),
         .rvfi_rs2_addr   (),
         .rvfi_rs1_rdata  (),
@@ -169,7 +177,7 @@ module formal_peregrine_top (
         .rvfi_mem_wmask  (),
         .rvfi_mem_rdata  (),
         .rvfi_mem_wdata  (),
-        .rvfi_trap_cause (),
+        .rvfi_trap_cause (rvfi_trap_cause),
         .rvfi_bp_pred_taken  (),
         .rvfi_bp_pred_target (),
         .rvfi_bp_mispredict  ()
@@ -240,14 +248,24 @@ module formal_peregrine_top (
     // -----------------------------------------------------------------
     always_comb begin
         assume (f_x[1:0] == 2'b00);
-        if (rst_n && rvfi_valid && (rvfi_pc_rdata == f_x))
+        // A faulted fetch (TASK-005) retires with no word, insn 0: as its
+        // instruction access fault, or as an interrupt taken on it at MEM
+        // (an interrupt outranks the exception there; the instruction is
+        // refetched after mret).  Those two beats are excluded; the first
+        // is held to insn 0 below.
+        if (rst_n && rvfi_valid && (rvfi_pc_rdata == f_x) &&
+            !(rvfi_trap && (rvfi_trap_cause == 32'd1)) &&
+            !(rvfi_trap && rvfi_trap_cause[31] && (rvfi_insn == 32'd0)))
             ap_i_fetch_word: assert (rvfi_insn == f_v);
+        if (rst_n && rvfi_valid && rvfi_trap && (rvfi_trap_cause == 32'd1))
+            ap_i_fault_no_word: assert (rvfi_insn == 32'd0);
     end
 
     always_comb begin
         if (rst_n) begin
             cp_i_retire_x:      cover (rvfi_valid && (rvfi_pc_rdata == f_x));
             cp_i_retire_x_hi:   cover (rvfi_valid && (rvfi_pc_rdata == f_x) && f_x[2]);
+            cp_i_fetch_fault:   cover (rvfi_valid && rvfi_trap && (rvfi_trap_cause == 32'd1));
         end
     end
 
@@ -271,11 +289,12 @@ module amber_top #(
     parameter bit USE_MONITOR    = 1'b1,
     parameter bit MAINT_EN       = 1'b0,
     parameter bit READ_FILL_E    = 1'b0,   // amber TASK-006; CPU-port contract unchanged
+    parameter bit BUS_ERR_EN     = 1'b0,   // amber TASK-008: {err, beat} response
     localparam int STRB_W        = BUS_WIDTH / 8,
     localparam int IW            = AXI_ID_WIDTH,
     localparam int UW            = AXI_USER_WIDTH,
     localparam int CPU_REQ_W     = int'(MAINT_EN) + ADDR_WIDTH + 1 + STRB_W + BUS_WIDTH,
-    localparam int CPU_RSP_W     = BUS_WIDTH
+    localparam int CPU_RSP_W     = BUS_WIDTH + int'(BUS_ERR_EN)
 ) (
     input  logic                  aclk,
     input  logic                  aresetn,
@@ -349,13 +368,25 @@ module amber_top #(
     input  logic                  mon_ready,
     output logic [127:0]          mon_packet,
     output logic [63:0]           mon_timestamp,
+    output logic                  wb_err_valid,
+    output logic [ADDR_WIDTH-1:0] wb_err_addr,
+    output logic                  wb_err_ovf,
+    input  logic                  wb_err_clear,
     output logic                  init_busy,
     output logic [3:0]            ctrl_state
 );
 
     (* anyseq *) logic                 f_ready;
     (* anyseq *) logic                 f_rsp_go;
-    (* anyseq *) logic [BUS_WIDTH-1:0] f_beat;
+    (* anyseq *) logic [CPU_RSP_W-1:0] f_beat;   // the error bit free too
+    (* anyseq *) logic                 f_wbe_valid, f_wbe_ovf;
+    (* anyseq *) logic [ADDR_WIDTH-1:0] f_wbe_addr;
+
+    // The write-back error status: free (the core's interrupt 16 and its
+    // mbuserr read); wb_err_clear is the core's output, unconstrained here.
+    assign wb_err_valid = f_wbe_valid;
+    assign wb_err_addr  = f_wbe_addr;
+    assign wb_err_ovf   = f_wbe_ovf;
 
     logic r_out;
 

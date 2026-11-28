@@ -48,6 +48,7 @@
 | Register | Meaning |
 |----------|---------|
 | `r_outstanding` | An accepted access whose response is due; set on accept, cleared by its response |
+| `r_have_err`, `r_mem_err` | The captured response was an error (TASK-005); `r_have & r_have_err` is the core's `dmem_fault` |
 | `r_tgt`, `r_lane` | The target (CLINT, uncached, D\$) and the amber lane of the access in flight, for the response mux |
 | `r_mem_done` | MEM's access was accepted while the core was held; do not present it again |
 | `r_mem_have`, `r_mem_data` | MEM's response, captured while the core was held; becomes WB's when MEM moves |
@@ -61,9 +62,12 @@
 ## Key Combinational Terms
 
 - `w_other_hold = I$ stall | fence.i busy | external clean busy`: holds that do not depend on a D-side ready.
-- `w_dvalid = dmem_req_pre & ~r_mem_done & ~fence.i busy & ~clean busy & (~r_outstanding | response arriving)`: the request.
-- `w_mem_wait = w_other_hold | (dmem_req_pre & ~r_mem_done & ~accepted) | (r_outstanding & ~response)`: the core's hold.
-- `dmem_rdata = r_have ? r_have_data : the arriving response word`.
+- `w_rsp_ok = w_rsp_valid & ~w_rsp_err`: a response that completes its access (TASK-005; an error response does not).
+- `w_dvalid = dmem_req_pre & ~r_mem_done & ~fence.i busy & ~clean busy & ~w_dfault & (~r_outstanding | w_rsp_ok)`: the request (no request for the instruction the core kills behind WB's fault).
+- `w_mem_wait = w_other_hold | (dmem_req_pre & ~r_mem_done & ~w_dfault & ~accepted) | (r_outstanding & ~w_rsp_ok)`: the core's hold.
+- `dmem_rdata = r_have ? r_have_data : the arriving response word`; `dmem_fault = r_have & r_have_err`.
+- `w_to_io = (addr & UC_MASK) == UC_BASE`: the uncached window, a parameter (TASK-005; default 0x1000_0000 / 0xF000_0000).
+- amber at `BUS_ERR_EN=1`: its response is `{err, beat}` (`w_dc_rsp_full`), and `wb_err_{valid, addr, ovf}` drive the core's `irq_buserr` and `buserr_info = {addr[31:2], ovf, valid}`; the core's `buserr_clear` is amber's `wb_err_clear`.
 
 ## amber Lane Placement
 
@@ -79,4 +83,4 @@ One clean-all (`{maint = 1, we = 0}` on amber's request) in flight at a time, is
 
 ---
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-27

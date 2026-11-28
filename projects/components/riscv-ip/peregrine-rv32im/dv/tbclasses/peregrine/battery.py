@@ -78,10 +78,13 @@ EXPECTED_FAIL = {
 # spike exception kind for each mcause (exceptions only).
 SPIKE_KIND = {
     0: "trap_instruction_address_misaligned",
+    1: "trap_instruction_access_fault",       # TASK-005: I$ fill error
     2: "trap_illegal_instruction",
     3: "trap_breakpoint",
     4: "trap_load_address_misaligned",
+    5: "trap_load_access_fault",              # TASK-005: SLVERR / DECERR
     6: "trap_store_address_misaligned",
+    7: "trap_store_access_fault",             # TASK-005
     11: "trap_machine_ecall",
 }
 
@@ -194,8 +197,39 @@ def run_spike(isa: str, elf: Path, log: Path, timeout: int = 120) -> Optional[in
     return proc.returncode
 
 
+# Access faults (TASK-005): spike reaches them on addresses it does not map,
+# the TB memory by its error windows.  Their tval is checked too.
+ACCESS_FAULTS = (1, 5, 7)
+
+
+def _imm(insn: int) -> int:
+    """The I- or S-type immediate of a load or store, sign-extended."""
+    if (insn & 0x7F) == 0x23:                         # STORE
+        imm = ((insn >> 25) << 5) | ((insn >> 7) & 0x1F)
+    else:
+        imm = insn >> 20
+    return imm - (1 << 12) if imm & 0x800 else imm
+
+
+def expected_tval(beat: dict) -> Optional[int]:
+    """mtval the privileged spec requires for an access-fault trap beat:
+    the fetch PC for an instruction access fault, the access's byte address
+    (rs1 + imm, from RVFI) for a load or store access fault."""
+    cause = beat["trap_cause"]
+    if cause == 1:
+        return beat["pc"]
+    if cause in (5, 7):
+        return (beat["rs1_rdata"] + _imm(beat["insn"])) & 0xFFFF_FFFF
+    return None
+
+
 def lockstep(trace: list, entry: int, records: list) -> list:
-    """Errors (empty when the core's trace matches spike's stream)."""
+    """Errors (empty when the core's trace matches spike's stream).
+
+    An instruction access fault has no commit line in spike's log (nothing
+    was fetched): the core's trap beat for it (insn 0) is matched against
+    the exception record alone.  Access faults also lock their tval.
+    """
     j = 0
     while j < len(records) and not (records[j][0] == "c" and records[j][1] == entry):
         j += 1
@@ -205,11 +239,24 @@ def lockstep(trace: list, entry: int, records: list) -> list:
         if j >= len(records):
             return [f"spike stream ended at core beat {i} (pc=0x{beat['pc']:x})"]
         rec = records[j]
+        if beat["trap"] and beat["trap_cause"] == 1:
+            if rec[0] != "x" or rec[1] != SPIKE_KIND[1] or rec[2] != beat["pc"]:
+                return [f"beat {i}: core instruction access fault at "
+                        f"0x{beat['pc']:x}, spike {rec}"]
+            if rec[3] != beat["pc"]:
+                return [f"beat {i}: instruction access fault tval: spike "
+                        f"{rec[3]}, expected 0x{beat['pc']:x}"]
+            j += 1
+            continue
         if rec[0] != "c" or rec[1] != beat["pc"] or rec[2] != beat["insn"]:
             return [f"beat {i}: core (pc=0x{beat['pc']:x}, insn=0x{beat['insn']:08x})"
                     f" vs spike {rec}"]
         j += 1
-        spike_exc = j < len(records) and records[j][0] == "x"
+        # (an instruction access fault record belongs to the next beat:
+        # its epc is the fetch target, not this instruction)
+        spike_exc = (j < len(records) and records[j][0] == "x"
+                     and not (records[j][1] == SPIKE_KIND[1]
+                              and records[j][2] != beat["pc"]))
         if beat["trap"] and not spike_exc:
             return [f"beat {i}: core trapped (mcause 0x{beat['trap_cause']:x}) at "
                     f"0x{beat['pc']:x}, spike did not"]
@@ -222,6 +269,10 @@ def lockstep(trace: list, entry: int, records: list) -> list:
             if kind != want or epc != beat["pc"]:
                 return [f"beat {i}: core trap {want} at 0x{beat['pc']:x}, spike "
                         f"{kind} at 0x{epc:x}"]
+            want_tval = expected_tval(beat)
+            if want_tval is not None and tval != want_tval:
+                return [f"beat {i}: {kind} tval: spike {tval}, core's access "
+                        f"0x{want_tval:x}"]
             j += 1
     return []
 

@@ -41,14 +41,14 @@ peregrine carries no assertions in its RTL. Everything the TBs and the formal un
 
 ## The Side-Effect Count
 
-Every run counts data-memory requests (`dmem_req` on the cacheless TB, `dobs_valid` on the cached one) against loads and stores retired on RVFI. They must be equal: an interrupted or trapping access that still reached memory shows up as an extra request. The first mutant of TASK-001 (an interrupted load or store still accessing memory) gave 796 requests against 773 retired.
+Every run counts data-memory requests (`dmem_req` on the cacheless TB, `dobs_valid` on the cached one) against loads and stores retired on RVFI, plus the load and store access faults (TASK-005: the one trap that did issue its request, the error being its response). They must be equal: an interrupted or trapping access that still reached memory shows up as an extra request. The first mutant of TASK-001 (an interrupted load or store still accessing memory) gave 796 requests against 773 retired.
 
 ## TB Harnesses
 
 | File (`dv/tb/`) | Wraps | Notes |
 |-----------------|-------|-------|
 | `peregrine_tb_top.sv` | `peregrine_core` at `CACHE_EN=0` | Behavioral word memory; combinational fetch read, registered data read gated by `dmem_req`; backdoor image load |
-| `peregrine_sys_tb_top.sv` | `peregrine_top` | A behavioral AXI4 memory serving INCR bursts; the same port list as `peregrine_tb_top`; `RSP_SCRAMBLE` |
+| `peregrine_sys_tb_top.sv` | `peregrine_top` | A behavioral AXI4 memory serving INCR bursts; the same port list as `peregrine_tb_top`; `RSP_SCRAMBLE`; bus-error windows by address bits 27:24 (0xE DECERR, 0xD SLVERR, 0xC writes only SLVERR; TASK-005) |
 | `peregrine_axi4_arb_th.sv` | `peregrine_axi4_arb` | Three house AXI4 masters and one slave |
 
 : peregrine TB harnesses
@@ -57,7 +57,7 @@ Every run counts data-memory requests (`dmem_req` on the cacheless TB, `dobs_val
 
 ## TB Classes and Models
 
-Under `dv/tbclasses/peregrine/`: `peregrine_tb.py` and `peregrine_sys_tb.py` (run to `tohost`, the request contract, the side-effect count), `battery.py` (riscv-tests and spike lockstep), `bpred_model.py` (the predictor model with BHT counters as value sets), `predictor_streams.py` (the PRD §5 streams), `mext_program.py` (generated M hazard programs), and one class per block test.
+Under `dv/tbclasses/peregrine/`: `peregrine_tb.py` and `peregrine_sys_tb.py` (run to `tohost`, the request contract, the side-effect count), `battery.py` (riscv-tests and spike lockstep), `bpred_model.py` (the predictor model with BHT counters as value sets), `predictor_streams.py` (the PRD §5 streams), `mext_program.py` (generated M hazard programs), `csr_shadow.py` (the shadow trap-CSR model: `mepc`, `mcause`, `mtval` predicted from the trap beats and the CSR writes, and every CSR read of them held to it; TASK-005), and one class per block test. `battery.lockstep` also locks the `tval` of every access fault against spike, and matches an instruction access fault, which has no commit line in spike's log, against spike's exception record alone.
 
 ## Waves
 
@@ -70,8 +70,8 @@ The formal units under `formal/peregrine/` use the ports above plus two splices 
 - `peregrine_core_props.svh` and `peregrine_top_props.svh` are spliced into the sv2v flat of `peregrine_core` / `peregrine_top` by the unit's Makefile (no assertions in the RTL source). They see internal signals such as `ex_leaves` and `w_dhs`.
 - `RISCV_FORMAL_ALTOPS` selects riscv-formal's stand-in M results in `peregrine_mdu`.
 
-`top_props` replaces amber with a stub that has amber's CPU-port contract and drives a free response beat on every cycle, so a late read of held response data fails by construction.
+`top_props` replaces amber with a stub that has amber's CPU-port contract and drives a free response beat on every cycle, so a late read of held response data fails by construction. Since TASK-005 the stub's error bit and write-back error status are free too, and so are the fabric slave's RRESP / BRESP: the D-side queue property then also requires that an access answered with an error retires as a load / store access fault of the right kind, and one answered OKAY never does.
 
 ---
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-27

@@ -62,10 +62,13 @@ module l1_cpu_plane
     // amber TASK-004: the request's clean-all bit (l1_cpu_frontend
     // MAINT_EN); amber_top / amber_ace_top set 1, l1_core keeps 0
     parameter bit MAINT_EN   = 1'b0,
+    // amber TASK-008: 1 = the CPU response is {ctrl_rsp_err, rdata}, one bit
+    // wider (l1_cpu_frontend RSP_ERR_EN); 0 (default) ignores ctrl_rsp_err
+    parameter bit BUS_ERR_EN = 1'b0,
     localparam int STRB_W    = BUS_WIDTH / 8,
     localparam int CPU_REQ_W = int'(MAINT_EN) + ADDR_WIDTH + 1 + STRB_W
                                + BUS_WIDTH,
-    localparam int CPU_RSP_W = BUS_WIDTH
+    localparam int CPU_RSP_W = BUS_WIDTH + int'(BUS_ERR_EN)
 )(
     input  logic                        clk,
     input  logic                        rst_n,
@@ -92,8 +95,22 @@ module l1_cpu_plane
     output logic                        fe_req_maint,
     input  logic                        ctrl_req_ready,
     input  logic                        ctrl_rsp_valid,
-    input  logic [BUS_WIDTH-1:0]        ctrl_rsp_data
+    input  logic [BUS_WIDTH-1:0]        ctrl_rsp_data,
+    input  logic                        ctrl_rsp_err
 );
+
+    // the response the frontend carries: {err, rdata} under BUS_ERR_EN
+    logic [CPU_RSP_W-1:0] w_rsp;
+    if (BUS_ERR_EN) begin : g_rsp_err
+        assign w_rsp = {ctrl_rsp_err, ctrl_rsp_data};
+    end else begin : g_rsp
+        assign w_rsp = ctrl_rsp_data;
+
+        /* verilator lint_off UNUSEDSIGNAL */
+        logic unused_rsp_err;
+        assign unused_rsp_err = ctrl_rsp_err;
+        /* verilator lint_on UNUSEDSIGNAL */
+    end
 
     // ------------------------------------------------------------------
     // CPU frontend: GAXI slave <-> CPU seam
@@ -107,7 +124,8 @@ module l1_cpu_plane
         // amber TASK-005: the 1-cycle hit's response skips the staging
         // FIFO when it is taken in the cycle l1_control makes it
         .RSP_BYPASS (1'b1),
-        .MAINT_EN   (MAINT_EN)
+        .MAINT_EN   (MAINT_EN),
+        .RSP_ERR_EN (BUS_ERR_EN)
     ) u_frontend (
         .clk               (clk),
         .rst_n             (rst_n),
@@ -125,7 +143,7 @@ module l1_cpu_plane
         .req_maint         (fe_req_maint),
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
-        .ctrl_rsp_data     (ctrl_rsp_data)
+        .ctrl_rsp_data     (w_rsp)
     );
 
 endmodule : l1_cpu_plane

@@ -41,10 +41,12 @@ The trap is taken in MEM (Smith and Pleszkun's in-order case, PRD §4.3). Memory
 | EX | Illegal instruction | A CSR instruction naming an unimplemented CSR, or writing a read-only one (address bits 11:10 = 11) |
 | EX | Instruction address misaligned | A taken branch or JAL with `pc + imm` not word-aligned, or a JALR with `(rs1 + imm)` bit 1 set |
 | EX | Load / store address misaligned | `rs1[1:0] + imm[1:0]` not aligned for a halfword or word |
+| ID | Instruction access fault (`CACHE_EN=1`) | The fetch arrived with `imem_fault` (its I\$ refill failed); IF/ID carries `ifault` and a zero word, and ID replaces decode's cause with `EXC_IFAULT` |
+| WB | Load / store access fault (`CACHE_EN=1`) | `dmem_fault`: the wrapper's error response for WB's access (see "Bus Errors at WB" below) |
 
 : Where exceptions are detected
 
-EX keeps one cause per instruction, in that order of precedence: decode's, then the CSR illegal, then the misaligned target, then the misaligned access. The low address bits come from their own two-bit add, off the 32-bit adder.
+EX keeps one cause per instruction, in that order of precedence: the fetch fault (ID already put it in decode's place), decode's, then the CSR illegal, then the misaligned target, then the misaligned access. The low address bits come from their own two-bit add, off the 32-bit adder.
 
 ## The Commit
 
@@ -65,6 +67,9 @@ If both an exception and an interrupt are present, the interrupt wins: the instr
 | Misaligned target (0) | The resolved next PC (the target) |
 | Misaligned load (4), store (6) | The access address (`alu_y`) |
 | Illegal (2) | The instruction word |
+| Instruction access fault (1) | The PC |
+| Load (5) / store (7) access fault, from WB | The access's byte address (WB's `alu_y`) |
+| Bus error interrupt (16) | 0 |
 
 : mcause and mtval selection
 
@@ -78,6 +83,16 @@ A trap:
 
 `mret` redirects to `mepc` and updates `mstatus` the same way. A CSR write commits in MEM from `csr_wdata` computed in EX.
 
+## Bus Errors at WB
+
+A load or store learns that its access failed only from the response, and the registered-read contract delivers the response in WB (TASK-005). The commit point for that one trap is therefore WB, with MEM held so that the trap is still precise:
+
+1. **The wrapper holds on an error.** An error response does not count as a completion: `mem_wait` stays up through it (`r_outstanding & ~w_rsp_ok`) and the next access is not accepted in it (`w_dvalid` requires `~r_outstanding | w_rsp_ok`). The response is captured on the held side (`r_have` / `r_have_err` for WB's access, `r_mem_have` / `r_mem_err` for an access MEM had presented under an I\$ hold), so the error reaches the core from a flop.
+2. **The core traps WB.** `dmem_fault = r_have & r_have_err`; in the core `wb_fault = dmem_fault & WB valid & is_mem`. With `~mem_wait`, `wb_trap` enters the trap in `peregrine_csr` with WB's PC, cause 5 (load) or 7 (store) and `mtval` = WB's `alu_y`; WB retires as a trap beat (`rvfi_trap`, `rvfi_trap_cause`, `rvfi_pc_wdata = mtvec`, no `rd`, no `rvfi_mem_*`), and the register-file write is suppressed.
+3. **MEM is killed.** Every MEM-stage commit is qualified by `~wb_fault` (`mem_valid = ex_mem_q.valid & ~wb_fault`): no CSR write, no MEM trap, `mret` or `fence.i`, and MEM's instruction does not enter WB. The data request is the one exception: `dmem_req_pre` is left ungated in the core, because it is the core -> amber accept cone that limits the 75 MHz build (gating it there cost a LUT level and 0.31 ns of slack at `MUL_DSP=1`); the wrapper, whose own flop raised the fault, neither presents nor waits for MEM's request in that cycle (`~w_dfault` in `w_dvalid` and in the hold). The redirect (`mem_redirect_nw` includes `wb_fault`) flushes IF/ID, ID/EX and the instruction leaving EX, cancels the M unit, and blocks the predictor update.
+
+Everything older than the faulting instruction has retired, and the instruction in MEM was held through the error response, so nothing younger has committed. The one rule this bends is "every instruction that leaves EX retires": the instruction killed in MEM had already trained the predictor, which is not architectural state (and the predictor model check runs without bus errors). OKAY responses take exactly the cycles they did before.
+
 ## When an Interrupt Is Taken
 
 Interrupts are sampled at MEM: a pending, enabled interrupt attaches to the valid instruction entering MEM (precise at the oldest uncommitted instruction). Three rules move it:
@@ -85,6 +100,8 @@ Interrupts are sampled at MEM: a pending, enabled interrupt attaches to the vali
 **An M instruction is not interruptible.** It reaches MEM only with its result done. The first stage-2 build let the interrupt take it, discarding up to 33 cycles of work, and a timer re-raised 3 to 40 cycles after each acknowledge then caught every M instruction before it retired: a livelock, measured in the directed suite. The interrupt now goes to the next instruction; the boundary falls between the M instruction and its successor and `mepc` is the successor's PC, still precise. The cost is latency (about 34 cycles per back-to-back M instruction); kept as the simple solution (owner, 2026-11-24), alternatives in riscv-ip/peregrine-rv32im ISSUE-001.
 
 **A presented access is not interruptible as its hold drops** (`CACHE_EN=1`). `r_mem_irq_lock` is set while the core is held with a load, store or `fence.i` in MEM that has presented its request; it is still set in the cycle the hold drops. Without it, an interrupt arriving during the hold would kill the instruction in that cycle and withdraw a request that the target had seen but not yet accepted, which the GAXI and AXI rules forbid. The `irq_lock` program aims the timer at exactly that cycle; removing the lock dropped 161 requests (TASK-001 stage 4).
+
+**The bus-error interrupt (16) is an ordinary interrupt.** amber's write-back error status is `mip.16` (`irq_buserr`), and it is taken by the same `mem_irq` rule, M-instruction and lock gates included. It has the highest priority.
 
 **Nothing commits during a hold.** `mem_trap` is gated by `~mem_wait`; an interrupt pending during a D\$ miss is taken when the access completes (the cache is blocking).
 
@@ -94,4 +111,4 @@ CSR instructions read in EX and write in MEM. The CSR serialization interlock ke
 
 ---
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-27

@@ -28,6 +28,19 @@
 //          peregrine_top issues one at a time per channel).  Behavioral,
 //          not synthesizable.
 //
+//          Bus-error windows (TASK-005), decoded from address bits 27:24 of
+//          the transaction's AxADDR, in any region (cacheable, uncached or
+//          instruction):
+//            0xE  DECERR on every R beat and on B
+//            0xD  SLVERR on every R beat and on B
+//            0xC  reads OKAY, writes SLVERR (a dirty line there fails its
+//                 write-back only)
+//          A write answered with an error changes no memory.  The test
+//          images use bits 27:24 = 0, and spike maps none of 0x1C00_0000-
+//          0x1EFF_FFFF or 0x4C00_0000-0x4EFF_FFFF, so a program that
+//          touches the 0xD / 0xE windows there takes the same access
+//          faults in spike.
+//
 //          RSP_SCRAMBLE=1 (TASK-001 stage 7): amber's response data
 //          (u_top.w_dc_rsp_data, its cpu_rsp_rd_data) is forced to an LFSR
 //          value on every cycle its response valid is low.  amber keeps its
@@ -220,6 +233,8 @@ module peregrine_sys_tb_top #(
     logic [31:0]      r_rd_addr;
     logic [7:0]       r_rd_left;
     logic [FIW-1:0]   r_rd_id;
+    logic [1:0]       r_rd_resp;
+    logic [1:0]       r_wr_resp;
     logic             r_wr_act;
     logic             r_wr_bpend;
     logic [31:0]      r_wr_addr;
@@ -229,10 +244,19 @@ module peregrine_sys_tb_top #(
         return a[MEM_ADDR_MSB:2];
     endfunction
 
+    // The error windows (see the header).
+    function automatic logic [1:0] rd_resp_of(input logic [31:0] a);
+        return (a[27:24] == 4'hE) ? 2'b11 : (a[27:24] == 4'hD) ? 2'b10 : 2'b00;
+    endfunction
+    function automatic logic [1:0] wr_resp_of(input logic [31:0] a);
+        return (a[27:24] == 4'hE) ? 2'b11 :
+               ((a[27:24] == 4'hD) || (a[27:24] == 4'hC)) ? 2'b10 : 2'b00;
+    endfunction
+
     assign arready = ~r_rd_act & ~mem_wait;
     assign rvalid  = r_rd_act & ~mem_wait;
     assign rid     = r_rd_id;
-    assign rresp   = 2'b00;
+    assign rresp   = r_rd_resp;
     assign rlast   = (r_rd_left == 8'd0);
     assign rdata   = {mem[widx({r_rd_addr[31:3], 3'b100})], mem[widx({r_rd_addr[31:3], 3'b000})]};
 
@@ -240,7 +264,7 @@ module peregrine_sys_tb_top #(
     assign wready  = r_wr_act & ~mem_wait;
     assign bvalid  = r_wr_bpend & ~mem_wait;
     assign bid     = r_wr_id;
-    assign bresp   = 2'b00;
+    assign bresp   = r_wr_resp;
 
     assign fab_ar_hs  = arvalid & arready;
     assign fab_araddr = araddr;
@@ -252,6 +276,8 @@ module peregrine_sys_tb_top #(
             r_rd_addr  <= '0;
             r_rd_left  <= '0;
             r_rd_id    <= '0;
+            r_rd_resp  <= 2'b00;
+            r_wr_resp  <= 2'b00;
             r_wr_act   <= 1'b0;
             r_wr_bpend <= 1'b0;
             r_wr_addr  <= '0;
@@ -262,6 +288,7 @@ module peregrine_sys_tb_top #(
                 r_rd_addr <= araddr;
                 r_rd_left <= arlen;
                 r_rd_id   <= arid;
+                r_rd_resp <= rd_resp_of(araddr);
             end else if (rvalid && rready) begin
                 r_rd_addr <= r_rd_addr + 32'd8;
                 r_rd_left <= r_rd_left - 8'd1;
@@ -271,9 +298,10 @@ module peregrine_sys_tb_top #(
                 r_wr_act  <= 1'b1;
                 r_wr_addr <= awaddr;
                 r_wr_id   <= awid;
+                r_wr_resp <= wr_resp_of(awaddr);
             end else if (wvalid && wready) begin
                 for (int b = 0; b < 8; b++) begin
-                    if (wstrb[b]) begin
+                    if (wstrb[b] && (r_wr_resp == 2'b00)) begin
                         mem[widx({r_wr_addr[31:3], b[2], 2'b00})][(b % 4) * 8 +: 8] = wdata[b * 8 +: 8];
                     end
                 end

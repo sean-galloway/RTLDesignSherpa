@@ -64,6 +64,18 @@
 //     cache raises -- fill launches and dirty write-back launches. Clean
 //     evictions are silent. Pure observation output.
 //
+//   * Bus errors (amber TASK-008, BUS_ERR_EN=1): an R beat or a B with
+//     RESP[1] set (SLVERR / DECERR) is seen here, on the engine seam, and
+//     handed to l1_control as a pulse (a failed fill is answered with
+//     ctrl_rsp_err; a failed clean-all write-back drops its line). A
+//     failed write-back of either kind also loads the sticky write-back
+//     error status: wb_err_valid with the line address the drain wrote
+//     (wb_err_addr), held until wb_err_clear. A second failure while it is
+//     held keeps the first address and sets wb_err_ovf; a failure in the
+//     clear's own cycle is latched fresh (a clear never loses one). The
+//     engines (l1_fill / l1_drain, shared with jet) are untouched.
+//     BUS_ERR_EN=0 (default) ties all of it off.
+//
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
@@ -118,6 +130,9 @@ module l1_coh_core
     // amber TASK-006: 1 = sole coherent master; read fills install E
     // (l1_control READ_FILL_E). Default 0 installs S.
     parameter bit READ_FILL_E    = 1'b0,
+    // amber TASK-008: 1 = act on SLVERR / DECERR (see the header). Default
+    // 0: ctrl_rsp_err and wb_err_* are constant 0, wb_err_clear unused.
+    parameter bit BUS_ERR_EN     = 1'b0,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH
@@ -148,6 +163,18 @@ module l1_coh_core
     output logic                        ctrl_req_ready,
     output logic                        ctrl_rsp_valid,
     output logic [BUS_WIDTH-1:0]        ctrl_rsp_data,
+    // the response answers a failed fill (BUS_ERR_EN; valid with
+    // ctrl_rsp_valid)
+    output logic                        ctrl_rsp_err,
+
+    // ------------------------------------------------------------------
+    // Write-back error status (amber TASK-008, BUS_ERR_EN): sticky until
+    // wb_err_clear; the line address of the first failed write-back
+    // ------------------------------------------------------------------
+    output logic                        wb_err_valid,
+    output logic [ADDR_WIDTH-1:0]       wb_err_addr,
+    output logic                        wb_err_ovf,
+    input  logic                        wb_err_clear,
 
     // ------------------------------------------------------------------
     // Fabric (snoop) seam to the fabric plane
@@ -308,6 +335,14 @@ module l1_coh_core
     logic                                  ctrl_drain_done;
     logic                                  ctrl_drain_clean;
 
+    // bus errors on the engine seam (TASK-008): a failed R beat / B
+    logic                                  w_fill_err;
+    logic                                  w_drain_err;
+    assign w_fill_err  = BUS_ERR_EN & fub_axi_rvalid & fub_axi_rready
+                         & fub_axi_rresp[1];
+    assign w_drain_err = BUS_ERR_EN & fub_axi_bvalid & fub_axi_bready
+                         & fub_axi_bresp[1];
+
     l1_control #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .SETS       (SETS),
@@ -316,7 +351,8 @@ module l1_coh_core
         .BUS_WIDTH  (BUS_WIDTH),
         .PF_GUARD   (PF_GUARD),
         .DATA_SYNC_READ (DATA_SYNC_READ),
-        .READ_FILL_E    (READ_FILL_E)
+        .READ_FILL_E    (READ_FILL_E),
+        .BUS_ERR_EN     (BUS_ERR_EN)
     ) u_control (
         .clk                     (clk),
         .rst_n                   (rst_n),
@@ -329,6 +365,7 @@ module l1_coh_core
         .ctrl_req_ready          (ctrl_req_ready),
         .ctrl_rsp_valid          (ctrl_rsp_valid),
         .ctrl_rsp_data           (ctrl_rsp_data),
+        .ctrl_rsp_err            (ctrl_rsp_err),
         .ctrl_tag_a_set          (ctrl_tag_a_set),
         .ctrl_tag_a_tag_state    (ctrl_tag_a_tag_state),
         .ctrl_tag_a_wr_en        (ctrl_tag_a_wr_en),
@@ -370,6 +407,8 @@ module l1_coh_core
         .ctrl_drain_start        (ctrl_drain_start),
         .ctrl_drain_done         (ctrl_drain_done),
         .ctrl_drain_clean        (ctrl_drain_clean),
+        .ctrl_fill_err           (w_fill_err),
+        .ctrl_drain_err          (w_drain_err),
         .ctrl_snoop_req          (ctrl_snoop_req),
         .ctrl_snoop_ready        (ctrl_snoop_ready),
         .ctrl_snoop_safe         (ctrl_snoop_safe),
@@ -588,6 +627,50 @@ module l1_coh_core
                            ? (ctrl_drain_clean ? 3'(AMBER_ACE_WRITE_CLEAN)
                                                : 3'(AMBER_ACE_WRITE_BACK))
                            : ctrl_req_class;
+
+    // ------------------------------------------------------------------
+    // Write-back error status (TASK-008): the address is the drain's own
+    // AW address (l1_drain holds it from drain_start through the B), so it
+    // is exactly the line whose write failed.
+    // ------------------------------------------------------------------
+    if (BUS_ERR_EN) begin : g_wb_err
+        logic                  r_wb_err_valid;
+        logic [ADDR_WIDTH-1:0] r_wb_err_addr;
+        logic                  r_wb_err_ovf;
+
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) begin
+                r_wb_err_valid <= 1'b0;
+                r_wb_err_addr  <= '0;
+                r_wb_err_ovf   <= 1'b0;
+            end else if (wb_err_clear) begin
+                // a failure in the clear's cycle is latched fresh
+                r_wb_err_valid <= w_drain_err;
+                r_wb_err_ovf   <= 1'b0;
+                if (w_drain_err) r_wb_err_addr <= fub_axi_awaddr;
+            end else if (w_drain_err) begin
+                if (r_wb_err_valid) begin
+                    r_wb_err_ovf   <= 1'b1;        // keep the first address
+                end else begin
+                    r_wb_err_valid <= 1'b1;
+                    r_wb_err_addr  <= fub_axi_awaddr;
+                end
+            end
+        )
+
+        assign wb_err_valid = r_wb_err_valid;
+        assign wb_err_addr  = r_wb_err_addr;
+        assign wb_err_ovf   = r_wb_err_ovf;
+    end else begin : g_no_wb_err
+        assign wb_err_valid = 1'b0;
+        assign wb_err_addr  = '0;
+        assign wb_err_ovf   = 1'b0;
+
+        /* verilator lint_off UNUSEDSIGNAL */
+        logic unused_wb_err;
+        assign unused_wb_err = &{1'b0, wb_err_clear};
+        /* verilator lint_on UNUSEDSIGNAL */
+    end
 
     // ------------------------------------------------------------------
     // MonBus observer (MAS ch04). Payload taps of control-internal

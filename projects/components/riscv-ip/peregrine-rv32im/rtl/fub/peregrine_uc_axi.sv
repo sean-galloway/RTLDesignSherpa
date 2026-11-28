@@ -19,7 +19,8 @@
 //          reached the fabric).  The consumer always takes it; rsp_rdata
 //          is 0 outside the rsp_valid cycle (a consumer that held it
 //          longer would be relying on this port, not on the contract a D$
-//          also meets).
+//          also meets).  rsp_err, valid with rsp_valid, is the response's
+//          RRESP[1] / BRESP[1]: SLVERR or DECERR (TASK-005).
 //
 //          A load is AxSIZE 4 bytes at the word address; a store drives its
 //          byte strobes on the word's lanes of the AXI_DW beat.  AW and W
@@ -36,8 +37,9 @@
 //   - AXI_IW: AXI id width; the port always uses id 0.
 //
 // Notes:
-//   - rresp / bresp are not reported: peregrine has no access-fault
-//     exception (PRD P6), and the fabric never answers with an error.
+//   - rresp / bresp: bit 1 is reported on rsp_err (the core's load / store
+//     access fault, TASK-005); bit 0 (EXOKAY vs OKAY, SLVERR vs DECERR) is
+//     not, since both pairs mean the same here (no exclusive accesses).
 //
 // Related Modules:
 //   - peregrine_top, peregrine_axi4_arb (port 2)
@@ -61,6 +63,7 @@ module peregrine_uc_axi #(
     input  logic [31:0]         req_wdata,
     output logic                rsp_valid,
     output logic [31:0]         rsp_rdata,
+    output logic                rsp_err,
 
     output logic [AXI_IW-1:0]   m_axi_arid,
     output logic [31:0]         m_axi_araddr,
@@ -139,9 +142,11 @@ module peregrine_uc_axi #(
             r_w_done  <= 1'b0;
             rsp_valid <= 1'b0;
             rsp_rdata <= '0;
+            rsp_err   <= 1'b0;
         end else begin
             rsp_valid <= 1'b0;
             rsp_rdata <= '0;        // data only with rsp_valid
+            rsp_err   <= 1'b0;
             unique case (r_state)
                 S_IDLE: begin
                     if (w_req_hs) begin
@@ -159,6 +164,7 @@ module peregrine_uc_axi #(
                     if (m_axi_rvalid) begin
                         rsp_valid <= 1'b1;
                         rsp_rdata <= m_axi_rdata[w_lane * 32 +: 32];
+                        rsp_err   <= m_axi_rresp[1];
                         r_state   <= S_IDLE;
                     end
                 end
@@ -168,6 +174,7 @@ module peregrine_uc_axi #(
                     if (m_axi_bvalid) begin
                         rsp_valid <= 1'b1;
                         rsp_rdata <= '0;
+                        rsp_err   <= m_axi_bresp[1];
                         r_state   <= S_IDLE;
                     end
                 end
@@ -204,6 +211,6 @@ module peregrine_uc_axi #(
     end
 
     logic w_unused;
-    assign w_unused = &{1'b0, m_axi_rid, m_axi_rresp, m_axi_rlast, m_axi_bid, m_axi_bresp};
+    assign w_unused = &{1'b0, m_axi_rid, m_axi_rresp[0], m_axi_rlast, m_axi_bid, m_axi_bresp[0]};
 
 endmodule : peregrine_uc_axi

@@ -81,11 +81,17 @@ Two later consumers depend on what peregrine chooses:
   (P9).
 - **Traps.** These are the exceptions the spec names: illegal
   instruction, `ecall`, `ebreak`, and misaligned fetch, load and store.
-  Load and store access faults (AXI SLVERR and DECERR) are **not
-  built**: bus error responses are ignored (amended 2026-11-25, owner:
-  "amend the prd for now"; error handling is riscv-ip/peregrine-rv32im
-  TASK-005). Interrupts are machine software, machine timer and machine
-  external.
+  **Access faults are built** (riscv-ip/peregrine-rv32im TASK-005, owner
+  decisions 2026-11-27; the 2026-11-25 "not built" amendment is
+  retired): on the cached build an AXI SLVERR or DECERR is a load access
+  fault (cause 5) or a store/AMO access fault (cause 7) from the uncached
+  port or a failed amber fill, and an instruction access fault (cause 1)
+  from a failed I$ refill, each precise with `mtval` = the faulting
+  address (the fetch PC for cause 1). A failed write-back of a dirty
+  line has no instruction to blame: amber drops the line and holds its
+  address, and peregrine takes the imprecise platform interrupt 16 (P6).
+  Interrupts are machine software, machine timer, machine external and,
+  on the cached build, that bus-error interrupt.
 
 ## 4. Microarchitecture
 
@@ -171,8 +177,19 @@ in-order case):
   and IF/ID/EX are flushed.
 - The instruction in WB is older, so it retires. Nothing younger has
   touched memory, the regfile or a CSR.
-- A load or store access fault would arrive from the D$ in MEM, at the
-  same point, so it would be precise as well. Not built (§3, TASK-005).
+- A load or store access fault (TASK-005) arrives with the access's
+  response, which the registered-read D side delivers in WB, one stage
+  past MEM. That one trap is taken in WB, and it is still precise: an
+  error response holds the core one more cycle and does not free the
+  port, so the instruction in MEM behind the faulting access has not
+  committed (no access, no CSR write); WB then retires the faulting
+  instruction as a trap beat (no `rd`, `mtval` = its address) and the
+  instruction in MEM is discarded with everything younger. OKAY
+  responses keep their cycles. The instruction discarded in MEM had
+  already trained the predictor (§4.2's "every instruction that leaves
+  EX retires" has this one exception; predictor state is not
+  architectural). An instruction access fault rides from IF with its
+  instruction (a zero word) and traps at MEM like any other exception.
 - CSR writes happen in MEM, so a CSR write never lands under an older
   trap. CSRs are read in EX (the CSR file's old value rides to WB); a
   CSR instruction in ID behind an older CSR instruction still in EX or MEM
@@ -262,7 +279,14 @@ alternatives are tracked in riscv-ip/peregrine-rv32im ISSUE-001.
   write-through. The rv32ui `fence_i` test and arch-test `Zifencei` are
   the gates.
 - **Uncached window.** The CLINT, `tohost` and board I/O bypass the D$
-  (P7).
+  (P7). The window is a parameter of `peregrine_top` (TASK-005, for
+  hive): `(addr & UC_MASK) == UC_BASE`, default 0x1000_0000 /
+  0xF000_0000, the P7 window, so no existing system changes.
+- **Bus errors (TASK-005, amber TASK-008).** A refill that fails installs
+  nothing (I$ and amber, `BUS_ERR_EN=1` on amber); amber answers the
+  request with an error bit. A failed dirty write-back (eviction or the
+  `fence.i` clean) drops the line, latches its address in amber's sticky
+  status, and is interrupt 16 with the `mbuserr` CSR (P6).
 - **Cacheless build (P12).** `CACHE_EN=0` replaces both caches with
   merlin's Harvard registered-read ports. That build runs the batteries
   fast, keeps riscv-formal's insn checks reachable, and isolates core bugs
@@ -386,8 +410,8 @@ the worked version, with measured miss rates replacing the assumed ones.
 | P3 | M unit | **DECIDED (spec), REVISED 2026-11-23 (Sean, "Hold in EX"):** iterative multicycle, the M instruction held in EX until done (front end stalls behind it), not a busy scoreboard with late writeback: the scoreboard's late rd write is invisible to RVFI and breaks P12's insn checks. The true scoreboard is gyrfalcon's lesson | EX, hazard unit |
 | P4 | Caches | **DECIDED (spec; amber PRD v0.8, 2026-10-30, Sean):** split blocking L1s, the D$ is amber, write-back + dirty bit | memory path |
 | P5 | Predictor sizing | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"); built 2026-11-24:** BTB 32 entries direct-mapped, BHT 256 counters indexed by PC[9:2], no RAS, `BP_EN` parameter for the predict-not-taken A/B | IF area/timing, drill |
-| P6 | CSR set | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `mstatus` (MIE, MPIE, MPP fixed at M), `mie`, `mip`, `mtvec` (direct mode only), `mepc`, `mcause`, `mscratch`, `mtval`; read-only `misa`, `mhartid`=0, `mvendorid`/`marchid`/`mimpid`/`mconfigptr`=0; PMP CSRs with zero entries (`pmpcfg0-15`, `pmpaddr0-63` read 0, writes ignored: the spec makes them WARL, so a core without PMP still accepts them; added in stage 1, 2026-11-23); no Zicntr (gatling's 2026-10-21 precedent; cycle counts come from MonBus). CSR read-after-write stalls rather than forwards | decode, trap unit, rv32mi pass set |
-| P7 | Address map and fabric | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** RAM cacheable from `RESET_ADDR` (kestrel's 0x0000_0000); CLINT at 0x0200_0000 in the SiFive layout (`msip` +0x0, `mtimecmp` +0x4000, `mtime` +0xBFF8) inside the core wrapper; 0x1000_0000-0x1FFF_FFFF uncached I/O (board UART and other MMIO), everything else cacheable. **AMENDED 2026-11-24 (Sean, "Amend P7"):** the row said "0x1000_0000 and up", but the riscv-tests and arch-test images link at 0x8000_0000 and must stay cacheable, so the window is bounded at 0x1FFF_FFFF. The sim TBs detect `tohost` from the store's RVFI retire, so a `tohost` in the cacheable image needs no uncached path; the I$, D$ and uncached masters merged by a small house AXI4 arbiter to one fabric port | TB top, hive glue |
+| P6 | CSR set | **AMENDED 2026-11-27 (owner, TASK-005; built):** instruction access fault (cause 1) is in scope: an I$ refill answered SLVERR / DECERR installs nothing and the fetch traps precisely with `mtval` = its PC. The cached build adds platform interrupt 16 (`mip.16` / `mie.16`, mcause 0x8000_0010, highest priority) for amber's failed write-back, and the custom M-mode CSR `mbuserr` at 0x7C0: read {line address[31:2], overflow, valid}, any write clears it. The cacheless build has neither. **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** `mstatus` (MIE, MPIE, MPP fixed at M), `mie`, `mip`, `mtvec` (direct mode only), `mepc`, `mcause`, `mscratch`, `mtval`; read-only `misa`, `mhartid`=0, `mvendorid`/`marchid`/`mimpid`/`mconfigptr`=0; PMP CSRs with zero entries (`pmpcfg0-15`, `pmpaddr0-63` read 0, writes ignored: the spec makes them WARL, so a core without PMP still accepts them; added in stage 1, 2026-11-23); no Zicntr (gatling's 2026-10-21 precedent; cycle counts come from MonBus). CSR read-after-write stalls rather than forwards | decode, trap unit, rv32mi pass set |
+| P7 | Address map and fabric | **AMENDED 2026-11-27 (owner, TASK-005, for hive): the uncached window is the parameters `UC_BASE` / `UC_MASK` of `peregrine_top`, defaults the window below.** **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** RAM cacheable from `RESET_ADDR` (kestrel's 0x0000_0000); CLINT at 0x0200_0000 in the SiFive layout (`msip` +0x0, `mtimecmp` +0x4000, `mtime` +0xBFF8) inside the core wrapper; 0x1000_0000-0x1FFF_FFFF uncached I/O (board UART and other MMIO), everything else cacheable. **AMENDED 2026-11-24 (Sean, "Amend P7"):** the row said "0x1000_0000 and up", but the riscv-tests and arch-test images link at 0x8000_0000 and must stay cacheable, so the window is bounded at 0x1FFF_FFFF. The sim TBs detect `tohost` from the store's RVFI retire, so a `tohost` in the cacheable image needs no uncached path; the I$, D$ and uncached masters merged by a small house AXI4 arbiter to one fabric port | TB top, hive glue |
 | P8 | M-unit latency | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** radix-2 for both (33 cycles), `MUL_DSP` parameter for a 1–2 cycle DSP multiply as the measured contrast. Built 2026-11-23: 33 stall cycles iterative, 1 on a divide early-out, 2 with `MUL_DSP=1` | CPI, book chapter |
 | P9 | I$ | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** in-core `peregrine_icache`, direct-mapped 4 KiB, 64 B lines, read-only, one AXI4 read master; marked as the slot a cache-ip I$ would replace | IF, area |
 | P10 | `fence.i` | **DECIDED 2026-11-23 (Sean, "accept defaults on the rest"):** D$ clean-all + I$ invalidate + pipeline flush; needs a CPU-side clean-all request on amber (filed as cache-ip/amber-mesi-l1 TASK-004, done 2026-11-24). The cacheless build (`CACHE_EN=0`) flushes and redirects too (owner 2026-11-25), so both builds pass Zifencei | amber, Zifencei tests |
@@ -412,10 +436,19 @@ the worked version, with measured miss rates replacing the assumed ones.
 4. Targeted formal; riscv-formal on `CACHE_EN=0`.
 5. Book: *Simplified RV32IM: peregrine — speculation and traps*, with
    predictor drill mode 3 in `core_drills`.
-6. The hive HIVE-C `CORE_FLAVOR=peregrine` swap, as the system
-   bring-up.
+6. ~~The hive HIVE-C `CORE_FLAVOR=peregrine` swap~~ -- moved to hive
+   (compute-eng-ip/hive TASK-001, owner 2026-11-27); not a peregrine
+   deliverable.
 
 ## 8. History
+
+- 2026-11-27: TASK-005 (bus errors) built, owner decisions 2026-11-27:
+  load / store access faults from the uncached port and amber fills,
+  taken precisely in WB; instruction access faults from I$ refills (P6
+  amended); a failed dirty write-back as platform interrupt 16 with the
+  `mbuserr` CSR (amber TASK-008 drops the line and latches its address);
+  the uncached window parameterized (P7 amended). §3 and §4.3 back to
+  "built"; OKAY-response cycle counts unchanged.
 
 - 2026-11-26: P14 amended (owner): 75 MHz is the floor. TASK-006 closes
   13.333 ns (+0.300 / +0.099 for `MUL_DSP=0` / 1, and every placement

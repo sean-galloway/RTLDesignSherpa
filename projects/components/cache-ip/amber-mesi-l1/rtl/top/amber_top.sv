@@ -92,12 +92,20 @@ module amber_top
     // IsShared, and this is the only way to know a line is unshared.
     // Default 0 installs S (pair rig, Genesys2 harness).
     parameter bit READ_FILL_E    = 1'b0,
+    // amber TASK-008: 1 = bus errors are reported (peregrine's access
+    // faults). A fill answered SLVERR / DECERR installs nothing and its
+    // request is answered with the error bit, cpu_rsp_rd_data[BUS_WIDTH]
+    // (the response is one bit wider); a failed dirty write-back drops the
+    // line and loads the sticky wb_err_* status. Default 0: the response is
+    // BUS_WIDTH, wb_err_* are 0 and wb_err_clear is unused -- every
+    // existing consumer elaborates what it did before.
+    parameter bit BUS_ERR_EN     = 1'b0,
     localparam int STRB_W       = BUS_WIDTH / 8,
     localparam int IW           = AXI_ID_WIDTH,
     localparam int UW           = AXI_USER_WIDTH,
     localparam int CPU_REQ_W    = int'(MAINT_EN) + ADDR_WIDTH + 1 + STRB_W
                                   + BUS_WIDTH,
-    localparam int CPU_RSP_W    = BUS_WIDTH
+    localparam int CPU_RSP_W    = BUS_WIDTH + int'(BUS_ERR_EN)
 )(
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -199,6 +207,16 @@ module amber_top
     output logic [63:0]                 mon_timestamp,
 
     // ------------------------------------------------------------------
+    // Write-back error status (amber TASK-008, BUS_ERR_EN): the line
+    // address of the first failed write-back, sticky until wb_err_clear;
+    // wb_err_ovf = another failed while it was held
+    // ------------------------------------------------------------------
+    output logic                        wb_err_valid,
+    output logic [ADDR_WIDTH-1:0]       wb_err_addr,
+    output logic                        wb_err_ovf,
+    input  logic                        wb_err_clear,
+
+    // ------------------------------------------------------------------
     // Status / observability
     // ------------------------------------------------------------------
     output logic                        init_busy,
@@ -255,6 +273,7 @@ module amber_top
     logic                     ctrl_req_ready;
     logic                     ctrl_rsp_valid;
     logic [BUS_WIDTH-1:0]     ctrl_rsp_data;
+    logic                     ctrl_rsp_err;
 
     // ------------------------------------------------------------------
     // Fabric (snoop) seam between the coherence core plane and the AXI4
@@ -348,7 +367,8 @@ module amber_top
         .WAYS       (WAYS),
         .LINE_BYTES (LINE_BYTES),
         .BUS_WIDTH  (BUS_WIDTH),
-        .MAINT_EN   (MAINT_EN)
+        .MAINT_EN   (MAINT_EN),
+        .BUS_ERR_EN (BUS_ERR_EN)
     ) u_cpu (
         .clk               (aclk),
         .rst_n             (w_aresetn),
@@ -366,7 +386,8 @@ module amber_top
         .fe_req_maint      (fe_req_maint),
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
-        .ctrl_rsp_data     (ctrl_rsp_data)
+        .ctrl_rsp_data     (ctrl_rsp_data),
+        .ctrl_rsp_err      (ctrl_rsp_err)
     );
 
     // ------------------------------------------------------------------
@@ -385,7 +406,8 @@ module amber_top
         // amber_top always sits behind a coherence fabric (pair rig,
         // Genesys2 harness): enable the BUG-002 pending-fill snoop guard.
         .PF_GUARD       (1'b1),
-        .READ_FILL_E    (READ_FILL_E)
+        .READ_FILL_E    (READ_FILL_E),
+        .BUS_ERR_EN     (BUS_ERR_EN)
     ) u_coh (
         .clk               (aclk),
         .rst_n             (w_aresetn),
@@ -398,6 +420,11 @@ module amber_top
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
         .ctrl_rsp_data     (ctrl_rsp_data),
+        .ctrl_rsp_err      (ctrl_rsp_err),
+        .wb_err_valid      (wb_err_valid),
+        .wb_err_addr       (wb_err_addr),
+        .wb_err_ovf        (wb_err_ovf),
+        .wb_err_clear      (wb_err_clear),
         .ctrl_snoop_req    (core_snoop_req),
         .ctrl_snoop_ready  (core_snoop_ready),
         .ctrl_snoop_safe   (core_snoop_safe),

@@ -136,9 +136,26 @@
 //     CLEAN_COMMIT the B has arrived: the victim way goes M -> E unless a
 //                  snoop during the drain already moved it (S / I); back to
 //                  CLEAN_SCAN on the same set (its next M way, if any)
-//     CLEAN_RSP    the response (req_wdata_q echoed), then IDLE
+//     CLEAN_RSP    the response (req_wdata_q echoed), then IDLE; also the
+//                  answer to a failed fill (bus errors, below)
 //   Every cleaned line leaves M and nothing creates M during the walk (no
 //   CPU request is accepted, a snoop never installs M), so the walk ends.
+//
+//   Bus errors (amber TASK-008, BUS_ERR_EN=1; peregrine's access faults).
+//   ctrl_fill_err / ctrl_drain_err pulse per R beat / B carrying SLVERR or
+//   DECERR (RESP[1]); both are latched like the done pulses:
+//     FILL_WRITE   a failed fill installs nothing: a true fill writes the
+//                  victim way Invalid (the bad beats overwrote its data);
+//                  an upgrade leaves its line as installed (S, or the armed
+//                  snoop effect). No replay: the next state is CLEAN_RSP,
+//                  which answers from the latched context with
+//                  ctrl_rsp_err set (every one-hot state is in use, and
+//                  CLEAN_RSP is already "respond from the context")
+//     CLEAN_COMMIT a failed clean-all write-back drops the line (Invalid
+//                  instead of E), so the walk still ends
+//   A failed eviction write-back needs nothing here: the victim has
+//   already left the arrays. Its address is latched by l1_coh_core.
+//   BUS_ERR_EN=0 (default) ignores both inputs: the logic elaborates away.
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -215,6 +232,9 @@ module l1_control
     // AXI4 plane pads RRESP[3:2] to 0; amber_pair_fabric and onyx do not
     // compute it). Set only where no snoop can ever arrive (peregrine).
     parameter bit READ_FILL_E    = 1'b0,
+    // amber TASK-008: 1 = act on ctrl_fill_err / ctrl_drain_err (see the
+    // header). 0 (default): both are ignored and ctrl_rsp_err is 0.
+    parameter bit BUS_ERR_EN     = 1'b0,
     localparam int SET_INDEX_WIDTH   = $clog2(SETS),
     localparam int LINE_OFFSET_WIDTH = $clog2(LINE_BYTES),
     localparam int TAG_WIDTH         = ADDR_WIDTH - SET_INDEX_WIDTH - LINE_OFFSET_WIDTH,
@@ -243,6 +263,9 @@ module l1_control
     output logic                        ctrl_req_ready,
     output logic                        ctrl_rsp_valid,
     output logic [BUS_WIDTH-1:0]        ctrl_rsp_data,
+    // the response answers a failed fill (BUS_ERR_EN; valid with
+    // ctrl_rsp_valid, 0 otherwise)
+    output logic                        ctrl_rsp_err,
 
     // tag array port A (CPU/fill lookup + write)
     output logic [SET_INDEX_WIDTH-1:0]            ctrl_tag_a_set,
@@ -308,6 +331,11 @@ module l1_control
     // the drain in flight is a clean-all write-back (WriteClean, line
     // kept), not an eviction (WriteBack); stable from drain_start to done
     output logic                        ctrl_drain_clean,
+    // bus errors (amber TASK-008): one pulse per R beat with RRESP[1] set
+    // (SLVERR / DECERR) and per B with BRESP[1]. Read only at BUS_ERR_EN=1;
+    // tie 0 where the cache has no error contract (every harness).
+    input  logic                        ctrl_fill_err,
+    input  logic                        ctrl_drain_err,
 
     // snoop responder interface (l1_snoop_resp core-facing contract:
     // req held until ready; CRRESP latched at the grant; CD beats on
@@ -421,6 +449,15 @@ module l1_control
     // PassDirty is carried on the RRESP beat(s); the fill stub pulses it
     // during the burst, so capture it once seen and hold until commit.
     logic fill_pass_dirty_q;
+
+    // bus errors (TASK-008): latched from any state like the done pulses;
+    // fill_err_q / drain_err_q clear where fill_done_q / drain_done_q do,
+    // rsp_err_q carries a failed fill from FILL_WRITE to its CLEAN_RSP
+    // answer. Constant 0 at BUS_ERR_EN=0.
+    logic fill_err_q, drain_err_q, rsp_err_q;
+    logic fill_err, drain_err;
+    assign fill_err  = BUS_ERR_EN && fill_err_q;
+    assign drain_err = BUS_ERR_EN && drain_err_q;
 
     // back-to-back accept bookkeeping (TASK-005): the run length of
     // requests accepted in HIT_RD (the snoop window, HIT_RUN_MAX), and a
@@ -964,7 +1001,8 @@ module l1_control
                 else if (fill_seen_q && fill_done_q) state_d = OH_FILL_WRITE;
                 else                             state_d = OH_MISS_FILL;
             end
-            OH_FILL_WRITE: state_d = OH_REPLAY;
+            // a failed fill answers at once (no replay: it would miss again)
+            OH_FILL_WRITE: state_d = fill_err ? OH_CLEAN_RSP : OH_REPLAY;
             OH_REPLAY:     state_d = OH_LOOKUP;
             OH_SNOOP: begin
                 if (sn_complete) begin
@@ -1014,6 +1052,9 @@ module l1_control
             fill_seen_q    <= 1'b0;
             fill_done_q    <= 1'b0;
             fill_pass_dirty_q <= 1'b0;
+            fill_err_q     <= 1'b0;
+            drain_err_q    <= 1'b0;
+            rsp_err_q      <= 1'b0;
             drain_seen_q   <= 1'b0;
             drain_done_q   <= 1'b0;
             hit_run_q      <= '0;
@@ -1049,6 +1090,8 @@ module l1_control
             // so a CTRL_SNOOP detour can never miss them
             if (ctrl_fill_done)  fill_done_q  <= 1'b1;
             if (ctrl_drain_done) drain_done_q <= 1'b1;
+            if (BUS_ERR_EN && ctrl_fill_err)  fill_err_q  <= 1'b1;
+            if (BUS_ERR_EN && ctrl_drain_err) drain_err_q <= 1'b1;
 
             // snoop context is latched at the grant (cycle-exact)
             if (snoop_gnt) begin
@@ -1179,6 +1222,10 @@ module l1_control
                 OH_CLEAN_COMMIT: begin
                     drain_seen_q <= 1'b0;
                     drain_done_q <= 1'b0;
+                    drain_err_q  <= 1'b0;
+                end
+                OH_CLEAN_RSP: begin
+                    rsp_err_q    <= 1'b0;
                 end
                 OH_FILL_WRITE: begin
                     mv_cnt_q     <= '0;
@@ -1188,6 +1235,9 @@ module l1_control
                     drain_seen_q <= 1'b0;
                     drain_done_q <= 1'b0;
                     pend_vld_q   <= 1'b0;
+                    fill_err_q   <= 1'b0;
+                    drain_err_q  <= 1'b0;
+                    rsp_err_q    <= fill_err;
                 end
                 default: ;   // ERROR / SNOOP / illegal: context already latched
             endcase
@@ -1364,6 +1414,12 @@ module l1_control
                 ctrl_tag_a_wr_en         = cl_commit_m_q;
                 ctrl_tag_a_wr_way_onehot = victim_way_onehot;
                 ctrl_tag_a_wr_tag_state  = {victim_tag_q, AMBER_STATE_E};
+                // TASK-008: the WriteClean failed -- drop the line (memory
+                // does not hold it, and leaving it M would loop the walk)
+                if (drain_err) begin
+                    ctrl_tag_a_wr_en        = 1'b1;
+                    ctrl_tag_a_wr_tag_state = {victim_tag_q, AMBER_STATE_I};
+                end
             end
             OH_MISS_FILL: begin
                 ctrl_fill_start = !fill_seen_q;
@@ -1382,6 +1438,18 @@ module l1_control
                 end else begin
                     ctrl_repl_update  = 1'b1;   // install into victim way
                     ctrl_repl_hit_way = victim_way_q;
+                end
+                // TASK-008: a failed fill installs nothing. A true fill's
+                // victim way goes Invalid (the bad beats overwrote it); an
+                // upgrade keeps its line as installed (S, or the snoop
+                // effect armed during it). The replacement state is not
+                // touched: no line was installed or accessed.
+                if (fill_err) begin
+                    ctrl_tag_a_wr_tag_state = {req_tag,
+                        upgr_q ? (pend_vld_q ? pend_state_q : hit_state_q)
+                               : AMBER_STATE_I};
+                    ctrl_repl_hit    = 1'b0;
+                    ctrl_repl_update = 1'b0;
                 end
             end
             OH_SNOOP: begin
@@ -1414,6 +1482,8 @@ module l1_control
     // a clean-all response echoes the request's wdata (the CPU drives 0)
     assign ctrl_rsp_data  = (state_q == OH_HIT_WR || state_q == OH_CLEAN_RSP)
                             ? req_wdata_q : ctrl_data_a_rdata;
+    // TASK-008: CLEAN_RSP also answers a failed fill (rsp_err_q)
+    assign ctrl_rsp_err   = BUS_ERR_EN && (state_q == OH_CLEAN_RSP) && rsp_err_q;
     assign ctrl_drain_clean = req_maint_q;
     assign ctrl_init_busy = (state_q == OH_INIT);
     assign ctrl_init_set  = init_cnt_q;

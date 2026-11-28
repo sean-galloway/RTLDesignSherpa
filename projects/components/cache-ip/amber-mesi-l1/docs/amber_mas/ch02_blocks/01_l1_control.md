@@ -205,6 +205,53 @@ no M line left (`ap_clean_rsp_no_m`) and no drain outstanding
 (`ap_clean_rsp_after_b`); the liveness proof bounds every residence of the
 walk's states.
 
+### Bus errors (amber TASK-008, `BUS_ERR_EN = 1`)
+
+peregrine takes load and store access faults on an AXI `SLVERR` / `DECERR`
+(riscv-ip/peregrine-rv32im TASK-005), so its D\$ must say when a fill
+failed. `l1_coh_core` watches the engine seam: an R beat handshake with
+`rresp[1]` set pulses `ctrl_fill_err`, a B handshake with `bresp[1]` set
+pulses `ctrl_drain_err`. The engines (`l1_fill`, `l1_drain`, shared with
+jet) are untouched. `l1_control` latches both like the done pulses
+(`fill_err_q`, `drain_err_q`, from any state, so a snoop detour cannot miss
+one) and clears them where `fill_done_q` / `drain_done_q` clear.
+
+| Event | `l1_control` | Result |
+|-------|--------------|--------|
+| A fill (true miss) with any error beat | `CTRL_FILL_WRITE` writes the victim way `{req_tag, I}`, touches no replacement state, and goes to `CTRL_CLEAN_RSP` instead of `CTRL_REPLAY` | The request is answered at once with `ctrl_rsp_err`; nothing is installed, and the line the victim way held (its data overwritten by the bad beats) is gone. The next access to the line misses and fills again |
+| A CleanUnique upgrade answered with an error | `CTRL_FILL_WRITE` rewrites the hit way with its installed state (S, or the snoop effect armed during the upgrade) | The store is answered with the error; the line stays S with its data |
+| A dirty eviction's write-back answered with an error | Nothing: the victim already left the arrays | The line is dropped; the miss behind it completes normally. `l1_coh_core` latches the failure (below) |
+| A clean-all WriteClean answered with an error | `CTRL_CLEAN_COMMIT` writes the line `{tag, I}` instead of E | The line is dropped (leaving it M would loop the walk); the clean-all completes and answers OKAY. `l1_coh_core` latches the failure |
+
+: Bus-error handling in the control FSM
+
+**Why `CTRL_CLEAN_RSP`.** All 16 one-hot codes are in use, and
+`CTRL_CLEAN_RSP` is already "answer from the latched context, then IDLE":
+the failed fill's response leaves from it, with `ctrl_rsp_err =
+(state == CLEAN_RSP) & rsp_err_q` (`rsp_err_q` is set at the failing
+`CTRL_FILL_WRITE`, cleared in `CTRL_CLEAN_RSP`). The response data is the
+request's `wdata`, which means nothing on an error. The CPU plane carries
+the bit above the data: with `BUS_ERR_EN = 1` the response is
+`{err, rdata}`, one bit wider, through `l1_cpu_frontend`'s `RSP_ERR_EN`
+(its staging FIFO widens by the bit; default 0 for every other consumer,
+jet included).
+
+**The write-back error status** lives in `l1_coh_core`: `wb_err_valid`,
+`wb_err_addr` (the failing drain's own AW address, which `l1_drain` holds
+from `drain_start` through the B, so it is exactly the line that was lost)
+and `wb_err_ovf`. The first failure sets valid and the address; a failure
+while valid only sets `wb_err_ovf`; `wb_err_clear` clears both, and a
+failure in the clear's own cycle is latched fresh, so a clear never loses
+one. peregrine takes `wb_err_valid` as its platform interrupt 16 and reads
+and clears the status through its `mbuserr` CSR.
+
+**OKAY responses are unchanged.** Every term is AND-ed with the response
+code, and at `BUS_ERR_EN = 0` (the default) all of it elaborates away: the
+response is `BUS_WIDTH` wide, `wb_err_*` are 0 and `wb_err_clear` is
+unused. A snoop answered from the pending-fill bypass during a fill that
+later fails was given that fill's (bad) data; `BUS_ERR_EN = 1` is meant for
+a cache with no coherent peer (peregrine ties the snoop port idle).
+
 **Cost.** One cycle per set scanned plus, per M line, the gather
 (`FILL_BEATS` + 1 cycles), the drain (AW, W beats, B: fabric dependent) and
 the commit. At the default 128 sets with no dirty line a clean-all is
@@ -289,6 +336,8 @@ the port-A schedule is address + write strobe, no read enable.
 | `ctrl_cdready` | from `l1_snoop_resp` | CD beat accepted. |
 | `ctrl_req_ready` | to `l1_cpu_frontend` | Ready for the next CPU request: `CTRL_IDLE`, or `CTRL_HIT_RD` within the `HIT_RUN_MAX` run (registers only). |
 | `ctrl_rsp_valid` | to `l1_cpu_frontend` | Response valid: high exactly in `CTRL_HIT_RD` / `CTRL_HIT_WR` / `CTRL_CLEAN_RSP`, one cycle per request. |
+| `ctrl_rsp_err` | to `l1_cpu_plane` | The response answers a failed fill (`BUS_ERR_EN`; TASK-008): `CTRL_CLEAN_RSP` with `rsp_err_q`. |
+| `ctrl_fill_err`, `ctrl_drain_err` | from `l1_coh_core` | One pulse per failed R beat / B (TASK-008); read only at `BUS_ERR_EN = 1`. |
 | `ctrl_rsp_data` | to `l1_cpu_frontend` | Response read data / write echo. |
 | `ctrl_init_busy` / `ctrl_init_set` | status | Init-walk in progress / current set. |
 | `ctrl_state` | status | FSM state (pkg `ctrl_state_t` encoding, observability). |
@@ -307,4 +356,4 @@ The sheet is marked **PROPOSED** because it is a micro-architecture decision own
 
 ---
 
-**Last Updated:** 2026-11-07 (Task 4: snoop service + bypass integration)
+**Last Updated:** 2026-11-27 (amber TASK-008: bus errors)

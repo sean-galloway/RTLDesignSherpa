@@ -39,7 +39,8 @@ Every load and store is issued in MEM from the EX/MEM register, so the address i
 
 ```systemverilog
 w_dvalid = dmem_req_pre & ~r_mem_done & ~fence.i busy & ~clean busy
-         & (~r_outstanding | response arriving);
+         & ~w_dfault                                     // WB's bus fault this cycle
+         & (~r_outstanding | OKAY response arriving);   // w_rsp_ok (TASK-005)
 ```
 
 - `dmem_req_pre` is the core's MEM access before its `~mem_wait` gate: it stays high, with a stable address, for as long as the instruction sits in MEM.
@@ -51,8 +52,9 @@ w_dvalid = dmem_req_pre & ~r_mem_done & ~fence.i busy & ~clean busy
 
 ```systemverilog
 mem_wait = I$ stall | fence.i busy | clean busy
-         | (dmem_req_pre & ~r_mem_done & ~handshake)     // MEM's access not yet accepted
-         | (r_outstanding & ~response);                   // an accepted access waits
+         | (dmem_req_pre & ~r_mem_done & ~w_dfault & ~handshake)  // MEM's access not yet accepted
+         | (r_outstanding & ~w_rsp_ok);                   // an accepted access waits;
+                                                          // an error response holds one more
 ```
 
 The first three terms come from flops. The last two make a D\$ miss, an uncached access, a write hit's second cycle or a CLINT access hold the core exactly as long as it takes.
@@ -68,6 +70,8 @@ The response mux selects by `r_tgt` (the target of the access in flight). Three 
 | MEM's early response | The access was accepted under a hold (`r_mem_done`) and its response arrives while the load is still in MEM | `r_mem_have` / `r_mem_data`; when the hold drops and MEM moves to WB it becomes `r_have` |
 
 : Where a response waits for WB
+
+Each capture carries the response's error bit (`r_have_err`, `r_mem_err`; TASK-005). An error response always lands on the held side, because it holds; `r_have & r_have_err` is then the core's `dmem_fault` for WB's instruction ("Traps, Interrupts and the Commit Point", "Bus Errors at WB"). The error bit is `cpu_rsp_rd_data[AXI_DW]` from amber (`BUS_ERR_EN=1`, a failed fill) and `rsp_err` from the uncached port; the CLINT never errs.
 
 If MEM's response arrives in the very cycle the hold drops, it goes straight to `r_have`. A response counts (capture, `r_outstanding`, `mem_wait`) only while `r_outstanding` is set, so amber's response to a clean-all is never taken as data.
 
@@ -89,4 +93,4 @@ amber's AXI4 plane sees no IsShared, so by default amber installs every read fil
 
 ---
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-27

@@ -83,6 +83,7 @@ module formal_amber_control_live (
         .ctrl_req_ready          (ctrl_req_ready),
         .ctrl_rsp_valid          (ctrl_rsp_valid),
         .ctrl_rsp_data           (),
+        .ctrl_rsp_err            (),
         .ctrl_tag_a_set          (),
         .ctrl_tag_a_tag_state    (tag_a_tag_state),
         .ctrl_tag_a_wr_en        (),
@@ -123,6 +124,9 @@ module formal_amber_control_live (
         .ctrl_drain_start        (ctrl_drain_start),
         .ctrl_drain_done         (drain_done),
         .ctrl_drain_clean        (),
+        // no bus-error contract in this harness (amber TASK-008)
+        .ctrl_fill_err           (1'b0),
+        .ctrl_drain_err          (1'b0),
         .ctrl_snoop_req          (snoop_req),
         .ctrl_snoop_ready        (ctrl_snoop_ready),
         .ctrl_snoop_type         (snoop_type),

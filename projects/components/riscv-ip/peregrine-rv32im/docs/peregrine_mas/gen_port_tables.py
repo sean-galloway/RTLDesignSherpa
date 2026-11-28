@@ -133,6 +133,9 @@ DESC = {
                       "wen": "CSR write committed in MEM", "waddr": "Its address", "wdata": "Its value",
                       "trap_take": "Trap entry committed in MEM", "trap_cause": "mcause to write",
                       "trap_epc": "mepc to write (the trapping PC)", "trap_tval": "mtval to write",
+                      "irq_buserr": "amber's write-back error status, mip.16 (level; BUSERR_EN)",
+                      "buserr_info": "What mbuserr (0x7C0) reads: {line address[31:2], overflow, valid}",
+                      "buserr_clear": "A write to mbuserr committed (pulse): clears amber's status",
                       "mret_take": "mret committed in MEM",
                       "irq_software": "MSIP pin (level)", "irq_timer": "MTIP pin (level)",
                       "irq_external": "MEIP pin (level)",
@@ -162,7 +165,8 @@ DESC = {
     "peregrine_uc_axi": {"clk": "Clock", "rst_n": "Reset", "req_valid": "Load or store request",
                          "req_ready": "Idle: one transaction at a time", "req_addr": "Byte address",
                          "req_we": "Store", "req_wstrb": "Byte strobes of the 32-bit word", "req_wdata": "Store word",
-                         "rsp_valid": "One-cycle response (a store's after B)", "rsp_rdata": "Load word, 0 outside rsp_valid"},
+                         "rsp_valid": "One-cycle response (a store's after B)", "rsp_rdata": "Load word, 0 outside rsp_valid",
+                         "rsp_err": "The response was SLVERR / DECERR (RRESP[1] / BRESP[1]), with rsp_valid"},
     "peregrine_axi4_arb": {"clk": "Clock", "rst_n": "Reset"},
 }
 for _m in ("peregrine_if_id", "peregrine_id_ex", "peregrine_ex_mem", "peregrine_mem_wb"):
@@ -195,6 +199,9 @@ PDESC_MOD = {
     ("peregrine_uc_axi", "AXI_IW"): "AXI id width; the port always uses id 0",
     ("peregrine_axi4_arb", "AXI_DW"): "Data width",
     ("peregrine_mdu", "MUL_DSP"): "0: multiply iteratively, 32 steps; 1: one registered 32x32 product",
+    ("peregrine_top", "UC_BASE"): "Uncached window base: an address is uncached when (addr & UC_MASK) == UC_BASE",
+    ("peregrine_top", "UC_MASK"): "Uncached window mask (default: bits 31:28, the 0x1000_0000 window)",
+    ("peregrine_csr", "BUSERR_EN"): "1: interrupt 16 (mip / mie bit 16) and the mbuserr CSR exist (the cached build)",
 }
 
 GROUPS = {
@@ -203,6 +210,8 @@ GROUPS = {
         ("Instruction fetch", ["imem_addr", "imem_addr_next", "imem_addr_next_nw", "imem_rdata"]),
         ("Data access", ["dmem_req", "dmem_addr", "dmem_rdata", "dmem_wstrb", "dmem_wdata"]),
         ("Cached-build handshake (CACHE_EN=1; 0 when CACHE_EN=0)", ["dmem_req_pre", "fencei_req"]),
+        ("Bus errors (CACHE_EN=1; tie 0 when CACHE_EN=0)", ["imem_fault", "dmem_fault", "irq_buserr",
+                                                            "buserr_info", "buserr_clear"]),
         ("Interrupts", ["irq_software", "irq_timer", "irq_external"]),
         ("RVFI retire", [p for p in RVFI]),
         ("Trap and predictor observation", ["rvfi_trap_cause", "rvfi_bp_pred_taken",

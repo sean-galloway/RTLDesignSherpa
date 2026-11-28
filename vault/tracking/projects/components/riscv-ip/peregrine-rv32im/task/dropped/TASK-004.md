@@ -1,7 +1,7 @@
 # TASK-004: hive HIVE-C `CORE_FLAVOR=peregrine` swap (PRD §7 deliverable 6)
 
 **Priority:** P3
-**Status:** open (filed 2026-11-25)
+**Status:** dropped 2026-11-27 -- moved to compute-eng-ip/hive [TASK-001](../../../../compute-eng-ip/hive/task/open/TASK-001.md) (owner: "TASK-004 move this to a hive task"); the work is hive's
 **Owner:** TBD
 
 ## What

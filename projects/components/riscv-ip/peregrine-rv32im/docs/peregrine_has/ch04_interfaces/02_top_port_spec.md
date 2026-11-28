@@ -46,6 +46,8 @@
 | `DC_SETS` | parameter | `int` | `128` | amber sets |
 | `DC_WAYS` | parameter | `int` | `4` | amber ways |
 | `DC_LINE` | parameter | `int` | `64` | amber line bytes |
+| `UC_BASE` | parameter | `logic [31:0]` | `32'h1000_0000` | Uncached window base: an address is uncached when (addr & UC_MASK) == UC_BASE |
+| `UC_MASK` | parameter | `logic [31:0]` | `32'hF000_0000` | Uncached window mask (default: bits 31:28, the 0x1000_0000 window) |
 | `FIW` | localparam | `int` | `AXI_IW + 2` | Fabric id width (derived) |
 
 : peregrine_top parameters
@@ -173,7 +175,7 @@ The I\$ and amber geometries are the ones peregrine was verified and timed at: a
 - **Writes are serialized.** An AW grant makes its master the W owner until its `wlast` beat, and no other AW is granted meanwhile; W never interleaves. Writes come from amber (write-back, WriteClean during a clean) and the uncached port.
 - **Bursts.** The I\$ and amber issue INCR bursts of a whole line (`LINE_BYTES / (AXI_DW/8)` beats); the uncached port issues single beats with AxSIZE 4 bytes.
 - **Unused fields.** `AxLOCK`, `AxCACHE`, `AxPROT`, `AxQOS` and `AxREGION` are driven 0.
-- **Errors.** `rresp` and `bresp` are not checked (see "System Overview").
+- **Errors.** `rresp` / `bresp` bit 1 (SLVERR, DECERR) is an error: an instruction access fault on an I\$ refill, a load or store access fault on an uncached access or an amber fill, and the bus-error interrupt on an amber write-back ("Trap and Interrupt Behavior"). A slave must still return every beat of a burst it answers with an error. Bit 0 (EXOKAY vs OKAY) is not read.
 
 ## Hooks a System Ties Off
 

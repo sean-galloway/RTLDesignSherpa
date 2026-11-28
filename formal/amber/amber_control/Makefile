@@ -27,7 +27,7 @@ FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
 # specialize_params pins the tiny formal geometry AND deletes the parameter
 # declarations, so the DUT is parameterless and yosys's expose applies
 # (bind silently never fires in this yosys build).
-FLAT_POST       := python3 ../specialize_params.py - /dev/stdout --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 --param LINE_BYTES=64 --param BUS_WIDTH=64 --param PF_GUARD=0 --param DATA_SYNC_READ=1 --param HIT_RUN_MAX=8 --param READ_FILL_E=0 --module l1_control
+FLAT_POST       := python3 ../specialize_params.py - /dev/stdout --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 --param LINE_BYTES=64 --param BUS_WIDTH=64 --param PF_GUARD=0 --param DATA_SYNC_READ=1 --param HIT_RUN_MAX=8 --param READ_FILL_E=0 --param BUS_ERR_EN=0 --module l1_control
 include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove prove-live cover all clean

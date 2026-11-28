@@ -183,11 +183,19 @@ class PeregrineTB:
 
         The program's own checks cannot see a doubled store (writing the
         same value twice is idempotent); this count can.
+
+        A load or store access fault (mcause 5 / 7, TASK-005) is the one
+        trap that DID issue its request: the error is the request's
+        response.  Each counts as one request, so a faulting access issued
+        twice, or a younger access issued under the fault, still fails.
         """
         retired = sum(1 for b in self.trace if b["mem_rmask"] or b["mem_wmask"])
-        assert self.mem_requests == retired, \
+        faulted = sum(1 for b in self.trace
+                      if b["trap"] and b["trap_cause"] in (5, 7))
+        assert self.mem_requests == retired + faulted, \
             f"{self.mem_requests} data-memory requests, {retired} retired " \
-            f"loads/stores: a squashed instruction touched memory"
+            f"loads/stores + {faulted} access faults: a squashed instruction " \
+            f"touched memory"
 
     def check_trap_beats(self) -> None:
         """A trap beat writes nothing, and the next beat is at its target."""

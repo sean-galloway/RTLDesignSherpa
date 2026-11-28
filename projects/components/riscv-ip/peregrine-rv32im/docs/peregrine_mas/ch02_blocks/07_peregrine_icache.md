@@ -56,6 +56,7 @@ peregrine's instruction cache (PRD P9): direct-mapped, read-only, blocking, one 
 | `fetch_addr_next_nw` | input | `[31:0]` | the next PC if not held |
 | `hold` | input | `1` | the core holds (mem_wait) |
 | `fetch_rdata` | output | `[31:0]` | Word at fetch_addr, the cycle after |
+| `fetch_fault` | output | `1` | the fetch's refill failed (TASK-005) |
 | `stall` | output | `1` | fetch_rdata is not the word at fetch_addr |
 | `inv_req` | input | `1` | Invalidate request (level, fence.i) |
 | `inv_ack` | output | `1` | Pulses on the cycle every valid bit clears |
@@ -107,15 +108,18 @@ The data, word-select and tag read registers read at `fetch_addr_next_nw` (the n
 | `S_AR` | `arready` | `arvalid` with the line address, `arlen = BEATS - 1`, INCR |
 | `S_FILL` | The beat with `rlast` | `rready`; write each beat to `{index, beat}`; the last beat writes the tag and sets valid |
 | `S_REPLAY` | Always, after one cycle | Re-read the PC's word; the next cycle's hit test passes |
+| `S_FAULT` | An invalidate, or the PC outside the failed line | `fetch_fault` with `stall` low for every fetch from the failed line (TASK-005) |
 
 : peregrine_icache refill states
 
-The burst starts at the line's first beat (no critical word first). An `rresp` error is installed like any other beat.
+The burst starts at the line's first beat (no critical word first).
+
+**A failed refill** (TASK-005): `r_fill_err` collects `rresp[1]` over the burst. On the last beat a failed refill goes to `S_FAULT` instead of `S_REPLAY` and clears the set's valid bit instead of setting it (its beats have already overwritten the line the set held). In `S_FAULT`, `fetch_fault` and `~stall` hold for any fetch whose line is the failed one, so the core takes the faulted fetch whenever it is ready, held or not, and a sequential fetch behind it faults without another refill. The line compare is of two flops (the PC and the refill's line registers), like the hit's. The first fetch outside the line costs one stall cycle and returns to `S_IDLE`; a later fetch from the line refills it again. An invalidate is also taken in `S_FAULT` (a `fence.i` may follow a faulted fetch that is already in the pipeline).
 
 ## Invalidate
 
-`inv_req` is a level, taken in `S_IDLE` (never during a refill). That cycle clears every valid bit and pulses `inv_ack`, and it wins over a miss starting in the same cycle. `peregrine_top` raises it as the second step of `fence.i`.
+`inv_req` is a level, taken in `S_IDLE` or `S_FAULT` (never during a refill). That cycle clears every valid bit and pulses `inv_ack`, and it wins over a miss starting in the same cycle. `peregrine_top` raises it as the second step of `fence.i`.
 
 ---
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-27

@@ -86,6 +86,16 @@ All ports are synchronous to `clk`. `rst_n` is asynchronous active-low and is sy
 
 | Port | Dir | Width | Description |
 |----------------------|----------|------------|----------------------------------|
+| `imem_fault` | input | `1` | the fetch at imem_addr faulted (with imem_rdata) |
+| `dmem_fault` | input | `1` | WB's load/store response was an error (with dmem_rdata) |
+| `irq_buserr` | input | `1` | amber's sticky write-back error (mip.16) |
+| `buserr_info` | input | `[31:0]` | what mbuserr (0x7C0) reads |
+| `buserr_clear` | output | `1` | a write to mbuserr committed |
+
+: peregrine_core ports: Bus errors (CACHE_EN=1; tie 0 when CACHE_EN=0)
+
+| Port | Dir | Width | Description |
+|----------------------|----------|------------|----------------------------------|
 | `irq_software` | input | `1` | Machine software interrupt (level) |
 | `irq_timer` | input | `1` | Machine timer interrupt (level) |
 | `irq_external` | input | `1` | Machine external interrupt (level) |

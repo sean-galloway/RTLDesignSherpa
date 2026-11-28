@@ -89,7 +89,7 @@ register).
 **`CORE_FLAVOR` (PRD §10.3).** A string parameter selects the core:
 `"vexriscv"` (the default, the only flavor built) or `"peregrine"`
 (riscv-ip/peregrine-rv32im, the falcon-ladder successor; selecting it stops
-elaboration until its glue is built, peregrine TASK-004). Everything except
+elaboration until its glue is built, hive TASK-001). Everything except
 the core's glue module is flavor-independent: the AXIL window, CTRL, the
 banks, the arbitration and the testplan. The glue meets the rest of the
 block at one seam:

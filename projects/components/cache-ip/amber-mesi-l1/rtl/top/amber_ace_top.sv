@@ -258,6 +258,7 @@ module amber_ace_top
     logic                     ctrl_req_ready;
     logic                     ctrl_rsp_valid;
     logic [BUS_WIDTH-1:0]     ctrl_rsp_data;
+    logic                     ctrl_rsp_err;     // BUS_ERR_EN=0: constant 0
 
     // ------------------------------------------------------------------
     // Fabric (snoop) seam between the coherence core plane and the ACE
@@ -368,7 +369,8 @@ module amber_ace_top
         .fe_req_maint      (fe_req_maint),
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
-        .ctrl_rsp_data     (ctrl_rsp_data)
+        .ctrl_rsp_data     (ctrl_rsp_data),
+        .ctrl_rsp_err      (ctrl_rsp_err)
     );
 
     // ------------------------------------------------------------------
@@ -400,6 +402,12 @@ module amber_ace_top
         .ctrl_req_ready    (ctrl_req_ready),
         .ctrl_rsp_valid    (ctrl_rsp_valid),
         .ctrl_rsp_data     (ctrl_rsp_data),
+        // no bus-error contract here (amber TASK-008 is BUS_ERR_EN=0)
+        .ctrl_rsp_err      (ctrl_rsp_err),
+        .wb_err_valid      (),
+        .wb_err_addr       (),
+        .wb_err_ovf        (),
+        .wb_err_clear      (1'b0),
         .ctrl_snoop_req    (core_snoop_req),
         .ctrl_snoop_ready  (core_snoop_ready),
         .ctrl_snoop_safe   (core_snoop_safe),

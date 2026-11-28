@@ -19,6 +19,11 @@
 //
 // Parameters:
 //   - M_EXT: sets misa.M (bit 12).
+//   - BUSERR_EN: 1 (the cached build) adds the bus-error report of
+//     TASK-005: platform interrupt 16 (mip.16 from irq_buserr, mie.16
+//     writable, mcause 0x8000_0010) and the custom CSR mbuserr (0x7C0),
+//     which reads buserr_info and pulses buserr_clear on a write.  0 (the
+//     cacheless build): neither exists, the CSR file is the stage-1 one.
 //
 // Notes:
 //   - Implemented: mstatus (MIE, MPIE; MPP reads 11), misa (read-only,
@@ -34,8 +39,9 @@
 //     core without PMP must still accept the accesses (the riscv-tests
 //     p-env writes pmpaddr0/pmpcfg0 unconditionally).
 //   - No counters (PRD P6, no Zicntr).
-//   - Interrupt priority when several are pending: MEI > MSI > MTI
-//     (privileged spec 3.1.9).
+//   - Interrupt priority when several are pending: BUSERR (16) > MEI > MSI
+//     > MTI.  The privileged spec (3.1.9) orders the standard ones and lets
+//     the platform place codes >= 16; spike also takes them first.
 //
 // Related Modules:
 //   - peregrine_core (the only instance)
@@ -45,7 +51,8 @@
 `include "reset_defs.svh"
 
 module peregrine_csr #(
-    parameter bit M_EXT = 1'b0
+    parameter bit M_EXT     = 1'b0,
+    parameter bit BUSERR_EN = 1'b0
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -67,6 +74,11 @@ module peregrine_csr #(
     input  logic        irq_software,
     input  logic        irq_timer,
     input  logic        irq_external,
+    // Bus-error report (BUSERR_EN): the sticky write-back error (level, an
+    // interrupt), the value mbuserr reads, and its clear (a write to it)
+    input  logic        irq_buserr,
+    input  logic [31:0] buserr_info,
+    output logic        buserr_clear,
     // To the commit point and the PC mux
     output logic [31:0] mtvec,
     output logic [31:0] mepc,
@@ -81,6 +93,7 @@ module peregrine_csr #(
     localparam int IRQ_MSI      = 3;
     localparam int IRQ_MTI      = 7;
     localparam int IRQ_MEI      = 11;
+    localparam int IRQ_BUSERR   = 16;
 
     localparam logic [31:0] MISA_VALUE = 32'h4000_0000              // MXL = 1
                                        | (32'h1 << 8)               // I
@@ -88,7 +101,8 @@ module peregrine_csr #(
     localparam logic [11:0] CSR_PMPCFG0   = 12'h3A0;   // pmpcfg0..15  0x3A0-0x3AF
     localparam logic [11:0] CSR_PMPADDR63 = 12'h3EF;   // pmpaddr0..63 0x3B0-0x3EF
     localparam logic [31:0] MIE_MASK   = (32'h1 << IRQ_MSI) | (32'h1 << IRQ_MTI)
-                                       | (32'h1 << IRQ_MEI);
+                                       | (32'h1 << IRQ_MEI)
+                                       | (BUSERR_EN ? (32'h1 << IRQ_BUSERR) : 32'h0);
 
     logic        r_mie_bit;     // mstatus.MIE
     logic        r_mpie_bit;    // mstatus.MPIE
@@ -107,7 +121,8 @@ module peregrine_csr #(
                      | (32'h3 << 11);                               // MPP = M
     assign w_mip     = (32'(irq_software) << IRQ_MSI)
                      | (32'(irq_timer)    << IRQ_MTI)
-                     | (32'(irq_external) << IRQ_MEI);
+                     | (32'(irq_external) << IRQ_MEI)
+                     | (32'(BUSERR_EN & irq_buserr) << IRQ_BUSERR);
 
     assign mtvec = {r_mtvec, 2'b00};
     assign mepc  = {r_mepc, 2'b00};
@@ -132,6 +147,10 @@ module peregrine_csr #(
             CSR_MIMPID,
             CSR_MHARTID,
             CSR_MCONFIGPTR: rdata = 32'd0;
+            CSR_MBUSERR: begin
+                rdata    = BUSERR_EN ? buserr_info : 32'd0;
+                r_exists = BUSERR_EN;
+            end
             // pmpcfg0-15 and pmpaddr0-63: zero entries, read 0.
             default:        r_exists = (raddr >= CSR_PMPCFG0) && (raddr <= CSR_PMPADDR63);
         endcase
@@ -156,9 +175,10 @@ module peregrine_csr #(
             r_irq_cause   <= '0;
         end else begin
             r_irq_pending <= (|w_irq_en) & ~wen & ~trap_take & ~mret_take;
-            r_irq_cause   <= w_irq_en[IRQ_MEI] ? {1'b1, MCAUSE_MEI} :
-                             w_irq_en[IRQ_MSI] ? {1'b1, MCAUSE_MSI} :
-                                                 {1'b1, MCAUSE_MTI};
+            r_irq_cause   <= w_irq_en[IRQ_BUSERR] ? {1'b1, MCAUSE_BUSERR} :
+                             w_irq_en[IRQ_MEI]    ? {1'b1, MCAUSE_MEI}    :
+                             w_irq_en[IRQ_MSI]    ? {1'b1, MCAUSE_MSI}    :
+                                                    {1'b1, MCAUSE_MTI};
         end
     )
 
@@ -195,9 +215,17 @@ module peregrine_csr #(
                 CSR_MEPC:     r_mepc     <= wdata[31:2];
                 CSR_MCAUSE:   r_mcause   <= wdata;
                 CSR_MTVAL:    r_mtval    <= wdata;
-                default: ;   // misa, mstatush, mip: writes ignored (WARL)
+                default: ;   // misa, mstatush, mip: writes ignored (WARL);
+                             // mbuserr: the write is the clear (below)
             endcase
         end
     )
+
+    // mbuserr: any write (the MEM commit of a CSR instruction that writes it)
+    // clears amber's sticky status.  The pulse is the commit's own cycle, so
+    // the status drops at the next edge, together with the write; the
+    // interrupt decision is cleared for that cycle like for any CSR write,
+    // and sees the dropped status from the cycle after.
+    assign buserr_clear = BUSERR_EN & wen & (waddr == CSR_MBUSERR);
 
 endmodule : peregrine_csr

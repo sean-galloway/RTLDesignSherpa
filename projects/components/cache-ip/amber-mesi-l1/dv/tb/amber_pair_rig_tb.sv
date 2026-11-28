@@ -287,6 +287,11 @@ module amber_pair_rig_tb
         .mon_ready       (mon0_ready),
         .mon_packet      (mon0_packet),
         .mon_timestamp   (mon0_timestamp),
+        // BUS_ERR_EN=0: no write-back error status (amber TASK-008)
+        .wb_err_valid    (),
+        .wb_err_addr     (),
+        .wb_err_ovf      (),
+        .wb_err_clear    (1'b0),
         .init_busy       (init_busy0),
         .ctrl_state      (ctrl_state0)
     );
@@ -375,6 +380,11 @@ module amber_pair_rig_tb
         .mon_ready       (mon1_ready),
         .mon_packet      (mon1_packet),
         .mon_timestamp   (mon1_timestamp),
+        // BUS_ERR_EN=0: no write-back error status (amber TASK-008)
+        .wb_err_valid    (),
+        .wb_err_addr     (),
+        .wb_err_ovf      (),
+        .wb_err_clear    (1'b0),
         .init_busy       (init_busy1),
         .ctrl_state      (ctrl_state1)
     );

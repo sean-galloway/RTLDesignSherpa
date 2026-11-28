@@ -44,18 +44,30 @@ package peregrine_pkg;
   localparam logic [3:0] EXC_LALIGN = HALT_LALIGN;
   localparam logic [3:0] EXC_SALIGN = HALT_SALIGN;
   localparam logic [3:0] EXC_ILL    = HALT_ILL;
+  // Instruction access fault (TASK-005): the fetch's I$ fill was answered
+  // SLVERR / DECERR.  Raised in ID from the IF/ID fault bit; not one of
+  // rv32i_pkg's halt causes (6 is free there).  Load and store access
+  // faults need no code: they arrive with the D-side response at WB.
+  localparam logic [3:0] EXC_IFAULT = 4'h6;
 
   // mcause exception codes (privileged spec, table 3.6).
   localparam logic [30:0] MCAUSE_IALIGN  = 31'd0;
+  localparam logic [30:0] MCAUSE_IFAULT  = 31'd1;   // instruction access fault
   localparam logic [30:0] MCAUSE_ILL     = 31'd2;
   localparam logic [30:0] MCAUSE_EBREAK  = 31'd3;
   localparam logic [30:0] MCAUSE_LALIGN  = 31'd4;
+  localparam logic [30:0] MCAUSE_LFAULT  = 31'd5;   // load access fault
   localparam logic [30:0] MCAUSE_SALIGN  = 31'd6;
+  localparam logic [30:0] MCAUSE_SFAULT  = 31'd7;   // store/AMO access fault
   localparam logic [30:0] MCAUSE_ECALL_M = 31'd11;
   // Interrupt codes (mcause[31] = 1).
   localparam logic [30:0] MCAUSE_MSI     = 31'd3;
   localparam logic [30:0] MCAUSE_MTI     = 31'd7;
   localparam logic [30:0] MCAUSE_MEI     = 31'd11;
+  // Platform local interrupt 16 (TASK-005): amber's failed dirty
+  // write-back, an imprecise bus-error report (codes >= 16 are the
+  // platform's, privileged spec 3.1.9).
+  localparam logic [30:0] MCAUSE_BUSERR  = 31'd16;
 
   // CSR addresses implemented (PRD P6).
   localparam logic [11:0] CSR_MSTATUS    = 12'h300;
@@ -68,6 +80,11 @@ package peregrine_pkg;
   localparam logic [11:0] CSR_MCAUSE     = 12'h342;
   localparam logic [11:0] CSR_MTVAL      = 12'h343;
   localparam logic [11:0] CSR_MIP        = 12'h344;
+  // Custom machine read/write CSR (TASK-005; 0x7C0-0x7FF is the
+  // custom M-mode range).  Read: the failed write-back's line address in
+  // [31:2], bit 1 = overflow (another failed while it was held), bit 0 =
+  // valid (= mip.16).  Any write clears the status (the value is ignored).
+  localparam logic [11:0] CSR_MBUSERR    = 12'h7C0;
   localparam logic [11:0] CSR_MVENDORID  = 12'hF11;
   localparam logic [11:0] CSR_MARCHID    = 12'hF12;
   localparam logic [11:0] CSR_MIMPID     = 12'hF13;
@@ -81,6 +98,7 @@ package peregrine_pkg;
     logic [31:0] insn;
     logic        pred_taken;
     logic [31:0] pred_target;
+    logic        ifault;        // the fetch's I$ fill failed (TASK-005)
     logic        valid;
   } if_id_t;
 

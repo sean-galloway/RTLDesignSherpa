@@ -1,8 +1,8 @@
-# TASK — hive Phase 1 RTL: finish the five blocks and close the CN-04 rotation issue
+# TASK-000: hive Phase 1 RTL: finish the five blocks and close the CN-04 rotation issue
 
 **Status:** open · **Priority:** high · **Filed:** 2026-10-13 · **Area:** projects/components/compute-eng-ip/hive
 
-## 2026-11-27: next step 3 done (vexriscv flavor), uncommitted
+## 2026-11-27: next step 3 done (vexriscv flavor), 48a057cdf
 
 `hive_c_loader` is written and verified for `CORE_FLAVOR = "vexriscv"`:
 `rtl/hive_c_controller/hive_c_loader.sv` (AXIL window, CTRL run bit,
@@ -36,8 +36,7 @@ in MAS ch02 `02_hive_c_controller.md`. The testplan LDR-01..05 is verified.
   write window open in run mode; run-mode write landing anyway; AR ignoring
   the core's port-B access; load response from the wrong bank). Each one
   fails the gate test.
-- Next for the loader: the peregrine flavor (riscv-ip/peregrine-rv32im
-  TASK-004) once peregrine's bus-error work lands. Its open items (the
+- Next for the loader: the peregrine flavor (hive TASK-001) once peregrine's bus-error work lands. Its open items (the
   uncached-window vs 0x4000_0000 map conflict, clean-on-stop) are in the
   MAS chapter's Open Items.
 
@@ -133,7 +132,7 @@ hive CN suite as the regression.
    peripheral sets; MAS ch02_blocks/03_engine_monitor.md, the
    hive_engine_monitor testplan).
 3. ~~Write hive_c_loader.sv~~ (done 2026-11-27 for the vexriscv flavor, see
-   the top section; the peregrine flavor is riscv-ip/peregrine-rv32im TASK-004).
+   the top section; the peregrine flavor is hive TASK-001).
 4. Wire per-block filelists into rtl/filelists/hive_all.f; run the full
    gate/func sweep (`make run-all` in dv/tests or per-file pytest); commit.
 5. Update PRD/CLAUDE status lines (they say "no RTL yet").

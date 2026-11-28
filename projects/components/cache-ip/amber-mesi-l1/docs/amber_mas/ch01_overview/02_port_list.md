@@ -45,7 +45,7 @@ This chapter lists the top-level ports of `amber_top` and `amber_ace_top`. Inter
 | `cpu_req_wr_data` | input | `CPU_REQ_W` | Packed {addr, we, be, wdata} |
 | `cpu_rsp_rd_valid` | output | 1 | Cache response valid |
 | `cpu_rsp_rd_ready` | input | 1 | CPU ready to accept response |
-| `cpu_rsp_rd_data` | output | `CPU_RSP_W` | Packed {rdata} |
+| `cpu_rsp_rd_data` | output | `CPU_RSP_W` | Packed {rdata}; with `BUS_ERR_EN = 1`, {err, rdata}: bit `BUS_WIDTH` is set when the request's fill failed (TASK-008) |
 
 ### AXI4 Memory Masters
 
@@ -84,6 +84,17 @@ Plain AXI4 masters driven by `l1_fill` and `l1_drain` through the house `axi4_ma
 | `mon_ready` | input | 1 | Monitor consumer ready |
 | `mon_packet` | output | 128 | Monitor packet |
 | `mon_timestamp` | output | 64 | Side-band timestamp |
+
+### Write-Back Error Status (amber TASK-008)
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `wb_err_valid` | output | 1 | A dirty write-back was answered SLVERR / DECERR and its line dropped; sticky until `wb_err_clear` |
+| `wb_err_addr` | output | `ADDR_WIDTH` | The line address of the first such write-back |
+| `wb_err_ovf` | output | 1 | Another write-back failed while `wb_err_valid` was held |
+| `wb_err_clear` | input | 1 | Clear the status (a pulse); a failure in the same cycle is latched fresh |
+
+All four are tied off (0, unused) at `BUS_ERR_EN = 0`, the default.
 
 ---
 

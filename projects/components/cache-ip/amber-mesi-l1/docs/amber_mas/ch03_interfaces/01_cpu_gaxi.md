@@ -76,6 +76,13 @@ response stays byte-stable in the FIFO until taken, responses keep request
 order, and the FIFO cannot overflow (ready requires it empty while a
 response is up, and at least one free entry otherwise).
 
+With `BUS_ERR_EN = 1` (amber TASK-008) the response carries one more bit,
+`cpu_rsp_rd_data[BUS_WIDTH]`: the request's fill was answered SLVERR /
+DECERR, nothing was installed, and the data is not meaningful. It travels
+with the data through the bypass and the FIFO. An error response comes one
+cycle after the failed fill's commit cycle, without the replay; OKAY
+responses keep every cycle they had.
+
 ## Clean-All Request (amber TASK-004)
 
 With `MAINT_EN = 1` on `amber_top` / `amber_ace_top` (default 0, the

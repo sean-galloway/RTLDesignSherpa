@@ -112,6 +112,12 @@ module rvfi_wrapper (
         .dmem_wdata          (dmem_wdata),
         .dmem_req_pre        (),
         .fencei_req          (),
+        // bus errors (TASK-005): the cached build's only; tied off here
+        .imem_fault          (1'b0),
+        .dmem_fault          (1'b0),
+        .irq_buserr          (1'b0),
+        .buserr_info         (32'd0),
+        .buserr_clear        (),
         .irq_software        (1'b0),
         .irq_timer           (1'b0),
         .irq_external        (1'b0),

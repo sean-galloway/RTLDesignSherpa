@@ -58,6 +58,7 @@ The uncached data port (PRD P7): one 32-bit load or store at a time, as a single
 | `req_wdata` | input | `[31:0]` | Store word |
 | `rsp_valid` | output | `1` | One-cycle response (a store's after B) |
 | `rsp_rdata` | output | `[31:0]` | Load word, 0 outside rsp_valid |
+| `rsp_err` | output | `1` | The response was SLVERR / DECERR (RRESP[1] / BRESP[1]), with rsp_valid |
 | `m_axi_arid` | output | `[AXI_IW-1:0]` | Read address id |
 | `m_axi_araddr` | output | `[31:0]` | Read address |
 | `m_axi_arlen` | output | `[7:0]` | Burst length - 1 |
@@ -104,8 +105,8 @@ The uncached data port (PRD P7): one 32-bit load or store at a time, as a single
 
 - Stores are not posted: a store's response waits for B, so a store that retires has reached the fabric.
 - `rsp_rdata` is driven 0 outside the `rsp_valid` cycle. A consumer that read it late would be relying on this port, not on the contract a D\$ also meets; driving 0 makes such a bug fail in the suites (TASK-001 stage 4).
-- `rresp` and `bresp` are not reported: peregrine has no access-fault exception.
+- `rsp_err` (TASK-005), valid with `rsp_valid`, is the R beat's `rresp[1]` or the B's `bresp[1]` (SLVERR or DECERR): the core's load or store access fault. Bit 0 is not read.
 
 ---
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-27

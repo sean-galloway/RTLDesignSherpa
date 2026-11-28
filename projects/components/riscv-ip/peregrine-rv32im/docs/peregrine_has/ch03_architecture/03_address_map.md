@@ -28,14 +28,16 @@ The address map applies to `peregrine_top`. The cacheless `peregrine_core` has n
 | Range | Target | Cached | Notes |
 |-------|--------|--------|-------|
 | 0x0200_0000 - 0x0200_FFFF | CLINT (`peregrine_clint`) | No | Decoded by address bits 31:16 = 0x0200 |
-| 0x1000_0000 - 0x1FFF_FFFF | Uncached I/O (`peregrine_uc_axi` to the fabric) | No | Board UART and other MMIO; decoded by bits 31:28 = 0x1 |
+| 0x1000_0000 - 0x1FFF_FFFF | Uncached I/O (`peregrine_uc_axi` to the fabric) | No | Board UART and other MMIO; the default of `UC_BASE` / `UC_MASK` (below) |
 | Everything else | RAM through amber | Yes (write-back, write-allocate) | Includes `RESET_ADDR` and the test images at 0x8000_0000 |
 
 : peregrine_top data address map
 
 Instruction fetches are not decoded: every fetch goes through the I\$ and its AXI4 read master, whatever the address.
 
-The I/O window is bounded at 0x1FFF_FFFF (PRD P7, amended 2026-11-24) so that the riscv-tests and riscv-arch-test images, which link at 0x8000_0000, stay cacheable. A `tohost` mailbox in the cacheable image therefore lands in amber; the simulation TBs detect it from the store's RVFI retire, not from the fabric.
+The uncached window is a parameter of `peregrine_top` (TASK-005, for hive): an address is uncached when `(addr & UC_MASK) == UC_BASE`. The defaults, `UC_BASE = 0x1000_0000` and `UC_MASK = 0xF000_0000`, are the window in the table, so no existing system changes. The CLINT decode is checked first and wins over a window that covers it. Everything else is cacheable.
+
+The default I/O window is bounded at 0x1FFF_FFFF (PRD P7, amended 2026-11-24) so that the riscv-tests and riscv-arch-test images, which link at 0x8000_0000, stay cacheable. A `tohost` mailbox in the cacheable image therefore lands in amber; the simulation TBs detect it from the store's RVFI retire, not from the fabric.
 
 ## CLINT Registers
 
@@ -55,4 +57,4 @@ Writes take their byte strobes. Any other offset reads 0 and ignores writes. A w
 
 ---
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-27

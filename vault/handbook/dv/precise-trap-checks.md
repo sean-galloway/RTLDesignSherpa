@@ -103,6 +103,27 @@ and tval against the RVFI trace. Rules for using it:
   straight from the ELF needs no pre-built hex. The vendor tree had hex
   images only for rv32ui.
 
+## Bus errors: let spike fault on an unmapped address
+
+spike 1.1.0 cannot be told to answer SLVERR, but it raises access faults
+on addresses it does not map. peregrine's sys TB answers by address window
+(bits 27:24 = 0xE DECERR, 0xD SLVERR), so a program that touches those
+windows at addresses spike leaves unmapped (0x1Dxx_xxxx / 0x1Exx_xxxx
+uncached, 0x4Dxx_xxxx / 0x4Exx_xxxx cacheable and fetch) takes the same
+load, store and instruction access faults in both (TASK-005). Two details:
+
+- **A fetch fault has no commit line** in spike's log, only the exception
+  record (its epc is the fetch target). The lockstep matches the core's
+  trap beat (insn 0) against that record alone.
+- **The request count still holds** if a load or store access fault counts
+  as one request: the error IS the request's response. A faulting access
+  issued twice, or a younger access accepted under the fault, is extra.
+  Put a load or store directly behind each fault, or a port freed by the
+  error response goes unseen ([[bus-faults-at-the-response]]).
+- A failed write-back is an interrupt with a custom CSR, which spike does
+  not have: that program runs without lockstep, its CSR reads held to the
+  TB's shadow trap-CSR model (`csr_shadow.py`).
+
 ## Hand-written test programs: link with `--no-relax`
 
 The riscv-tests convention keeps the test number in `gp`. Linker

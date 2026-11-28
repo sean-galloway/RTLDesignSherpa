@@ -53,6 +53,7 @@ summary: RTL rules with the failures that taught them.
   invocation empirically, then add it to the check_rdl_regen manifest
 - [[minimal-fsm]] - when an FSM is right, keep it minimal
 - [[interrupts-must-not-discard-finished-work]] - a commit-point interrupt that throws away a multi-cycle instruction's finished result livelocks it under a fast interrupt; commit the finished instruction and take the interrupt on the next one, still precise (peregrine M unit, 2026-11-23)
+- [[bus-faults-at-the-response]] - a load/store access fault is known only from its response, a stage past a registered-read pipeline's commit point: take it there, hold the younger instruction uncommitted through the error response (an error response is never a completion); a failed write-back is an imprecise interrupt + sticky status (peregrine TASK-005, 2026-11-27)
 - [[fast-path-must-not-starve-the-fallback]] - a fast path's resource grab yields whenever the slow path would need it; read the whole sweep table, the floor is not the measurement (jet-prime TASK-002 bin 5a)
 - [[signal-contracts-and-kmaps]] - contracts workbooks; computed K-maps
 - [[no-assertions-in-rtl]] - SVA belongs in formal/ bindings, never in a module; the guarded blocks the RLB arc reintroduced

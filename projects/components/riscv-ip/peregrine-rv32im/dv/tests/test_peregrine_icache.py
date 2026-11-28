@@ -22,6 +22,11 @@ Directed phases (every level), each with an exact AR-burst count:
   invalidate    inv_req, then the warm sweep again: one burst per line
   last-beat     a miss on each line's last word (the replay cycle's case)
   inv in refill inv_req raised while a refill is in flight: acked only after
+  fetch faults  (TASK-005) a DECERR line: one refill, every fetch from it
+                faults; the line is not installed (fetching it later
+                refills); a failed refill over a valid line clears the set;
+                one SLVERR beat fails the whole line; an invalidate while a
+                faulted line is being fetched is taken
 Random phase (func: 3000 fetches, full: 20000), slow memory: sequential runs
 with random jumps over a 16 KiB working set, invalidates at random points;
 every fetched word is checked against the memory model.
@@ -96,8 +101,29 @@ async def cocotb_test_peregrine_icache(dut):
     await phase("held last-beat", [7 * SIZE + i * LINE + LINE - 4 for i in range(8)], 8,
                 hold_pct=30)
 
+    # Fetch faults (TASK-005).  The PC is in index 7 here.
+    bad = 9 * SIZE                                  # DECERR line, index 0
+    tb.bad_lines.add(bad // LINE)
+    # One refill, three faulted fetches from the line; then index 0 misses
+    # again: the failed refill cleared it (the line it held was overwritten).
+    await phase("fault line", [bad, bad + 4, bad + 8, 4], 2)
+    assert tb.faults == 3, f"{tb.faults} faulted fetches, expected 3"
+    # Not installed: the same line refills (and faults) again.
+    await phase("fault refetch", [bad, 8], 2)
+    assert tb.faults == 4, f"{tb.faults} faulted fetches, expected 4"
+    # One SLVERR beat (beat 3 of 8) fails the whole line.
+    bad2 = 10 * SIZE + LINE                         # index 1
+    tb.bad_beats.add(bad2 + 24)
+    await phase("slverr beat", [bad2 + 40, LINE + 4], 2)
+    assert tb.faults == 5, f"{tb.faults} faulted fetches, expected 5"
+    # An invalidate raised while the PC sits in a faulted line is taken
+    # (S_FAULT is not a refill); the line then refills and faults again.
+    await phase("inv in fault", [bad, bad + 4], 2, inv_at=(1,), inv_when_busy=True)
+    assert tb.inv_acks == 4, f"{tb.inv_acks} invalidate acks, expected 4"
+    assert tb.faults == 7, f"{tb.faults} faulted fetches, expected 7"
+
     if level != "gate":
-        n = 3000 if level == "func" else 20000
+        n = 3000     if level == "func" else 20000
         rng = tb.rng
         stream, pc, inv_at = [], 0, []
         for i in range(n):

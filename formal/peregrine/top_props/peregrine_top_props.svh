@@ -22,7 +22,13 @@
 //     the same direction, and for a load, a response already in and
 //     rvfi_mem_rdata equal to it;
 //   - at most two accepted accesses are not yet retired (MEM and WB), and
-//     no memory retire happens with nothing accepted.
+//     no memory retire happens with nothing accepted;
+//   - bus errors (TASK-005; the slave's RRESP / BRESP and the amber stub's
+//     error bit are free): an access whose response was an error retires
+//     as a load / store access-fault trap beat (mcause 5 for a load, 7 for
+//     a store), with its response already in, and pops it like a memory
+//     retire; an access answered OKAY never retires as an access fault,
+//     and one answered with an error never retires as a completed access.
 //
 // The harness (formal_peregrine_top.sv) replaces amber with a stub whose
 // response word is free on every cycle, valid or not, so nothing here can
@@ -33,6 +39,7 @@
         logic [31:0] addr;
         logic        we;
         logic        have;
+        logic        err;
         logic [31:0] data;
     } f_acc_t;
 
@@ -60,10 +67,16 @@
     assign f_new.addr   = w_daddr;
     assign f_new.we     = |w_dwstrb;
     assign f_new.have   = 1'b0;
+    assign f_new.err    = 1'b0;
     assign f_new.data   = 32'd0;
 
     logic f_mem_retire;
-    assign f_mem_retire = rvfi_valid & ((rvfi_mem_rmask != 4'd0) | (rvfi_mem_wmask != 4'd0));
+    logic f_fault_retire;   // a load / store access fault (TASK-005)
+    logic f_pop;
+    assign f_mem_retire   = rvfi_valid & ((rvfi_mem_rmask != 4'd0) | (rvfi_mem_wmask != 4'd0));
+    assign f_fault_retire = rvfi_valid & rvfi_trap &
+                            ((rvfi_trap_cause == 32'd5) | (rvfi_trap_cause == 32'd7));
+    assign f_pop          = f_mem_retire | f_fault_retire;
 
     // Order within a cycle: the response lands on the in-flight entry, the
     // retire pops the head, the accept pushes behind.
@@ -75,14 +88,16 @@
         if (f_rsp) begin
             if (f_an == 2'd2) begin
                 f_b1.have = 1'b1;
+                f_b1.err  = w_rsp_err;
                 f_b1.data = f_rsp_word;
             end else begin
                 f_b0.have = 1'b1;
+                f_b0.err  = w_rsp_err;
                 f_b0.data = f_rsp_word;
             end
         end
         f_bn = f_an;
-        if (f_mem_retire && f_an != 2'd0) begin
+        if (f_pop && f_an != 2'd0) begin
             f_b0 = f_b1;
             f_bn = f_an - 2'd1;
         end
@@ -112,7 +127,14 @@
                 ap_d_rsp_has_access: assert (f_an != 2'd0);
                 ap_d_one_rsp:        assert (!((f_an == 2'd2) ? f_a1.have : f_a0.have));
             end
+            if (f_fault_retire) begin
+                ap_d_fault_was_accepted: assert (f_an != 2'd0);
+                ap_d_fault_had_err:      assert (f_a0.have && f_a0.err);
+                ap_d_fault_cause:        assert ((rvfi_trap_cause == 32'd7) == f_a0.we);
+            end
             if (f_mem_retire) begin
+                ap_d_retire_no_err:  assert (!(f_a0.have && f_a0.err) &&
+                                             !(f_rsp && w_rsp_err && (f_an == 2'd1)));
                 ap_d_retire_was_accepted: assert (f_an != 2'd0);
                 ap_d_retire_addr:  assert (f_a0.addr == rvfi_mem_addr);
                 ap_d_retire_dir:   assert (f_a0.we == (rvfi_mem_wmask != 4'd0));
@@ -141,6 +163,11 @@
                                               (rvfi_mem_addr[31:28] == 4'h1));
             cp_d_clint_load:           cover (f_mem_retire && (rvfi_mem_rmask != 4'd0) &&
                                               (rvfi_mem_addr[31:16] == 16'h0200));
+            // TASK-005: each fault path
+            cp_d_fault_load:           cover (f_fault_retire && (rvfi_trap_cause == 32'd5));
+            cp_d_fault_store:          cover (f_fault_retire && (rvfi_trap_cause == 32'd7));
+            cp_d_fault_parked:         cover (r_mem_have && r_mem_err);
+            cp_d_fault_dc:             cover (f_fault_retire && (r_tgt == T_DC));
         end
     end
 `endif

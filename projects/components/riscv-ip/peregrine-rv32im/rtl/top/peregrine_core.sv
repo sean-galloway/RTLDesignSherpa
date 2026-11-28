@@ -102,7 +102,29 @@
 //       mem_wait drops (the interrupt goes to the next instruction).  The
 //       D-side request (dmem_req_pre) therefore never drops before its
 //       handshake, which the GAXI / AXI contract behind the wrapper
-//       requires.
+//       requires;
+//     - bus errors (TASK-005).  An instruction fetch whose I$ fill was
+//       answered SLVERR / DECERR arrives with imem_fault: IF/ID carries the
+//       fault (and a zero instruction word, so decode raises nothing of its
+//       own), ID turns it into EXC_IFAULT, and it traps at MEM like any
+//       other exception (mcause 1, mtval = its PC).  A load or store whose
+//       D-side response was an error is known only when the response
+//       arrives, which the registered-read contract puts in WB: the
+//       wrapper holds the core on the error response, then presents
+//       dmem_fault with the instruction in WB.  That cycle the WB
+//       instruction retires as a trap beat (mcause 5 / 7, mtval = its
+//       address, no rd write), and the instruction in MEM -- held there
+//       through the error response, so it has not committed -- is killed
+//       with everything younger.  Precise: everything older retired,
+//       nothing younger wrote memory, the regfile or a CSR.  The one
+//       exception to "every instruction that leaves EX retires": the
+//       instruction killed in MEM had already updated the predictor;
+//     - mip.16 / mbuserr (TASK-005): amber's sticky write-back error is
+//       platform interrupt 16 (irq_buserr), taken at MEM on the ordinary
+//       interrupt path; the custom CSR mbuserr (0x7C0) reads buserr_info
+//       and a write to it pulses buserr_clear.
+//     The cacheless build has neither: imem_fault, dmem_fault and
+//     irq_buserr are ignored and mbuserr does not exist.
 
 `timescale 1ns / 1ps
 
@@ -131,6 +153,12 @@ module peregrine_core #(
     // CACHE_EN=1 only (peregrine_top); 0 when CACHE_EN=0.
     output logic        dmem_req_pre,   // the MEM access, before the mem_wait gate
     output logic        fencei_req,     // fence.i in MEM: clean D$, invalidate I$
+    // Bus errors (TASK-005), CACHE_EN=1 only; tie 0 when CACHE_EN=0.
+    input  logic        imem_fault,     // the fetch at imem_addr faulted (with imem_rdata)
+    input  logic        dmem_fault,     // WB's load/store response was an error (with dmem_rdata)
+    input  logic        irq_buserr,     // amber's sticky write-back error (mip.16)
+    input  logic [31:0] buserr_info,    // what mbuserr (0x7C0) reads
+    output logic        buserr_clear,   // a write to mbuserr committed
     input  logic        irq_software,
     input  logic        irq_timer,
     input  logic        irq_external,
@@ -266,10 +294,15 @@ module peregrine_core #(
     // -----------------------------------------------------------------
     if_id_t if_id_d, if_id_q;
 
+    // A faulted fetch (TASK-005) carries a zero word: decode sees an
+    // illegal instruction with no side effects, and ID replaces the cause.
+    logic w_ifault;
+    assign w_ifault            = CACHE_EN & imem_fault;
     assign if_id_d.pc          = pc;
-    assign if_id_d.insn        = imem_rdata;
+    assign if_id_d.insn        = w_ifault ? 32'd0 : imem_rdata;
     assign if_id_d.pred_taken  = if_pred_taken;
     assign if_id_d.pred_target = if_pred_target;
+    assign if_id_d.ifault      = w_ifault;
     assign if_id_d.valid       = 1'b1;
 
     peregrine_if_id u_if_id (
@@ -385,7 +418,7 @@ module peregrine_core #(
     assign id_ex_d.branch        = id_branch;
     assign id_ex_d.jump          = id_jump;
     assign id_ex_d.jalr          = id_jalr;
-    assign id_ex_d.exc_cause     = id_exc_cause;
+    assign id_ex_d.exc_cause     = if_id_q.ifault ? EXC_IFAULT : id_exc_cause;
     assign id_ex_d.csr_op        = id_csr_op;
     assign id_ex_d.mret          = id_mret;
     assign id_ex_d.m_op          = id_m_op;
@@ -773,10 +806,27 @@ module peregrine_core #(
     logic        mem_exc;
     logic        mem_irq;
     logic        mem_trap;
+    logic        mem_valid;     // MEM's instruction, unless WB's bus fault kills it
+    logic        wb_fault;      // WB's load/store got an error response (TASK-005)
+    logic        wb_trap;
+    logic [31:0] wb_fault_cause;
     logic        mem_mret;
     logic        mem_csr_wen;
     logic [31:0] mem_trap_cause;
     logic [31:0] mem_trap_tval;
+
+    // A bus fault on the instruction in WB (CACHE_EN): the wrapper raises
+    // dmem_fault only for WB's own access; is_mem is the belt to its
+    // braces.  It traps WB and kills MEM: every MEM-stage commit below
+    // (trap, mret, CSR write, fence.i, the move to WB) is qualified by
+    // ~wb_fault.  The one exception is the data request (mem_ls_ok, and
+    // so dmem_req_pre), the core -> amber accept cone that limits the
+    // 75 MHz build: it stays as it was, and the wrapper, which raised the
+    // fault from its own flop, does not present or wait for MEM's request
+    // that cycle (TASK-005; gating it here cost a logic level and 0.3 ns).
+    assign wb_fault  = CACHE_EN & dmem_fault & mem_wb_q.valid & mem_wb_q.is_mem;
+    assign wb_trap   = wb_fault & ~mem_wait;
+    assign mem_valid = ex_mem_q.valid & ~wb_fault;
 
     assign mem_exc  = ex_mem_q.valid & (ex_mem_q.exc_cause != EXC_NONE);
     // An M instruction is not interruptible (see the header): its work is
@@ -789,14 +839,14 @@ module peregrine_core #(
     logic        mem_ls_ok;
 
     assign mem_irq  = ex_mem_q.valid & ~ex_mem_q.m_op & csr_irq_pending & ~r_mem_irq_lock;
-    assign mem_trap = (mem_exc | mem_irq) & ~mem_wait;
-    assign mem_mret = ex_mem_q.valid & ex_mem_q.mret & ~mem_exc & ~mem_irq & ~mem_wait;
-    assign mem_csr_wen = ex_mem_q.valid & ex_mem_q.csr_wen & ~mem_exc & ~mem_irq & ~mem_wait;
+    assign mem_trap = (mem_exc | mem_irq) & ~wb_fault & ~mem_wait;
+    assign mem_mret = mem_valid & ex_mem_q.mret & ~mem_exc & ~mem_irq & ~mem_wait;
+    assign mem_csr_wen = mem_valid & ex_mem_q.csr_wen & ~mem_exc & ~mem_irq & ~mem_wait;
 
     // fence.i: a redirect to the next instruction, flushing what was fetched
     // before it.  CACHE_EN: held in MEM by the wrapper (fencei_req) until the
     // D$ clean and the I$ invalidate are done.
-    assign mem_fencei_pend = ex_mem_q.valid & ~mem_exc & ~mem_irq &
+    assign mem_fencei_pend = mem_valid & ~mem_exc & ~mem_irq &
                              (ex_mem_q.insn[6:0] == 7'b0001111) &
                              (ex_mem_q.insn[14:12] == 3'b001);
     assign mem_fencei      = mem_fencei_pend & ~mem_wait;
@@ -814,18 +864,18 @@ module peregrine_core #(
         assign r_mem_irq_lock = 1'b0;
     end
 
-    assign mem_redirect    = mem_trap | mem_mret | mem_fencei;
+    assign mem_redirect    = wb_trap | mem_trap | mem_mret | mem_fencei;
     // The same decision without the ~mem_wait term, for the consumers that
     // gate on mem_wait themselves (the PC mux, the flushes, the M-unit
     // start, the predictor write): mem_wait then feeds them once, not
     // through the redirect as well (TASK-001 stage 7).  Same function.
     logic mem_trap_nw;
     logic mem_mret_nw;
-    assign mem_trap_nw     = mem_exc | mem_irq;
-    assign mem_mret_nw     = ex_mem_q.valid & ex_mem_q.mret & ~mem_exc & ~mem_irq;
-    assign mem_redirect_nw = mem_trap_nw | mem_mret_nw | mem_fencei_pend;
-    assign mem_redirect_pc = mem_trap_nw ? csr_mtvec :
-                             mem_mret_nw ? csr_mepc  : ex_mem_q.next_pc;
+    assign mem_trap_nw     = (mem_exc | mem_irq) & ~wb_fault;
+    assign mem_mret_nw     = mem_valid & ex_mem_q.mret & ~mem_exc & ~mem_irq;
+    assign mem_redirect_nw = wb_fault | mem_trap_nw | mem_mret_nw | mem_fencei_pend;
+    assign mem_redirect_pc = (wb_fault | mem_trap_nw) ? csr_mtvec :
+                             mem_mret_nw              ? csr_mepc  : ex_mem_q.next_pc;
 
     // mcause and mtval.  An interrupt wins: the instruction never executed.
     always_comb begin
@@ -851,6 +901,10 @@ module peregrine_core #(
                     mem_trap_cause = {1'b0, MCAUSE_SALIGN};
                     mem_trap_tval  = ex_mem_q.alu_y;
                 end
+                EXC_IFAULT: begin
+                    mem_trap_cause = {1'b0, MCAUSE_IFAULT};
+                    mem_trap_tval  = ex_mem_q.pc;
+                end
                 default: begin
                     mem_trap_cause = {1'b0, MCAUSE_ILL};
                     mem_trap_tval  = ex_mem_q.insn;
@@ -859,8 +913,23 @@ module peregrine_core #(
         end
     end
 
+    // WB's bus fault (TASK-005): the trap the CSR file enters is WB's when
+    // there is one (MEM's instruction is killed that cycle).  mtval is the
+    // access's byte address.
+    logic        csr_trap_take;
+    logic [31:0] csr_trap_cause;
+    logic [31:0] csr_trap_epc;
+    logic [31:0] csr_trap_tval;
+    assign wb_fault_cause = {1'b0, (mem_wb_q.insn[6:0] == OPCODE_STORE) ? MCAUSE_SFAULT
+                                                                         : MCAUSE_LFAULT};
+    assign csr_trap_take  = wb_trap | mem_trap;
+    assign csr_trap_cause = wb_fault ? wb_fault_cause : mem_trap_cause;
+    assign csr_trap_epc   = wb_fault ? mem_wb_q.pc    : ex_mem_q.pc;
+    assign csr_trap_tval  = wb_fault ? mem_wb_q.alu_y : mem_trap_tval;
+
     peregrine_csr #(
-        .M_EXT (1'b1)
+        .M_EXT     (1'b1),
+        .BUSERR_EN (CACHE_EN)
     ) u_csr (
         .clk          (clk),
         .rst_n        (w_aresetn),
@@ -870,14 +939,17 @@ module peregrine_core #(
         .wen          (mem_csr_wen),
         .waddr        (ex_mem_q.insn[31:20]),
         .wdata        (ex_mem_q.csr_wdata),
-        .trap_take    (mem_trap),
-        .trap_cause   (mem_trap_cause),
-        .trap_epc     (ex_mem_q.pc),
-        .trap_tval    (mem_trap_tval),
+        .trap_take    (csr_trap_take),
+        .trap_cause   (csr_trap_cause),
+        .trap_epc     (csr_trap_epc),
+        .trap_tval    (csr_trap_tval),
         .mret_take    (mem_mret),
         .irq_software (irq_software),
         .irq_timer    (irq_timer),
         .irq_external (irq_external),
+        .irq_buserr   (irq_buserr),
+        .buserr_info  (buserr_info),
+        .buserr_clear (buserr_clear),
         .mtvec        (csr_mtvec),
         .mepc         (csr_mepc),
         .irq_pending  (csr_irq_pending),
@@ -898,6 +970,7 @@ module peregrine_core #(
         endcase
     end
 
+    // Not gated by wb_fault (see mem_valid): the wrapper blocks it then.
     assign mem_ls_ok  = ex_mem_q.dmem_req & ex_mem_q.valid & ~mem_exc & ~mem_irq;
     assign dmem_req   = mem_ls_ok & ~mem_wait;
     assign dmem_req_pre = CACHE_EN & mem_ls_ok;
@@ -926,7 +999,7 @@ module peregrine_core #(
     assign mem_wb_d.bp_pred_taken  = ex_mem_q.bp_pred_taken;
     assign mem_wb_d.bp_pred_target = ex_mem_q.bp_pred_target;
     assign mem_wb_d.bp_mispredict  = ex_mem_q.bp_mispredict;
-    assign mem_wb_d.valid     = ex_mem_q.valid;
+    assign mem_wb_d.valid     = mem_valid;
     assign mem_wb_d.insn      = ex_mem_q.insn;
     assign mem_wb_d.imm       = ex_mem_q.imm;
     assign mem_wb_d.rs1_rdata = ex_mem_q.rs1_rdata;
@@ -979,7 +1052,8 @@ module peregrine_core #(
     // x0 and the write is enabled every cycle so x0 is initialized to zero.
     assign wb_rd_addr    = w_aresetn ? mem_wb_q.rd_addr : 5'd0;
     assign wb_rd_wen_eff = (~w_aresetn) |
-                           (w_aresetn & mem_wb_q.rd_wen & mem_wb_q.valid & ~mem_wait);
+                           (w_aresetn & mem_wb_q.rd_wen & mem_wb_q.valid & ~mem_wait &
+                            ~wb_fault);
 
     `ALWAYS_FF_RST(clk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) begin
@@ -998,14 +1072,17 @@ module peregrine_core #(
     logic        wb_is_load;
     logic        wb_is_store;
 
-    assign rd_wb           = mem_wb_q.rd_wen & (mem_wb_q.rd_addr != 5'd0);
+    // A bus-faulted load or store (wb_fault) retires as a trap beat: no rd,
+    // no memory access, its trap target as the next PC.
+    assign rd_wb           = mem_wb_q.rd_wen & (mem_wb_q.rd_addr != 5'd0) & ~wb_fault;
     assign rvfi_valid      = w_aresetn & mem_wb_q.valid & ~mem_wait;
     assign rvfi_order      = retire_count;
     assign rvfi_pc_rdata   = mem_wb_q.pc;
-    assign rvfi_pc_wdata   = mem_wb_q.next_pc;
+    assign rvfi_pc_wdata   = wb_fault ? csr_mtvec : mem_wb_q.next_pc;
     assign rvfi_insn       = mem_wb_q.insn;
-    assign rvfi_trap       = mem_wb_q.trap;
-    assign rvfi_trap_cause = mem_wb_q.trap ? wb_trap_cause : 32'd0;
+    assign rvfi_trap       = mem_wb_q.trap | wb_fault;
+    assign rvfi_trap_cause = wb_fault      ? wb_fault_cause :
+                             mem_wb_q.trap ? wb_trap_cause  : 32'd0;
     assign rvfi_bp_pred_taken  = mem_wb_q.bp_pred_taken;
     assign rvfi_bp_pred_target = mem_wb_q.bp_pred_target;
     assign rvfi_bp_mispredict  = mem_wb_q.bp_mispredict;
@@ -1032,7 +1109,7 @@ module peregrine_core #(
 
     assign wb_is_load      = mem_wb_q.insn[6:0] == OPCODE_LOAD;
     assign wb_is_store     = mem_wb_q.insn[6:0] == OPCODE_STORE;
-    assign rvfi_mem_active = mem_wb_q.valid & mem_wb_q.is_mem;
+    assign rvfi_mem_active = mem_wb_q.valid & mem_wb_q.is_mem & ~wb_fault;
 
     assign rvfi_mem_addr  = rvfi_mem_active ? {mem_wb_q.alu_y[31:2], 2'b00} : 32'd0;
     assign rvfi_mem_rmask = (rvfi_mem_active & wb_is_load)

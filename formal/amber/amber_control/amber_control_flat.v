@@ -159,6 +159,7 @@ module l1_control (
 	ctrl_req_ready,
 	ctrl_rsp_valid,
 	ctrl_rsp_data,
+	ctrl_rsp_err,
 	ctrl_tag_a_set,
 	ctrl_tag_a_tag_state,
 	ctrl_tag_a_wr_en,
@@ -200,6 +201,8 @@ module l1_control (
 	ctrl_drain_start,
 	ctrl_drain_done,
 	ctrl_drain_clean,
+	ctrl_fill_err,
+	ctrl_drain_err,
 	ctrl_snoop_req,
 	ctrl_snoop_ready,
 	ctrl_snoop_safe,
@@ -241,6 +244,7 @@ module l1_control (
 	output wire ctrl_req_ready;
 	output wire ctrl_rsp_valid;
 	output wire [64 - 1:0] ctrl_rsp_data;
+	output wire ctrl_rsp_err;
 	output reg [SET_INDEX_WIDTH - 1:0] ctrl_tag_a_set;
 	input wire [(2 * TAG_STATE_WIDTH) - 1:0] ctrl_tag_a_tag_state;
 	output reg ctrl_tag_a_wr_en;
@@ -282,6 +286,8 @@ module l1_control (
 	output reg ctrl_drain_start;
 	input wire ctrl_drain_done;
 	output wire ctrl_drain_clean;
+	input wire ctrl_fill_err;
+	input wire ctrl_drain_err;
 	input wire ctrl_snoop_req;
 	output wire ctrl_snoop_ready;
 	output wire ctrl_snoop_safe;
@@ -298,17 +304,17 @@ module l1_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:337:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:365:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:339:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:367:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:341:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:369:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:343:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:371:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:345:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:373:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
 		if (8 < 1)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:347:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 8 must be >= 1");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_control.sv:375:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 8 must be >= 1");
 	end
 	localparam signed [31:0] CTRL_BITS = 16;
 	localparam [15:0] OH_IDLE = 16'h0001;
@@ -356,6 +362,13 @@ module l1_control (
 	reg drain_seen_q;
 	reg drain_done_q;
 	reg fill_pass_dirty_q;
+	reg fill_err_q;
+	reg drain_err_q;
+	reg rsp_err_q;
+	wire fill_err;
+	wire drain_err;
+	assign fill_err = 0 && fill_err_q;
+	assign drain_err = 0 && drain_err_q;
 	localparam signed [31:0] RUN_W = $clog2(8 + 1);
 	reg [RUN_W - 1:0] hit_run_q;
 	reg hit_again_q;
@@ -766,7 +779,7 @@ module l1_control (
 					state_d = OH_FILL_WRITE;
 				else
 					state_d = OH_MISS_FILL;
-			OH_FILL_WRITE: state_d = OH_REPLAY;
+			OH_FILL_WRITE: state_d = (fill_err ? OH_CLEAN_RSP : OH_REPLAY);
 			OH_REPLAY: state_d = OH_LOOKUP;
 			OH_SNOOP:
 				if (sn_complete)
@@ -813,6 +826,9 @@ module l1_control (
 			fill_seen_q <= 1'b0;
 			fill_done_q <= 1'b0;
 			fill_pass_dirty_q <= 1'b0;
+			fill_err_q <= 1'b0;
+			drain_err_q <= 1'b0;
+			rsp_err_q <= 1'b0;
 			drain_seen_q <= 1'b0;
 			drain_done_q <= 1'b0;
 			hit_run_q <= 1'sb0;
@@ -844,6 +860,10 @@ module l1_control (
 				fill_done_q <= 1'b1;
 			if (ctrl_drain_done)
 				drain_done_q <= 1'b1;
+			if (0 && ctrl_fill_err)
+				fill_err_q <= 1'b1;
+			if (0 && ctrl_drain_err)
+				drain_err_q <= 1'b1;
 			if (snoop_gnt) begin
 				sn_addr_q <= ctrl_snoop_addr;
 				sn_type_q <= ctrl_snoop_type;
@@ -942,7 +962,9 @@ module l1_control (
 				OH_CLEAN_COMMIT: begin
 					drain_seen_q <= 1'b0;
 					drain_done_q <= 1'b0;
+					drain_err_q <= 1'b0;
 				end
+				OH_CLEAN_RSP: rsp_err_q <= 1'b0;
 				OH_FILL_WRITE: begin
 					mv_cnt_q <= 1'sb0;
 					fill_seen_q <= 1'b0;
@@ -951,6 +973,9 @@ module l1_control (
 					drain_seen_q <= 1'b0;
 					drain_done_q <= 1'b0;
 					pend_vld_q <= 1'b0;
+					fill_err_q <= 1'b0;
+					drain_err_q <= 1'b0;
+					rsp_err_q <= fill_err;
 				end
 				default:
 					;
@@ -1049,6 +1074,10 @@ module l1_control (
 				ctrl_tag_a_wr_en = cl_commit_m_q;
 				ctrl_tag_a_wr_way_onehot = victim_way_onehot;
 				ctrl_tag_a_wr_tag_state = {victim_tag_q, 3'b010};
+				if (drain_err) begin
+					ctrl_tag_a_wr_en = 1'b1;
+					ctrl_tag_a_wr_tag_state = {victim_tag_q, 3'b000};
+				end
 			end
 			OH_MISS_FILL: ctrl_fill_start = !fill_seen_q;
 			OH_MISS_DRAIN: ctrl_drain_start = !drain_seen_q;
@@ -1063,6 +1092,11 @@ module l1_control (
 				else begin
 					ctrl_repl_update = 1'b1;
 					ctrl_repl_hit_way = victim_way_q;
+				end
+				if (fill_err) begin
+					ctrl_tag_a_wr_tag_state = {req_tag, (upgr_q ? (pend_vld_q ? pend_state_q : hit_state_q) : 3'b000)};
+					ctrl_repl_hit = 1'b0;
+					ctrl_repl_update = 1'b0;
 				end
 			end
 			OH_SNOOP: begin
@@ -1082,6 +1116,7 @@ module l1_control (
 	assign ctrl_req_ready = acc_ok;
 	assign ctrl_rsp_valid = ((state_q == OH_HIT_RD) || (state_q == OH_HIT_WR)) || (state_q == OH_CLEAN_RSP);
 	assign ctrl_rsp_data = ((state_q == 16'h0010) || (state_q == 16'h8000) ? req_wdata_q : ctrl_data_a_rdata);
+	assign ctrl_rsp_err = (0 && (state_q == OH_CLEAN_RSP)) && rsp_err_q;
 	assign ctrl_drain_clean = req_maint_q;
 	assign ctrl_init_busy = state_q == OH_INIT;
 	assign ctrl_init_set = init_cnt_q;

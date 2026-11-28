@@ -28,6 +28,13 @@ Checks, every cycle:
   * inv_ack is never raised while a refill is in flight.
 Counts (asserted by the directed phases): AR bursts per phase, so a hit
 that should not miss, or a miss that should not hit, is a failure.
+
+Fetch faults (TASK-005): lines in ``bad_lines`` are answered DECERR on every
+beat, beat addresses in ``bad_beats`` SLVERR on that beat only (the BFM's
+resp_override).  A fetch from such a line must come with fetch_fault and
+stall low; one without fetch_fault is a failure even when its word is right
+(the BFM's data is the memory's, so only the fault bit tells an installed
+bad line apart).  ``faults`` counts the faulted fetches.
 """
 
 import random
@@ -63,16 +70,33 @@ class IcacheTB:
                                bytes_per_line=axi_dw // 8, log=self.log)
         for a in range(0, mem_bytes, 4):
             self.mem.write(a, bytearray(self.rng.getrandbits(32).to_bytes(4, "little")))
+        self.bad_lines: set = set()
+        self.bad_beats: set = set()
         rd = create_axi4_slave_rd(dut=dut, clock=dut.clk, prefix="m_axi_", log=self.log,
                                   id_width=4, addr_width=32, data_width=axi_dw,
                                   user_width=1, memory_model=self.mem,
-                                  optional_fields=OPTIONAL)
+                                  optional_fields=OPTIONAL,
+                                  resp_override=self._resp)
         self.ar = rd["AR"]
         self.r = rd["R"]
         self.pc = 0
         self.ars = 0
         self.checked = 0
         self.inv_acks = 0
+        self.faults = 0
+
+    def _resp(self, addr: int):
+        if addr // self.line in self.bad_lines:
+            return 3                                  # DECERR
+        if addr in self.bad_beats:
+            return 2                                  # SLVERR
+        return None
+
+    def is_bad(self, addr: int) -> bool:
+        beat = self.dw // 8
+        base = addr - addr % self.line
+        return (addr // self.line in self.bad_lines or
+                any(b in self.bad_beats for b in range(base, base + self.line, beat)))
 
     def word(self, addr: int) -> int:
         return int.from_bytes(self.mem.read(addr % self.mem_bytes, 4), "little")
@@ -146,7 +170,15 @@ class IcacheTB:
             d.inv_req.value = int(k in inv_set and (seen_busy or not inv_when_busy))
             await Timer(1, unit="ps")
             stall = int(d.stall.value)
-            if not stall:
+            fault = int(d.fetch_fault.value)
+            if fault:
+                assert not stall, f"pc 0x{self.pc:x}: fetch_fault with stall"
+                assert self.is_bad(self.pc), \
+                    f"pc 0x{self.pc:x}: fetch_fault on a line the memory answered OKAY"
+                self.faults += 1
+            elif not stall:
+                assert not self.is_bad(self.pc), \
+                    f"pc 0x{self.pc:x}: fetched from a failed line without fetch_fault"
                 got = int(d.fetch_rdata.value)
                 want = self.word(self.pc)
                 assert got == want, (f"pc 0x{self.pc:x}: fetched 0x{got:08x}, "

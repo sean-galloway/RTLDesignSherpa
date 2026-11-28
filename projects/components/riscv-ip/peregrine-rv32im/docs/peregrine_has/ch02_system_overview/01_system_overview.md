@@ -67,7 +67,7 @@ amber's ACE snoop port is tied idle: there is one core and no other cache, so no
 ## What Is Not in the System
 
 - **No MonBus observation.** amber is built with `USE_MONITOR=0`, and the core has no MonBus port. The observation the PRD §4.6 plans (mispredict, trap and M-busy events) is not built; the same information is on the RVFI observation ports (`rvfi_trap_cause`, `rvfi_bp_*`).
-- **No bus-error reporting.** An AXI `SLVERR` or `DECERR` on an I\$ refill, a D\$ fill or an uncached access is not reported to the core; peregrine has no access-fault exception.
+- **Bus errors are reported (TASK-005).** An AXI `SLVERR` or `DECERR` on an I\$ refill, a D\$ fill or an uncached access is a precise instruction, load or store access fault; a failed write-back of a dirty line is the imprecise platform interrupt 16 with the `mbuserr` CSR ("Trap and Interrupt Behavior"). The cacheless build has no bus.
 
 ---
 

@@ -121,10 +121,14 @@ module l1_cpu_frontend
     parameter int BUS_WIDTH  = AMBER_BUS_WIDTH,
     parameter bit RSP_BYPASS = 1'b0,
     parameter bit MAINT_EN   = 1'b0,
+    // amber TASK-008: 1 = the response carries one more bit above the data
+    // (amber's error bit, {err, rdata}); the frontend passes it through
+    // like the data. 0 (default): the response is BUS_WIDTH, as before
+    parameter bit RSP_ERR_EN = 1'b0,
     localparam int STRB_W     = BUS_WIDTH / 8,
     localparam int CPU_REQ_W  = int'(MAINT_EN) + ADDR_WIDTH + 1 + STRB_W
                                 + BUS_WIDTH,
-    localparam int CPU_RSP_W  = BUS_WIDTH
+    localparam int CPU_RSP_W  = BUS_WIDTH + int'(RSP_ERR_EN)
 )(
     input  logic                     clk,
     input  logic                     rst_n,
@@ -148,7 +152,7 @@ module l1_cpu_frontend
     output logic                     req_maint,
     input  logic                     ctrl_req_ready,
     input  logic                     ctrl_rsp_valid,
-    input  logic [BUS_WIDTH-1:0]     ctrl_rsp_data
+    input  logic [CPU_RSP_W-1:0]     ctrl_rsp_data
 );
 
     // ------------------------------------------------------------------
@@ -168,7 +172,7 @@ module l1_cpu_frontend
     // ------------------------------------------------------------------
     logic                 stage_wr_ready;
     logic                 stage_rd_valid;
-    logic [BUS_WIDTH-1:0] stage_rd_data;
+    logic [CPU_RSP_W-1:0] stage_rd_data;
     logic                 stage_wr_valid;
 
     // RSP_BYPASS: a response taken in the cycle it is made (FIFO empty,
@@ -178,7 +182,7 @@ module l1_cpu_frontend
                             : ctrl_rsp_valid;
 
     gaxi_fifo_sync #(
-        .DATA_WIDTH (BUS_WIDTH),
+        .DATA_WIDTH (CPU_RSP_W),
         .DEPTH      (2)
     ) u_rsp_stage (
         .axi_aclk    (clk),

@@ -36,6 +36,7 @@ The machine-mode CSR file of PRD P6: one combinational read port (the CSR instru
 | Parameter | Kind | Type | Default | Description |
 |----------------|----------|------------|--------------|------------------------------|
 | `M_EXT` | parameter | `bit` | `1'b0` | Sets misa.M |
+| `BUSERR_EN` | parameter | `bit` | `1'b0` | 1: interrupt 16 (mip / mie bit 16) and the mbuserr CSR exist (the cached build) |
 
 : peregrine_csr parameters
 
@@ -63,6 +64,9 @@ The machine-mode CSR file of PRD P6: one combinational read port (the CSR instru
 | `irq_software` | input | `1` | MSIP pin (level) |
 | `irq_timer` | input | `1` | MTIP pin (level) |
 | `irq_external` | input | `1` | MEIP pin (level) |
+| `irq_buserr` | input | `1` | amber's write-back error status, mip.16 (level; BUSERR_EN) |
+| `buserr_info` | input | `[31:0]` | What mbuserr (0x7C0) reads: {line address[31:2], overflow, valid} |
+| `buserr_clear` | output | `1` | A write to mbuserr committed (pulse): clears amber's status |
 | `mtvec` | output | `[31:0]` | Trap vector (direct mode) |
 | `mepc` | output | `[31:0]` | Return PC for mret |
 | `irq_pending` | output | `1` | An enabled interrupt was pending and mstatus.MIE set in the previous cycle (registered) |
@@ -78,10 +82,11 @@ The machine-mode CSR file of PRD P6: one combinational read port (the CSR instru
 - **Update priority.** `trap_take`, then `mret_take`, then `wen`. They never coincide: each is the commit of the one instruction in MEM.
 - **Trap entry:** `MPIE <= MIE`, `MIE <= 0`, `mepc <= trap_epc[31:2]`, `mcause <= trap_cause`, `mtval <= trap_tval`.
 - **mret:** `MIE <= MPIE`, `MPIE <= 1`.
-- **Write masks:** `mie` keeps only MSIE, MTIE, MEIE; `mtvec` and `mepc` keep bits 31:2; `mstatus` keeps MIE and MPIE; writes to `misa`, `mstatush`, `mip` and the PMP CSRs are ignored.
-- **Interrupts.** The decision `|(mie & mip) & mstatus.MIE`, with `mip` taken from the three pins each cycle, is registered: `irq_pending` and `irq_cause` (MEI, then MSI, then MTI) are what the previous cycle saw (TASK-006; `mie` through the decision into amber's request accept was a 75 MHz critical path). A cycle with `wen`, `trap_take` or `mret_take` loads `irq_pending = 0`, so the cycle after a CSR write that disables interrupts, a trap entry (which clears MIE) or an `mret` never takes an interrupt on the old enables. An interrupt is recognized one cycle after its pin and enables allow it, and a pin that drops is still seen for one cycle.
+- **Bus-error report (`BUSERR_EN`, the core's `CACHE_EN`; TASK-005):** `mip.16` is `irq_buserr` (amber's write-back error status), `mie.16` is writable, and it is the highest-priority interrupt (`irq_cause` 0x8000_0010). `mbuserr` (0x7C0) reads `buserr_info`; a committed write to it (`wen & waddr == 0x7C0`) pulses `buserr_clear`, so amber's status drops at the next edge together with the write, and the cleared `irq_pending` of that cycle keeps an interrupt from being taken on the old status. At `BUSERR_EN=0` neither exists (`mbuserr` is illegal).
+- **Write masks:** `mie` keeps only MSIE, MTIE, MEIE (and BEIE at `BUSERR_EN=1`); `mtvec` and `mepc` keep bits 31:2; `mstatus` keeps MIE and MPIE; writes to `misa`, `mstatush`, `mip` and the PMP CSRs are ignored.
+- **Interrupts.** The decision `|(mie & mip) & mstatus.MIE`, with `mip` taken from the three pins each cycle, is registered: `irq_pending` and `irq_cause` (bus error, then MEI, then MSI, then MTI) are what the previous cycle saw (TASK-006; `mie` through the decision into amber's request accept was a 75 MHz critical path). A cycle with `wen`, `trap_take` or `mret_take` loads `irq_pending = 0`, so the cycle after a CSR write that disables interrupts, a trap entry (which clears MIE) or an `mret` never takes an interrupt on the old enables. An interrupt is recognized one cycle after its pin and enables allow it, and a pin that drops is still seen for one cycle.
 - **Reset.** Every CSR resets to 0, so interrupts are disabled and `mtvec` is 0 until software sets them.
 
 ---
 
-**Last Updated:** 2026-11-25
+**Last Updated:** 2026-11-27

@@ -41,6 +41,20 @@
 //          when no refill is in flight.  That cycle clears every valid bit
 //          and pulses inv_ack.  It wins over a miss starting the same cycle.
 //
+//          Fetch fault (TASK-005, the instruction access fault): a refill
+//          with any R beat answered SLVERR / DECERR (RRESP[1]) does not
+//          install the line (the beats land in the data RAM, so the set's
+//          valid bit is cleared: the line it held was overwritten) and
+//          ends in S_FAULT instead of the replay.
+//          S_FAULT presents fetch_fault with stall low for every fetch from
+//          the failed line, held or not, so the core takes the faulted
+//          fetch into IF/ID whenever it is ready, and a sequential fetch
+//          behind it in the same line faults without another refill.  The
+//          fault is a property of that one refill: the first fetch outside
+//          the line (one stall cycle) or an invalidate returns to S_IDLE,
+//          and a later fetch from the line refills it again.  fetch_rdata
+//          is not meaningful with fetch_fault (the core discards it).
+//
 // Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
 // Subsystem: riscv-ip/peregrine-rv32im
 //
@@ -56,9 +70,8 @@
 // Notes:
 //   - The data and tag RAMs have no reset; the valid bits do, and a hit
 //     reads a tag only under its valid bit.
-//   - An R beat with an error response is installed like any other; the
-//     fabric's memory never returns one.  Fetch faults are out of scope
-//     (peregrine has no instruction access fault, PRD P6).
+//   - An error R beat (RRESP[1]) fails the refill (fetch fault, above);
+//     RRESP[0] is not read.
 //
 // Related Modules:
 //   - peregrine_top (fetch side, fence.i sequence)
@@ -84,6 +97,7 @@ module peregrine_icache #(
     input  logic [31:0]         fetch_addr_next_nw, // the next PC if not held
     input  logic                hold,             // the core holds (mem_wait)
     output logic [31:0]         fetch_rdata,
+    output logic                fetch_fault,      // the fetch's refill failed (TASK-005)
     output logic                stall,
     // Invalidate (fence.i)
     input  logic                inv_req,
@@ -130,7 +144,8 @@ module peregrine_icache #(
         S_IDLE   = 3'd0,
         S_AR     = 3'd1,
         S_FILL   = 3'd2,
-        S_REPLAY = 3'd3
+        S_REPLAY = 3'd3,
+        S_FAULT  = 3'd4     // the last refill failed (TASK-005)
     } state_e;
 
     state_e r_state, w_state_d;
@@ -164,30 +179,42 @@ module peregrine_icache #(
 
     logic w_inv_take;
     logic w_miss_start;
+    logic w_fault_line;     // S_FAULT, and the PC is in the failed line
+    logic [IDX_W-1:0]  r_fill_idx;   // the refill's line (sequencer below)
+    logic [TAG_W-1:0]  r_fill_tag;
 
-    assign w_inv_take   = (r_state == S_IDLE) & inv_req;
+    // Both compares are of flops (the PC and the refill's line registers),
+    // like the hit's.
+    assign w_fault_line = (r_state == S_FAULT) &
+                          (fetch_addr[31:OFF_W] == {r_fill_tag, r_fill_idx});
+    assign w_inv_take   = ((r_state == S_IDLE) | (r_state == S_FAULT)) & inv_req;
     assign w_miss_start = (r_state == S_IDLE) & ~inv_req & ~w_hit;
 
-    assign stall   = ~w_hit | w_inv_take;
-    assign inv_ack = w_inv_take;
+    assign stall       = ~(w_hit | w_fault_line) | w_inv_take;
+    assign fetch_fault = w_fault_line & ~w_inv_take;   // only with stall low
+    assign inv_ack     = w_inv_take;
 
     // -----------------------------------------------------------------
     // Refill sequencer
     // -----------------------------------------------------------------
-    logic [IDX_W-1:0]  r_fill_idx;
-    logic [TAG_W-1:0]  r_fill_tag;
     logic [BEAT_W-1:0] r_fill_beat;
+    logic              r_fill_err;     // a beat of this refill was an error
     logic              w_beat;
+    logic              w_fill_bad;     // the refill ending now failed
 
-    assign w_beat = (r_state == S_FILL) & m_axi_rvalid;
+    assign w_beat     = (r_state == S_FILL) & m_axi_rvalid;
+    assign w_fill_bad = r_fill_err | m_axi_rresp[1];
 
     always_comb begin
         w_state_d = r_state;
         unique case (r_state)
             S_IDLE:   if (w_miss_start)                 w_state_d = S_AR;
             S_AR:     if (m_axi_arready)                w_state_d = S_FILL;
-            S_FILL:   if (w_beat && m_axi_rlast)        w_state_d = S_REPLAY;
+            S_FILL:   if (w_beat && m_axi_rlast)        w_state_d = w_fill_bad ? S_FAULT
+                                                                                : S_REPLAY;
             S_REPLAY:                                   w_state_d = S_IDLE;
+            // leave on an invalidate, or once the fetch is outside the line
+            S_FAULT:  if (inv_req || !w_fault_line)     w_state_d = S_IDLE;
             default:                                    w_state_d = S_IDLE;
         endcase
     end
@@ -199,19 +226,24 @@ module peregrine_icache #(
             r_fill_idx  <= '0;
             r_fill_tag  <= '0;
             r_fill_beat <= '0;
+            r_fill_err  <= 1'b0;
         end else begin
             r_state <= w_state_d;
             if (w_inv_take) begin
                 r_valid <= '0;
             end else if (w_beat && m_axi_rlast) begin
-                r_valid[r_fill_idx] <= 1'b1;
+                // a failed refill also clears the set: its beats have
+                // already overwritten whatever line the set held
+                r_valid[r_fill_idx] <= ~w_fill_bad;
             end
             if (w_miss_start) begin
                 r_fill_idx  <= w_idx;
                 r_fill_tag  <= w_tag;
                 r_fill_beat <= '0;
+                r_fill_err  <= 1'b0;
             end else if (w_beat) begin
                 r_fill_beat <= r_fill_beat + 1'b1;
+                if (m_axi_rresp[1]) r_fill_err <= 1'b1;
             end
         end
     )
@@ -283,7 +315,7 @@ module peregrine_icache #(
     // Unused: the id (one outstanding burst), the response code (see the
     // header), the PC's low bits.
     logic w_unused;
-    assign w_unused = &{1'b0, m_axi_rid, m_axi_rresp, fetch_addr[1:0], r_rd_wsel,
+    assign w_unused = &{1'b0, m_axi_rid, m_axi_rresp[0], fetch_addr[1:0], r_rd_wsel,
                         w_rd_pc[1:0]};
 
 endmodule : peregrine_icache

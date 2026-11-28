@@ -12,15 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 0 | done (kept for history) |
+| [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **ISSUE-001** — M instructions are not interruptible (the stage-2 livelock fix): interrupt latency vs forward progress; the simple solution is kept for now, reevaluate later (owner, 2026-11-24)
 
 ## Active
 
@@ -28,4 +27,4 @@ by construction rather than by discipline.
 
 ## Closed
 
-(none)
+- **ISSUE-001** — M instructions not interruptible; resolved 2026-11-27 into TASK-007 (cancel in flight + one instruction of progress after mret)

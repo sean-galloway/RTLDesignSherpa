@@ -40,6 +40,7 @@ amber is a parameter-only IP. All geometry, policy, and bus-width choices are el
 | `VICTIM_DEPTH` | 1 | 1–2 | dirty victim buffer depth |
 | `PF_GUARD` | `1'b0` (`amber_top` sets 1) | 0–1 | grant a pending-fill snoop against fill data only when the fill is in flight; guards the pair-rig deadlock of BUG-002 |
 | `READ_FILL_E` | `1'b0` (peregrine sets 1 on `amber_top`) | 0–1 | the cache is the system's only coherent master: a read fill without PassDirty installs E instead of S (amber TASK-006; the fabrics return no IsShared, so 0 is the only safe value behind a fabric) |
+| `BUS_ERR_EN` | `1'b0` (peregrine sets 1 on `amber_top`) | 0–1 | report bus errors (amber TASK-008): a fill answered SLVERR / DECERR installs nothing and its request is answered with an error bit (`cpu_rsp_rd_data[BUS_WIDTH]`, the response one bit wider); a failed dirty write-back drops the line and latches its address in `wb_err_{valid, addr, ovf}` until `wb_err_clear`. 0 elaborates none of it |
 
 : Table 5.0: Core elaboration parameters
 

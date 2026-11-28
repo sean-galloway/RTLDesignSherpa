@@ -1,7 +1,7 @@
 # ISSUE-001: M instructions are not interruptible -- interrupt latency vs forward progress
 
 **Priority:** P3
-**Status:** open 2026-11-24 -- the simple solution is built and accepted for
+**Status:** CLOSED 2026-11-27 -- resolved into TASK-007 (option 2 + one instruction of progress after mret). Was: open 2026-11-24 -- the simple solution is built and accepted for
 now (owner, 2026-11-24: "do the simple solution first; we can reevaluate
 later. add an issue to track it"); reevaluate before the book's interrupt
 chapter or when interrupt latency is measured.
@@ -56,3 +56,11 @@ A recorded decision: keep (close with the latency bound in the PRD), or a
 task to build option 2 or 3. Either way, add the worst-case interrupt
 latency to the measurement set (a directed test with k back-to-back M
 instructions).
+
+## Resolved 2026-11-27
+
+Decision (owner, "yes"): build option 2, with a progress guarantee.
+Interrupts cancel an in-flight M instruction, and the first instruction
+after an `mret` cannot be interrupted, so every return makes progress.
+The worst-case latency becomes one M instruction. This is the work of
+[TASK-007](../../task/active/TASK-007.md).

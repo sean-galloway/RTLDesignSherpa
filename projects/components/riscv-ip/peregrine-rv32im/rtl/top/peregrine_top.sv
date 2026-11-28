@@ -17,7 +17,10 @@
 //            everything else            RAM, cacheable
 //          The I/O window is bounded at 0x1FFF_FFFF (P7 as amended
 //          2026-11-24): the riscv-tests and arch-test images link at
-//          0x8000_0000 and must stay cacheable.
+//          0x8000_0000 and must stay cacheable.  The uncached window is
+//          the parameters UC_BASE / UC_MASK (TASK-005, for hive): an
+//          address is uncached when (addr & UC_MASK) == UC_BASE; the
+//          defaults are the window above.  The CLINT decode wins over it.
 //
 //          Fetch: every fetch goes through peregrine_icache.  A miss holds
 //          the whole core (mem_wait) until the line is in.
@@ -69,6 +72,24 @@
 //          (fencei_req) the wrapper (1) cleans the D$, (2) invalidates the
 //          I$, then releases the hold; the core redirects to pc + 4.
 //
+//          Bus errors (TASK-005).  SLVERR / DECERR (RESP[1]):
+//          - I$ fill: the line is not installed and the fetch is presented
+//            with imem_fault (the core's instruction access fault);
+//          - uncached load / store: the uncached port's response carries
+//            the error; D$ fill: amber (BUS_ERR_EN=1) answers the request
+//            with its error bit and installs nothing.  An error response
+//            is not a completion: it holds the core one more cycle (it
+//            counts in mem_wait, and no new access is accepted on it, so
+//            the instruction behind it in MEM has not committed), is
+//            captured like a response that arrives under a hold, and is
+//            then presented to WB as dmem_fault: the core traps WB's
+//            instruction (load / store access fault) and kills MEM's.  OKAY
+//            responses take exactly the cycles they took before;
+//          - a failed dirty write-back (no instruction to blame): amber
+//            drops the line and holds wb_err_{valid, addr, ovf}; that is
+//            the core's platform interrupt 16 and its mbuserr CSR, whose
+//            write clears it (wb_err_clear).
+//
 // Documentation: projects/components/riscv-ip/peregrine-rv32im/PRD.md
 // Subsystem: riscv-ip/peregrine-rv32im
 //
@@ -84,6 +105,8 @@
 //     64 = 32 KiB, the geometry PRD P13 was measured at).
 //   - AXI_IW: per-master id width; the fabric id is AXI_IW + 2.
 //   - MTIME_DIV: CLINT clocks per mtime tick.
+//   - UC_BASE, UC_MASK: the uncached window, (addr & UC_MASK) == UC_BASE
+//     (TASK-005; default 0x1000_0000 / 0xF000_0000, PRD P7's window).
 //
 // Notes:
 //   - tb_irq_software / tb_irq_timer are a TB hook (see the ports); a
@@ -114,6 +137,8 @@ module peregrine_top #(
     parameter int          DC_SETS      = 128,
     parameter int          DC_WAYS      = 4,
     parameter int          DC_LINE      = 64,
+    parameter logic [31:0] UC_BASE      = 32'h1000_0000,
+    parameter logic [31:0] UC_MASK      = 32'hF000_0000,
     localparam int         FIW          = AXI_IW + 2,
     localparam int         STRBW        = AXI_DW / 8
 ) (
@@ -207,7 +232,6 @@ module peregrine_top #(
     localparam int M_UC     = 2;     // arbiter port: uncached
 
     localparam logic [15:0] CLINT_HI = 16'h0200;
-    localparam logic [3:0]  IO_HI    = 4'h1;
 
     // -----------------------------------------------------------------
     // Core
@@ -224,6 +248,12 @@ module peregrine_top #(
     logic        w_fencei_req;
     logic        w_irq_software;
     logic        w_irq_timer;
+    logic        w_ic_fault;       // the fetch's I$ fill failed
+    logic        w_dfault;         // WB's access got an error response
+    logic        w_wb_err_valid;   // amber's sticky write-back error
+    logic [31:0] w_wb_err_addr;
+    logic        w_wb_err_ovf;
+    logic        w_wb_err_clear;
 
     peregrine_core #(
         .RESET_ADDR  (RESET_ADDR),
@@ -247,6 +277,11 @@ module peregrine_top #(
         .dmem_wdata          (w_dwdata),
         .dmem_req_pre        (w_dreq_pre),
         .fencei_req          (w_fencei_req),
+        .imem_fault          (w_ic_fault),
+        .dmem_fault          (w_dfault),
+        .irq_buserr          (w_wb_err_valid),
+        .buserr_info         ({w_wb_err_addr[31:2], w_wb_err_ovf, w_wb_err_valid}),
+        .buserr_clear        (w_wb_err_clear),
         .irq_software        (w_irq_software | tb_irq_software),
         .irq_timer           (w_irq_timer | tb_irq_timer),
         .irq_external        (irq_external),
@@ -321,6 +356,7 @@ module peregrine_top #(
         .fetch_addr_next_nw (w_imem_addr_next_nw),
         .hold            (w_mem_wait),
         .fetch_rdata     (w_imem_rdata),
+        .fetch_fault     (w_ic_fault),
         .stall           (w_ic_stall),
         .inv_req         (w_ic_inv_req),
         .inv_ack         (w_ic_inv_ack),
@@ -379,7 +415,7 @@ module peregrine_top #(
     logic w_to_ram;
 
     assign w_to_clint = (w_daddr[31:16] == CLINT_HI);
-    assign w_to_io    = (w_daddr[31:28] == IO_HI);
+    assign w_to_io    = ((w_daddr & UC_MASK) == UC_BASE);
     assign w_to_ram   = ~w_to_clint & ~w_to_io;
 
     // Holds that do not depend on the D side's ready (all from flops).
@@ -392,14 +428,25 @@ module peregrine_top #(
     logic        r_mem_done;      // MEM's access accepted while the core held
     logic        r_mem_have;      // MEM's response, captured while the core held
     logic [31:0] r_mem_data;
+    logic        r_have_err;      // r_have's response was an error (TASK-005)
+    logic        r_mem_err;       // r_mem_have's likewise
     logic        w_rsp_valid;
     logic [31:0] w_rsp_rdata;
+    logic        w_rsp_err;       // the response is SLVERR / DECERR
+    logic        w_rsp_ok;        // a response that completes its access
     logic        w_dvalid;
     logic        w_dready;
     logic        w_dhs;
 
-    assign w_dvalid = w_dreq_pre & ~r_mem_done & ~w_fi_busy & ~w_ext_busy &
-                      (~r_outstanding | w_rsp_valid);
+    // An error response does not free the port for MEM's access: the
+    // instruction in MEM must not commit before WB's fault is taken.  In
+    // the fault's own cycle (w_dfault, a flop) MEM's request is neither
+    // presented nor waited for: the core kills that instruction, and its
+    // request (dmem_req_pre) is deliberately not gated in the core, which
+    // keeps the fault off the core -> amber accept cone.
+    assign w_rsp_ok = w_rsp_valid & ~w_rsp_err;
+    assign w_dvalid = w_dreq_pre & ~r_mem_done & ~w_fi_busy & ~w_ext_busy & ~w_dfault &
+                      (~r_outstanding | w_rsp_ok);
     assign w_dhs    = w_dvalid & w_dready;
 
     // The core holds while MEM's access is not accepted, while an accepted
@@ -407,10 +454,11 @@ module peregrine_top #(
     // accept under a hold, the outstanding access is MEM's (r_mem_done):
     // the previous one's response was in or arriving at the accept.
     assign w_mem_wait = w_other_hold |
-                        (w_dreq_pre & ~r_mem_done & ~w_dhs) |
-                        (r_outstanding & ~w_rsp_valid);
+                        (w_dreq_pre & ~r_mem_done & ~w_dfault & ~w_dhs) |
+                        (r_outstanding & ~w_rsp_ok);   // an error holds one more
 
     assign w_drdata = r_have ? r_have_data : w_rsp_rdata;
+    assign w_dfault = r_have & r_have_err;
 
     // Target of the access in flight (for the response mux)
     typedef enum logic [1:0] { T_CLINT = 2'd0, T_UC = 2'd1, T_DC = 2'd2 } tgt_e;
@@ -446,6 +494,7 @@ module peregrine_top #(
     logic        w_uc_req_ready;
     logic        w_uc_rsp_valid;
     logic [31:0] w_uc_rsp_rdata;
+    logic        w_uc_rsp_err;
     assign w_uc_req_valid = w_dvalid & (w_tgt == T_UC);
 
     peregrine_uc_axi #(
@@ -462,6 +511,7 @@ module peregrine_top #(
         .req_wdata     (w_dwdata),
         .rsp_valid     (w_uc_rsp_valid),
         .rsp_rdata     (w_uc_rsp_rdata),
+        .rsp_err       (w_uc_rsp_err),
         .m_axi_arid    (s_arid[M_UC*AXI_IW +: AXI_IW]),
         .m_axi_araddr  (s_araddr[M_UC*32 +: 32]),
         .m_axi_arlen   (s_arlen[M_UC*8 +: 8]),
@@ -504,7 +554,9 @@ module peregrine_top #(
     logic                 w_dc_req_ready;
     logic [DC_REQ_W-1:0]  w_dc_req_data;
     logic                 w_dc_rsp_valid_raw;
+    logic [AXI_DW:0]      w_dc_rsp_full;    // {err, beat} (amber BUS_ERR_EN)
     logic [AXI_DW-1:0]    w_dc_rsp_data;
+    logic                 w_dc_rsp_err;
     logic                 w_dc_rsp_valid;
     logic [31:0]          w_dc_rsp_word;
 
@@ -531,6 +583,8 @@ module peregrine_top #(
     end
     assign w_dc_be    = STRBW'(w_dwstrb) << (4 * w_lane);
     assign w_dc_wdata = {LANES{w_dwdata}};
+    assign w_dc_rsp_data = w_dc_rsp_full[AXI_DW-1:0];
+    assign w_dc_rsp_err  = w_dc_rsp_full[AXI_DW];
     assign w_dc_rsp_word = w_dc_rsp_data[32 * r_lane +: 32];
 
     // The clean and a data access never coincide: the clean's sources hold
@@ -554,7 +608,8 @@ module peregrine_top #(
         .AXI_USER_WIDTH (1),
         .USE_MONITOR    (1'b0),
         .MAINT_EN       (1'b1),
-        .READ_FILL_E    (1'b1)
+        .READ_FILL_E    (1'b1),
+        .BUS_ERR_EN     (1'b1)
     ) u_dcache (
         .aclk             (clk),
         .aresetn          (w_aresetn),
@@ -563,7 +618,7 @@ module peregrine_top #(
         .cpu_req_wr_data  (w_dc_req_data),
         .cpu_rsp_rd_valid (w_dc_rsp_valid_raw),
         .cpu_rsp_rd_ready (1'b1),
-        .cpu_rsp_rd_data  (w_dc_rsp_data),
+        .cpu_rsp_rd_data  (w_dc_rsp_full),
         .m_axi_arid       (s_arid[M_DC*AXI_IW +: AXI_IW]),
         .m_axi_araddr     (s_araddr[M_DC*32 +: 32]),
         .m_axi_arlen      (s_arlen[M_DC*8 +: 8]),
@@ -629,6 +684,10 @@ module peregrine_top #(
         .mon_ready        (1'b1),
         .mon_packet       (),
         .mon_timestamp    (),
+        .wb_err_valid     (w_wb_err_valid),
+        .wb_err_addr      (w_wb_err_addr),
+        .wb_err_ovf       (w_wb_err_ovf),
+        .wb_err_clear     (w_wb_err_clear),
         .init_busy        (),
         .ctrl_state       ()
     );
@@ -644,14 +703,17 @@ module peregrine_top #(
             T_CLINT: begin
                 w_rsp_valid = w_clint_rsp_valid;
                 w_rsp_rdata = w_clint_rsp_rdata;
+                w_rsp_err   = 1'b0;            // the CLINT never errs
             end
             T_DC: begin
                 w_rsp_valid = w_dc_rsp_valid;
                 w_rsp_rdata = w_dc_rsp_word;
+                w_rsp_err   = w_dc_rsp_err;
             end
             default: begin
                 w_rsp_valid = w_uc_rsp_valid;
                 w_rsp_rdata = w_uc_rsp_rdata;
+                w_rsp_err   = w_uc_rsp_err;
             end
         endcase
     end
@@ -664,6 +726,8 @@ module peregrine_top #(
             r_mem_done      <= 1'b0;
             r_mem_have      <= 1'b0;
             r_mem_data      <= '0;
+            r_have_err      <= 1'b0;
+            r_mem_err       <= 1'b0;
             r_tgt           <= T_CLINT;
             r_fi_clean_done <= 1'b0;
             r_fi_done       <= 1'b0;
@@ -685,17 +749,24 @@ module peregrine_top #(
             // in r_have; MEM's (an access accepted under a hold) waits in
             // r_mem_have and becomes WB's when MEM moves.  One access is in
             // flight, so a response is MEM's exactly when r_mem_done.
+            // An error response always arrives under a hold (it holds), so
+            // it is captured on the held side; its error bit rides with the
+            // capture (r_mem_err -> r_have_err) to WB.
             if (!w_mem_wait) begin
                 r_mem_done <= 1'b0;
                 r_mem_have <= 1'b0;
+                r_mem_err  <= 1'b0;
                 if (r_mem_have) begin
                     r_have      <= 1'b1;
                     r_have_data <= r_mem_data;
+                    r_have_err  <= r_mem_err;
                 end else if (w_rsp_valid && r_outstanding && r_mem_done) begin
                     r_have      <= 1'b1;
                     r_have_data <= w_rsp_rdata;
+                    r_have_err  <= 1'b0;       // an error would have held
                 end else begin
                     r_have      <= 1'b0;
+                    r_have_err  <= 1'b0;
                 end
             end else begin
                 if (w_dhs) begin
@@ -704,9 +775,11 @@ module peregrine_top #(
                 if (w_rsp_valid && r_outstanding && r_mem_done) begin
                     r_mem_have <= 1'b1;
                     r_mem_data <= w_rsp_rdata;
+                    r_mem_err  <= w_rsp_err;
                 end else if (w_rsp_valid && r_outstanding) begin
                     r_have      <= 1'b1;
                     r_have_data <= w_rsp_rdata;
+                    r_have_err  <= w_rsp_err;
                 end
             end
             // fence.i progress, cleared when the core commits it.
