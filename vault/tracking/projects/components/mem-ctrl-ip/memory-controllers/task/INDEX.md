@@ -1,16 +1,23 @@
 # memory-controllers — task lane
 
-**Next ID: MC-028** — never recycle a number.
+**Next ID: MC-029** — never recycle a number.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 2 | parked pending a named condition |
 
 ## Open
+
+- **MC-028** -- one row lane for both pick cores: pull the DUAL_ISSUE lane
+  out of `mc_cmd_arb_frfcfs` and `mc_cmd_arb_bank` into one `mc_row_lane` and
+  settle the rules the two copies enforce differently (direction, bank
+  exclusion, beside-idle, hold) on measurement. Filed 2026-11-27 out of pumice
+  TASK-047; granite's lane checked clean of pumice's wrong-direction bug
+  (mixed +4.9 %). [open/MC-028.md](open/MC-028.md).
 
 ## Active
 
