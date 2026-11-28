@@ -23,7 +23,7 @@
 
 # Chapter 4 — Scheduler Plane and Pick Machinery
 
-This chapter documents the common `mc_scheduler_plane` and its pick core `mc_cmd_arbiter`. The surrounding plane-stack and descriptor-seam architecture are defined in the [Hardware Architecture Specification (HAS)](../../common_has/common_has_index.md); this chapter does not restate them.
+This chapter documents the common `mc_scheduler_plane` and its two pick cores, selected by `SCHED_CORE`: `mc_cmd_arb_frfcfs` (`MC_SCHED_FRFCFS`, pumice; FR-FCFS over every pool entry) and `mc_cmd_arb_bank` (`MC_SCHED_BANK_PICK`, granite; one pick among the per-bank FIFO heads). They do the same job in two ways. Until 2026-11-27 they were named `mc_cmd_arbiter` and `mc_bank_pick`; tracker items, dated reports and the formal history before that date use the old names. The surrounding plane-stack and descriptor-seam architecture are defined in the [Hardware Architecture Specification (HAS)](../../common_has/common_has_index.md); this chapter does not restate them.
 
 ![mc_scheduler_plane internal block diagram](../assets/graphviz/03_mc_scheduler_plane.png)
 
@@ -46,8 +46,8 @@ All parameters are declared at `macro/mc_scheduler_plane.sv:27-68`.
 | `CMD_FIFO_DEPTH` | 16 | Scheduler-to-DFI command FIFO depth. |
 | `CMD_DELAY` | 6 | Fixed token delay between FIFO push and `cmd_valid_o`. |
 | `FAST_RD_RELEASE` | 0 | 1 = a command skips `CMD_DELAY` while no write is in the line: entered after the line has been empty for `CMD_DELAY` + the largest programmed spacing, left by a WR push (that WR takes the full delay). The parameter builds the path; `fast_rd_en_i` enables it at runtime. Granite sets 1 (`granite_pkg`) and ties the enable high; pumice builds it (`pumice_core` parameter, forwarded by `pumice_top` and `pumice_top_geared`) and drives the enable from `SCHED_POLICY.fast_rd_release`, which resets off (pumice BUG-033). |
-| `DIR_OWNS_ROWS` | 1'b0 | `mc_bank_pick`: the direction holding the bus (`r_dir`) may close the other direction's open row until its batch cap; 0 keeps the courtesy that withholds a PRE while the other direction's head hits the row. From the cap on the courtesy holds again, so the owner cannot close the row the waiting direction opens for the column that flips the bus. Granite sets 1 (`granite_pkg`). |
-| `DIR_HOLD_IDLE` | 0 | `mc_bank_pick`: the direction register also holds while the current direction has a queued head in any bank, for at most this many cycles without a command of its own (0 = off; the batch cap still bounds a run). Granite sets 8. With `DIR_OWNS_ROWS` it ends the one-bank-per-run lock of a mixed load (board, 100 MHz, 2026-11-01, six runs each: mixed window read 202 -> 283 or 319 MB/s at power-on, 202 -> 330 open page, 197 -> 236 fixed open). |
+| `DIR_OWNS_ROWS` | 1'b0 | `mc_cmd_arb_bank`: the direction holding the bus (`r_dir`) may close the other direction's open row until its batch cap; 0 keeps the courtesy that withholds a PRE while the other direction's head hits the row. From the cap on the courtesy holds again, so the owner cannot close the row the waiting direction opens for the column that flips the bus. Granite sets 1 (`granite_pkg`). |
+| `DIR_HOLD_IDLE` | 0 | `mc_cmd_arb_bank`: the direction register also holds while the current direction has a queued head in any bank, for at most this many cycles without a command of its own (0 = off; the batch cap still bounds a run). Granite sets 8. With `DIR_OWNS_ROWS` it ends the one-bank-per-run lock of a mixed load (board, 100 MHz, 2026-11-01, six runs each: mixed window read 202 -> 283 or 319 MB/s at power-on, 202 -> 330 open page, 197 -> 236 fixed open). |
 | `DUAL_ISSUE` | 1'b0 | FR-FCFS core only: build the arbiter's row lane (section 8.1). Pumice passes it through `pumice_core`, `pumice_top` and `pumice_top_geared`, where it defaults to 1 since 2026-11-27 (pumice TASK-047); granite, scoria and andesite leave it 0. The runtime enable is `dual_issue_en_i`. |
 | `HAS_ZQ` | 1'b0 | Include ZQ calibration branch and tZQCS block. |
 | `MAINT_EXTRA_WIDTH` | 1 | Width of `cmd_extra_o` / `maint_extra_i` (pumice=MRR, andesite=MPC[5:0]). |
@@ -99,7 +99,7 @@ Ports are declared at `macro/mc_scheduler_plane.sv:69-240`.
 | Bank state | `bank_row_active_o`, `bank_open_row_o` | out | `[NUM_RANKS][NUM_BANKS]`, `[NUM_RANKS][NUM_BANKS][ROW_WIDTH-1:0]` | Registered bank-state image. |
 | Status | `busy_o` | out | 1 | `!init_done \|\| refresh_req \|\| cmd_fifo_valid \|\| any_bank_active` (internal init/refresh when the children are built). |
 | Pre-FIFO accept | `cmd_accept_o`, `cmd_accept_op_o` | out | 1, `dram_op_e` | Same-cycle accept pulse and opcode. |
-| Debug taps (chapter 11) | `dbg_dir_flip_o`, `dbg_dir_o`, `dbg_dir_cause_o`, `dbg_dir_batch_o`, `dbg_ref_pending_o`, `dbg_accept_to_pre_o` | out | 1, 1, 2, 8, 4, 1 | `mc_bank_pick`'s direction turn (pulse), the direction, why it turned (0 old-direction fire, 1 drained, 2 batch cap) and the length of the batch that ended -- 0 on FR-FCFS; the refresh backlog (0 without `HAS_REFRESH_CTRL`); the accepted command is a page-timeout PRE. For `mc_ocelus_plane`; unconnected = pruned. |
+| Debug taps (chapter 11) | `dbg_dir_flip_o`, `dbg_dir_o`, `dbg_dir_cause_o`, `dbg_dir_batch_o`, `dbg_ref_pending_o`, `dbg_accept_to_pre_o` | out | 1, 1, 2, 8, 4, 1 | `mc_cmd_arb_bank`'s direction turn (pulse), the direction, why it turned (0 old-direction fire, 1 drained, 2 batch cap) and the length of the batch that ended -- 0 on FR-FCFS; the refresh backlog (0 without `HAS_REFRESH_CTRL`); the accepted command is a page-timeout PRE. For `mc_ocelus_plane`; unconnected = pruned. |
 
 ## 3. Internal structure
 
@@ -113,7 +113,7 @@ The plane instantiates the blocks at `macro/mc_scheduler_plane.sv:288-772`. The 
 | `u_page_policy` | `mc_page_policy` | `HAS_PAGE_POLICY` | `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH` | Runtime page-policy engine and page telemetry. |
 | `u_bank_timers` | `mc_bank_timers` | always | `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`, `BANK_LA=4` | Per-bank safe timers and open-row state. |
 | `u_global_timers` | `mc_global_timers` | always | `NUM_BG`, `HAS_LS_PAIRS=(NUM_BG>1)` | Rank/global windows (tFAW, tRRD, tWTR, tRTW, tCCD, L/S pairs). |
-| `u_arbiter` | `mc_cmd_arbiter` | always | `NUM_BG`, `HAS_ZQ`, `MAINT_EXTRA_WIDTH` | Single-issue pick core. |
+| `u_arbiter` | `mc_cmd_arb_frfcfs` | always | `NUM_BG`, `HAS_ZQ`, `MAINT_EXTRA_WIDTH` | Single-issue pick core. |
 | `u_cmd_fifo` | `gaxi_fifo_sync` | always | `DATA_WIDTH=CMD_W`, `DEPTH=CMD_FIFO_DEPTH` | Scheduler-to-DFI command FIFO. |
 | `u_cmd_history` | `mc_cmd_history_checker` | `HAS_CMD_HISTORY && CMD_HISTORY_EN != 0` | `NUM_RANKS`, `NUM_BANKS`, `HIST_T_*` | Simulation-only JEDEC sequencing scoreboard. |
 
@@ -121,11 +121,11 @@ The plane instantiates the blocks at `macro/mc_scheduler_plane.sv:288-772`. The 
 
 ## 4. Schedulable-entry view and unified prospect pool
 
-The arbiter folds the two CAMs into one `POOL = 2*NUM_ENTRIES` vector: upper half writes, lower half reads (`fub/mc_cmd_arbiter.sv:491-501`). Each entry carries `{valid, bank, row, col}` and is classified as column, activate, or precharge against the registered bank image (`fub/mc_cmd_arbiter.sv:537-589`). Column eligibility further requires row hit, per-bank `bank_rdwr_ready`, the forward tCCD guard, safe turnaround, sink-FIFO room, and clear in-flight guards. This unified-pool refactor (adopted from pumice Task 4.5) is bit-identical to the earlier split loops (`../../mc_scheduler_knobs.md` §4.1).
+The arbiter folds the two CAMs into one `POOL = 2*NUM_ENTRIES` vector: upper half writes, lower half reads (`fub/mc_cmd_arb_frfcfs.sv:491-501`). Each entry carries `{valid, bank, row, col}` and is classified as column, activate, or precharge against the registered bank image (`fub/mc_cmd_arb_frfcfs.sv:537-589`). Column eligibility further requires row hit, per-bank `bank_rdwr_ready`, the forward tCCD guard, safe turnaround, sink-FIFO room, and clear in-flight guards. This unified-pool refactor (adopted from pumice Task 4.5) is bit-identical to the earlier split loops (`../../mc_scheduler_knobs.md` §4.1).
 
 ## 5. Generic maintenance slot
 
-Rock-specific training/init/ZQ requesters collapse to a generic maintenance slot: `{maint_req_i, maint_grant_o, maint_op_i, maint_bank_i, maint_row_i, maint_col_i, maint_extra_i, maint_busy_i}` (`macro/mc_scheduler_plane.sv:185-192`). `maint_extra_i` is rock-defined (pumice=MRR, andesite=MPC[5:0]) (`fub/mc_cmd_arbiter.sv:45`; `../../mc_scheduler_knobs.md` §6.3). ZQ keeps its own `zq_req_i`/`zq_grant_o`/`t_zqcs_i` because the tZQCS window must block every other command (`fub/mc_cmd_arbiter.sv:96-101`).
+Rock-specific training/init/ZQ requesters collapse to a generic maintenance slot: `{maint_req_i, maint_grant_o, maint_op_i, maint_bank_i, maint_row_i, maint_col_i, maint_extra_i, maint_busy_i}` (`macro/mc_scheduler_plane.sv:185-192`). `maint_extra_i` is rock-defined (pumice=MRR, andesite=MPC[5:0]) (`fub/mc_cmd_arb_frfcfs.sv:45`; `../../mc_scheduler_knobs.md` §6.3). ZQ keeps its own `zq_req_i`/`zq_grant_o`/`t_zqcs_i` because the tZQCS window must block every other command (`fub/mc_cmd_arb_frfcfs.sv:96-101`).
 
 ## 6. Bank and global timer parameterization
 
@@ -147,19 +147,19 @@ RD/WR: bank_rdwr_ready_i && w_tccd_ls_ok && !w_zq_busy && !maint_busy_i
 PRE:  bank_pre_ready_i && !w_zq_busy && !maint_busy_i
 ```
 
-These terms are at `fub/mc_cmd_arbiter.sv:294-306`. Upstream classify and STAGE-1b masks are advisory.
+These terms are at `fub/mc_cmd_arb_frfcfs.sv:294-306`. Upstream classify and STAGE-1b masks are advisory.
 
-A pick that fails the live check is normally **dropped**, not held, because CAM commit/issue are qualified by `w_fire_out` and the entry stays schedulable (`fub/mc_cmd_arbiter.sv:252-257`). The single exception is an ACT blocked **only** by the rank-global tFAW/tRRD windows: `w_out_hold` keeps that ACT in the output register (`fub/mc_cmd_arbiter.sv:307-311`). This exception is measured history:
+A pick that fails the live check is normally **dropped**, not held, because CAM commit/issue are qualified by `w_fire_out` and the entry stays schedulable (`fub/mc_cmd_arb_frfcfs.sv:252-257`). The single exception is an ACT blocked **only** by the rank-global tFAW/tRRD windows: `w_out_hold` keeps that ACT in the output register (`fub/mc_cmd_arb_frfcfs.sv:307-311`). This exception is measured history:
 
-- **pumice BUG-021**: dropping such an ACT regressed close-page throughput from the accepted 30.77% calibration to 18.57%; holding recovered to 30.14% (`fub/mc_cmd_arbiter.sv:259-265`; `../../mc_scheduler_knobs.md` §6.4).
-- **scoria BUG-001**: 3/3 seeds failed with a global tRRD violation ("ACT only 1 cyc after another ACT"), leading to the `tfaw_ok_i`/`trrd_ok_i` fire-stage re-check (`fub/mc_cmd_arbiter.sv:267-268`; `../../mc_scheduler_knobs.md` §6.4).
-- **ISSUE-002**: moving tFAW/tRRD to the classify mask drained the 3-stage pipeline and dropped close-page throughput from 30.77% to ~18% (`fub/mc_cmd_arbiter.sv:513-518`; `../../mc_scheduler_knobs.md` §6.4).
+- **pumice BUG-021**: dropping such an ACT regressed close-page throughput from the accepted 30.77% calibration to 18.57%; holding recovered to 30.14% (`fub/mc_cmd_arb_frfcfs.sv:259-265`; `../../mc_scheduler_knobs.md` §6.4).
+- **scoria BUG-001**: 3/3 seeds failed with a global tRRD violation ("ACT only 1 cyc after another ACT"), leading to the `tfaw_ok_i`/`trrd_ok_i` fire-stage re-check (`fub/mc_cmd_arb_frfcfs.sv:267-268`; `../../mc_scheduler_knobs.md` §6.4).
+- **ISSUE-002**: moving tFAW/tRRD to the classify mask drained the 3-stage pipeline and dropped close-page throughput from 30.77% to ~18% (`fub/mc_cmd_arb_frfcfs.sv:513-518`; `../../mc_scheduler_knobs.md` §6.4).
 
 Other proven guard terms:
 
-- **ONE-CYCLE BLIND SPOT**: turnaround history registers load the cycle after a fire, so a command picked in the same cycle another fires sees stale history. The fix adds an in-flight fire term to the live turnaround equations (`fub/mc_cmd_arbiter.sv:849-858`; `fub/mc_global_timers.sv:100-124`).
-- **Parked-victim PRE guard**: a PRE leaves the registered row image stale for up to three cycles; a column picked against it lands on the closed row and wedges the AR-order drain. The column mask includes `!w_pre_col_guard` (`fub/mc_cmd_arbiter.sv:441-453`).
-- **BUG-002 / tZQCS fire-stage block**: the tZQCS counter loads on accepted fire, so a classify-time check is one cycle early. Every demand-class fire gate includes `!w_zq_busy` (`fub/mc_cmd_arbiter.sv:278-284`). Refresh is placed above ZQ in the priority cone because inside tZQCS the refresh branch cannot run; `w_ref_safe` carries `!w_rfc_busy`, while refresh is kept out of the ZQ window by cone priority, and the code warns not to "tidy" this into symmetry (`fub/mc_cmd_arbiter.sv:1104-1116`, `1378-1386`).
+- **ONE-CYCLE BLIND SPOT**: turnaround history registers load the cycle after a fire, so a command picked in the same cycle another fires sees stale history. The fix adds an in-flight fire term to the live turnaround equations (`fub/mc_cmd_arb_frfcfs.sv:849-858`; `fub/mc_global_timers.sv:100-124`).
+- **Parked-victim PRE guard**: a PRE leaves the registered row image stale for up to three cycles; a column picked against it lands on the closed row and wedges the AR-order drain. The column mask includes `!w_pre_col_guard` (`fub/mc_cmd_arb_frfcfs.sv:441-453`).
+- **BUG-002 / tZQCS fire-stage block**: the tZQCS counter loads on accepted fire, so a classify-time check is one cycle early. Every demand-class fire gate includes `!w_zq_busy` (`fub/mc_cmd_arb_frfcfs.sv:278-284`). Refresh is placed above ZQ in the priority cone because inside tZQCS the refresh branch cannot run; `w_ref_safe` carries `!w_rfc_busy`, while refresh is kept out of the ZQ window by cone priority, and the code warns not to "tidy" this into symmetry (`fub/mc_cmd_arb_frfcfs.sv:1104-1116`, `1378-1386`).
 
 ### 8.1 The row lane (`DUAL_ISSUE`, pumice TASK-047)
 
@@ -208,7 +208,7 @@ windows (`NUM_BG > 1` builds leave the lane off).
 
 ## 9. Page-policy context
 
-The auto-precharge decision is `w_ap = (page_policy_i == PAGE_POLICY_CLOSE)` unless the runtime engine is enabled, in which case it is per-bank via `ap_close_i[b]` (`fub/mc_cmd_arbiter.sv:197-202`). `PAGE_POLICY_HAPPY_HYBRID` was retired and maps to OPEN in the current build ([pumice scheduler MAS](../../../../research-ip/pumice-ddr2-lpddr2/docs/pumice_mas/ch02_blocks/07_scheduler.md), lines 200-201). With `HAS_PAGE_POLICY=1` the built-in `mc_page_policy` child supplies the AP-mode enable, per-bank close, and timeout-PRE controls; with it at 0 they come from `ap_mode_en_i`, `ap_close_i`, `timeout_pre_req_i`, and `timeout_pre_bank_i`.
+The auto-precharge decision is `w_ap = (page_policy_i == PAGE_POLICY_CLOSE)` unless the runtime engine is enabled, in which case it is per-bank via `ap_close_i[b]` (`fub/mc_cmd_arb_frfcfs.sv:197-202`). `PAGE_POLICY_HAPPY_HYBRID` was retired and maps to OPEN in the current build ([pumice scheduler MAS](../../../../research-ip/pumice-ddr2-lpddr2/docs/pumice_mas/ch02_blocks/07_scheduler.md), lines 200-201). With `HAS_PAGE_POLICY=1` the built-in `mc_page_policy` child supplies the AP-mode enable, per-bank close, and timeout-PRE controls; with it at 0 they come from `ap_mode_en_i`, `ap_close_i`, `timeout_pre_req_i`, and `timeout_pre_bank_i`.
 
 ## 10. P1 init accept/ack gating
 
@@ -217,7 +217,7 @@ For DDR4 P1 init the product's scheduler wrapper (andesite) must ack its own ini
 ## 11. Open questions
 
 - The exact encodings of `page_mode_i` and `page_tr_init_i` belong to the `mc_page_policy` child, not to the plane's own logic; this chapter treats them as opaque forwarded CSRs.
-- Multi-rank arbitration is fixed at `RK0 = 0` in `mc_cmd_arbiter.sv:194`; whether the same fire-stage authority scales to `NUM_RANKS > 1` is not exercised by the present core.
+- Multi-rank arbitration is fixed at `RK0 = 0` in `mc_cmd_arb_frfcfs.sv:194`; whether the same fire-stage authority scales to `NUM_RANKS > 1` is not exercised by the present core.
 
 ## References
 

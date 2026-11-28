@@ -54,15 +54,15 @@ module mc_scheduler_plane
     parameter int MAINT_EXTRA_WIDTH = 1,
     parameter bit CLOSE_ON_DRAIN = 1'b1,
     // DUAL_ISSUE: the pick core's row lane (pumice TASK-047 on the FR-FCFS
-    // arbiter; memory-controllers MC-014 on mc_bank_pick). A demand ACT / PRE
+    // arbiter; memory-controllers MC-014 on mc_cmd_arb_bank). A demand ACT / PRE
     // rides the command word beside a column (cmd2_*_o); the DFI command path
     // puts it on its own phase. dual_issue_en_i is the runtime enable.
     // 0 = single issue, bit-identical.
     parameter bit DUAL_ISSUE     = 1'b0,
     parameter bit RUNTIME_PICK_MODES = 1'b1, // 0 on the FPGA SKU: SCHED_POLICY pick knobs are constants (MC-009 c)
-    // Pick core: MC_SCHED_BANK_PICK = mc_bank_pick, the family core on the
+    // Pick core: MC_SCHED_BANK_PICK = mc_cmd_arb_bank, the family core on the
     // per-bank head-record contract (wr/rd_head*_i); MC_SCHED_FRFCFS =
-    // mc_cmd_arbiter, the research core on the per-entry vectors (*_sch_*_i).
+    // mc_cmd_arb_frfcfs, the research core on the per-entry vectors (*_sch_*_i).
     // See common-ip/docs/mc_scheduler_plane_v2.md.
     parameter int SCHED_CORE     = MC_SCHED_BANK_PICK,
     // v2 children composition
@@ -79,11 +79,11 @@ module mc_scheduler_plane
     // of near-failing endpoints of (granite 100 MHz, 2026-10-28); the FR-FCFS
     // research core and pumice are unchanged.
     parameter bit BANK_EVT_REG       = (SCHED_CORE == MC_SCHED_BANK_PICK),
-    parameter bit HAS_STALL_STATS    = 1'b1, // 0 = the stall_*_o counters read 0 (mc_bank_pick)
-    parameter int RFC_W              = 16,   // mc_bank_pick tRFC / tZQCS recovery counter width (saturating load)
-    parameter bit DIR_OWNS_ROWS      = 1'b0, // mc_bank_pick: the bus direction may close the other direction's row
-    parameter int DIR_HOLD_IDLE      = 0,    // mc_bank_pick: hold the direction on a queued head, N idle cycles (0 = off)
-    parameter bit HAS_RD_PRIO        = 1'b0, // mc_bank_pick: build the read-priority direction register (memory-controllers MC-024)
+    parameter bit HAS_STALL_STATS    = 1'b1, // 0 = the stall_*_o counters read 0 (mc_cmd_arb_bank)
+    parameter int RFC_W              = 16,   // mc_cmd_arb_bank tRFC / tZQCS recovery counter width (saturating load)
+    parameter bit DIR_OWNS_ROWS      = 1'b0, // mc_cmd_arb_bank: the bus direction may close the other direction's row
+    parameter int DIR_HOLD_IDLE      = 0,    // mc_cmd_arb_bank: hold the direction on a queued head, N idle cycles (0 = off)
+    parameter bit HAS_RD_PRIO        = 1'b0, // mc_cmd_arb_bank: build the read-priority direction register (memory-controllers MC-024)
     parameter bit HAS_CMD_HISTORY    = 1'b0,
     // refresh feature reduction (passed to mc_xddr2_refresh_ctrl)
     parameter bit REF_HAS_POSTPONE    = 1'b1,
@@ -116,7 +116,7 @@ module mc_scheduler_plane
     input  logic [7:0]                sched_wr_high_wm_i,
     input  logic [7:0]                sched_wr_batch_max_i,
     input  logic [7:0]                sched_wr_low_wm_i,
-    // read-priority direction register (mc_bank_pick HAS_RD_PRIO builds; MC-024)
+    // read-priority direction register (mc_cmd_arb_bank HAS_RD_PRIO builds; MC-024)
     input  logic                      sched_rd_prio_en_i,
     input  logic [11:0]               sched_wr_starve_i,
     input  logic [7:0]                sched_wr_burst_i,
@@ -272,7 +272,7 @@ module mc_scheduler_plane
     output logic                                rd_issue_valid_o,
     output logic [PTRW-1:0]                     rd_issue_slot_o,
     // the column candidate's coordinates (BANK_PICK only, registers; see
-    // mc_bank_pick). The FRFCFS core never pairs with the FIFO store: tied 0.
+    // mc_cmd_arb_bank). The FRFCFS core never pairs with the FIFO store: tied 0.
     output logic                                wr_commit_cand_o,
     output logic                                rd_issue_cand_o,
     output logic [$clog2(NUM_BANKS)-1:0]        cand_bank_o,
@@ -551,7 +551,7 @@ module mc_scheduler_plane
                 // command FIFO, so it is the push-side op. (The FIFO-head op
                 // was used here before; at the push cycle the head is an older
                 // command or empty, so the REFpb rotor mirror only advanced
-                // by luck of the FIFO contents -- it never did on mc_bank_pick,
+                // by luck of the FIFO contents -- it never did on mc_cmd_arb_bank,
                 // and the controller then precharged the wrong bank ahead of
                 // every device refresh: pumice refpb read back zeros.)
                 .grant_was_pb_i  (a_cmd_op == OP_REFPB),
@@ -666,9 +666,9 @@ module mc_scheduler_plane
     // mc_bank_timers — per-bank safe timers (open-page).
     // ======================================================================
     // Lookahead depth = the pick core's decode-to-fire depth: 2 for
-    // mc_bank_pick (decode -> winner -> fire), 4 for the FRFCFS pipe (its LA
+    // mc_cmd_arb_bank (decode -> winner -> fire), 4 for the FRFCFS pipe (its LA
     // sweep saturated at 3; see the pumice CLAUDE.md). The AP-aware term is
-    // what lets mc_bank_pick request the ACT exactly tRP after an RDA/WRA
+    // what lets mc_cmd_arb_bank request the ACT exactly tRP after an RDA/WRA
     // self-close; the research core keeps the original conservative la.
     localparam int BANK_LA_EFF = (SCHED_CORE == MC_SCHED_BANK_PICK) ? 2 : 4;
     mc_bank_timers #(
@@ -769,8 +769,8 @@ module mc_scheduler_plane
     );
 
     // ======================================================================
-    // Pick core: MC_SCHED_BANK_PICK = mc_bank_pick on the head records (the
-    // family core); MC_SCHED_FRFCFS = mc_cmd_arbiter on the per-entry
+    // Pick core: MC_SCHED_BANK_PICK = mc_cmd_arb_bank on the head records (the
+    // family core); MC_SCHED_FRFCFS = mc_cmd_arb_frfcfs on the per-entry
     // vectors (research). Both drive the plane outputs directly (exactly one
     // branch elaborates).
     // ======================================================================
@@ -788,7 +788,7 @@ module mc_scheduler_plane
     )
 
     generate if (SCHED_CORE == MC_SCHED_BANK_PICK) begin : g_bank_pick
-        mc_bank_pick #(
+        mc_cmd_arb_bank #(
             .NUM_RANKS   (NUM_RANKS),
             .NUM_BANKS   (NUM_BANKS),
             .ROW_WIDTH   (ROW_WIDTH),
@@ -930,9 +930,9 @@ module mc_scheduler_plane
     assign cand_bank_o      = '0;
     assign cand_second_o    = 1'b0;
     // ======================================================================
-    // mc_cmd_arbiter — the FRFCFS research pick core.
+    // mc_cmd_arb_frfcfs — the FRFCFS research pick core.
     // ======================================================================
-    mc_cmd_arbiter #(
+    mc_cmd_arb_frfcfs #(
         .NUM_RANKS   (NUM_RANKS),
         .NUM_BANKS   (NUM_BANKS),
         .NUM_BG      (NUM_BG),

@@ -61,7 +61,7 @@ bus one DFI word per cycle.
 `mc_wr_data_cam` is the MC-domain staging structure. It stores each
 pending write's key `{bank, row, col}`, its AXI id, a free-running age,
 and the burst's beats in an SRAM slot. It exposes associative query ports
-so the `mc_cmd_arbiter` can find row-hit writes, an oldest-entry port
+so the `mc_cmd_arb_frfcfs` can find row-hit writes, an oldest-entry port
 as a scheduler fallback, and a snarf (read-your-write) forwarding port for
 `mc_rd_intake`. On commit it drains the SRAM slot into the DFI plane.
 
@@ -260,7 +260,7 @@ so the drive never stalls and bursts run back-to-back with zero bubbles.
 | `snarf_accept_i`    | in  | Read admitted as a snarf; push slot to snarf FIFO |
 | `snarf_rd_valid/ready/data/last` | out/in | Snarf data stream (accept order)    |
 
-### Oldest port + scheduler lookups (to `mc_cmd_arbiter`)
+### Oldest port + scheduler lookups (to `mc_cmd_arb_frfcfs`)
 
 | Signal              | Dir | Description                                       |
 |---------------------|-----|---------------------------------------------------|

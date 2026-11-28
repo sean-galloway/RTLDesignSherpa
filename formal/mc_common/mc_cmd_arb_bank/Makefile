@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: MIT
-# mc_bank_pick: equivalence of the resolved winner / stale-mask registers
+# mc_cmd_arb_bank: equivalence of the resolved winner / stale-mask registers
 # (memory-controllers MC-011, 2026-11-08) against the golden copy of the
 # mux-resolved form -- every output, every cycle, free inputs.
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog.
 REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
-FLAT            := bank_pick_flat.v
-FLAT_FILELIST   := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_bank_pick.f
+FLAT            := cmd_arb_bank_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_cmd_arb_bank.f
 include $(REPO_ROOT)/make/formal_flat.mk
 
-# The golden copy (mc_bank_pick_gold.sv) flattened the same way from its own .f.
-GOLD_FLAT := bank_pick_gold_flat.v
-$(GOLD_FLAT): mc_bank_pick_gold.sv filelists/gold.f
+# The golden copy (mc_cmd_arb_bank_gold.sv) flattened the same way from its own .f.
+GOLD_FLAT := cmd_arb_bank_gold_flat.v
+$(GOLD_FLAT): mc_cmd_arb_bank_gold.sv filelists/gold.f
 	@mkdir -p $(FLAT_BUILD)
 	$(FLATTEN) filelists/gold.f --absolute-paths --resolve-env | grep -vE '^[[:space:]]*(#|$$)' \
 		| grep -E '^\+incdir\+|\.(sv|v|svh|vh)$$' > $(FLAT_BUILD)/gold.f
@@ -22,20 +22,20 @@ $(GOLD_FLAT): mc_bank_pick_gold.sv filelists/gold.f
 .PHONY: equiv equiv_n4 cover dual dual_cover rdprio rdprio_cover all clean
 all: equiv equiv_n4 cover dual dual_cover rdprio rdprio_cover
 equiv: $(FLAT) $(GOLD_FLAT)
-	sby -f bank_pick.sby equiv
+	sby -f cmd_arb_bank.sby equiv
 equiv_n4: $(FLAT) $(GOLD_FLAT)
-	sby -f bank_pick.sby equiv_n4
+	sby -f cmd_arb_bank.sby equiv_n4
 cover: $(FLAT) $(GOLD_FLAT)
-	sby -f bank_pick.sby cover
+	sby -f cmd_arb_bank.sby cover
 # the DUAL_ISSUE row lane's word invariants (MC-014), DUT alone at DUAL_ISSUE = 1
 dual: $(FLAT) $(GOLD_FLAT)
-	sby -f bank_pick.sby dual
+	sby -f cmd_arb_bank.sby dual
 dual_cover: $(FLAT) $(GOLD_FLAT)
-	sby -f bank_pick.sby dual_cover
+	sby -f cmd_arb_bank.sby dual_cover
 # the read-priority direction register (MC-024), DUT alone, mode on
 rdprio: $(FLAT) $(GOLD_FLAT)
-	sby -f bank_pick.sby rdprio
+	sby -f cmd_arb_bank.sby rdprio
 rdprio_cover: $(FLAT) $(GOLD_FLAT)
-	sby -f bank_pick.sby rdprio_cover
+	sby -f cmd_arb_bank.sby rdprio_cover
 clean:
-	rm -rf *_flat.v .flat_build bank_pick_equiv bank_pick_equiv_n4 bank_pick_cover bank_pick_dual bank_pick_dual_cover bank_pick_rdprio bank_pick_rdprio_cover
+	rm -rf *_flat.v .flat_build cmd_arb_bank_equiv cmd_arb_bank_equiv_n4 cmd_arb_bank_cover cmd_arb_bank_dual cmd_arb_bank_dual_cover cmd_arb_bank_rdprio cmd_arb_bank_rdprio_cover

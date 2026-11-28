@@ -9,12 +9,12 @@ per-bank core, the two storage backends (tb_top STORE_BACKEND: `entry` =
 mc_xddr2_entry_store + records, `fifo` = mc_bank_fifo_store, granite's
 default since 2026-10-23; the recovery plan's Phase 4 battery item "contract
 test at max depth with > N chunks per direction"):
-  bank_pick -- mc_bank_head_records + mc_bank_pick (the family core; all five
+  bank_pick -- mc_bank_head_records + mc_cmd_arb_bank (the family core; all five
                cells must pass -- the four pipeline-acceptance cells are the
                Phase 2 gate of docs/superpowers/plans/2026-10-21-mem-ctrl-recovery.md;
                the gate-block cell was restated in Phase 3: a blocked winner
                is re-arbitrated, not held)
-  frfcfs    -- mc_cmd_arbiter (research core). The baseline contract cell and
+  frfcfs    -- mc_cmd_arb_frfcfs (research core). The baseline contract cell and
                the zero-bubble stream pass; hold-on-gate-block, post-pop
                winner and override-preempts fail by design on it and are kept
                as STRICT xfails: they document the behaviour the per-bank

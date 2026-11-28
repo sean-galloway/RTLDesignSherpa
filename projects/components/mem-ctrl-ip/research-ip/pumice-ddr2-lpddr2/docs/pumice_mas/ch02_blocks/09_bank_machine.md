@@ -58,7 +58,7 @@ when its counter reads 0. The per-command readiness outputs (`safe_act`,
 `safe_rd`, `safe_wr`, `safe_pre`) are a **combinational AND** of the relevant
 timers plus a one-bit row-open flag — no FSM, no multi-stage lag.
 
-The scheduler (`mc_cmd_arbiter`, the single command issuer in the design)
+The scheduler (`mc_cmd_arb_frfcfs`, the single command issuer in the design)
 drives one `set_*` strobe per issued command. Each timer reloads its config
 value on its trigger; the `safe_*` outputs therefore reflect the just-issued
 command one cycle later. The arbiter ANDs these per-bank `safe_*` signals with
@@ -156,7 +156,7 @@ compares on the live CSR every cycle. The timers only count.
 
 The per-(rank, bank) readiness outputs are 2-D-packed arrays
 (`logic [NUM_RANKS-1:0][NUM_BANKS-1:0]`) consumed directly by
-`mc_cmd_arbiter`. There is no aggregation logic beyond the packing — pure
+`mc_cmd_arb_frfcfs`. There is no aggregation logic beyond the packing — pure
 structural fan-out. Note that `safe_wr_o` is left unconnected in the aggregator
 because inside `mc_bank_timer` it is identical to `safe_rd_o` (see the RTL: `assign
 safe_wr_o = safe_rd_o`); the arbiter uses the single `bank_rdwr_ready_o` bit for

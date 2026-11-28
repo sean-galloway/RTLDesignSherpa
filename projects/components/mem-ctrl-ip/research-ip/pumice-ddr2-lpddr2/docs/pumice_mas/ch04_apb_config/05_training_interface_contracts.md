@@ -106,7 +106,7 @@ a returning demand read. Crossing into mc_clk for `mc_lpddr2_dq_cal` is a
 
 ## Contract: `trn_cmd` maintenance arbitration
 
-**Source.** `common-ip/rtl/fub/mc_cmd_arbiter.sv` — priority pick, `w_trn_safe`,
+**Source.** `common-ip/rtl/fub/mc_cmd_arb_frfcfs.sv` — priority pick, `w_trn_safe`,
 grant output; channel driven by `mc_training_plane`.
 
 The training plane is one more maintenance client on the arbiter, in

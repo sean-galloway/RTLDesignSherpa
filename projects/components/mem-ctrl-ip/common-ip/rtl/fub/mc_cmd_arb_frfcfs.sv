@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: mc_cmd_arbiter
+// Module: mc_cmd_arb_frfcfs
 // Purpose: Common command arbiter for the mem-ctrl family scheduler plane.
 //          Parameterized superset of the pumice/scoria/andesite schedulers.
 //          Each cycle it picks ONE abstract DRAM command and pushes it into the
@@ -59,7 +59,7 @@
 
 `include "reset_defs.svh"
 
-module mc_cmd_arbiter
+module mc_cmd_arb_frfcfs
     import mc_common_pkg::*;   // Vivado: pkg export of the family symbols is not honored; import explicitly
 #(
     parameter int NUM_RANKS   = 1,
@@ -1606,7 +1606,7 @@ module mc_cmd_arbiter
 
     // ---- class priority ------------------------------------------------------
     // access_pref 0 (default, TASK-045): BANK PREPARATION. The classes
-    // alternate the way mc_bank_pick's do -- after a column, a ready row
+    // alternate the way mc_cmd_arb_bank's do -- after a column, a ready row
     // command (an ACT to an idle bank, the demand PRE of a drained one) takes
     // the slot; after a row command, columns. With one class pending the other
     // falls through, so a single-bank stream is untouched. Column-first
@@ -2139,4 +2139,4 @@ module mc_cmd_arbiter
     assign w_trrd_ls_ok = (w_pick_group != r_last_act_bg) || trrd_l_ok_i;
     assign pick_group_o = w_pick_group;
 
-endmodule : mc_cmd_arbiter
+endmodule : mc_cmd_arb_frfcfs

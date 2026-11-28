@@ -74,7 +74,7 @@ in `cfg_core_ev_en`. Codes `0x00`–`0x07` are `PktTypeError`, `0x08`–`0x0F`
 | 0x06 | `DROPPED` | events were lost | `[15:0]` count | `mc_monlite` itself |
 | 0x08 | `INIT_DONE` | rising | `[4:0]` init state | init plane `init_done_o` |
 | 0x09 | `INIT_STATE` | any change | `[4:0]` new state | init plane `init_state_o` |
-| 0x0A | `DIR_FLIP` | pulse | `[7:0]` batch that ended, `[8]` new dir (1 = write), `[10:9]` cause (0 old-direction fire, 1 drained, 2 batch cap) | `mc_bank_pick` `dbg_dir_*` (0 on FR-FCFS) |
+| 0x0A | `DIR_FLIP` | pulse | `[7:0]` batch that ended, `[8]` new dir (1 = write), `[10:9]` cause (0 old-direction fire, 1 drained, 2 batch cap) | `mc_cmd_arb_bank` `dbg_dir_*` (0 on FR-FCFS) |
 | 0x0B | `REFRESH` | REF / REFpb accepted | `[4:0]` op | scheduler plane `cmd_accept_o` / `cmd_accept_op_o` |
 | 0x0C | `ZQ` | ZQCS / ZQCL accepted | `[4:0]` op | same |
 | 0x0D | `PAGE_TO_PRE` | page-timeout PRE accepted | 0 | scheduler plane `dbg_accept_to_pre_o` |

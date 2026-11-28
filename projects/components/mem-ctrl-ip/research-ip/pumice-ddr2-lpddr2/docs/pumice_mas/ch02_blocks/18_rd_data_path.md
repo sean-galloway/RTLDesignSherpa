@@ -191,7 +191,7 @@ on the last word.
 | `ins_ready_o` | out | 1           | Free entry available|
 | `ins_bank/row/col/id_i` | in | key + id | Decoded key + AXI id |
 
-### Scheduler ports (to `mc_cmd_arbiter`)
+### Scheduler ports (to `mc_cmd_arb_frfcfs`)
 
 | Signal              | Dir | Description                                      |
 |---------------------|-----|--------------------------------------------------|

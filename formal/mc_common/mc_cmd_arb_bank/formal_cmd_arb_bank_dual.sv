@@ -1,37 +1,24 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// mc_bank_pick read-priority direction register (memory-controllers MC-024),
-// HAS_RD_PRIO = 1 with the mode ON (rd_prio_en_i = 1) and the two knobs
-// constant per run (static CSRs, anyconst), on free inputs -- the head
-// records, the timers' readiness bits, refresh / init / maintenance and the
-// sinks are unconstrained, as in the dual harness. The granite shape:
-// DIR_OWNS_ROWS 1, DIR_HOLD_IDLE 8, the row lane built.
+// mc_cmd_arb_bank DUAL_ISSUE row lane (memory-controllers MC-014): the word
+// invariants the plane and the DFI command path rely on, on free inputs --
+// the head records, the timers' readiness bits, the refresh / init /
+// maintenance requests and the sink readiness are all unconstrained, so these
+// hold for whatever the environment presents.
 //
-// Ports only (the core is flattened; nothing inside is visible), so the
-// harness keeps its own copy of the starvation counter from the ports -- the
-// write heads' vld bits and the write-column strobe evt_wr -- and the
-// register's state from the debug outputs (dbg_dir_o = r_dir, the flip, its
-// cause and the batch that ended). Both start at reset, so a bounded check
-// from reset keeps them in step; the knobs are bounded small so the depth
-// reaches every state of the counter's compare.
+//   * one row command per word: the lane fires an ACT or a PRE, never both,
+//     and only beside a main-lane COLUMN or an idle main lane -- never beside
+//     a main ACT / PRE / REF / MRS / ZQ / init command or the timeout PRE;
+//   * the two lanes never touch one bank in one word;
+//   * the lane re-checks the live gate: an ACT only into a closed, act-ready
+//     bank with tRRD / tFAW open; a PRE only on an open, pre-ready bank; and
+//     only into a free slot (cmd_ready_i), with the runtime enable high.
 //
-//   a_starve       a starved write head (the reference flag) with the bus on
-//                  the reads and no write column this cycle turns the bus to
-//                  the writes next cycle -- the starvation flip has priority
-//                  over the drain and the cap;
-//   a_cause3       a flip recorded as starvation (cause 3) had the reference
-//                  flag set: the flip never comes from anything else;
-//   a_no_read_cap  the bus never leaves the reads on the batch cap (cause 2):
-//                  a read hold has no cap in this mode;
-//   a_wr_cap_min   a write hold that ends on the cap ran at least wr_burst
-//                  columns.
-// Covers make each one non-vacuous: a starvation flip, a write cap flip at
-// exactly wr_burst, a drain flip from the reads.
-//
-// YOSYS-COMPATIBLE FORM: the DUT pre-flattened by sv2v; immediate assertions.
+// YOSYS-COMPATIBLE FORM: the DUT pre-flattened by sv2v (mc_head_rec_t as a
+// 45-bit vector per bank, dram_op_e as [4:0]); immediate assertions.
 `timescale 1ns / 1ps
-module formal_bank_pick_rdprio #(
+module formal_cmd_arb_bank_dual #(
     parameter int NUM_BANKS   = 8,
     parameter int ROW_WIDTH   = 14,
     parameter int COL_WIDTH   = 10,
@@ -46,6 +33,8 @@ module formal_bank_pick_rdprio #(
     localparam int PTRW = $clog2(NUM_ENTRIES);
     localparam int RECW = 45;
     localparam int MEW  = 1;
+    // dram_op_e encodings (mc_common_pkg)
+    localparam [4:0] OP_RD = 5'h02, OP_RDA = 5'h03, OP_WR = 5'h04, OP_WRA = 5'h05;
 
     (* anyseq *) reg [1:0]                 page_policy;
     (* anyseq *) reg                       dual_issue_en;
@@ -69,18 +58,6 @@ module formal_bank_pick_rdprio #(
     (* anyseq *) reg [NUM_BANKS-1:0]       act_rdy, rdwr_rdy, pre_rdy, act_la, rdwr_la, pre_la, row_active;
     (* anyseq *) reg                       tfaw_ok, trrd_ok, twtr_ok, trtw_ok, cmd_ready;
 
-    // the two knobs: constant per run, small enough for the depth
-    (* anyconst *) reg [11:0] wr_starve;
-    (* anyconst *) reg [7:0]  wr_burst;
-    always @(*) begin
-        assume (wr_starve >= 12'd1 && wr_starve <= 12'd4);
-        assume (wr_burst  >= 8'd1  && wr_burst  <= 8'd3);
-    end
-
-    wire       dir_flip, dir;
-    wire [1:0] dir_cause;
-    wire [7:0] dir_batch;
-
     wire                 cmd_valid, cmd_timeout_pre, cmd_ap;
     wire [4:0]           cmd_op;
     wire [RKW-1:0]       cmd_rank;
@@ -94,9 +71,8 @@ module formal_bank_pick_rdprio #(
     wire [BKW-1:0]       evt_bank;
     wire [ROW_WIDTH-1:0] evt_row;
 
-    mc_bank_pick #(.NUM_RANKS(1), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
-                   .NUM_ENTRIES(NUM_ENTRIES), .LA(LA), .DIR_OWNS_ROWS(1'b1), .DIR_HOLD_IDLE(8),
-                   .HAS_RD_PRIO(1'b1), .DUAL_ISSUE(1'b1)) dut (
+    mc_cmd_arb_bank #(.NUM_RANKS(1), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
+                   .NUM_ENTRIES(NUM_ENTRIES), .LA(LA), .DUAL_ISSUE(1'b1)) dut (
         .aclk(clk), .aresetn(rst_n), .page_policy_i(page_policy), .dual_issue_en_i(dual_issue_en),
         .ap_mode_en_i(ap_mode_en), .ap_close_i(ap_close), .ap_conflict_only_i(ap_conflict_only),
         .drain_close_ok_i(drain_close_ok), .timeout_pre_req_i(timeout_pre_req), .timeout_pre_bank_i(timeout_pre_bank),
@@ -116,7 +92,6 @@ module formal_bank_pick_rdprio #(
         .bank_act_ready_la_i(act_la), .bank_rdwr_ready_la_i(rdwr_la), .bank_pre_ready_la_i(pre_la), .bank_row_active_i(row_active),
         .tfaw_ok_i(tfaw_ok), .trrd_ok_i(trrd_ok), .twtr_ok_i(twtr_ok), .trtw_ok_i(trtw_ok),
         .t_ccd_i(t_ccd), .t_rcd_i(t_rcd), .t_rp_i(t_rp), .t_wr_i(t_wr), .t_rtp_i(t_rtp), .dir_batch_max_i(dir_batch_max),
-        .rd_prio_en_i(1'b1), .wr_starve_i(wr_starve), .wr_burst_i(wr_burst),
         .evt_act_o(evt_act), .evt_rd_o(evt_rd), .evt_wr_o(evt_wr), .evt_pre_o(evt_pre), .evt_ap_o(evt_ap),
         .evt_rank_o(evt_rank), .evt_bank_o(evt_bank), .evt_row_o(evt_row),
         .cmd_valid_o(cmd_valid), .cmd_timeout_pre_o(cmd_timeout_pre), .cmd_ready_i(cmd_ready), .cmd_op_o(cmd_op),
@@ -124,7 +99,7 @@ module formal_bank_pick_rdprio #(
         .row2_act_o(row2_act), .row2_pre_o(row2_pre), .row2_bank_o(row2_bank), .row2_row_o(row2_row),
         .stall_bp_o(), .stall_refresh_o(), .stall_turnaround_o(), .stall_tccd_o(),
         .stall_actlimit_o(), .stall_banktimer_o(), .stall_noreq_o(), .stall_zq_o(),
-        .dbg_dir_flip_o(dir_flip), .dbg_dir_o(dir), .dbg_dir_cause_o(dir_cause), .dbg_dir_batch_o(dir_batch)
+        .dbg_dir_flip_o(), .dbg_dir_o(), .dbg_dir_cause_o(), .dbg_dir_batch_o()
     );
 
     reg [7:0] f_past_valid = 0;
@@ -132,44 +107,34 @@ module formal_bank_pick_rdprio #(
     initial assume (!rst_n);
     always @(posedge clk) if (f_past_valid >= 2) assume (rst_n);
 
-    // ---- reference starvation counter, from the ports ----------------------
-    reg f_wr_queued;
-    integer b;
-    always @(*) begin
-        f_wr_queued = 1'b0;
-        for (b = 0; b < NUM_BANKS; b = b + 1)
-            if (wr_head[b*RECW + RECW-1]) f_wr_queued = 1'b1;     // mc_head_rec_t.vld, the MSB
-    end
-    reg [11:0] f_wait;
-    reg        f_starved, f_starved_q;
-    always @(posedge clk) begin
-        if (!rst_n) begin
-            f_wait <= 12'd0; f_starved <= 1'b0; f_starved_q <= 1'b0;
-        end else begin
-            f_starved   <= (f_wait >= wr_starve);
-            f_starved_q <= f_starved;
-            if (evt_wr)                  f_wait <= 12'd0;
-            else if (!f_wr_queued)       f_wait <= 12'd0;
-            else if (f_wait != 12'hFFF)  f_wait <= f_wait + 12'd1;
-        end
-    end
-    // last cycle's view, for the one-step properties
-    reg f_dir_q, f_evt_wr_q, f_rst_q;
-    always @(posedge clk) begin
-        f_dir_q    <= dir;
-        f_evt_wr_q <= evt_wr;
-        f_rst_q    <= rst_n;
+    wire lane_fire = row2_act || row2_pre;
+    wire main_col  = cmd_valid && ((cmd_op == OP_RD) || (cmd_op == OP_RDA) || (cmd_op == OP_WR) || (cmd_op == OP_WRA));
+
+    always @(posedge clk) if (rst_n) begin
+        a_one_row:      assert (!(row2_act && row2_pre));
+        a_enable:       assert (!lane_fire || dual_issue_en);
+        a_slot:         assert (!lane_fire || cmd_ready);
+        // beside a main-lane COLUMN only -- never alone (the 2026-11-12 cut:
+        // the lane stays off the plane's command-valid cone), never beside a
+        // main-lane row / override command (every non-column op is one),
+        // never the timeout PRE
+        a_beside_col:   assert (!lane_fire || main_col);
+        a_no_main_act:  assert (!row2_act || !evt_act);
+        a_no_main_pre:  assert (!lane_fire || !evt_pre);
+        a_no_to_pre:    assert (!lane_fire || !cmd_timeout_pre);
+        a_other_bank:   assert (!lane_fire || (row2_bank != cmd_bank));
+        // the live gate, re-checked at the fire
+        a_act_gate:     assert (!row2_act || (!row_active[row2_bank] && act_rdy[row2_bank] && tfaw_ok && trrd_ok));
+        a_pre_gate:     assert (!row2_pre || (row_active[row2_bank] && pre_rdy[row2_bank]));
+        // the main lane's own column / row rules are untouched by the lane
+        a_main_act_gate: assert (!evt_act || (act_rdy[evt_bank] && tfaw_ok && trrd_ok));
     end
 
-    always @(posedge clk) if (rst_n && f_rst_q) begin
-        a_starve:      assert (!(f_starved_q && !f_dir_q && !f_evt_wr_q) || dir);
-        a_cause3:      assert (!(dir_flip && dir_cause == 2'd3) || f_starved_q);
-        a_no_read_cap: assert (!(dir_flip && dir && dir_cause == 2'd2));
-        a_wr_cap_min:  assert (!(dir_flip && !dir && dir_cause == 2'd2) || (dir_batch >= wr_burst));
-    end
-    always @(posedge clk) if (rst_n && f_rst_q) begin
-        c_starve:   cover (dir_flip && dir && dir_cause == 2'd3);
-        c_wr_cap:   cover (dir_flip && !dir && dir_cause == 2'd2 && dir_batch == wr_burst);
-        c_rd_drain: cover (dir_flip && dir && dir_cause == 2'd1);
+    // the lane does fire, both classes, beside a read and beside a write
+    always @(posedge clk) if (rst_n) begin
+        c_act_beside_col: cover (row2_act && main_col);
+        c_pre_beside_col: cover (row2_pre && main_col);
+        c_act_beside_rd:  cover (row2_act && cmd_valid && ((cmd_op == OP_RD) || (cmd_op == OP_RDA)));
+        c_act_beside_wr:  cover (row2_act && cmd_valid && ((cmd_op == OP_WR) || (cmd_op == OP_WRA)));
     end
 endmodule

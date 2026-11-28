@@ -60,7 +60,7 @@ inventory, shared opcodes.
 | `mc_dfi_4p0_plane` | landed | andesite |
 
 **Shared FUBs (fub/).** `mc_addr_mapper`, `mc_axi_burst_chopper`,
-`mc_bank_timer`, `mc_bank_timers`, `mc_cmd_arbiter`, `mc_dfi_cdc`,
+`mc_bank_timer`, `mc_bank_timers`, `mc_cmd_arb_frfcfs`, `mc_dfi_cdc`,
 `mc_dfi_cmd_path`, `mc_dfi_wr_serializer`, `mc_dfi_rd_aligner`,
 `mc_dfi_3p1_cmd_path`, `mc_dfi_4p0_cmd_path`, `mc_global_timers`,
 `mc_rd_cmd_cam`, `mc_rd_intake`, `mc_rd_return_ring`, `mc_wr_data_cam`,

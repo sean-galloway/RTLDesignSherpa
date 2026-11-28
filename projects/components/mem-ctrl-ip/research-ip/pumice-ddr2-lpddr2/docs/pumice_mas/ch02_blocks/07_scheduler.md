@@ -21,11 +21,11 @@
 
 <!-- End Header -->
 
-> **Status (2026-10-13): this block lives in common-ip now.** The RTL is `mc_cmd_arbiter` inside `mc_scheduler_plane`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Plane and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps pumice's provenance and measured history. Its column-issuability description (CAM lookups by `{bank, open row}`, `N_LU` per-bank lookup ports) records the pumice-era interface; the common arbiter instead reads per-entry schedulable vectors from `mc_storage_plane` (`*_sch_valid/bank/row/col/older/age_exceed/qos/head_rel`), and the interface table below has been updated to those ports.
+> **Status (2026-10-13): this block lives in common-ip now.** The RTL is `mc_cmd_arb_frfcfs` inside `mc_scheduler_plane`; its microarchitecture is owned by [common_mas Chapter 4 — Scheduler Plane and Pick Machinery](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md). This chapter keeps pumice's provenance and measured history. Its column-issuability description (CAM lookups by `{bank, open row}`, `N_LU` per-bank lookup ports) records the pumice-era interface; the common arbiter instead reads per-entry schedulable vectors from `mc_storage_plane` (`*_sch_valid/bank/row/col/older/age_exceed/qos/head_rel`), and the interface table below has been updated to those ports.
 
-# Command Arbiter (`mc_cmd_arbiter`)
+# Command Arbiter (`mc_cmd_arb_frfcfs`)
 
-**Module:** `mc_cmd_arbiter.sv`
+**Module:** `mc_cmd_arb_frfcfs.sv`
 **Location:** `common-ip/rtl/fub/`
 **Category:** FUB (the pick core)
 **Parent:** `mc_scheduler_plane`
@@ -34,7 +34,7 @@
 > **Rearchitected:** the SWAG `scheduler.sv` was a multi-mask priority-encoder
 > pipeline (Stages 1–4) over a wide `txn_queue` snapshot with a column-op FSM
 > (S_NEED_PRE → S_NEED_ACT → S_NEED_RDWR → S_DONE) and a round-robin W/R toggle.
-> That block is retired. The live pick core is `mc_cmd_arbiter` — a
+> That block is retired. The live pick core is `mc_cmd_arb_frfcfs` — a
 > **combinational, single-issue, FSM-free** priority picker that reads the CAMs'
 > per-entry schedulable vectors and the per-bank / global readiness inputs and emits ONE
 > abstract DRAM command per cycle. It is instantiated inside
@@ -46,7 +46,7 @@
 
 ## Purpose
 
-`mc_cmd_arbiter` picks one abstract DRAM command each cycle and pushes it into
+`mc_cmd_arb_frfcfs` picks one abstract DRAM command each cycle and pushes it into
 the scheduler → DFI command interface. It is PHY/nphases-agnostic and
 single-issue; JEDEC timing is enforced by the per-bank (`mc_bank_timers`) and
 global (`mc_global_timers`) readiness inputs it consumes. Open-page vs auto-precharge
@@ -383,7 +383,7 @@ In the pumice configuration (`HAS_*` defaults) the macro instantiates, on a sing
 | `u_page_policy`   | `mc_page_policy`     | runtime auto-precharge / timeout-precharge engine |
 | `u_bank_timers`   | `mc_bank_timers` | per-(rank,bank) safe timers + open-row            |
 | `u_global_timers` | `mc_global_timers`      | tFAW/tRRD (per-rank), tWTR/tRTW/tCCD (global)     |
-| `u_arbiter`       | `mc_cmd_arbiter` | the pick core (above)                             |
+| `u_arbiter`       | `mc_cmd_arb_frfcfs` | the pick core (above)                             |
 | `u_cmd_fifo`      | `gaxi_fifo_sync`     | output command FIFO, packs `{ap, col, row, bg, bank, rank, extra, op}` (`w_cmd_wr_data`; `extra` carries the MRR flag), depth `CMD_FIFO_DEPTH` (default 16) |
 
 The arbiter pushes into `u_cmd_fifo`; the FIFO read side is the macro's

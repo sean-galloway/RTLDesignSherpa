@@ -101,7 +101,7 @@
 - [Write-to-Read Forward (snarf in `mc_wr_data_cam`)](ch02_blocks/21_wr2rd_forward.md)
 
 **Scheduling FUBs (`mc_scheduler_plane` via common-ip):**
-- [Command Arbiter (`mc_cmd_arbiter`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
+- [Command Arbiter (`mc_cmd_arb_frfcfs`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
 - [Page-policy engine (`mc_page_policy`)](ch02_blocks/08_page_policy.md)
 - [Cross-bank Turnaround Timers (`mc_global_timers`)](ch02_blocks/10_xbank_timers.md)
 - [Global Timers (`mc_global_timers`)](ch02_blocks/19_global_timers.md)

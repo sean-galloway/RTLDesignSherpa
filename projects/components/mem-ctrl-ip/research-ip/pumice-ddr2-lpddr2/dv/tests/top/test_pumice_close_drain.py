@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 
 """
-Directed probe for CLOSE_ON_DRAIN (common-ip mc_cmd_arbiter; built with SCHED_CORE=0).
+Directed probe for CLOSE_ON_DRAIN (common-ip mc_cmd_arb_frfcfs; built with SCHED_CORE=0).
 
 Stimulus: one write (so the DFI read model has data to return), then 8 reads
 to the SAME {bank,row,col} (a same-row group that fully drains), then 1 read
@@ -303,7 +303,7 @@ def test_pumice_close_drain(request):
               "NUM_ENTRIES": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
               "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
               "CLOSE_ON_DRAIN": os.environ.get("PUMICE_CLOSE_ON_DRAIN", "1"),
-              # this probe reads mc_cmd_arbiter internals (g_arbiter.u_arbiter)
+              # this probe reads mc_cmd_arb_frfcfs internals (g_arbiter.u_arbiter)
               "SCHED_CORE": "0"}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",

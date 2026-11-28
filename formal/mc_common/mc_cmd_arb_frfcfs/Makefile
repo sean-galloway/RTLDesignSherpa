@@ -2,7 +2,7 @@
 # Formal verification Makefile for pumice_cmd_arbiter COMPOSED with global_timers.
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog.
 # Both modules are flattened together because the proof is about the LOOP
-# between them -- see formal_cmd_arbiter.sv.
+# between them -- see formal_cmd_arb_frfcfs.sv.
 
 REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
 
@@ -10,10 +10,10 @@ SV2V      ?= sv2v
 
 # The flat's source list is the DUT's own filelist, flattened by
 # bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
-FLAT            := arb_flat.v
+FLAT            := cmd_arb_frfcfs_flat.v
 FLAT_FILELIST   := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_global_timers.f \
-                   $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_cmd_arbiter.f
-# mc_cmd_arbiter's always_comb blocks read whole unpacked arrays; sv2v spells
+                   $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_cmd_arb_frfcfs.f
+# mc_cmd_arb_frfcfs's always_comb blocks read whole unpacked arrays; sv2v spells
 # each as an explicit `always @(a or b ...)` list naming them, which yosys
 # rejects ("Insufficient number of array indices"). A combinational list
 # means nothing to yosys, so every non-edge list is rewritten to @(*).
@@ -29,20 +29,20 @@ include $(REPO_ROOT)/make/formal_flat.mk
 # directly. `make issue019` stays as a named entry point to the same armed
 # task.
 all: prove cover
-prove: arb_flat.v
-	sby -f cmd_arbiter.sby prove
-issue019: arb_flat.v
-	sby -f cmd_arbiter.sby issue019
+prove: cmd_arb_frfcfs_flat.v
+	sby -f cmd_arb_frfcfs.sby prove
+issue019: cmd_arb_frfcfs_flat.v
+	sby -f cmd_arb_frfcfs.sby issue019
 
-cover: arb_flat.v
-	sby -f cmd_arbiter.sby cover
+cover: cmd_arb_frfcfs_flat.v
+	sby -f cmd_arb_frfcfs.sby cover
 
 # TASK-047 row lane (DUAL_ISSUE): bmc + cover with the lane built
-dual_cover: arb_flat.v
-	sby -f cmd_arbiter.sby dual_cover
+dual_cover: cmd_arb_frfcfs_flat.v
+	sby -f cmd_arb_frfcfs.sby dual_cover
 
-dual: arb_flat.v
-	sby -f cmd_arbiter.sby dual dual_cover
+dual: cmd_arb_frfcfs_flat.v
+	sby -f cmd_arb_frfcfs.sby dual dual_cover
 
 clean:
-	rm -rf *_flat.v arb_flat.v cmd_arbiter_prove cmd_arbiter_issue019 cmd_arbiter_cover
+	rm -rf *_flat.v cmd_arb_frfcfs_flat.v cmd_arb_frfcfs_prove cmd_arb_frfcfs_issue019 cmd_arb_frfcfs_cover

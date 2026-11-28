@@ -22,7 +22,7 @@ rejected) fails the live check and is dropped there, losslessly.
 
 ## The failure that taught it
 
-`mc_cmd_arbiter` (the FR-FCFS core) classifies pool entries against
+`mc_cmd_arb_frfcfs` (the FR-FCFS core) classifies pool entries against
 `r_bank_row_active` / `r_bank_open_row`, which are the bank timers' flops
 registered once more at the arbiter's input: two cycles behind a fire. The
 pick is three registers deep (STAGE-1a mask, pre-pick, output). On
@@ -35,7 +35,7 @@ col_major, one generator, every eight-column row cost 24 cycles against a
 | PRE to ACT | tRP 2 | 6 | image drops two cycles after the fire, then the three-stage pipe |
 | ACT to column | tRCD 2 | 5 | same: image, then pipe |
 
-The per-bank core (`mc_bank_pick`) was built with a lookahead decode and a
+The per-bank core (`mc_cmd_arb_bank`) was built with a lookahead decode and a
 next-op hint and sat on the floor; the owner's question was why it kept
 winning after the multi-thread bug was fixed.
 
@@ -168,7 +168,7 @@ that contract, and removing any one of its three fire terms fails it.
 
 ## The same lane on the per-bank pick core (memory-controllers MC-014, 2026-11-12)
 
-`mc_bank_pick` grew the lane a week later, after the Ramulator comparison and
+`mc_cmd_arb_bank` grew the lane a week later, after the Ramulator comparison and
 a slot-occupancy trace had named the single command slot as granite's ceiling
 on the bank-parallel miss families (97 percent of MC cycles firing, an ACT
 every 9 cycles; [[dram-cycle-model]]). The pick core has no pre-pick

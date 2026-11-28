@@ -9217,7 +9217,7 @@ components
 │   │       │   │   ├── mc_bank_sched.f
 │   │       │   │   ├── mc_bank_timer.f
 │   │       │   │   ├── mc_bank_timers.f
-│   │       │   │   ├── mc_cmd_arbiter.f
+│   │       │   │   ├── mc_cmd_arb_frfcfs.f
 │   │       │   │   ├── mc_cmd_history_checker.f
 │   │       │   │   ├── mc_dfi_3p1_cmd_path.f
 │   │       │   │   ├── mc_dfi_4p0_cmd_path.f
@@ -9260,7 +9260,7 @@ components
 │   │       │   ├── mc_bank_sched.sv
 │   │       │   ├── mc_bank_timer.sv
 │   │       │   ├── mc_bank_timers.sv
-│   │       │   ├── mc_cmd_arbiter.sv
+│   │       │   ├── mc_cmd_arb_frfcfs.sv
 │   │       │   ├── mc_cmd_history_checker.sv
 │   │       │   ├── mc_dfi_3p1_cmd_path.sv
 │   │       │   ├── mc_dfi_4p0_cmd_path.sv
@@ -9294,7 +9294,7 @@ components
 │   │       │   │   ├── mc_axi_burst_chopper.log
 │   │       │   │   ├── mc_bank_timer.log
 │   │       │   │   ├── mc_bank_timers.log
-│   │       │   │   ├── mc_cmd_arbiter.log
+│   │       │   │   ├── mc_cmd_arb_frfcfs.log
 │   │       │   │   ├── mc_cmd_history_checker.log
 │   │       │   │   ├── mc_common_pkg.log
 │   │       │   │   ├── mc_dfi_2p1_layer.log

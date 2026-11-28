@@ -34,7 +34,7 @@ scheduler.
 
 `pumice_core` instantiates the common `mc_scheduler_plane` directly, with its
 default children built in: `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`,
-`mc_xddr2_refresh_ctrl` and `mc_page_policy` around the `mc_cmd_arbiter` pick
+`mc_xddr2_refresh_ctrl` and `mc_page_policy` around the `mc_cmd_arb_frfcfs` pick
 and the bank / global timers. It instantiates the common `mc_training_plane`
 with both LPDDR2 clients enabled: `mc_lpddr2_zq_ctrl` (periodic ZQ
 calibration, slot 0) and `mc_lpddr2_dq_cal` (MRR DQ calibration, slot 1)
@@ -68,7 +68,7 @@ the pumice-specific wrappers and children are covered in the pumice MAS
 2. `mc_storage_plane` fills the write burst into its write-data CAM SRAM and
    records the command; the fill-complete flag gates schedulability and snarf.
 3. `mc_scheduler_plane` reads the CAMs' schedulable-entry views each cycle and picks the next
-   abstract command (`mc_cmd_arbiter` against the bank and global
+   abstract command (`mc_cmd_arb_frfcfs` against the bank and global
    timers, with `mc_page_policy` supplying the open-page decision).
 4. In `mc_dfi_2p1_plane`, the command crosses the CDC and the command
    formatter encodes it into DFI cs_n / ras_n / cas_n / we_n / address / bank

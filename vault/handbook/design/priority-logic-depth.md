@@ -76,7 +76,7 @@ The cheapest max is the one you never compute -- see
         if (mask[i] && (q[i] > best)) best = q[i];
 
 reads like a parallel reduction and synthesizes as N compare-selects in series,
-because each `best` depends on the one before. In `mc_cmd_arbiter`'s QoS filter
+because each `best` depends on the one before. In `mc_cmd_arb_frfcfs`'s QoS filter
 (N = 16, at the end of the classify cone) it was 2.15 of the 3.27 ns worst path
 in ASAP7 and the last ~15 LUT levels of the path that took pumice off its 50 MHz
 board clock (-2.84 ns). It was there whether or not QoS was enabled, because the

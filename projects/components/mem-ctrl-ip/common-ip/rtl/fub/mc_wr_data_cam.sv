@@ -669,7 +669,7 @@ module mc_wr_data_cam #(
                                     - (w_dq_pop      ? (PTRW+1)'(1) : (PTRW+1)'(0));
     assign commit_ready_o = w_dq_wr_ready && (w_dq_occ_next < (PTRW+1)'(WR_DRAIN_AHEAD));
     // The accept condition itself, exported for a core that must not read
-    // commit_valid back (mc_bank_pick, recovery Phase 3): registered
+    // commit_valid back (mc_cmd_arb_bank, recovery Phase 3): registered
     // occupancy and the queue's own ready, NO pop term. The drain pop reaches
     // through the fetch arbitration to BOTH consumer readies (cm_rd_ready_i
     // from the DFI plane, snarf_rd_ready_i from the AXI plane), so a

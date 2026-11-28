@@ -85,7 +85,7 @@
 
 **Command Formatter** — `mc_xddr2_cmd_formatter` (inside `mc_dfi_cmd_path`): the module that translates the controller's abstract command record into DFI wire signals. A single module with a memtype branch — DDR2 drives ras/cas/we; LPDDR2 packs the 10-bit CA bus (two edges) onto `dfi_address`. It drives the phase-packed DFI buses directly; there is no separate packing stage.
 
-**Command Arbiter** — `mc_cmd_arbiter`: the single command-pick core. It scans CAM readiness against the bank and global timers, applies the page policy (the open-page decision is inline here), and emits one abstract DRAM command per cycle.
+**Command Arbiter** — `mc_cmd_arb_frfcfs`: the single command-pick core. It scans CAM readiness against the bank and global timers, applies the page policy (the open-page decision is inline here), and emits one abstract DRAM command per cycle.
 
 **FR-FCFS** — First-Ready, First-Come-First-Served. The baseline DRAM scheduling policy: ready commands beat unready, row-hits beat row-misses, older entries beat younger on ties. Established by Rixner et al. (ISCA 2000).
 
@@ -97,6 +97,6 @@
 
 **Page Conflict / Row Miss** — An access whose target row differs from the currently open row in the target bank. Pays tRP + tRCD before the access can begin.
 
-**Page Policy** — The strategy for when to close an open row. Static OPEN / CLOSE via `REFRESH_TUNING.page_policy_or`; the runtime idle-timeout mode (`fixed_open`) via `PAGE_POLICY_CFG.policy_mode` in `mc_page_policy`. The per-command decision is inline in `mc_cmd_arbiter`.
+**Page Policy** — The strategy for when to close an open row. Static OPEN / CLOSE via `REFRESH_TUNING.page_policy_or`; the runtime idle-timeout mode (`fixed_open`) via `PAGE_POLICY_CFG.policy_mode` in `mc_page_policy`. The per-command decision is inline in `mc_cmd_arb_frfcfs`.
 
 **Command CAMs** — The two content-addressable buffers that hold in-flight requests between the AXI interface and the scheduler: `mc_wr_data_cam` (write data buffer + snarf source) and `mc_rd_cmd_cam` (read reorder buffer). Both store burst data in an SRAM with FIFO-fed / oldest-pick streaming read engines and no active-slot state latch.

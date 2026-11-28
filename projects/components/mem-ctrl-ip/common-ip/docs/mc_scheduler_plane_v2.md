@@ -104,15 +104,15 @@ max depth with >N chunks in flight.
 ## 5. Modes and the research core
 
 Plane param `SCHED_CORE` (int, `mc_common_pkg`): `MC_SCHED_BANK_PICK` (1,
-the default and the family design: `mc_bank_pick` on the per-bank head
+the default and the family design: `mc_cmd_arb_bank` on the per-bank head
 records, landed 2026-10-22 as mem-ctrl recovery Phase 2) or
-`MC_SCHED_FRFCFS` (0: `mc_cmd_arbiter` on the per-entry vectors).
-`mc_cmd_arbiter` remains the research core for pumice's window/ordering
+`MC_SCHED_FRFCFS` (0: `mc_cmd_arb_frfcfs` on the per-entry vectors).
+`mc_cmd_arb_frfcfs` remains the research core for pumice's window/ordering
 studies (order modes, row/col selectors, access preference, QoS) and for A/B
 characterization; it is selected, not replaced. The earlier `BANK_FIFO`
 parameter and its core `mc_bank_sched` (the 2026-10-15 skid-seat design that
 read the store's live head views, MC-003) are retired; the `BANK_IN_ORDER`
-pick-mask plumbing in `mc_cmd_arbiter` (52829bbf3) is gone with them.
+pick-mask plumbing in `mc_cmd_arb_frfcfs` (52829bbf3) is gone with them.
 
 What the landed core looks like, against sections 1-3 above: the per-(dir,
 bank) "head sequencers" are a one-cycle decode over the REGISTERED records
@@ -124,7 +124,7 @@ hops on the JEDEC floor through a two-stage pipe: a one-cycle pop shadow
 (the record lags a pop by a cycle; the fired pair is served from its second
 record) and a next-op hint (a fire tells the arbiter what the same pair
 wants next when the hop equals the pipe depth). Read the header of
-`common-ip/rtl/fub/mc_bank_pick.sv` for the mechanism; the plan
+`common-ip/rtl/fub/mc_cmd_arb_bank.sv` for the mechanism; the plan
 `docs/superpowers/plans/2026-10-21-mem-ctrl-recovery.md` section 2.2 for the
 reasoning.
 

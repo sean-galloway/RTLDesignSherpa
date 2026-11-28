@@ -39,7 +39,7 @@
 
 `timescale 1ns / 1ps
 
-module formal_cmd_arbiter #(
+module formal_cmd_arb_frfcfs #(
     parameter int NR   = 1,    // NUM_RANKS
     parameter int NB   = 4,    // NUM_BANKS
     parameter int RW   = 4,    // ROW_WIDTH
@@ -151,7 +151,7 @@ module formal_cmd_arbiter #(
     wire [NR-1:0] tfaw_ok_i, trrd_ok_i;
     wire twtr_ok_i, trtw_ok_i, tccd_ok_i;
 
-    mc_cmd_arbiter #(
+    mc_cmd_arb_frfcfs #(
         .NUM_RANKS(NR), .NUM_BANKS(NB), .ROW_WIDTH(RW), .COL_WIDTH(CW),
         .AXI_ID_WIDTH(IW), .NUM_ENTRIES(NE), .AGE_WIDTH(AGEW),
         .DUAL_ISSUE(DUAL != 0)
@@ -198,7 +198,7 @@ module formal_cmd_arbiter #(
         .cmd_valid_o(cmd_valid_o), .cmd_ready_i(cmd_ready_i), .cmd_op_o(cmd_op_o),
         .cmd_rank_o(cmd_rank_o), .cmd_bank_o(cmd_bank_o), .cmd_row_o(cmd_row_o),
         .cmd_col_o(cmd_col_o),
-        // mc_cmd_arbiter ports the pumice adapter used to fix (the same values
+        // mc_cmd_arb_frfcfs ports the pumice adapter used to fix (the same values
         // it drove): no ZQ (HAS_ZQ=0), single bank group so the DDR4 long
         // windows are always open. The maint_* port, which replaced the
         // adapter's trn_cmd_* port, is left unconnected exactly as trn_cmd_*

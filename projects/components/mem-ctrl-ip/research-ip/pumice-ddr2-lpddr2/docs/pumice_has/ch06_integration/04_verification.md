@@ -36,7 +36,7 @@ DUT (owner ruling, 2026-10-13). The `mc_*` FUB tests that lived under
 `dv/tests/fub/` were removed for that reason. common-ip carries no tests of
 its own yet. The table lists the blocks whose pumice-area test was removed;
 `mc_global_timers` and `mc_wr_splitter` keep a directed test in the scoria and
-andesite areas, the rest now have none. `mc_addr_mapper`, `mc_cmd_arbiter`,
+andesite areas, the rest now have none. `mc_addr_mapper`, `mc_cmd_arb_frfcfs`,
 `mc_page_policy`, `mc_dfi_cdc`, `mc_dfi_cmd_path`, `mc_dfi_wr_serializer` and
 `mc_dfi_rd_aligner` lost their pumice tests earlier, in the common-ip move
 (scoria/andesite cover the last two; `mc_bank_timers`' leaf `mc_bank_timer`

@@ -214,7 +214,7 @@ re-prove before believing the green.
 *Second case (memory-controllers MC-009, 2026-11-07): the pumice arbiter's
 STAGE-1b same-cycle guard terms were moved out of the classify cone and
 re-applied one cycle later from the pre-pick register. All five
-`mc_cmd_arbiter` tasks passed before and after -- and they also passed with
+`mc_cmd_arb_frfcfs` tasks passed before and after -- and they also passed with
 the new exclusion DELETED outright. The harness asserted tRRD / tFAW / tRFC
 spacing and single-issue, and modelled no CAM: the scheduling vectors were
 free inputs, so the solver could re-offer an issued slot forever and the
@@ -601,7 +601,7 @@ is lockstep equivalence against the version being replaced:
   unit only through a `filelists/**/*.f`, and a golden copy parsed as a bare
   library file next to its harness fails on the reset macros (2026-11-09).
 
-*Case (memory-controllers MC-011): `mc_bank_pick`'s class-per-source
+*Case (memory-controllers MC-011): `mc_cmd_arb_bank`'s class-per-source
 rewrite passed the store contract suite and both granite suites, and the
 equivalence proof failed at once on the candidate coordinates: on an EMPTY
 pick a column fall-through now said `CL_COL` where the index encode had
@@ -610,13 +610,13 @@ it; the proof did, the fix is one line, and "cycle-exact" means exact.*
 
 Solver: `bitwuzla` finished the `mc_bank_timer` equivalence (depth 40, two
 8-bit-counter copies) in 2 minutes where `z3` was at step 30 after 11; the
-`mc_bank_pick` pair (two 1,400-line cores, depth 20) took 3 minutes. Pick
+`mc_cmd_arb_bank` pair (two 1,400-line cores, depth 20) took 3 minutes. Pick
 the solver for the state ([[formal]] above), and keep the depth honest: a
 retiming difference shows within a cycle or two of the register it moves,
 so 20 free cycles over a 16-pair core is many independent chances, not one.
 
 Four equivalence harnesses from that day: `formal/mc_common/mc_bank_timer`
-(`equiv`, `equiv_live`), `mc_bank_pick` (`equiv`, `equiv_n4`),
+(`equiv`, `equiv_live`), `mc_cmd_arb_bank` (`equiv`, `equiv_n4`),
 `mc_global_timers` (`equiv`), and `mc_bank_queue` (its lockstep against
 `gaxi_age_fifo_sync` already was one). See
 [[resolve-the-select-at-the-load]] and [[registered-status-outputs]] in

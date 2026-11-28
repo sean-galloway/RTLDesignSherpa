@@ -14,7 +14,7 @@ module (an `always_comb` loop of constant part-selects costs nothing).
 
 ## The case (pumice TASK-056)
 
-`mc_bank_pick` reads the fire payload by slot from the storage plane's flat
+`mc_cmd_arb_bank` reads the fire payload by slot from the storage plane's flat
 `wr_slot_row_i` / `rd_slot_row_i` (N x ROW_WIDTH) and the column vectors,
 written as `wr_slot_row_i[w_sel_slot*ROW_WIDTH +: ROW_WIDTH]`. Attributed
 by source line on the pre-ABC netlist, those four part-selects were 1 538

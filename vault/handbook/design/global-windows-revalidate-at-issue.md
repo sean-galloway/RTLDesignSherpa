@@ -88,7 +88,7 @@ guess the alignment.
 What DOES find them, cheaply: compose the gating block with the gated block --
 the real one, not a model -- let the environment free, and time the events with
 a counter the wrapper keeps itself rather than trusting either DUT to report
-its own spacing. `formal/scoria/cmd_arbiter` and `formal/mc_common/mc_cmd_arbiter`
+its own spacing. `formal/scoria/cmd_arbiter` and `formal/mc_common/mc_cmd_arb_frfcfs`
 are both ~300 lines and run in under a minute.
 
 ## The fourth: the window's first cycle belonged to the requester (pumice BUG-033, 2026-11-07)
@@ -146,7 +146,7 @@ downstream of the fire stalled on its own pointer latency and compressed the
 stream the arbiter had spaced correctly (pumice BUG-033, [[cdc]]). The
 arbiter-probed capture showed the arbiter right at every refresh.
 
-How it was pinned: `formal/mc_common/mc_cmd_arbiter` had tRRD/tFAW assertions
+How it was pinned: `formal/mc_common/mc_cmd_arb_frfcfs` had tRRD/tFAW assertions
 and no tRFC one. A tRFC assertion in the same shape (the wrapper times REF to
 ACT itself, `refresh_req_i` free) fails at step 6 on the pre-fix RTL with
 exactly the board trace -- grant with the request already low, ACT the next

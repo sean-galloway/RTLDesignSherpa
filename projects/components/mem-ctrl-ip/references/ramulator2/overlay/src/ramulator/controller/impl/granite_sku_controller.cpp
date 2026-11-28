@@ -17,7 +17,7 @@ namespace Ramulator {
 // the pick pipeline MC-021).
 //
 // Not a policy: the shape of granite_core at 225094132 / 593fb5331 -- the
-// bank-FIFO store under the bank-pick core (mc_bank_fifo_store + mc_bank_pick)
+// bank-FIFO store under the bank-pick core (mc_bank_fifo_store + mc_cmd_arb_bank)
 // -- as far as a cycle-approximate model can carry it. Every term below names
 // the RTL term it stands for; the write-up lists the ones it does not carry.
 //
@@ -43,7 +43,7 @@ namespace Ramulator {
 //     peek_depth > 1 lets a bank whose head is a row conflict offer the oldest
 //     row hit among its first peek_depth entries instead (MC-016's model of a
 //     real lookahead; 1 = the shipped strict FIFO).
-//   * THE PICK PIPELINE (mc_bank_pick's three stages, MC-021). Measured in the
+//   * THE PICK PIPELINE (mc_cmd_arb_bank's three stages, MC-021). Measured in the
 //     proxy at 100 MHz (model_knob_grid_2026-11-17.md section 3): a command
 //     the next-op hint did not pre-arm fires two MC cycles after its timer
 //     opens, ACT -> ACT is t_rrd + 1, two slots go empty after a close-page
@@ -206,13 +206,13 @@ class GraniteSKUController : public ControllerBase {
                                 //   cycles, the ACT at fire + t_rp_ap of the column's path (MC-020 decision 2; false = the CK-exact DRAM terms alone)
   int m_t_rp_ap_rd = -1;        // the tRP the self-close reloads after an RDA, MC cycles (TIMINGS_RP_AP.tRP_AP_RD); -1 = the shared tRP (the RTL before the field)
   int m_t_rp_ap_wr = -1;        // ... after a WRA (TIMINGS_RP_AP.tRP_AP_WR); -1 = the shared tRP
-  bool m_rfc_block = true;      // the pick core's tRFC demand block (mc_bank_pick r_rfc_cnt / w_rfc_dmd_block): the
+  bool m_rfc_block = true;      // the pick core's tRFC demand block (mc_cmd_arb_bank r_rfc_cnt / w_rfc_dmd_block): the
                                 //   counter loads the CSR tRFC the cycle after the REF grant and blocks every demand
                                 //   request and fire while non-zero, so the first ACT decodes at grant + 1 + tRFC and
                                 //   fires two slots later (grant + 16 at the SKU's 13). false = the model before:
                                 //   the ACT waits only for the device's tRFC, with the lookahead (grant + 13)
                                 //   (memory-controllers MC-023 item 4, the proxy probe 2026-11-24)
-  bool m_ref_drain_pb = false;  // MC-023 item 4: the refresh drain as mc_bank_pick's override does it -- one PREpb a slot, to the
+  bool m_ref_drain_pb = false;  // MC-023 item 4: the refresh drain as mc_cmd_arb_bank's override does it -- one PREpb a slot, to the
                                 //   lowest bank the REGISTERED row image (r_row_act, two slots behind the fires) shows open with its
                                 //   registered pre-ready (r_pre_rdy, bank_pre_ready_la); the live gate refuses a bank the last slot's
                                 //   PRE already closed, so that slot is lost; the REF only once the registered image shows every bank
@@ -1311,7 +1311,7 @@ class GraniteSKUController : public ControllerBase {
       // starvation, registered from this slot's write heads and the counter
       bool wr_queued = false;
       for (int p = 0; p < np; p++) if (m_heads[p].vld && dir_of(p)) wr_queued = true;
-      // the RTL's r_wr_starved: the compare on the counter's CURRENT value, registered (mc_bank_pick g_rd_prio),
+      // the RTL's r_wr_starved: the compare on the counter's CURRENT value, registered (mc_cmd_arb_bank g_rd_prio),
       // so the flag is a slot behind the count; then the count (clear on a write column or no write head,
       // saturating at 12 bits)
       m_press = m_wr_starve > 0 && m_wr_wait >= m_wr_starve;

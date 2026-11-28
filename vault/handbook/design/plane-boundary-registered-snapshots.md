@@ -84,7 +84,7 @@ sections 11 to 17.
 
 A registered snapshot is one cycle behind the state it describes. The
 consumer that lives one register away cannot pretend otherwise; two things
-follow, both learned landing `mc_bank_pick` on the record contract
+follow, both learned landing `mc_cmd_arb_bank` on the record contract
 (2026-10-22):
 
 - **The pop shadow.** In the cycle after the consumer pops an entry, the

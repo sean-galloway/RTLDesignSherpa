@@ -58,7 +58,7 @@ edge as the boundary bar.
 | Sideband (dashed) | `ticket at insert / issue`, `snarf probe / hit + data` |
 
 The scheduler is the family's trapezium (handbook rule 9). It is drawn only
-for the command scheduler, `mc_scheduler_plane - mc_cmd_arbiter`.
+for the command scheduler, `mc_scheduler_plane - mc_cmd_arb_frfcfs`.
 
 ## Rendering
 

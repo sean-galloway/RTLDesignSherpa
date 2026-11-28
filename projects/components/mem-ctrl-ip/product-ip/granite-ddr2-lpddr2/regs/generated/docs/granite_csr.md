@@ -777,7 +777,7 @@ request. All hw-readable so they drive the controller core.</p>
 - Size: 0x4
 
 <p>INERT in granite: wr_high_wm / wr_low_wm are read only by the
-FRFCFS research arbiter (mc_cmd_arbiter). granite builds the
+FRFCFS research arbiter (mc_cmd_arb_frfcfs). granite builds the
 per-bank pick core (SCHED_CORE = BANK_PICK, required by the FIFO
 store), and mc_scheduler_plane ties both fields off for it, so
 writing them changes nothing; the pick's direction register

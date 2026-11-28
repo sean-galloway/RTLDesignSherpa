@@ -122,7 +122,7 @@ length.
 
 `mc_scheduler_plane` reads both CAMs' per-entry schedulable vectors
 (valid, bank, row, col, older matrix, age, qos), picks one command with
-`mc_cmd_arbiter` (the open-page decision is **inline** in the arbiter --
+`mc_cmd_arb_frfcfs` (the open-page decision is **inline** in the arbiter --
 there is no separate `page_predictor` in the issue path), and emits a single
 abstract DRAM command `{op, rank, bank, row, col, ap, mrr}` into an output command
 FIFO. The scheduler is single-issue, PHY/nphases-agnostic, and runs entirely on

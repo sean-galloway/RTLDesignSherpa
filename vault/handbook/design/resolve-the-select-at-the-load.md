@@ -1,6 +1,6 @@
 ---
 title: Resolve the select at the load, not in front of the consumer
-summary: A 2:1 mux of two register sets by a registered decision bit is one LUT level plus a high-fanout net at the ROOT of every consumer; load one register set with the decision at its D input instead. The fire cone it was kept off the load path to protect was never the long one. mc_bank_pick, granite 100 MHz, 2026-11-08.
+summary: A 2:1 mux of two register sets by a registered decision bit is one LUT level plus a high-fanout net at the ROOT of every consumer; load one register set with the decision at its D input instead. The fire cone it was kept off the load path to protect was never the long one. mc_cmd_arb_bank, granite 100 MHz, 2026-11-08.
 ---
 
 # Resolve the select at the load, not in front of the consumer
@@ -18,7 +18,7 @@ register's load path ("no fire-cone term on any load path"). Measure that
 decision's own slack before paying for the rule: the cone the mux feeds is
 often the longer one, and the net the mux drives is the widest in the block.
 
-## The failure that taught it (mc_bank_pick, granite 100 MHz, MC-011)
+## The failure that taught it (mc_cmd_arb_bank, granite 100 MHz, MC-011)
 
 The pick core served its fire stage from `r_hold ? r_held_* : r_pick_*`
 (three register sets, a hold bit), and the request mask from a 3:1 mux of

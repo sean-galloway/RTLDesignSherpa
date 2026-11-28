@@ -62,7 +62,7 @@ list of configs over a suite and writes the pattern x variant table. The MC-018
 patterns (`patterns` suite): read / write mixes, mixed at 2 / 8 threads and
 AxLEN 4 / 16, row-locality sweeps, two- and four-bank interleaves.
 
-MC-021 gave the GraniteSKU controller mc_bank_pick's pipeline (the request
+MC-021 gave the GraniteSKU controller mc_cmd_arb_bank's pipeline (the request
 register, the winner register with hold / speculation / fresh pick, the
 self-stale mask, the next-op hint, the lane as a second winner register, the
 registered rank ok): `pick_la`, `rank_ok_lag`, and the two RTL questions as

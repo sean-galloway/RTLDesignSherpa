@@ -42,7 +42,7 @@ package granite_pkg;
 
     // ------------------------------------------------------------------
     // Direction batch cap: column fires in one direction before the pick
-    // must hand the bus to the other while it is waiting (mc_bank_pick
+    // must hand the bus to the other while it is waiting (mc_cmd_arb_bank
     // dir_batch_max_i; read back as SCHED_WR_WM.wr_batch_max). 255, the
     // field maximum, measured 2026-10-30 on the char proxy (hybrid page mode,
     // MB/s total, wr/rd balanced within 6%): cap 64 / 128 / 255 ->
@@ -97,14 +97,14 @@ package granite_pkg;
     // its bank FIFO a cycle late from a register, behind a logical queue view,
     // so the scheduler's fire cone ends at that register (timing only).
     parameter bit GRANITE_STORE_POP_REG = 1'b0;
-    // Direction ownership of the banks (mc_bank_pick DIR_OWNS_ROWS /
+    // Direction ownership of the banks (mc_cmd_arb_bank DIR_OWNS_ROWS /
     // DIR_HOLD_IDLE): the direction holding the bus may close the other
     // direction's row, and keeps the bus while it has a queued head for up to
     // DIR_HOLD_IDLE idle cycles, instead of turning the bus round every row
     // in a mixed load (granite TASK-003, 2026-11-01).
     parameter bit GRANITE_SCHED_DIR_OWNS_ROWS = 1'b1;
     parameter int GRANITE_SCHED_DIR_HOLD_IDLE = 8;
-    // Read-priority direction register (mc_bank_pick HAS_RD_PRIO,
+    // Read-priority direction register (mc_cmd_arb_bank HAS_RD_PRIO,
     // memory-controllers MC-024): built in, selected at run time by
     // SCHED_POLICY.dir_mode (reset 0, the symmetric register -- the owner's
     // 2026-11-24 rule that power-up is the most generic setting), tuned by

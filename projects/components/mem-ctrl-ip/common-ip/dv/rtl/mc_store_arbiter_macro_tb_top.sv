@@ -7,8 +7,8 @@
 // Macro contract testbench: mc_xddr2_entry_store + a REAL pick core.
 //
 // SCHED_CORE selects the core under test (mc_common_pkg MC_SCHED_*):
-//   MC_SCHED_BANK_PICK  entry store -> mc_bank_head_records (x2) -> mc_bank_pick
-//   MC_SCHED_FRFCFS     entry store -> mc_cmd_arbiter (per-entry vectors)
+//   MC_SCHED_BANK_PICK  entry store -> mc_bank_head_records (x2) -> mc_cmd_arb_bank
+//   MC_SCHED_FRFCFS     entry store -> mc_cmd_arb_frfcfs (per-entry vectors)
 // STORE_BACKEND selects the storage backend (granite_core's parameter):
 //   0  mc_xddr2_entry_store (+ the records under BANK_PICK)
 //   1  mc_bank_fifo_store, records read off the bank FIFO fronts (BANK_PICK only;
@@ -52,8 +52,8 @@ module mc_store_arbiter_macro_tb_top
     parameter int SCHED_CORE          = MC_SCHED_BANK_PICK,
     parameter int STORE_BACKEND       = 0,
     parameter bit STORE_POP_REG       = 1'b0,   // mc_bank_fifo_store POP_REG (STORE_BACKEND 1)
-    parameter bit PICK_DIR_OWNS_ROWS  = 1'b0,   // mc_bank_pick DIR_OWNS_ROWS
-    parameter int PICK_DIR_HOLD_IDLE  = 0,      // mc_bank_pick DIR_HOLD_IDLE
+    parameter bit PICK_DIR_OWNS_ROWS  = 1'b0,   // mc_cmd_arb_bank DIR_OWNS_ROWS
+    parameter int PICK_DIR_HOLD_IDLE  = 0,      // mc_cmd_arb_bank DIR_HOLD_IDLE
     // The pick core's close-on-drain is exact (AP on the last same-row entry);
     // off here so the stub bank model's AP close cannot manufacture bubbles in
     // the streaming cells. The FRFCFS core keeps its own default.
@@ -412,7 +412,7 @@ module mc_store_arbiter_macro_tb_top
         );
         end
 
-        mc_bank_pick #(
+        mc_cmd_arb_bank #(
             .NUM_RANKS  (NUM_RANKS),
             .NUM_BANKS  (NUM_BANKS),
             .ROW_WIDTH  (ROW_WIDTH),
@@ -539,7 +539,7 @@ module mc_store_arbiter_macro_tb_top
         assign rd_issue_cand  = 1'b0;
         assign cand_bank      = '0;
         assign cand_second    = 1'b0;
-        mc_cmd_arbiter #(
+        mc_cmd_arb_frfcfs #(
             .NUM_RANKS  (NUM_RANKS),
             .NUM_BANKS  (NUM_BANKS),
             .ROW_WIDTH  (ROW_WIDTH),

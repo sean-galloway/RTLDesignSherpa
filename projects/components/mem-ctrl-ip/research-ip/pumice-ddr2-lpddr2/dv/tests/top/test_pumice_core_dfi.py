@@ -1046,7 +1046,7 @@ async def cocotb_test_pumice_core_b_stall(dut):
 # ---------------------------------------------------------------------------
 
 async def _pick_trace(dut, start, n, tag=""):
-    """PICK_TRACE=1: log the mc_bank_pick core's per-cycle state for cycles
+    """PICK_TRACE=1: log the mc_cmd_arb_bank core's per-cycle state for cycles
     [start, start+n) of the current test -- the single-row view a stall
     post-mortem needs (winner, fire/drop, gates, requests, CAM commit state,
     refresh gates). Sampled in ReadOnly; silent when the pick core is not
@@ -2101,7 +2101,7 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
                   len(rows), spread)
 
 
-# Axis-1 scheduling knobs (mc_cmd_arbiter). Each entry is one NON-DEFAULT
+# Axis-1 scheduling knobs (mc_cmd_arb_frfcfs). Each entry is one NON-DEFAULT
 # setting; encoding 0 is the build default, covered by the "default" row.
 # order_mode 2 is unused in the RTL (only 1 and 3 decode). access_pref 0 is
 # bank preparation since TASK-045; 1 is the old column_first order.
@@ -2410,7 +2410,7 @@ def test_pumice_core_refresh_credit(request):
 
 
 # FRFCFS research-core cells. The order modes, row/col selectors, access
-# preference and QoS are features of mc_cmd_arbiter, which the BANK_PICK core
+# preference and QoS are features of mc_cmd_arb_frfcfs, which the BANK_PICK core
 # does not implement. pumice's default core is FR-FCFS again (owner,
 # 2026-10-22: pumice is the research controller and carries FR-FCFS; granite,
 # the product, carries BANK_PICK), so the pin below is redundant but kept: it

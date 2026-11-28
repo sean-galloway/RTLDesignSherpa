@@ -133,8 +133,8 @@ package mc_common_pkg;
     // (hit classification is sched-local against the open row it owns --
     // MC-003 evidence section 17, the plane-boundary rule).
     // mc_scheduler_plane SCHED_CORE values
-    parameter int MC_SCHED_FRFCFS    = 0;   // mc_cmd_arbiter, the research core (per-entry vectors)
-    parameter int MC_SCHED_BANK_PICK = 1;   // mc_bank_pick, the family core (per-bank head records)
+    parameter int MC_SCHED_FRFCFS    = 0;   // mc_cmd_arb_frfcfs, the research core (per-entry vectors)
+    parameter int MC_SCHED_BANK_PICK = 1;   // mc_cmd_arb_bank, the family core (per-bank head records)
 
     parameter int MC_HEAD_ROW_W  = 18;
     parameter int MC_HEAD_COL_W  = 14;
@@ -142,7 +142,7 @@ package mc_common_pkg;
 
     typedef struct packed {
         logic                      vld;          // a schedulable entry exists
-        // row / col: NOT read by mc_bank_pick since 2026-10-24 (pumice
+        // row / col: NOT read by mc_cmd_arb_bank since 2026-10-24 (pumice
         // TASK-051) -- the pick core looks the command payload up by slot
         // from the backend's slot fields. mc_bank_head_records still fills
         // them (its fub test checks them); mc_bank_fifo_store leaves them 0.

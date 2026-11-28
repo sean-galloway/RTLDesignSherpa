@@ -27,7 +27,7 @@
 
 ## 1.1 Package role
 
-`mc_common_pkg` holds the types that were previously duplicated, near-identically, across `pumice_pkg`, `scoria_pkg`, and `andesite_pkg` (`includes/mc_common_pkg.sv:19-23`). It is imported directly by every common plane and shared FUB in `common-ip/rtl/` (for example, `macro/mc_axi4_plane.sv:178`, `macro/mc_scheduler_plane.sv:26`, `fub/mc_cmd_arbiter.sv:34`, `fub/mc_addr_mapper.sv:55`). The package contains no parameters, no build-time knobs, and no CSR definitions; it is a pure type-and-function package meant to be imported with `::*` at module scope.
+`mc_common_pkg` holds the types that were previously duplicated, near-identically, across `pumice_pkg`, `scoria_pkg`, and `andesite_pkg` (`includes/mc_common_pkg.sv:19-23`). It is imported directly by every common plane and shared FUB in `common-ip/rtl/` (for example, `macro/mc_axi4_plane.sv:178`, `macro/mc_scheduler_plane.sv:26`, `fub/mc_cmd_arb_frfcfs.sv:34`, `fub/mc_addr_mapper.sv:55`). The package contains no parameters, no build-time knobs, and no CSR definitions; it is a pure type-and-function package meant to be imported with `::*` at module scope.
 
 ## 1.2 `memtype_e`
 

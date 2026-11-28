@@ -64,7 +64,7 @@ SoC level
             |   +-- mc_page_policy
             |   +-- mc_bank_timers    (one mc_bank_timer per rank/bank)
             |   +-- mc_global_timers
-            |   +-- mc_cmd_arbiter
+            |   +-- mc_cmd_arb_frfcfs
             |   +-- gaxi_fifo_sync    (command FIFO to the DFI plane)
             +-- mc_training_plane     <- common-ip; HAS_LP_ZQ = HAS_LP_DQ_CAL = 1
             |   +-- mc_lpddr2_zq_ctrl  (slot 0)
@@ -93,7 +93,7 @@ and read aligner run on `dfi_clk`.
 |---|---|---|
 | `mc_axi4_plane` | common-ip | AXI4 slave intakes, shallow FIFOs, burst chop/split, final coalescing, read-data return endpoint ([common_mas ch02](../../../../../common-ip/docs/common_mas/ch02_axi4_plane/01_mc_axi4_plane.md)) |
 | `mc_storage_plane` | common-ip | wr/rd CAMs, read snooping, per-bank open-row image ([common_mas ch03](../../../../../common-ip/docs/common_mas/ch03_storage_plane/01_mc_storage_plane.md)) |
-| `mc_scheduler_plane` | common-ip | `mc_cmd_arbiter`, `mc_bank_timers`, `mc_global_timers`, command FIFO; default children `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl`, `mc_page_policy` ([common_mas ch04](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md)) |
+| `mc_scheduler_plane` | common-ip | `mc_cmd_arb_frfcfs`, `mc_bank_timers`, `mc_global_timers`, command FIFO; default children `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl`, `mc_page_policy` ([common_mas ch04](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md)) |
 | `mc_training_plane` | common-ip | `mc_lpddr2_zq_ctrl`, `mc_lpddr2_dq_cal`, two-slot arbiter, `mc_training_shell` ([common_mas ch05](../../../../../common-ip/docs/common_mas/ch05_training_plane/01_mc_training_plane.md)) |
 | `mc_dfi_2p1_plane` | common-ip | single CDC, command formatter/pipeline, write serializer, read aligner ([common_mas ch07](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md)) |
 | `pumice_core` | pumice | wraps the five planes above |

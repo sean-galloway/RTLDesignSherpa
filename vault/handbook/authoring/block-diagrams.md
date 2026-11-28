@@ -128,7 +128,7 @@ The title is the graph label, so it is part of the drawing and travels with
 it into every render and every book:
 
 ```dot
-graph [label=<<B>Write path through the storage records and mc_bank_pick</B>>,
+graph [label=<<B>Write path through the storage records and mc_cmd_arb_bank</B>>,
        labelloc=t, labeljust=c, fontname="Helvetica", fontsize=12];
 ```
 

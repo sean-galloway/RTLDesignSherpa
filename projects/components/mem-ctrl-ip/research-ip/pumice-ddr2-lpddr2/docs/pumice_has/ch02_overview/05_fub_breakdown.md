@@ -57,7 +57,7 @@ instantiate them directly.
 | `mc_bank_timers` | [ch04 — scheduler plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) | inside `mc_scheduler_plane` |
 | `mc_bank_timer` | [ch04 — scheduler plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) | inside `mc_bank_timers` inside `mc_scheduler_plane` |
 | `mc_global_timers` | [ch04 — scheduler plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) | inside `mc_scheduler_plane` |
-| `mc_cmd_arbiter` | [ch04 — scheduler plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) | inside `mc_scheduler_plane` |
+| `mc_cmd_arb_frfcfs` | [ch04 — scheduler plane](../../../../../common-ip/docs/common_mas/ch04_scheduler_plane/01_mc_scheduler_plane.md) | inside `mc_scheduler_plane` |
 | `mc_training_plane` | [ch05 — training plane](../../../../../common-ip/docs/common_mas/ch05_training_plane/01_mc_training_plane.md) | [`pumice_core.sv:756`](../../../rtl/top/pumice_core.sv) (`u_train_plane`) |
 | `mc_dfi_2p1_plane` | [ch07 — DFI 2.1 plane](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md) | [`pumice_core.sv:803`](../../../rtl/top/pumice_core.sv) (`u_dfi_plane`) |
 | `mc_dfi_cdc` | [ch07 — DFI 2.1 plane](../../../../../common-ip/docs/common_mas/ch07_dfi_2p1_plane/01_mc_dfi_2p1_plane.md) | inside `mc_dfi_2p1_plane` ([`pumice_core.sv:803`](../../../rtl/top/pumice_core.sv)) |
@@ -100,7 +100,7 @@ sentinel tests and filelist comments; they are not part of the current build.
 | `pumice_wr_intake` / `pumice_rd_intake` | Replaced by common `mc_wr_intake` / `mc_rd_intake` inside `mc_axi4_plane`. |
 | `pumice_wr_data_cam` / `pumice_rd_cmd_cam` | Replaced by common `mc_wr_data_cam` / `mc_rd_cmd_cam` inside `mc_storage_plane` ([`pumice_core.sv:504`](../../../rtl/top/pumice_core.sv)). |
 | `pumice_bank_timers` (local) | Replaced by common `mc_bank_timers` inside `mc_scheduler_plane`. |
-| `pumice_cmd_arbiter` (behavioral core) | Replaced by common `mc_cmd_arbiter` inside `mc_scheduler_plane`. The pumice port-adapter wrapper was **removed 2026-10-11** — never instantiated in the default build (it survived only as the issue-rate test DUT); history in git. |
+| `pumice_cmd_arbiter` (behavioral core) | Replaced by common `mc_cmd_arb_frfcfs` inside `mc_scheduler_plane`. The pumice port-adapter wrapper was **removed 2026-10-11** — never instantiated in the default build (it survived only as the issue-rate test DUT); history in git. |
 | `pumice_scheduler_plane` (behavioral macro) | **Removed 2026-10-11** — its init/refresh/page-policy children are now composed directly by common `mc_scheduler_plane` ([`pumice_core.sv:601`](../../../rtl/top/pumice_core.sv)). |
 | `pumice_training_plane` (behavioral macro) | **Removed 2026-10-11** — its LPDDR2 ZQ/DQ-cal clients are now composed directly by common `mc_training_plane` ([`pumice_core.sv:756`](../../../rtl/top/pumice_core.sv)). |
 | `pumice_dfi_cdc` / `pumice_dfi_cmd_path` / `pumice_dfi_wr_serializer` / `pumice_dfi_rd_aligner` | Pumice-local DFI wrappers retired; common `mc_dfi_2p1_plane` owns the CDC and datapath ([`pumice_core.sv:803`](../../../rtl/top/pumice_core.sv)). |
@@ -109,7 +109,7 @@ sentinel tests and filelist comments; they are not part of the current build.
 | `xbank_timers` | Replaced by common `mc_global_timers` (turnaround) + `mc_bank_timers` (per-bank). |
 | `cmd_encoder` | Replaced by common `mc_dfi_cmd_path` (which instantiates common `mc_xddr2_cmd_formatter`). |
 | `odt_ctrl` | ODT handling now lives inside `mc_xddr2_cmd_formatter` / `mc_xddr2_mode_register`; no standalone block. |
-| `page_predictor` (standalone) | Open-page decision is inline in common `mc_cmd_arbiter`; runtime policy is provided by common `mc_page_policy`. The adaptive modes retired 2026-09-27 (`mc_page_policy`: the `adapt_time`/`adapt_access` encodings 4/5 now fall through to the build default). |
+| `page_predictor` (standalone) | Open-page decision is inline in common `mc_cmd_arb_frfcfs`; runtime policy is provided by common `mc_page_policy`. The adaptive modes retired 2026-09-27 (`mc_page_policy`: the `adapt_time`/`adapt_access` encodings 4/5 now fall through to the build default). |
 | `wr_cmd_cam` | Replaced by common `mc_wr_data_cam`. |
 | `scheduler` | Replaced by common `mc_scheduler_plane`. |
 | `gear_dfi` | Replaced by common `mc_dfi_2p1_plane`. |

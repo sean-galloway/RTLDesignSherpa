@@ -86,7 +86,7 @@ product) carries BANK_PICK.** The Phase 2 default of BANK_PICK on pumice
 lasted one day; every harness / tb / proxy default followed the flip.
 
 - **BANK_PICK (`SCHED_CORE=1`; granite's default, selectable here):**
-  `mc_bank_pick` on the storage plane's REGISTERED per-bank head records.
+  `mc_cmd_arb_bank` on the storage plane's REGISTERED per-bank head records.
   Decode (per bank) -> round-robin arbiter -> fire, every stage fed by flops;
   `BANK_LA` = 2 = the pipe depth, so a request reaches the fire stage the
   cycle its timer opens. A one-cycle pop shadow, a next-op hint (hop ==

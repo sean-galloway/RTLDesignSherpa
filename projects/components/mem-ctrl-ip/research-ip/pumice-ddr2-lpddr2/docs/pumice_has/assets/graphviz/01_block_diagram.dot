@@ -32,7 +32,7 @@ mc_xddr2_refresh_ctrl", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 mc_training_plane - mc_lpddr2_zq_ctrl,
 mc_lpddr2_dq_cal (MRR)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    sched [label="DDR Command Scheduler\nmc_scheduler_plane - mc_cmd_arbiter (FR-FCFS pick)
+    sched [label="DDR Command Scheduler\nmc_scheduler_plane - mc_cmd_arb_frfcfs (FR-FCFS pick)
 page policy: mc_page_policy",
            shape=polygon, sides=4, distortion=0.10, width=9.5, height=0.6,
            fillcolor="#BDD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];

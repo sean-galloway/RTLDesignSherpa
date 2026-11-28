@@ -83,7 +83,7 @@ MRS/MPC shaped) that pumice already has but scoria does not.
 
 | bucket | evidence (`file:line`) | what diverges | resolution hint |
 |---|---|---|---|
-| A | `pumice_cmd_arbiter.sv:7-8` / `scoria_cmd_arbiter.sv:7-8`; `p:26-27` / `s:29-30`; rock-prefixed comments throughout | Module/package names, comments, doc paths, child references (`pumice_page_policy`/`scoria_page_policy`). | Rename to `mc_cmd_arbiter`; scrub rock prefixes. |
+| A | `pumice_cmd_arbiter.sv:7-8` / `scoria_cmd_arbiter.sv:7-8`; `p:26-27` / `s:29-30`; rock-prefixed comments throughout | Module/package names, comments, doc paths, child references (`pumice_page_policy`/`scoria_page_policy`). | Rename to `mc_cmd_arb_frfcfs`; scrub rock prefixes. |
 | C | `scoria_cmd_arbiter.sv:119-131`, `s:230` | ZQ calibration ports `zq_req_i`, `zq_grant_o`, `t_zqcs_i`; `t_rfc_pb_i` repositioned; `stall_zq_o` output. | Union ports; pumice ties off ZQ. |
 | C | `pumice_cmd_arbiter.sv:140-147`, `p:212` | Pumice training ports `trn_cmd_*` and `cal_busy_i`; `cmd_mrr_o` output. Removed in scoria. | Union training/MRR ports; scoria ties off. |
 | D | `pumice_cmd_arbiter.sv:704-735,753-793,928-954` / `scoria_cmd_arbiter.sv:733,739-822,967-975` | Pumice uses the unified 2N-entry prospect pool (`POOL`, `pool_*`, `f_pool_*`); scoria still uses split rd/wr classify and population loops. | Adopt the unified pool in the common core (Task 4.5 proved it bit-identical). |

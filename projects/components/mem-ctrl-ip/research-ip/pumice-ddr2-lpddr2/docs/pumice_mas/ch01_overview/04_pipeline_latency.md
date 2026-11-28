@@ -77,7 +77,7 @@ merged registers (a bit-blasted `r_bank[2:0]` is one), not raw flop cells.
 | `mc_dfi_wr_serializer` | 2 | 2 | 12 |
 | `mc_wr_splitter` | 2 | 13 | 51 |
 | `mc_bank_timers` | 3 | 48 | 72 |
-| `mc_cmd_arbiter` | 3 | 57 | 128 |
+| `mc_cmd_arb_frfcfs` | 3 | 57 | 128 |
 | `mc_rd_cmd_cam` | 3 | 11 | 49 |
 | `mc_rd_intake` | 3 | 24 | 75 |
 | `mc_xddr2_refresh_ctrl` | 3 | 6 | 26 |

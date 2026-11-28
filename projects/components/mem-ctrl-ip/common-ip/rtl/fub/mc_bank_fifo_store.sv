@@ -26,7 +26,7 @@
 //          incoming row is compared with the bank's tail row (one compare per
 //          direction per cycle) and the result rides the queue position. The
 //          pick core reads the flag as "the entry behind this one shares its
-//          row" (mc_bank_pick, the speculation note), which for an in-order
+//          row" (mc_cmd_arb_bank, the speculation note), which for an in-order
 //          per-bank queue is exactly that bit. The only row compares per
 //          cycle are the two HEADS' hits against the scheduler's open-row
 //          image (one per direction per bank).
@@ -48,7 +48,7 @@
 //          A commit or issue always names the HEAD of its bank queue: the pick
 //          core fires the head record, or in the one cycle after a pop (the
 //          record's registered latency) the second record, which by then is
-//          the head (mc_bank_pick, r_shadow). Each (direction, bank) queue is
+//          the head (mc_cmd_arb_bank, r_shadow). Each (direction, bank) queue is
 //          a gaxi_age_fifo_sync (2026-10-25, owner's choice over the linked
 //          list it replaces): the entry is {same-row-as-previous, slot}, the
 //          FIFO exposes its head and the two entries behind it (PEEK = 2),
@@ -256,7 +256,7 @@ module mc_bank_fifo_store
     output logic                rd_issue_ready_o,
     input  logic [PTRW-1:0]     rd_issue_slot_i,
     // the pick's column candidate this cycle as coordinates (registers in
-    // the pick; see mc_bank_pick): direction, bank, record 1 or 2. The
+    // the pick; see mc_cmd_arb_bank): direction, bank, record 1 or 2. The
     // merge searches skip the entry those coordinates name.
     input  logic                wr_commit_cand_i,
     input  logic                rd_issue_cand_i,
@@ -274,7 +274,7 @@ module mc_bank_fifo_store
     output mc_head_rec_t [NUM_BANKS-1:0]   rd_head_o,
     output mc_head_rec_t [NUM_BANKS-1:0]   rd_head2_o,
     // Slot fields for the pick core's payload lookup (row / col by slot; the
-    // records above carry no row / col -- see mc_bank_pick, 2026-10-24).
+    // records above carry no row / col -- see mc_cmd_arb_bank, 2026-10-24).
     output logic [NUM_ENTRIES*ROW_WIDTH-1:0] wr_sch_row_o,
     output logic [NUM_ENTRIES*COL_WIDTH-1:0] wr_sch_col_o,
     output logic [NUM_ENTRIES*ROW_WIDTH-1:0] rd_sch_row_o,

@@ -63,7 +63,7 @@ When `refpb_mode_i` is set (LPDDR2 per-bank refresh), `r_bank_rotor` advances 0.
 
 ## Arbiter-Side Refresh Sequence
 
-`refresh_ctrl` only raises `refresh_req` / `refresh_drain`. The precharge-then-REF sequence is performed by `mc_cmd_arbiter` at refresh priority (second only to init):
+`refresh_ctrl` only raises `refresh_req` / `refresh_drain`. The precharge-then-REF sequence is performed by `mc_cmd_arb_frfcfs` at refresh priority (second only to init):
 
 1. While any bank on the target rank has an open row, precharge the active banks one per cycle (lowest ready bank first, honoring the ACT/PRE guard).
 2. Once no bank has an open row **and `w_ref_safe` holds** — nothing

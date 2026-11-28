@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// GOLDEN COPY of mc_bank_pick as committed at 821b5c164 (2026-11-08), module
-// renamed, for the equivalence tasks of bank_pick.sby: the resolved winner /
+// GOLDEN COPY of mc_cmd_arb_bank as committed at 821b5c164 (2026-11-08), module
+// renamed, for the equivalence tasks of cmd_arb_bank.sby: the resolved winner /
 // stale-mask registers (memory-controllers MC-011) must be cycle-exact against
 // this form on every output. Never edit this file to follow the RTL -- a
 // change that needs the golden copy changed is a change of behaviour, and the
@@ -24,7 +24,7 @@
 
 `include "reset_defs.svh"
 
-module mc_bank_pick_gold
+module mc_cmd_arb_bank_gold
     import mc_common_pkg::*;
 #(
     parameter int NUM_RANKS   = 1,
@@ -1428,4 +1428,4 @@ module mc_bank_pick_gold
     assign dbg_dir_cause_o = r_dir_cause;
     assign dbg_dir_batch_o = r_dir_end_batch;
 
-endmodule : mc_bank_pick_gold
+endmodule : mc_cmd_arb_bank_gold

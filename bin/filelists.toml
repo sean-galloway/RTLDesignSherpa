@@ -762,7 +762,7 @@ name = "formal_mc_common_equiv"
 kind = "testbench"
 rtl_roots = []
 filelist_dirs = [
-    "formal/mc_common/mc_bank_pick/filelists",
+    "formal/mc_common/mc_cmd_arb_bank/filelists",
     "formal/mc_common/mc_bank_timer/filelists",
     "formal/mc_common/mc_global_timers/filelists",
 ]

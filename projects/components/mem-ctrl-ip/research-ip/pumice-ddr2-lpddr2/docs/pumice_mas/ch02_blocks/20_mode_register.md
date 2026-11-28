@@ -75,7 +75,7 @@ For DDR2, `cl_o` is the raw MR0[6:4] field and `cwl_o` is simply `CL − 1`
 
 All outputs are strict-flop registered. Consumed by:
 
-- `mc_cmd_arbiter` / `mc_scheduler_plane` — use `cl_o`, `cwl_o`,
+- `mc_cmd_arb_frfcfs` / `mc_scheduler_plane` — use `cl_o`, `cwl_o`,
   `al_o` to time RD/WR latencies.
 - write data path (`mc_dfi_wr_serializer` via `t_phy_wrlat`) — sized
   against `cwl_o` for the WR-to-wrdata window.

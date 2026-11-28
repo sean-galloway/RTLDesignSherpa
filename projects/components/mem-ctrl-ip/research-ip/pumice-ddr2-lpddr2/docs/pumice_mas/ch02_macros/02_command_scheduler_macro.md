@@ -27,7 +27,7 @@
 **Location:** `projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_scheduler_plane.sv`  
 **Category:** Plane-2 macro in `pumice_core`  
 **Instance:** `u_sched_plane` (`rtl/top/pumice_core.sv:601-751`)  
-**Child FUBs (pumice build):** `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl`, `mc_page_policy`, `mc_bank_timers` (`mc_bank_timer` per bank), `mc_global_timers`, `mc_cmd_arbiter`, `gaxi_fifo_sync` command FIFO
+**Child FUBs (pumice build):** `mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, `mc_xddr2_refresh_ctrl`, `mc_page_policy`, `mc_bank_timers` (`mc_bank_timer` per bank), `mc_global_timers`, `mc_cmd_arb_frfcfs`, `gaxi_fifo_sync` command FIFO
 
 ## Purpose
 
@@ -49,7 +49,7 @@ The common scheduler microarchitecture is documented in [Chapter 4 of the common
 | `u_page_policy` | `mc_page_policy` | `HAS_PAGE_POLICY = 1` | Runtime page-policy engine producing the auto-precharge / timeout-precharge controls and the page telemetry. |
 | `u_bank_timers` | `mc_bank_timers` | always | One FSM-free `mc_bank_timer` per (rank, bank). |
 | `u_global_timers` | `mc_global_timers` | always | tFAW / tRRD / tWTR / tRTW / tCCD. |
-| `u_arbiter` | `mc_cmd_arbiter` | always | The single command-pick core. |
+| `u_arbiter` | `mc_cmd_arb_frfcfs` | always | The single command-pick core. |
 | `u_cmd_fifo` | `gaxi_fifo_sync` | always | Scheduler-to-DFI command FIFO (`CMD_FIFO_DEPTH`, default 16). |
 
 `HAS_CMD_HISTORY` stays 0, so the scheduler-side `mc_cmd_history_checker` (`u_cmd_history`) is not built in pumice; pumice's `CMD_HISTORY_EN` arms the DFI-wire checker inside `mc_dfi_cmd_path` instead. Because the children are internal, `pumice_core` ties the plane's external child-override inputs off: `init_done_i = 1`, `init_cmd_valid_i = 0`, `refresh_req_i = 0`, `ap_mode_en_i = 0`, `timeout_pre_req_i = 0`, and the rest to zero.

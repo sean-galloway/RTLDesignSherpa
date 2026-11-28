@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: mc_bank_pick
+// Module: mc_cmd_arb_bank
 // Purpose: Per-bank pick core for the scheduler plane (mem-ctrl recovery
 //          Phase 2, plan docs/superpowers/plans/2026-10-21-mem-ctrl-recovery.md
 //          section 2.2). Consumes the storage plane's REGISTERED per-bank head
@@ -93,7 +93,7 @@
 //   at 100 MHz with it in: sys100 2026-11-12), never to the main winner's
 //   bank, so a word carries one row command at most and tRRD / tFAW still see
 //   one ACT per cycle. Rules, all mirrored from the FR-FCFS core's lane
-//   (mc_cmd_arbiter, pumice TASK-047):
+//   (mc_cmd_arb_frfcfs, pumice TASK-047):
 //     * rideable = a row request whose bank has no column request (the
 //       stale-masked set); ACT before PRE, the age tie-break and the rotor
 //       inside the class. The main winner's bank is kept out at the FIRE
@@ -111,13 +111,13 @@
 //       raises the pair's next-op hint when the main lane raised none that
 //       cycle (one hint register); otherwise the lookahead decode lands it.
 //     * DUAL_ISSUE = 0 is bit-identical to the single-issue core (the
-//       equivalence proof in formal/mc_common/mc_bank_pick); dual_issue_en_i
+//       equivalence proof in formal/mc_common/mc_cmd_arb_bank); dual_issue_en_i
 //       is the runtime enable on a DUAL_ISSUE build.
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module mc_bank_pick
+module mc_cmd_arb_bank
     import mc_common_pkg::*;
 #(
     parameter int NUM_RANKS   = 1,
@@ -616,7 +616,7 @@ module mc_bank_pick
     // winner, the speculation and the fresh pick at the D input, and the
     // fire stage reads flops. Cycle-exact with the mux form -- the register
     // holds what the mux produced -- proved against the golden copy in
-    // formal/mc_common/mc_bank_pick.
+    // formal/mc_common/mc_cmd_arb_bank.
     logic             r_win_vld;
     logic [PAIRW-1:0] r_win_pair;
     cls_e             r_win_cls;
@@ -1874,4 +1874,4 @@ module mc_bank_pick
     assign dbg_dir_cause_o = r_dir_cause;
     assign dbg_dir_batch_o = r_dir_end_batch;
 
-endmodule : mc_bank_pick
+endmodule : mc_cmd_arb_bank

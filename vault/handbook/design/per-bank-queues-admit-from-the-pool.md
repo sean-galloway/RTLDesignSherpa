@@ -52,7 +52,7 @@ that never finished.
 - The record flag that made depth expensive, same-row-behind, is a stored
   bit per queue position: at push the incoming row is compared with the
   bank's registered tail row (one compare per direction per cycle), and the
-  bit rides the position through the pack-on-pop. `mc_bank_pick` already
+  bit rides the position through the pack-on-pop. `mc_cmd_arb_bank` already
   reads the flag as "the entry behind this one shares its row", which for an
   in-order per-bank queue is exactly that bit. The only per-cycle compares
   left are the heads' row hits against the open-row image.

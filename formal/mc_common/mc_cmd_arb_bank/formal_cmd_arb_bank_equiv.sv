@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Equivalence harness: mc_bank_pick with the resolved effective-winner and
+// Equivalence harness: mc_cmd_arb_bank with the resolved effective-winner and
 // stale-mask registers (memory-controllers MC-011, 2026-11-08) against the
 // golden copy of the mux-resolved form (three register sets and a hold bit,
 // resolved by a 2:1 mux in front of the fire stage). Same free inputs to both,
@@ -27,7 +27,7 @@
 // records arrive as NUM_BANKS x 45-bit vectors, dram_op_e as [4:0],
 // page_policy_e as [1:0]); immediate assertions.
 `timescale 1ns / 1ps
-module formal_bank_pick_equiv #(
+module formal_cmd_arb_bank_equiv #(
     parameter int NUM_BANKS   = 8,
     parameter int ROW_WIDTH   = 14,
     parameter int COL_WIDTH   = 10,
@@ -151,13 +151,13 @@ module formal_bank_pick_equiv #(
                      g_stall_bp, g_stall_refresh, g_stall_turnaround, g_stall_tccd, g_stall_actlimit, g_stall_banktimer, g_stall_noreq, g_stall_zq,
                      g_dbg_dir_flip, g_dbg_dir, g_dbg_dir_cause, g_dbg_dir_batch};
 
-    mc_bank_pick #(.NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
+    mc_cmd_arb_bank #(.NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
                    .NUM_ENTRIES(NUM_ENTRIES), .LA(LA), .DIR_OWNS_ROWS(DIR_OWNS_ROWS), .DIR_HOLD_IDLE(DIR_HOLD_IDLE),
                    .HAS_RD_PRIO(1'b1)) dut_new (
         `PICK_PORTS(n_),
         .rd_prio_en_i(1'b0), .wr_starve_i(wr_starve), .wr_burst_i(wr_burst)
     );
-    mc_bank_pick_gold #(.NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
+    mc_cmd_arb_bank_gold #(.NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
                         .NUM_ENTRIES(NUM_ENTRIES), .LA(LA), .DIR_OWNS_ROWS(DIR_OWNS_ROWS), .DIR_HOLD_IDLE(DIR_HOLD_IDLE)) dut_gold (
         `PICK_PORTS(g_)
     );

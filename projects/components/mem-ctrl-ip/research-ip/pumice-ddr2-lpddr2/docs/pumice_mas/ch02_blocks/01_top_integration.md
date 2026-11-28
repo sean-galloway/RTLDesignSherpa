@@ -102,7 +102,7 @@ edge concern — the core does not gear internally).
 |------------|-------------------------------|-------|--------------------|-------------------------------------------------|
 | `u_axi_plane`    | `mc_axi4_plane`             | 1     | `aclk`             | Host AXI4 face; wr/rd intakes (with `mc_addr_mapper`), splitter, chopper, rd return ring |
 | `u_store_plane`  | `mc_storage_plane`          | 1     | `aclk`             | wr-data CAM + rd-cmd CAM; schedulable-entry vectors |
-| `u_sched_plane`  | `mc_scheduler_plane`        | 1     | `aclk`             | `mc_cmd_arbiter` + bank/global timers + `mc_xddr2_refresh_ctrl` / `_init_sequencer` / `_mode_register` + `mc_page_policy` + cmd FIFO |
+| `u_sched_plane`  | `mc_scheduler_plane`        | 1     | `aclk`             | `mc_cmd_arb_frfcfs` + bank/global timers + `mc_xddr2_refresh_ctrl` / `_init_sequencer` / `_mode_register` + `mc_page_policy` + cmd FIFO |
 | `u_train_plane`  | `mc_training_plane`         | 1     | `aclk` → `dfi_clk` | `mc_lpddr2_zq_ctrl` + `mc_lpddr2_dq_cal` + `mc_training_shell` (slot mux + cal sideband CDC) |
 | `u_dfi_plane`    | `mc_dfi_2p1_plane`            | 1     | `aclk` → `dfi_clk` | Single async CDC + DFI cmd/wr/rd datapath       |
 

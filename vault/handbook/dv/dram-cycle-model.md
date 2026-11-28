@@ -107,7 +107,7 @@ read the line because the run passed.
 
 The fix the two measurements pointed at took an afternoon once the slot was
 named: a row-only second issue lane on the pick core (memory-controllers
-MC-014, `mc_bank_pick` `DUAL_ISSUE`, the FR-FCFS core's lane re-made with the
+MC-014, `mc_cmd_arb_bank` `DUAL_ISSUE`, the FR-FCFS core's lane re-made with the
 pick core's own rules). Sim at the same point, lane off -> on:
 `col_major_interleaved` reads 686 -> 773, `row_thrash` 687 -> 775, `random`
 656 -> 722, against the model's 781 / 781 / 773; `col_major` unchanged
@@ -208,7 +208,7 @@ an afternoon and closed the task without RTL; what it left:
 
 - **Read the consumer before modelling the producer.** The task's premise,
   "the pick can see one record past a conflicting head", came from the
-  store's port list. `mc_bank_pick` reads the second record in one
+  store's port list. `mc_cmd_arb_bank` reads the second record in one
   expression under one condition (the pop shadow); its hit is a stored
   same-row bit. One grep said the RTL is the model's strict FIFO already,
   and the model was then built to answer the next question (what a real
@@ -236,7 +236,7 @@ an afternoon and closed the task without RTL; what it left:
 MC-016 left granite's `mixed` window 20-24 percent under the model's own
 shape with a read waiting 52 000 cycles. MC-017 counted the direction
 register's flips, swept the cap the task named, and fixed the mechanism in
-`mc_bank_pick` (`char_results/sim_mc017_direction_register_2026-11-15.md`).
+`mc_cmd_arb_bank` (`char_results/sim_mc017_direction_register_2026-11-15.md`).
 What it left:
 
 - **Count the flips before touching the rule.** A per-flip log with the
@@ -481,7 +481,7 @@ asked for a `hop_lag` term. The term reproduced the one probe window it was
 read from (an eight-slot period per two beats) and missed the board by 17
 percent on the eight-bank chain, because the RTL's period is six, seven or
 eight slots, decided slot by slot by registers the model did not have. The
-model now carries `mc_bank_pick`'s stages (`model_mc021_pick_pipeline_2026-11-17.md`).
+model now carries `mc_cmd_arb_bank`'s stages (`model_mc021_pick_pipeline_2026-11-17.md`).
 What it cost to learn:
 
 - **A measured latency is not a term when it comes from a pipeline.** The

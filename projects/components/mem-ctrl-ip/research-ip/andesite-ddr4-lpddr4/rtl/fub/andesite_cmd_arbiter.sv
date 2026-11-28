@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: andesite_cmd_arbiter
-// Purpose: Thin andesite wrapper around the common mc_cmd_arbiter core.
+// Purpose: Thin andesite wrapper around the common mc_cmd_arb_frfcfs core.
 //          Preserves the historical andesite port list (ZQ arm, training
 //          command slot, DDR4 bank-group pick) and maps the training MRS/MPC
 //          payload onto the common core's generic maintenance slot.
@@ -151,7 +151,7 @@ module andesite_cmd_arbiter
 
     logic [5:0] w_cmd_extra;
 
-    mc_cmd_arbiter #(
+    mc_cmd_arb_frfcfs #(
         .NUM_RANKS   (NUM_RANKS),
         .NUM_BANKS   (NUM_BANKS),
         .NUM_BG      (NUM_BG),

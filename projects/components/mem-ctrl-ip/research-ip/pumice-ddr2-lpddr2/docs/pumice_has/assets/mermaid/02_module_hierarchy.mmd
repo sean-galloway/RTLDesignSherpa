@@ -24,7 +24,7 @@ graph TD
     stor --> wr_data_cam["mc_wr_data_cam<br/><i>WR CAM + wr-data SRAM; fill/commit-drain/snarf</i>"]
     stor --> rd_cmd_cam["mc_rd_cmd_cam<br/><i>RD CAM + rd SRAM; return-fill/drain</i>"]
 
-    sched --> sched_core["mc_cmd_arbiter + mc_bank_timers + mc_global_timers<br/><i>pick machinery + timers + cmd FIFO</i>"]
+    sched --> sched_core["mc_cmd_arb_frfcfs + mc_bank_timers + mc_global_timers<br/><i>pick machinery + timers + cmd FIFO</i>"]
     sched --> init_sequencer["mc_xddr2_init_sequencer<br/><i>DDR2 + LPDDR2 JEDEC MR init</i>"]
     sched --> mode_register["mc_xddr2_mode_register<br/><i>CL/CWL/BL/AL decode</i>"]
     sched --> refresh_ctrl["mc_xddr2_refresh_ctrl<br/><i>tREFI accumulator + drain</i>"]

@@ -37,7 +37,7 @@ The plane does not hold the transaction queue. The schedulable-entry vectors (va
 - `mc_xddr2_mode_register` (`HAS_MODE_REGISTER = 1`) — CL / CWL / BL decode shadow, updated by init MRS writes.
 - `mc_xddr2_refresh_ctrl` (`HAS_REFRESH_CTRL = 1`) — tREFI tracking + postpone/pull-in accumulator (see `04_refresh.md`).
 - `mc_page_policy` (`HAS_PAGE_POLICY = 1`) — runtime auto-precharge engine.
-- `mc_bank_timers`, `mc_global_timers` and `mc_cmd_arbiter` — the pick machinery and JEDEC timers.
+- `mc_bank_timers`, `mc_global_timers` and `mc_cmd_arb_frfcfs` — the pick machinery and JEDEC timers.
 - `gaxi_fifo_sync` — the scheduler-to-DFI command FIFO.
 
 `HAS_CMD_HISTORY` is left at 0, so the scheduler-side `mc_cmd_history_checker` is not built in pumice; the `CMD_HISTORY_EN` knob arms the DFI-wire checker inside `mc_dfi_cmd_path` instead (Ch 3.6). Because the children are built in, `pumice_core` ties the plane's external init / refresh / page-policy override inputs off (`init_done_i = 1`, `refresh_req_i = 0`, `ap_mode_en_i = 0`, ...); they exist for products that supply their own children. The timing and scheduler CSR inputs come straight from `pumice_top`'s CSR block.
@@ -61,13 +61,13 @@ The single-bit `mrr` flag is carried in `maint_extra_i[0]` and recovered on the 
 
 ## DDR2/LPDDR2 children and CSR surface
 
-`mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, and `mc_xddr2_refresh_ctrl` are the DDR2/LPDDR2-generation children (`xddr2`); other family products disable them with the `HAS_*` parameters and supply their own. `mc_page_policy` is the runtime page-policy engine; it consumes the `page_mode_i`/`page_tr_init_i` CSRs and produces the auto-precharge controls consumed by `mc_cmd_arbiter`.
+`mc_xddr2_init_sequencer`, `mc_xddr2_mode_register`, and `mc_xddr2_refresh_ctrl` are the DDR2/LPDDR2-generation children (`xddr2`); other family products disable them with the `HAS_*` parameters and supply their own. `mc_page_policy` is the runtime page-policy engine; it consumes the `page_mode_i`/`page_tr_init_i` CSRs and produces the auto-precharge controls consumed by `mc_cmd_arb_frfcfs`.
 
 The static page-policy override `page_policy_i` (OPEN / CLOSE / HAPPY_HYBRID) is still accepted at the plane's top level; the arbiter honors it when the runtime engine is disabled. The `HAPPY_HYBRID` enum encoding and the standalone `page_predictor.sv` are retired; the encoding maps to the build default. The adaptive modes `adapt_time` and `adapt_access` were RETIRED 2026-09-27, TASK-014.
 
 ## Measured history preserved in the common pick machinery
 
-Pumice does not alter the common `mc_cmd_arbiter` pick core. The following measured bug-history sentences from the merge inventory ([mc_scheduler_knobs.md](../../../../../common-ip/docs/mc_scheduler_knobs.md) §6.4) are preserved verbatim because they govern the fire-stage authority that pumice relies on:
+Pumice does not alter the common `mc_cmd_arb_frfcfs` pick core. The following measured bug-history sentences from the merge inventory ([mc_scheduler_knobs.md](../../../../../common-ip/docs/mc_scheduler_knobs.md) §6.4) are preserved verbatim because they govern the fire-stage authority that pumice relies on:
 
 - **pumice BUG-021**: dropping an ACT whose only obstacle was the rank-global tFAW/tRRD window regressed close-page throughput from the accepted 30.77% calibration to 28.57%; holding recovered to 30.14%.
 - **ISSUE-002**: moving tFAW/tRRD to the classify mask drained the 3-stage pipeline and dropped close-page throughput from 30.77% to ~18%.

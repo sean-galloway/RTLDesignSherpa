@@ -47,27 +47,27 @@ rdprio: smtbmc bitwuzla
 rdprio_cover: smtbmc bitwuzla
 
 [script]
-read_verilog -formal bank_pick_flat.v
-read_verilog -formal bank_pick_gold_flat.v
-equiv: read -formal -sv formal_bank_pick_equiv.sv
-equiv_n4: read -formal -sv formal_bank_pick_equiv.sv
-cover: read -formal -sv formal_bank_pick_equiv.sv
-dual: read -formal -sv formal_bank_pick_dual.sv
-dual_cover: read -formal -sv formal_bank_pick_dual.sv
-rdprio: read -formal -sv formal_bank_pick_rdprio.sv
-rdprio_cover: read -formal -sv formal_bank_pick_rdprio.sv
-equiv_n4: chparam -set NUM_BANKS 4 -set NUM_ENTRIES 4 -set DIR_OWNS_ROWS 0 -set DIR_HOLD_IDLE 0 formal_bank_pick_equiv
-equiv: prep -top formal_bank_pick_equiv
-equiv_n4: prep -top formal_bank_pick_equiv
-cover: prep -top formal_bank_pick_equiv
-dual: prep -top formal_bank_pick_dual
-dual_cover: prep -top formal_bank_pick_dual
-rdprio: prep -top formal_bank_pick_rdprio
-rdprio_cover: prep -top formal_bank_pick_rdprio
+read_verilog -formal cmd_arb_bank_flat.v
+read_verilog -formal cmd_arb_bank_gold_flat.v
+equiv: read -formal -sv formal_cmd_arb_bank_equiv.sv
+equiv_n4: read -formal -sv formal_cmd_arb_bank_equiv.sv
+cover: read -formal -sv formal_cmd_arb_bank_equiv.sv
+dual: read -formal -sv formal_cmd_arb_bank_dual.sv
+dual_cover: read -formal -sv formal_cmd_arb_bank_dual.sv
+rdprio: read -formal -sv formal_cmd_arb_bank_rdprio.sv
+rdprio_cover: read -formal -sv formal_cmd_arb_bank_rdprio.sv
+equiv_n4: chparam -set NUM_BANKS 4 -set NUM_ENTRIES 4 -set DIR_OWNS_ROWS 0 -set DIR_HOLD_IDLE 0 formal_cmd_arb_bank_equiv
+equiv: prep -top formal_cmd_arb_bank_equiv
+equiv_n4: prep -top formal_cmd_arb_bank_equiv
+cover: prep -top formal_cmd_arb_bank_equiv
+dual: prep -top formal_cmd_arb_bank_dual
+dual_cover: prep -top formal_cmd_arb_bank_dual
+rdprio: prep -top formal_cmd_arb_bank_rdprio
+rdprio_cover: prep -top formal_cmd_arb_bank_rdprio
 
 [files]
-formal_bank_pick_equiv.sv
-formal_bank_pick_dual.sv
-formal_bank_pick_rdprio.sv
-bank_pick_flat.v
-bank_pick_gold_flat.v
+formal_cmd_arb_bank_equiv.sv
+formal_cmd_arb_bank_dual.sv
+formal_cmd_arb_bank_rdprio.sv
+cmd_arb_bank_flat.v
+cmd_arb_bank_gold_flat.v

@@ -32,7 +32,7 @@
 **Status:** Implemented — FSM-free tREFI/pending/drain accumulator with a REFab/REFpb selector and REFpb bank rotor.
 
 > Refresh **recovery** (tRFC) is not this block's job: the arbiter
-> (`mc_cmd_arbiter`) loads a down-counter from `TIMINGS_RFC_REFI.tRFC` on
+> (`mc_cmd_arb_frfcfs`) loads a down-counter from `TIMINGS_RFC_REFI.tRFC` on
 > each fired REF and blocks ACT/REF picks until it expires — see
 > [ch02/07](07_scheduler.md). `mc_xddr2_refresh_ctrl` only meters *when* refreshes are
 > owed.
@@ -52,7 +52,7 @@
 > `refresh_req`/`refresh_gnt` handshake arrays. Refresh does not use a
 > bank-machine handshake: it raises a single `refresh_req_o` and wins
 > against other scheduler commands by priority inside
-> `mc_cmd_arbiter`. Those retired features are collected under
+> `mc_cmd_arb_frfcfs`. Those retired features are collected under
 > [Open Questions / Future Work](#open-questions--future-work).
 
 ---
@@ -247,7 +247,7 @@ them yet.
   request and drain hint; the scheduler decides when to pulse
   `refresh_grant_i`, and the module bookkeeps against those pulses.
 - **Priority, not handshake.** Refresh wins against other scheduler
-  commands by priority in `mc_cmd_arbiter`; there is no per-bank
+  commands by priority in `mc_cmd_arb_frfcfs`; there is no per-bank
   `refresh_req`/`refresh_gnt` array and no bank-machine handshake.
 
 ---

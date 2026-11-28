@@ -301,7 +301,7 @@ module mc_xddr2_entry_store
 
     // COMMIT-READY IS STRUCTURAL, NOT SLOT-QUALIFIED -- this is the silicon-
     // proven mc_wr_data_cam contract and it is NOT negotiable. The arbiter's
-    // column mask gates on wr_commit_ready_i (mc_cmd_arbiter pool_col_m), so a
+    // column mask gates on wr_commit_ready_i (mc_cmd_arb_frfcfs pool_col_m), so a
     // ready that qualifies r_wr_valid[wr_commit_slot_i] closes a combinational
     // circle: mask needs ready, ready needs the arbiter's CURRENT slot pointer,
     // and that register goes stale the moment a committed slot drains and frees.

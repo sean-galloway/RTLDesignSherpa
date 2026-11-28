@@ -14,8 +14,8 @@ research-ip, product-ip) plus the Nexys A7 characterization/build areas
 ## Storage-backend verification rule
 
 Any new or changed storage backend — anything that drives
-`mc_cmd_arbiter`'s `wr_commit_*` / `rd_issue_*` handshake — must be
-co-verified against the **real `mc_cmd_arbiter`** at **max-depth
+`mc_cmd_arb_frfcfs`'s `wr_commit_*` / `rd_issue_*` handshake — must be
+co-verified against the **real `mc_cmd_arb_frfcfs`** at **max-depth
 `NUM_ENTRIES`** with **more than N chunks in flight per direction** before
 the change is considered done. Unit/fub tests of the backend alone are
 necessary but not sufficient.
